@@ -1,4 +1,10 @@
-export type Category = 'Amigurumi' | 'Apparel' | 'Home Decor' | 'Accessories' | 'Baby Items';
+export type Category =
+  | 'Hair Accessories'
+  | 'Rakhi'
+  | 'Anklets'
+  | 'Brooches'
+  | 'Charms & Keychains'
+  | 'Festive Decor';
 
 export interface Product {
   id: string;

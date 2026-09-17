@@ -32,7 +32,7 @@ function App() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 space-y-6">
+      <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
         <SearchBar value={query} onChange={setQuery} />
         <CategoryFilter categories={categories} active={activeCategory} onSelect={setActiveCategory} />
         <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
