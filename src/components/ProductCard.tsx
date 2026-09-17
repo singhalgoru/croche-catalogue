@@ -1,4 +1,5 @@
 import type { Product } from '../types/product';
+import { formatINR } from '../utils/currency';
 
 interface Props {
   product: Product;
@@ -23,7 +24,7 @@ export default function ProductCard({ product, onSelect }: Props) {
       <div className="p-4">
         <p className="text-xs uppercase tracking-wide text-rose-500">{product.category}</p>
         <h3 className="font-semibold text-rose-900 mt-1">{product.name}</h3>
-        <p className="text-rose-700 font-medium mt-2">${product.price.toFixed(2)}</p>
+        <p className="text-rose-700 font-medium mt-2">{formatINR(product.price)}</p>
       </div>
     </button>
   );
