@@ -1,8 +1,12 @@
 import type { Product } from '../types/product';
 
 // Real Luvia product photos live in `public/images`. Filenames are the
-// original WhatsApp export names, so we URL-encode them for use as <img src>.
-const img = (filename: string) => `/images/${encodeURIComponent(filename)}`;
+// original WhatsApp export names, so we URL-encode each path segment
+// (but keep any `/` separators intact) for use as <img src>. `BASE_URL`
+// picks up Vite's configured base path (e.g. `/croche-catalogue/` on
+// GitHub Pages) so images resolve correctly wherever the site is hosted.
+const img = (filename: string) =>
+  `${import.meta.env.BASE_URL}images/${filename.split('/').map(encodeURIComponent).join('/')}`;
 
 // Real catalogue data for Luvia — handmade crochet accessories & decor.
 // Prices are estimates in INR; update them to match your actual pricing.
@@ -226,5 +230,93 @@ export const products: Product[] = [
     color: '#d94f8c',
     inStock: true,
     image: img('WhatsApp Image 2026-09-17 at 15.24.38.jpeg'),
+  },
+  {
+    id: 'p21',
+    name: 'Smiley Turtle Amigurumi',
+    category: 'Toys',
+    price: 449,
+    description:
+      'A huggable crochet turtle with a sage-green smiling face, a warm terracotta shell, and soft little flippers — a cheerful desk buddy or a first soft toy for a little one.',
+    color: '#9caf88',
+    inStock: true,
+    image: img('processed/turtle-1.jpg'),
+  },
+  {
+    id: 'p22',
+    name: 'Sleepy Octopus Amigurumi',
+    category: 'Toys',
+    price: 499,
+    description:
+      'A dreamy blush-pink octopus amigurumi with sleepy embroidered eyes and eight plump curled legs — soft, squeezable, and perfectly nap-ready.',
+    color: '#e6b8c9',
+    inStock: true,
+    image: img('processed/octopus-1.jpg'),
+  },
+  {
+    id: 'p23',
+    name: 'Blushing Buddy Bag Charm',
+    category: 'Charms & Keychains',
+    price: 279,
+    description:
+      'A round, rosy-cheeked crochet buddy with a soft grey-and-pink body and a long braided loop — clip it onto a bag or backpack for an instant dose of cute.',
+    color: '#c9b7bb',
+    inStock: true,
+    image: img('processed/blob-charm-1.jpg'),
+  },
+  {
+    id: 'p24',
+    name: 'Sunset Rainbow Keychain',
+    category: 'Charms & Keychains',
+    price: 249,
+    description:
+      'A dreamy pink-orange-lilac crochet rainbow with a soft ivory tassel fringe, finished on a braided loop — a joyful little charm for keys, bags, or backpacks.',
+    color: '#f2a65a',
+    inStock: true,
+    image: img('processed/rainbow-charm-sunset-1.jpg'),
+  },
+  {
+    id: 'p25',
+    name: 'Pastel Rainbow Keychain',
+    category: 'Charms & Keychains',
+    price: 249,
+    description:
+      'A cheerful golden-pink-blue crochet rainbow with a fluffy cream tassel fringe — the same beloved design in a brighter pastel palette.',
+    color: '#f6c453',
+    inStock: true,
+    image: img('processed/rainbow-charm-pastel-1.jpg'),
+  },
+  {
+    id: 'p26',
+    name: 'Mini Headphones Charm',
+    category: 'Charms & Keychains',
+    price: 199,
+    description:
+      'A tiny crochet headphones charm in sunny yellow with blue-and-cream earcups — a fun, playful accessory for music lovers to clip onto bags or pouches.',
+    color: '#f6c453',
+    inStock: true,
+    image: img('processed/headphones-charm-1.jpg'),
+  },
+  {
+    id: 'p27',
+    name: 'Paw Print Bag Charm',
+    category: 'Charms & Keychains',
+    price: 229,
+    description:
+      'A rust-brown crochet paw print charm with contrast black pads and a gold-tone clasp — a sweet gift for pet lovers to hang on a bag or keyring.',
+    color: '#8a4b32',
+    inStock: true,
+    image: img('processed/pawprint-charm-1.jpg'),
+  },
+  {
+    id: 'p28',
+    name: 'Sunflower Brooch',
+    category: 'Brooches',
+    price: 199,
+    description:
+      'A sunny crochet sunflower brooch with golden layered petals, a rich brown centre, and a little green leaf — pin it onto a jacket, bag, or dupatta.',
+    color: '#f0a500',
+    inStock: true,
+    image: img('processed/sunflower-brooch-1.jpg'),
   },
 ];

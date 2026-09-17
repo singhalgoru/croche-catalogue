@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import type { Product } from '../types/product';
-import { formatINR } from '../utils/currency';
 
 interface Props {
   product: Product;
@@ -34,13 +33,7 @@ export default function ProductModal({ product, onClose }: Props) {
           <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
           <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>
           <p className="text-cocoa/80 mt-3">{product.description}</p>
-          <div className="flex items-center justify-between mt-6">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-xl font-bold text-cocoa">{formatINR(product.price)}</span>
-              {product.originalPrice != null && product.originalPrice > product.price && (
-                <span className="text-cocoa/40 line-through text-sm">{formatINR(product.originalPrice)}</span>
-              )}
-            </div>
+          <div className="flex items-center justify-end mt-6">
             <span className={product.inStock ? 'text-green-700 font-medium' : 'text-cocoa/60 font-medium'}>
               {product.inStock ? 'In stock' : 'Sold out'}
             </span>

@@ -1,5 +1,4 @@
 import type { Product } from '../types/product';
-import { formatINR } from '../utils/currency';
 
 interface Props {
   product: Product;
@@ -7,11 +6,6 @@ interface Props {
 }
 
 export default function ProductCard({ product, onSelect }: Props) {
-  const hasDiscount = product.originalPrice != null && product.originalPrice > product.price;
-  const discountPercent = hasDiscount
-    ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
-    : 0;
-
   return (
     <button
       type="button"
@@ -35,15 +29,6 @@ export default function ProductCard({ product, onSelect }: Props) {
       <div className="p-4">
         <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
         <h3 className="font-heading font-semibold text-cocoa mt-1">{product.name}</h3>
-        <div className="flex items-baseline gap-2 mt-2 flex-wrap">
-          <p className="text-cocoa font-bold">{formatINR(product.price)}</p>
-          {hasDiscount && (
-            <>
-              <p className="text-cocoa/40 line-through text-sm">{formatINR(product.originalPrice!)}</p>
-              <p className="text-green-700 text-xs font-semibold">{discountPercent}% Off</p>
-            </>
-          )}
-        </div>
       </div>
     </button>
   );
