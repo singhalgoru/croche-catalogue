@@ -4,7 +4,8 @@ export type Category =
   | 'Anklets'
   | 'Brooches'
   | 'Charms & Keychains'
-  | 'Festive Decor';
+  | 'Festive Decor'
+  | 'Toys';
 
 export interface Product {
   id: string;

@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+.venv-imgtools
+
+# Reference/mockup images and clips that aren't real product photos or
+# aren't used by the catalogue (see public/images/Key chains, ba charms/).
+public/images/**/*.mp4
+public/images/Key chains, ba charms/file_*.png
 
 # Editor directories and files
 .vscode/*
