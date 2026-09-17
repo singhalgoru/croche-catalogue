@@ -35,6 +35,9 @@ function App() {
       <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 space-y-6">
         <SearchBar value={query} onChange={setQuery} />
         <CategoryFilter categories={categories} active={activeCategory} onSelect={setActiveCategory} />
+        <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
+          Shop the Collection
+        </h2>
         <ProductGrid products={filteredProducts} onSelect={setSelectedProduct} />
       </main>
 

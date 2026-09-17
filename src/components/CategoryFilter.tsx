@@ -16,10 +16,10 @@ export default function CategoryFilter({ categories, active, onSelect }: Props) 
           key={option}
           type="button"
           onClick={() => onSelect(option)}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+          className={`px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-colors ${
             active === option
-              ? 'bg-rose-600 text-white border-rose-600'
-              : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50'
+              ? 'bg-cocoa text-cream border-cocoa'
+              : 'bg-white text-cocoa border-mustard hover:bg-mustard/20'
           }`}
         >
           {option}
