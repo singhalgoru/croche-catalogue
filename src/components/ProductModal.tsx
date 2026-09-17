@@ -26,11 +26,11 @@ export default function ProductModal({ product, onClose }: Props) {
       aria-label={product.name}
     >
       <div
-        className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-xl"
+        className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
           <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>
           <p className="text-cocoa/80 mt-3">{product.description}</p>
