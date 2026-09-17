@@ -1,0 +1,50 @@
+import { useMemo, useState } from 'react';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import CategoryFilter from './components/CategoryFilter';
+import SearchBar from './components/SearchBar';
+import ProductGrid from './components/ProductGrid';
+import ProductModal from './components/ProductModal';
+import { products } from './data/products';
+import type { Category, Product } from './types/product';
+
+function App() {
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((product) => product.category))) as Category[],
+    [],
+  );
+
+  const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
+  const [query, setQuery] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return products.filter((product) => {
+      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+      const matchesQuery =
+        normalizedQuery === '' || product.name.toLowerCase().includes(normalizedQuery);
+      return matchesCategory && matchesQuery;
+    });
+  }, [activeCategory, query]);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+
+      <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 space-y-6">
+        <SearchBar value={query} onChange={setQuery} />
+        <CategoryFilter categories={categories} active={activeCategory} onSelect={setActiveCategory} />
+        <ProductGrid products={filteredProducts} onSelect={setSelectedProduct} />
+      </main>
+
+      <Footer />
+
+      {selectedProduct && (
+        <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      )}
+    </div>
+  );
+}
+
+export default App;
