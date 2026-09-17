@@ -1,7 +1,9 @@
-# 🧶 Crochet Corner — Crochet Catalogue Boilerplate
+# 🌊 Luvia — Crochet Catalogue Boilerplate
 
-A boilerplate web catalogue for showcasing handmade crochet items: browsable
-product grid, category filtering, search, and a product detail modal.
+A boilerplate web catalogue for showcasing handmade crochet items, branded as
+**Luvia** — "Love flowing through every creation. Modern handmade traditions.
+Handmade • Heartmade." Includes a browsable product grid, category filtering,
+search, and a product detail modal.
 
 ## Tech Stack
 
@@ -18,7 +20,7 @@ and Vite/Tailwind keep iteration fast.
 
 ```
 src/
-  components/       UI building blocks (Header, Footer, ProductCard, ProductGrid,
+  components/       UI building blocks (Header, Footer, Logo, ProductCard, ProductGrid,
                      ProductModal, CategoryFilter, SearchBar)
   data/
     products.ts      Sample catalogue data — replace with your real products
