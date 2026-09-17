@@ -1,11 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --font-heading: "Segoe UI", system-ui, sans-serif;
+  --font-heading: "Baloo 2", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Quicksand", "Segoe UI", system-ui, sans-serif;
+
+  --color-cream: #fffaf0;
+  --color-cream-dark: #fdf1d6;
+  --color-mustard: #f6c453;
+  --color-mustard-dark: #e2a933;
+  --color-cocoa: #5d4037;
+  --color-cocoa-dark: #4a322a;
 }
 
 body {
   margin: 0;
-  background-color: #fdf6f0;
-  color: #3f2f2a;
+  background-color: var(--color-cream);
+  color: var(--color-cocoa);
+  font-family: var(--font-sans);
 }
