@@ -1,14 +1,4 @@
-export const PRODUCT_CATEGORIES = [
-  'Hair Accessories',
-  'Rakhi',
-  'Anklets',
-  'Brooches',
-  'Charms & Keychains',
-  'Festive Decor',
-  'Toys',
-] as const;
-
-export type Category = (typeof PRODUCT_CATEGORIES)[number];
+export type Category = string;
 
 export interface Product {
   id: string;

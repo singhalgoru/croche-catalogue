@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { analyzeProductImage } from '../../services/productAnalysis';
 import { publishProduct } from '../../services/products';
-import { PRODUCT_CATEGORIES, type Category } from '../../types/product';
+import type { Category } from '../../types/product';
 
 interface Props {
+  categories: Category[];
   onPublished: () => Promise<void>;
 }
 
@@ -25,7 +26,7 @@ const EMPTY_DRAFT: ProductDraft = {
 
 const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
 
-export default function ProductUploadForm({ onPublished }: Props) {
+export default function ProductUploadForm({ categories, onPublished }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -79,7 +80,7 @@ export default function ProductUploadForm({ onPublished }: Props) {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      const analysis = await analyzeProductImage(imageFile);
+      const analysis = await analyzeProductImage(imageFile, categories);
       setDraft((current) => ({ ...current, ...analysis }));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Product analysis failed.');
@@ -99,7 +100,11 @@ export default function ProductUploadForm({ onPublished }: Props) {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      const product = await publishProduct({ ...draft, imageFile });
+      const category = categories.includes(draft.category) ? draft.category : categories[0];
+      if (!category) {
+        throw new Error('Create at least one category before publishing a product.');
+      }
+      const product = await publishProduct({ ...draft, category, imageFile });
       await onPublished();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setImageFile(null);
@@ -113,6 +118,10 @@ export default function ProductUploadForm({ onPublished }: Props) {
       setIsPublishing(false);
     }
   };
+
+  const selectedCategory = categories.includes(draft.category)
+    ? draft.category
+    : (categories[0] ?? '');
 
   return (
     <form className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" onSubmit={submitProduct}>
@@ -145,7 +154,7 @@ export default function ProductUploadForm({ onPublished }: Props) {
         <button
           type="button"
           onClick={analyzeImage}
-          disabled={!imageFile || isAnalyzing || isPublishing}
+          disabled={!imageFile || categories.length === 0 || isAnalyzing || isPublishing}
           className="mt-4 w-full rounded-full bg-mustard py-2.5 font-semibold text-cocoa transition-colors hover:bg-mustard-dark disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isAnalyzing ? 'Gemini is analyzing…' : 'Generate details with Gemini'}
@@ -173,13 +182,13 @@ export default function ProductUploadForm({ onPublished }: Props) {
           <label className="block text-sm font-semibold text-cocoa">
             Category
             <select
-              value={draft.category}
+              value={selectedCategory}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, category: event.target.value as Category }))
               }
               className="mt-1 w-full rounded-xl border border-mustard/60 bg-white px-3 py-2 outline-none focus:border-cocoa"
             >
-              {PRODUCT_CATEGORIES.map((category) => (
+              {categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
                 </option>
@@ -247,7 +256,7 @@ export default function ProductUploadForm({ onPublished }: Props) {
 
         <button
           type="submit"
-          disabled={!imageFile || isAnalyzing || isPublishing}
+          disabled={!imageFile || categories.length === 0 || isAnalyzing || isPublishing}
           className="mt-5 w-full rounded-full bg-cocoa py-2.5 font-semibold text-cream transition-colors hover:bg-cocoa-dark disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPublishing ? 'Publishing…' : 'Publish product'}

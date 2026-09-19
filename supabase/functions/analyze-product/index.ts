@@ -5,16 +5,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PRODUCT_CATEGORIES = [
-  'Hair Accessories',
-  'Rakhi',
-  'Anklets',
-  'Brooches',
-  'Charms & Keychains',
-  'Festive Decor',
-  'Toys',
-];
-
 interface AnalyzeRequest {
   imageBase64?: unknown;
   mimeType?: unknown;
@@ -59,6 +49,20 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'This account is not authorized to manage the catalogue.' }, 403);
   }
 
+  const { data: categoryRows, error: categoryError } = await authClient
+    .from('categories')
+    .select('name')
+    .order('sort_order')
+    .order('name');
+  if (categoryError) {
+    return jsonResponse({ error: `Unable to load product categories: ${categoryError.message}` }, 500);
+  }
+
+  const productCategories = categoryRows.map((category) => category.name);
+  if (productCategories.length === 0) {
+    return jsonResponse({ error: 'Create at least one product category before analysis.' }, 400);
+  }
+
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
     return jsonResponse({ error: 'GEMINI_API_KEY is not configured.' }, 500);
@@ -89,7 +93,7 @@ Deno.serve(async (request) => {
   const prompt = [
     'You are writing catalogue copy for Luvia, an Indian handmade crochet brand.',
     'Study the uploaded product photo and return accurate product metadata.',
-    `Choose exactly one category from: ${PRODUCT_CATEGORIES.join(', ')}.`,
+    `Choose exactly one category from: ${productCategories.join(', ')}.`,
     'Use a concise, appealing product name of 2-7 words.',
     'Write one warm, factual description of 20-45 words. Do not invent materials, dimensions,',
     'safety claims, prices, availability, or features that are not visible.',
@@ -119,7 +123,7 @@ Deno.serve(async (request) => {
         required: ['name', 'category', 'description', 'color'],
         properties: {
           name: { type: 'STRING' },
-          category: { type: 'STRING', enum: PRODUCT_CATEGORIES },
+          category: { type: 'STRING', enum: productCategories },
           description: { type: 'STRING' },
           color: {
             type: 'STRING',

@@ -6,9 +6,10 @@ import {
   type ManagedProduct,
   type ProductUpdate,
 } from '../../services/products';
-import { PRODUCT_CATEGORIES, type Category } from '../../types/product';
+import type { Category } from '../../types/product';
 
 interface Props {
+  categories: Category[];
   refreshKey: number;
   onChanged: () => Promise<void>;
 }
@@ -35,7 +36,7 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   imageFile: null,
 });
 
-export default function ProductManager({ refreshKey, onChanged }: Props) {
+export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -278,7 +279,7 @@ export default function ProductManager({ refreshKey, onChanged }: Props) {
                         }
                         className="mt-1 w-full rounded-xl border border-mustard/60 bg-white px-3 py-2"
                       >
-                        {PRODUCT_CATEGORIES.map((category) => (
+                        {categories.map((category) => (
                           <option key={category}>{category}</option>
                         ))}
                       </select>
