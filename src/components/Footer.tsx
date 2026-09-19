@@ -15,6 +15,9 @@ export default function Footer() {
           <span aria-hidden="true">💬</span>
           Order on WhatsApp
         </a>
+        <a href="#admin" className="mt-4 block text-xs text-cream/45 hover:text-cream/70">
+          Catalogue admin
+        </a>
       </div>
     </footer>
   );

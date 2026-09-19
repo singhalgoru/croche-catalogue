@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 .venv-imgtools
+.env
+.env.*
+!.env.example
 
 # Reference/mockup images and clips that aren't real product photos or
 # aren't used by the catalogue (see public/images/Key chains, ba charms/).
