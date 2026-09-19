@@ -28,6 +28,24 @@ function App() {
     });
   }, [activeCategory, query]);
 
+  const selectedProductIndex = selectedProduct
+    ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
+    : -1;
+
+  const showPreviousProduct = () => {
+    if (filteredProducts.length <= 1 || selectedProductIndex === -1) return;
+    const previousIndex =
+      selectedProductIndex === 0 ? filteredProducts.length - 1 : selectedProductIndex - 1;
+    setSelectedProduct(filteredProducts[previousIndex]);
+  };
+
+  const showNextProduct = () => {
+    if (filteredProducts.length <= 1 || selectedProductIndex === -1) return;
+    const nextIndex =
+      selectedProductIndex === filteredProducts.length - 1 ? 0 : selectedProductIndex + 1;
+    setSelectedProduct(filteredProducts[nextIndex]);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -44,7 +62,14 @@ function App() {
       <Footer />
 
       {selectedProduct && (
-        <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+        <ProductModal
+          product={selectedProduct}
+          currentIndex={selectedProductIndex}
+          totalProducts={filteredProducts.length}
+          onClose={() => setSelectedProduct(null)}
+          onPrevious={showPreviousProduct}
+          onNext={showNextProduct}
+        />
       )}
     </div>
   );
