@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import Header from '../Header';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { fetchCategories } from '../../services/categories';
+import type { Category } from '../../types/product';
 import AdminLogin from './AdminLogin';
+import CategoryManager from './CategoryManager';
 import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
 
@@ -12,6 +15,7 @@ interface Props {
 
 export default function AdminPage({ onProductPublished }: Props) {
   const [productRefreshKey, setProductRefreshKey] = useState(0);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [session, setSession] = useState<Session | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(isSupabaseConfigured);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -57,6 +61,16 @@ export default function AdminPage({ onProductPublished }: Props) {
       isCurrent = false;
     };
   }, [session]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    void fetchCategories().then(
+      (nextCategories) => setCategories(nextCategories),
+      (error: unknown) =>
+        setAuthError(error instanceof Error ? error.message : 'Unable to load categories.'),
+    );
+  }, [isAdmin]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -128,6 +142,13 @@ export default function AdminPage({ onProductPublished }: Props) {
     setProductRefreshKey((current) => current + 1);
   };
 
+  const handleCategoryChanged = async () => {
+    const nextCategories = await fetchCategories();
+    setCategories(nextCategories);
+    await onProductPublished();
+    setProductRefreshKey((current) => current + 1);
+  };
+
   return (
     <div className="min-h-screen bg-cream">
       <Header />
@@ -163,8 +184,13 @@ export default function AdminPage({ onProductPublished }: Props) {
           </p>
         )}
 
-        <ProductUploadForm onPublished={handleProductChanged} />
-        <ProductManager refreshKey={productRefreshKey} onChanged={handleProductChanged} />
+        <CategoryManager categories={categories} onChanged={handleCategoryChanged} />
+        <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
+        <ProductManager
+          categories={categories}
+          refreshKey={productRefreshKey}
+          onChanged={handleProductChanged}
+        />
       </main>
     </div>
   );

@@ -54,10 +54,12 @@ The quickest option is the Supabase SQL Editor:
 1. Open **SQL Editor** in the Supabase dashboard.
 2. Copy and run the complete contents of
    `supabase/migrations/20260919073000_create_catalogue_products.sql`.
+3. Then copy and run
+   `supabase/migrations/20260919172000_create_catalogue_categories.sql`.
 
-This creates the product table, public image bucket, and policies that allow
-everyone to read published products while only authenticated admins can
-create or modify them.
+This creates the product and category tables, public image bucket, and policies
+that allow everyone to read published data while only authenticated admins can
+create or modify it.
 
 Alternatively, with the Supabase CLI:
 
@@ -154,6 +156,18 @@ The existing catalogue records are stored in Supabase, so updates and removals
 take effect immediately without a Git commit. Original images that shipped with
 the repository remain in `public/images`; newly uploaded and replacement images
 are stored in the Supabase `product-images` bucket.
+
+## Managing categories
+
+1. Open the admin screen and sign in.
+2. Use **Manage categories** to add, rename, or delete categories.
+3. New and renamed categories are immediately available in the upload and edit
+   forms and are also used by Gemini analysis.
+
+Renaming a category automatically updates every product assigned to it. A
+category cannot be deleted while products still use it; move those products to
+another category first. Category changes take effect immediately without a
+Git commit or site deployment.
 
 ## Validation
 

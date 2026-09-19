@@ -1,0 +1,219 @@
+import { useState, type FormEvent } from 'react';
+import {
+  createCategory,
+  deleteCategory,
+  renameCategory,
+} from '../../services/categories';
+import type { Category } from '../../types/product';
+
+interface Props {
+  categories: Category[];
+  onChanged: () => Promise<void>;
+}
+
+export default function CategoryManager({ categories, onChanged }: Props) {
+  const [newName, setNewName] = useState('');
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [replacementName, setReplacementName] = useState('');
+  const [deleteName, setDeleteName] = useState<string | null>(null);
+  const [busyName, setBusyName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const addCategory = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBusyName('__new__');
+    setError(null);
+    setMessage(null);
+    try {
+      const name = newName.trim();
+      await createCategory(name);
+      setNewName('');
+      setMessage(`“${name}” was added.`);
+      await onChanged();
+    } catch (createError) {
+      setError(
+        createError instanceof Error ? createError.message : 'Unable to create the category.',
+      );
+    } finally {
+      setBusyName(null);
+    }
+  };
+
+  const saveRename = async (event: FormEvent<HTMLFormElement>, currentName: string) => {
+    event.preventDefault();
+    setBusyName(currentName);
+    setError(null);
+    setMessage(null);
+    try {
+      const name = replacementName.trim();
+      await renameCategory(currentName, name);
+      setEditingName(null);
+      setReplacementName('');
+      setMessage(`“${currentName}” was renamed to “${name}”.`);
+      await onChanged();
+    } catch (renameError) {
+      setError(
+        renameError instanceof Error ? renameError.message : 'Unable to rename the category.',
+      );
+    } finally {
+      setBusyName(null);
+    }
+  };
+
+  const removeCategory = async (name: string) => {
+    setBusyName(name);
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteCategory(name);
+      setDeleteName(null);
+      setMessage(`“${name}” was deleted.`);
+      await onChanged();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error ? deleteError.message : 'Unable to delete the category.',
+      );
+    } finally {
+      setBusyName(null);
+    }
+  };
+
+  return (
+    <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
+      <h2 className="font-heading text-2xl font-bold text-cocoa">Manage categories</h2>
+      <p className="mt-1 text-sm text-cocoa/65">
+        New categories become available immediately in product forms and Gemini suggestions.
+      </p>
+
+      <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
+        <label className="flex-1 text-sm font-semibold text-cocoa">
+          New category
+          <input
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+            required
+            minLength={2}
+            maxLength={50}
+            placeholder="e.g. Bags"
+            className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={busyName !== null}
+          className="self-end rounded-full bg-cocoa px-5 py-2 text-sm font-semibold text-cream disabled:opacity-60"
+        >
+          {busyName === '__new__' ? 'Adding…' : 'Add category'}
+        </button>
+      </form>
+
+      {error && (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          {message}
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {categories.map((category) => (
+          <div key={category} className="rounded-xl border border-mustard/30 bg-cream/50 p-3">
+            {editingName === category ? (
+              <form onSubmit={(event) => void saveRename(event, category)}>
+                <label className="text-sm font-semibold text-cocoa">
+                  Rename category
+                  <input
+                    value={replacementName}
+                    onChange={(event) => setReplacementName(event.target.value)}
+                    required
+                    minLength={2}
+                    maxLength={50}
+                    className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+                  />
+                </label>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={busyName !== null}
+                    className="rounded-full bg-cocoa px-4 py-1.5 text-sm font-semibold text-cream disabled:opacity-60"
+                  >
+                    {busyName === category ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingName(null)}
+                    disabled={busyName !== null}
+                    className="rounded-full border border-cocoa/30 px-4 py-1.5 text-sm font-semibold text-cocoa"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : deleteName === category ? (
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Delete “{category}”? This works only when no products use it.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void removeCategory(category)}
+                    disabled={busyName !== null}
+                    className="rounded-full bg-red-700 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {busyName === category ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteName(null)}
+                    disabled={busyName !== null}
+                    className="rounded-full border border-cocoa/30 px-4 py-1.5 text-sm font-semibold text-cocoa"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-cocoa">{category}</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingName(category);
+                      setReplacementName(category);
+                      setDeleteName(null);
+                    }}
+                    className="text-sm font-semibold text-cocoa underline"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteName(category);
+                      setEditingName(null);
+                    }}
+                    disabled={categories.length === 1}
+                    title={
+                      categories.length === 1
+                        ? 'At least one category must remain.'
+                        : undefined
+                    }
+                    className="text-sm font-semibold text-red-700 underline disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

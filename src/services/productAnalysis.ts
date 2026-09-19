@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { PRODUCT_CATEGORIES, type Category } from '../types/product';
+import type { Category } from '../types/product';
 
 export interface ProductAnalysis {
   name: string;
@@ -31,10 +31,7 @@ const fileToBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-const isCategory = (value: unknown): value is Category =>
-  typeof value === 'string' && PRODUCT_CATEGORIES.some((category) => category === value);
-
-const validateAnalysis = (value: unknown): ProductAnalysis => {
+const validateAnalysis = (value: unknown, categories: Category[]): ProductAnalysis => {
   if (!value || typeof value !== 'object') {
     throw new Error('Gemini returned an invalid product analysis.');
   }
@@ -42,7 +39,8 @@ const validateAnalysis = (value: unknown): ProductAnalysis => {
   const analysis = value as Record<string, unknown>;
   if (
     typeof analysis.name !== 'string' ||
-    !isCategory(analysis.category) ||
+    typeof analysis.category !== 'string' ||
+    !categories.includes(analysis.category) ||
     typeof analysis.description !== 'string' ||
     typeof analysis.color !== 'string' ||
     !/^#[0-9a-fA-F]{6}$/.test(analysis.color)
@@ -81,7 +79,10 @@ const getFunctionErrorMessage = async (error: {
   return error.message;
 };
 
-export async function analyzeProductImage(file: File): Promise<ProductAnalysis> {
+export async function analyzeProductImage(
+  file: File,
+  categories: Category[],
+): Promise<ProductAnalysis> {
   if (!supabase) {
     throw new Error(
       'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
@@ -94,6 +95,10 @@ export async function analyzeProductImage(file: File): Promise<ProductAnalysis> 
 
   if (file.size > MAX_ANALYSIS_FILE_SIZE) {
     throw new Error('Please use an image smaller than 6 MB for AI analysis.');
+  }
+
+  if (categories.length === 0) {
+    throw new Error('Create at least one product category before running AI analysis.');
   }
 
   const imageBase64 = await fileToBase64(file);
@@ -109,5 +114,5 @@ export async function analyzeProductImage(file: File): Promise<ProductAnalysis> 
     throw new Error(`Unable to analyze the product image: ${message}`);
   }
 
-  return validateAnalysis(data);
+  return validateAnalysis(data, categories);
 }
