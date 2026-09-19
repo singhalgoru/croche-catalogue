@@ -142,6 +142,19 @@ Publishing uploads the image to Supabase Storage and inserts the reviewed
 metadata into Postgres. The new product appears in the public catalogue
 without a Git commit or GitHub Pages redeployment.
 
+## Updating or removing a product
+
+1. Open the admin screen and sign in.
+2. Scroll to **Manage products**.
+3. Select **Edit** to change the name, category, description, accent colour,
+   stock status, catalogue visibility, or product image.
+4. Select **Remove**, then confirm, to permanently remove a product.
+
+The existing catalogue records are stored in Supabase, so updates and removals
+take effect immediately without a Git commit. Original images that shipped with
+the repository remain in `public/images`; newly uploaded and replacement images
+are stored in the Supabase `product-images` bucket.
+
 ## Validation
 
 ```bash
