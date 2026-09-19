@@ -27,15 +27,9 @@ PADDING_RATIO = 0.08  # fraction of canvas kept empty around the subject
 
 # (source relative path, output filename)
 JOBS = [
-    ("Toys/IMG20260907161637.jpg", "turtle-1.jpg"),
-    ("Toys/IMG20260907161645.jpg", "turtle-2.jpg"),
-    ("Toys/IMG20260916113400.jpg", "octopus-1.jpg"),
-    ("Toys/IMG20260907161620.jpg", "blob-charm-1.jpg"),
-    ("Key chains, ba charms/IMG20260825142212.jpg", "rainbow-charm-sunset-1.jpg"),
-    ("Key chains, ba charms/IMG20260825142248.jpg", "rainbow-charm-pastel-1.jpg"),
-    ("Key chains, ba charms/IMG20260826130929.jpg", "headphones-charm-1.jpg"),
-    ("Key chains, ba charms/IMG20260901150030.jpg", "pawprint-charm-1.jpg"),
-    ("Key chains, ba charms/IMG20260910161500.jpg", "sunflower-brooch-1.jpg"),
+    ("Scrunchies/IMG20260529200212.jpg", "scrunchie-lilac-ruffle.jpg"),
+    ("Scrunchies/IMG_20260804_114134.jpg", "scrunchie-tricolour.jpg"),
+    ("Scrunchies/IMG_20260811_203052.jpg", "scrunchie-mustard-pink.jpg"),
 ]
 
 session = new_session("u2net")

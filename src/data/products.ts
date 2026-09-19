@@ -319,4 +319,37 @@ export const products: Product[] = [
     inStock: true,
     image: img('processed/sunflower-brooch-1.jpg'),
   },
+  {
+    id: 'p29',
+    name: 'Lilac Ruffle Scrunchie',
+    category: 'Hair Accessories',
+    price: 179,
+    description:
+      'A soft lilac crochet scrunchie with a frilly ruffled edge — gentle on hair and a pretty pop of pastel colour for everyday wear.',
+    color: '#c9b6e4',
+    inStock: true,
+    image: img('processed/scrunchie-lilac-ruffle.jpg'),
+  },
+  {
+    id: 'p30',
+    name: 'Tricolour Ruffle Scrunchie',
+    category: 'Hair Accessories',
+    price: 179,
+    description:
+      'A festive ruffled crochet scrunchie in saffron, white, and green — perfect for Independence Day, Republic Day, or any patriotic occasion.',
+    color: '#ff8c42',
+    inStock: true,
+    image: img('processed/scrunchie-tricolour.jpg'),
+  },
+  {
+    id: 'p31',
+    name: 'Mustard & Pink Ruffle Scrunchie',
+    category: 'Hair Accessories',
+    price: 179,
+    description:
+      'A warm mustard-yellow crochet scrunchie edged in soft pink ruffles — a cheerful two-tone accessory that pairs well with both ethnic and casual outfits.',
+    color: '#e8b93a',
+    inStock: true,
+    image: img('processed/scrunchie-mustard-pink.jpg'),
+  },
 ];
