@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import Header from '../Header';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import AdminLogin from './AdminLogin';
+import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function AdminPage({ onProductPublished }: Props) {
+  const [productRefreshKey, setProductRefreshKey] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(isSupabaseConfigured);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -121,6 +123,11 @@ export default function AdminPage({ onProductPublished }: Props) {
     );
   }
 
+  const handleProductChanged = async () => {
+    await onProductPublished();
+    setProductRefreshKey((current) => current + 1);
+  };
+
   return (
     <div className="min-h-screen bg-cream">
       <Header />
@@ -130,7 +137,7 @@ export default function AdminPage({ onProductPublished }: Props) {
             <p className="font-heading text-sm font-semibold uppercase tracking-widest text-mustard-dark">
               Catalogue admin
             </p>
-            <h1 className="font-heading text-3xl font-bold text-cocoa">Add a new product</h1>
+            <h1 className="font-heading text-3xl font-bold text-cocoa">Manage catalogue</h1>
             <p className="mt-1 text-sm text-cocoa/65">{session.user.email}</p>
           </div>
           <div className="flex gap-3">
@@ -156,7 +163,8 @@ export default function AdminPage({ onProductPublished }: Props) {
           </p>
         )}
 
-        <ProductUploadForm onPublished={onProductPublished} />
+        <ProductUploadForm onPublished={handleProductChanged} />
+        <ProductManager refreshKey={productRefreshKey} onChanged={handleProductChanged} />
       </main>
     </div>
   );

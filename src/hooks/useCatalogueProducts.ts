@@ -5,18 +5,23 @@ import { fetchPublishedProducts } from '../services/products';
 import type { Product } from '../types/product';
 
 export function useCatalogueProducts() {
-  const [products, setProducts] = useState<Product[]>(localProducts);
+  const [products, setProducts] = useState<Product[]>(
+    isSupabaseConfigured ? [] : localProducts,
+  );
+  const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const refreshProducts = useCallback(async () => {
     if (!isSupabaseConfigured) return;
 
     try {
-      const uploadedProducts = await fetchPublishedProducts();
-      setProducts([...uploadedProducts, ...localProducts]);
+      const managedProducts = await fetchPublishedProducts();
+      setProducts(managedProducts);
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to load uploaded products.');
+      setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -25,14 +30,16 @@ export function useCatalogueProducts() {
 
     let isCurrent = true;
     void fetchPublishedProducts().then(
-      (uploadedProducts) => {
+      (managedProducts) => {
         if (!isCurrent) return;
-        setProducts([...uploadedProducts, ...localProducts]);
+        setProducts(managedProducts);
         setLoadError(null);
+        setIsLoading(false);
       },
       (error: unknown) => {
         if (!isCurrent) return;
-        setLoadError(error instanceof Error ? error.message : 'Unable to load uploaded products.');
+        setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
+        setIsLoading(false);
       },
     );
 
@@ -41,5 +48,5 @@ export function useCatalogueProducts() {
     };
   }, []);
 
-  return { products, loadError, refreshProducts };
+  return { products, isLoading, loadError, refreshProducts };
 }

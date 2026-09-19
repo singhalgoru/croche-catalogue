@@ -10,7 +10,7 @@ import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import type { Category, Product } from './types/product';
 
 function App() {
-  const { products, loadError, refreshProducts } = useCatalogueProducts();
+  const { products, isLoading, loadError, refreshProducts } = useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
 
   useEffect(() => {
@@ -75,7 +75,11 @@ function App() {
             {loadError}
           </p>
         )}
-        <ProductGrid products={filteredProducts} onSelect={setSelectedProduct} />
+        {isLoading ? (
+          <p className="py-16 text-center text-cocoa/60">Loading the catalogue…</p>
+        ) : (
+          <ProductGrid products={filteredProducts} onSelect={setSelectedProduct} />
+        )}
       </main>
 
       <Footer />
