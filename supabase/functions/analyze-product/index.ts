@@ -130,19 +130,27 @@ Deno.serve(async (request) => {
     },
   });
 
-  const models = ['gemini-3.7-flash', 'gemini-3.5-flash'];
+  const models = ['gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
   let geminiResponse: Response | null = null;
   let apiMessage = '';
 
   for (const model of models) {
-    geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-      },
-    );
+    try {
+      geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        },
+      );
+    } catch (error) {
+      apiMessage =
+        error instanceof Error
+          ? `${model} could not be reached: ${error.message}`
+          : `${model} could not be reached.`;
+      continue;
+    }
 
     if (geminiResponse.ok) {
       break;
@@ -160,7 +168,7 @@ Deno.serve(async (request) => {
         ? errorPayload.error.message
         : `Gemini request failed with status ${geminiResponse.status}.`;
 
-    if (![429, 503].includes(geminiResponse.status)) {
+    if (geminiResponse.status !== 429 && geminiResponse.status < 500) {
       break;
     }
   }
