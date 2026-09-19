@@ -96,50 +96,60 @@ Deno.serve(async (request) => {
     'Return the dominant product colour as a six-digit hexadecimal colour.',
   ].join(' ');
 
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
+  const requestBody = JSON.stringify({
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
           {
-            role: 'user',
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: payload.mimeType,
-                  data: payload.imageBase64,
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'OBJECT',
-            required: ['name', 'category', 'description', 'color'],
-            properties: {
-              name: { type: 'STRING' },
-              category: { type: 'STRING', enum: PRODUCT_CATEGORIES },
-              description: { type: 'STRING' },
-              color: {
-                type: 'STRING',
-                description: 'Dominant product colour in #RRGGBB format.',
-              },
+            inlineData: {
+              mimeType: payload.mimeType,
+              data: payload.imageBase64,
             },
           },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.3,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        required: ['name', 'category', 'description', 'color'],
+        properties: {
+          name: { type: 'STRING' },
+          category: { type: 'STRING', enum: PRODUCT_CATEGORIES },
+          description: { type: 'STRING' },
+          color: {
+            type: 'STRING',
+            description: 'Dominant product colour in #RRGGBB format.',
+          },
         },
-      }),
+      },
     },
-  );
+  });
 
-  if (!geminiResponse.ok) {
+  const models = ['gemini-3.7-flash', 'gemini-3.5-flash'];
+  let geminiResponse: Response | null = null;
+  let apiMessage = '';
+
+  for (const model of models) {
+    geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+      },
+    );
+
+    if (geminiResponse.ok) {
+      break;
+    }
+
     const errorPayload = await geminiResponse.json().catch(() => null);
-    const apiMessage =
+    apiMessage =
       errorPayload &&
       typeof errorPayload === 'object' &&
       'error' in errorPayload &&
@@ -149,7 +159,14 @@ Deno.serve(async (request) => {
       typeof errorPayload.error.message === 'string'
         ? errorPayload.error.message
         : `Gemini request failed with status ${geminiResponse.status}.`;
-    return jsonResponse({ error: apiMessage }, 502);
+
+    if (![429, 503].includes(geminiResponse.status)) {
+      break;
+    }
+  }
+
+  if (!geminiResponse?.ok) {
+    return jsonResponse({ error: apiMessage || 'Gemini analysis failed.' }, 502);
   }
 
   const geminiPayload = await geminiResponse.json();

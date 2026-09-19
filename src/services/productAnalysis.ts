@@ -58,6 +58,29 @@ const validateAnalysis = (value: unknown): ProductAnalysis => {
   };
 };
 
+const getFunctionErrorMessage = async (error: {
+  message: string;
+  context?: unknown;
+}): Promise<string> => {
+  if (error.context instanceof Response) {
+    try {
+      const payload: unknown = await error.context.clone().json();
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        'error' in payload &&
+        typeof payload.error === 'string'
+      ) {
+        return payload.error;
+      }
+    } catch {
+      // Fall back to the SDK message when the response is not JSON.
+    }
+  }
+
+  return error.message;
+};
+
 export async function analyzeProductImage(file: File): Promise<ProductAnalysis> {
   if (!supabase) {
     throw new Error(
@@ -82,7 +105,8 @@ export async function analyzeProductImage(file: File): Promise<ProductAnalysis> 
   });
 
   if (error) {
-    throw new Error(`Unable to analyze the product image: ${error.message}`);
+    const message = await getFunctionErrorMessage(error);
+    throw new Error(`Unable to analyze the product image: ${message}`);
   }
 
   return validateAnalysis(data);
