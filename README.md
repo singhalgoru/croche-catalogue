@@ -10,7 +10,7 @@ with Google Gemini and publish it to the catalogue.
 - React 19 + TypeScript + Vite
 - Tailwind CSS v4
 - Supabase Auth, Postgres, Storage, and Edge Functions
-- Google Gemini 3.7 Flash for product image analysis, with a 3.5 Flash fallback
+- Google Gemini 3.7 Flash for product image analysis, with 3.5 and 3.1 Flash Lite fallbacks
 - GitHub Pages with automatic deployment from `main`
 
 The original products in `src/data/products.ts` remain part of the static site.
