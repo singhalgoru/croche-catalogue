@@ -1,17 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CategoryFilter from './components/CategoryFilter';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
 import ProductModal from './components/ProductModal';
-import { products } from './data/products';
+import AdminPage from './components/admin/AdminPage';
+import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import type { Category, Product } from './types/product';
 
 function App() {
+  const { products, loadError, refreshProducts } = useCatalogueProducts();
+  const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
+
+  useEffect(() => {
+    const updateRoute = () => setIsAdminPage(window.location.hash === '#admin');
+    window.addEventListener('hashchange', updateRoute);
+    return () => window.removeEventListener('hashchange', updateRoute);
+  }, []);
+
   const categories = useMemo(
     () => Array.from(new Set(products.map((product) => product.category))) as Category[],
-    [],
+    [products],
   );
 
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
@@ -26,7 +36,7 @@ function App() {
         normalizedQuery === '' || product.name.toLowerCase().includes(normalizedQuery);
       return matchesCategory && matchesQuery;
     });
-  }, [activeCategory, query]);
+  }, [activeCategory, products, query]);
 
   const selectedProductIndex = selectedProduct
     ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
@@ -46,6 +56,10 @@ function App() {
     setSelectedProduct(filteredProducts[nextIndex]);
   };
 
+  if (isAdminPage) {
+    return <AdminPage onProductPublished={refreshProducts} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -56,6 +70,11 @@ function App() {
         <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
           Shop the Collection
         </h2>
+        {loadError && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+            {loadError}
+          </p>
+        )}
         <ProductGrid products={filteredProducts} onSelect={setSelectedProduct} />
       </main>
 

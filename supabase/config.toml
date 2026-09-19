@@ -1,0 +1,4 @@
+project_id = "replace-with-your-project-ref"
+
+[functions.analyze-product]
+verify_jwt = true
