@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { Product } from '../types/product';
+import { getProductWhatsAppLink } from '../utils/whatsapp';
 
 interface Props {
   product: Product;
@@ -19,6 +20,7 @@ export default function ProductModal({
   onNext,
 }: Props) {
   const hasCarousel = totalProducts > 1;
+  const whatsappOrderLink = getProductWhatsAppLink(product);
 
   // Close on Escape and support carousel arrow keys for keyboard accessibility.
   useEffect(() => {
@@ -112,10 +114,19 @@ export default function ProductModal({
               {product.inStock ? 'In stock' : 'Sold out'}
             </span>
           </div>
+          <a
+            href={whatsappOrderLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
+          >
+            <span aria-hidden="true">💬</span>
+            Order / Enquire on WhatsApp
+          </a>
           <button
             type="button"
             onClick={onClose}
-            className="mt-6 w-full py-2 rounded-full bg-cocoa text-cream font-semibold hover:bg-cocoa-dark transition-colors"
+            className="mt-3 w-full py-2 rounded-full bg-cocoa text-cream font-semibold hover:bg-cocoa-dark transition-colors"
           >
             Close
           </button>
