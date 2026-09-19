@@ -352,4 +352,26 @@ export const products: Product[] = [
     inStock: true,
     image: img('processed/scrunchie-mustard-pink.jpg'),
   },
+  {
+    id: 'p32',
+    name: 'Evil Eye Charm (Bag / Key / Car)',
+    category: 'Charms & Keychains',
+    price: 249,
+    description:
+      'A royal-blue crochet evil-eye charm with a scalloped edge — works equally well as a bag charm, keychain, or car mirror hanging. Colours can be customised.',
+    color: '#1e4fa0',
+    inStock: true,
+    image: img('Collages/evil-eye-charm-collage.png'),
+  },
+  {
+    id: 'p33',
+    name: 'Paw Print Charm Collection',
+    category: 'Charms & Keychains',
+    price: 229,
+    description:
+      'A rust-and-black crochet paw print, styled as a bag charm, car mirror charm, keychain, or fridge magnet — a sweet gift for pet lovers, with fully customisable colours.',
+    color: '#a0522d',
+    inStock: true,
+    image: img('Collages/pawprint-charm-collage.jpg'),
+  },
 ];
