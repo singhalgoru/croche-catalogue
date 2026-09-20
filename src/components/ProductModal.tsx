@@ -47,6 +47,17 @@ export default function ProductModal({
       aria-modal="true"
       aria-label={product.name}
     >
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed right-3 top-3 z-[60] flex min-h-11 items-center gap-2 rounded-full border border-white/60 bg-white/75 px-4 py-2 font-semibold text-cocoa shadow-lg backdrop-blur-md transition-colors hover:bg-white/95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-5 sm:top-5"
+        aria-label="Close product details"
+      >
+        <span aria-hidden="true" className="text-xl leading-none">
+          ×
+        </span>
+        <span className="text-sm">Close</span>
+      </button>
       <div
         className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
         onClick={(event) => event.stopPropagation()}
