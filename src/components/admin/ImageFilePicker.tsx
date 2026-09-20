@@ -16,10 +16,10 @@ export default function ImageFilePicker({
   disabled = false,
 }: Props) {
   return (
-    <div>
+    <div className="min-w-0">
       <span className="text-sm font-semibold text-cocoa">{label}</span>
       <label
-        className={`mt-1 flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-3 py-2 transition-colors ${
+        className={`mt-1 flex min-h-16 min-w-0 max-w-full cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-3 py-2 transition-colors ${
           file
             ? 'border-green-300 bg-green-50'
             : 'border-mustard/70 bg-white hover:border-mustard hover:bg-mustard/10'

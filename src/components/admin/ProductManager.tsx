@@ -159,7 +159,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             return (
               <article
                 key={product.id}
-                className="rounded-2xl border border-mustard/30 bg-cream/50 p-4"
+                className="min-w-0 rounded-2xl border border-mustard/30 bg-cream/50 p-4"
               >
                 <div className="flex gap-4">
                   <img

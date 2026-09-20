@@ -9,6 +9,16 @@ const signIn = async (page: Page) => {
   await expect(page.getByRole('heading', { name: 'Manage catalogue' })).toBeVisible();
 };
 
+const expectNoHorizontalOverflow = async (page: Page) => {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    )
+    .toBe(true);
+};
+
 test('authenticates and manages the complete category lifecycle', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
@@ -39,13 +49,14 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   await signIn(page);
 
   await page.getByLabel('Variant image').setInputFiles({
-    name: 'bunny.png',
+    name: 'a-very-long-crochet-product-image-filename-for-mobile-testing.png',
     mimeType: 'image/png',
     buffer: Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
       'base64',
     ),
   });
+  await expectNoHorizontalOverflow(page);
   await page.getByRole('button', { name: 'Warm minimal' }).click();
   await page.getByLabel('Optional instruction').fill('Add soft morning light.');
   const generationRequest = page.waitForRequest('**/functions/v1/enhance-product-image');
@@ -117,8 +128,10 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   });
   await rose.getByRole('button', { name: 'Edit' }).click();
   await rose.getByRole('button', { name: '+ Add variant' }).click();
+  await expectNoHorizontalOverflow(page);
   const newVariant = rose.getByRole('heading', { name: 'New variant' }).locator('..');
   await newVariant.getByLabel('Variant name').fill('Lavender');
+  await expect(newVariant.getByLabel('Colour').first()).toHaveValue('#a78bfa');
   await newVariant.getByLabel('Variant image').setInputFiles({
     name: 'lavender.png',
     mimeType: 'image/png',

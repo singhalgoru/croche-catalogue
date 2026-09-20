@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
+import { suggestVariantColor } from './variantColor';
 import { createEmptyVariant, type VariantDraft } from './variantDraft';
 
 interface Props {
@@ -53,7 +54,7 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
       {variants.map((variant, index) => (
         <fieldset
           key={variant.key}
-          className="rounded-2xl border border-mustard/40 bg-cream/50 p-4"
+          className="min-w-0 rounded-2xl border border-mustard/40 bg-cream/50 p-4"
         >
           <div className="flex items-center justify-between gap-3">
             <legend className="font-heading font-bold text-cocoa">
@@ -71,8 +72,8 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
             )}
           </div>
 
-          <div className="mt-3 grid gap-4 sm:grid-cols-[7rem_1fr]">
-            <div>
+          <div className="mt-3 grid min-w-0 gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
+            <div className="min-w-0">
               {variant.previewUrl ? (
                 <img
                   src={variant.previewUrl}
@@ -86,12 +87,19 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
               )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-cocoa">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+              <label className="min-w-0 text-sm font-semibold text-cocoa">
                 Variant name
                 <input
                   value={variant.name}
-                  onChange={(event) => updateVariant(variant.key, { name: event.target.value })}
+                  onChange={(event) => {
+                    const name = event.target.value;
+                    const suggestedColor = suggestVariantColor(name);
+                    updateVariant(variant.key, {
+                      name,
+                      ...(suggestedColor ? { color: suggestedColor } : {}),
+                    });
+                  }}
                   required
                   maxLength={60}
                   placeholder="e.g. Lavender"
@@ -106,7 +114,7 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                 required={!variant.imageFile}
                 disabled={disabled}
               />
-              <label className="text-sm font-semibold text-cocoa">
+              <label className="min-w-0 text-sm font-semibold text-cocoa">
                 Colour
                 <div className="mt-1 flex gap-2">
                   <input

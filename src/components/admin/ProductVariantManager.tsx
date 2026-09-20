@@ -9,6 +9,7 @@ import {
 import type { ProductVariant } from '../../types/product';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
+import { suggestVariantColor } from './variantColor';
 
 interface Props {
   product: ManagedProduct;
@@ -131,12 +132,20 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   };
 
   const fields = (requiresImage: boolean) => (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <label className="text-sm font-semibold text-cocoa">
+    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <label className="min-w-0 text-sm font-semibold text-cocoa">
         Variant name
         <input
           value={draft.name}
-          onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+          onChange={(event) => {
+            const name = event.target.value;
+            const suggestedColor = suggestVariantColor(name);
+            setDraft((current) => ({
+              ...current,
+              name,
+              ...(suggestedColor ? { color: suggestedColor } : {}),
+            }));
+          }}
           required
           maxLength={60}
           className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
@@ -149,7 +158,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         required={requiresImage}
         disabled={isBusy}
       />
-      <label className="text-sm font-semibold text-cocoa">
+      <label className="min-w-0 text-sm font-semibold text-cocoa">
         Colour
         <div className="mt-1 flex gap-2">
           <input
@@ -235,52 +244,56 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
             key={variant.id}
             role="group"
             aria-label={`${variant.name} variant`}
-            className="rounded-xl border border-mustard/30 bg-white p-3"
+            className="min-w-0 rounded-xl border border-mustard/30 bg-white p-3"
           >
-            <div className="flex items-center gap-3">
-              <img
-                src={variant.image}
-                alt=""
-                className="h-16 w-16 rounded-lg bg-cream object-cover"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="h-4 w-4 rounded-full border border-cocoa/20"
-                    style={{ backgroundColor: variant.color }}
-                  />
-                  <p className="truncate font-semibold text-cocoa">{variant.name}</p>
-                  {index === 0 && (
-                    <span className="rounded-full bg-mustard/30 px-2 py-0.5 text-xs font-semibold">
-                      Main
-                    </span>
-                  )}
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <img
+                  src={variant.image}
+                  alt=""
+                  className="h-16 w-16 shrink-0 rounded-lg bg-cream object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="h-4 w-4 shrink-0 rounded-full border border-cocoa/20"
+                      style={{ backgroundColor: variant.color }}
+                    />
+                    <p className="truncate font-semibold text-cocoa">{variant.name}</p>
+                    {index === 0 && (
+                      <span className="shrink-0 rounded-full bg-mustard/30 px-2 py-0.5 text-xs font-semibold">
+                        Main
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-xs ${variant.inStock ? 'text-green-700' : 'text-cocoa/50'}`}>
+                    {variant.inStock ? 'In stock' : 'Sold out'}
+                  </p>
                 </div>
-                <p className={`text-xs ${variant.inStock ? 'text-green-700' : 'text-cocoa/50'}`}>
-                  {variant.inStock ? 'In stock' : 'Sold out'}
-                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(variant.id);
-                  setDeleteId(null);
-                  setIsAdding(false);
-                  setDraft(draftFromVariant(variant));
-                }}
-                className="text-sm font-semibold text-cocoa underline"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeleteId(variant.id)}
-                disabled={product.variants.length === 1}
-                title={product.variants.length === 1 ? 'Every product needs one variant.' : undefined}
-                className="text-sm font-semibold text-red-700 underline disabled:opacity-35"
-              >
-                Remove
-              </button>
+              <div className="flex shrink-0 gap-4 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(variant.id);
+                    setDeleteId(null);
+                    setIsAdding(false);
+                    setDraft(draftFromVariant(variant));
+                  }}
+                  className="text-sm font-semibold text-cocoa underline"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteId(variant.id)}
+                  disabled={product.variants.length === 1}
+                  title={product.variants.length === 1 ? 'Every product needs one variant.' : undefined}
+                  className="text-sm font-semibold text-red-700 underline disabled:opacity-35"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
 
             {editingId === variant.id && (
@@ -315,7 +328,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       </div>
 
       {isAdding && (
-        <form className="mt-4 rounded-xl border-2 border-dashed border-mustard p-4" onSubmit={(event) => void saveNewVariant(event)}>
+        <form className="mt-4 min-w-0 rounded-xl border-2 border-dashed border-mustard p-4" onSubmit={(event) => void saveNewVariant(event)}>
           <h5 className="font-heading font-bold text-cocoa">New variant</h5>
           <div className="mt-3">{fields(true)}</div>
           <div className="mt-3 flex gap-2">
