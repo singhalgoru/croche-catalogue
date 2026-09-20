@@ -22,10 +22,10 @@ test('filters, searches, opens products, and exposes customer contact links', as
     .poll(() =>
       page.evaluate(() =>
         window.dataLayer?.some(
-          (entry) =>
-            Array.isArray(entry) &&
-            entry[0] === 'config' &&
-            entry[1] === 'G-TEST123456',
+          (entry) => {
+            const values = Array.from(entry as ArrayLike<unknown>);
+            return values[0] === 'config' && values[1] === 'G-TEST123456';
+          },
         ),
       ),
     )
@@ -48,12 +48,15 @@ test('filters, searches, opens products, and exposes customer contact links', as
     .poll(() =>
       page.evaluate(() =>
         window.dataLayer?.some(
-          (entry) =>
-            Array.isArray(entry) &&
-            entry[0] === 'event' &&
-            entry[1] === 'select_item' &&
-            (entry[2] as { items?: Array<{ item_id?: string }> })?.items?.[0]?.item_id ===
-              'product-1',
+          (entry) => {
+            const values = Array.from(entry as ArrayLike<unknown>);
+            return (
+              values[0] === 'event' &&
+              values[1] === 'select_item' &&
+              (values[2] as { items?: Array<{ item_id?: string }> })?.items?.[0]?.item_id ===
+                'product-1'
+            );
+          },
         ),
       ),
     )
@@ -66,11 +69,14 @@ test('filters, searches, opens products, and exposes customer contact links', as
     .poll(() =>
       page.evaluate(() =>
         window.dataLayer?.some(
-          (entry) =>
-            Array.isArray(entry) &&
-            entry[0] === 'event' &&
-            entry[1] === 'select_variant' &&
-            (entry[2] as { variant_name?: string })?.variant_name === 'Ivory',
+          (entry) => {
+            const values = Array.from(entry as ArrayLike<unknown>);
+            return (
+              values[0] === 'event' &&
+              values[1] === 'select_variant' &&
+              (values[2] as { variant_name?: string })?.variant_name === 'Ivory'
+            );
+          },
         ),
       ),
     )

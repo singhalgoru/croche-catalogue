@@ -17,8 +17,8 @@ export const initializeAnalytics = () => {
   if (!measurementId || isAdminRoute() || window.gtag) return;
 
   window.dataLayer = window.dataLayer ?? [];
-  window.gtag = (...args: unknown[]) => {
-    window.dataLayer?.push(args);
+  window.gtag = function gtag(..._args: unknown[]) {
+    window.dataLayer?.push(arguments);
   };
   window.gtag('js', new Date());
   window.gtag('config', measurementId, {
