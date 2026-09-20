@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 
@@ -19,6 +19,7 @@ export default function ProductModal({
   onPrevious,
   onNext,
 }: Props) {
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const hasCarousel = totalProducts > 1;
   const whatsappOrderLink = getProductWhatsAppLink(product);
 
@@ -38,6 +39,28 @@ export default function ProductModal({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [hasCarousel, onClose, onNext, onPrevious]);
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = touchStart.current;
+    const touch = event.changedTouches[0];
+    touchStart.current = null;
+    if (!hasCarousel || !start || !touch) return;
+
+    const horizontalDistance = touch.clientX - start.x;
+    const verticalDistance = touch.clientY - start.y;
+    const isHorizontalSwipe =
+      Math.abs(horizontalDistance) >= 50 &&
+      Math.abs(horizontalDistance) > Math.abs(verticalDistance) * 1.25;
+
+    if (!isHorizontalSwipe) return;
+    if (horizontalDistance < 0) onNext();
+    else onPrevious();
+  };
 
   return (
     <div
@@ -61,7 +84,14 @@ export default function ProductModal({
         className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative">
+        <div
+          className="relative touch-pan-y"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={() => {
+            touchStart.current = null;
+          }}
+        >
           <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
           {hasCarousel && (
             <>
