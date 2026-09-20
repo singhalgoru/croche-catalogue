@@ -11,6 +11,18 @@ export interface ProductRow {
   image_url: string;
   published: boolean;
   created_at: string;
+  product_variants: VariantRow[];
+}
+
+export interface VariantRow {
+  id: string;
+  product_id: string;
+  name: string;
+  color: string;
+  in_stock: boolean;
+  image_path: string;
+  image_url: string;
+  sort_order: number;
 }
 
 export interface MockCatalogueState {
@@ -73,6 +85,28 @@ const defaultProducts = (): ProductRow[] => [
     image_url: image,
     published: true,
     created_at: '2026-01-01T00:00:00.000Z',
+    product_variants: [
+      {
+        id: 'variant-1',
+        product_id: 'product-1',
+        name: 'Rose Pink',
+        color: '#f6c453',
+        in_stock: true,
+        image_path: 'seed/rose.jpg',
+        image_url: image,
+        sort_order: 0,
+      },
+      {
+        id: 'variant-2',
+        product_id: 'product-1',
+        name: 'Ivory',
+        color: '#fffaf0',
+        in_stock: false,
+        image_path: 'seed/rose-ivory.jpg',
+        image_url: image,
+        sort_order: 1,
+      },
+    ],
   },
   {
     id: 'product-2',
@@ -85,6 +119,18 @@ const defaultProducts = (): ProductRow[] => [
     image_url: image,
     published: true,
     created_at: '2026-01-02T00:00:00.000Z',
+    product_variants: [
+      {
+        id: 'variant-3',
+        product_id: 'product-2',
+        name: 'Default',
+        color: '#e2a933',
+        in_stock: false,
+        image_path: 'seed/coaster.jpg',
+        image_url: image,
+        sort_order: 0,
+      },
+    ],
   },
 ];
 
@@ -172,19 +218,23 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     if (pathname === '/rest/v1/products') {
       if (request.method() === 'GET') {
         const publishedOnly = url.searchParams.get('published') === 'eq.true';
-        await json(
-          route,
-          publishedOnly ? state.products.filter((product) => product.published) : state.products,
-        );
+        const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+        const products = (publishedOnly
+          ? state.products.filter((product) => product.published)
+          : state.products
+        ).filter((product) => !id || product.id === id);
+        const wantsSingle = request.headers()['accept']?.includes('application/vnd.pgrst.object+json');
+        await json(route, wantsSingle ? products[0] : products);
         return;
       }
 
       if (request.method() === 'POST') {
-        const body = getRequestBody<Omit<ProductRow, 'id' | 'created_at'>>(route);
+        const body = getRequestBody<Omit<ProductRow, 'id' | 'created_at' | 'product_variants'>>(route);
         const product: ProductRow = {
           ...body,
           id: `product-${state.products.length + 1}`,
           created_at: new Date().toISOString(),
+          product_variants: [],
         };
         state.products.push(product);
         await json(route, product, 201);
@@ -208,6 +258,50 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       }
     }
 
+    if (pathname === '/rest/v1/product_variants') {
+      if (request.method() === 'POST') {
+        const body = getRequestBody<
+          | Omit<VariantRow, 'id'>
+          | Array<Omit<VariantRow, 'id'>>
+        >(route);
+        const additions = (Array.isArray(body) ? body : [body]).map((variant, index) => ({
+          ...variant,
+          id: `variant-${state.products.reduce(
+            (count, product) => count + product.product_variants.length,
+            1,
+          ) + index}`,
+        }));
+        for (const variant of additions) {
+          const product = state.products.find((item) => item.id === variant.product_id);
+          product?.product_variants.push(variant);
+        }
+        await json(route, additions, 201);
+        return;
+      }
+
+      const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+      const product = state.products.find((item) =>
+        item.product_variants.some((variant) => variant.id === id),
+      );
+      const variantIndex = product?.product_variants.findIndex((variant) => variant.id === id) ?? -1;
+
+      if (request.method() === 'PATCH' && product && variantIndex >= 0) {
+        const changes = getRequestBody<Partial<VariantRow>>(route);
+        product.product_variants[variantIndex] = {
+          ...product.product_variants[variantIndex],
+          ...changes,
+        };
+        await json(route, product.product_variants[variantIndex]);
+        return;
+      }
+
+      if (request.method() === 'DELETE' && product) {
+        product.product_variants = product.product_variants.filter((variant) => variant.id !== id);
+        await route.fulfill({ status: 204 });
+        return;
+      }
+    }
+
     if (pathname === '/functions/v1/analyze-product') {
       await json(route, {
         name: 'AI Bunny',
@@ -218,7 +312,10 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
-    if (pathname.startsWith('/storage/v1/object/product-images/')) {
+    if (
+      pathname === '/storage/v1/object/product-images' ||
+      pathname.startsWith('/storage/v1/object/product-images/')
+    ) {
       await json(route, { Key: pathname.replace('/storage/v1/object/', '') });
       return;
     }

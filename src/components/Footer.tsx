@@ -1,4 +1,5 @@
 import { getGeneralWhatsAppLink } from '../utils/whatsapp';
+import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
 
 const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
@@ -16,7 +17,7 @@ export default function Footer() {
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
           >
-            <span aria-hidden="true">💬</span>
+            <WhatsAppIcon />
             Contact on WhatsApp
           </a>
           <a
@@ -25,7 +26,7 @@ export default function Footer() {
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] px-5 py-2 font-semibold text-white transition-opacity hover:opacity-90"
           >
-            <span aria-hidden="true">◎</span>
+            <InstagramIcon />
             Contact on Instagram
           </a>
         </div>

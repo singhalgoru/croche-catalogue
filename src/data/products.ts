@@ -10,7 +10,7 @@ const img = (filename: string) =>
 
 // Real catalogue data for Luvia — handmade crochet accessories & decor.
 // Prices are estimates in INR; update them to match your actual pricing.
-export const products: Product[] = [
+const productsWithoutVariants: Omit<Product, 'variants'>[] = [
   {
     id: 'p1',
     name: 'Rainbow Braid Ponytail Wrap',
@@ -298,3 +298,17 @@ export const products: Product[] = [
     image: img('Collages/pawprint-charm-collage.jpg'),
   },
 ];
+
+export const products: Product[] = productsWithoutVariants.map((product) => ({
+  ...product,
+  variants: [
+    {
+      id: `${product.id}-default`,
+      name: 'Default',
+      color: product.color,
+      inStock: product.inStock,
+      image: product.image,
+      imagePath: '',
+    },
+  ],
+}));

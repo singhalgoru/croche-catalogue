@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
+import ImageZoomViewer from './ImageZoomViewer';
+import { WhatsAppIcon } from './SocialIcons';
 
 interface Props {
   product: Product;
@@ -22,25 +24,30 @@ export default function ProductModal({
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showTouchControls, setShowTouchControls] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id ?? '');
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
   const hasCarousel = totalProducts > 1;
-  const whatsappOrderLink = getProductWhatsAppLink(product);
+  const selectedVariant =
+    product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
+  const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
 
   // Close on Escape and support carousel arrow keys for keyboard accessibility.
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        if (isZoomOpen) setIsZoomOpen(false);
+        else onClose();
         return;
       }
 
-      if (!hasCarousel) return;
+      if (!hasCarousel || isZoomOpen) return;
 
       if (event.key === 'ArrowLeft') onPrevious();
       if (event.key === 'ArrowRight') onNext();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [hasCarousel, onClose, onNext, onPrevious]);
+  }, [hasCarousel, isZoomOpen, onClose, onNext, onPrevious]);
 
   useEffect(
     () => () => {
@@ -113,7 +120,33 @@ export default function ProductModal({
         }}
       >
         <div className="relative">
-          <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
+          <img
+            src={selectedVariant?.image ?? product.image}
+            alt={
+              selectedVariant && product.variants.length > 1
+                ? `${product.name} — ${selectedVariant.name}`
+                : product.name
+            }
+            className="w-full aspect-square object-cover"
+          />
+          <button
+            type="button"
+            onClick={() => setIsZoomOpen(true)}
+            className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
+            aria-label="Zoom product image"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m16.5 16.5 4 4M8 11h6M11 8v6" />
+            </svg>
+          </button>
           {hasCarousel && (
             <>
               <button
@@ -148,6 +181,51 @@ export default function ProductModal({
           )}
         </div>
         <div className="p-4 sm:p-6">
+          {product.variants.length > 1 && (
+            <section className="mb-5" aria-label="Product variants">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-cocoa">Choose a variant</h3>
+                <span
+                  className={`text-xs font-semibold ${
+                    selectedVariant?.inStock ? 'text-green-700' : 'text-cocoa/55'
+                  }`}
+                >
+                  {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
+                </span>
+              </div>
+              <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
+                {product.variants.map((variant) => {
+                  const isSelected = variant.id === selectedVariant?.id;
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => setSelectedVariantId(variant.id)}
+                      aria-pressed={isSelected}
+                      className={`min-w-[5.5rem] rounded-xl border-2 p-1.5 text-left transition-colors ${
+                        isSelected
+                          ? 'border-cocoa bg-mustard/20'
+                          : 'border-mustard/30 bg-white hover:border-mustard'
+                      }`}
+                    >
+                      <img
+                        src={variant.image}
+                        alt=""
+                        className="aspect-square w-full rounded-lg bg-cream object-cover"
+                      />
+                      <span className="mt-1.5 flex items-center gap-1.5 px-0.5 text-xs font-semibold text-cocoa">
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full border border-cocoa/20"
+                          style={{ backgroundColor: variant.color }}
+                        />
+                        <span className="truncate">{variant.name}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
           <div className="flex items-start justify-between gap-3">
             <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">
               {product.category}
@@ -179,8 +257,8 @@ export default function ProductModal({
             </div>
           )}
           <div className="flex items-center justify-end mt-6">
-            <span className={product.inStock ? 'text-green-700 font-medium' : 'text-cocoa/60 font-medium'}>
-              {product.inStock ? 'In stock' : 'Sold out'}
+            <span className={selectedVariant?.inStock ? 'text-green-700 font-medium' : 'text-cocoa/60 font-medium'}>
+              {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
             </span>
           </div>
           <a
@@ -189,7 +267,7 @@ export default function ProductModal({
             rel="noopener noreferrer"
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
           >
-            <span aria-hidden="true">💬</span>
+            <WhatsAppIcon />
             Order / Enquire on WhatsApp
           </a>
           <button
@@ -201,6 +279,17 @@ export default function ProductModal({
           </button>
         </div>
       </div>
+      {isZoomOpen && (
+        <ImageZoomViewer
+          image={selectedVariant?.image ?? product.image}
+          alt={
+            selectedVariant && product.variants.length > 1
+              ? `${product.name} — ${selectedVariant.name}`
+              : product.name
+          }
+          onClose={() => setIsZoomOpen(false)}
+        />
+      )}
     </div>
   );
 }

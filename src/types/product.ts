@@ -1,5 +1,14 @@
 export type Category = string;
 
+export interface ProductVariant {
+  id: string;
+  name: string;
+  color: string;
+  inStock: boolean;
+  image: string;
+  imagePath: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -11,4 +20,5 @@ export interface Product {
   color: string;
   inStock: boolean;
   image: string;
+  variants: ProductVariant[];
 }

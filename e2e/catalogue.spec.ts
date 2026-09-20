@@ -34,9 +34,20 @@ test('filters, searches, opens products, and exposes customer contact links', as
   await page.getByRole('button', { name: /Rose Charm/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Product variants' })).toBeVisible();
+  await dialog.getByRole('button', { name: /Ivory/ }).click();
+  await expect(dialog.getByText('Sold out', { exact: true }).first()).toBeVisible();
+  await dialog.getByRole('button', { name: 'Zoom product image' }).click();
+  const zoomViewer = page.getByRole('dialog', { name: 'Zoomed image of Rose Charm — Ivory' });
+  await expect(zoomViewer).toBeVisible();
+  await zoomViewer.getByRole('button', { name: 'Zoom in' }).click();
+  await expect(zoomViewer.getByRole('button', { name: 'Reset zoom' })).toHaveText('150%');
+  await page.keyboard.press('Escape');
+  await expect(zoomViewer).toHaveCount(0);
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Order / Enquire on WhatsApp' })).toHaveAttribute(
     'href',
-    /Rose%20Charm/,
+    /Ivory/,
   );
 
   await page.keyboard.press('ArrowRight');

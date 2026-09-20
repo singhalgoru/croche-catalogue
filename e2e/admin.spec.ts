@@ -37,7 +37,7 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
 
-  await page.locator('input[type="file"]').first().setInputFiles({
+  await page.getByLabel('Variant image').setInputFiles({
     name: 'bunny.png',
     mimeType: 'image/png',
     buffer: Buffer.from(
@@ -52,8 +52,11 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   );
 
   await page.getByRole('button', { name: 'Publish product' }).click();
-  await expect(page.getByText('AI Bunny was published to the catalogue.')).toBeVisible();
+  await expect(page.getByText('AI Bunny with 1 variant was published to the catalogue.')).toBeVisible();
   expect(state.products.some((product) => product.name === 'AI Bunny')).toBe(true);
+  expect(
+    state.products.find((product) => product.name === 'AI Bunny')?.product_variants,
+  ).toHaveLength(1);
   await expect(
     page.getByRole('heading', { name: 'AI Bunny', exact: true }),
   ).toBeVisible();
@@ -86,4 +89,41 @@ test('edits visibility and permanently removes products', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
   ).toHaveCount(0);
+});
+
+test('adds, updates, and removes product variants', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+  await rose.getByRole('button', { name: '+ Add variant' }).click();
+  const newVariant = rose.getByRole('heading', { name: 'New variant' }).locator('..');
+  await newVariant.getByLabel('Variant name').fill('Lavender');
+  await newVariant.getByLabel('Variant image').setInputFiles({
+    name: 'lavender.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
+      'base64',
+    ),
+  });
+  await newVariant.getByRole('button', { name: 'Add variant' }).click();
+  await expect(page.getByText('“Lavender” was added to Rose Charm.')).toBeVisible();
+  expect(state.products[0].product_variants).toHaveLength(3);
+
+  const lavender = rose.getByRole('group', { name: 'Lavender variant' });
+  await lavender.getByRole('button', { name: 'Edit' }).click();
+  await lavender.getByLabel('Variant name').fill('Lilac');
+  await lavender.getByLabel('In stock').uncheck();
+  await lavender.getByRole('button', { name: 'Save variant' }).click();
+  await expect(page.getByText('“Lilac” was updated.')).toBeVisible();
+
+  const lilac = rose.getByRole('group', { name: 'Lilac variant' });
+  await lilac.getByRole('button', { name: 'Remove' }).click();
+  await lilac.getByRole('button', { name: 'Yes, remove' }).click();
+  await expect(page.getByText('“Lilac” was removed from Rose Charm.')).toBeVisible();
+  expect(state.products[0].product_variants).toHaveLength(2);
 });

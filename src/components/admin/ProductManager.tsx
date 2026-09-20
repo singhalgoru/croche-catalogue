@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   deleteProduct,
   fetchManagedProducts,
@@ -7,6 +7,7 @@ import {
   type ProductUpdate,
 } from '../../services/products';
 import type { Category } from '../../types/product';
+import ProductVariantManager from './ProductVariantManager';
 
 interface Props {
   categories: Category[];
@@ -18,22 +19,14 @@ interface EditDraft {
   name: string;
   category: Category;
   description: string;
-  color: string;
-  inStock: boolean;
   published: boolean;
-  imageFile: File | null;
 }
-
-const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
 
 const createDraft = (product: ManagedProduct): EditDraft => ({
   name: product.name,
   category: product.category,
   description: product.description,
-  color: product.color,
-  inStock: product.inStock,
   published: product.published,
-  imageFile: null,
 });
 
 export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
@@ -67,22 +60,6 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     setDeleteId(null);
     setDraft(createDraft(product));
     setMessage(null);
-    setError(null);
-  };
-
-  const selectReplacementImage = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      event.target.value = '';
-      setError('Please choose a JPG, PNG, or WebP image.');
-      return;
-    }
-    if (file && file.size > MAX_IMAGE_SIZE) {
-      event.target.value = '';
-      setError('Please choose an image smaller than 6 MB.');
-      return;
-    }
-    setDraft((current) => (current ? { ...current, imageFile: file } : current));
     setError(null);
   };
 
@@ -129,6 +106,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     } finally {
       setBusyId(null);
     }
+  };
+
+  const handleVariantSaved = async (saved: ManagedProduct, successMessage: string) => {
+    setProducts((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+    setMessage(successMessage);
+    setError(null);
+    await onChanged();
   };
 
   return (
@@ -188,6 +172,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       <div>
                         <h3 className="font-heading text-lg font-bold text-cocoa">{product.name}</h3>
                         <p className="text-sm text-cocoa/60">{product.category}</p>
+                        <p className="mt-1 text-xs font-semibold text-cocoa/55">
+                          {product.variants.length} variant{product.variants.length === 1 ? '' : 's'}
+                        </p>
                         {!product.published && (
                           <span className="mt-1 inline-block rounded-full bg-cocoa/10 px-2 py-0.5 text-xs font-semibold text-cocoa">
                             Hidden
@@ -300,56 +287,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         className="mt-1 w-full resize-y rounded-xl border border-mustard/60 px-3 py-2"
                       />
                     </label>
-                    <label className="text-sm font-semibold text-cocoa">
-                      Accent colour
-                      <div className="mt-1 flex gap-2">
-                        <input
-                          value={draft.color}
-                          onChange={(event) =>
-                            setDraft((current) =>
-                              current ? { ...current, color: event.target.value } : current,
-                            )
-                          }
-                          required
-                          pattern="#[0-9a-fA-F]{6}"
-                          className="min-w-0 flex-1 rounded-xl border border-mustard/60 px-3 py-2"
-                        />
-                        <input
-                          type="color"
-                          value={draft.color}
-                          onChange={(event) =>
-                            setDraft((current) =>
-                              current ? { ...current, color: event.target.value } : current,
-                            )
-                          }
-                          aria-label={`Choose colour for ${product.name}`}
-                          className="h-10 w-12 rounded-lg border border-mustard/60 bg-white p-1"
-                        />
-                      </div>
-                    </label>
-                    <label className="text-sm font-semibold text-cocoa">
-                      Replace image (optional)
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={selectReplacementImage}
-                        className="mt-1 block w-full text-sm"
-                      />
-                    </label>
                     <div className="flex flex-wrap items-center gap-5 sm:col-span-2">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
-                        <input
-                          type="checkbox"
-                          checked={draft.inStock}
-                          onChange={(event) =>
-                            setDraft((current) =>
-                              current ? { ...current, inStock: event.target.checked } : current,
-                            )
-                          }
-                          className="h-4 w-4 accent-cocoa"
-                        />
-                        In stock
-                      </label>
                       <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
                         <input
                           type="checkbox"
@@ -385,6 +323,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       </button>
                     </div>
                   </form>
+                )}
+                {isEditing && (
+                  <ProductVariantManager product={product} onSaved={handleVariantSaved} />
                 )}
               </article>
             );

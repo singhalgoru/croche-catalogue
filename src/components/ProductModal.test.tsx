@@ -12,6 +12,24 @@ const product: Product = {
   color: '#f6c453',
   inStock: true,
   image: '/rose.jpg',
+  variants: [
+    {
+      id: 'variant-1',
+      name: 'Red',
+      color: '#f6c453',
+      inStock: true,
+      image: '/rose.jpg',
+      imagePath: 'rose.jpg',
+    },
+    {
+      id: 'variant-2',
+      name: 'Ivory',
+      color: '#fffaf0',
+      inStock: false,
+      image: '/rose-ivory.jpg',
+      imagePath: 'rose-ivory.jpg',
+    },
+  ],
 };
 
 const renderModal = () => {
@@ -98,5 +116,34 @@ describe('ProductModal touch controls', () => {
 
     expect(onNext).not.toHaveBeenCalled();
     expect(onPrevious).not.toHaveBeenCalled();
+  });
+
+  it('switches the product image, stock status, and enquiry link by variant', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ivory/ }));
+
+    expect(screen.getByRole('img', { name: 'Crochet Rose — Ivory' }).getAttribute('src')).toBe(
+      '/rose-ivory.jpg',
+    );
+    expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Order / Enquire on WhatsApp' }).getAttribute('href')).toContain(
+      '%E2%80%9CIvory%E2%80%9D',
+    );
+  });
+
+  it('opens, controls, and closes image zoom without closing the product modal', () => {
+    const { onClose } = renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+    expect(screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(screen.getByRole('button', { name: 'Reset zoom' }).textContent).toBe('150%');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Crochet Rose' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
