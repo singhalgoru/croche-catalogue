@@ -1,4 +1,4 @@
-import { useEffect, useRef, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 
@@ -20,6 +20,8 @@ export default function ProductModal({
   onNext,
 }: Props) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showTouchControls, setShowTouchControls] = useState(false);
   const hasCarousel = totalProducts > 1;
   const whatsappOrderLink = getProductWhatsAppLink(product);
 
@@ -39,6 +41,22 @@ export default function ProductModal({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [hasCarousel, onClose, onNext, onPrevious]);
+
+  useEffect(
+    () => () => {
+      if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    },
+    [],
+  );
+
+  const revealTouchControls = () => {
+    setShowTouchControls(true);
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => {
+      setShowTouchControls(false);
+      controlsTimer.current = null;
+    }, 2000);
+  };
 
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     const touch = event.touches[0];
@@ -66,6 +84,7 @@ export default function ProductModal({
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
       onClick={onClose}
+      onTouchStartCapture={revealTouchControls}
       role="dialog"
       aria-modal="true"
       aria-label={product.name}
@@ -73,7 +92,11 @@ export default function ProductModal({
       <button
         type="button"
         onClick={onClose}
-        className="fixed right-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-cocoa shadow-lg backdrop-blur-md transition-colors hover:bg-white/95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-5 sm:top-5"
+        className="fixed right-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-cocoa shadow-lg backdrop-blur-md transition-opacity duration-200 hover:bg-white/95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-5 sm:top-5"
+        style={{
+          opacity: showTouchControls ? 1 : 0,
+          pointerEvents: showTouchControls ? 'auto' : 'none',
+        }}
         aria-label="Close product details"
       >
         <span aria-hidden="true" className="text-2xl leading-none">
@@ -81,24 +104,26 @@ export default function ProductModal({
         </span>
       </button>
       <div
-        className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
+        className="touch-pan-y bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
         onClick={(event) => event.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => {
+          touchStart.current = null;
+        }}
       >
-        <div
-          className="relative touch-pan-y"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={() => {
-            touchStart.current = null;
-          }}
-        >
+        <div className="relative">
           <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
           {hasCarousel && (
             <>
               <button
                 type="button"
                 onClick={onPrevious}
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/90 text-cocoa shadow-md flex items-center justify-center hover:bg-mustard/90 transition-colors"
+                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
+                style={{
+                  opacity: showTouchControls ? 1 : 0,
+                  pointerEvents: showTouchControls ? 'auto' : 'none',
+                }}
                 aria-label="Show previous product"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">
@@ -108,7 +133,11 @@ export default function ProductModal({
               <button
                 type="button"
                 onClick={onNext}
-                className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/90 text-cocoa shadow-md flex items-center justify-center hover:bg-mustard/90 transition-colors"
+                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
+                style={{
+                  opacity: showTouchControls ? 1 : 0,
+                  pointerEvents: showTouchControls ? 'auto' : 'none',
+                }}
                 aria-label="Show next product"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">
