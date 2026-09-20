@@ -7,6 +7,8 @@ import {
   type VariantUpdate,
 } from '../../services/products';
 import type { ProductVariant } from '../../types/product';
+import ImageGenerationPanel from './ImageGenerationPanel';
+import ImageFilePicker from './ImageFilePicker';
 
 interface Props {
   product: ManagedProduct;
@@ -18,6 +20,7 @@ interface Draft {
   color: string;
   inStock: boolean;
   imageFile: File | null;
+  previewUrl: string | null;
 }
 
 const emptyDraft = (): Draft => ({
@@ -25,6 +28,7 @@ const emptyDraft = (): Draft => ({
   color: '#f6c453',
   inStock: true,
   imageFile: null,
+  previewUrl: null,
 });
 
 const draftFromVariant = (variant: ProductVariant): Draft => ({
@@ -32,6 +36,7 @@ const draftFromVariant = (variant: ProductVariant): Draft => ({
   color: variant.color,
   inStock: variant.inStock,
   imageFile: null,
+  previewUrl: null,
 });
 
 export default function ProductVariantManager({ product, onSaved }: Props) {
@@ -57,7 +62,14 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       return;
     }
     event.target.setCustomValidity('');
-    setDraft((current) => ({ ...current, imageFile: file }));
+    setDraft((current) => {
+      if (current.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return {
+        ...current,
+        imageFile: file,
+        previewUrl: file ? URL.createObjectURL(file) : null,
+      };
+    });
   };
 
   const saveNewVariant = async (event: FormEvent<HTMLFormElement>) => {
@@ -130,16 +142,13 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
         />
       </label>
-      <label className="text-sm font-semibold text-cocoa">
-        {requiresImage ? 'Variant image' : 'Replace image (optional)'}
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={selectImage}
-          required={requiresImage}
-          className="mt-1 block w-full text-sm"
-        />
-      </label>
+      <ImageFilePicker
+        label={requiresImage ? 'Variant image' : 'Replace image (optional)'}
+        file={draft.imageFile}
+        onChange={selectImage}
+        required={requiresImage}
+        disabled={isBusy}
+      />
       <label className="text-sm font-semibold text-cocoa">
         Colour
         <div className="mt-1 flex gap-2">
@@ -170,6 +179,23 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         />
         In stock
       </label>
+      {draft.imageFile && (
+        <ImageGenerationPanel
+          sourceFile={draft.imageFile}
+          sourceUrl={draft.previewUrl!}
+          disabled={isBusy}
+          onUseImage={(file) =>
+            setDraft((current) => {
+              if (current.previewUrl) URL.revokeObjectURL(current.previewUrl);
+              return {
+                ...current,
+                imageFile: file,
+                previewUrl: URL.createObjectURL(file),
+              };
+            })
+          }
+        />
+      )}
     </div>
   );
 

@@ -123,21 +123,58 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
   return (
     <form className="space-y-6" onSubmit={submitProduct}>
       <section className="rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
+          Step 1 of 3
+        </p>
+        <h2 className="mt-1 font-heading text-2xl font-bold text-cocoa">
+          Add product photos
+        </h2>
+        <p className="mt-1 text-sm text-cocoa/65">
+          Upload the main product photo first. You can improve it with AI, then add other
+          colours or styles as variants.
+        </p>
+        <div className="mt-5">
+          <VariantDraftFields
+            variants={variants}
+            onChange={setVariants}
+            disabled={isAnalyzing || isPublishing}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="font-heading text-2xl font-bold text-cocoa">Add a new product</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
+              Step 2 of 3
+            </p>
+            <h2 className="mt-1 font-heading text-xl font-bold text-cocoa">
+              Review product details
+            </h2>
             <p className="mt-1 text-sm text-cocoa/65">
-              Add one photo, name, colour, and stock status for each available variant.
+              Enter the details yourself or let Gemini suggest them from the main photo.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void analyzeImage()}
-            disabled={!variants[0]?.imageFile || categories.length === 0 || isAnalyzing || isPublishing}
-            className="shrink-0 rounded-full bg-mustard px-5 py-2.5 font-semibold text-cocoa disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isAnalyzing ? 'Gemini is analyzing…' : 'Generate details with Gemini'}
-          </button>
+          <div className="shrink-0">
+            <button
+              type="button"
+              onClick={() => void analyzeImage()}
+              disabled={
+                !variants[0]?.imageFile ||
+                categories.length === 0 ||
+                isAnalyzing ||
+                isPublishing
+              }
+              className="w-full rounded-full bg-mustard px-5 py-2.5 font-semibold text-cocoa disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isAnalyzing ? 'Gemini is analyzing…' : 'Suggest details from photo'}
+            </button>
+            {!variants[0]?.imageFile && (
+              <p className="mt-1 text-center text-xs text-cocoa/50">
+                Available after you add the main photo
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -183,18 +220,14 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       </section>
 
       <section className="rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
-        <h2 className="font-heading text-xl font-bold text-cocoa">Product variants</h2>
-        <p className="mt-1 text-sm text-cocoa/65">
-          The main variant is used on the catalogue card. Customers can switch between all
-          variants in the product view.
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
+          Step 3 of 3
         </p>
-        <div className="mt-5">
-          <VariantDraftFields
-            variants={variants}
-            onChange={setVariants}
-            disabled={isAnalyzing || isPublishing}
-          />
-        </div>
+        <h2 className="mt-1 font-heading text-xl font-bold text-cocoa">Publish product</h2>
+        <p className="mt-1 text-sm text-cocoa/65">
+          Review the photos and details above. Publishing makes the product visible in the
+          catalogue immediately.
+        </p>
 
         {errorMessage && (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

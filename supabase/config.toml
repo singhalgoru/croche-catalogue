@@ -2,3 +2,6 @@ project_id = "bblsjcjypdxntzlszliy"
 
 [functions.analyze-product]
 verify_jwt = true
+
+[functions.enhance-product-image]
+verify_jwt = true

@@ -1,4 +1,6 @@
 import type { ChangeEvent } from 'react';
+import ImageGenerationPanel from './ImageGenerationPanel';
+import ImageFilePicker from './ImageFilePicker';
 import { createEmptyVariant, type VariantDraft } from './variantDraft';
 
 interface Props {
@@ -97,17 +99,13 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                   className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
                 />
               </label>
-              <label className="text-sm font-semibold text-cocoa">
-                Variant image
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(event) => selectImage(event, variant)}
-                  required={!variant.imageFile}
-                  disabled={disabled}
-                  className="mt-1 block w-full text-sm"
-                />
-              </label>
+              <ImageFilePicker
+                label="Variant image"
+                file={variant.imageFile}
+                onChange={(event) => selectImage(event, variant)}
+                required={!variant.imageFile}
+                disabled={disabled}
+              />
               <label className="text-sm font-semibold text-cocoa">
                 Colour
                 <div className="mt-1 flex gap-2">
@@ -141,6 +139,20 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                 />
                 In stock
               </label>
+              {variant.imageFile && (
+                <ImageGenerationPanel
+                  sourceFile={variant.imageFile}
+                  sourceUrl={variant.previewUrl!}
+                  disabled={disabled}
+                  onUseImage={(file) => {
+                    if (variant.previewUrl) URL.revokeObjectURL(variant.previewUrl);
+                    updateVariant(variant.key, {
+                      imageFile: file,
+                      previewUrl: URL.createObjectURL(file),
+                    });
+                  }}
+                />
+              )}
             </div>
           </div>
         </fieldset>

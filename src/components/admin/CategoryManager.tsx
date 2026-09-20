@@ -12,6 +12,7 @@ interface Props {
 }
 
 export default function CategoryManager({ categories, onChanged }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
   const [replacementName, setReplacementName] = useState('');
@@ -81,12 +82,37 @@ export default function CategoryManager({ categories, onChanged }: Props) {
 
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
-      <h2 className="font-heading text-2xl font-bold text-cocoa">Manage categories</h2>
-      <p className="mt-1 text-sm text-cocoa/65">
-        New categories become available immediately in product forms and Gemini suggestions.
-      </p>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((current) => !current)}
+        aria-expanded={isExpanded}
+        aria-controls="category-management-content"
+        className="flex w-full items-center justify-between gap-4 text-left"
+      >
+        <span>
+          <span className="block font-heading text-2xl font-bold text-cocoa">
+            Manage categories
+          </span>
+          <span className="mt-1 block text-sm text-cocoa/65">
+            {categories.length} categor{categories.length === 1 ? 'y' : 'ies'} available
+          </span>
+        </span>
+        <span
+          aria-hidden="true"
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mustard/20 text-xl text-cocoa transition-transform ${
+            isExpanded ? 'rotate-180' : ''
+          }`}
+        >
+          ⌄
+        </span>
+      </button>
 
-      <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
+      <div id="category-management-content" hidden={!isExpanded}>
+        <p className="mt-4 text-sm text-cocoa/65">
+          New categories become available immediately in product forms and Gemini suggestions.
+        </p>
+
+        <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
         <label className="flex-1 text-sm font-semibold text-cocoa">
           New category
           <input
@@ -106,21 +132,21 @@ export default function CategoryManager({ categories, onChanged }: Props) {
         >
           {busyName === '__new__' ? 'Adding…' : 'Add category'}
         </button>
-      </form>
+        </form>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-          {message}
-        </p>
-      )}
+        {error && (
+          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+        {message && (
+          <p className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            {message}
+          </p>
+        )}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {categories.map((category) => (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {categories.map((category) => (
           <div key={category} className="rounded-xl border border-mustard/30 bg-cream/50 p-3">
             {editingName === category ? (
               <form onSubmit={(event) => void saveRename(event, category)}>
@@ -212,7 +238,8 @@ export default function CategoryManager({ categories, onChanged }: Props) {
               </div>
             )}
           </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );

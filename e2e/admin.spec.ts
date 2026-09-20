@@ -13,6 +13,7 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   const state = await installMockSupabase(page);
   await signIn(page);
 
+  await page.getByRole('button', { name: /Manage categories/ }).click();
   await page.getByLabel('New category').fill('Bags');
   await page.getByRole('button', { name: 'Add category' }).click();
   await expect(page.getByText('“Bags” was added.')).toBeVisible();
@@ -45,7 +46,23 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
       'base64',
     ),
   });
-  await page.getByRole('button', { name: 'Generate details with Gemini' }).click();
+  await page.getByRole('button', { name: 'Warm minimal' }).click();
+  await page.getByLabel('Optional instruction').fill('Add soft morning light.');
+  const generationRequest = page.waitForRequest('**/functions/v1/enhance-product-image');
+  await page.getByRole('button', { name: 'Create studio image' }).click();
+  expect((await generationRequest).postDataJSON()).toMatchObject({
+    mode: 'studio',
+    styleSuggestion:
+      'Use a warm cream palette, soft natural light, and very minimal neutral props. Add soft morning light.',
+  });
+  const originalPreview = page.getByRole('img', { name: 'Original product' });
+  await expect(originalPreview).toBeVisible();
+  await expect.poll(() => originalPreview.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBeGreaterThan(0);
+  await expect(page.getByRole('img', { name: 'AI generated product preview' })).toBeVisible();
+  await page.getByRole('button', { name: 'Use this image' }).click();
+  await expect(page.getByText(/luvia-studio-\d+\.png/)).toBeVisible();
+  await page.getByRole('button', { name: 'Suggest details from photo' }).click();
   await expect(page.getByLabel('Product name')).toHaveValue('AI Bunny');
   await expect(page.getByLabel('Description')).toHaveValue(
     'A soft handmade crochet bunny suggested by Gemini.',

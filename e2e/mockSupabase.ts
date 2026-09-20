@@ -312,6 +312,16 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/functions/v1/enhance-product-image') {
+      await json(route, {
+        imageBase64:
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
+        mimeType: 'image/png',
+        model: '@cf/black-forest-labs/flux-2-klein-9b',
+      });
+      return;
+    }
+
     if (
       pathname === '/storage/v1/object/product-images' ||
       pathname.startsWith('/storage/v1/object/product-images/')
