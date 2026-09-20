@@ -7,6 +7,12 @@ const signIn = async (page: Page) => {
   await page.getByLabel('Password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Manage catalogue' })).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      hasGtag: typeof window.gtag === 'function',
+      scriptCount: document.querySelectorAll('script[src*="googletagmanager.com/gtag"]').length,
+    })),
+  ).toEqual({ hasGtag: false, scriptCount: 0 });
 };
 
 const expectNoHorizontalOverflow = async (page: Page) => {

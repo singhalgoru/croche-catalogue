@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
+import { trackEvent, trackProductViewed } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
@@ -30,6 +31,10 @@ export default function ProductModal({
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
+
+  useEffect(() => {
+    trackProductViewed(product, selectedVariant);
+  }, [product, selectedVariant]);
 
   // Close on Escape and support carousel arrow keys for keyboard accessibility.
   useEffect(() => {
@@ -131,7 +136,14 @@ export default function ProductModal({
           />
           <button
             type="button"
-            onClick={() => setIsZoomOpen(true)}
+            onClick={() => {
+              trackEvent('zoom_product_image', {
+                product_id: product.id,
+                product_name: product.name,
+                variant_name: selectedVariant?.name,
+              });
+              setIsZoomOpen(true);
+            }}
             className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
             aria-label="Zoom product image"
           >
@@ -200,7 +212,15 @@ export default function ProductModal({
                     <button
                       key={variant.id}
                       type="button"
-                      onClick={() => setSelectedVariantId(variant.id)}
+                      onClick={() => {
+                        trackEvent('select_variant', {
+                          product_id: product.id,
+                          product_name: product.name,
+                          variant_id: variant.id,
+                          variant_name: variant.name,
+                        });
+                        setSelectedVariantId(variant.id);
+                      }}
                       aria-pressed={isSelected}
                       className={`min-w-[5.5rem] rounded-xl border-2 p-1.5 text-left transition-colors ${
                         isSelected
@@ -265,6 +285,13 @@ export default function ProductModal({
             href={whatsappOrderLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() =>
+              trackEvent('whatsapp_enquiry', {
+                product_id: product.id,
+                product_name: product.name,
+                variant_name: selectedVariant?.name,
+              })
+            }
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
           >
             <WhatsAppIcon />

@@ -7,6 +7,7 @@ import ProductGrid from './components/ProductGrid';
 import ProductModal from './components/ProductModal';
 import AdminPage from './components/admin/AdminPage';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
+import { trackEvent, trackProductSelected } from './services/analytics';
 import type { Category, Product } from './types/product';
 
 function App() {
@@ -27,6 +28,16 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const selectProduct = (product: Product) => {
+    trackProductSelected(product);
+    setSelectedProduct(product);
+  };
+
+  const selectCategory = (category: Category | 'All') => {
+    trackEvent('select_category', { category });
+    setActiveCategory(category);
+  };
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -65,8 +76,17 @@ function App() {
       <Header />
 
       <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
-        <SearchBar value={query} onChange={setQuery} />
-        <CategoryFilter categories={categories} active={activeCategory} onSelect={setActiveCategory} />
+        <SearchBar
+          value={query}
+          onChange={setQuery}
+          onSearch={(searchQuery) =>
+            trackEvent('catalogue_search', {
+              query_length: searchQuery.trim().length,
+              result_count: filteredProducts.length,
+            })
+          }
+        />
+        <CategoryFilter categories={categories} active={activeCategory} onSelect={selectCategory} />
         <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
           Shop the Collection
         </h2>
@@ -78,7 +98,7 @@ function App() {
         {isLoading ? (
           <p className="py-16 text-center text-cocoa/60">Loading the catalogue…</p>
         ) : (
-          <ProductGrid products={filteredProducts} onSelect={setSelectedProduct} />
+          <ProductGrid products={filteredProducts} onSelect={selectProduct} />
         )}
       </main>
 

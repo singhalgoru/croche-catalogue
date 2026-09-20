@@ -18,6 +18,18 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('filters, searches, opens products, and exposes customer contact links', async ({ page }) => {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.dataLayer?.some(
+          (entry) =>
+            Array.isArray(entry) &&
+            entry[0] === 'config' &&
+            entry[1] === 'G-TEST123456',
+        ),
+      ),
+    )
+    .toBe(true);
   await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
 
@@ -32,10 +44,37 @@ test('filters, searches, opens products, and exposes customer contact links', as
 
   await page.getByRole('button', { name: 'All', exact: true }).click();
   await page.getByRole('button', { name: /Rose Charm/ }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.dataLayer?.some(
+          (entry) =>
+            Array.isArray(entry) &&
+            entry[0] === 'event' &&
+            entry[1] === 'select_item' &&
+            (entry[2] as { items?: Array<{ item_id?: string }> })?.items?.[0]?.item_id ===
+              'product-1',
+        ),
+      ),
+    )
+    .toBe(true);
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('region', { name: 'Product variants' })).toBeVisible();
   await dialog.getByRole('button', { name: /Ivory/ }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.dataLayer?.some(
+          (entry) =>
+            Array.isArray(entry) &&
+            entry[0] === 'event' &&
+            entry[1] === 'select_variant' &&
+            (entry[2] as { variant_name?: string })?.variant_name === 'Ivory',
+        ),
+      ),
+    )
+    .toBe(true);
   await expect(dialog.getByText('Sold out', { exact: true }).first()).toBeVisible();
   await dialog.getByRole('button', { name: 'Zoom product image' }).click();
   const zoomViewer = page.getByRole('dialog', { name: 'Zoomed image of Rose Charm — Ivory' });
