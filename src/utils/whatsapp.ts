@@ -1,7 +1,9 @@
 import type { Product, ProductVariant } from '../types/product';
 import { getCampaignReference } from './campaign';
 
-const WHATSAPP_NUMBER = '918800221074';
+// Fallback keeps local dev working if the env var isn't set; production reads
+// VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '918800221074';
 
 const whatsappLink = (message: string) => {
   const reference = getCampaignReference();
