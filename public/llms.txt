@@ -1,0 +1,16 @@
+# Luvia
+
+> Luvia is an online catalogue of handmade crochet products and gifts, with shipping across India.
+
+Luvia showcases handmade crochet hair accessories, charms, keychains, bags,
+toys, festive decor, rakhi and anklets. Products may have multiple colour
+variants and are handmade to order. Customers can view the current catalogue
+and contact Luvia through WhatsApp or Instagram for product enquiries.
+
+## Primary page
+
+- [Luvia handmade crochet catalogue](https://singhalgoru.github.io/croche-catalogue/): Browse current handmade crochet products, featured items and new arrivals.
+
+## Official social profile
+
+- [Luvia on Instagram](https://www.instagram.com/luvia.craftedwithlove/): Official social profile and product updates.

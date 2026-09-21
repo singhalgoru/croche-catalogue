@@ -10,6 +10,10 @@ export default function Footer() {
     <footer className="bg-cocoa text-cream/90 mt-16">
       <div className="max-w-6xl mx-auto px-4 py-8 text-center text-sm">
         <p className="font-heading text-lg text-mustard mb-1">Luvia</p>
+        <p className="mx-auto mb-2 max-w-2xl text-cream/75">
+          Handmade crochet hair accessories, charms, keychains, bags, toys and gifts,
+          crafted with love in India.
+        </p>
         <p>&copy; {new Date().getFullYear()} Luvia. All items are handmade to order.</p>
         <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://singhalgoru.github.io/croche-catalogue/sitemap.xml

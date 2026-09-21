@@ -22,8 +22,12 @@ export default function Header({ showShippingTicker = true }: Props) {
           alt="Luvia — Crochet, Accessories & More, made with love"
           className="h-28 w-28 sm:h-36 sm:w-36 md:h-44 md:w-44 rounded-full object-cover shadow-lg ring-4 ring-white"
         />
+        <h1 className="font-heading text-2xl font-extrabold text-cocoa sm:text-3xl">
+          Handmade Crochet Products &amp; Gifts
+        </h1>
         <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-          Browse our handmade crochet catalogue — every piece stitched with love.
+          Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
+          Every piece is stitched with love and shipped across India.
         </p>
       </div>
     </header>
