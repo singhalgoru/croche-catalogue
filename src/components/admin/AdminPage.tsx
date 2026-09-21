@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import Header from '../Header';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
-import { fetchCategories } from '../../services/categories';
-import type { Category } from '../../types/product';
+import { fetchCategorySettings } from '../../services/categories';
+import type { CategorySettings } from '../../types/product';
 import AdminLogin from './AdminLogin';
 import CategoryManager from './CategoryManager';
 import ProductManager from './ProductManager';
@@ -15,7 +15,8 @@ interface Props {
 
 export default function AdminPage({ onProductPublished }: Props) {
   const [productRefreshKey, setProductRefreshKey] = useState(0);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categorySettings, setCategorySettings] = useState<CategorySettings[]>([]);
+  const categories = categorySettings.map((category) => category.name);
   const [session, setSession] = useState<Session | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(isSupabaseConfigured);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -65,8 +66,8 @@ export default function AdminPage({ onProductPublished }: Props) {
   useEffect(() => {
     if (!isAdmin) return;
 
-    void fetchCategories().then(
-      (nextCategories) => setCategories(nextCategories),
+    void fetchCategorySettings().then(
+      (nextCategories) => setCategorySettings(nextCategories),
       (error: unknown) =>
         setAuthError(error instanceof Error ? error.message : 'Unable to load categories.'),
     );
@@ -143,15 +144,15 @@ export default function AdminPage({ onProductPublished }: Props) {
   };
 
   const handleCategoryChanged = async () => {
-    const nextCategories = await fetchCategories();
-    setCategories(nextCategories);
+    const nextCategories = await fetchCategorySettings();
+    setCategorySettings(nextCategories);
     await onProductPublished();
     setProductRefreshKey((current) => current + 1);
   };
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
+      <Header showShippingTicker={false} />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -184,7 +185,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           </p>
         )}
 
-        <CategoryManager categories={categories} onChanged={handleCategoryChanged} />
+        <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
         <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
         <ProductManager
           categories={categories}

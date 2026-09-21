@@ -30,12 +30,20 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   await signIn(page);
 
   await page.getByRole('button', { name: /Manage categories/ }).click();
+  const charmsDisplay = page.getByLabel('Priority for Charms').locator('..').locator('..');
+  await charmsDisplay.getByRole('radio').check();
+  await page.getByLabel('Priority for Charms').fill('5');
+  await charmsDisplay.getByRole('button', { name: 'Save display' }).click();
+  await expect(page.getByText('“Charms” is now featured with priority 5.')).toBeVisible();
+  expect(state.categorySettings.Charms).toEqual({ priority: 5, isFeatured: true });
+  expect(state.categorySettings['Home Decor'].isFeatured).toBe(false);
+
   await page.getByLabel('New category').fill('Bags');
   await page.getByRole('button', { name: 'Add category' }).click();
   await expect(page.getByText('“Bags” was added.')).toBeVisible();
   expect(state.categories).toContain('Bags');
 
-  const bagsRow = page.getByText('Bags', { exact: true }).locator('..');
+  const bagsRow = page.getByLabel('Priority for Bags').locator('..').locator('..').locator('..');
   await bagsRow.getByRole('button', { name: 'Rename' }).click();
   await page.getByLabel('Rename category').fill('Tote Bags');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -43,7 +51,11 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   expect(state.categories).toContain('Tote Bags');
   expect(state.categories).not.toContain('Bags');
 
-  const renamedRow = page.getByText('Tote Bags', { exact: true }).locator('..');
+  const renamedRow = page
+    .getByLabel('Priority for Tote Bags')
+    .locator('..')
+    .locator('..')
+    .locator('..');
   await renamedRow.getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('button', { name: 'Yes, delete' }).click();
   await expect(page.getByText('“Tote Bags” was deleted.')).toBeVisible();

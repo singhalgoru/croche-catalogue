@@ -1,5 +1,11 @@
 export type Category = string;
 
+export interface CategorySettings {
+  name: Category;
+  priority: number;
+  isFeatured: boolean;
+}
+
 export interface ProductVariant {
   id: string;
   name: string;

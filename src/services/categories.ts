@@ -1,8 +1,10 @@
 import { supabase } from '../lib/supabase';
-import type { Category } from '../types/product';
+import type { Category, CategorySettings } from '../types/product';
 
 interface CategoryRow {
   name: string;
+  sort_order: number;
+  is_featured: boolean;
 }
 
 const requireSupabase = () => {
@@ -14,11 +16,12 @@ const requireSupabase = () => {
   return supabase;
 };
 
-export async function fetchCategories(): Promise<Category[]> {
+export async function fetchCategorySettings(): Promise<CategorySettings[]> {
   const client = requireSupabase();
   const { data, error } = await client
     .from('categories')
-    .select('name')
+    .select('name, sort_order, is_featured')
+    .order('is_featured', { ascending: false })
     .order('sort_order')
     .order('name');
 
@@ -26,7 +29,16 @@ export async function fetchCategories(): Promise<Category[]> {
     throw new Error(`Unable to load categories: ${error.message}`);
   }
 
-  return (data as CategoryRow[]).map((category) => category.name);
+  return (data as CategoryRow[]).map((category) => ({
+    name: category.name,
+    priority: category.sort_order,
+    isFeatured: category.is_featured,
+  }));
+}
+
+export async function fetchCategories(): Promise<Category[]> {
+  const settings = await fetchCategorySettings();
+  return settings.map((category) => category.name);
 }
 
 export async function createCategory(name: string): Promise<void> {
@@ -65,5 +77,22 @@ export async function deleteCategory(name: string): Promise<void> {
         ? `“${name}” is still assigned to one or more products. Move those products to another category before deleting it.`
         : `Unable to delete the category: ${error.message}`,
     );
+  }
+}
+
+export async function updateCategoryPresentation(
+  name: string,
+  priority: number,
+  isFeatured: boolean,
+): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc('update_catalogue_category_presentation', {
+    category_name: name,
+    category_priority: priority,
+    featured: isFeatured,
+  });
+
+  if (error) {
+    throw new Error(`Unable to update category display settings: ${error.message}`);
   }
 }

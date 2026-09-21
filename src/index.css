@@ -18,3 +18,36 @@ body {
   color: var(--color-cocoa);
   font-family: var(--font-sans);
 }
+
+.shipping-ticker-track {
+  display: flex;
+  width: max-content;
+  gap: 5rem;
+  animation: shipping-ticker 16s linear infinite;
+}
+
+.shipping-ticker-track span {
+  min-width: max-content;
+}
+
+@keyframes shipping-ticker {
+  from {
+    transform: translateX(100vw);
+  }
+
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shipping-ticker-track {
+    width: 100%;
+    justify-content: center;
+    animation: none;
+  }
+
+  .shipping-ticker-track span[aria-hidden='true'] {
+    display: none;
+  }
+}

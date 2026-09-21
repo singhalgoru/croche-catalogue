@@ -27,6 +27,7 @@ export interface VariantRow {
 
 export interface MockCatalogueState {
   categories: string[];
+  categorySettings: Record<string, { priority: number; isFeatured: boolean }>;
   products: ProductRow[];
 }
 
@@ -139,6 +140,10 @@ const getRequestBody = <T>(route: Route) => route.request().postDataJSON() as T;
 export async function installMockSupabase(page: Page): Promise<MockCatalogueState> {
   const state: MockCatalogueState = {
     categories: ['Charms', 'Home Decor'],
+    categorySettings: {
+      Charms: { priority: 20, isFeatured: false },
+      'Home Decor': { priority: 10, isFeatured: true },
+    },
     products: defaultProducts(),
   };
 
@@ -182,6 +187,9 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       state.categories = state.categories.map((category) =>
         category === body.current_name ? body.replacement_name : category,
       );
+      state.categorySettings[body.replacement_name] =
+        state.categorySettings[body.current_name] ?? { priority: 100, isFeatured: false };
+      delete state.categorySettings[body.current_name];
       state.products = state.products.map((product) =>
         product.category === body.current_name
           ? { ...product, category: body.replacement_name }
@@ -191,11 +199,42 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/rest/v1/rpc/update_catalogue_category_presentation') {
+      const body = getRequestBody<{
+        category_name: string;
+        category_priority: number;
+        featured: boolean;
+      }>(route);
+      if (body.featured) {
+        for (const category of Object.values(state.categorySettings)) {
+          category.isFeatured = false;
+        }
+      }
+      state.categorySettings[body.category_name] = {
+        priority: body.category_priority,
+        isFeatured:
+          body.featured || state.categorySettings[body.category_name]?.isFeatured === true,
+      };
+      await route.fulfill({ status: 204 });
+      return;
+    }
+
     if (pathname === '/rest/v1/categories') {
       if (request.method() === 'GET') {
         await json(
           route,
-          state.categories.map((name) => ({ name })),
+          state.categories
+            .map((name) => ({
+              name,
+              sort_order: state.categorySettings[name]?.priority ?? 100,
+              is_featured: state.categorySettings[name]?.isFeatured ?? false,
+            }))
+            .sort(
+              (left, right) =>
+                Number(right.is_featured) - Number(left.is_featured) ||
+                left.sort_order - right.sort_order ||
+                left.name.localeCompare(right.name),
+            ),
         );
         return;
       }
@@ -203,6 +242,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       if (request.method() === 'POST') {
         const body = getRequestBody<{ name: string }>(route);
         state.categories.push(body.name);
+        state.categorySettings[body.name] = { priority: 100, isFeatured: false };
         await route.fulfill({ status: 201 });
         return;
       }
@@ -210,6 +250,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       if (request.method() === 'DELETE') {
         const name = url.searchParams.get('name')?.replace(/^eq\./, '');
         state.categories = state.categories.filter((category) => category !== name);
+        if (name) delete state.categorySettings[name];
         await route.fulfill({ status: 204 });
         return;
       }

@@ -11,7 +11,8 @@ import { trackEvent, trackProductSelected } from './services/analytics';
 import type { Category, Product } from './types/product';
 
 function App() {
-  const { products, isLoading, loadError, refreshProducts } = useCatalogueProducts();
+  const { products, categorySettings, isLoading, loadError, refreshProducts } =
+    useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
 
   useEffect(() => {
@@ -21,9 +22,11 @@ function App() {
   }, []);
 
   const categories = useMemo(
-    () => Array.from(new Set(products.map((product) => product.category))) as Category[],
-    [products],
+    () => categorySettings.map((category) => category.name),
+    [categorySettings],
   );
+  const featuredCategory =
+    categorySettings.find((category) => category.isFeatured)?.name ?? null;
 
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [query, setQuery] = useState('');
@@ -41,13 +44,25 @@ function App() {
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return products.filter((product) => {
-      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-      const matchesQuery =
-        normalizedQuery === '' || product.name.toLowerCase().includes(normalizedQuery);
-      return matchesCategory && matchesQuery;
-    });
-  }, [activeCategory, products, query]);
+    const categoryRanks = new Map(
+      categorySettings.map((category, index) => [
+        category.name,
+        category.isFeatured ? -1 : category.priority * 1000 + index,
+      ]),
+    );
+    return products
+      .filter((product) => {
+        const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+        const matchesQuery =
+          normalizedQuery === '' || product.name.toLowerCase().includes(normalizedQuery);
+        return matchesCategory && matchesQuery;
+      })
+      .sort(
+        (left, right) =>
+          (categoryRanks.get(left.category) ?? Number.MAX_SAFE_INTEGER) -
+          (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER),
+      );
+  }, [activeCategory, categorySettings, products, query]);
 
   const selectedProductIndex = selectedProduct
     ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
@@ -98,7 +113,11 @@ function App() {
         {isLoading ? (
           <p className="py-16 text-center text-cocoa/60">Loading the catalogue…</p>
         ) : (
-          <ProductGrid products={filteredProducts} onSelect={selectProduct} />
+          <ProductGrid
+            products={filteredProducts}
+            featuredCategory={featuredCategory}
+            onSelect={selectProduct}
+          />
         )}
       </main>
 

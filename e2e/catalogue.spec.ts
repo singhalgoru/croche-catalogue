@@ -30,6 +30,12 @@ test('filters, searches, opens products, and exposes customer contact links', as
       ),
     )
     .toBe(true);
+  await expect(page.getByLabel('Shipping available across India')).toBeVisible();
+  const productCards = page.locator('main').getByRole('button').filter({
+    has: page.locator('img'),
+  });
+  await expect(productCards.first()).toContainText('Flower Coaster');
+  await expect(productCards.first()).toContainText('Featured');
   await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
 

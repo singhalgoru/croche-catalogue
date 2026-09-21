@@ -2,15 +2,18 @@ import type { Product } from '../types/product';
 
 interface Props {
   product: Product;
+  isFeatured?: boolean;
   onSelect: (product: Product) => void;
 }
 
-export default function ProductCard({ product, onSelect }: Props) {
+export default function ProductCard({ product, isFeatured = false, onSelect }: Props) {
   return (
     <button
       type="button"
       onClick={() => onSelect(product)}
-      className="group text-left bg-mustard/25 rounded-2xl shadow-sm border border-mustard/40 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
+      className={`group overflow-hidden rounded-2xl bg-mustard/25 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+        isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
+      }`}
     >
       <div className="relative">
         <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
@@ -19,12 +22,18 @@ export default function ProductCard({ product, onSelect }: Props) {
             Sold out
           </span>
         )}
-        <span className="absolute top-2 left-2 flex items-center justify-center h-8 w-8 rounded-full bg-white/90 text-cocoa opacity-0 group-hover:opacity-100 transition-opacity">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </span>
+        {isFeatured ? (
+          <span className="absolute left-2 top-2 rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream shadow-md">
+            ★ Featured
+          </span>
+        ) : (
+          <span className="absolute top-2 left-2 flex items-center justify-center h-8 w-8 rounded-full bg-white/90 text-cocoa opacity-0 group-hover:opacity-100 transition-opacity">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </span>
+        )}
       </div>
       <div className="p-4">
         <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>

@@ -3,11 +3,12 @@ import {
   createCategory,
   deleteCategory,
   renameCategory,
+  updateCategoryPresentation,
 } from '../../services/categories';
-import type { Category } from '../../types/product';
+import type { CategorySettings } from '../../types/product';
 
 interface Props {
-  categories: Category[];
+  categories: CategorySettings[];
   onChanged: () => Promise<void>;
 }
 
@@ -18,8 +19,12 @@ export default function CategoryManager({ categories, onChanged }: Props) {
   const [replacementName, setReplacementName] = useState('');
   const [deleteName, setDeleteName] = useState<string | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
+  const [featuredName, setFeaturedName] = useState<string | null>(null);
+  const [priorities, setPriorities] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const resolvedFeaturedName =
+    featuredName ?? categories.find((category) => category.isFeatured)?.name ?? '';
 
   const addCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,6 +85,42 @@ export default function CategoryManager({ categories, onChanged }: Props) {
     }
   };
 
+  const savePresentation = async (category: CategorySettings) => {
+    const priority = Number(priorities[category.name]);
+    if (!Number.isInteger(priority) || priority < 1 || priority > 999) {
+      setError('Category priority must be a whole number between 1 and 999.');
+      return;
+    }
+
+    setBusyName(category.name);
+    setError(null);
+    setMessage(null);
+    try {
+      const isFeatured = resolvedFeaturedName === category.name;
+      await updateCategoryPresentation(category.name, priority, isFeatured);
+      setMessage(
+        isFeatured
+          ? `“${category.name}” is now featured with priority ${priority}.`
+          : `“${category.name}” priority was updated to ${priority}.`,
+      );
+      await onChanged();
+      setFeaturedName(null);
+      setPriorities((current) => {
+        const next = { ...current };
+        delete next[category.name];
+        return next;
+      });
+    } catch (updateError) {
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : 'Unable to update category display settings.',
+      );
+    } finally {
+      setBusyName(null);
+    }
+  };
+
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
       <button
@@ -109,7 +150,8 @@ export default function CategoryManager({ categories, onChanged }: Props) {
 
       <div id="category-management-content" hidden={!isExpanded}>
         <p className="mt-4 text-sm text-cocoa/65">
-          New categories become available immediately in product forms and Gemini suggestions.
+          Choose one featured category and use lower priority numbers to show other categories
+          earlier in the catalogue.
         </p>
 
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
@@ -147,9 +189,9 @@ export default function CategoryManager({ categories, onChanged }: Props) {
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {categories.map((category) => (
-          <div key={category} className="rounded-xl border border-mustard/30 bg-cream/50 p-3">
-            {editingName === category ? (
-              <form onSubmit={(event) => void saveRename(event, category)}>
+          <div key={category.name} className="rounded-xl border border-mustard/30 bg-cream/50 p-3">
+            {editingName === category.name ? (
+              <form onSubmit={(event) => void saveRename(event, category.name)}>
                 <label className="text-sm font-semibold text-cocoa">
                   Rename category
                   <input
@@ -167,7 +209,7 @@ export default function CategoryManager({ categories, onChanged }: Props) {
                     disabled={busyName !== null}
                     className="rounded-full bg-cocoa px-4 py-1.5 text-sm font-semibold text-cream disabled:opacity-60"
                   >
-                    {busyName === category ? 'Saving…' : 'Save'}
+                    {busyName === category.name ? 'Saving…' : 'Save'}
                   </button>
                   <button
                     type="button"
@@ -179,19 +221,19 @@ export default function CategoryManager({ categories, onChanged }: Props) {
                   </button>
                 </div>
               </form>
-            ) : deleteName === category ? (
+            ) : deleteName === category.name ? (
               <div>
                 <p className="text-sm font-semibold text-red-800">
-                  Delete “{category}”? This works only when no products use it.
+                  Delete “{category.name}”? This works only when no products use it.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => void removeCategory(category)}
+                    onClick={() => void removeCategory(category.name)}
                     disabled={busyName !== null}
                     className="rounded-full bg-red-700 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
                   >
-                    {busyName === category ? 'Deleting…' : 'Yes, delete'}
+                    {busyName === category.name ? 'Deleting…' : 'Yes, delete'}
                   </button>
                   <button
                     type="button"
@@ -204,14 +246,61 @@ export default function CategoryManager({ categories, onChanged }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-semibold text-cocoa">{category}</span>
-                <div className="flex gap-2">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-cocoa">{category.name}</span>
+                  {category.isFeatured && (
+                    <span className="rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream">
+                      ★ Featured
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_7rem_auto] sm:items-end">
+                  <label className="flex items-center gap-2 rounded-xl border border-mustard/30 bg-white px-3 py-2 text-sm font-semibold text-cocoa">
+                    <input
+                      type="radio"
+                      name="featured-category"
+                      checked={resolvedFeaturedName === category.name}
+                      onChange={() => setFeaturedName(category.name)}
+                      disabled={busyName !== null}
+                      className="h-4 w-4 accent-cocoa"
+                    />
+                    Featured category
+                  </label>
+                  <label className="text-sm font-semibold text-cocoa">
+                    Priority
+                    <input
+                      type="number"
+                      min={1}
+                      max={999}
+                      step={1}
+                      value={priorities[category.name] ?? String(category.priority)}
+                      onChange={(event) =>
+                        setPriorities((current) => ({
+                          ...current,
+                          [category.name]: event.target.value,
+                        }))
+                      }
+                      aria-label={`Priority for ${category.name}`}
+                      disabled={busyName !== null}
+                      className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void savePresentation(category)}
+                    disabled={busyName !== null}
+                    className="rounded-full bg-mustard px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
+                  >
+                    {busyName === category.name ? 'Saving…' : 'Save display'}
+                  </button>
+                </div>
+                <div className="mt-3 flex justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      setEditingName(category);
-                      setReplacementName(category);
+                      setEditingName(category.name);
+                      setReplacementName(category.name);
                       setDeleteName(null);
                     }}
                     className="text-sm font-semibold text-cocoa underline"
@@ -221,13 +310,15 @@ export default function CategoryManager({ categories, onChanged }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      setDeleteName(category);
+                      setDeleteName(category.name);
                       setEditingName(null);
                     }}
-                    disabled={categories.length === 1}
+                    disabled={categories.length === 1 || category.isFeatured}
                     title={
                       categories.length === 1
                         ? 'At least one category must remain.'
+                        : category.isFeatured
+                          ? 'Choose and save another featured category before deleting this one.'
                         : undefined
                     }
                     className="text-sm font-semibold text-red-700 underline disabled:cursor-not-allowed disabled:opacity-40"
