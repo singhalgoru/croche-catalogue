@@ -36,12 +36,15 @@ test('filters, searches, opens products, and exposes customer contact links', as
   });
   await expect(productCards.first()).toContainText('Rose Charm');
   await expect(productCards.first()).toContainText('Featured');
-  await expect(productCards.first()).toContainText('New');
+  await expect(productCards.nth(1)).toContainText('New Heart Charm');
+  await expect(productCards.nth(1)).toContainText('New');
+  await expect(productCards.nth(2)).toContainText('Flower Coaster');
   await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /New Heart Charm/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Rose Charm/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'All', exact: true }).click();
 
@@ -108,7 +111,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
   );
 
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('dialog', { name: 'Flower Coaster' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'New Heart Charm' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
@@ -147,9 +150,9 @@ test('supports full-modal swipes and touch-only overlay controls', async ({ page
     touches: [],
     changedTouches: [touch(80, 655)],
   });
-  await expect(page.getByRole('dialog', { name: 'Flower Coaster' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'New Heart Charm' })).toBeVisible();
 
-  const nextDescription = page.getByText('A cheerful crochet coaster for a cosy table setting.');
+  const nextDescription = page.getByText('A newly published crochet heart charm.');
   await nextDescription.dispatchEvent('touchstart', {
     touches: [touch(180, 650, 2)],
     changedTouches: [touch(180, 650, 2)],
@@ -158,7 +161,7 @@ test('supports full-modal swipes and touch-only overlay controls', async ({ page
     touches: [],
     changedTouches: [touch(190, 450, 2)],
   });
-  await expect(page.getByRole('dialog', { name: 'Flower Coaster' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'New Heart Charm' })).toBeVisible();
 
   await page.waitForTimeout(2100);
   const hiddenControls = [

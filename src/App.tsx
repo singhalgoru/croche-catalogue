@@ -30,6 +30,12 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>('All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [catalogueTime, setCatalogueTime] = useState(Date.now);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);
@@ -63,10 +69,12 @@ function App() {
       .sort(
         (left, right) =>
           Number(Boolean(right.featured)) - Number(Boolean(left.featured)) ||
+          Number(isProductNew(right, catalogueTime)) -
+            Number(isProductNew(left, catalogueTime)) ||
           (categoryRanks.get(left.category) ?? Number.MAX_SAFE_INTEGER) -
             (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER),
       );
-  }, [activeCategory, categorySettings, products, query]);
+  }, [activeCategory, catalogueTime, categorySettings, products, query]);
 
   const selectedProductIndex = selectedProduct
     ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
