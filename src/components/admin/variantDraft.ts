@@ -5,6 +5,8 @@ export interface VariantDraft {
   inStock: boolean;
   imageFile: File | null;
   previewUrl: string | null;
+  galleryFiles: File[];
+  galleryPreviewUrls: string[];
 }
 
 export const createEmptyVariant = (name = ''): VariantDraft => ({
@@ -14,10 +16,13 @@ export const createEmptyVariant = (name = ''): VariantDraft => ({
   inStock: true,
   imageFile: null,
   previewUrl: null,
+  galleryFiles: [],
+  galleryPreviewUrls: [],
 });
 
 export const releaseVariantPreviews = (variants: VariantDraft[]) => {
   for (const variant of variants) {
     if (variant.previewUrl) URL.revokeObjectURL(variant.previewUrl);
+    for (const url of variant.galleryPreviewUrls) URL.revokeObjectURL(url);
   }
 };

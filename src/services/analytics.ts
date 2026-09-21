@@ -67,6 +67,18 @@ export const trackProductViewed = (product: Product, variant?: ProductVariant) =
   trackMetaEvent('ViewContent', metaProductParameters(product, variant));
 };
 
+export const trackProduct3DView = (product: Product, variant?: ProductVariant) => {
+  trackEvent('view_product_image_3d', {
+    product_id: product.id,
+    product_name: product.name,
+    variant_name: variant?.name,
+  });
+  trackMetaEvent('ViewContent', {
+    ...metaProductParameters(product, variant),
+    content_view_type: '3d',
+  });
+};
+
 export const trackWhatsAppEnquiry = (product: Product, variant?: ProductVariant) => {
   trackEvent('whatsapp_enquiry', {
     product_id: product.id,

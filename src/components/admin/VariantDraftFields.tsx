@@ -11,6 +11,7 @@ interface Props {
 }
 
 const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
+const MAX_GALLERY_IMAGES = 6;
 
 export default function VariantDraftFields({ variants, onChange, disabled = false }: Props) {
   const updateVariant = (key: string, changes: Partial<VariantDraft>) => {
@@ -44,8 +45,38 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
     });
   };
 
+  const addGalleryImages = (event: ChangeEvent<HTMLInputElement>, variant: VariantDraft) => {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = '';
+    if (files.length === 0) return;
+
+    const remainingSlots = MAX_GALLERY_IMAGES - variant.galleryFiles.length;
+    const validFiles = files
+      .filter((file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
+      .filter((file) => file.size <= MAX_IMAGE_SIZE)
+      .slice(0, Math.max(remainingSlots, 0));
+    if (validFiles.length === 0) return;
+
+    updateVariant(variant.key, {
+      galleryFiles: [...variant.galleryFiles, ...validFiles],
+      galleryPreviewUrls: [
+        ...variant.galleryPreviewUrls,
+        ...validFiles.map((file) => URL.createObjectURL(file)),
+      ],
+    });
+  };
+
+  const removeGalleryImage = (variant: VariantDraft, index: number) => {
+    URL.revokeObjectURL(variant.galleryPreviewUrls[index]);
+    updateVariant(variant.key, {
+      galleryFiles: variant.galleryFiles.filter((_, i) => i !== index),
+      galleryPreviewUrls: variant.galleryPreviewUrls.filter((_, i) => i !== index),
+    });
+  };
+
   const removeVariant = (variant: VariantDraft) => {
     if (variant.previewUrl) URL.revokeObjectURL(variant.previewUrl);
+    for (const url of variant.galleryPreviewUrls) URL.revokeObjectURL(url);
     onChange(variants.filter((item) => item.key !== variant.key));
   };
 
@@ -162,6 +193,51 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                 />
               )}
             </div>
+          </div>
+
+          <div className="mt-4 border-t border-mustard/20 pt-3">
+            <span className="text-sm font-semibold text-cocoa">
+              Additional angles (optional)
+            </span>
+            <p className="mt-0.5 text-xs text-cocoa/55">
+              Add top, side, or back views for better visibility — up to {MAX_GALLERY_IMAGES} photos.
+            </p>
+            {variant.galleryPreviewUrls.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {variant.galleryPreviewUrls.map((url, galleryIndex) => (
+                  <div key={url} className="relative">
+                    <img
+                      src={url}
+                      alt=""
+                      className="h-16 w-16 rounded-lg border border-mustard/40 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeGalleryImage(variant, galleryIndex)}
+                      disabled={disabled}
+                      aria-label={`Remove additional photo ${galleryIndex + 1}`}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {variant.galleryFiles.length < MAX_GALLERY_IMAGES && (
+              <label className="mt-2 flex h-10 w-fit cursor-pointer items-center gap-2 rounded-full border-2 border-dashed border-mustard/70 px-3 text-xs font-semibold text-cocoa hover:border-mustard hover:bg-mustard/10">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => addGalleryImages(event, variant)}
+                  disabled={disabled}
+                  aria-label="Add additional angle photos"
+                  className="sr-only"
+                />
+                + Add photos
+              </label>
+            )}
           </div>
         </fieldset>
       ))}

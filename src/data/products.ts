@@ -309,6 +309,7 @@ export const products: Product[] = productsWithoutVariants.map((product) => ({
       inStock: product.inStock,
       image: product.image,
       imagePath: '',
+      gallery: [],
     },
   ],
 }));

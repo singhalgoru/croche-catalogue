@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
-import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
+import { trackEvent, trackProduct3DView, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
 import Product3DViewer from './Product3DViewer';
@@ -31,15 +31,28 @@ export default function ProductModal({
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id ?? '');
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [is3DOpen, setIs3DOpen] = useState(false);
+  const [activeImageId, setActiveImageId] = useState('main');
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
+  const galleryImages = [
+    { id: 'main', image: selectedVariant?.image ?? product.image },
+    ...(selectedVariant?.gallery ?? []).map((item) => ({ id: item.id, image: item.image })),
+  ];
+  const activeImage =
+    galleryImages.find((item) => item.id === activeImageId)?.image ?? galleryImages[0].image;
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
 
   useEffect(() => {
     trackProductViewed(product, selectedVariant);
   }, [product, selectedVariant]);
+
+  const selectVariant = (variantId: string) => {
+    setSelectedVariantId(variantId);
+    // Switching variants shows that variant's main image first.
+    setActiveImageId('main');
+  };
 
   // Close on Escape and support carousel arrow keys for keyboard accessibility.
   useEffect(() => {
@@ -132,7 +145,7 @@ export default function ProductModal({
       >
         <div className="relative">
           <img
-            src={selectedVariant?.image ?? product.image}
+            src={activeImage}
             alt={
               selectedVariant && product.variants.length > 1
                 ? `${product.name} — ${selectedVariant.name}`
@@ -144,11 +157,7 @@ export default function ProductModal({
             <button
               type="button"
               onClick={() => {
-                trackEvent('view_product_image_3d', {
-                  product_id: product.id,
-                  product_name: product.name,
-                  variant_name: selectedVariant?.name,
-                });
+                trackProduct3DView(product, selectedVariant);
                 setIs3DOpen(true);
               }}
               className="flex h-11 min-w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 px-3 text-sm font-bold text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
@@ -220,6 +229,29 @@ export default function ProductModal({
             </>
           )}
         </div>
+        {galleryImages.length > 1 && (
+          <div
+            className="flex gap-2 overflow-x-auto border-b border-mustard/20 bg-cream/40 p-3"
+            aria-label="Product image angles"
+          >
+            {galleryImages.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveImageId(item.id)}
+                aria-pressed={item.id === activeImageId}
+                aria-label={index === 0 ? 'Show main product image' : `Show product image ${index + 1}`}
+                className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                  item.id === activeImageId
+                    ? 'border-cocoa'
+                    : 'border-mustard/30 hover:border-mustard'
+                }`}
+              >
+                <img src={item.image} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
         <div className="p-4 sm:p-6">
           {product.variants.length > 1 && (
             <section className="mb-5" aria-label="Product variants">
@@ -247,7 +279,7 @@ export default function ProductModal({
                           variant_id: variant.id,
                           variant_name: variant.name,
                         });
-                        setSelectedVariantId(variant.id);
+                        selectVariant(variant.id);
                       }}
                       aria-pressed={isSelected}
                       className={`min-w-[5.5rem] rounded-xl border-2 p-1.5 text-left transition-colors ${
@@ -335,7 +367,7 @@ export default function ProductModal({
       </div>
       {isZoomOpen && (
         <ImageZoomViewer
-          image={selectedVariant?.image ?? product.image}
+          image={activeImage}
           alt={
             selectedVariant && product.variants.length > 1
               ? `${product.name} — ${selectedVariant.name}`
@@ -346,7 +378,7 @@ export default function ProductModal({
       )}
       {is3DOpen && (
         <Product3DViewer
-          image={selectedVariant?.image ?? product.image}
+          image={activeImage}
           alt={
             selectedVariant && product.variants.length > 1
               ? `${product.name} — ${selectedVariant.name}`

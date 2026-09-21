@@ -20,6 +20,10 @@ const product: Product = {
       inStock: true,
       image: '/rose.jpg',
       imagePath: 'rose.jpg',
+      gallery: [
+        { id: 'variant-1-top', image: '/rose-top.jpg', imagePath: 'rose-top.jpg' },
+        { id: 'variant-1-side', image: '/rose-side.jpg', imagePath: 'rose-side.jpg' },
+      ],
     },
     {
       id: 'variant-2',
@@ -28,6 +32,7 @@ const product: Product = {
       inStock: false,
       image: '/rose-ivory.jpg',
       imagePath: 'rose-ivory.jpg',
+      gallery: [],
     },
   ],
 };
@@ -129,6 +134,23 @@ describe('ProductModal touch controls', () => {
     expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Order / Enquire on WhatsApp' }).getAttribute('href')).toContain(
       '%E2%80%9CIvory%E2%80%9D',
+    );
+  });
+
+  it('switches the displayed image via the angle thumbnail strip and resets when the variant changes', () => {
+    renderModal();
+
+    const mainImage = screen.getByRole('img', { name: 'Crochet Rose — Red' });
+    expect(mainImage.getAttribute('src')).toBe('/rose.jpg');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show product image 2' }));
+    expect(screen.getByRole('img', { name: 'Crochet Rose — Red' }).getAttribute('src')).toBe('/rose-top.jpg');
+
+    // Switching variants resets the active angle back to the main image.
+    fireEvent.click(screen.getByRole('button', { name: /Ivory/ }));
+    expect(screen.queryByRole('button', { name: 'Show main product image' })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Crochet Rose — Ivory' }).getAttribute('src')).toBe(
+      '/rose-ivory.jpg',
     );
   });
 

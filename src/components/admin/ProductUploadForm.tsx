@@ -124,6 +124,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           color: variant.color,
           inStock: variant.inStock,
           imageFile: variant.imageFile!,
+          galleryFiles: variant.galleryFiles,
         })),
       });
       await onPublished();

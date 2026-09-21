@@ -1,15 +1,21 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   addProductVariant,
+  addVariantGalleryImage,
   deleteProductVariant,
+  deleteVariantGalleryImage,
   updateProductVariant,
   type ManagedProduct,
   type VariantUpdate,
 } from '../../services/products';
-import type { ProductVariant } from '../../types/product';
+import type { ProductVariant, ProductVariantImage } from '../../types/product';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
 import { suggestVariantColor } from './variantColor';
+
+const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
+const MAX_GALLERY_IMAGES = 6;
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 interface Props {
   product: ManagedProduct;
@@ -22,6 +28,8 @@ interface Draft {
   inStock: boolean;
   imageFile: File | null;
   previewUrl: string | null;
+  galleryFiles: File[];
+  galleryPreviewUrls: string[];
 }
 
 const emptyDraft = (): Draft => ({
@@ -30,6 +38,8 @@ const emptyDraft = (): Draft => ({
   inStock: true,
   imageFile: null,
   previewUrl: null,
+  galleryFiles: [],
+  galleryPreviewUrls: [],
 });
 
 const draftFromVariant = (variant: ProductVariant): Draft => ({
@@ -38,6 +48,8 @@ const draftFromVariant = (variant: ProductVariant): Draft => ({
   inStock: variant.inStock,
   imageFile: null,
   previewUrl: null,
+  galleryFiles: [],
+  galleryPreviewUrls: [],
 });
 
 export default function ProductVariantManager({ product, onSaved }: Props) {
@@ -50,13 +62,13 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
 
   const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
-    if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    if (file && !ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       event.target.setCustomValidity('Please choose a JPG, PNG, or WebP image.');
       event.target.reportValidity();
       event.target.value = '';
       return;
     }
-    if (file && file.size > 6 * 1024 * 1024) {
+    if (file && file.size > MAX_IMAGE_SIZE) {
       event.target.setCustomValidity('Please choose an image smaller than 6 MB.');
       event.target.reportValidity();
       event.target.value = '';
@@ -73,6 +85,77 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     });
   };
 
+  const addDraftGalleryImages = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = '';
+    if (files.length === 0) return;
+
+    setDraft((current) => {
+      const remainingSlots = MAX_GALLERY_IMAGES - current.galleryFiles.length;
+      const validFiles = files
+        .filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type))
+        .filter((file) => file.size <= MAX_IMAGE_SIZE)
+        .slice(0, Math.max(remainingSlots, 0));
+      if (validFiles.length === 0) return current;
+      return {
+        ...current,
+        galleryFiles: [...current.galleryFiles, ...validFiles],
+        galleryPreviewUrls: [
+          ...current.galleryPreviewUrls,
+          ...validFiles.map((file) => URL.createObjectURL(file)),
+        ],
+      };
+    });
+  };
+
+  const removeDraftGalleryImage = (index: number) => {
+    setDraft((current) => {
+      URL.revokeObjectURL(current.galleryPreviewUrls[index]);
+      return {
+        ...current,
+        galleryFiles: current.galleryFiles.filter((_, i) => i !== index),
+        galleryPreviewUrls: current.galleryPreviewUrls.filter((_, i) => i !== index),
+      };
+    });
+  };
+
+  const addGalleryImage = async (variant: ProductVariant, event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = '';
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setError('Please choose a JPG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setError('Please choose an image smaller than 6 MB.');
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await addVariantGalleryImage(product, variant, file);
+      await onSaved(saved, `Added an angle photo to “${variant.name}”.`);
+    } catch (addError) {
+      setError(addError instanceof Error ? addError.message : 'Unable to add the photo.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const removeGalleryImage = async (variant: ProductVariant, image: ProductVariantImage) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await deleteVariantGalleryImage(product, image);
+      await onSaved(saved, `Removed a photo from “${variant.name}”.`);
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Unable to remove the photo.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const saveNewVariant = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft.imageFile) {
@@ -86,6 +169,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         ...draft,
         name: draft.name.trim(),
         imageFile: draft.imageFile,
+        galleryFiles: draft.galleryFiles,
       });
       setIsAdding(false);
       setDraft(emptyDraft());
@@ -205,6 +289,52 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           }
         />
       )}
+      {requiresImage && (
+        <div className="sm:col-span-2">
+          <span className="text-sm font-semibold text-cocoa">
+            Additional angles (optional)
+          </span>
+          <p className="mt-0.5 text-xs text-cocoa/55">
+            Add top, side, or back views for better visibility — up to {MAX_GALLERY_IMAGES} photos.
+          </p>
+          {draft.galleryPreviewUrls.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {draft.galleryPreviewUrls.map((url, galleryIndex) => (
+                <div key={url} className="relative">
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-16 w-16 rounded-lg border border-mustard/40 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeDraftGalleryImage(galleryIndex)}
+                    disabled={isBusy}
+                    aria-label={`Remove additional photo ${galleryIndex + 1}`}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {draft.galleryFiles.length < MAX_GALLERY_IMAGES && (
+            <label className="mt-2 flex h-10 w-fit cursor-pointer items-center gap-2 rounded-full border-2 border-dashed border-mustard/70 px-3 text-xs font-semibold text-cocoa hover:border-mustard hover:bg-mustard/10">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={addDraftGalleryImages}
+                disabled={isBusy}
+                aria-label="Add additional angle photos"
+                className="sr-only"
+              />
+              + Add photos
+            </label>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -296,6 +426,43 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
               </div>
             </div>
 
+            <div className="mt-3 border-t border-mustard/20 pt-3">
+              <span className="text-xs font-semibold text-cocoa/70">Additional angles</span>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {variant.gallery.map((image, galleryIndex) => (
+                  <div key={image.id} className="relative">
+                    <img
+                      src={image.image}
+                      alt=""
+                      className="h-14 w-14 rounded-lg border border-mustard/40 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void removeGalleryImage(variant, image)}
+                      disabled={isBusy}
+                      aria-label={`Remove additional photo ${galleryIndex + 1} from ${variant.name}`}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {variant.gallery.length < MAX_GALLERY_IMAGES && (
+                  <label className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-mustard/70 text-lg font-bold text-cocoa hover:border-mustard hover:bg-mustard/10">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => void addGalleryImage(variant, event)}
+                      disabled={isBusy}
+                      aria-label={`Add an additional photo to ${variant.name}`}
+                      className="sr-only"
+                    />
+                    +
+                  </label>
+                )}
+              </div>
+            </div>
+
             {editingId === variant.id && (
               <form className="mt-4 border-t border-mustard/20 pt-4" onSubmit={(event) => void saveVariant(event, variant)}>
                 {fields(false)}
@@ -335,7 +502,16 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
             <button type="submit" disabled={isBusy} className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">
               {isBusy ? 'Adding…' : 'Add variant'}
             </button>
-            <button type="button" onClick={() => setIsAdding(false)} className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa">
+            <button
+              type="button"
+              onClick={() => {
+                if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+                for (const url of draft.galleryPreviewUrls) URL.revokeObjectURL(url);
+                setDraft(emptyDraft());
+                setIsAdding(false);
+              }}
+              className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
+            >
               Cancel
             </button>
           </div>

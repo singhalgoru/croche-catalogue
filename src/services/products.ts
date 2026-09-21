@@ -1,5 +1,12 @@
 import { supabase } from '../lib/supabase';
-import type { Product, ProductVariant } from '../types/product';
+import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
+
+interface ProductVariantImageRow {
+  id: string;
+  image_path: string;
+  image_url: string;
+  sort_order: number;
+}
 
 interface ProductVariantRow {
   id: string;
@@ -9,6 +16,7 @@ interface ProductVariantRow {
   image_path: string;
   image_url: string;
   sort_order: number;
+  product_variant_images?: ProductVariantImageRow[];
 }
 
 interface ProductRow {
@@ -34,6 +42,8 @@ export interface NewVariant {
   color: string;
   inStock: boolean;
   imageFile: File;
+  /** Additional angle photos (e.g. top view, side view) uploaded alongside the main image. */
+  galleryFiles?: File[];
 }
 
 export interface NewProduct {
@@ -70,7 +80,8 @@ export interface VariantUpdate {
   imageFile?: File | null;
 }
 
-const VARIANT_COLUMNS = 'id, name, color, in_stock, image_path, image_url, sort_order';
+const VARIANT_COLUMNS =
+  'id, name, color, in_stock, image_path, image_url, sort_order, product_variant_images(id, image_path, image_url, sort_order)';
 const PRODUCT_COLUMNS =
   `id, name, category, description, featured, price, show_price, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
 
@@ -83,6 +94,12 @@ const requireSupabase = () => {
   return supabase;
 };
 
+const mapGalleryRow = (row: ProductVariantImageRow): ProductVariantImage => ({
+  id: row.id,
+  image: row.image_url,
+  imagePath: row.image_path,
+});
+
 const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   id: row.id,
   name: row.name,
@@ -90,6 +107,9 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   inStock: row.in_stock,
   image: row.image_url,
   imagePath: row.image_path,
+  gallery: [...(row.product_variant_images ?? [])]
+    .sort((left, right) => left.sort_order - right.sort_order)
+    .map(mapGalleryRow),
 });
 
 const mapProductRow = (row: ProductRow): ManagedProduct => {
@@ -103,6 +123,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     inStock: row.in_stock,
     image: row.image_url,
     imagePath: row.image_path,
+    gallery: [],
   };
   const resolvedVariants = variants.length > 0 ? variants : [fallbackVariant];
   const primaryVariant = resolvedVariants[0];
@@ -248,20 +269,42 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
     if (productError) throw new Error(`Unable to publish the product: ${productError.message}`);
 
     const productId = (data as { id: string }).id;
-    const { error: variantError } = await client.from('product_variants').insert(
-      product.variants.map((variant, index) => ({
-        product_id: productId,
-        name: variant.name.trim(),
-        color: variant.color,
-        in_stock: variant.inStock,
-        image_path: uploads[index].imagePath,
-        image_url: uploads[index].imageUrl,
-        sort_order: index,
-      })),
-    );
-    if (variantError) {
-      await client.from('products').delete().eq('id', productId);
-      throw new Error(`Unable to publish product variants: ${variantError.message}`);
+
+    for (const [index, variant] of product.variants.entries()) {
+      const { data: variantData, error: variantError } = await client
+        .from('product_variants')
+        .insert({
+          product_id: productId,
+          name: variant.name.trim(),
+          color: variant.color,
+          in_stock: variant.inStock,
+          image_path: uploads[index].imagePath,
+          image_url: uploads[index].imageUrl,
+          sort_order: index,
+        })
+        .select('id')
+        .single();
+      if (variantError) {
+        await client.from('products').delete().eq('id', productId);
+        throw new Error(`Unable to publish product variants: ${variantError.message}`);
+      }
+
+      const variantId = (variantData as { id: string }).id;
+      const galleryFiles = variant.galleryFiles ?? [];
+      for (const [galleryIndex, file] of galleryFiles.entries()) {
+        const galleryUpload = await uploadProductImage(file, user.id);
+        uploads.push(galleryUpload);
+        const { error: galleryError } = await client.from('product_variant_images').insert({
+          variant_id: variantId,
+          image_path: galleryUpload.imagePath,
+          image_url: galleryUpload.imageUrl,
+          sort_order: galleryIndex,
+        });
+        if (galleryError) {
+          await client.from('products').delete().eq('id', productId);
+          throw new Error(`Unable to publish variant gallery images: ${galleryError.message}`);
+        }
+      }
     }
 
     return await fetchProductById(productId);
@@ -307,20 +350,74 @@ export async function addProductVariant(
 ): Promise<ManagedProduct> {
   const { client, user } = await getCurrentUser();
   const upload = await uploadProductImage(variant.imageFile, user.id);
-  const { error } = await client.from('product_variants').insert({
-    product_id: product.id,
-    name: variant.name.trim(),
-    color: variant.color,
-    in_stock: variant.inStock,
+  const galleryUploads: Array<{ imagePath: string; imageUrl: string }> = [];
+
+  try {
+    const { data, error } = await client
+      .from('product_variants')
+      .insert({
+        product_id: product.id,
+        name: variant.name.trim(),
+        color: variant.color,
+        in_stock: variant.inStock,
+        image_path: upload.imagePath,
+        image_url: upload.imageUrl,
+        sort_order: product.variants.length,
+      })
+      .select('id')
+      .single();
+    if (error) throw new Error(`Unable to add the variant: ${error.message}`);
+
+    const variantId = (data as { id: string }).id;
+    const galleryFiles = variant.galleryFiles ?? [];
+    for (const [galleryIndex, file] of galleryFiles.entries()) {
+      const galleryUpload = await uploadProductImage(file, user.id);
+      galleryUploads.push(galleryUpload);
+      const { error: galleryError } = await client.from('product_variant_images').insert({
+        variant_id: variantId,
+        image_path: galleryUpload.imagePath,
+        image_url: galleryUpload.imageUrl,
+        sort_order: galleryIndex,
+      });
+      if (galleryError) throw new Error(`Unable to add the gallery image: ${galleryError.message}`);
+    }
+  } catch (error) {
+    await cleanupUploadedImages([upload.imagePath, ...galleryUploads.map((item) => item.imagePath)]);
+    throw error;
+  }
+
+  await syncProductSummary(product.id);
+  return fetchProductById(product.id);
+}
+
+export async function addVariantGalleryImage(
+  product: ManagedProduct,
+  variant: ProductVariant,
+  imageFile: File,
+): Promise<ManagedProduct> {
+  const { client, user } = await getCurrentUser();
+  const upload = await uploadProductImage(imageFile, user.id);
+  const { error } = await client.from('product_variant_images').insert({
+    variant_id: variant.id,
     image_path: upload.imagePath,
     image_url: upload.imageUrl,
-    sort_order: product.variants.length,
+    sort_order: variant.gallery.length,
   });
   if (error) {
     await cleanupUploadedImages([upload.imagePath]);
-    throw new Error(`Unable to add the variant: ${error.message}`);
+    throw new Error(`Unable to add the gallery image: ${error.message}`);
   }
-  await syncProductSummary(product.id);
+  return fetchProductById(product.id);
+}
+
+export async function deleteVariantGalleryImage(
+  product: ManagedProduct,
+  image: ProductVariantImage,
+): Promise<ManagedProduct> {
+  const { client, user } = await getCurrentUser();
+  const { error } = await client.from('product_variant_images').delete().eq('id', image.id);
+  if (error) throw new Error(`Unable to remove the gallery image: ${error.message}`);
+  await removeManagedImage(image.imagePath, user.id);
   return fetchProductById(product.id);
 }
 
@@ -360,6 +457,9 @@ export async function deleteProductVariant(
   const { error } = await client.from('product_variants').delete().eq('id', variant.id);
   if (error) throw new Error(`Unable to delete the variant: ${error.message}`);
   await removeManagedImage(variant.imagePath, user.id);
+  for (const image of variant.gallery) {
+    await removeManagedImage(image.imagePath, user.id);
+  }
   await syncProductSummary(product.id);
   return fetchProductById(product.id);
 }
@@ -370,5 +470,8 @@ export async function deleteProduct(product: ManagedProduct): Promise<void> {
   if (error) throw new Error(`Unable to delete ${product.name}: ${error.message}`);
   for (const variant of product.variants) {
     await removeManagedImage(variant.imagePath, user.id);
+    for (const image of variant.gallery) {
+      await removeManagedImage(image.imagePath, user.id);
+    }
   }
 }

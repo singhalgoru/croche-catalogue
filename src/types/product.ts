@@ -6,6 +6,12 @@ export interface CategorySettings {
   priority: number;
 }
 
+export interface ProductVariantImage {
+  id: string;
+  image: string;
+  imagePath: string;
+}
+
 export interface ProductVariant {
   id: string;
   name: string;
@@ -13,6 +19,8 @@ export interface ProductVariant {
   inStock: boolean;
   image: string;
   imagePath: string;
+  /** Additional angle photos (e.g. top view, side view) shown alongside the main image. */
+  gallery: ProductVariantImage[];
 }
 
 export interface Product {
