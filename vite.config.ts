@@ -1,22 +1,7 @@
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-
-// vite-plugin-pwa always injects <link rel="manifest"> into every page once
-// a `manifest` option is set (there's no built-in flag to keep generating
-// manifest.webmanifest without also auto-linking it). AdminPage.tsx adds the
-// link itself at runtime, so this strips the automatic one from the built
-// HTML to keep customers on the public catalogue from ever seeing it.
-const stripAutoManifestLink = (): Plugin => ({
-  name: 'strip-auto-manifest-link',
-  apply: 'build',
-  enforce: 'post',
-  transformIndexHtml: {
-    order: 'post',
-    handler: (html) => html.replace(/<link rel="manifest"[^>]*>/, ''),
-  },
-})
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -28,18 +13,20 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Only the admin console registers the service worker (see
-      // AdminPage.tsx), so customers browsing the catalogue are never
-      // offered an "Install app" prompt for it.
+      // The service worker is registered manually (see App.tsx / useRegisterSW)
+      // so it can drive an in-app "update available" experience later.
       injectRegister: false,
       manifest: {
-        // Installs as a standalone home-screen app that opens straight into
-        // the admin console, so managing the catalogue doesn't require
-        // typing/finding the #admin link every time.
-        name: 'Luvia Admin',
-        short_name: 'Luvia Admin',
-        description: 'Manage the Luvia crochet catalogue: products, variants, and pricing.',
-        start_url: '/croche-catalogue/#admin',
+        // This is the customer-facing shop app. AdminPage.tsx swaps the
+        // manifest link to public/admin-manifest.webmanifest while the
+        // admin console is open, so admins installing from #admin get a
+        // separate "Luvia Admin" app instead of this one.
+        name: 'Luvia — Handmade Crochet',
+        short_name: 'Luvia',
+        description: 'Browse and order Luvia handmade crochet accessories, gifts, and decor.',
+        // Tags installed-app launches with utm_source=pwa so Analytics can
+        // report on this channel separately from web/social/direct traffic.
+        start_url: '/croche-catalogue/?utm_source=pwa&utm_medium=app',
         scope: '/croche-catalogue/',
         display: 'standalone',
         background_color: '#fdf6ec',
@@ -64,6 +51,5 @@ export default defineConfig({
         ],
       },
     }),
-    stripAutoManifestLink(),
   ],
 })

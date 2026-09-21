@@ -1,8 +1,11 @@
+import InstallAppButton from './InstallAppButton';
+
 interface Props {
   showShippingTicker?: boolean;
+  showInstallPrompt?: boolean;
 }
 
-export default function Header({ showShippingTicker = true }: Props) {
+export default function Header({ showShippingTicker = true, showInstallPrompt = true }: Props) {
   return (
     <header className="bg-cream border-b-4 border-mustard">
       {showShippingTicker && (
@@ -29,6 +32,7 @@ export default function Header({ showShippingTicker = true }: Props) {
           Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
           Every piece is stitched with love and shipped across India.
         </p>
+        {showInstallPrompt && <InstallAppButton />}
       </div>
     </header>
   );

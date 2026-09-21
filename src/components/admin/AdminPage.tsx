@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import Header from '../Header';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { fetchCategorySettings } from '../../services/categories';
@@ -10,25 +9,25 @@ import CategoryManager from './CategoryManager';
 import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
 
-const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}manifest.webmanifest`;
+const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
 interface Props {
   onProductPublished: () => Promise<void>;
 }
 
 export default function AdminPage({ onProductPublished }: Props) {
-  // The manifest is only linked here (not in index.html) and the service
-  // worker only registered here, so the "Install app" prompt is offered for
-  // the admin console and never shown to customers browsing the catalogue.
+  // The customer shop manifest is linked by default (see vite.config.ts) so
+  // it can be installed as its own app. While the admin console is open,
+  // swap that link to admin-manifest.webmanifest so installing from #admin
+  // creates a separate "Luvia Admin" app instead, then restore it on exit.
   useEffect(() => {
-    if (document.querySelector('link[rel="manifest"]')) return;
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = ADMIN_MANIFEST_HREF;
-    document.head.append(link);
-    return () => link.remove();
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    const previousHref = link?.getAttribute('href') ?? null;
+    if (link) link.setAttribute('href', ADMIN_MANIFEST_HREF);
+    return () => {
+      if (link && previousHref) link.setAttribute('href', previousHref);
+    };
   }, []);
-  useRegisterSW({ immediate: true });
 
   const [productRefreshKey, setProductRefreshKey] = useState(0);
   const [categorySettings, setCategorySettings] = useState<CategorySettings[]>([]);
@@ -168,7 +167,7 @@ export default function AdminPage({ onProductPublished }: Props) {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header showShippingTicker={false} />
+      <Header showShippingTicker={false} showInstallPrompt={false} />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>

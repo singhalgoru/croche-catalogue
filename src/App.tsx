@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CategoryFilter from './components/CategoryFilter';
@@ -20,6 +21,10 @@ function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
+
+  // Registered once for the whole app so both the shop and admin console
+  // (see AdminPage.tsx) are installable as home-screen apps.
+  useRegisterSW({ immediate: true });
 
   useEffect(() => {
     const updateRoute = () => setIsAdminPage(window.location.hash === '#admin');
