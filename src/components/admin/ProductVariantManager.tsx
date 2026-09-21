@@ -4,6 +4,7 @@ import {
   addVariantGalleryImage,
   deleteProductVariant,
   deleteVariantGalleryImage,
+  setVariantMainImage,
   updateProductVariant,
   type ManagedProduct,
   type VariantUpdate,
@@ -151,6 +152,19 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       await onSaved(saved, `Removed a photo from “${variant.name}”.`);
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Unable to remove the photo.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const makeMainImage = async (variant: ProductVariant, image: ProductVariantImage) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await setVariantMainImage(product, variant, image);
+      await onSaved(saved, `Updated the main photo for “${variant.name}”.`);
+    } catch (makeMainError) {
+      setError(makeMainError instanceof Error ? makeMainError.message : 'Unable to set the main photo.');
     } finally {
       setIsBusy(false);
     }
@@ -436,6 +450,16 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                       alt=""
                       className="h-14 w-14 rounded-lg border border-mustard/40 object-cover"
                     />
+                    <button
+                      type="button"
+                      onClick={() => void makeMainImage(variant, image)}
+                      disabled={isBusy}
+                      title="Set as main image"
+                      aria-label={`Set additional photo ${galleryIndex + 1} as the main image for ${variant.name}`}
+                      className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-mustard text-xs font-bold text-cocoa disabled:opacity-50"
+                    >
+                      ★
+                    </button>
                     <button
                       type="button"
                       onClick={() => void removeGalleryImage(variant, image)}

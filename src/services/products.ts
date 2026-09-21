@@ -421,6 +421,35 @@ export async function deleteVariantGalleryImage(
   return fetchProductById(product.id);
 }
 
+export async function setVariantMainImage(
+  product: ManagedProduct,
+  variant: ProductVariant,
+  image: ProductVariantImage,
+): Promise<ManagedProduct> {
+  const { client } = await getCurrentUser();
+  // Swap the two rows' image references rather than moving storage files:
+  // the chosen gallery image becomes the variant's main photo, and the
+  // previous main photo takes its place in the gallery.
+  const { error: variantError } = await client
+    .from('product_variants')
+    .update({
+      image_path: image.imagePath,
+      image_url: image.image,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', variant.id);
+  if (variantError) throw new Error(`Unable to set the main image: ${variantError.message}`);
+
+  const { error: galleryError } = await client
+    .from('product_variant_images')
+    .update({ image_path: variant.imagePath, image_url: variant.image })
+    .eq('id', image.id);
+  if (galleryError) throw new Error(`Unable to set the main image: ${galleryError.message}`);
+
+  await syncProductSummary(product.id);
+  return fetchProductById(product.id);
+}
+
 export async function updateProductVariant(
   product: ManagedProduct,
   variant: ProductVariant,
