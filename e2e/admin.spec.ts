@@ -207,3 +207,52 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   await expect(page.getByText('“Lilac” was removed from Rose Charm.')).toBeVisible();
   expect(state.products[0].product_variants).toHaveLength(2);
 });
+
+test('promotes a gallery photo to the main image without losing it, and removes gallery photos', async ({
+  page,
+}) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+
+  const rosePink = rose.getByRole('group', { name: 'Rose Pink variant' });
+  const variantRow = () => state.products[0].product_variants.find((v) => v.id === 'variant-1')!;
+
+  // Seeded with one gallery photo up front (see mockSupabase defaultProducts).
+  expect(variantRow().product_variant_images).toHaveLength(1);
+
+  await rosePink.getByLabel('Add an additional photo to Rose Pink').setInputFiles({
+    name: 'angle-2.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
+      'base64',
+    ),
+  });
+  await expect(page.getByText('Added an angle photo to “Rose Pink”.')).toBeVisible();
+  expect(variantRow().product_variant_images).toHaveLength(2);
+
+  const mainImagePathBeforeSwap = variantRow().image_path;
+  const galleryImagePathBeforeSwap = variantRow().product_variant_images[0].image_path;
+  expect(galleryImagePathBeforeSwap).toBe('seed/rose-angle.jpg');
+
+  await rosePink.locator('button[aria-label^="Set additional photo"]').first().click();
+  await expect(page.getByText('Updated the main photo for “Rose Pink”.')).toBeVisible();
+
+  // The gallery photo becomes the main image...
+  expect(variantRow().image_path).toBe(galleryImagePathBeforeSwap);
+  // ...and the previous main image now lives in the gallery instead of being
+  // lost, so the gallery still has the same number of photos.
+  expect(variantRow().product_variant_images).toHaveLength(2);
+  expect(variantRow().product_variant_images.map((item) => item.image_path)).toContain(
+    mainImagePathBeforeSwap,
+  );
+
+  await rosePink.locator('button[aria-label^="Remove additional photo"]').first().click();
+  await expect(page.getByText('Removed a photo from “Rose Pink”.')).toBeVisible();
+  expect(variantRow().product_variant_images).toHaveLength(1);
+});

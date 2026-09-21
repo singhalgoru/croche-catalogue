@@ -27,6 +27,15 @@ export interface VariantRow {
   image_path: string;
   image_url: string;
   sort_order: number;
+  product_variant_images: GalleryImageRow[];
+}
+
+export interface GalleryImageRow {
+  id: string;
+  variant_id: string;
+  image_path: string;
+  image_url: string;
+  sort_order: number;
 }
 
 export interface MockCatalogueState {
@@ -104,6 +113,15 @@ const defaultProducts = (): ProductRow[] => [
         image_path: 'seed/rose.jpg',
         image_url: image,
         sort_order: 0,
+        product_variant_images: [
+          {
+            id: 'gallery-1',
+            variant_id: 'variant-1',
+            image_path: 'seed/rose-angle.jpg',
+            image_url: image,
+            sort_order: 0,
+          },
+        ],
       },
       {
         id: 'variant-2',
@@ -114,6 +132,7 @@ const defaultProducts = (): ProductRow[] => [
         image_path: 'seed/rose-ivory.jpg',
         image_url: image,
         sort_order: 1,
+        product_variant_images: [],
       },
     ],
   },
@@ -142,6 +161,7 @@ const defaultProducts = (): ProductRow[] => [
         image_path: 'seed/coaster.jpg',
         image_url: image,
         sort_order: 0,
+        product_variant_images: [],
       },
     ],
   },
@@ -170,6 +190,7 @@ const defaultProducts = (): ProductRow[] => [
         image_path: 'seed/heart.jpg',
         image_url: image,
         sort_order: 0,
+        product_variant_images: [],
       },
     ],
   },
@@ -348,6 +369,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
             (count, product) => count + product.product_variants.length,
             1,
           ) + index}`,
+          product_variant_images: [] as GalleryImageRow[],
         }));
         for (const variant of additions) {
           const product = state.products.find((item) => item.id === variant.product_id);
@@ -378,6 +400,52 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         await route.fulfill({ status: 204 });
         return;
       }
+    }
+
+    if (pathname === '/rest/v1/product_variant_images') {
+      const findVariant = (variantId: string) =>
+        state.products
+          .flatMap((product) => product.product_variants)
+          .find((variant) => variant.id === variantId);
+
+      if (request.method() === 'POST') {
+        const body = getRequestBody<Omit<GalleryImageRow, 'id'>>(route);
+        const created: GalleryImageRow = {
+          ...body,
+          id: `gallery-${Date.now()}-${Math.round(Math.random() * 1_000_000)}`,
+        };
+        findVariant(body.variant_id)?.product_variant_images.push(created);
+        await json(route, [created], 201);
+        return;
+      }
+
+      const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+      const variant = state.products
+        .flatMap((product) => product.product_variants)
+        .find((item) => item.product_variant_images.some((image) => image.id === id));
+      const imageIndex = variant?.product_variant_images.findIndex((image) => image.id === id) ?? -1;
+
+      if (request.method() === 'PATCH' && variant && imageIndex >= 0) {
+        const changes = getRequestBody<Partial<GalleryImageRow>>(route);
+        variant.product_variant_images[imageIndex] = {
+          ...variant.product_variant_images[imageIndex],
+          ...changes,
+        };
+        await json(route, [variant.product_variant_images[imageIndex]]);
+        return;
+      }
+
+      if (request.method() === 'DELETE' && variant && imageIndex >= 0) {
+        const [removed] = variant.product_variant_images.splice(imageIndex, 1);
+        await json(route, [removed]);
+        return;
+      }
+
+      // Row not found for this id: mirrors RLS blocking a write by matching
+      // zero rows, so the app's defensive "no matching row" checks get
+      // exercised in tests too.
+      await json(route, []);
+      return;
     }
 
     if (pathname === '/functions/v1/analyze-product') {
