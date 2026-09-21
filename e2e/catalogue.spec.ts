@@ -150,6 +150,25 @@ test('supports campaign deep links and carries attribution into WhatsApp', async
   ).toHaveAttribute('href', /Ref%3A%20meta%2Fdiwali/);
 });
 
+test('keeps the installed PWA source out of WhatsApp messages', async ({ page }) => {
+  // The installed PWA's start_url carries utm_source=pwa&utm_medium=app so GA
+  // can attribute app launches; that source is not an ad campaign and must
+  // never leak into the WhatsApp message customers see.
+  await page.goto('./?utm_source=pwa&utm_medium=app#product=rose-charm', {
+    waitUntil: 'domcontentloaded',
+  });
+
+  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await expect(dialog).toBeVisible();
+
+  const enquiry = dialog.getByRole('link', { name: 'Order / Enquire on WhatsApp' });
+  await expect(enquiry).toHaveAttribute('href', /Rose%20Charm/);
+  await expect(enquiry).not.toHaveAttribute('href', /Ref/);
+
+  const quickOrder = dialog.getByRole('link', { name: 'Quick order on WhatsApp' });
+  await expect(quickOrder).not.toHaveAttribute('href', /Ref/);
+});
+
 test('keeps campaign deep links working after a product is renamed', async ({ page }) => {
   // The trailing product id resolves the link even though the slug is stale.
   await page.goto('./?utm_source=meta#product=an-outdated-name--product-1', {

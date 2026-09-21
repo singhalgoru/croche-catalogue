@@ -56,11 +56,16 @@ export const getCampaignParameters = (): Record<string, string> => {
   };
 };
 
+// The installed PWA's start_url carries utm_source=pwa&utm_medium=app purely
+// so GA can distinguish app-launched visits; it isn't an ad campaign and
+// shouldn't be surfaced to customers on WhatsApp.
+const isAppInstallSource = (campaign: CampaignAttribution) => campaign.medium === 'app';
+
 // A short, human-readable tag so enquiries arriving on WhatsApp can be traced
-// back to the campaign that produced them.
+// back to the ad campaign that produced them.
 export const getCampaignReference = (): string | null => {
   const campaign = readStoredCampaign();
-  if (!campaign) return null;
+  if (!campaign || isAppInstallSource(campaign)) return null;
   const parts = [campaign.source, campaign.campaign, campaign.content].filter(Boolean);
   return parts.length > 0 ? parts.join('/') : null;
 };
