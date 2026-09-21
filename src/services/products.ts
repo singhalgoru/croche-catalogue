@@ -415,8 +415,19 @@ export async function deleteVariantGalleryImage(
   image: ProductVariantImage,
 ): Promise<ManagedProduct> {
   const { client, user } = await getCurrentUser();
-  const { error } = await client.from('product_variant_images').delete().eq('id', image.id);
+  const { data, error } = await client
+    .from('product_variant_images')
+    .delete()
+    .eq('id', image.id)
+    .select('id');
   if (error) throw new Error(`Unable to remove the gallery image: ${error.message}`);
+  // A blocked row-level-security policy reports success with zero rows
+  // affected instead of an error, which previously left the thumbnail
+  // looking "stuck" after pressing the remove button. Surface that as a
+  // real error instead of silently doing nothing.
+  if (!data || data.length === 0) {
+    throw new Error('Unable to remove the gallery image: no matching row was updated.');
+  }
   await removeManagedImage(image.imagePath, user.id);
   return fetchProductById(product.id);
 }
@@ -430,21 +441,33 @@ export async function setVariantMainImage(
   // Swap the two rows' image references rather than moving storage files:
   // the chosen gallery image becomes the variant's main photo, and the
   // previous main photo takes its place in the gallery.
-  const { error: variantError } = await client
+  const { data: variantData, error: variantError } = await client
     .from('product_variants')
     .update({
       image_path: image.imagePath,
       image_url: image.image,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', variant.id);
+    .eq('id', variant.id)
+    .select('id');
   if (variantError) throw new Error(`Unable to set the main image: ${variantError.message}`);
+  if (!variantData || variantData.length === 0) {
+    throw new Error('Unable to set the main image: no matching variant row was updated.');
+  }
 
-  const { error: galleryError } = await client
+  const { data: galleryData, error: galleryError } = await client
     .from('product_variant_images')
     .update({ image_path: variant.imagePath, image_url: variant.image })
-    .eq('id', image.id);
+    .eq('id', image.id)
+    .select('id');
   if (galleryError) throw new Error(`Unable to set the main image: ${galleryError.message}`);
+  // Row-level-security policies that block the update (e.g. a missing
+  // UPDATE policy) report success with zero rows affected rather than an
+  // error, which previously left the old main image swapped away with no
+  // gallery row taking its place. Fail loudly instead of corrupting data.
+  if (!galleryData || galleryData.length === 0) {
+    throw new Error('Unable to set the main image: no matching gallery row was updated.');
+  }
 
   await syncProductSummary(product.id);
   return fetchProductById(product.id);
