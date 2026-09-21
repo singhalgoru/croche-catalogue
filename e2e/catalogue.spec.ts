@@ -126,6 +126,30 @@ test('filters, searches, opens products, and exposes customer contact links', as
   );
 });
 
+test('supports campaign deep links and carries attribution into WhatsApp', async ({ page }) => {
+  await page.goto('./?utm_source=meta&utm_campaign=diwali#product=rose-charm', {
+    waitUntil: 'domcontentloaded',
+  });
+
+  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await expect(dialog).toBeVisible();
+
+  const enquiry = dialog.getByRole('link', { name: 'Order / Enquire on WhatsApp' });
+  await expect(enquiry).toHaveAttribute('href', /Rose%20Charm/);
+  await expect(enquiry).toHaveAttribute('href', /Ref%3A%20meta%2Fdiwali/);
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // Attribution persists for the rest of the visit, even without UTM parameters.
+  await page.getByRole('button', { name: /Flower Coaster/ }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Flower Coaster' })
+      .getByRole('link', { name: 'Order / Enquire on WhatsApp' }),
+  ).toHaveAttribute('href', /Ref%3A%20meta%2Fdiwali/);
+});
+
 test('supports full-modal swipes and touch-only overlay controls', async ({ page }) => {
   await page.getByRole('button', { name: /Rose Charm/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });

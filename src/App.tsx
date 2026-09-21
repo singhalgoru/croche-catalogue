@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CategoryFilter from './components/CategoryFilter';
@@ -10,6 +10,7 @@ import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
+import { findProductBySlug, readProductSlugFromHash, toProductHash } from './utils/productLink';
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
@@ -33,11 +34,32 @@ function App() {
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
+  const pendingProductSlug = useRef(readProductSlugFromHash());
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Campaign links such as #product=rose-charm open the advertised product as
+  // soon as the catalogue has loaded.
+  useEffect(() => {
+    const slug = pendingProductSlug.current;
+    if (!slug || products.length === 0) return;
+    pendingProductSlug.current = null;
+    const match = findProductBySlug(products, slug);
+    if (!match) return;
+    trackProductSelected(match);
+    // eslint-disable-next-line react/set-state-in-effect -- syncs the opened product with the incoming URL
+    setSelectedProduct(match);
+  }, [products]);
+
+  useEffect(() => {
+    if (isAdminPage || pendingProductSlug.current) return;
+    const { pathname, search } = window.location;
+    const hash = selectedProduct ? toProductHash(selectedProduct) : '';
+    window.history.replaceState(null, '', `${pathname}${search}${hash}`);
+  }, [isAdminPage, selectedProduct]);
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);

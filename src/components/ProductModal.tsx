@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
-import { trackEvent, trackProductViewed } from '../services/analytics';
+import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
@@ -292,13 +292,7 @@ export default function ProductModal({
             href={whatsappOrderLink}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() =>
-              trackEvent('whatsapp_enquiry', {
-                product_id: product.id,
-                product_name: product.name,
-                variant_name: selectedVariant?.name,
-              })
-            }
+            onClick={() => trackWhatsAppEnquiry(product, selectedVariant)}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
           >
             <WhatsAppIcon />

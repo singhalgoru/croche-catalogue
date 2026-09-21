@@ -1,4 +1,6 @@
 import type { Product, ProductVariant } from '../types/product';
+import { getCampaignParameters } from '../utils/campaign';
+import { metaProductParameters, trackMetaEvent } from './meta';
 
 type AnalyticsParameters = Record<string, unknown>;
 
@@ -36,7 +38,7 @@ export const initializeAnalytics = () => {
 
 export const trackEvent = (name: string, parameters: AnalyticsParameters = {}) => {
   if (!measurementId || isAdminRoute() || !window.gtag) return;
-  window.gtag('event', name, parameters);
+  window.gtag('event', name, { ...getCampaignParameters(), ...parameters });
 };
 
 const itemParameters = (product: Product, variant?: ProductVariant) => ({
@@ -62,4 +64,22 @@ export const trackProductViewed = (product: Product, variant?: ProductVariant) =
   trackEvent('view_item', {
     items: [itemParameters(product, variant)],
   });
+  trackMetaEvent('ViewContent', metaProductParameters(product, variant));
+};
+
+export const trackWhatsAppEnquiry = (product: Product, variant?: ProductVariant) => {
+  trackEvent('whatsapp_enquiry', {
+    product_id: product.id,
+    product_name: product.name,
+    variant_name: variant?.name,
+  });
+  trackMetaEvent('Contact', {
+    ...metaProductParameters(product, variant),
+    contact_channel: 'whatsapp',
+  });
+};
+
+export const trackContactClick = (channel: string, location: string) => {
+  trackEvent('contact_click', { channel, location });
+  trackMetaEvent('Contact', { contact_channel: channel, contact_location: location });
 };
