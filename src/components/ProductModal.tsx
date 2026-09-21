@@ -43,6 +43,7 @@ export default function ProductModal({
     galleryImages.find((item) => item.id === activeImageId)?.image ?? galleryImages[0].image;
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
+  const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
 
   useEffect(() => {
     trackProductViewed(product, selectedVariant);
@@ -134,6 +135,17 @@ export default function ProductModal({
           ×
         </span>
       </button>
+      <a
+        href={whatsappOrderLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={openWhatsAppOrder}
+        className="fixed bottom-5 right-3 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366] sm:bottom-6 sm:right-5"
+        aria-label="Quick order on WhatsApp"
+        title="Quick order on WhatsApp"
+      >
+        <WhatsAppIcon />
+      </a>
       <div
         className="touch-pan-y bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
         onClick={(event) => event.stopPropagation()}
@@ -350,7 +362,7 @@ export default function ProductModal({
             href={whatsappOrderLink}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => trackWhatsAppEnquiry(product, selectedVariant)}
+            onClick={openWhatsAppOrder}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
           >
             <WhatsAppIcon />

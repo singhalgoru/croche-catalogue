@@ -123,7 +123,7 @@ describe('ProductModal touch controls', () => {
     expect(onPrevious).not.toHaveBeenCalled();
   });
 
-  it('switches the product image, stock status, and enquiry link by variant', () => {
+  it('switches the product image, stock status, and both WhatsApp order links by variant', () => {
     renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /Ivory/ }));
@@ -132,7 +132,10 @@ describe('ProductModal touch controls', () => {
       '/rose-ivory.jpg',
     );
     expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
-    expect(screen.getByRole('link', { name: 'Order / Enquire on WhatsApp' }).getAttribute('href')).toContain(
+    expect(
+      screen.getByRole('link', { name: 'Order / Enquire on WhatsApp' }).getAttribute('href'),
+    ).toContain('%E2%80%9CIvory%E2%80%9D');
+    expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')).toContain(
       '%E2%80%9CIvory%E2%80%9D',
     );
   });
