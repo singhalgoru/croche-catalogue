@@ -10,7 +10,11 @@ import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
-import { findProductBySlug, readProductSlugFromHash, toProductHash } from './utils/productLink';
+import {
+  findProductByReference,
+  readProductReferenceFromHash,
+  toProductHash,
+} from './utils/productLink';
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
@@ -34,20 +38,20 @@ function App() {
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
-  const pendingProductSlug = useRef(readProductSlugFromHash());
+  const pendingProductReference = useRef(readProductReferenceFromHash());
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  // Campaign links such as #product=rose-charm open the advertised product as
-  // soon as the catalogue has loaded.
+  // Campaign links such as #product=rose-charm--<id> open the advertised product
+  // as soon as the catalogue has loaded.
   useEffect(() => {
-    const slug = pendingProductSlug.current;
-    if (!slug || products.length === 0) return;
-    pendingProductSlug.current = null;
-    const match = findProductBySlug(products, slug);
+    const reference = pendingProductReference.current;
+    if (!reference || products.length === 0) return;
+    pendingProductReference.current = null;
+    const match = findProductByReference(products, reference);
     if (!match) return;
     trackProductSelected(match);
     // eslint-disable-next-line react/set-state-in-effect -- syncs the opened product with the incoming URL
@@ -55,11 +59,26 @@ function App() {
   }, [products]);
 
   useEffect(() => {
-    if (isAdminPage || pendingProductSlug.current) return;
+    if (isAdminPage || pendingProductReference.current) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct) : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
   }, [isAdminPage, selectedProduct]);
+
+  // Opens the product when a link lands in an already-loaded tab, where the
+  // browser only changes the hash instead of reloading the page.
+  useEffect(() => {
+    const openProductFromHash = () => {
+      const reference = readProductReferenceFromHash();
+      if (!reference) return;
+      const match = findProductByReference(products, reference);
+      if (!match || match.id === selectedProduct?.id) return;
+      trackProductSelected(match);
+      setSelectedProduct(match);
+    };
+    window.addEventListener('hashchange', openProductFromHash);
+    return () => window.removeEventListener('hashchange', openProductFromHash);
+  }, [products, selectedProduct]);
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);

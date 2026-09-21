@@ -7,6 +7,7 @@ import {
   type ProductUpdate,
 } from '../../services/products';
 import type { Category } from '../../types/product';
+import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
 
 interface Props {
@@ -40,6 +41,21 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyProductLink = async (product: ManagedProduct) => {
+    const url = toProductUrl(product);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(product.id);
+      setError(null);
+      setMessage(`Link copied for “${product.name}”.`);
+      window.setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      setMessage(null);
+      setError(`Unable to copy automatically. Link: ${url}`);
+    }
+  };
 
   const loadProducts = useCallback(async () => {
     setIsLoading(true);
@@ -189,6 +205,14 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         )}
                       </div>
                       <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void copyProductLink(product)}
+                          disabled={isBusy}
+                          className="rounded-full border-2 border-cocoa/30 px-4 py-1.5 text-sm font-semibold text-cocoa disabled:opacity-60"
+                        >
+                          {copiedId === product.id ? 'Copied!' : 'Copy link'}
+                        </button>
                         <button
                           type="button"
                           onClick={() => startEditing(product)}

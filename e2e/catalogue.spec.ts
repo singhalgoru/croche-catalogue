@@ -150,6 +150,24 @@ test('supports campaign deep links and carries attribution into WhatsApp', async
   ).toHaveAttribute('href', /Ref%3A%20meta%2Fdiwali/);
 });
 
+test('keeps campaign deep links working after a product is renamed', async ({ page }) => {
+  // The trailing product id resolves the link even though the slug is stale.
+  await page.goto('./?utm_source=meta#product=an-outdated-name--product-1', {
+    waitUntil: 'domcontentloaded',
+  });
+
+  await expect(page.getByRole('dialog', { name: 'Rose Charm' })).toBeVisible();
+  await expect(page).toHaveURL(/#product=rose-charm--product-1$/);
+
+  // A stale link pasted into an already-open tab only changes the hash.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.evaluate(() => {
+    window.location.hash = '#product=another-old-name--product-2';
+  });
+  await expect(page.getByRole('dialog', { name: 'Flower Coaster' })).toBeVisible();
+});
+
 test('supports full-modal swipes and touch-only overlay controls', async ({ page }) => {
   await page.getByRole('button', { name: /Rose Charm/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
