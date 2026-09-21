@@ -146,4 +146,21 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByRole('dialog', { name: 'Crochet Rose' })).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('opens, controls, and closes the 3D product image view without closing the product modal', () => {
+    const { onClose } = renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View product image in 3D' }));
+    expect(screen.getByRole('dialog', { name: '3D view of Crochet Rose — Red' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in 3D view' }));
+    expect(screen.getByRole('button', { name: 'Reset 3D view' }).textContent).toBe('115%');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: '3D view of Crochet Rose — Red' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Crochet Rose' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

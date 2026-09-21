@@ -3,6 +3,7 @@ import type { Product } from '../types/product';
 import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
+import Product3DViewer from './Product3DViewer';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
 import { isProductNew } from '../utils/productStatus';
@@ -29,6 +30,7 @@ export default function ProductModal({
   const [showTouchControls, setShowTouchControls] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id ?? '');
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [is3DOpen, setIs3DOpen] = useState(false);
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
@@ -43,19 +45,20 @@ export default function ProductModal({
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (isZoomOpen) setIsZoomOpen(false);
+        if (is3DOpen) setIs3DOpen(false);
+        else if (isZoomOpen) setIsZoomOpen(false);
         else onClose();
         return;
       }
 
-      if (!hasCarousel || isZoomOpen) return;
+      if (!hasCarousel || isZoomOpen || is3DOpen) return;
 
       if (event.key === 'ArrowLeft') onPrevious();
       if (event.key === 'ArrowRight') onNext();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [hasCarousel, isZoomOpen, onClose, onNext, onPrevious]);
+  }, [hasCarousel, is3DOpen, isZoomOpen, onClose, onNext, onPrevious]);
 
   useEffect(
     () => () => {
@@ -137,31 +140,48 @@ export default function ProductModal({
             }
             className="w-full aspect-square object-cover"
           />
-          <button
-            type="button"
-            onClick={() => {
-              trackEvent('zoom_product_image', {
-                product_id: product.id,
-                product_name: product.name,
-                variant_name: selectedVariant?.name,
-              });
-              setIsZoomOpen(true);
-            }}
-            className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
-            aria-label="Zoom product image"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
+          <div className="absolute bottom-3 right-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent('view_product_image_3d', {
+                  product_id: product.id,
+                  product_name: product.name,
+                  variant_name: selectedVariant?.name,
+                });
+                setIs3DOpen(true);
+              }}
+              className="flex h-11 min-w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 px-3 text-sm font-bold text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
+              aria-label="View product image in 3D"
             >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m16.5 16.5 4 4M8 11h6M11 8v6" />
-            </svg>
-          </button>
+              3D
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent('zoom_product_image', {
+                  product_id: product.id,
+                  product_name: product.name,
+                  variant_name: selectedVariant?.name,
+                });
+                setIsZoomOpen(true);
+              }}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
+              aria-label="Zoom product image"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16.5 16.5 4 4M8 11h6M11 8v6" />
+              </svg>
+            </button>
+          </div>
           {isNew && (
             <span className="absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md">
               New
@@ -322,6 +342,17 @@ export default function ProductModal({
               : product.name
           }
           onClose={() => setIsZoomOpen(false)}
+        />
+      )}
+      {is3DOpen && (
+        <Product3DViewer
+          image={selectedVariant?.image ?? product.image}
+          alt={
+            selectedVariant && product.variants.length > 1
+              ? `${product.name} — ${selectedVariant.name}`
+              : product.name
+          }
+          onClose={() => setIs3DOpen(false)}
         />
       )}
     </div>
