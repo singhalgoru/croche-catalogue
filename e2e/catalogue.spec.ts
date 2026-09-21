@@ -41,6 +41,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
   await expect(productCards.nth(2)).toContainText('Flower Coaster');
   await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Empty Category', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByRole('button', { name: /New Heart Charm/ })).toBeVisible();

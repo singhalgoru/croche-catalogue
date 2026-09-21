@@ -22,10 +22,12 @@ function App() {
     return () => window.removeEventListener('hashchange', updateRoute);
   }, []);
 
-  const categories = useMemo(
-    () => categorySettings.map((category) => category.name),
-    [categorySettings],
-  );
+  const categories = useMemo(() => {
+    const populatedCategories = new Set(products.map((product) => product.category));
+    return categorySettings
+      .map((category) => category.name)
+      .filter((category) => populatedCategories.has(category));
+  }, [categorySettings, products]);
 
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>('All');
   const [query, setQuery] = useState('');

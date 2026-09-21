@@ -171,10 +171,11 @@ const getRequestBody = <T>(route: Route) => route.request().postDataJSON() as T;
 
 export async function installMockSupabase(page: Page): Promise<MockCatalogueState> {
   const state: MockCatalogueState = {
-    categories: ['Charms', 'Home Decor'],
+    categories: ['Charms', 'Home Decor', 'Empty Category'],
     categorySettings: {
       Charms: { priority: 20 },
       'Home Decor': { priority: 10 },
+      'Empty Category': { priority: 30 },
     },
     products: defaultProducts(),
   };
