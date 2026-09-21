@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import Header from '../Header';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { fetchCategorySettings } from '../../services/categories';
@@ -9,11 +10,26 @@ import CategoryManager from './CategoryManager';
 import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
 
+const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}manifest.webmanifest`;
+
 interface Props {
   onProductPublished: () => Promise<void>;
 }
 
 export default function AdminPage({ onProductPublished }: Props) {
+  // The manifest is only linked here (not in index.html) and the service
+  // worker only registered here, so the "Install app" prompt is offered for
+  // the admin console and never shown to customers browsing the catalogue.
+  useEffect(() => {
+    if (document.querySelector('link[rel="manifest"]')) return;
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = ADMIN_MANIFEST_HREF;
+    document.head.append(link);
+    return () => link.remove();
+  }, []);
+  useRegisterSW({ immediate: true });
+
   const [productRefreshKey, setProductRefreshKey] = useState(0);
   const [categorySettings, setCategorySettings] = useState<CategorySettings[]>([]);
   const categories = categorySettings.map((category) => category.name);
