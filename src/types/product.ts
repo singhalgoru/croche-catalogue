@@ -19,9 +19,10 @@ export interface Product {
   id: string;
   name: string;
   category: Category;
-  price: number;
-  /** Optional original price, shown struck-through with a discount badge when higher than `price`. */
-  originalPrice?: number;
+  /** Price in whole rupees. `null` when no price has been set yet. */
+  price: number | null;
+  /** Controls whether the price is shown to customers in the catalogue. */
+  showPrice?: boolean;
   description: string;
   featured?: boolean;
   publishedAt?: string | null;

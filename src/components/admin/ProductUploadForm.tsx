@@ -19,6 +19,8 @@ interface ProductDraft {
   category: Category;
   description: string;
   featured: boolean;
+  price: string;
+  showPrice: boolean;
 }
 
 const EMPTY_DRAFT: ProductDraft = {
@@ -26,6 +28,16 @@ const EMPTY_DRAFT: ProductDraft = {
   category: 'Charms & Keychains',
   description: '',
   featured: false,
+  price: '',
+  showPrice: false,
+};
+
+/** Returns the rupee amount, or `undefined` when the entry is not a valid price. */
+const parsePrice = (value: string): number | null | undefined => {
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  const amount = Number(trimmed);
+  return Number.isInteger(amount) && amount >= 0 ? amount : undefined;
 };
 
 export default function ProductUploadForm({ categories, onPublished }: Props) {
@@ -89,6 +101,15 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       setErrorMessage('Every variant needs a name and image.');
       return;
     }
+    const price = parsePrice(draft.price);
+    if (price === undefined) {
+      setErrorMessage('Enter the price as a whole number of rupees, or leave it blank.');
+      return;
+    }
+    if (draft.showPrice && price === null) {
+      setErrorMessage('Add a price before showing it in the catalogue.');
+      return;
+    }
 
     setIsPublishing(true);
     setErrorMessage(null);
@@ -97,6 +118,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       const product = await publishProduct({
         ...draft,
         category,
+        price,
         variants: variants.map((variant) => ({
           name: variant.name.trim(),
           color: variant.color,
@@ -217,6 +239,34 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
               rows={4}
               className="mt-1 w-full resize-y rounded-xl border border-mustard/60 px-3 py-2"
             />
+          </label>
+          <label className="text-sm font-semibold text-cocoa">
+            Price (₹)
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={draft.price}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, price: event.target.value }))
+              }
+              disabled={isAnalyzing || isPublishing}
+              placeholder="e.g. 349"
+              className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+            />
+          </label>
+          <label className="flex items-center gap-2 rounded-xl border border-mustard/30 bg-cream/50 px-3 py-2 text-sm font-semibold text-cocoa">
+            <input
+              type="checkbox"
+              checked={draft.showPrice}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, showPrice: event.target.checked }))
+              }
+              disabled={isAnalyzing || isPublishing}
+              className="h-4 w-4 accent-cocoa"
+            />
+            Show this price in the catalogue
           </label>
           <label className="flex items-center gap-2 rounded-xl border border-mustard/30 bg-cream/50 px-3 py-2 text-sm font-semibold text-cocoa md:col-span-2">
             <input

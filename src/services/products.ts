@@ -17,6 +17,8 @@ interface ProductRow {
   category: Product['category'];
   description: string;
   featured: boolean;
+  price: number | null;
+  show_price: boolean;
   color: string;
   in_stock: boolean;
   image_path: string;
@@ -39,6 +41,8 @@ export interface NewProduct {
   category: Product['category'];
   description: string;
   featured: boolean;
+  price: number | null;
+  showPrice: boolean;
   variants: NewVariant[];
 }
 
@@ -55,6 +59,8 @@ export interface ProductUpdate {
   description: string;
   published: boolean;
   featured: boolean;
+  price: number | null;
+  showPrice: boolean;
 }
 
 export interface VariantUpdate {
@@ -66,7 +72,7 @@ export interface VariantUpdate {
 
 const VARIANT_COLUMNS = 'id, name, color, in_stock, image_path, image_url, sort_order';
 const PRODUCT_COLUMNS =
-  `id, name, category, description, featured, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
+  `id, name, category, description, featured, price, show_price, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
 
 const requireSupabase = () => {
   if (!supabase) {
@@ -105,7 +111,8 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     id: row.id,
     name: row.name,
     category: row.category,
-    price: 0,
+    price: row.price,
+    showPrice: row.show_price,
     description: row.description,
     featured: row.featured,
     color: primaryVariant.color,
@@ -227,6 +234,8 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
         category: product.category,
         description: product.description,
         featured: product.featured,
+        price: product.price,
+        show_price: product.showPrice,
         color: primary.color,
         in_stock: product.variants.some((variant) => variant.inStock),
         image_path: primaryUpload.imagePath,
@@ -283,6 +292,8 @@ export async function updateProduct(
       description: update.description,
       published: update.published,
       featured: update.featured,
+      price: update.price,
+      show_price: update.showPrice,
       updated_at: new Date().toISOString(),
     })
     .eq('id', product.id);

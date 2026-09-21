@@ -1,4 +1,5 @@
 import type { Product } from '../types/product';
+import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
 
 interface Props {
@@ -51,6 +52,11 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
       <div className="p-4">
         <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
         <h3 className="font-heading font-semibold text-cocoa mt-1">{product.name}</h3>
+        {product.showPrice && product.price !== null && (
+          <p className="mt-1 font-heading text-lg font-bold text-cocoa">
+            {formatINR(product.price)}
+          </p>
+        )}
       </div>
     </button>
   );

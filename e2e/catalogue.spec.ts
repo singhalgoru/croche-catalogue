@@ -168,6 +168,17 @@ test('keeps campaign deep links working after a product is renamed', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Flower Coaster' })).toBeVisible();
 });
 
+test('shows prices only for products opted into price display', async ({ page }) => {
+  const roseCard = page.getByRole('button', { name: /Rose Charm/ });
+  await expect(roseCard.getByText('₹349')).toBeVisible();
+
+  // Flower Coaster has a price recorded but has not opted into showing it.
+  await expect(page.getByRole('button', { name: /Flower Coaster/ }).getByText('₹')).toHaveCount(0);
+
+  await roseCard.click();
+  await expect(page.getByRole('dialog', { name: 'Rose Charm' }).getByText('₹349')).toBeVisible();
+});
+
 test('supports full-modal swipes and touch-only overlay controls', async ({ page }) => {
   await page.getByRole('button', { name: /Rose Charm/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });

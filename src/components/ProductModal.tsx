@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
 import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
+import { formatINR } from '../utils/currency';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
 import { isProductNew } from '../utils/productStatus';
@@ -264,6 +265,11 @@ export default function ProductModal({
             )}
           </div>
           <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>
+          {product.showPrice && product.price !== null && (
+            <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
+              {formatINR(product.price)}
+            </p>
+          )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           {hasCarousel && (
             <div className="grid grid-cols-2 gap-3 mt-6">

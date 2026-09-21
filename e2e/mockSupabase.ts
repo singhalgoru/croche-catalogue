@@ -12,6 +12,8 @@ export interface ProductRow {
   published: boolean;
   published_at: string | null;
   featured: boolean;
+  price: number | null;
+  show_price: boolean;
   created_at: string;
   product_variants: VariantRow[];
 }
@@ -89,6 +91,8 @@ const defaultProducts = (): ProductRow[] => [
     published: true,
     published_at: '2025-01-01T00:00:00.000Z',
     featured: true,
+    price: 349,
+    show_price: true,
     created_at: '2026-01-01T00:00:00.000Z',
     product_variants: [
       {
@@ -125,6 +129,8 @@ const defaultProducts = (): ProductRow[] => [
     published: true,
     published_at: '2025-01-02T00:00:00.000Z',
     featured: false,
+    price: 249,
+    show_price: false,
     created_at: '2026-01-02T00:00:00.000Z',
     product_variants: [
       {
@@ -151,6 +157,8 @@ const defaultProducts = (): ProductRow[] => [
     published: true,
     published_at: new Date().toISOString(),
     featured: false,
+    price: null,
+    show_price: false,
     created_at: '2026-01-03T00:00:00.000Z',
     product_variants: [
       {

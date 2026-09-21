@@ -139,6 +139,36 @@ test('edits visibility and permanently removes products', async ({ page }) => {
   ).toHaveCount(0);
 });
 
+test('controls product price visibility from the admin console', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const coaster = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
+  });
+  await expect(coaster.getByText('₹249 (hidden)')).toBeVisible();
+
+  await coaster.getByRole('button', { name: 'Edit' }).click();
+  await coaster.getByLabel('Price (₹)').fill('299');
+  await coaster.getByLabel('Show price in catalogue').check();
+  await coaster.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Flower Coaster was updated.')).toBeVisible();
+  expect(state.products.find((product) => product.id === 'product-2')).toMatchObject({
+    price: 299,
+    show_price: true,
+  });
+
+  // A price cannot be shown before one is entered.
+  const heart = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'New Heart Charm', exact: true }),
+  });
+  await heart.getByRole('button', { name: 'Edit' }).click();
+  await heart.getByLabel('Show price in catalogue').check();
+  await heart.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Add a price before showing it in the catalogue.')).toBeVisible();
+  expect(state.products.find((product) => product.id === 'product-3')?.show_price).toBe(false);
+});
+
 test('adds, updates, and removes product variants', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);

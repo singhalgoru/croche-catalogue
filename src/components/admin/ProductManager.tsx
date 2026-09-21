@@ -22,6 +22,8 @@ interface EditDraft {
   description: string;
   published: boolean;
   featured: boolean;
+  price: string;
+  showPrice: boolean;
 }
 
 const createDraft = (product: ManagedProduct): EditDraft => ({
@@ -30,7 +32,17 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   description: product.description,
   published: product.published,
   featured: product.featured === true,
+  price: product.price === null ? '' : String(product.price),
+  showPrice: product.showPrice === true,
 });
+
+/** Returns the rupee amount, or `undefined` when the entry is not a valid price. */
+const parsePrice = (value: string): number | null | undefined => {
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  const amount = Number(trimmed);
+  return Number.isInteger(amount) && amount >= 0 ? amount : undefined;
+};
 
 export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
   const [products, setProducts] = useState<ManagedProduct[]>([]);
@@ -85,11 +97,21 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     event.preventDefault();
     if (!draft) return;
 
+    const price = parsePrice(draft.price);
+    if (price === undefined) {
+      setError('Enter the price as a whole number of rupees, or leave it blank.');
+      return;
+    }
+    if (draft.showPrice && price === null) {
+      setError('Add a price before showing it in the catalogue.');
+      return;
+    }
+
     setBusyId(product.id);
     setError(null);
     setMessage(null);
     try {
-      const update: ProductUpdate = draft;
+      const update: ProductUpdate = { ...draft, price };
       const saved = await updateProduct(product, update);
       setProducts((current) => current.map((item) => (item.id === saved.id ? saved : item)));
       setEditingId(null);
@@ -201,6 +223,12 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         {product.featured && (
                           <span className="ml-2 mt-1 inline-block rounded-full bg-cocoa px-2 py-0.5 text-xs font-bold text-cream">
                             ★ Featured
+                          </span>
+                        )}
+                        {product.price !== null && (
+                          <span className="ml-2 mt-1 inline-block rounded-full bg-mustard/40 px-2 py-0.5 text-xs font-semibold text-cocoa">
+                            ₹{product.price}
+                            {product.showPrice ? '' : ' (hidden)'}
                           </span>
                         )}
                       </div>
@@ -318,7 +346,37 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         className="mt-1 w-full resize-y rounded-xl border border-mustard/60 px-3 py-2"
                       />
                     </label>
+                    <label className="text-sm font-semibold text-cocoa">
+                      Price (₹)
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        value={draft.price}
+                        onChange={(event) =>
+                          setDraft((current) =>
+                            current ? { ...current, price: event.target.value } : current,
+                          )
+                        }
+                        placeholder="e.g. 349"
+                        className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+                      />
+                    </label>
                     <div className="flex flex-wrap items-center gap-5 sm:col-span-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
+                        <input
+                          type="checkbox"
+                          checked={draft.showPrice}
+                          onChange={(event) =>
+                            setDraft((current) =>
+                              current ? { ...current, showPrice: event.target.checked } : current,
+                            )
+                          }
+                          className="h-4 w-4 accent-cocoa"
+                        />
+                        Show price in catalogue
+                      </label>
                       <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
                         <input
                           type="checkbox"
