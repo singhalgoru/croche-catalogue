@@ -16,11 +16,13 @@ interface ProductRow {
   name: string;
   category: Product['category'];
   description: string;
+  featured: boolean;
   color: string;
   in_stock: boolean;
   image_path: string;
   image_url: string;
   published: boolean;
+  published_at: string | null;
   created_at: string;
   product_variants?: ProductVariantRow[];
 }
@@ -36,12 +38,14 @@ export interface NewProduct {
   name: string;
   category: Product['category'];
   description: string;
+  featured: boolean;
   variants: NewVariant[];
 }
 
 export interface ManagedProduct extends Product {
   imagePath: string;
   published: boolean;
+  publishedAt: string | null;
   createdAt: string;
 }
 
@@ -50,6 +54,7 @@ export interface ProductUpdate {
   category: Product['category'];
   description: string;
   published: boolean;
+  featured: boolean;
 }
 
 export interface VariantUpdate {
@@ -61,7 +66,7 @@ export interface VariantUpdate {
 
 const VARIANT_COLUMNS = 'id, name, color, in_stock, image_path, image_url, sort_order';
 const PRODUCT_COLUMNS =
-  `id, name, category, description, color, in_stock, image_path, image_url, published, created_at, product_variants(${VARIANT_COLUMNS})`;
+  `id, name, category, description, featured, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
 
 const requireSupabase = () => {
   if (!supabase) {
@@ -102,12 +107,14 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     category: row.category,
     price: 0,
     description: row.description,
+    featured: row.featured,
     color: primaryVariant.color,
     inStock: resolvedVariants.some((variant) => variant.inStock),
     image: primaryVariant.image,
     imagePath: primaryVariant.imagePath,
     variants: resolvedVariants,
     published: row.published,
+    publishedAt: row.published_at,
     createdAt: row.created_at,
   };
 };
@@ -219,6 +226,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
         name: product.name,
         category: product.category,
         description: product.description,
+        featured: product.featured,
         color: primary.color,
         in_stock: product.variants.some((variant) => variant.inStock),
         image_path: primaryUpload.imagePath,
@@ -274,6 +282,7 @@ export async function updateProduct(
       category: update.category,
       description: update.description,
       published: update.published,
+      featured: update.featured,
       updated_at: new Date().toISOString(),
     })
     .eq('id', product.id);

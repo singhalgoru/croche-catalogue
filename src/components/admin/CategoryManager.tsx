@@ -19,12 +19,9 @@ export default function CategoryManager({ categories, onChanged }: Props) {
   const [replacementName, setReplacementName] = useState('');
   const [deleteName, setDeleteName] = useState<string | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
-  const [featuredName, setFeaturedName] = useState<string | null>(null);
   const [priorities, setPriorities] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const resolvedFeaturedName =
-    featuredName ?? categories.find((category) => category.isFeatured)?.name ?? '';
 
   const addCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,15 +93,9 @@ export default function CategoryManager({ categories, onChanged }: Props) {
     setError(null);
     setMessage(null);
     try {
-      const isFeatured = resolvedFeaturedName === category.name;
-      await updateCategoryPresentation(category.name, priority, isFeatured);
-      setMessage(
-        isFeatured
-          ? `“${category.name}” is now featured with priority ${priority}.`
-          : `“${category.name}” priority was updated to ${priority}.`,
-      );
+      await updateCategoryPresentation(category.name, priority);
+      setMessage(`“${category.name}” priority was updated to ${priority}.`);
       await onChanged();
-      setFeaturedName(null);
       setPriorities((current) => {
         const next = { ...current };
         delete next[category.name];
@@ -150,8 +141,7 @@ export default function CategoryManager({ categories, onChanged }: Props) {
 
       <div id="category-management-content" hidden={!isExpanded}>
         <p className="mt-4 text-sm text-cocoa/65">
-          Choose one featured category and use lower priority numbers to show other categories
-          earlier in the catalogue.
+          Use lower priority numbers to show categories earlier in the catalogue.
         </p>
 
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
@@ -249,24 +239,8 @@ export default function CategoryManager({ categories, onChanged }: Props) {
               <div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold text-cocoa">{category.name}</span>
-                  {category.isFeatured && (
-                    <span className="rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream">
-                      ★ Featured
-                    </span>
-                  )}
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_7rem_auto] sm:items-end">
-                  <label className="flex items-center gap-2 rounded-xl border border-mustard/30 bg-white px-3 py-2 text-sm font-semibold text-cocoa">
-                    <input
-                      type="radio"
-                      name="featured-category"
-                      checked={resolvedFeaturedName === category.name}
-                      onChange={() => setFeaturedName(category.name)}
-                      disabled={busyName !== null}
-                      className="h-4 w-4 accent-cocoa"
-                    />
-                    Featured category
-                  </label>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[7rem_auto] sm:items-end sm:justify-end">
                   <label className="text-sm font-semibold text-cocoa">
                     Priority
                     <input
@@ -313,12 +287,10 @@ export default function CategoryManager({ categories, onChanged }: Props) {
                       setDeleteName(category.name);
                       setEditingName(null);
                     }}
-                    disabled={categories.length === 1 || category.isFeatured}
+                    disabled={categories.length === 1}
                     title={
                       categories.length === 1
                         ? 'At least one category must remain.'
-                        : category.isFeatured
-                          ? 'Choose and save another featured category before deleting this one.'
                         : undefined
                     }
                     className="text-sm font-semibold text-red-700 underline disabled:cursor-not-allowed disabled:opacity-40"

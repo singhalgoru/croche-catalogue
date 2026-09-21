@@ -3,11 +3,10 @@ import ProductCard from './ProductCard';
 
 interface Props {
   products: Product[];
-  featuredCategory: string | null;
   onSelect: (product: Product) => void;
 }
 
-export default function ProductGrid({ products, featuredCategory, onSelect }: Props) {
+export default function ProductGrid({ products, onSelect }: Props) {
   if (products.length === 0) {
     return (
       <p className="text-center text-rose-500 py-16">
@@ -22,7 +21,7 @@ export default function ProductGrid({ products, featuredCategory, onSelect }: Pr
         <ProductCard
           key={product.id}
           product={product}
-          isFeatured={product.category === featuredCategory}
+          isFeatured={product.featured === true}
           onSelect={onSelect}
         />
       ))}

@@ -18,12 +18,14 @@ interface ProductDraft {
   name: string;
   category: Category;
   description: string;
+  featured: boolean;
 }
 
 const EMPTY_DRAFT: ProductDraft = {
   name: '',
   category: 'Charms & Keychains',
   description: '',
+  featured: false,
 };
 
 export default function ProductUploadForm({ categories, onPublished }: Props) {
@@ -215,6 +217,18 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
               rows={4}
               className="mt-1 w-full resize-y rounded-xl border border-mustard/60 px-3 py-2"
             />
+          </label>
+          <label className="flex items-center gap-2 rounded-xl border border-mustard/30 bg-cream/50 px-3 py-2 text-sm font-semibold text-cocoa md:col-span-2">
+            <input
+              type="checkbox"
+              checked={draft.featured}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, featured: event.target.checked }))
+              }
+              disabled={isAnalyzing || isPublishing}
+              className="h-4 w-4 accent-cocoa"
+            />
+            Feature this product at the top of the catalogue
           </label>
         </div>
       </section>

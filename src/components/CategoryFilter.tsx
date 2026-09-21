@@ -1,13 +1,13 @@
-import type { Category } from '../types/product';
+import type { CatalogueFilter, Category } from '../types/product';
 
 interface Props {
   categories: Category[];
-  active: Category | 'All';
-  onSelect: (category: Category | 'All') => void;
+  active: CatalogueFilter;
+  onSelect: (category: CatalogueFilter) => void;
 }
 
 export default function CategoryFilter({ categories, active, onSelect }: Props) {
-  const allOptions: (Category | 'All')[] = ['All', ...categories];
+  const allOptions: CatalogueFilter[] = ['All', 'New', ...categories];
 
   return (
     <div className="flex flex-wrap gap-2 justify-center">

@@ -4,7 +4,6 @@ import type { Category, CategorySettings } from '../types/product';
 interface CategoryRow {
   name: string;
   sort_order: number;
-  is_featured: boolean;
 }
 
 const requireSupabase = () => {
@@ -20,8 +19,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
   const client = requireSupabase();
   const { data, error } = await client
     .from('categories')
-    .select('name, sort_order, is_featured')
-    .order('is_featured', { ascending: false })
+    .select('name, sort_order')
     .order('sort_order')
     .order('name');
 
@@ -32,7 +30,6 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
   return (data as CategoryRow[]).map((category) => ({
     name: category.name,
     priority: category.sort_order,
-    isFeatured: category.is_featured,
   }));
 }
 
@@ -83,13 +80,11 @@ export async function deleteCategory(name: string): Promise<void> {
 export async function updateCategoryPresentation(
   name: string,
   priority: number,
-  isFeatured: boolean,
 ): Promise<void> {
   const client = requireSupabase();
-  const { error } = await client.rpc('update_catalogue_category_presentation', {
+  const { error } = await client.rpc('update_catalogue_category_priority', {
     category_name: name,
     category_priority: priority,
-    featured: isFeatured,
   });
 
   if (error) {

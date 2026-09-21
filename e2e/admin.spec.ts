@@ -31,12 +31,10 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
 
   await page.getByRole('button', { name: /Manage categories/ }).click();
   const charmsDisplay = page.getByLabel('Priority for Charms').locator('..').locator('..');
-  await charmsDisplay.getByRole('radio').check();
   await page.getByLabel('Priority for Charms').fill('5');
   await charmsDisplay.getByRole('button', { name: 'Save display' }).click();
-  await expect(page.getByText('“Charms” is now featured with priority 5.')).toBeVisible();
-  expect(state.categorySettings.Charms).toEqual({ priority: 5, isFeatured: true });
-  expect(state.categorySettings['Home Decor'].isFeatured).toBe(false);
+  await expect(page.getByText('“Charms” priority was updated to 5.')).toBeVisible();
+  expect(state.categorySettings.Charms).toEqual({ priority: 5 });
 
   await page.getByLabel('New category').fill('Bags');
   await page.getByRole('button', { name: 'Add category' }).click();
@@ -96,10 +94,12 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   await expect(page.getByLabel('Description')).toHaveValue(
     'A soft handmade crochet bunny suggested by Gemini.',
   );
+  await page.getByLabel('Feature this product at the top of the catalogue').check();
 
   await page.getByRole('button', { name: 'Publish product' }).click();
   await expect(page.getByText('AI Bunny with 1 variant was published to the catalogue.')).toBeVisible();
   expect(state.products.some((product) => product.name === 'AI Bunny')).toBe(true);
+  expect(state.products.find((product) => product.name === 'AI Bunny')?.featured).toBe(true);
   expect(
     state.products.find((product) => product.name === 'AI Bunny')?.product_variants,
   ).toHaveLength(1);
@@ -117,12 +117,14 @@ test('edits visibility and permanently removes products', async ({ page }) => {
   });
   await rose.getByRole('button', { name: 'Edit' }).click();
   await rose.getByLabel('Product name').fill('Rose Bag Charm');
+  await rose.getByLabel('Featured product').uncheck();
   await rose.getByLabel('Visible in catalogue').uncheck();
   await rose.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByText('Rose Bag Charm was updated.')).toBeVisible();
   expect(state.products.find((product) => product.id === 'product-1')).toMatchObject({
     name: 'Rose Bag Charm',
     published: false,
+    featured: false,
   });
 
   const coaster = page.locator('article').filter({

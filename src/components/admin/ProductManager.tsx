@@ -20,6 +20,7 @@ interface EditDraft {
   category: Category;
   description: string;
   published: boolean;
+  featured: boolean;
 }
 
 const createDraft = (product: ManagedProduct): EditDraft => ({
@@ -27,6 +28,7 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   category: product.category,
   description: product.description,
   published: product.published,
+  featured: product.featured === true,
 });
 
 export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
@@ -180,6 +182,11 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             Hidden
                           </span>
                         )}
+                        {product.featured && (
+                          <span className="ml-2 mt-1 inline-block rounded-full bg-cocoa px-2 py-0.5 text-xs font-bold text-cream">
+                            ★ Featured
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -288,6 +295,21 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       />
                     </label>
                     <div className="flex flex-wrap items-center gap-5 sm:col-span-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
+                        <input
+                          type="checkbox"
+                          checked={draft.featured}
+                          onChange={(event) =>
+                            setDraft((current) =>
+                              current
+                                ? { ...current, featured: event.target.checked }
+                                : current,
+                            )
+                          }
+                          className="h-4 w-4 accent-cocoa"
+                        />
+                        Featured product
+                      </label>
                       <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
                         <input
                           type="checkbox"

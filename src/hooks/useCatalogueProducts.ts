@@ -10,7 +10,6 @@ const localCategorySettings = Array.from(
 ).map((name, index): CategorySettings => ({
   name,
   priority: (index + 1) * 10,
-  isFeatured: index === 0,
 }));
 
 export function useCatalogueProducts() {

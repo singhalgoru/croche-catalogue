@@ -8,7 +8,8 @@ import ProductModal from './components/ProductModal';
 import AdminPage from './components/admin/AdminPage';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { trackEvent, trackProductSelected } from './services/analytics';
-import type { Category, Product } from './types/product';
+import type { CatalogueFilter, Product } from './types/product';
+import { isProductNew } from './utils/productStatus';
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
@@ -25,10 +26,8 @@ function App() {
     () => categorySettings.map((category) => category.name),
     [categorySettings],
   );
-  const featuredCategory =
-    categorySettings.find((category) => category.isFeatured)?.name ?? null;
 
-  const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
+  const [activeCategory, setActiveCategory] = useState<CatalogueFilter>('All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -37,7 +36,7 @@ function App() {
     setSelectedProduct(product);
   };
 
-  const selectCategory = (category: Category | 'All') => {
+  const selectCategory = (category: CatalogueFilter) => {
     trackEvent('select_category', { category });
     setActiveCategory(category);
   };
@@ -47,20 +46,25 @@ function App() {
     const categoryRanks = new Map(
       categorySettings.map((category, index) => [
         category.name,
-        category.isFeatured ? -1 : category.priority * 1000 + index,
+        category.priority * 1000 + index,
       ]),
     );
     return products
       .filter((product) => {
-        const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
+        const matchesCategory =
+          activeCategory === 'All' ||
+          (activeCategory === 'New'
+            ? isProductNew(product)
+            : product.category === activeCategory);
         const matchesQuery =
           normalizedQuery === '' || product.name.toLowerCase().includes(normalizedQuery);
         return matchesCategory && matchesQuery;
       })
       .sort(
         (left, right) =>
+          Number(Boolean(right.featured)) - Number(Boolean(left.featured)) ||
           (categoryRanks.get(left.category) ?? Number.MAX_SAFE_INTEGER) -
-          (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER),
+            (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER),
       );
   }, [activeCategory, categorySettings, products, query]);
 
@@ -115,7 +119,6 @@ function App() {
         ) : (
           <ProductGrid
             products={filteredProducts}
-            featuredCategory={featuredCategory}
             onSelect={selectProduct}
           />
         )}

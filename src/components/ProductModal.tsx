@@ -4,6 +4,7 @@ import { trackEvent, trackProductViewed } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
+import { isProductNew } from '../utils/productStatus';
 
 interface Props {
   product: Product;
@@ -31,6 +32,7 @@ export default function ProductModal({
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
+  const isNew = isProductNew(product);
 
   useEffect(() => {
     trackProductViewed(product, selectedVariant);
@@ -159,6 +161,11 @@ export default function ProductModal({
               <path d="m16.5 16.5 4 4M8 11h6M11 8v6" />
             </svg>
           </button>
+          {isNew && (
+            <span className="absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md">
+              New
+            </span>
+          )}
           {hasCarousel && (
             <>
               <button

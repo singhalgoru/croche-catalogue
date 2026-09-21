@@ -1,9 +1,9 @@
 export type Category = string;
+export type CatalogueFilter = Category | 'All' | 'New';
 
 export interface CategorySettings {
   name: Category;
   priority: number;
-  isFeatured: boolean;
 }
 
 export interface ProductVariant {
@@ -23,6 +23,8 @@ export interface Product {
   /** Optional original price, shown struck-through with a discount badge when higher than `price`. */
   originalPrice?: number;
   description: string;
+  featured?: boolean;
+  publishedAt?: string | null;
   color: string;
   inStock: boolean;
   image: string;

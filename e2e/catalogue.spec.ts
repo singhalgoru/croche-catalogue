@@ -34,10 +34,16 @@ test('filters, searches, opens products, and exposes customer contact links', as
   const productCards = page.locator('main').getByRole('button').filter({
     has: page.locator('img'),
   });
-  await expect(productCards.first()).toContainText('Flower Coaster');
+  await expect(productCards.first()).toContainText('Rose Charm');
   await expect(productCards.first()).toContainText('Featured');
+  await expect(productCards.first()).toContainText('New');
   await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Flower Coaster/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'All', exact: true }).click();
 
   await page.getByRole('searchbox', { name: 'Search crochet items' }).fill('coaster');
   await expect(page.getByRole('button', { name: /Rose Charm/ })).toHaveCount(0);
