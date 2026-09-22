@@ -31,7 +31,7 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
-          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges --clean --if-exists -f backup.sql
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges --clean --if-exists -f backup.sql
           gzip backup.sql
 
       - name: Encrypt backup
