@@ -1,0 +1,57 @@
+name: Backup Supabase Database
+
+# Daily encrypted backup of the Supabase Postgres database, pushed to a
+# separate private repo (singhalgoru/croche-catalogue-backups). Only the
+# last 2 backups are kept — each run rotates backup-latest -> backup-previous
+# and overwrites backup-latest with the new dump.
+on:
+  schedule:
+    - cron: '0 21 * * *' # 21:00 UTC = ~02:30 IST, daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client gnupg
+
+      - name: Dump database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges --clean --if-exists -f backup.sql
+          gzip backup.sql
+
+      - name: Encrypt backup
+        env:
+          BACKUP_GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --passphrase "$BACKUP_GPG_PASSPHRASE" --symmetric --cipher-algo AES256 \
+            -o backup.sql.gz.gpg backup.sql.gz
+          rm backup.sql.gz
+
+      - name: Push rotated backup to private backup repo
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/singhalgoru/croche-catalogue-backups.git" backup-repo
+          cd backup-repo
+
+          if [ -f backup-latest.sql.gz.gpg ]; then
+            mv -f backup-latest.sql.gz.gpg backup-previous.sql.gz.gpg
+          fi
+          mv -f ../backup.sql.gz.gpg backup-latest.sql.gz.gpg
+          date -u +%Y-%m-%dT%H:%M:%SZ > last-backup-timestamp.txt
+
+          git config user.name "croche-catalogue-backup-bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Daily backup $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+          git push
