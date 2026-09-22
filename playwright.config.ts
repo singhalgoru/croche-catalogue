@@ -28,6 +28,7 @@ export default defineConfig({
       VITE_SUPABASE_URL: 'http://supabase.test',
       VITE_SUPABASE_ANON_KEY: 'test-anon-key',
       VITE_GA_MEASUREMENT_ID: 'G-TEST123456',
+      VITE_CSP_EXTRA_CONNECT_SRC: 'http://supabase.test',
     },
     reuseExistingServer: false,
     timeout: 120_000,

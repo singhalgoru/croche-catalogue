@@ -1,4 +1,5 @@
 import { useRef, useState, type PointerEvent, type WheelEvent } from 'react';
+import { preventImageContextMenu } from '../utils/imageProtection';
 
 interface Props {
   image: string;
@@ -150,6 +151,7 @@ export default function Product3DViewer({ image, alt, onClose }: Props) {
             src={image}
             alt={alt}
             draggable={false}
+            onContextMenu={preventImageContextMenu}
             className="absolute inset-0 h-full w-full rounded-3xl border border-white/45 bg-cream object-cover shadow-2xl"
             style={{ backfaceVisibility: 'hidden', transform: 'translateZ(16px)' }}
           />
@@ -158,6 +160,7 @@ export default function Product3DViewer({ image, alt, onClose }: Props) {
             alt=""
             aria-hidden="true"
             draggable={false}
+            onContextMenu={preventImageContextMenu}
             className="absolute inset-0 h-full w-full rounded-3xl border border-white/20 bg-cocoa object-cover opacity-55 shadow-2xl"
             style={{
               backfaceVisibility: 'hidden',

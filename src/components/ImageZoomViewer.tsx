@@ -1,4 +1,5 @@
 import { useRef, useState, type PointerEvent } from 'react';
+import { preventImageContextMenu } from '../utils/imageProtection';
 
 interface Props {
   image: string;
@@ -147,6 +148,7 @@ export default function ImageZoomViewer({ image, alt, onClose }: Props) {
           src={image}
           alt={alt}
           draggable={false}
+          onContextMenu={preventImageContextMenu}
           className="h-full w-full select-none object-contain transition-transform duration-100"
           style={{
             transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,

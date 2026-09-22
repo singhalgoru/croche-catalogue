@@ -3,6 +3,7 @@ import type { Product } from '../types/product';
 import { trackEvent, trackProduct3DView, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
+import { productImageProtection } from '../utils/imageProtection';
 import Product3DViewer from './Product3DViewer';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
@@ -164,6 +165,7 @@ export default function ProductModal({
                 : product.name
             }
             className="w-full aspect-square object-cover"
+            {...productImageProtection}
           />
           <div className="absolute bottom-3 right-3 flex gap-2">
             <button
@@ -259,7 +261,7 @@ export default function ProductModal({
                     : 'border-mustard/30 hover:border-mustard'
                 }`}
               >
-                <img src={item.image} alt="" className="h-full w-full object-cover" />
+                <img src={item.image} alt="" className="h-full w-full object-cover" {...productImageProtection} />
               </button>
             ))}
           </div>
@@ -304,6 +306,7 @@ export default function ProductModal({
                         src={variant.image}
                         alt=""
                         className="aspect-square w-full rounded-lg bg-cream object-cover"
+                        {...productImageProtection}
                       />
                       <span className="mt-1.5 flex items-center gap-1.5 px-0.5 text-xs font-semibold text-cocoa">
                         <span

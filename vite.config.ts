@@ -8,6 +8,22 @@ export default defineConfig({
   // GitHub Pages serves this project from https://<user>.github.io/croche-catalogue/,
   // so all built asset URLs need this repo-name base path.
   base: '/croche-catalogue/',
+  build: {
+    // No source maps in the deployed build: the shipped JS should be
+    // minified/mangled, not a readable 1:1 copy of the source.
+    sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      mangle: true,
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+      format: {
+        comments: false,
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

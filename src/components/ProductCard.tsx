@@ -1,6 +1,7 @@
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
+import { productImageProtection } from '../utils/imageProtection';
 
 interface Props {
   product: Product;
@@ -20,7 +21,12 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
       }`}
     >
       <div className="relative">
-        <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full aspect-square object-cover"
+          {...productImageProtection}
+        />
         {!product.inStock && (
           <span className="absolute top-2 right-2 bg-cocoa/80 text-cream text-xs px-2 py-1 rounded-full">
             Sold out
