@@ -16,11 +16,11 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
     <button
       type="button"
       onClick={() => onSelect(product)}
-      className={`group overflow-hidden rounded-2xl bg-mustard/25 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl bg-mustard/25 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
       }`}
     >
-      <div className="relative aspect-square overflow-hidden bg-cream-dark">
+      <div className="relative aspect-square min-h-0 flex-1 overflow-hidden bg-cream-dark">
         <img
           src={product.image}
           alt={product.name}
@@ -55,7 +55,7 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
           </span>
         )}
       </div>
-      <div className="p-4">
+      <div className="shrink-0 p-4">
         <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
         <h3 className="font-heading font-semibold text-cocoa mt-1">{product.name}</h3>
         {product.showPrice && product.price !== null && (
