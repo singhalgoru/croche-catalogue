@@ -426,7 +426,9 @@ export async function deleteVariantGalleryImage(
   // looking "stuck" after pressing the remove button. Surface that as a
   // real error instead of silently doing nothing.
   if (!data || data.length === 0) {
-    throw new Error('Unable to remove the gallery image: no matching row was updated.');
+    throw new Error(
+      'Unable to remove the gallery image: it may have already been removed or you may not have permission.',
+    );
   }
   await removeManagedImage(image.imagePath, user.id);
   return fetchProductById(product.id);
