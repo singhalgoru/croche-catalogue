@@ -20,11 +20,11 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
       }`}
     >
-      <div className="relative">
+      <div className="relative aspect-square overflow-hidden bg-cream-dark">
         <img
           src={product.image}
           alt={product.name}
-          className="w-full aspect-square object-cover"
+          className="h-full w-full object-cover"
           {...productImageProtection}
         />
         {!product.inStock && (
