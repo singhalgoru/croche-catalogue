@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
 import { suggestVariantColor } from './variantColor';
@@ -14,6 +14,11 @@ const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
 const MAX_GALLERY_IMAGES = 6;
 
 export default function VariantDraftFields({ variants, onChange, disabled = false }: Props) {
+  const [activeGalleryEditor, setActiveGalleryEditor] = useState<{
+    variantKey: string;
+    index: number;
+  } | null>(null);
+
   const updateVariant = (key: string, changes: Partial<VariantDraft>) => {
     onChange(
       variants.map((variant) => (variant.key === key ? { ...variant, ...changes } : variant)),
@@ -68,9 +73,22 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
 
   const removeGalleryImage = (variant: VariantDraft, index: number) => {
     URL.revokeObjectURL(variant.galleryPreviewUrls[index]);
+    setActiveGalleryEditor((current) =>
+      current?.variantKey === variant.key && current.index === index ? null : current,
+    );
     updateVariant(variant.key, {
       galleryFiles: variant.galleryFiles.filter((_, i) => i !== index),
       galleryPreviewUrls: variant.galleryPreviewUrls.filter((_, i) => i !== index),
+    });
+  };
+
+  const replaceGalleryImage = (variant: VariantDraft, index: number, file: File) => {
+    URL.revokeObjectURL(variant.galleryPreviewUrls[index]);
+    updateVariant(variant.key, {
+      galleryFiles: variant.galleryFiles.map((currentFile, i) => (i === index ? file : currentFile)),
+      galleryPreviewUrls: variant.galleryPreviewUrls.map((url, i) =>
+        i === index ? URL.createObjectURL(file) : url,
+      ),
     });
   };
 
@@ -203,26 +221,61 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
               Add top, side, or back views for better visibility — up to {MAX_GALLERY_IMAGES} photos.
             </p>
             {variant.galleryPreviewUrls.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {variant.galleryPreviewUrls.map((url, galleryIndex) => (
-                  <div key={url} className="relative">
-                    <img
-                      src={url}
-                      alt=""
-                      className="h-16 w-16 rounded-lg border border-mustard/40 object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeGalleryImage(variant, galleryIndex)}
+              <>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {variant.galleryPreviewUrls.map((url, galleryIndex) => {
+                    const isEditing =
+                      activeGalleryEditor?.variantKey === variant.key
+                      && activeGalleryEditor.index === galleryIndex;
+                    return (
+                      <div key={url} className="relative">
+                        <img
+                          src={url}
+                          alt=""
+                          className="h-16 w-16 rounded-lg border border-mustard/40 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setActiveGalleryEditor(
+                            isEditing ? null : { variantKey: variant.key, index: galleryIndex },
+                          )}
+                          disabled={disabled}
+                          aria-pressed={isEditing}
+                          aria-label={`Improve additional photo ${galleryIndex + 1} with AI`}
+                          className={`absolute -left-1.5 -top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold disabled:opacity-50 ${
+                            isEditing ? 'bg-cocoa text-cream' : 'bg-mustard text-cocoa'
+                          }`}
+                        >
+                          AI
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryImage(variant, galleryIndex)}
+                          disabled={disabled}
+                          aria-label={`Remove additional photo ${galleryIndex + 1}`}
+                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {activeGalleryEditor?.variantKey === variant.key
+                  && variant.galleryFiles[activeGalleryEditor.index]
+                  && variant.galleryPreviewUrls[activeGalleryEditor.index] && (
+                    <ImageGenerationPanel
+                      sourceFile={variant.galleryFiles[activeGalleryEditor.index]}
+                      sourceUrl={variant.galleryPreviewUrls[activeGalleryEditor.index]}
                       disabled={disabled}
-                      aria-label={`Remove additional photo ${galleryIndex + 1}`}
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      onUseImage={(file) => replaceGalleryImage(
+                        variant,
+                        activeGalleryEditor.index,
+                        file,
+                      )}
+                    />
+                )}
+              </>
             )}
             {variant.galleryFiles.length < MAX_GALLERY_IMAGES && (
               <label className="mt-2 flex h-10 w-fit cursor-pointer items-center gap-2 rounded-full border-2 border-dashed border-mustard/70 px-3 text-xs font-semibold text-cocoa hover:border-mustard hover:bg-mustard/10">

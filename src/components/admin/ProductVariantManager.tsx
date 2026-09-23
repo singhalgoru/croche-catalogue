@@ -33,6 +33,12 @@ interface Draft {
   galleryPreviewUrls: string[];
 }
 
+interface PendingGalleryImage {
+  variantId: string;
+  file: File;
+  previewUrl: string;
+}
+
 const emptyDraft = (): Draft => ({
   name: '',
   color: '#f6c453',
@@ -58,6 +64,8 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [activeDraftGalleryIndex, setActiveDraftGalleryIndex] = useState<number | null>(null);
+  const [pendingGalleryImage, setPendingGalleryImage] = useState<PendingGalleryImage | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +120,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const removeDraftGalleryImage = (index: number) => {
     setDraft((current) => {
       URL.revokeObjectURL(current.galleryPreviewUrls[index]);
+      setActiveDraftGalleryIndex((activeIndex) => (activeIndex === index ? null : activeIndex));
       return {
         ...current,
         galleryFiles: current.galleryFiles.filter((_, i) => i !== index),
@@ -120,7 +129,20 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     });
   };
 
-  const addGalleryImage = async (variant: ProductVariant, event: ChangeEvent<HTMLInputElement>) => {
+  const replaceDraftGalleryImage = (index: number, file: File) => {
+    setDraft((current) => {
+      URL.revokeObjectURL(current.galleryPreviewUrls[index]);
+      return {
+        ...current,
+        galleryFiles: current.galleryFiles.map((currentFile, i) => (i === index ? file : currentFile)),
+        galleryPreviewUrls: current.galleryPreviewUrls.map((url, i) =>
+          i === index ? URL.createObjectURL(file) : url,
+        ),
+      };
+    });
+  };
+
+  const selectGalleryImage = (variant: ProductVariant, event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     event.target.value = '';
     if (!file) return;
@@ -132,10 +154,39 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       setError('Please choose an image smaller than 6 MB.');
       return;
     }
+    if (pendingGalleryImage) URL.revokeObjectURL(pendingGalleryImage.previewUrl);
+    setPendingGalleryImage({
+      variantId: variant.id,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    });
+    setError(null);
+  };
+
+  const discardPendingGalleryImage = () => {
+    if (pendingGalleryImage) URL.revokeObjectURL(pendingGalleryImage.previewUrl);
+    setPendingGalleryImage(null);
+  };
+
+  const replacePendingGalleryImage = (file: File) => {
+    setPendingGalleryImage((current) => {
+      if (!current) return current;
+      URL.revokeObjectURL(current.previewUrl);
+      return {
+        ...current,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      };
+    });
+  };
+
+  const uploadPendingGalleryImage = async (variant: ProductVariant) => {
+    if (!pendingGalleryImage || pendingGalleryImage.variantId !== variant.id) return;
     setIsBusy(true);
     setError(null);
     try {
-      const saved = await addVariantGalleryImage(product, variant, file);
+      const saved = await addVariantGalleryImage(product, variant, pendingGalleryImage.file);
+      discardPendingGalleryImage();
       await onSaved(saved, `Added an angle photo to “${variant.name}”.`);
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : 'Unable to add the photo.');
@@ -312,26 +363,53 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
             Add top, side, or back views for better visibility — up to {MAX_GALLERY_IMAGES} photos.
           </p>
           {draft.galleryPreviewUrls.length > 0 && (
+          <>
             <div className="mt-2 flex flex-wrap gap-2">
-              {draft.galleryPreviewUrls.map((url, galleryIndex) => (
-                <div key={url} className="relative">
-                  <img
-                    src={url}
-                    alt=""
-                    className="h-16 w-16 rounded-lg border border-mustard/40 object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeDraftGalleryImage(galleryIndex)}
-                    disabled={isBusy}
-                    aria-label={`Remove additional photo ${galleryIndex + 1}`}
-                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {draft.galleryPreviewUrls.map((url, galleryIndex) => {
+                const isEditing = activeDraftGalleryIndex === galleryIndex;
+                return (
+                  <div key={url} className="relative">
+                    <img
+                      src={url}
+                      alt=""
+                      className="h-16 w-16 rounded-lg border border-mustard/40 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setActiveDraftGalleryIndex(isEditing ? null : galleryIndex)}
+                      disabled={isBusy}
+                      aria-pressed={isEditing}
+                      aria-label={`Improve additional photo ${galleryIndex + 1} with AI`}
+                      className={`absolute -left-1.5 -top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold disabled:opacity-50 ${
+                        isEditing ? 'bg-cocoa text-cream' : 'bg-mustard text-cocoa'
+                      }`}
+                    >
+                      AI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeDraftGalleryImage(galleryIndex)}
+                      disabled={isBusy}
+                      aria-label={`Remove additional photo ${galleryIndex + 1}`}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+            {activeDraftGalleryIndex !== null
+              && draft.galleryFiles[activeDraftGalleryIndex]
+              && draft.galleryPreviewUrls[activeDraftGalleryIndex] && (
+                <ImageGenerationPanel
+                  sourceFile={draft.galleryFiles[activeDraftGalleryIndex]}
+                  sourceUrl={draft.galleryPreviewUrls[activeDraftGalleryIndex]}
+                  disabled={isBusy}
+                  onUseImage={(file) => replaceDraftGalleryImage(activeDraftGalleryIndex, file)}
+                />
+            )}
+          </>
           )}
           {draft.galleryFiles.length < MAX_GALLERY_IMAGES && (
             <label className="mt-2 flex h-10 w-fit cursor-pointer items-center gap-2 rounded-full border-2 border-dashed border-mustard/70 px-3 text-xs font-semibold text-cocoa hover:border-mustard hover:bg-mustard/10">
@@ -367,6 +445,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
             setIsAdding(true);
             setEditingId(null);
             setDeleteId(null);
+            discardPendingGalleryImage();
             setDraft(emptyDraft());
           }}
           disabled={isBusy || isAdding}
@@ -476,7 +555,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
-                      onChange={(event) => void addGalleryImage(variant, event)}
+                      onChange={(event) => selectGalleryImage(variant, event)}
                       disabled={isBusy}
                       aria-label={`Add an additional photo to ${variant.name}`}
                       className="sr-only"
@@ -485,6 +564,47 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                   </label>
                 )}
               </div>
+              {pendingGalleryImage?.variantId === variant.id && (
+                <div className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={pendingGalleryImage.previewUrl}
+                      alt=""
+                      className="h-16 w-16 rounded-lg bg-white object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-cocoa">New angle photo ready</p>
+                      <p className="text-xs text-cocoa/55">
+                        Improve it with AI before uploading, or upload it as-is.
+                      </p>
+                    </div>
+                  </div>
+                  <ImageGenerationPanel
+                    sourceFile={pendingGalleryImage.file}
+                    sourceUrl={pendingGalleryImage.previewUrl}
+                    disabled={isBusy}
+                    onUseImage={replacePendingGalleryImage}
+                  />
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void uploadPendingGalleryImage(variant)}
+                      disabled={isBusy}
+                      className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50"
+                    >
+                      {isBusy ? 'Uploading…' : 'Upload angle photo'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={discardPendingGalleryImage}
+                      disabled={isBusy}
+                      className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {editingId === variant.id && (
@@ -531,6 +651,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
               onClick={() => {
                 if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
                 for (const url of draft.galleryPreviewUrls) URL.revokeObjectURL(url);
+                setActiveDraftGalleryIndex(null);
                 setDraft(emptyDraft());
                 setIsAdding(false);
               }}

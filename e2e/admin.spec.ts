@@ -233,6 +233,8 @@ test('promotes a gallery photo to the main image without losing it, and removes 
       'base64',
     ),
   });
+  await expect(rosePink.getByText('New angle photo ready')).toBeVisible();
+  await rosePink.getByRole('button', { name: 'Upload angle photo' }).click();
   await expect(page.getByText('Added an angle photo to “Rose Pink”.')).toBeVisible();
   expect(variantRow().product_variant_images).toHaveLength(2);
 
