@@ -4,6 +4,7 @@ import {
   addVariantGalleryImage,
   deleteProductVariant,
   deleteVariantGalleryImage,
+  replaceVariantGalleryImage,
   setVariantMainImage,
   updateProductVariant,
   type ManagedProduct,
@@ -39,6 +40,13 @@ interface PendingGalleryImage {
   previewUrl: string;
 }
 
+interface ExistingGalleryEnhancement {
+  variantId: string;
+  imageId: string;
+  sourceFile: File;
+  sourceUrl: string;
+}
+
 const emptyDraft = (): Draft => ({
   name: '',
   color: '#f6c453',
@@ -66,6 +74,8 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [activeDraftGalleryIndex, setActiveDraftGalleryIndex] = useState<number | null>(null);
   const [pendingGalleryImage, setPendingGalleryImage] = useState<PendingGalleryImage | null>(null);
+  const [existingGalleryEnhancement, setExistingGalleryEnhancement] =
+    useState<ExistingGalleryEnhancement | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -190,6 +200,59 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       await onSaved(saved, `Added an angle photo to “${variant.name}”.`);
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : 'Unable to add the photo.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const fileFromExistingImage = async (image: ProductVariantImage) => {
+    const response = await fetch(image.image, { mode: 'cors' });
+    if (!response.ok) {
+      throw new Error(`Unable to load the photo for AI editing: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const type = blob.type || 'image/jpeg';
+    const extension = type.split('/')[1] || 'jpg';
+    return new File([blob], `angle-${image.id}.${extension}`, { type });
+  };
+
+  const openGalleryEnhancement = async (
+    variant: ProductVariant,
+    image: ProductVariantImage,
+  ) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      setExistingGalleryEnhancement({
+        variantId: variant.id,
+        imageId: image.id,
+        sourceFile: await fileFromExistingImage(image),
+        sourceUrl: image.image,
+      });
+    } catch (enhanceError) {
+      setError(
+        enhanceError instanceof Error
+          ? enhanceError.message
+          : 'Unable to prepare the photo for AI editing.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const saveEnhancedGalleryImage = async (
+    variant: ProductVariant,
+    image: ProductVariantImage,
+    file: File,
+  ) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await replaceVariantGalleryImage(product, image, file);
+      setExistingGalleryEnhancement(null);
+      await onSaved(saved, `Updated an angle photo for “${variant.name}”.`);
+    } catch (enhanceError) {
+      setError(enhanceError instanceof Error ? enhanceError.message : 'Unable to update the photo.');
     } finally {
       setIsBusy(false);
     }
@@ -548,6 +611,15 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                     >
                       ×
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => void openGalleryEnhancement(variant, image)}
+                      disabled={isBusy}
+                      aria-label={`Improve additional photo ${galleryIndex + 1} from ${variant.name} with AI`}
+                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-cocoa shadow disabled:opacity-50"
+                    >
+                      AI
+                    </button>
                   </div>
                 ))}
                 {variant.gallery.length < MAX_GALLERY_IMAGES && (
@@ -564,6 +636,39 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                   </label>
                 )}
               </div>
+              {existingGalleryEnhancement?.variantId === variant.id && (
+                <div className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-cocoa">
+                        Improve existing angle photo
+                      </p>
+                      <p className="text-xs text-cocoa/55">
+                        Generate an AI-enhanced version, then use it to replace this angle photo.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setExistingGalleryEnhancement(null)}
+                      disabled={isBusy}
+                      className="rounded-full border border-cocoa/30 px-3 py-1 text-xs font-semibold text-cocoa disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <ImageGenerationPanel
+                    sourceFile={existingGalleryEnhancement.sourceFile}
+                    sourceUrl={existingGalleryEnhancement.sourceUrl}
+                    disabled={isBusy}
+                    onUseImage={(file) => {
+                      const image = variant.gallery.find(
+                        (item) => item.id === existingGalleryEnhancement.imageId,
+                      );
+                      if (image) void saveEnhancedGalleryImage(variant, image, file);
+                    }}
+                  />
+                </div>
+              )}
               {pendingGalleryImage?.variantId === variant.id && (
                 <div className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3">
                   <div className="flex items-center gap-3">

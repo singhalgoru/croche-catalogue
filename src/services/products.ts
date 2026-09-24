@@ -434,6 +434,35 @@ export async function deleteVariantGalleryImage(
   return fetchProductById(product.id);
 }
 
+export async function replaceVariantGalleryImage(
+  product: ManagedProduct,
+  image: ProductVariantImage,
+  imageFile: File,
+): Promise<ManagedProduct> {
+  const { client, user } = await getCurrentUser();
+  const upload = await uploadProductImage(imageFile, user.id);
+  const { data, error } = await client
+    .from('product_variant_images')
+    .update({
+      image_path: upload.imagePath,
+      image_url: upload.imageUrl,
+    })
+    .eq('id', image.id)
+    .select('id');
+  if (error) {
+    await cleanupUploadedImages([upload.imagePath]);
+    throw new Error(`Unable to update the gallery image: ${error.message}`);
+  }
+  if (!data || data.length === 0) {
+    await cleanupUploadedImages([upload.imagePath]);
+    throw new Error(
+      'Unable to update the gallery image: it may have already been removed or you may not have permission.',
+    );
+  }
+  await removeManagedImage(image.imagePath, user.id);
+  return fetchProductById(product.id);
+}
+
 export async function setVariantMainImage(
   product: ManagedProduct,
   variant: ProductVariant,
