@@ -5,6 +5,8 @@ import {
   deleteProductVariant,
   deleteVariantGalleryImage,
   replaceVariantGalleryImage,
+  reorderProductVariants,
+  reorderVariantGalleryImages,
   setVariantMainImage,
   updateProductVariant,
   type ManagedProduct,
@@ -66,6 +68,14 @@ const draftFromVariant = (variant: ProductVariant): Draft => ({
   galleryFiles: [],
   galleryPreviewUrls: [],
 });
+
+const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
+  if (toIndex < 0 || toIndex >= items.length) return items;
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+};
 
 export default function ProductVariantManager({ product, onSaved }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -149,6 +159,21 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           i === index ? URL.createObjectURL(file) : url,
         ),
       };
+    });
+  };
+
+  const moveDraftGalleryImage = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= draft.galleryFiles.length) return;
+    setDraft((current) => ({
+      ...current,
+      galleryFiles: moveItem(current.galleryFiles, index, targetIndex),
+      galleryPreviewUrls: moveItem(current.galleryPreviewUrls, index, targetIndex),
+    }));
+    setActiveDraftGalleryIndex((activeIndex) => {
+      if (activeIndex === index) return targetIndex;
+      if (activeIndex === targetIndex) return index;
+      return activeIndex;
     });
   };
 
@@ -279,6 +304,42 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       await onSaved(saved, `Updated the main photo for “${variant.name}”.`);
     } catch (makeMainError) {
       setError(makeMainError instanceof Error ? makeMainError.message : 'Unable to set the main photo.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const moveVariant = async (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= product.variants.length) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const orderedIds = moveItem(product.variants, index, targetIndex).map((variant) => variant.id);
+      const saved = await reorderProductVariants(product, orderedIds);
+      await onSaved(saved, `Updated the variant order for ${product.name}.`);
+    } catch (moveError) {
+      setError(moveError instanceof Error ? moveError.message : 'Unable to reorder variants.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const moveGalleryImage = async (
+    variant: ProductVariant,
+    index: number,
+    direction: -1 | 1,
+  ) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= variant.gallery.length) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const orderedIds = moveItem(variant.gallery, index, targetIndex).map((image) => image.id);
+      const saved = await reorderVariantGalleryImages(product, variant, orderedIds);
+      await onSaved(saved, `Updated the angle photo order for “${variant.name}”.`);
+    } catch (moveError) {
+      setError(moveError instanceof Error ? moveError.message : 'Unable to reorder angle photos.');
     } finally {
       setIsBusy(false);
     }
@@ -458,6 +519,28 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                     >
                       ×
                     </button>
+                    <div className="absolute bottom-1 right-1 flex gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveDraftGalleryImage(galleryIndex, -1)}
+                        disabled={isBusy || galleryIndex === 0}
+                        title="Move angle photo left"
+                        aria-label={`Move draft additional photo ${galleryIndex + 1} left`}
+                        className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveDraftGalleryImage(galleryIndex, 1)}
+                        disabled={isBusy || galleryIndex === draft.galleryFiles.length - 1}
+                        title="Move angle photo right"
+                        aria-label={`Move draft additional photo ${galleryIndex + 1} right`}
+                        className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                      >
+                        ›
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -572,6 +655,22 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                 </button>
                 <button
                   type="button"
+                  onClick={() => void moveVariant(index, -1)}
+                  disabled={isBusy || index === 0}
+                  className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
+                >
+                  Up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void moveVariant(index, 1)}
+                  disabled={isBusy || index === product.variants.length - 1}
+                  className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
+                >
+                  Down
+                </button>
+                <button
+                  type="button"
                   onClick={() => setDeleteId(variant.id)}
                   disabled={product.variants.length === 1}
                   title={product.variants.length === 1 ? 'Every product needs one variant.' : undefined}
@@ -621,6 +720,28 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                     >
                       AI
                     </button>
+                    <div className="absolute bottom-1 right-1 flex gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => void moveGalleryImage(variant, galleryIndex, -1)}
+                        disabled={isBusy || galleryIndex === 0}
+                        title="Move angle photo left"
+                        aria-label={`Move additional photo ${galleryIndex + 1} left for ${variant.name}`}
+                        className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void moveGalleryImage(variant, galleryIndex, 1)}
+                        disabled={isBusy || galleryIndex === variant.gallery.length - 1}
+                        title="Move angle photo right"
+                        aria-label={`Move additional photo ${galleryIndex + 1} right for ${variant.name}`}
+                        className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                      >
+                        ›
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {variant.gallery.length < MAX_GALLERY_IMAGES && (

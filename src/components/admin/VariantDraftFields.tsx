@@ -13,6 +13,14 @@ interface Props {
 const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
 const MAX_GALLERY_IMAGES = 6;
 
+const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
+  if (toIndex < 0 || toIndex >= items.length) return items;
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+};
+
 export default function VariantDraftFields({ variants, onChange, disabled = false }: Props) {
   const [activeGalleryEditor, setActiveGalleryEditor] = useState<{
     variantKey: string;
@@ -92,6 +100,27 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
     });
   };
 
+  const moveVariant = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= variants.length) return;
+    onChange(moveItem(variants, index, targetIndex));
+  };
+
+  const moveGalleryImage = (variant: VariantDraft, index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= variant.galleryFiles.length) return;
+    updateVariant(variant.key, {
+      galleryFiles: moveItem(variant.galleryFiles, index, targetIndex),
+      galleryPreviewUrls: moveItem(variant.galleryPreviewUrls, index, targetIndex),
+    });
+    setActiveGalleryEditor((current) => {
+      if (current?.variantKey !== variant.key) return current;
+      if (current.index === index) return { ...current, index: targetIndex };
+      if (current.index === targetIndex) return { ...current, index };
+      return current;
+    });
+  };
+
   const removeVariant = (variant: VariantDraft) => {
     if (variant.previewUrl) URL.revokeObjectURL(variant.previewUrl);
     for (const url of variant.galleryPreviewUrls) URL.revokeObjectURL(url);
@@ -109,16 +138,38 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
             <legend className="font-heading font-bold text-cocoa">
               {index === 0 ? 'Main variant' : `Variant ${index + 1}`}
             </legend>
-            {variants.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeVariant(variant)}
-                disabled={disabled}
-                className="text-sm font-semibold text-red-700 underline disabled:opacity-50"
-              >
-                Remove
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {variants.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => moveVariant(index, -1)}
+                    disabled={disabled || index === 0}
+                    className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveVariant(index, 1)}
+                    disabled={disabled || index === variants.length - 1}
+                    className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
+                  >
+                    Down
+                  </button>
+                </>
+              )}
+              {variants.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeVariant(variant)}
+                  disabled={disabled}
+                  className="text-sm font-semibold text-red-700 underline disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 grid min-w-0 gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
@@ -257,6 +308,28 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                         >
                           ×
                         </button>
+                        <div className="absolute bottom-1 right-1 flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => moveGalleryImage(variant, galleryIndex, -1)}
+                            disabled={disabled || galleryIndex === 0}
+                            title="Move angle photo left"
+                            aria-label={`Move additional photo ${galleryIndex + 1} left for variant ${index + 1}`}
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                          >
+                            ‹
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveGalleryImage(variant, galleryIndex, 1)}
+                            disabled={disabled || galleryIndex === variant.galleryFiles.length - 1}
+                            title="Move angle photo right"
+                            aria-label={`Move additional photo ${galleryIndex + 1} right for variant ${index + 1}`}
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                          >
+                            ›
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

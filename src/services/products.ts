@@ -531,6 +531,66 @@ export async function updateProductVariant(
   return fetchProductById(product.id);
 }
 
+export async function reorderProductVariants(
+  product: ManagedProduct,
+  orderedVariantIds: string[],
+): Promise<ManagedProduct> {
+  if (orderedVariantIds.length !== product.variants.length) {
+    throw new Error('Unable to reorder variants: the variant list changed. Refresh and try again.');
+  }
+
+  const knownVariantIds = new Set(product.variants.map((variant) => variant.id));
+  if (orderedVariantIds.some((id) => !knownVariantIds.has(id))) {
+    throw new Error('Unable to reorder variants: one variant no longer exists.');
+  }
+
+  const { client } = await getCurrentUser();
+  for (const [sortOrder, variantId] of orderedVariantIds.entries()) {
+    const { data, error } = await client
+      .from('product_variants')
+      .update({ sort_order: sortOrder, updated_at: new Date().toISOString() })
+      .eq('id', variantId)
+      .select('id');
+    if (error) throw new Error(`Unable to reorder variants: ${error.message}`);
+    if (Array.isArray(data) && data.length === 0) {
+      throw new Error('Unable to reorder variants: no matching variant row was updated.');
+    }
+  }
+
+  await syncProductSummary(product.id);
+  return fetchProductById(product.id);
+}
+
+export async function reorderVariantGalleryImages(
+  product: ManagedProduct,
+  variant: ProductVariant,
+  orderedImageIds: string[],
+): Promise<ManagedProduct> {
+  if (orderedImageIds.length !== variant.gallery.length) {
+    throw new Error('Unable to reorder angle photos: the image list changed. Refresh and try again.');
+  }
+
+  const knownImageIds = new Set(variant.gallery.map((image) => image.id));
+  if (orderedImageIds.some((id) => !knownImageIds.has(id))) {
+    throw new Error('Unable to reorder angle photos: one photo no longer exists.');
+  }
+
+  const { client } = await getCurrentUser();
+  for (const [sortOrder, imageId] of orderedImageIds.entries()) {
+    const { data, error } = await client
+      .from('product_variant_images')
+      .update({ sort_order: sortOrder })
+      .eq('id', imageId)
+      .select('id');
+    if (error) throw new Error(`Unable to reorder angle photos: ${error.message}`);
+    if (Array.isArray(data) && data.length === 0) {
+      throw new Error('Unable to reorder angle photos: no matching photo row was updated.');
+    }
+  }
+
+  return fetchProductById(product.id);
+}
+
 export async function deleteProductVariant(
   product: ManagedProduct,
   variant: ProductVariant,

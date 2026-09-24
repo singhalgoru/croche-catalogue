@@ -185,6 +185,45 @@ test('controls product price visibility from the admin console', async ({ page }
   expect(state.products.find((product) => product.id === 'product-3')?.show_price).toBe(false);
 });
 
+test('reorders variants and additional angle photos', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+
+  const ivory = rose.getByRole('group', { name: 'Ivory variant' });
+  await ivory.getByRole('button', { name: 'Up' }).click();
+  await expect(page.getByText('Updated the variant order for Rose Charm.')).toBeVisible();
+  expect(state.products[0].product_variants.find((variant) => variant.id === 'variant-2'))
+    .toMatchObject({ sort_order: 0 });
+  expect(state.products[0].product_variants.find((variant) => variant.id === 'variant-1'))
+    .toMatchObject({ sort_order: 1 });
+  expect(state.products[0].image_path).toBe('seed/rose-ivory.jpg');
+
+  const rosePink = rose.getByRole('group', { name: 'Rose Pink variant' });
+  await rosePink.getByLabel('Add an additional photo to Rose Pink').setInputFiles({
+    name: 'angle-2.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
+      'base64',
+    ),
+  });
+  await rosePink.getByRole('button', { name: 'Upload angle photo' }).click();
+  await expect(page.getByText('Added an angle photo to “Rose Pink”.')).toBeVisible();
+
+  await rosePink.getByLabel('Move additional photo 2 left for Rose Pink').click();
+  await expect(page.getByText('Updated the angle photo order for “Rose Pink”.')).toBeVisible();
+  const gallery = state.products[0].product_variants.find(
+    (variant) => variant.id === 'variant-1',
+  )!.product_variant_images;
+  expect(gallery.find((image) => image.id === 'gallery-1')).toMatchObject({ sort_order: 1 });
+  expect(gallery.find((image) => image.id !== 'gallery-1')).toMatchObject({ sort_order: 0 });
+});
+
 test('adds, updates, and removes product variants', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
