@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react';
+import { useRef, useState, type PointerEvent, type TouchEvent } from 'react';
 import { preventImageContextMenu } from '../utils/imageProtection';
 
 interface Props {
@@ -44,6 +44,8 @@ export default function ImageZoomViewer({
   const lastTapAt = useRef(0);
   const gestureMoved = useRef(false);
   const gestureWasMultiTouch = useRef(false);
+  const touchSwipeStart = useRef<Point | null>(null);
+  const lastImageSwipeAt = useRef(0);
 
   const reset = () => {
     setScale(1);
@@ -54,6 +56,26 @@ export default function ImageZoomViewer({
     const resolvedScale = clampScale(nextScale);
     setScale(resolvedScale);
     if (resolvedScale === 1) setOffset({ x: 0, y: 0 });
+  };
+
+  const navigateSwipe = (start: Point, end: Point) => {
+    if (scale !== 1 || !hasMultipleImages) return false;
+    const now = Date.now();
+    if (now - lastImageSwipeAt.current < 250) return false;
+
+    const horizontalDistance = end.x - start.x;
+    const verticalDistance = end.y - start.y;
+    const isHorizontalSwipe =
+      Math.abs(horizontalDistance) >= 50 &&
+      Math.abs(horizontalDistance) > Math.abs(verticalDistance) * 1.25;
+
+    if (!isHorizontalSwipe) return false;
+
+    if (horizontalDistance < 0) onNextImage?.();
+    else onPreviousImage?.();
+    lastImageSwipeAt.current = now;
+    reset();
+    return true;
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -118,18 +140,9 @@ export default function ImageZoomViewer({
     previousPinch.current = null;
     dragStart.current = null;
 
-    if (scale === 1 && hasMultipleImages && isSinglePointerGesture && start) {
-      const horizontalDistance = event.clientX - start.x;
-      const verticalDistance = event.clientY - start.y;
-      const isHorizontalSwipe =
-        Math.abs(horizontalDistance) >= 50 &&
-        Math.abs(horizontalDistance) > Math.abs(verticalDistance) * 1.25;
-
-      if (isHorizontalSwipe) {
-        if (horizontalDistance < 0) onNextImage?.();
-        else onPreviousImage?.();
-        reset();
-      }
+    if (isSinglePointerGesture && start) {
+      const end = { x: event.clientX, y: event.clientY };
+      navigateSwipe(start, end);
     }
 
     if (
@@ -152,6 +165,23 @@ export default function ImageZoomViewer({
     }
   };
 
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) {
+      touchSwipeStart.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    touchSwipeStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = touchSwipeStart.current;
+    touchSwipeStart.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch) return;
+    navigateSwipe(start, { x: touch.clientX, y: touch.clientY });
+  };
+
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-black/90"
@@ -168,6 +198,8 @@ export default function ImageZoomViewer({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         onDoubleClick={() => setZoom(scale > 1 ? 1 : 2)}
       >
         <img
