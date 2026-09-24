@@ -7,6 +7,10 @@ interface GeneratedImagePayload {
   mimeType: string;
 }
 
+interface OptimizedPromptPayload {
+  prompt: string;
+}
+
 const fileToBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -100,4 +104,31 @@ export async function generateProductImage(
     throw new Error('The generated image is larger than 6 MB. Try again.');
   }
   return generatedFile;
+}
+
+export async function optimizeProductImagePrompt(styleDirection: string): Promise<string> {
+  if (!supabase) {
+    throw new Error(
+      'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+    );
+  }
+
+  const trimmedDirection = styleDirection.trim();
+  if (!trimmedDirection) {
+    throw new Error('Add a rough styling idea before optimizing the prompt.');
+  }
+
+  const { data, error } = await supabase.functions.invoke('optimize-image-prompt', {
+    body: { styleDirection: trimmedDirection },
+  });
+  if (error) {
+    const message = await getFunctionErrorMessage(error);
+    throw new Error(`Unable to optimize the image prompt: ${message}`);
+  }
+
+  const payload = data as Partial<OptimizedPromptPayload>;
+  if (typeof payload.prompt !== 'string' || !payload.prompt.trim()) {
+    throw new Error('Gemini did not return a valid optimized prompt.');
+  }
+  return payload.prompt.trim();
 }

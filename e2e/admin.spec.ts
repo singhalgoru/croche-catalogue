@@ -75,12 +75,21 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
   await page.getByRole('button', { name: 'Warm minimal' }).click();
   await page.getByLabel('Optional instruction').fill('Add soft morning light.');
+  const optimizeRequest = page.waitForRequest('**/functions/v1/optimize-image-prompt');
+  await page.getByRole('button', { name: 'Optimize prompt with Gemini' }).click();
+  expect((await optimizeRequest).postDataJSON()).toMatchObject({
+    styleDirection:
+      'Use a warm cream palette, soft natural light, and very minimal neutral props. Add soft morning light.',
+  });
+  await expect(page.getByLabel('Optional instruction')).toHaveValue(
+    'Style on warm cream linen with soft morning light, subtle handmade gift props, and a premium crochet catalogue look.',
+  );
   const generationRequest = page.waitForRequest('**/functions/v1/enhance-product-image');
   await page.getByRole('button', { name: 'Create studio image' }).click();
   expect((await generationRequest).postDataJSON()).toMatchObject({
     mode: 'studio',
     styleSuggestion:
-      'Use a warm cream palette, soft natural light, and very minimal neutral props. Add soft morning light.',
+      'Style on warm cream linen with soft morning light, subtle handmade gift props, and a premium crochet catalogue look.',
   });
   const originalPreview = page.getByRole('img', { name: 'Original product' });
   await expect(originalPreview).toBeVisible();

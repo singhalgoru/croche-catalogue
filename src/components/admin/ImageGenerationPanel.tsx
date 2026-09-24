@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   generateProductImage,
+  optimizeProductImagePrompt,
   type ProductImageMode,
 } from '../../services/productImageGeneration';
 
@@ -41,6 +42,7 @@ export default function ImageGenerationPanel({
   const [generatedFile, setGeneratedFile] = useState<File | null>(null);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [activeMode, setActiveMode] = useState<ProductImageMode | null>(null);
+  const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export default function ImageGenerationPanel({
     MAX_STYLE_INSTRUCTION_LENGTH - selectedSuggestion.length - (selectedSuggestion ? 1 : 0),
   );
   const isStyleInstructionTooLong = styleInstruction.length > MAX_STYLE_INSTRUCTION_LENGTH;
+  const hasStyleInstruction = styleInstruction.trim().length > 0;
 
   useEffect(
     () => () => {
@@ -81,6 +84,33 @@ export default function ImageGenerationPanel({
       );
     } finally {
       setActiveMode(null);
+    }
+  };
+
+  const optimizePrompt = async () => {
+    setError(null);
+    if (!hasStyleInstruction) {
+      setError('Add a rough styling idea before optimizing the prompt.');
+      return;
+    }
+    if (isStyleInstructionTooLong) {
+      setError('Keep the selected style and optional instruction within 300 characters.');
+      return;
+    }
+
+    setIsOptimizingPrompt(true);
+    try {
+      const prompt = await optimizeProductImagePrompt(styleInstruction);
+      setSelectedSuggestion('');
+      setCustomInstruction(prompt.slice(0, MAX_STYLE_INSTRUCTION_LENGTH));
+    } catch (optimizationError) {
+      setError(
+        optimizationError instanceof Error
+          ? optimizationError.message
+          : 'Unable to optimize the image prompt.',
+      );
+    } finally {
+      setIsOptimizingPrompt(false);
     }
   };
 
@@ -132,7 +162,7 @@ export default function ImageGenerationPanel({
                   setSelectedSuggestion(suggestion.prompt);
                   setCustomInstruction((current) => current.slice(0, nextCustomLimit));
                 }}
-                disabled={disabled || activeMode !== null}
+                disabled={disabled || activeMode !== null || isOptimizingPrompt}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                   selected
                     ? 'border-cocoa bg-cocoa text-white'
@@ -151,8 +181,8 @@ export default function ImageGenerationPanel({
             onChange={(event) => setCustomInstruction(event.target.value)}
             maxLength={customInstructionLimit}
             rows={2}
-            disabled={disabled || activeMode !== null}
-            placeholder="Example: Add a small wooden basket and soft morning light"
+            disabled={disabled || activeMode !== null || isOptimizingPrompt}
+            placeholder="Example: small wooden basket, soft morning light, premium handmade look"
             className={`mt-1 w-full resize-y rounded-xl border bg-white px-3 py-2 text-sm font-normal ${
               isStyleInstructionTooLong ? 'border-red-300' : 'border-mustard/60'
             }`}
@@ -168,8 +198,22 @@ export default function ImageGenerationPanel({
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => void optimizePrompt()}
+            disabled={
+              disabled ||
+              activeMode !== null ||
+              isOptimizingPrompt ||
+              !hasStyleInstruction ||
+              isStyleInstructionTooLong
+            }
+            className="rounded-full border border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
+          >
+            {isOptimizingPrompt ? 'Optimizing prompt…' : 'Optimize prompt with Gemini'}
+          </button>
+          <button
+            type="button"
             onClick={() => void generate('studio')}
-            disabled={disabled || activeMode !== null || isStyleInstructionTooLong}
+            disabled={disabled || activeMode !== null || isOptimizingPrompt || isStyleInstructionTooLong}
             className="rounded-full border-2 border-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
           >
             {activeMode === 'studio' ? 'Creating studio image…' : 'Create studio image'}
@@ -177,7 +221,7 @@ export default function ImageGenerationPanel({
           <button
             type="button"
             onClick={() => void generate('lifestyle')}
-            disabled={disabled || activeMode !== null || isStyleInstructionTooLong}
+            disabled={disabled || activeMode !== null || isOptimizingPrompt || isStyleInstructionTooLong}
             className="rounded-full bg-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
           >
             {activeMode === 'lifestyle' ? 'Creating lifestyle image…' : 'Create lifestyle image'}

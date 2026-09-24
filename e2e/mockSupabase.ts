@@ -458,6 +458,14 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/functions/v1/optimize-image-prompt') {
+      await json(route, {
+        prompt:
+          'Style on warm cream linen with soft morning light, subtle handmade gift props, and a premium crochet catalogue look.',
+      });
+      return;
+    }
+
     if (pathname === '/functions/v1/enhance-product-image') {
       await json(route, {
         imageBase64:
