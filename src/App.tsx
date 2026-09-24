@@ -16,6 +16,7 @@ import {
   readProductReferenceFromHash,
   toProductHash,
 } from './utils/productLink';
+import { matchesProductSearch } from './utils/productSearch';
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
@@ -96,7 +97,6 @@ function App() {
   };
 
   const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     const categoryRanks = new Map(
       categorySettings.map((category, index) => [
         category.name,
@@ -110,8 +110,7 @@ function App() {
           (activeCategory === 'New'
             ? isProductNew(product)
             : product.category === activeCategory);
-        const matchesQuery =
-          normalizedQuery === '' || product.name.toLowerCase().includes(normalizedQuery);
+        const matchesQuery = matchesProductSearch(product, query);
         return matchesCategory && matchesQuery;
       })
       .sort(
