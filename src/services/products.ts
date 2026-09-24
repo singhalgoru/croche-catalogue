@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
+import { convertImageForUpload } from '../utils/imageUploadConversion';
 
 interface ProductVariantImageRow {
   id: string;
@@ -161,10 +162,11 @@ const getCurrentUser = async () => {
 
 const uploadProductImage = async (file: File, userId: string) => {
   const client = requireSupabase();
-  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const uploadFile = await convertImageForUpload(file);
+  const extension = uploadFile.name.split('.').pop()?.toLowerCase() || 'jpg';
   const imagePath = `${userId}/${crypto.randomUUID()}.${extension}`;
-  const { error } = await client.storage.from('product-images').upload(imagePath, file, {
-    contentType: file.type,
+  const { error } = await client.storage.from('product-images').upload(imagePath, uploadFile, {
+    contentType: uploadFile.type,
     upsert: false,
   });
 

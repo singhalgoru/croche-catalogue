@@ -116,6 +116,9 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   await expect(page.getByText('AI Bunny with 1 variant was published to the catalogue.')).toBeVisible();
   expect(state.products.some((product) => product.name === 'AI Bunny')).toBe(true);
   expect(state.products.find((product) => product.name === 'AI Bunny')?.featured).toBe(true);
+  expect(state.products.find((product) => product.name === 'AI Bunny')?.image_path).toMatch(
+    /\.webp$/,
+  );
   expect(
     state.products.find((product) => product.name === 'AI Bunny')?.product_variants,
   ).toHaveLength(1);
