@@ -5,6 +5,9 @@ interface Props {
   image: string;
   alt: string;
   onClose: () => void;
+  onPreviousImage?: () => void;
+  onNextImage?: () => void;
+  hasMultipleImages?: boolean;
 }
 
 interface Point {
@@ -25,7 +28,14 @@ const midpoint = (left: Point, right: Point): Point => ({
 
 const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 
-export default function ImageZoomViewer({ image, alt, onClose }: Props) {
+export default function ImageZoomViewer({
+  image,
+  alt,
+  onClose,
+  onPreviousImage,
+  onNextImage,
+  hasMultipleImages = false,
+}: Props) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
   const pointers = useRef(new Map<number, Point>());
@@ -102,9 +112,25 @@ export default function ImageZoomViewer({ image, alt, onClose }: Props) {
   };
 
   const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const start = dragStart.current?.point;
+    const isSinglePointerGesture = pointers.current.size === 1 && !gestureWasMultiTouch.current;
     pointers.current.delete(event.pointerId);
     previousPinch.current = null;
     dragStart.current = null;
+
+    if (scale === 1 && hasMultipleImages && isSinglePointerGesture && start) {
+      const horizontalDistance = event.clientX - start.x;
+      const verticalDistance = event.clientY - start.y;
+      const isHorizontalSwipe =
+        Math.abs(horizontalDistance) >= 50 &&
+        Math.abs(horizontalDistance) > Math.abs(verticalDistance) * 1.25;
+
+      if (isHorizontalSwipe) {
+        if (horizontalDistance < 0) onNextImage?.();
+        else onPreviousImage?.();
+        reset();
+      }
+    }
 
     if (
       event.pointerType === 'touch' &&
@@ -164,6 +190,33 @@ export default function ImageZoomViewer({ image, alt, onClose }: Props) {
       >
         ×
       </button>
+
+      {hasMultipleImages && (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              onPreviousImage?.();
+              reset();
+            }}
+            className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-black/40 text-3xl text-white backdrop-blur-md hover:bg-black/60"
+            aria-label="Show previous zoomed product image"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onNextImage?.();
+              reset();
+            }}
+            className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-black/40 text-3xl text-white backdrop-blur-md hover:bg-black/60"
+            aria-label="Show next zoomed product image"
+          >
+            ›
+          </button>
+        </>
+      )}
 
       <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/30 bg-black/45 p-1.5 text-white backdrop-blur-md">
         <button

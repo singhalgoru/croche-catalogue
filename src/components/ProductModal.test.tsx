@@ -229,6 +229,20 @@ describe('ProductModal touch controls', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('switches image angles from the zoom viewer', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+    expect(screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show next zoomed product image' }));
+
+    const zoomDialog = screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' });
+    expect(
+      zoomDialog.querySelector('img[alt="Crochet Rose — Red"]')?.getAttribute('src'),
+    ).toBe('/rose-top.jpg');
+  });
+
   it('opens, controls, and closes the 3D product image view without closing the product modal', () => {
     const { onClose } = renderModal();
 

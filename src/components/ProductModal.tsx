@@ -105,6 +105,12 @@ export default function ProductModal({
     setActiveImageId(image.id);
   };
 
+  const showGalleryImageByOffset = (offset: number) => {
+    if (galleryImages.length <= 1) return;
+    const nextIndex = (activeImageIndex + offset + galleryImages.length) % galleryImages.length;
+    selectGalleryImage(galleryImages[nextIndex]);
+  };
+
   // Close on Escape and support carousel arrow keys for keyboard accessibility.
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -446,6 +452,9 @@ export default function ProductModal({
               : product.name
           }
           onClose={() => setIsZoomOpen(false)}
+          hasMultipleImages={galleryImages.length > 1}
+          onPreviousImage={() => showGalleryImageByOffset(-1)}
+          onNextImage={() => showGalleryImageByOffset(1)}
         />
       )}
       {is3DOpen && (
