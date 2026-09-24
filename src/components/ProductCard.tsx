@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
@@ -11,6 +12,30 @@ interface Props {
 
 export default function ProductCard({ product, isFeatured = false, onSelect }: Props) {
   const isNew = isProductNew(product);
+  const cardImages = useMemo(
+    () => [
+      product.image,
+      ...(product.variants[0]?.gallery ?? []).map((image) => image.image),
+    ],
+    [product.image, product.variants],
+  );
+  const [activeImage, setActiveImage] = useState({ productId: product.id, index: 0 });
+  const activeImageIndex = activeImage.productId === product.id ? activeImage.index : 0;
+  const activeImageUrl = cardImages[activeImageIndex] ?? product.image;
+
+  useEffect(() => {
+    if (cardImages.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveImage((currentImage) => ({
+        productId: product.id,
+        index:
+          currentImage.productId === product.id
+            ? (currentImage.index + 1) % cardImages.length
+            : 1 % cardImages.length,
+      }));
+    }, 3500);
+    return () => window.clearInterval(timer);
+  }, [cardImages.length, product.id]);
 
   return (
     <button
@@ -22,11 +47,26 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
     >
       <div className="relative aspect-square min-h-0 flex-1 overflow-hidden bg-cream-dark">
         <img
-          src={product.image}
+          src={activeImageUrl}
           alt={product.name}
           className="h-full w-full object-cover"
           {...productImageProtection}
         />
+        {cardImages.length > 1 && (
+          <div
+            className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1"
+            aria-hidden="true"
+          >
+            {cardImages.map((image, index) => (
+              <span
+                key={image}
+                className={`h-1.5 w-1.5 rounded-full shadow-sm ${
+                  index === activeImageIndex ? 'bg-white' : 'bg-white/45'
+                }`}
+              />
+            ))}
+          </div>
+        )}
         {!product.inStock && (
           <span className="absolute top-2 right-2 bg-cocoa/80 text-cream text-xs px-2 py-1 rounded-full">
             Sold out
