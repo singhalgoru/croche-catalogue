@@ -12,27 +12,57 @@ const localCategorySettings = Array.from(
   priority: (index + 1) * 10,
 }));
 
-export function useCatalogueProducts() {
-  const [products, setProducts] = useState<Product[]>(
-    isSupabaseConfigured ? [] : localProducts,
+const categorySettingsFromProducts = (products: Product[]) =>
+  Array.from(new Set(products.map((product) => product.category))).map(
+    (name, index): CategorySettings => ({
+      name,
+      priority: (index + 1) * 10,
+    }),
   );
+
+const loadCatalogue = async () => {
+  const [productsResult, categorySettingsResult] = await Promise.allSettled([
+    fetchPublishedProducts(),
+    fetchCategorySettings(),
+  ]);
+
+  const nextProducts =
+    productsResult.status === 'fulfilled' ? productsResult.value : localProducts;
+  const nextCategorySettings =
+    categorySettingsResult.status === 'fulfilled'
+      ? categorySettingsResult.value
+      : categorySettingsFromProducts(nextProducts);
+  const error =
+    productsResult.status === 'rejected'
+      ? productsResult.reason
+      : nextProducts.length === 0 && categorySettingsResult.status === 'rejected'
+        ? categorySettingsResult.reason
+        : null;
+
+  return {
+    products: nextProducts,
+    categorySettings: nextCategorySettings,
+    error,
+  };
+};
+
+export function useCatalogueProducts() {
+  const [products, setProducts] = useState<Product[]>(localProducts);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [categorySettings, setCategorySettings] = useState<CategorySettings[]>(
-    isSupabaseConfigured ? [] : localCategorySettings,
-  );
+  const [categorySettings, setCategorySettings] =
+    useState<CategorySettings[]>(localCategorySettings);
 
   const refreshProducts = useCallback(async () => {
     if (!isSupabaseConfigured) return;
 
     try {
-      const [managedProducts, nextCategorySettings] = await Promise.all([
-        fetchPublishedProducts(),
-        fetchCategorySettings(),
-      ]);
-      setProducts(managedProducts);
-      setCategorySettings(nextCategorySettings);
-      setLoadError(null);
+      const result = await loadCatalogue();
+      setProducts(result.products);
+      setCategorySettings(result.categorySettings);
+      setLoadError(
+        result.error instanceof Error ? result.error.message : null,
+      );
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
     } finally {
@@ -44,12 +74,14 @@ export function useCatalogueProducts() {
     if (!isSupabaseConfigured) return;
 
     let isCurrent = true;
-    void Promise.all([fetchPublishedProducts(), fetchCategorySettings()]).then(
-      ([managedProducts, nextCategorySettings]) => {
+    void loadCatalogue().then(
+      (result) => {
         if (!isCurrent) return;
-        setProducts(managedProducts);
-        setCategorySettings(nextCategorySettings);
-        setLoadError(null);
+        setProducts(result.products);
+        setCategorySettings(result.categorySettings);
+        setLoadError(
+          result.error instanceof Error ? result.error.message : null,
+        );
         setIsLoading(false);
       },
       (error: unknown) => {
