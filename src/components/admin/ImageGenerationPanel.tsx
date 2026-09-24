@@ -30,6 +30,8 @@ const STYLE_SUGGESTIONS = [
   },
 ] as const;
 
+const MAX_STYLE_INSTRUCTION_LENGTH = 300;
+
 export default function ImageGenerationPanel({
   sourceFile,
   sourceUrl,
@@ -42,6 +44,14 @@ export default function ImageGenerationPanel({
   const [selectedSuggestion, setSelectedSuggestion] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const styleInstruction = [selectedSuggestion, customInstruction.trim()]
+    .filter(Boolean)
+    .join(' ');
+  const customInstructionLimit = Math.max(
+    0,
+    MAX_STYLE_INSTRUCTION_LENGTH - selectedSuggestion.length - (selectedSuggestion ? 1 : 0),
+  );
+  const isStyleInstructionTooLong = styleInstruction.length > MAX_STYLE_INSTRUCTION_LENGTH;
 
   useEffect(
     () => () => {
@@ -53,11 +63,13 @@ export default function ImageGenerationPanel({
   const generate = async (mode: ProductImageMode) => {
     setActiveMode(mode);
     setError(null);
+    if (isStyleInstructionTooLong) {
+      setError('Keep the selected style and optional instruction within 300 characters.');
+      setActiveMode(null);
+      return;
+    }
     try {
-      const styleSuggestion = [selectedSuggestion, customInstruction.trim()]
-        .filter(Boolean)
-        .join(' ');
-      const file = await generateProductImage(sourceFile, mode, styleSuggestion);
+      const file = await generateProductImage(sourceFile, mode, styleInstruction);
       if (generatedUrl) URL.revokeObjectURL(generatedUrl);
       setGeneratedFile(file);
       setGeneratedUrl(URL.createObjectURL(file));
@@ -108,7 +120,18 @@ export default function ImageGenerationPanel({
                 key={suggestion.label}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => setSelectedSuggestion(selected ? '' : suggestion.prompt)}
+                onClick={() => {
+                  if (selected) {
+                    setSelectedSuggestion('');
+                    return;
+                  }
+                  const nextCustomLimit = Math.max(
+                    0,
+                    MAX_STYLE_INSTRUCTION_LENGTH - suggestion.prompt.length - 1,
+                  );
+                  setSelectedSuggestion(suggestion.prompt);
+                  setCustomInstruction((current) => current.slice(0, nextCustomLimit));
+                }}
                 disabled={disabled || activeMode !== null}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                   selected
@@ -126,21 +149,27 @@ export default function ImageGenerationPanel({
           <textarea
             value={customInstruction}
             onChange={(event) => setCustomInstruction(event.target.value)}
-            maxLength={300}
+            maxLength={customInstructionLimit}
             rows={2}
             disabled={disabled || activeMode !== null}
             placeholder="Example: Add a small wooden basket and soft morning light"
-            className="mt-1 w-full resize-y rounded-xl border border-mustard/60 bg-white px-3 py-2 text-sm font-normal"
+            className={`mt-1 w-full resize-y rounded-xl border bg-white px-3 py-2 text-sm font-normal ${
+              isStyleInstructionTooLong ? 'border-red-300' : 'border-mustard/60'
+            }`}
           />
-          <span className="mt-1 block text-right font-normal text-cocoa/50">
-            {customInstruction.length}/300
+          <span
+            className={`mt-1 block text-right font-normal ${
+              isStyleInstructionTooLong ? 'text-red-700' : 'text-cocoa/50'
+            }`}
+          >
+            {styleInstruction.length}/{MAX_STYLE_INSTRUCTION_LENGTH} total
           </span>
         </label>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void generate('studio')}
-            disabled={disabled || activeMode !== null}
+            disabled={disabled || activeMode !== null || isStyleInstructionTooLong}
             className="rounded-full border-2 border-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
           >
             {activeMode === 'studio' ? 'Creating studio image…' : 'Create studio image'}
@@ -148,7 +177,7 @@ export default function ImageGenerationPanel({
           <button
             type="button"
             onClick={() => void generate('lifestyle')}
-            disabled={disabled || activeMode !== null}
+            disabled={disabled || activeMode !== null || isStyleInstructionTooLong}
             className="rounded-full bg-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
           >
             {activeMode === 'lifestyle' ? 'Creating lifestyle image…' : 'Create lifestyle image'}
