@@ -615,8 +615,9 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                       type="button"
                       onClick={() => void openGalleryEnhancement(variant, image)}
                       disabled={isBusy}
+                      title="Improve with AI"
                       aria-label={`Improve additional photo ${galleryIndex + 1} from ${variant.name} with AI`}
-                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-cocoa shadow disabled:opacity-50"
+                      className="absolute bottom-1 left-1 rounded-full bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-50"
                     >
                       AI
                     </button>
