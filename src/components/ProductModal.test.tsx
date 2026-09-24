@@ -97,17 +97,21 @@ describe('ProductModal touch controls', () => {
     }
   });
 
-  it('navigates on horizontal swipes from the details area in both directions', () => {
+  it('navigates image angles on horizontal swipes when gallery photos exist', () => {
     const { onNext, onPrevious } = renderModal();
     const description = screen.getByText(product.description);
+    const mainImage = screen.getByRole('img', { name: 'Crochet Rose — Red' });
 
     fireEvent.touchStart(description, { touches: [touch(300, 600)] });
     fireEvent.touchEnd(description, { changedTouches: [touch(100, 610)] });
-    expect(onNext).toHaveBeenCalledOnce();
+    expect(mainImage.getAttribute('src')).toBe('/rose-top.jpg');
 
     fireEvent.touchStart(description, { touches: [touch(100, 600)] });
     fireEvent.touchEnd(description, { changedTouches: [touch(300, 590)] });
-    expect(onPrevious).toHaveBeenCalledOnce();
+    expect(mainImage.getAttribute('src')).toBe('/rose.jpg');
+
+    expect(onNext).not.toHaveBeenCalled();
+    expect(onPrevious).not.toHaveBeenCalled();
   });
 
   it('does not navigate for vertical movement or short horizontal touches', () => {
@@ -155,6 +159,17 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByRole('img', { name: 'Crochet Rose — Ivory' }).getAttribute('src')).toBe(
       '/rose-ivory.jpg',
     );
+  });
+
+  it('switches the displayed image via image carousel arrows', () => {
+    renderModal();
+
+    const mainImage = screen.getByRole('img', { name: 'Crochet Rose — Red' });
+    fireEvent.click(screen.getByRole('button', { name: 'Show next product image angle' }));
+    expect(mainImage.getAttribute('src')).toBe('/rose-top.jpg');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show previous product image angle' }));
+    expect(mainImage.getAttribute('src')).toBe('/rose.jpg');
   });
 
   it('opens, controls, and closes image zoom without closing the product modal', () => {

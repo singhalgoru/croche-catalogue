@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import type { Product } from '../types/product';
 import { trackEvent, trackProduct3DView, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
@@ -36,15 +36,29 @@ export default function ProductModal({
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
-  const galleryImages = [
-    { id: 'main', image: selectedVariant?.image ?? product.image },
-    ...(selectedVariant?.gallery ?? []).map((item) => ({ id: item.id, image: item.image })),
-  ];
+  const galleryImages = useMemo(
+    () => [
+      { id: 'main', image: selectedVariant?.image ?? product.image },
+      ...(selectedVariant?.gallery ?? []).map((item) => ({ id: item.id, image: item.image })),
+    ],
+    [product.image, selectedVariant],
+  );
+  const hasImageCarousel = galleryImages.length > 1;
+  const activeImageIndex = Math.max(
+    galleryImages.findIndex((item) => item.id === activeImageId),
+    0,
+  );
   const activeImage =
-    galleryImages.find((item) => item.id === activeImageId)?.image ?? galleryImages[0].image;
+    galleryImages[activeImageIndex]?.image ?? galleryImages[0].image;
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
+
+  const showImageByOffset = useCallback((offset: number) => {
+    if (!hasImageCarousel) return;
+    const nextIndex = (activeImageIndex + offset + galleryImages.length) % galleryImages.length;
+    setActiveImageId(galleryImages[nextIndex].id);
+  }, [activeImageIndex, galleryImages, hasImageCarousel]);
 
   useEffect(() => {
     trackProductViewed(product, selectedVariant);
@@ -66,14 +80,30 @@ export default function ProductModal({
         return;
       }
 
-      if (!hasCarousel || isZoomOpen || is3DOpen) return;
+      if (isZoomOpen || is3DOpen) return;
 
-      if (event.key === 'ArrowLeft') onPrevious();
-      if (event.key === 'ArrowRight') onNext();
+      if (event.key === 'ArrowLeft') {
+        if (hasImageCarousel) showImageByOffset(-1);
+        else if (hasCarousel) onPrevious();
+      }
+      if (event.key === 'ArrowRight') {
+        if (hasImageCarousel) showImageByOffset(1);
+        else if (hasCarousel) onNext();
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [hasCarousel, is3DOpen, isZoomOpen, onClose, onNext, onPrevious]);
+  }, [
+    activeImageIndex,
+    hasCarousel,
+    hasImageCarousel,
+    is3DOpen,
+    isZoomOpen,
+    onClose,
+    onNext,
+    onPrevious,
+    showImageByOffset,
+  ]);
 
   useEffect(
     () => () => {
@@ -100,7 +130,7 @@ export default function ProductModal({
     const start = touchStart.current;
     const touch = event.changedTouches[0];
     touchStart.current = null;
-    if (!hasCarousel || !start || !touch) return;
+    if (!start || !touch) return;
 
     const horizontalDistance = touch.clientX - start.x;
     const verticalDistance = touch.clientY - start.y;
@@ -109,8 +139,12 @@ export default function ProductModal({
       Math.abs(horizontalDistance) > Math.abs(verticalDistance) * 1.25;
 
     if (!isHorizontalSwipe) return;
-    if (horizontalDistance < 0) onNext();
-    else onPrevious();
+    if (hasImageCarousel) {
+      showImageByOffset(horizontalDistance < 0 ? 1 : -1);
+    } else if (hasCarousel) {
+      if (horizontalDistance < 0) onNext();
+      else onPrevious();
+    }
   };
 
   return (
@@ -210,12 +244,36 @@ export default function ProductModal({
               New
             </span>
           )}
+          {hasImageCarousel && (
+            <>
+              <button
+                type="button"
+                onClick={() => showImageByOffset(-1)}
+                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55 sm:h-12 sm:w-12"
+                aria-label="Show previous product image angle"
+              >
+                <span aria-hidden="true" className="text-2xl leading-none">
+                  ‹
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => showImageByOffset(1)}
+                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55 sm:h-12 sm:w-12"
+                aria-label="Show next product image angle"
+              >
+                <span aria-hidden="true" className="text-2xl leading-none">
+                  ›
+                </span>
+              </button>
+            </>
+          )}
           {hasCarousel && (
             <>
               <button
                 type="button"
                 onClick={onPrevious}
-                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
+                className="absolute bottom-3 left-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90"
                 style={{
                   opacity: showTouchControls ? 1 : 0,
                   pointerEvents: showTouchControls ? 'auto' : 'none',
@@ -229,7 +287,7 @@ export default function ProductModal({
               <button
                 type="button"
                 onClick={onNext}
-                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
+                className="absolute bottom-3 left-14 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90"
                 style={{
                   opacity: showTouchControls ? 1 : 0,
                   pointerEvents: showTouchControls ? 'auto' : 'none',
