@@ -6,6 +6,7 @@ const CORS_HEADERS = {
 };
 
 const MAX_STYLE_INSTRUCTION_LENGTH = 300;
+const MAX_RAW_STYLE_DIRECTION_LENGTH = 4_000;
 
 interface OptimizePromptRequest {
   styleDirection?: unknown;
@@ -83,9 +84,9 @@ Deno.serve(async (request) => {
   }
 
   const styleDirection = payload.styleDirection.trim();
-  if (styleDirection.length > MAX_STYLE_INSTRUCTION_LENGTH) {
+  if (styleDirection.length > MAX_RAW_STYLE_DIRECTION_LENGTH) {
     return jsonResponse(
-      { error: 'Raw styling instructions must be 300 characters or less.' },
+      { error: 'Raw styling instructions are too long. Please keep them under 4000 characters.' },
       400,
     );
   }

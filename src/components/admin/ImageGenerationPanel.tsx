@@ -49,10 +49,6 @@ export default function ImageGenerationPanel({
   const styleInstruction = [selectedSuggestion, customInstruction.trim()]
     .filter(Boolean)
     .join(' ');
-  const customInstructionLimit = Math.max(
-    0,
-    MAX_STYLE_INSTRUCTION_LENGTH - selectedSuggestion.length - (selectedSuggestion ? 1 : 0),
-  );
   const isStyleInstructionTooLong = styleInstruction.length > MAX_STYLE_INSTRUCTION_LENGTH;
   const hasStyleInstruction = styleInstruction.trim().length > 0;
 
@@ -67,7 +63,7 @@ export default function ImageGenerationPanel({
     setActiveMode(mode);
     setError(null);
     if (isStyleInstructionTooLong) {
-      setError('Keep the selected style and optional instruction within 300 characters.');
+      setError('Use Gemini to optimize this into a 300-character prompt before generating.');
       setActiveMode(null);
       return;
     }
@@ -93,11 +89,6 @@ export default function ImageGenerationPanel({
       setError('Add a rough styling idea before optimizing the prompt.');
       return;
     }
-    if (isStyleInstructionTooLong) {
-      setError('Keep the selected style and optional instruction within 300 characters.');
-      return;
-    }
-
     setIsOptimizingPrompt(true);
     try {
       const prompt = await optimizeProductImagePrompt(styleInstruction);
@@ -155,12 +146,7 @@ export default function ImageGenerationPanel({
                     setSelectedSuggestion('');
                     return;
                   }
-                  const nextCustomLimit = Math.max(
-                    0,
-                    MAX_STYLE_INSTRUCTION_LENGTH - suggestion.prompt.length - 1,
-                  );
                   setSelectedSuggestion(suggestion.prompt);
-                  setCustomInstruction((current) => current.slice(0, nextCustomLimit));
                 }}
                 disabled={disabled || activeMode !== null || isOptimizingPrompt}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
@@ -179,7 +165,6 @@ export default function ImageGenerationPanel({
           <textarea
             value={customInstruction}
             onChange={(event) => setCustomInstruction(event.target.value)}
-            maxLength={customInstructionLimit}
             rows={2}
             disabled={disabled || activeMode !== null || isOptimizingPrompt}
             placeholder="Example: small wooden basket, soft morning light, premium handmade look"
@@ -192,7 +177,9 @@ export default function ImageGenerationPanel({
               isStyleInstructionTooLong ? 'text-red-700' : 'text-cocoa/50'
             }`}
           >
-            {styleInstruction.length}/{MAX_STYLE_INSTRUCTION_LENGTH} total
+            {isStyleInstructionTooLong
+              ? `${styleInstruction.length} chars — optimize with Gemini before generating`
+              : `${styleInstruction.length}/${MAX_STYLE_INSTRUCTION_LENGTH} ready for generation`}
           </span>
         </label>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -203,8 +190,7 @@ export default function ImageGenerationPanel({
               disabled ||
               activeMode !== null ||
               isOptimizingPrompt ||
-              !hasStyleInstruction ||
-              isStyleInstructionTooLong
+              !hasStyleInstruction
             }
             className="rounded-full border border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
           >

@@ -74,12 +74,19 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   });
   await expectNoHorizontalOverflow(page);
   await page.getByRole('button', { name: 'Warm minimal' }).click();
-  await page.getByLabel('Optional instruction').fill('Add soft morning light.');
+  const rawPrompt = [
+    'Add soft morning light.',
+    'Use a small handmade wooden basket, premium cream linen, natural shadows,',
+    'a cosy craft-market feeling, subtle festive gift styling, botanical accents,',
+    'and a polished catalogue look while keeping the crochet item exactly the same.',
+    'Make it feel elegant for an Indian handmade brand and suitable for a product listing.',
+  ].join(' ');
+  expect(rawPrompt.length).toBeGreaterThan(300);
+  await page.getByLabel('Optional instruction').fill(rawPrompt);
   const optimizeRequest = page.waitForRequest('**/functions/v1/optimize-image-prompt');
   await page.getByRole('button', { name: 'Optimize prompt with Gemini' }).click();
   expect((await optimizeRequest).postDataJSON()).toMatchObject({
-    styleDirection:
-      'Use a warm cream palette, soft natural light, and very minimal neutral props. Add soft morning light.',
+    styleDirection: `Use a warm cream palette, soft natural light, and very minimal neutral props. ${rawPrompt}`,
   });
   await expect(page.getByLabel('Optional instruction')).toHaveValue(
     'Style on warm cream linen with soft morning light, subtle handmade gift props, and a premium crochet catalogue look.',
