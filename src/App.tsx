@@ -25,7 +25,14 @@ function App() {
 
   // Registered once for the whole app so both the shop and admin console
   // (see AdminPage.tsx) are installable as home-screen apps.
-  useRegisterSW({ immediate: true });
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({ immediate: true });
+
+  useEffect(() => {
+    if (needRefresh) void updateServiceWorker(true);
+  }, [needRefresh, updateServiceWorker]);
 
   useEffect(() => {
     const updateRoute = () => setIsAdminPage(window.location.hash === '#admin');
