@@ -18,6 +18,12 @@ interface Props {
   onNext: () => void;
 }
 
+interface GalleryImage {
+  id: string;
+  image: string;
+  variantId?: string;
+}
+
 export default function ProductModal({
   product,
   currentIndex,
@@ -36,13 +42,28 @@ export default function ProductModal({
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
-  const galleryImages = useMemo(
-    () => [
-      { id: 'main', image: selectedVariant?.image ?? product.image },
-      ...(selectedVariant?.gallery ?? []).map((item) => ({ id: item.id, image: item.image })),
-    ],
-    [product.image, selectedVariant],
-  );
+  const galleryImages = useMemo((): GalleryImage[] => {
+    if (selectedVariant?.gallery.length) {
+      return [
+        { id: 'main', image: selectedVariant.image },
+        ...selectedVariant.gallery.map((item) => ({ id: item.id, image: item.image })),
+      ];
+    }
+
+    const variantImages = product.variants
+      .map((variant) => ({
+        id: `variant:${variant.id}`,
+        image: variant.image,
+        variantId: variant.id,
+      }))
+      .filter((item, index, items) =>
+        item.image && items.findIndex((candidate) => candidate.image === item.image) === index,
+      );
+
+    return variantImages.length > 1
+      ? variantImages
+      : [{ id: 'main', image: selectedVariant?.image ?? product.image }];
+  }, [product.image, product.variants, selectedVariant]);
   const activeImageIndex = Math.max(
     galleryImages.findIndex((item) => item.id === activeImageId),
     0,
@@ -65,7 +86,9 @@ export default function ProductModal({
           galleryImages.findIndex((item) => item.id === currentId),
           0,
         );
-        return galleryImages[(currentIndex + 1) % galleryImages.length].id;
+        const nextImage = galleryImages[(currentIndex + 1) % galleryImages.length];
+        if (nextImage.variantId) setSelectedVariantId(nextImage.variantId);
+        return nextImage.id;
       });
     }, 3500);
     return () => window.clearInterval(timer);
@@ -73,8 +96,13 @@ export default function ProductModal({
 
   const selectVariant = (variantId: string) => {
     setSelectedVariantId(variantId);
-    // Switching variants shows that variant's main image first.
-    setActiveImageId('main');
+    const variant = product.variants.find((item) => item.id === variantId);
+    setActiveImageId(variant?.gallery.length ? 'main' : `variant:${variantId}`);
+  };
+
+  const selectGalleryImage = (image: GalleryImage) => {
+    if (image.variantId) setSelectedVariantId(image.variantId);
+    setActiveImageId(image.id);
   };
 
   // Close on Escape and support carousel arrow keys for keyboard accessibility.
@@ -281,7 +309,7 @@ export default function ProductModal({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setActiveImageId(item.id)}
+                onClick={() => selectGalleryImage(item)}
                 aria-pressed={item.id === activeImageId}
                 aria-label={index === 0 ? 'Show main product image' : `Show product image ${index + 1}`}
                 className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${

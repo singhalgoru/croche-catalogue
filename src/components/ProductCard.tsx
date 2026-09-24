@@ -13,10 +13,11 @@ interface Props {
 export default function ProductCard({ product, isFeatured = false, onSelect }: Props) {
   const isNew = isProductNew(product);
   const cardImages = useMemo(
-    () => [
+    () => Array.from(new Set([
       product.image,
+      ...product.variants.map((variant) => variant.image),
       ...(product.variants[0]?.gallery ?? []).map((image) => image.image),
-    ],
+    ].filter(Boolean))),
     [product.image, product.variants],
   );
   const [activeImage, setActiveImage] = useState({ productId: product.id, index: 0 });

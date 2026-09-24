@@ -37,7 +37,33 @@ const product: Product = {
   ],
 };
 
-const renderModal = () => {
+const variantImageProduct: Product = {
+  ...product,
+  id: 'product-variant-images',
+  name: 'Variant Image Product',
+  variants: [
+    {
+      id: 'variant-main',
+      name: 'Front',
+      color: '#f6c453',
+      inStock: true,
+      image: '/front.jpg',
+      imagePath: 'front.jpg',
+      gallery: [],
+    },
+    {
+      id: 'variant-side',
+      name: 'Side',
+      color: '#f6c453',
+      inStock: true,
+      image: '/side.jpg',
+      imagePath: 'side.jpg',
+      gallery: [],
+    },
+  ],
+};
+
+const renderModal = (modalProduct = product) => {
   const callbacks = {
     onClose: vi.fn(),
     onPrevious: vi.fn(),
@@ -46,7 +72,7 @@ const renderModal = () => {
 
   render(
     <ProductModal
-      product={product}
+      product={modalProduct}
       currentIndex={0}
       totalProducts={3}
       {...callbacks}
@@ -154,10 +180,10 @@ describe('ProductModal touch controls', () => {
 
     // Switching variants resets the active angle back to the main image.
     fireEvent.click(screen.getByRole('button', { name: /Ivory/ }));
-    expect(screen.queryByRole('button', { name: 'Show main product image' })).toBeNull();
     expect(screen.getByRole('img', { name: 'Crochet Rose — Ivory' }).getAttribute('src')).toBe(
       '/rose-ivory.jpg',
     );
+    expect(screen.getByRole('button', { name: 'Show main product image' })).toBeTruthy();
   });
 
   it('automatically rotates through image angles', () => {
@@ -171,6 +197,21 @@ describe('ProductModal touch controls', () => {
 
     act(() => vi.advanceTimersByTime(3500));
     expect(mainImage.getAttribute('src')).toBe('/rose-side.jpg');
+  });
+
+  it('automatically rotates variant images when no gallery angles exist', () => {
+    renderModal(variantImageProduct);
+
+    const mainImage = screen.getByRole('img', {
+      name: 'Variant Image Product — Front',
+    });
+    expect(mainImage.getAttribute('src')).toBe('/front.jpg');
+
+    act(() => vi.advanceTimersByTime(3500));
+
+    expect(
+      screen.getByRole('img', { name: 'Variant Image Product — Side' }).getAttribute('src'),
+    ).toBe('/side.jpg');
   });
 
   it('opens, controls, and closes image zoom without closing the product modal', () => {
