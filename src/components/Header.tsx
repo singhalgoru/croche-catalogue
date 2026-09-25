@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react';
 import InstallAppButton from './InstallAppButton';
+
+const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
 
 interface Props {
   showShippingTicker?: boolean;
   showInstallPrompt?: boolean;
   cartItemCount?: number;
   onOpenCart?: () => void;
+  tickerMessages?: string[];
 }
 
 export default function Header({
@@ -12,17 +16,31 @@ export default function Header({
   showInstallPrompt = true,
   cartItemCount = 0,
   onOpenCart,
+  tickerMessages = DEFAULT_TICKER_MESSAGES,
 }: Props) {
+  const [tickerIndex, setTickerIndex] = useState(0);
+  const messages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
+  const tickerMessage = messages[tickerIndex % messages.length];
+
+  useEffect(() => {
+    if (messages.length < 2) return;
+    const timer = window.setInterval(
+      () => setTickerIndex((current) => (current + 1) % messages.length),
+      6000,
+    );
+    return () => window.clearInterval(timer);
+  }, [messages.length]);
+
   return (
     <header className="bg-cream border-b-4 border-mustard">
       {showShippingTicker && (
         <div
           className="shipping-ticker overflow-hidden bg-cocoa py-2 text-sm font-bold text-cream"
-          aria-label="Shipping available across India"
+          aria-label="Store announcements"
         >
-          <div className="shipping-ticker-track">
-            <span>🚚 Shipping available across India</span>
-            <span aria-hidden="true">🚚 Shipping available across India</span>
+          <div className="shipping-ticker-track" key={`${tickerIndex}-${tickerMessage}`}>
+            <span>{tickerMessage}</span>
+            <span aria-hidden="true">{tickerMessage}</span>
           </div>
         </div>
       )}

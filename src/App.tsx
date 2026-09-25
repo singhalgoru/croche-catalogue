@@ -10,6 +10,7 @@ import CartDrawer from './components/CartDrawer';
 import AdminPage from './components/admin/AdminPage';
 import { useCart } from './hooks/useCart';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
+import { useTickerMessages } from './hooks/useTickerMessages';
 import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
@@ -26,6 +27,7 @@ function App() {
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const cart = useCart(!isAdminPage);
+  const tickerMessages = useTickerMessages(!isAdminPage);
 
   // Registered once for the whole app so both the shop and admin console
   // (see AdminPage.tsx) are installable as home-screen apps.
@@ -158,7 +160,11 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header cartItemCount={cart.itemCount} onOpenCart={() => setIsCartOpen(true)} />
+      <Header
+        cartItemCount={cart.itemCount}
+        onOpenCart={() => setIsCartOpen(true)}
+        tickerMessages={tickerMessages}
+      />
 
       <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
         <SearchBar

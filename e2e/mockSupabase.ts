@@ -44,6 +44,14 @@ export interface MockCatalogueState {
   categorySettings: Record<string, { priority: number }>;
   products: ProductRow[];
   carts: CartRow[];
+  tickerMessages: TickerMessageRow[];
+}
+
+export interface TickerMessageRow {
+  id: string;
+  message: string;
+  is_active: boolean;
+  sort_order: number;
 }
 
 export interface CartItemRow {
@@ -254,6 +262,26 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     },
     products: defaultProducts(),
     carts: [],
+    tickerMessages: [
+      {
+        id: 'ticker-1',
+        message: '🚚 Shipping available across India',
+        is_active: true,
+        sort_order: 0,
+      },
+      {
+        id: 'ticker-2',
+        message: 'Fresh crochet gifts added weekly',
+        is_active: true,
+        sort_order: 1,
+      },
+      {
+        id: 'ticker-3',
+        message: 'Hidden ticker message',
+        is_active: false,
+        sort_order: 2,
+      },
+    ],
   };
   let currentUser = adminUser;
 
@@ -389,6 +417,42 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
 
       if (request.method() === 'DELETE') {
         state.carts = state.carts.filter((cart) => cart.id !== cartId);
+        await json(route, []);
+        return;
+      }
+    }
+
+    if (pathname === '/rest/v1/ticker_messages') {
+      const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+      const activeOnly = url.searchParams.get('is_active') === 'eq.true';
+
+      if (request.method() === 'GET') {
+        const messages = state.tickerMessages
+          .filter((item) => (!id || item.id === id) && (!activeOnly || item.is_active))
+          .sort((left, right) => left.sort_order - right.sort_order);
+        await json(route, messages);
+        return;
+      }
+
+      if (request.method() === 'POST') {
+        const body = getRequestBody<Omit<TickerMessageRow, 'id'>>(route);
+        state.tickerMessages.push({
+          ...body,
+          id: `ticker-${state.tickerMessages.length + 1}`,
+        });
+        await json(route, [], 201);
+        return;
+      }
+
+      if (request.method() === 'PATCH') {
+        const item = state.tickerMessages.find((candidate) => candidate.id === id);
+        if (item) Object.assign(item, getRequestBody<Partial<TickerMessageRow>>(route));
+        await json(route, []);
+        return;
+      }
+
+      if (request.method() === 'DELETE') {
+        state.tickerMessages = state.tickerMessages.filter((item) => item.id !== id);
         await json(route, []);
         return;
       }

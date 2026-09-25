@@ -141,12 +141,13 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
 test('positions the cart below the ticker and floats it after an item is added', async ({
   page,
 }) => {
-  const ticker = page.getByLabel('Shipping available across India');
+  const ticker = page.getByLabel('Store announcements');
   const cartButton = page.getByRole('button', { name: 'Open cart with 0 items' });
   await expect(cartButton).toHaveText('');
   const logo = page.getByRole('img', {
     name: 'Luvia — Crochet, Accessories & More, made with love',
   });
+
   const [tickerBox, cartBox, logoBox] = await Promise.all([
     ticker.boundingBox(),
     cartButton.boundingBox(),
@@ -171,6 +172,19 @@ test('positions the cart below the ticker and floats it after an item is added',
   expect(floatingBox!.y).toBeGreaterThanOrEqual(40);
   expect(floatingBox!.y).toBeLessThanOrEqual(60);
   expect(floatingBox!.x + floatingBox!.width).toBeGreaterThan(logoBox!.x + logoBox!.width);
+});
+
+test('rotates active storefront ticker messages and excludes inactive messages', async ({
+  page,
+}) => {
+  const ticker = page.getByLabel('Store announcements');
+  await expect(ticker).toContainText('Shipping available across India');
+  await expect(ticker).not.toContainText('Hidden ticker message');
+
+  await expect
+    .poll(() => ticker.textContent(), { timeout: 8000 })
+    .toContain('Fresh crochet gifts added weekly');
+  await expect(ticker).not.toContainText('Hidden ticker message');
 });
 
 test('decreases and removes an individual variant from the cart', async ({ page }) => {
@@ -212,7 +226,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
       ),
     )
     .toBe(true);
-  await expect(page.getByLabel('Shipping available across India')).toBeVisible();
+  await expect(page.getByLabel('Store announcements')).toBeVisible();
   const productCards = page.locator('main').getByRole('article');
   await expect(productCards.first()).toContainText('Rose Charm');
   await expect(productCards.first()).toContainText('Featured');

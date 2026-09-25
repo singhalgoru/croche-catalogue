@@ -102,6 +102,50 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   expect(state.carts).toHaveLength(0);
 });
 
+test('manages rotating ticker messages', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  await page.getByRole('button', { name: /Manage ticker/ }).click();
+  await expect(page.getByText('2 active of 3 messages')).toBeVisible();
+
+  await page.getByLabel('New ticker message').fill('Festive offer available this weekend');
+  await page.getByRole('button', { name: 'Add message' }).click();
+  await expect(page.getByText('“Festive offer available this weekend” was added to the ticker.'))
+    .toBeVisible();
+  expect(state.tickerMessages.at(-1)).toMatchObject({
+    message: 'Festive offer available this weekend',
+    is_active: true,
+  });
+
+  const added = page.getByRole('group', { name: 'Ticker message 4' });
+  await added.getByRole('button', { name: 'Up' }).click();
+  await expect(page.getByText('Ticker message order was updated.')).toBeVisible();
+  expect(state.tickerMessages.find((item) => item.message.startsWith('Festive'))?.sort_order).toBe(2);
+
+  const hidden = page.getByRole('group', { name: 'Ticker message 4' });
+  await hidden.getByRole('button', { name: 'Activate' }).click();
+  await expect(page.getByText('“Hidden ticker message” is now active.')).toBeVisible();
+
+  const shipping = page.getByRole('group', { name: 'Ticker message 1' });
+  await shipping.getByRole('button', { name: 'Edit' }).click();
+  await shipping.getByLabel('Edit ticker message').fill('Shipping available throughout India');
+  await shipping.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Ticker message updated to “Shipping available throughout India”.'))
+    .toBeVisible();
+
+  const editedShipping = page.getByRole('group', { name: 'Ticker message 1' });
+  await editedShipping.getByRole('button', { name: 'Deactivate' }).click();
+  await expect(page.getByText('“Shipping available throughout India” is now inactive.')).toBeVisible();
+
+  const removable = page.getByRole('group', { name: 'Ticker message 1' });
+  await removable.getByRole('button', { name: 'Delete' }).click();
+  await removable.getByRole('button', { name: 'Yes, delete' }).click();
+  await expect(page.getByText('“Shipping available throughout India” was deleted.')).toBeVisible();
+  expect(state.tickerMessages.some((item) => item.message.includes('throughout India'))).toBe(false);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('uses Gemini suggestions to publish a product', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
