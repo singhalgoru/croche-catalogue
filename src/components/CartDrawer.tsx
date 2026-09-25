@@ -94,7 +94,6 @@ export default function CartDrawer({
         <div className="flex items-center justify-between border-b border-mustard/30 bg-white p-4">
           <div>
             <h2 className="font-heading text-2xl font-bold text-cocoa">Your cart</h2>
-            {cart && <p className="text-xs text-cocoa/55">{cart.reference}</p>}
           </div>
           <button
             type="button"

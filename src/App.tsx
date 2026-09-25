@@ -190,6 +190,11 @@ function App() {
               Boolean(await cart.addItem(product, variant))
             }
             isCartBusy={cart.isBusy}
+            getCartQuantity={(productId, variantId) =>
+              cart.cart?.items.find(
+                (item) => item.productId === productId && item.variantId === variantId,
+              )?.quantity ?? 0
+            }
           />
         )}
       </main>
@@ -206,6 +211,11 @@ function App() {
           onNext={showNextProduct}
           onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
           isCartBusy={cart.isBusy}
+          getCartQuantity={(productId, variantId) =>
+            cart.cart?.items.find(
+              (item) => item.productId === productId && item.variantId === variantId,
+            )?.quantity ?? 0
+          }
         />
       )}
       {isCartOpen && (

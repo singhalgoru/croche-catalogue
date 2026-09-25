@@ -7,6 +7,7 @@ import { productImageProtection } from '../utils/imageProtection';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
 import { isProductNew } from '../utils/productStatus';
+import CartIconButton from './CartIconButton';
 
 interface Props {
   product: Product;
@@ -17,6 +18,7 @@ interface Props {
   onNext: () => void;
   onAddToCart?: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy?: boolean;
+  getCartQuantity?: (productId: string, variantId: string) => number;
 }
 
 interface GalleryImage {
@@ -34,6 +36,7 @@ export default function ProductModal({
   onNext,
   onAddToCart,
   isCartBusy = false,
+  getCartQuantity,
 }: Props) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,7 +44,8 @@ export default function ProductModal({
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id ?? '');
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [activeImageId, setActiveImageId] = useState('main');
-  const [cartMessage, setCartMessage] = useState<string | null>(null);
+  const [cartStatus, setCartStatus] =
+    useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
@@ -231,6 +235,22 @@ export default function ProductModal({
             className="w-full aspect-square object-cover"
             {...productImageProtection}
           />
+          {onAddToCart && selectedVariant?.inStock && (
+            <CartIconButton
+              productName={product.name}
+              status={cartStatus}
+              onClick={() => {
+                setCartStatus('busy');
+                void onAddToCart(product, selectedVariant).then((added) => {
+                  setCartStatus(added ? 'added' : 'error');
+                  window.setTimeout(() => setCartStatus('idle'), 1800);
+                });
+              }}
+              disabled={isCartBusy}
+              className="bottom-3 right-16"
+              quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
+            />
+          )}
           <div className="absolute bottom-3 right-3 flex gap-2">
             <button
               type="button"
@@ -424,26 +444,6 @@ export default function ProductModal({
             <WhatsAppIcon />
             Order / Enquire on WhatsApp
           </a>
-          {onAddToCart && selectedVariant && (
-            <button
-              type="button"
-              onClick={() => {
-                setCartMessage(null);
-                void onAddToCart(product, selectedVariant).then((added) => {
-                  setCartMessage(
-                    added ? 'Added to your cart.' : 'Unable to add this item to your cart.',
-                  );
-                });
-              }}
-              disabled={isCartBusy || !selectedVariant.inStock}
-              className="mt-3 w-full rounded-full border-2 border-cocoa py-2 font-semibold text-cocoa transition-colors hover:bg-cocoa hover:text-cream disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {isCartBusy ? 'Updating cart…' : selectedVariant.inStock ? 'Add to cart' : 'Sold out'}
-            </button>
-          )}
-          {cartMessage && (
-            <p className="mt-2 text-center text-sm font-semibold text-green-700">{cartMessage}</p>
-          )}
           <button
             type="button"
             onClick={onClose}

@@ -48,7 +48,6 @@ export const getCartWhatsAppLink = (cart: Cart) => {
       ...lines,
       '',
       hasCompletePricing ? `Estimated total: ${formatINR(total)}` : 'Total: Please confirm',
-      `Cart reference: ${cart.reference}`,
     ].join('\n'),
   );
 };

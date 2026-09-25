@@ -3,6 +3,7 @@ import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
+import CartIconButton from './CartIconButton';
 
 interface Props {
   product: Product;
@@ -10,6 +11,7 @@ interface Props {
   onSelect: (product: Product) => void;
   onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy?: boolean;
+  cartQuantity?: number;
 }
 
 export default function ProductCard({
@@ -18,6 +20,7 @@ export default function ProductCard({
   onSelect,
   onAddToCart,
   isCartBusy = false,
+  cartQuantity = 0,
 }: Props) {
   const isNew = isProductNew(product);
   const cartVariant = product.variants.find((variant) => variant.inStock);
@@ -30,7 +33,8 @@ export default function ProductCard({
     [product.image, product.variants],
   );
   const [activeImage, setActiveImage] = useState({ productId: product.id, index: 0 });
-  const [cartMessage, setCartMessage] = useState<string | null>(null);
+  const [cartStatus, setCartStatus] =
+    useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const activeImageIndex = activeImage.productId === product.id ? activeImage.index : 0;
   const activeImageUrl = cardImages[activeImageIndex] ?? product.image;
 
@@ -70,7 +74,7 @@ export default function ProductCard({
         </button>
         {cardImages.length > 1 && (
           <div
-            className="absolute bottom-14 left-1/2 z-10 flex -translate-x-1/2 gap-1"
+            className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1"
             aria-hidden="true"
           >
             {cardImages.map((image, index) => (
@@ -111,21 +115,20 @@ export default function ProductCard({
           </span>
         )}
         {cartVariant && (
-          <button
-            type="button"
+          <CartIconButton
+            productName={product.name}
+            status={cartStatus}
             onClick={() => {
-              setCartMessage(null);
+              setCartStatus('busy');
               void onAddToCart(product, cartVariant).then((added) => {
-                setCartMessage(added ? 'Added!' : 'Try again');
-                window.setTimeout(() => setCartMessage(null), 1800);
+                setCartStatus(added ? 'added' : 'error');
+                window.setTimeout(() => setCartStatus('idle'), 1800);
               });
             }}
             disabled={isCartBusy}
-            className="absolute bottom-3 left-3 right-3 z-20 rounded-full bg-cocoa/95 px-3 py-2 text-center text-xs font-bold text-cream shadow-lg backdrop-blur-sm transition-colors hover:bg-cocoa-dark disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
-            title={`Add ${product.name} to cart`}
-          >
-            {cartMessage ?? (isCartBusy ? 'Adding…' : 'Add to cart')}
-          </button>
+            className="bottom-3 right-3"
+            quantity={cartQuantity}
+          />
         )}
       </div>
       <div className="shrink-0 p-4">

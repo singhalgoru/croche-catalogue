@@ -6,6 +6,7 @@ interface Props {
   onSelect: (product: Product) => void;
   onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy?: boolean;
+  getCartQuantity: (productId: string, variantId: string) => number;
 }
 
 export default function ProductGrid({
@@ -13,6 +14,7 @@ export default function ProductGrid({
   onSelect,
   onAddToCart,
   isCartBusy = false,
+  getCartQuantity,
 }: Props) {
   if (products.length === 0) {
     return (
@@ -32,6 +34,10 @@ export default function ProductGrid({
           onSelect={onSelect}
           onAddToCart={onAddToCart}
           isCartBusy={isCartBusy}
+          cartQuantity={getCartQuantity(
+            product.id,
+            product.variants.find((variant) => variant.inStock)?.id ?? '',
+          )}
         />
       ))}
     </div>

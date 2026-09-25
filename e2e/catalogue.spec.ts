@@ -23,9 +23,18 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
   const roseCard = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm' }),
   });
-  await roseCard.getByRole('button', { name: 'Add to cart' }).click();
-  await expect(roseCard.getByRole('button', { name: 'Added!' })).toBeVisible();
+  await roseCard.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await expect(
+    roseCard.getByRole('button', { name: 'Added! — Rose Charm (1 in cart)' }),
+  ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toBeVisible();
+
+  await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
+  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await expect(
+    productDialog.getByRole('button', { name: 'Add to cart — Rose Charm (1 in cart)' }),
+  ).toBeVisible();
+  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
   const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
@@ -39,7 +48,8 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
   });
   await expect(enquiry).toHaveAttribute('href', /Rose%20Charm/);
   await expect(enquiry).toHaveAttribute('href', /Quantity%3A%202/);
-  await expect(enquiry).toHaveAttribute('href', /Cart%20reference%3A%20CRT-TEST0001/);
+  await expect(enquiry).not.toHaveAttribute('href', /Cart%20reference|CRT-TEST0001/);
+  await expect(cartDialog).not.toContainText('CRT-TEST0001');
   await enquiry.click();
   await expect.poll(() => catalogueState.carts[0]?.status).toBe('whatsapp_started');
   expect(catalogueState.carts[0].cart_items[0]).toMatchObject({
@@ -53,6 +63,27 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
   await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
   await page.getByRole('button', { name: 'Open cart with 2 items' }).click();
   await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByText('Rose Charm')).toBeVisible();
+});
+
+test('shows compact cart icons with tooltips on cards and opened products', async ({ page }) => {
+  const roseCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm' }),
+  });
+  const cardCartButton = roseCard.getByRole('button', {
+    name: 'Add to cart — Rose Charm',
+  });
+  await expect(cardCartButton).toHaveText('');
+  await cardCartButton.hover();
+  await expect(roseCard.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
+
+  await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
+  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const modalCartButton = productDialog.getByRole('button', {
+    name: 'Add to cart — Rose Charm',
+  });
+  await expect(modalCartButton).toHaveText('');
+  await modalCartButton.hover();
+  await expect(productDialog.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
 });
 
 test('filters, searches, opens products, and exposes customer contact links', async ({ page }) => {
@@ -75,24 +106,24 @@ test('filters, searches, opens products, and exposes customer contact links', as
   await expect(productCards.nth(1)).toContainText('New Heart Charm');
   await expect(productCards.nth(1)).toContainText('New');
   await expect(productCards.nth(2)).toContainText('Flower Coaster');
-  await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View Rose Charm' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View Flower Coaster' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Empty Category', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  await expect(page.getByRole('button', { name: /New Heart Charm/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Rose Charm/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Flower Coaster/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View New Heart Charm' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View Rose Charm' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View Flower Coaster' })).toHaveCount(0);
   await page.getByRole('button', { name: 'All', exact: true }).click();
 
   await page.getByRole('searchbox', { name: 'Search crochet items' }).fill('coaster');
-  await expect(page.getByRole('button', { name: /Rose Charm/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Flower Coaster/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View Rose Charm' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View Flower Coaster' })).toBeVisible();
 
   await page.getByRole('searchbox', { name: 'Search crochet items' }).clear();
   await page.getByRole('button', { name: 'Charms', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Rose Charm/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Flower Coaster/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View Rose Charm' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View Flower Coaster' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'All', exact: true }).click();
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
@@ -178,7 +209,7 @@ test('supports campaign deep links and carries attribution into WhatsApp', async
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // Attribution persists for the rest of the visit, even without UTM parameters.
-  await page.getByRole('button', { name: /Flower Coaster/ }).click();
+  await page.getByRole('button', { name: 'View Flower Coaster' }).click();
   await expect(
     page
       .getByRole('dialog', { name: 'Flower Coaster' })
@@ -240,7 +271,7 @@ test('shows prices only for products opted into price display', async ({ page })
 });
 
 test('supports full-modal swipes and touch-only overlay controls', async ({ page }) => {
-  await page.getByRole('button', { name: /Rose Charm/ }).click();
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
   const description = dialog.getByText('A detailed handmade rose charm for bags and keys.');
   const previous = dialog.getByRole('button', { name: 'Show previous product' });
