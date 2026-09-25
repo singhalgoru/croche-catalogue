@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchAdminCarts } from '../../services/cart';
+import { deleteAdminCart, fetchAdminCarts } from '../../services/cart';
 import type { AdminCart } from '../../types/cart';
 import { formatINR } from '../../utils/currency';
 
@@ -8,6 +8,8 @@ export default function CartManager() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadCarts = useCallback(async () => {
     setIsLoading(true);
@@ -26,6 +28,22 @@ export default function CartManager() {
   useEffect(() => {
     queueMicrotask(() => void loadCarts());
   }, [loadCarts]);
+
+  const removeCart = async (cartId: string) => {
+    setBusyId(cartId);
+    setError(null);
+    try {
+      await deleteAdminCart(cartId);
+      setCarts((current) => current.filter((cart) => cart.id !== cartId));
+      setDeleteId(null);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error ? deleteError.message : 'Unable to delete the cart.',
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
@@ -133,6 +151,40 @@ export default function CartManager() {
                     {hasUnpricedItems ? 'Priced items: ' : 'Estimated total: '}
                     {formatINR(total)}
                   </p>
+                )}
+                {deleteId === cart.id ? (
+                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm font-semibold text-red-800">
+                      Delete this cart and all of its items permanently?
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void removeCart(cart.id)}
+                        disabled={busyId !== null}
+                        className="rounded-full bg-red-700 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {busyId === cart.id ? 'Deleting…' : 'Yes, delete cart'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteId(null)}
+                        disabled={busyId !== null}
+                        className="rounded-full border border-cocoa/25 px-4 py-1.5 text-sm font-semibold text-cocoa disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteId(cart.id)}
+                    disabled={busyId !== null}
+                    className="mt-4 text-sm font-semibold text-red-700 underline disabled:opacity-50"
+                  >
+                    Delete cart
+                  </button>
                 )}
               </article>
             );

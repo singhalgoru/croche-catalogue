@@ -341,6 +341,12 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         await json(route, wantsSingle ? cart : cart ? [cart] : []);
         return;
       }
+
+      if (request.method() === 'DELETE') {
+        state.carts = state.carts.filter((cart) => cart.id !== cartId);
+        await json(route, []);
+        return;
+      }
     }
 
     if (pathname === '/rest/v1/cart_items') {

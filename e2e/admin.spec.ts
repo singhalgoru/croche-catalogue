@@ -95,6 +95,11 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   await expect(page.getByText('Rose Pink · Qty 2')).toBeVisible();
   await expect(page.getByText('WhatsApp opened')).toBeVisible();
   await expect(page.getByText('Estimated total: ₹698')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete cart' }).click();
+  await page.getByRole('button', { name: 'Yes, delete cart' }).click();
+  await expect(page.getByRole('heading', { name: 'CRT-CUSTOMER' })).toHaveCount(0);
+  await expect(page.getByText('No active customer carts yet.')).toBeVisible();
+  expect(state.carts).toHaveLength(0);
 });
 
 test('uses Gemini suggestions to publish a product', async ({ page }) => {

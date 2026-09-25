@@ -62,7 +62,12 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
   await page.getByRole('button', { name: 'Open cart with 2 items' }).click();
-  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByText('Rose Charm')).toBeVisible();
+  const restoredCart = page.getByRole('dialog', { name: 'Shopping cart' });
+  await expect(restoredCart.getByText('Rose Charm')).toBeVisible();
+  await restoredCart.getByRole('button', { name: 'Clear cart' }).click();
+  await expect(restoredCart.getByText('Your cart is empty')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open cart with 0 items' })).toBeVisible();
+  await expect.poll(() => catalogueState.carts.length).toBe(0);
 });
 
 test('shows compact cart icons with tooltips on cards and opened products', async ({ page }) => {

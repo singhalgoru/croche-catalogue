@@ -284,15 +284,14 @@ export async function removeCartItem(itemId: string): Promise<Cart> {
 
 export async function clearCart(): Promise<Cart> {
   if (!isSupabaseConfigured || !supabase) {
-    const current = readLocalCart();
-    return writeLocalCart({ ...refreshLocalCart(current), items: [] });
+    localStorage.removeItem(LOCAL_CART_KEY);
+    return writeLocalCart(createLocalCart());
   }
 
   const cart = await loadRemoteCart();
-  const { error } = await supabase.from('cart_items').delete().eq('cart_id', cart.id);
-  if (error) throw new Error(`Unable to clear your cart: ${error.message}`);
-  await touchRemoteCart(cart.id);
-  return loadRemoteCart();
+  const { error } = await supabase.from('carts').delete().eq('id', cart.id);
+  if (error) throw new Error(`Unable to delete your cart: ${error.message}`);
+  return createLocalCart();
 }
 
 export async function markCartWhatsAppStarted(): Promise<Cart> {
@@ -335,4 +334,10 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
     userId: row.user_id,
     createdAt: row.created_at,
   }));
+}
+
+export async function deleteAdminCart(cartId: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { error } = await supabase.from('carts').delete().eq('id', cartId);
+  if (error) throw new Error(`Unable to delete the customer cart: ${error.message}`);
 }
