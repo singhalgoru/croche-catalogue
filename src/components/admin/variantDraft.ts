@@ -3,6 +3,7 @@ export interface VariantDraft {
   name: string;
   color: string;
   inStock: boolean;
+  availableQuantity: number;
   imageFile: File | null;
   previewUrl: string | null;
   galleryFiles: File[];
@@ -14,6 +15,7 @@ export const createEmptyVariant = (name = ''): VariantDraft => ({
   name,
   color: '#f6c453',
   inStock: true,
+  availableQuantity: 1,
   imageFile: null,
   previewUrl: null,
   galleryFiles: [],

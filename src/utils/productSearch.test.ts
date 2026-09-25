@@ -17,6 +17,7 @@ const product: Product = {
       name: 'Pink overalls',
       color: '#f6c453',
       inStock: true,
+      availableQuantity: 1,
       image: '/bunny.jpg',
       imagePath: 'bunny.jpg',
       gallery: [],

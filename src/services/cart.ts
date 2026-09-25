@@ -265,6 +265,10 @@ export async function updateCartItemQuantity(itemId: string, quantity: number): 
 export async function removeCartItem(itemId: string): Promise<Cart> {
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
+    if (current.items.length === 1 && current.items[0].id === itemId) {
+      localStorage.removeItem(LOCAL_CART_KEY);
+      return createLocalCart();
+    }
     return writeLocalCart({
       ...refreshLocalCart(current),
       items: current.items.filter((item) => item.id !== itemId),
@@ -272,6 +276,12 @@ export async function removeCartItem(itemId: string): Promise<Cart> {
   }
 
   const cart = await loadRemoteCart();
+  const isLastItem = cart.items.length === 1 && cart.items[0].id === itemId;
+  if (isLastItem) {
+    const { error } = await supabase.from('carts').delete().eq('id', cart.id);
+    if (error) throw new Error(`Unable to delete the empty cart: ${error.message}`);
+    return createLocalCart();
+  }
   const { error } = await supabase
     .from('cart_items')
     .delete()
@@ -329,11 +339,13 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
     .gte('expires_at', new Date().toISOString())
     .order('updated_at', { ascending: false });
   if (error) throw new Error(`Unable to load customer carts: ${error.message}`);
-  return (data as CartRow[]).map((row) => ({
-    ...mapCart(row),
-    userId: row.user_id,
-    createdAt: row.created_at,
-  }));
+  return (data as CartRow[])
+    .filter((row) => (row.cart_items?.length ?? 0) > 0)
+    .map((row) => ({
+      ...mapCart(row),
+      userId: row.user_id,
+      createdAt: row.created_at,
+    }));
 }
 
 export async function deleteAdminCart(cartId: string): Promise<void> {

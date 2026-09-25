@@ -298,15 +298,47 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   const lavender = rose.getByRole('group', { name: 'Lavender variant' });
   await lavender.getByRole('button', { name: 'Edit' }).click();
   await lavender.getByLabel('Variant name').fill('Lilac');
-  await lavender.getByLabel('In stock').uncheck();
+  await lavender.getByLabel('Stock status').selectOption('out-of-stock');
+  await lavender.getByLabel('Available quantity').fill('4');
   await lavender.getByRole('button', { name: 'Save variant' }).click();
   await expect(page.getByText('“Lilac” was updated.')).toBeVisible();
+  expect(state.products[0].product_variants.at(-1)).toMatchObject({
+    in_stock: false,
+    available_quantity: 4,
+  });
 
   const lilac = rose.getByRole('group', { name: 'Lilac variant' });
   await lilac.getByRole('button', { name: 'Remove' }).click();
   await lilac.getByRole('button', { name: 'Yes, remove' }).click();
   await expect(page.getByText('“Lilac” was removed from Rose Charm.')).toBeVisible();
   expect(state.products[0].product_variants).toHaveLength(2);
+});
+
+test('records confirmed sales and marks depleted variants sold out', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+  const rosePink = rose.getByRole('group', { name: 'Rose Pink variant' });
+
+  await rosePink.getByLabel('Sold quantity for Rose Pink').fill('2');
+  await rosePink.getByRole('button', { name: 'Record sale for Rose Pink' }).click();
+  await expect(page.getByText('Recorded 2 sold for “Rose Pink”. 1 remaining.')).toBeVisible();
+  expect(state.products[0].product_variants[0]).toMatchObject({
+    available_quantity: 1,
+    in_stock: true,
+  });
+
+  await rosePink.getByRole('button', { name: 'Record sale for Rose Pink' }).click();
+  await expect(page.getByText('Recorded 1 sold for “Rose Pink”. 0 remaining.')).toBeVisible();
+  await expect(rosePink.getByText('Out of stock · 0 available')).toBeVisible();
+  expect(state.products[0].product_variants[0]).toMatchObject({
+    available_quantity: 0,
+    in_stock: false,
+  });
 });
 
 test('enhances an already uploaded variant main image with AI', async ({ page }) => {

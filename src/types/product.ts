@@ -17,6 +17,7 @@ export interface ProductVariant {
   name: string;
   color: string;
   inStock: boolean;
+  availableQuantity: number;
   image: string;
   imagePath: string;
   /** Additional angle photos (e.g. top view, side view) shown alongside the main image. */

@@ -7,6 +7,7 @@ import {
   replaceVariantGalleryImage,
   reorderProductVariants,
   reorderVariantGalleryImages,
+  recordVariantSale,
   setVariantMainImage,
   updateProductVariant,
   type ManagedProduct,
@@ -30,6 +31,7 @@ interface Draft {
   name: string;
   color: string;
   inStock: boolean;
+  availableQuantity: number;
   imageFile: File | null;
   previewUrl: string | null;
   galleryFiles: File[];
@@ -67,6 +69,7 @@ const emptyDraft = (): Draft => ({
   name: '',
   color: '#f6c453',
   inStock: true,
+  availableQuantity: 1,
   imageFile: null,
   previewUrl: null,
   galleryFiles: [],
@@ -77,6 +80,7 @@ const draftFromVariant = (variant: ProductVariant): Draft => ({
   name: variant.name,
   color: variant.color,
   inStock: variant.inStock,
+  availableQuantity: variant.availableQuantity,
   imageFile: null,
   previewUrl: null,
   galleryFiles: [],
@@ -106,6 +110,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     useState<ExistingImageCreation | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saleQuantities, setSaleQuantities] = useState<Record<string, number>>({});
 
   const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -289,6 +294,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         name: variant.name,
         color: variant.color,
         inStock: variant.inStock,
+        availableQuantity: variant.availableQuantity,
         imageFile: file,
       });
       setExistingVariantEnhancement(null);
@@ -543,6 +549,27 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     }
   };
 
+  const saveSale = async (variant: ProductVariant) => {
+    const soldQuantity = saleQuantities[variant.id] ?? 1;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await recordVariantSale(product, variant, soldQuantity);
+      setSaleQuantities((current) => ({ ...current, [variant.id]: 1 }));
+      await onSaved(
+        saved,
+        `Recorded ${soldQuantity} sold for “${variant.name}”. ${Math.max(
+          variant.availableQuantity - soldQuantity,
+          0,
+        )} remaining.`,
+      );
+    } catch (saleError) {
+      setError(saleError instanceof Error ? saleError.message : 'Unable to record the sale.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const fields = (requiresImage: boolean) => (
     <div className="grid min-w-0 gap-3 sm:grid-cols-2">
       <label className="min-w-0 text-sm font-semibold text-cocoa">
@@ -589,16 +616,42 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           />
         </div>
       </label>
-      <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-cocoa">
-        <input
-          type="checkbox"
-          checked={draft.inStock}
+      <label className="min-w-0 text-sm font-semibold text-cocoa">
+        Stock status
+        <select
+          value={draft.inStock ? 'in-stock' : 'out-of-stock'}
           onChange={(event) =>
-            setDraft((current) => ({ ...current, inStock: event.target.checked }))
+            setDraft((current) => ({
+              ...current,
+              inStock: event.target.value === 'in-stock',
+              ...(event.target.value === 'in-stock' && current.availableQuantity === 0
+                ? { availableQuantity: 1 }
+                : {}),
+            }))
           }
-          className="h-4 w-4 accent-cocoa"
+          className="mt-1 w-full rounded-xl border border-mustard/60 bg-white px-3 py-2"
+        >
+          <option value="in-stock">In stock</option>
+          <option value="out-of-stock">Out of stock</option>
+        </select>
+      </label>
+      <label className="min-w-0 text-sm font-semibold text-cocoa">
+        Available quantity
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={draft.availableQuantity}
+          onChange={(event) => {
+            const availableQuantity = Math.max(0, Math.round(event.target.valueAsNumber || 0));
+            setDraft((current) => ({
+              ...current,
+              availableQuantity,
+              inStock: availableQuantity > 0 && current.inStock,
+            }));
+          }}
+          className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
         />
-        In stock
       </label>
       {draft.imageFile && (
         <ImageGenerationPanel
@@ -775,7 +828,8 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                     )}
                   </div>
                   <p className={`text-xs ${variant.inStock ? 'text-green-700' : 'text-cocoa/50'}`}>
-                    {variant.inStock ? 'In stock' : 'Sold out'}
+                    {variant.inStock ? 'In stock' : 'Out of stock'} · {variant.availableQuantity}{' '}
+                    available
                   </p>
                 </div>
               </div>
@@ -1106,6 +1160,39 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                   </div>
                 </div>
               )}
+            </div>
+            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-mustard/20 pt-3">
+              <label className="text-xs font-semibold text-cocoa">
+                Sold quantity for {variant.name}
+                <input
+                  type="number"
+                  min="1"
+                  max={variant.availableQuantity}
+                  step="1"
+                  value={saleQuantities[variant.id] ?? 1}
+                  onChange={(event) =>
+                    setSaleQuantities((current) => ({
+                      ...current,
+                      [variant.id]: Math.max(1, Math.round(event.target.valueAsNumber || 1)),
+                    }))
+                  }
+                  disabled={isBusy || variant.availableQuantity === 0}
+                  className="mt-1 block w-24 rounded-xl border border-mustard/60 px-3 py-2 text-sm"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void saveSale(variant)}
+                disabled={
+                  isBusy ||
+                  variant.availableQuantity === 0 ||
+                  (saleQuantities[variant.id] ?? 1) > variant.availableQuantity
+                }
+                className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
+                aria-label={`Record sale for ${variant.name}`}
+              >
+                Record sale
+              </button>
             </div>
 
             {editingId === variant.id && (

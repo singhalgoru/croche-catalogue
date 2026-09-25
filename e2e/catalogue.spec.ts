@@ -154,7 +154,7 @@ test('decreases and removes an individual variant from the cart', async ({ page 
     .getByRole('button', { name: 'Remove Rose Charm — Rose Pink from cart' })
     .click();
   await expect(cartDialog.getByText('Your cart is empty')).toBeVisible();
-  await expect.poll(() => catalogueState.carts[0]?.cart_items.length).toBe(0);
+  await expect.poll(() => catalogueState.carts.length).toBe(0);
 });
 
 test('filters, searches, opens products, and exposes customer contact links', async ({ page }) => {

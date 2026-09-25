@@ -14,6 +14,7 @@ interface ProductVariantRow {
   name: string;
   color: string;
   in_stock: boolean;
+  available_quantity: number;
   image_path: string;
   image_url: string;
   sort_order: number;
@@ -42,6 +43,7 @@ export interface NewVariant {
   name: string;
   color: string;
   inStock: boolean;
+  availableQuantity: number;
   imageFile: File;
   /** Additional angle photos (e.g. top view, side view) uploaded alongside the main image. */
   galleryFiles?: File[];
@@ -78,11 +80,12 @@ export interface VariantUpdate {
   name: string;
   color: string;
   inStock: boolean;
+  availableQuantity: number;
   imageFile?: File | null;
 }
 
 const VARIANT_COLUMNS =
-  'id, name, color, in_stock, image_path, image_url, sort_order, product_variant_images(id, image_path, image_url, sort_order)';
+  'id, name, color, in_stock, available_quantity, image_path, image_url, sort_order, product_variant_images(id, image_path, image_url, sort_order)';
 const PRODUCT_COLUMNS =
   `id, name, category, description, featured, price, show_price, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
 
@@ -106,6 +109,7 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   name: row.name,
   color: row.color,
   inStock: row.in_stock,
+  availableQuantity: row.available_quantity,
   image: row.image_url,
   imagePath: row.image_path,
   gallery: [...(row.product_variant_images ?? [])]
@@ -122,6 +126,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     name: 'Default',
     color: row.color,
     inStock: row.in_stock,
+    availableQuantity: row.in_stock ? 1 : 0,
     image: row.image_url,
     imagePath: row.image_path,
     gallery: [],
@@ -279,7 +284,8 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
           product_id: productId,
           name: variant.name.trim(),
           color: variant.color,
-          in_stock: variant.inStock,
+          in_stock: variant.inStock && variant.availableQuantity > 0,
+          available_quantity: variant.availableQuantity,
           image_path: uploads[index].imagePath,
           image_url: uploads[index].imageUrl,
           sort_order: index,
@@ -361,7 +367,8 @@ export async function addProductVariant(
         product_id: product.id,
         name: variant.name.trim(),
         color: variant.color,
-        in_stock: variant.inStock,
+        in_stock: variant.inStock && variant.availableQuantity > 0,
+        available_quantity: variant.availableQuantity,
         image_path: upload.imagePath,
         image_url: upload.imageUrl,
         sort_order: product.variants.length,
@@ -518,7 +525,8 @@ export async function updateProductVariant(
     .update({
       name: update.name.trim(),
       color: update.color,
-      in_stock: update.inStock,
+      in_stock: update.inStock && update.availableQuantity > 0,
+      available_quantity: update.availableQuantity,
       ...(upload ? { image_path: upload.imagePath, image_url: upload.imageUrl } : {}),
       updated_at: new Date().toISOString(),
     })
@@ -530,6 +538,26 @@ export async function updateProductVariant(
   }
   if (upload) await removeManagedImage(variant.imagePath, user.id);
   await syncProductSummary(product.id);
+  return fetchProductById(product.id);
+}
+
+export async function recordVariantSale(
+  product: ManagedProduct,
+  variant: ProductVariant,
+  soldQuantity: number,
+): Promise<ManagedProduct> {
+  const quantity = Math.round(soldQuantity);
+  if (quantity < 1) throw new Error('Sold quantity must be at least 1.');
+  if (quantity > variant.availableQuantity) {
+    throw new Error(`Only ${variant.availableQuantity} item(s) are available.`);
+  }
+
+  const { client } = await getCurrentUser();
+  const { error } = await client.rpc('record_variant_sale', {
+    target_variant_id: variant.id,
+    sold_quantity: quantity,
+  });
+  if (error) throw new Error(`Unable to record the sale: ${error.message}`);
   return fetchProductById(product.id);
 }
 

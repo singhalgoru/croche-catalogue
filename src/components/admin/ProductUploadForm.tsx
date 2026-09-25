@@ -123,6 +123,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           name: variant.name.trim(),
           color: variant.color,
           inStock: variant.inStock,
+          availableQuantity: variant.availableQuantity,
           imageFile: variant.imageFile!,
           galleryFiles: variant.galleryFiles,
         })),

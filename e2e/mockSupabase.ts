@@ -7,6 +7,7 @@ export interface ProductRow {
   description: string;
   color: string;
   in_stock: boolean;
+  available_quantity: number;
   image_path: string;
   image_url: string;
   published: boolean;
@@ -151,6 +152,7 @@ const defaultProducts = (): ProductRow[] => [
         name: 'Rose Pink',
         color: '#f6c453',
         in_stock: true,
+        available_quantity: 3,
         image_path: 'seed/rose.jpg',
         image_url: image,
         sort_order: 0,
@@ -170,6 +172,7 @@ const defaultProducts = (): ProductRow[] => [
         name: 'Ivory',
         color: '#fffaf0',
         in_stock: false,
+        available_quantity: 0,
         image_path: 'seed/rose-ivory.jpg',
         image_url: image,
         sort_order: 1,
@@ -199,6 +202,7 @@ const defaultProducts = (): ProductRow[] => [
         name: 'Default',
         color: '#e2a933',
         in_stock: false,
+        available_quantity: 0,
         image_path: 'seed/coaster.jpg',
         image_url: image,
         sort_order: 0,
@@ -228,6 +232,7 @@ const defaultProducts = (): ProductRow[] => [
         name: 'Default',
         color: '#d96c75',
         in_stock: true,
+        available_quantity: 1,
         image_path: 'seed/heart.jpg',
         image_url: image,
         sort_order: 0,
@@ -299,6 +304,25 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
 
     if (pathname === '/rest/v1/rpc/is_catalogue_admin') {
       await json(route, currentUser.is_anonymous !== true);
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/record_variant_sale') {
+      const body = getRequestBody<{ target_variant_id: string; sold_quantity: number }>(route);
+      const product = state.products.find((item) =>
+        item.product_variants.some((variant) => variant.id === body.target_variant_id),
+      );
+      const variant = product?.product_variants.find(
+        (item) => item.id === body.target_variant_id,
+      );
+      if (!product || !variant || body.sold_quantity < 1 || body.sold_quantity > variant.available_quantity) {
+        await json(route, { message: 'Not enough inventory is available for this sale.' }, 400);
+        return;
+      }
+      variant.available_quantity -= body.sold_quantity;
+      variant.in_stock = variant.in_stock && variant.available_quantity > 0;
+      product.in_stock = product.product_variants.some((item) => item.in_stock);
+      await json(route, null);
       return;
     }
 

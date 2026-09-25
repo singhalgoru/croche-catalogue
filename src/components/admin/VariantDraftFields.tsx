@@ -235,17 +235,42 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                   />
                 </div>
               </label>
-              <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-cocoa">
-                <input
-                  type="checkbox"
-                  checked={variant.inStock}
+              <label className="min-w-0 text-sm font-semibold text-cocoa">
+                Stock status
+                <select
+                  value={variant.inStock ? 'in-stock' : 'out-of-stock'}
                   onChange={(event) =>
-                    updateVariant(variant.key, { inStock: event.target.checked })
+                    updateVariant(variant.key, {
+                      inStock: event.target.value === 'in-stock',
+                      ...(event.target.value === 'in-stock' && variant.availableQuantity === 0
+                        ? { availableQuantity: 1 }
+                        : {}),
+                    })
                   }
                   disabled={disabled}
-                  className="h-4 w-4 accent-cocoa"
+                  className="mt-1 w-full rounded-xl border border-mustard/60 bg-white px-3 py-2"
+                >
+                  <option value="in-stock">In stock</option>
+                  <option value="out-of-stock">Out of stock</option>
+                </select>
+              </label>
+              <label className="min-w-0 text-sm font-semibold text-cocoa">
+                Available quantity
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={variant.availableQuantity}
+                  onChange={(event) => {
+                    const availableQuantity = Math.max(0, Math.round(event.target.valueAsNumber || 0));
+                    updateVariant(variant.key, {
+                      availableQuantity,
+                      inStock: availableQuantity > 0 && variant.inStock,
+                    });
+                  }}
+                  disabled={disabled}
+                  className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
                 />
-                In stock
               </label>
               {variant.imageFile && (
                 <ImageGenerationPanel
