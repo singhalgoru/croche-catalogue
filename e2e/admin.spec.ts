@@ -314,7 +314,7 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   expect(state.products[0].product_variants).toHaveLength(2);
 });
 
-test('records confirmed sales and marks depleted variants sold out', async ({ page }) => {
+test('records confirmed sales and restocks depleted variants', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
 
@@ -339,6 +339,16 @@ test('records confirmed sales and marks depleted variants sold out', async ({ pa
     available_quantity: 0,
     in_stock: false,
   });
+
+  await rosePink.getByLabel('Add stock quantity for Rose Pink').fill('5');
+  await rosePink.getByRole('button', { name: 'Add stock for Rose Pink' }).click();
+  await expect(page.getByText('Added 5 to “Rose Pink”. 5 available.')).toBeVisible();
+  await expect(rosePink.getByText('In stock · 5 available')).toBeVisible();
+  expect(state.products[0].product_variants[0]).toMatchObject({
+    available_quantity: 5,
+    in_stock: true,
+  });
+  await expectNoHorizontalOverflow(page);
 });
 
 test('enhances an already uploaded variant main image with AI', async ({ page }) => {

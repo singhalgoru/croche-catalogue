@@ -561,6 +561,23 @@ export async function recordVariantSale(
   return fetchProductById(product.id);
 }
 
+export async function addVariantStock(
+  product: ManagedProduct,
+  variant: ProductVariant,
+  addedQuantity: number,
+): Promise<ManagedProduct> {
+  const quantity = Math.round(addedQuantity);
+  if (quantity < 1) throw new Error('Added quantity must be at least 1.');
+
+  const { client } = await getCurrentUser();
+  const { error } = await client.rpc('add_variant_stock', {
+    target_variant_id: variant.id,
+    added_quantity: quantity,
+  });
+  if (error) throw new Error(`Unable to add stock: ${error.message}`);
+  return fetchProductById(product.id);
+}
+
 export async function reorderProductVariants(
   product: ManagedProduct,
   orderedVariantIds: string[],

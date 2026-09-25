@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import {
+  addVariantStock,
   addProductVariant,
   addVariantGalleryImage,
   deleteProductVariant,
@@ -111,6 +112,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saleQuantities, setSaleQuantities] = useState<Record<string, number>>({});
+  const [stockQuantities, setStockQuantities] = useState<Record<string, number>>({});
 
   const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -570,6 +572,26 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     }
   };
 
+  const saveStock = async (variant: ProductVariant) => {
+    const addedQuantity = stockQuantities[variant.id] ?? 1;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await addVariantStock(product, variant, addedQuantity);
+      setStockQuantities((current) => ({ ...current, [variant.id]: 1 }));
+      await onSaved(
+        saved,
+        `Added ${addedQuantity} to “${variant.name}”. ${
+          variant.availableQuantity + addedQuantity
+        } available.`,
+      );
+    } catch (stockError) {
+      setError(stockError instanceof Error ? stockError.message : 'Unable to add stock.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const fields = (requiresImage: boolean) => (
     <div className="grid min-w-0 gap-3 sm:grid-cols-2">
       <label className="min-w-0 text-sm font-semibold text-cocoa">
@@ -833,7 +855,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                   </p>
                 </div>
               </div>
-              <div className="flex shrink-0 gap-4 self-end sm:self-auto">
+              <div className="flex w-full flex-wrap gap-x-4 gap-y-2 sm:w-auto sm:justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -1161,38 +1183,70 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                 </div>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-mustard/20 pt-3">
-              <label className="text-xs font-semibold text-cocoa">
-                Sold quantity for {variant.name}
-                <input
-                  type="number"
-                  min="1"
-                  max={variant.availableQuantity}
-                  step="1"
-                  value={saleQuantities[variant.id] ?? 1}
-                  onChange={(event) =>
-                    setSaleQuantities((current) => ({
-                      ...current,
-                      [variant.id]: Math.max(1, Math.round(event.target.valueAsNumber || 1)),
-                    }))
+            <div className="mt-3 grid gap-3 border-t border-mustard/20 pt-3 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-wrap items-end gap-2">
+                <label className="min-w-0 flex-1 text-xs font-semibold text-cocoa">
+                  Add stock quantity
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={stockQuantities[variant.id] ?? 1}
+                    onChange={(event) =>
+                      setStockQuantities((current) => ({
+                        ...current,
+                        [variant.id]: Math.max(1, Math.round(event.target.valueAsNumber || 1)),
+                      }))
+                    }
+                    disabled={isBusy}
+                    className="mt-1 block w-full rounded-xl border border-mustard/60 px-3 py-2 text-sm"
+                    aria-label={`Add stock quantity for ${variant.name}`}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void saveStock(variant)}
+                  disabled={isBusy}
+                  className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50"
+                  aria-label={`Add stock for ${variant.name}`}
+                >
+                  Add stock
+                </button>
+              </div>
+              <div className="flex min-w-0 flex-wrap items-end gap-2">
+                <label className="min-w-0 flex-1 text-xs font-semibold text-cocoa">
+                  Sold quantity
+                  <input
+                    type="number"
+                    min="1"
+                    max={variant.availableQuantity}
+                    step="1"
+                    value={saleQuantities[variant.id] ?? 1}
+                    onChange={(event) =>
+                      setSaleQuantities((current) => ({
+                        ...current,
+                        [variant.id]: Math.max(1, Math.round(event.target.valueAsNumber || 1)),
+                      }))
+                    }
+                    disabled={isBusy || variant.availableQuantity === 0}
+                    className="mt-1 block w-full rounded-xl border border-mustard/60 px-3 py-2 text-sm"
+                    aria-label={`Sold quantity for ${variant.name}`}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void saveSale(variant)}
+                  disabled={
+                    isBusy ||
+                    variant.availableQuantity === 0 ||
+                    (saleQuantities[variant.id] ?? 1) > variant.availableQuantity
                   }
-                  disabled={isBusy || variant.availableQuantity === 0}
-                  className="mt-1 block w-24 rounded-xl border border-mustard/60 px-3 py-2 text-sm"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void saveSale(variant)}
-                disabled={
-                  isBusy ||
-                  variant.availableQuantity === 0 ||
-                  (saleQuantities[variant.id] ?? 1) > variant.availableQuantity
-                }
-                className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
-                aria-label={`Record sale for ${variant.name}`}
-              >
-                Record sale
-              </button>
+                  className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
+                  aria-label={`Record sale for ${variant.name}`}
+                >
+                  Record sale
+                </button>
+              </div>
             </div>
 
             {editingId === variant.id && (

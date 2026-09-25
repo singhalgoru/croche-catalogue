@@ -319,9 +319,29 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         await json(route, { message: 'Not enough inventory is available for this sale.' }, 400);
         return;
       }
+
       variant.available_quantity -= body.sold_quantity;
       variant.in_stock = variant.in_stock && variant.available_quantity > 0;
       product.in_stock = product.product_variants.some((item) => item.in_stock);
+      await json(route, null);
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/add_variant_stock') {
+      const body = getRequestBody<{ target_variant_id: string; added_quantity: number }>(route);
+      const product = state.products.find((item) =>
+        item.product_variants.some((variant) => variant.id === body.target_variant_id),
+      );
+      const variant = product?.product_variants.find(
+        (item) => item.id === body.target_variant_id,
+      );
+      if (!product || !variant || body.added_quantity < 1) {
+        await json(route, { message: 'Unable to add stock.' }, 400);
+        return;
+      }
+      variant.available_quantity += body.added_quantity;
+      variant.in_stock = true;
+      product.in_stock = true;
       await json(route, null);
       return;
     }
