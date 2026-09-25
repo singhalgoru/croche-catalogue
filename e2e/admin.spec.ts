@@ -230,6 +230,40 @@ test('controls product price visibility from the admin console', async ({ page }
   expect(state.products.find((product) => product.id === 'product-3')?.show_price).toBe(false);
 });
 
+test('searches managed products by product, category, description, and variant', async ({
+  page,
+}) => {
+  await installMockSupabase(page);
+  await signIn(page);
+
+  const search = page.getByLabel('Search products');
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  const coaster = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
+  });
+
+  await search.fill('Ivory');
+  await expect(rose).toBeVisible();
+  await expect(coaster).toBeHidden();
+  await expect(page.getByText('Showing 1 of 3 products')).toBeVisible();
+
+  await search.fill('home decor');
+  await expect(coaster).toBeVisible();
+  await expect(rose).toBeHidden();
+
+  await search.fill('newly published');
+  await expect(page.getByRole('heading', { name: 'New Heart Charm', exact: true })).toBeVisible();
+
+  await search.fill('does not exist');
+  await expect(page.getByText('No products match “does not exist”.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  await expect(page.getByText('Showing 3 of 3 products')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('reorders variants and additional angle photos', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);

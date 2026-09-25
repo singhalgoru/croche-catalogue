@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   deleteProduct,
   fetchManagedProducts,
@@ -54,6 +54,20 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    if (!query) return products;
+    return products.filter((product) =>
+      [
+        product.name,
+        product.category,
+        product.description,
+        ...product.variants.map((variant) => variant.name),
+      ].some((value) => value.toLocaleLowerCase().includes(query)),
+    );
+  }, [products, searchQuery]);
 
   const copyProductLink = async (product: ManagedProduct) => {
     const url = toProductUrl(product);
@@ -185,13 +199,48 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         </p>
       )}
 
+      {products.length > 0 && (
+        <div className="mt-5">
+          <label className="block text-sm font-semibold text-cocoa" htmlFor="admin-product-search">
+            Search products
+          </label>
+          <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+            <input
+              id="admin-product-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by product, category, description, or variant"
+              className="min-w-0 flex-1 rounded-xl border border-mustard/60 px-3 py-2"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="self-start rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-cocoa/55" aria-live="polite">
+            Showing {filteredProducts.length} of {products.length} product
+            {products.length === 1 ? '' : 's'}
+          </p>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="py-10 text-center text-cocoa/60">Loading products…</p>
       ) : products.length === 0 ? (
         <p className="py-10 text-center text-cocoa/60">No products have been published yet.</p>
+      ) : filteredProducts.length === 0 ? (
+        <p className="py-10 text-center text-cocoa/60">
+          No products match “{searchQuery.trim()}”.
+        </p>
       ) : (
         <div className="mt-5 space-y-4">
-          {products.map((product) => {
+          {filteredProducts.map((product) => {
             const isEditing = editingId === product.id && draft;
             const isDeleting = deleteId === product.id;
             const isBusy = busyId === product.id;
