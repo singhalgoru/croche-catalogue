@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installMockSupabase } from './mockSupabase';
+import { installMockSupabase, type MockCatalogueState } from './mockSupabase';
 
 const touch = (x: number, y: number, identifier = 1) => ({
   identifier,
@@ -11,10 +11,48 @@ const touch = (x: number, y: number, identifier = 1) => ({
   screenY: y,
 });
 
+let catalogueState: MockCatalogueState;
+
 test.beforeEach(async ({ page }) => {
-  await installMockSupabase(page);
+  catalogueState = await installMockSupabase(page);
   await page.goto('./', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
+});
+
+test('persists an anonymous cart and sends the complete enquiry to WhatsApp', async ({ page }) => {
+  await page.getByRole('button', { name: /Rose Charm/ }).click();
+  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await productDialog.getByRole('button', { name: 'Add to cart' }).click();
+  await expect(productDialog.getByText('Added to your cart.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toBeVisible();
+  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
+  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  await expect(cartDialog.getByText('Rose Charm')).toBeVisible();
+  await expect(cartDialog.getByText('Rose Pink')).toBeVisible();
+  await cartDialog.getByRole('button', { name: 'Increase quantity of Rose Charm' }).click();
+  await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
+
+  const enquiry = cartDialog.getByRole('link', {
+    name: 'Enquire about cart on WhatsApp',
+  });
+  await expect(enquiry).toHaveAttribute('href', /Rose%20Charm/);
+  await expect(enquiry).toHaveAttribute('href', /Quantity%3A%202/);
+  await expect(enquiry).toHaveAttribute('href', /Cart%20reference%3A%20CRT-TEST0001/);
+  await enquiry.click();
+  await expect.poll(() => catalogueState.carts[0]?.status).toBe('whatsapp_started');
+  expect(catalogueState.carts[0].cart_items[0]).toMatchObject({
+    product_name: 'Rose Charm',
+    variant_name: 'Rose Pink',
+    quantity: 2,
+  });
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open cart with 2 items' }).click();
+  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByText('Rose Charm')).toBeVisible();
 });
 
 test('filters, searches, opens products, and exposes customer contact links', async ({ page }) => {

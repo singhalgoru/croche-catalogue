@@ -60,6 +60,43 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   expect(state.categories).not.toContain('Tote Bags');
 });
 
+test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const now = new Date().toISOString();
+  state.carts.push({
+    id: 'cart-admin-view',
+    user_id: 'anonymous-customer',
+    reference: 'CRT-CUSTOMER',
+    status: 'whatsapp_started',
+    created_at: now,
+    updated_at: now,
+    expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    whatsapp_started_at: now,
+    cart_items: [
+      {
+        id: 'cart-item-admin-view',
+        cart_id: 'cart-admin-view',
+        product_id: 'product-1',
+        variant_id: 'variant-1',
+        product_name: 'Rose Charm',
+        variant_name: 'Rose Pink',
+        image_url: 'http://supabase.test/storage/v1/object/public/product-images/seed/mock.png',
+        unit_price: 349,
+        quantity: 2,
+        created_at: now,
+        updated_at: now,
+      },
+    ],
+  });
+
+  await signIn(page);
+  await page.getByRole('button', { name: /Anonymous cart activity/ }).click();
+  await expect(page.getByRole('heading', { name: 'CRT-CUSTOMER' })).toBeVisible();
+  await expect(page.getByText('Rose Pink · Qty 2')).toBeVisible();
+  await expect(page.getByText('WhatsApp opened')).toBeVisible();
+  await expect(page.getByText('Estimated total: ₹698')).toBeVisible();
+});
+
 test('uses Gemini suggestions to publish a product', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);

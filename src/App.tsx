@@ -6,7 +6,9 @@ import CategoryFilter from './components/CategoryFilter';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
 import ProductModal from './components/ProductModal';
+import CartDrawer from './components/CartDrawer';
 import AdminPage from './components/admin/AdminPage';
+import { useCart } from './hooks/useCart';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
@@ -22,6 +24,8 @@ function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const cart = useCart(!isAdminPage);
 
   // Registered once for the whole app so both the shop and admin console
   // (see AdminPage.tsx) are installable as home-screen apps.
@@ -63,9 +67,9 @@ function App() {
   useEffect(() => {
     const reference = pendingProductReference.current;
     if (!reference || products.length === 0) return;
-    pendingProductReference.current = null;
     const match = findProductByReference(products, reference);
     if (!match) return;
+    pendingProductReference.current = null;
     trackProductSelected(match);
     // eslint-disable-next-line react/set-state-in-effect -- syncs the opened product with the incoming URL
     setSelectedProduct(match);
@@ -154,7 +158,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header cartItemCount={cart.itemCount} onOpenCart={() => setIsCartOpen(true)} />
 
       <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
         <SearchBar
@@ -196,6 +200,30 @@ function App() {
           onClose={() => setSelectedProduct(null)}
           onPrevious={showPreviousProduct}
           onNext={showNextProduct}
+          onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
+          isCartBusy={cart.isBusy}
+        />
+      )}
+      {isCartOpen && (
+        <CartDrawer
+          cart={cart.cart}
+          products={products}
+          isLoading={cart.isLoading}
+          isBusy={cart.isBusy}
+          error={cart.error}
+          onClose={() => setIsCartOpen(false)}
+          onUpdateQuantity={(itemId, quantity) => {
+            void cart.updateQuantity(itemId, quantity);
+          }}
+          onRemove={(itemId) => {
+            void cart.removeItem(itemId);
+          }}
+          onClear={() => {
+            void cart.clear();
+          }}
+          onWhatsAppStarted={() => {
+            void cart.markWhatsAppStarted();
+          }}
         />
       )}
     </div>

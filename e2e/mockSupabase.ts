@@ -42,6 +42,33 @@ export interface MockCatalogueState {
   categories: string[];
   categorySettings: Record<string, { priority: number }>;
   products: ProductRow[];
+  carts: CartRow[];
+}
+
+export interface CartItemRow {
+  id: string;
+  cart_id: string;
+  product_id: string;
+  variant_id: string;
+  product_name: string;
+  variant_name: string;
+  image_url: string;
+  unit_price: number | null;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CartRow {
+  id: string;
+  user_id: string;
+  reference: string;
+  status: 'active' | 'whatsapp_started';
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  whatsapp_started_at: string | null;
+  cart_items: CartItemRow[];
 }
 
 const image =
@@ -68,18 +95,28 @@ const adminUser = {
   is_anonymous: false,
 };
 
+const anonymousUser = {
+  ...adminUser,
+  id: 'anonymous-user',
+  email: '',
+  email_confirmed_at: null,
+  confirmed_at: null,
+  app_metadata: { provider: 'anonymous', providers: ['anonymous'] },
+  is_anonymous: true,
+};
+
 const encodeTokenPart = (value: object) =>
   Buffer.from(JSON.stringify(value)).toString('base64url');
 
-const createAccessToken = () => {
+const createAccessToken = (user = adminUser) => {
   const now = Math.floor(Date.now() / 1000);
   return `${encodeTokenPart({ alg: 'HS256', typ: 'JWT' })}.${encodeTokenPart({
     aud: 'authenticated',
     exp: now + 3600,
     iat: now,
     role: 'authenticated',
-    sub: adminUser.id,
-    email: adminUser.email,
+    sub: user.id,
+    email: user.email,
   })}.test-signature`;
 };
 
@@ -211,7 +248,9 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       'Empty Category': { priority: 30 },
     },
     products: defaultProducts(),
+    carts: [],
   };
+  let currentUser = adminUser;
 
   await page.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, (route) => route.abort());
 
@@ -221,8 +260,9 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     const { pathname } = url;
 
     if (pathname === '/auth/v1/token') {
+      currentUser = adminUser;
       const session = {
-        access_token: createAccessToken(),
+        access_token: createAccessToken(adminUser),
         token_type: 'bearer',
         expires_in: 3600,
         expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -233,8 +273,22 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/auth/v1/signup') {
+      currentUser = anonymousUser;
+      const session = {
+        access_token: createAccessToken(anonymousUser),
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        refresh_token: 'anonymous-refresh-token',
+        user: anonymousUser,
+      };
+      await json(route, session);
+      return;
+    }
+
     if (pathname === '/auth/v1/user') {
-      await json(route, adminUser);
+      await json(route, currentUser);
       return;
     }
 
@@ -244,8 +298,97 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     }
 
     if (pathname === '/rest/v1/rpc/is_catalogue_admin') {
-      await json(route, true);
+      await json(route, currentUser.is_anonymous !== true);
       return;
+    }
+
+    if (pathname === '/rest/v1/carts') {
+      const userId = url.searchParams.get('user_id')?.replace(/^eq\./, '');
+      const cartId = url.searchParams.get('id')?.replace(/^eq\./, '');
+      const wantsSingle = request.headers()['accept']?.includes('application/vnd.pgrst.object+json');
+
+      if (request.method() === 'GET') {
+        const carts = state.carts.filter(
+          (cart) => (!userId || cart.user_id === userId) && (!cartId || cart.id === cartId),
+        );
+        await json(route, wantsSingle ? (carts[0] ?? null) : carts);
+        return;
+      }
+
+      if (request.method() === 'POST') {
+        const body = getRequestBody<{ user_id: string }>(route);
+        const now = new Date().toISOString();
+        const cart: CartRow = {
+          id: `cart-${state.carts.length + 1}`,
+          user_id: body.user_id,
+          reference: `CRT-TEST000${state.carts.length + 1}`,
+          status: 'active',
+          created_at: now,
+          updated_at: now,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          whatsapp_started_at: null,
+          cart_items: [],
+        };
+        state.carts.push(cart);
+        await json(route, wantsSingle ? cart : [cart], 201);
+        return;
+      }
+
+      if (request.method() === 'PATCH') {
+        const changes = getRequestBody<Partial<CartRow>>(route);
+        const cart = state.carts.find((candidate) => candidate.id === cartId);
+        if (cart) Object.assign(cart, changes);
+        await json(route, wantsSingle ? cart : cart ? [cart] : []);
+        return;
+      }
+    }
+
+    if (pathname === '/rest/v1/cart_items') {
+      const cartId = url.searchParams.get('cart_id')?.replace(/^eq\./, '');
+      const itemId = url.searchParams.get('id')?.replace(/^eq\./, '');
+      const cart = state.carts.find((candidate) => candidate.id === cartId);
+
+      if (request.method() === 'POST') {
+        const body = getRequestBody<Omit<CartItemRow, 'id' | 'created_at'>>(route);
+        const targetCart = state.carts.find((candidate) => candidate.id === body.cart_id);
+        if (!targetCart) {
+          await json(route, { message: 'Cart not found' }, 404);
+          return;
+        }
+        const existing = targetCart.cart_items.find(
+          (item) =>
+            item.product_id === body.product_id && item.variant_id === body.variant_id,
+        );
+        if (existing) {
+          Object.assign(existing, body);
+        } else {
+          targetCart.cart_items.push({
+            ...body,
+            id: `cart-item-${Date.now()}`,
+            created_at: new Date().toISOString(),
+          });
+        }
+        await json(route, []);
+        return;
+      }
+
+      const containingCart =
+        cart ?? state.carts.find((candidate) => candidate.cart_items.some((item) => item.id === itemId));
+
+      if (request.method() === 'PATCH' && containingCart) {
+        const item = containingCart.cart_items.find((candidate) => candidate.id === itemId);
+        if (item) Object.assign(item, getRequestBody<Partial<CartItemRow>>(route));
+        await json(route, []);
+        return;
+      }
+
+      if (request.method() === 'DELETE' && containingCart) {
+        containingCart.cart_items = containingCart.cart_items.filter(
+          (item) => (itemId ? item.id !== itemId : false),
+        );
+        await json(route, []);
+        return;
+      }
     }
 
     if (pathname === '/rest/v1/rpc/rename_catalogue_category') {

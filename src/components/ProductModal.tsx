@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
-import type { Product } from '../types/product';
+import type { Product, ProductVariant } from '../types/product';
 import { trackEvent, trackProduct3DView, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
@@ -16,6 +16,8 @@ interface Props {
   onClose: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  onAddToCart?: (product: Product, variant: ProductVariant) => Promise<boolean>;
+  isCartBusy?: boolean;
 }
 
 interface GalleryImage {
@@ -31,6 +33,8 @@ export default function ProductModal({
   onClose,
   onPrevious,
   onNext,
+  onAddToCart,
+  isCartBusy = false,
 }: Props) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,6 +43,7 @@ export default function ProductModal({
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [is3DOpen, setIs3DOpen] = useState(false);
   const [activeImageId, setActiveImageId] = useState('main');
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
@@ -434,6 +439,26 @@ export default function ProductModal({
             <WhatsAppIcon />
             Order / Enquire on WhatsApp
           </a>
+          {onAddToCart && selectedVariant && (
+            <button
+              type="button"
+              onClick={() => {
+                setCartMessage(null);
+                void onAddToCart(product, selectedVariant).then((added) => {
+                  setCartMessage(
+                    added ? 'Added to your cart.' : 'Unable to add this item to your cart.',
+                  );
+                });
+              }}
+              disabled={isCartBusy || !selectedVariant.inStock}
+              className="mt-3 w-full rounded-full border-2 border-cocoa py-2 font-semibold text-cocoa transition-colors hover:bg-cocoa hover:text-cream disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isCartBusy ? 'Updating cart…' : selectedVariant.inStock ? 'Add to cart' : 'Sold out'}
+            </button>
+          )}
+          {cartMessage && (
+            <p className="mt-2 text-center text-sm font-semibold text-green-700">{cartMessage}</p>
+          )}
           <button
             type="button"
             onClick={onClose}

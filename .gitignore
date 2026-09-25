@@ -17,6 +17,7 @@ test-results
 .env
 .env.*
 !.env.example
+supabase/.temp/
 
 # Reference/mockup images and clips that aren't real product photos or
 # aren't used by the catalogue (see public/images/Key chains, ba charms/).

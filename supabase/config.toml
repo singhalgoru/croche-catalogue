@@ -1,5 +1,8 @@
 project_id = "bblsjcjypdxntzlszliy"
 
+[auth]
+enable_anonymous_sign_ins = true
+
 [functions.analyze-product]
 verify_jwt = true
 

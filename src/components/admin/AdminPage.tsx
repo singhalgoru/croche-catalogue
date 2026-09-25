@@ -6,6 +6,7 @@ import { fetchCategorySettings } from '../../services/categories';
 import type { CategorySettings } from '../../types/product';
 import AdminLogin from './AdminLogin';
 import CategoryManager from './CategoryManager';
+import CartManager from './CartManager';
 import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
 
@@ -201,6 +202,7 @@ export default function AdminPage({ onProductPublished }: Props) {
         )}
 
         <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
+        <CartManager />
         <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
         <ProductManager
           categories={categories}

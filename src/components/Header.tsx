@@ -3,9 +3,16 @@ import InstallAppButton from './InstallAppButton';
 interface Props {
   showShippingTicker?: boolean;
   showInstallPrompt?: boolean;
+  cartItemCount?: number;
+  onOpenCart?: () => void;
 }
 
-export default function Header({ showShippingTicker = true, showInstallPrompt = true }: Props) {
+export default function Header({
+  showShippingTicker = true,
+  showInstallPrompt = true,
+  cartItemCount = 0,
+  onOpenCart,
+}: Props) {
   return (
     <header className="bg-cream border-b-4 border-mustard">
       {showShippingTicker && (
@@ -32,7 +39,24 @@ export default function Header({ showShippingTicker = true, showInstallPrompt = 
           Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
           Every piece is stitched with love and shipped across India.
         </p>
-        {showInstallPrompt && <InstallAppButton />}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {showInstallPrompt && <InstallAppButton />}
+          {onOpenCart && (
+            <button
+              type="button"
+              onClick={onOpenCart}
+              className="relative rounded-full bg-cocoa px-5 py-2 text-sm font-semibold text-cream"
+              aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`}
+            >
+              Cart
+              {cartItemCount > 0 && (
+                <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-mustard px-1.5 py-0.5 text-xs font-bold text-cocoa">
+                  {cartItemCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
