@@ -60,7 +60,7 @@ export const metaProductParameters = (product: Product, variant?: ProductVariant
   content_category: product.category,
   content_type: 'product',
   // A value lets Meta optimise towards higher-worth enquiries.
-  ...(product.price !== null && product.price > 0
+  ...(product.showPrice && product.price !== null && product.price > 0
     ? { value: product.price, currency: 'INR' }
     : {}),
 });

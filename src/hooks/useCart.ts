@@ -7,6 +7,7 @@ import {
   removeCartItem,
   updateCartItemQuantity,
 } from '../services/cart';
+import { trackAddToCart } from '../services/analytics';
 import type { Cart } from '../types/cart';
 import type { Product, ProductVariant } from '../types/product';
 
@@ -63,8 +64,11 @@ export function useCart(enabled = true) {
     isLoading,
     isBusy,
     error,
-    addItem: (product: Product, variant: ProductVariant) =>
-      runCartAction(() => addProductToCart(product, variant)),
+    addItem: async (product: Product, variant: ProductVariant) => {
+      const nextCart = await runCartAction(() => addProductToCart(product, variant));
+      if (nextCart) trackAddToCart(product, variant);
+      return nextCart;
+    },
     updateQuantity: (itemId: string, quantity: number) =>
       runCartAction(() => updateCartItemQuantity(itemId, quantity)),
     removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId)),

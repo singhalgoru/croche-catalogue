@@ -67,6 +67,32 @@ export const trackProductViewed = (product: Product, variant?: ProductVariant) =
   trackMetaEvent('ViewContent', metaProductParameters(product, variant));
 };
 
+export const trackAddToCart = (
+  product: Product,
+  variant: ProductVariant,
+  quantity = 1,
+) => {
+  const price = product.showPrice && product.price !== null ? product.price : undefined;
+  trackEvent('add_to_cart', {
+    currency: 'INR',
+    ...(price !== undefined ? { value: price * quantity } : {}),
+    items: [
+      {
+        ...itemParameters(product, variant),
+        quantity,
+        ...(price !== undefined ? { price } : {}),
+      },
+    ],
+  });
+  trackMetaEvent('AddToCart', {
+    ...getCampaignParameters(),
+    ...metaProductParameters(product, variant),
+    variant_id: variant.id,
+    variant_name: variant.name,
+    num_items: quantity,
+  });
+};
+
 export const trackWhatsAppEnquiry = (product: Product, variant?: ProductVariant) => {
   trackEvent('whatsapp_enquiry', {
     product_id: product.id,

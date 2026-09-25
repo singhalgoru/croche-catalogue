@@ -28,6 +28,48 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
     roseCard.getByRole('button', { name: 'Added! — Rose Charm (1 in cart)' }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.dataLayer?.some((entry) => {
+          const values = Array.from(entry as ArrayLike<unknown>);
+          if (values[0] !== 'event' || values[1] !== 'add_to_cart') return false;
+          const parameters = values[2] as {
+            currency?: string;
+            value?: number;
+            items?: Array<Record<string, unknown>>;
+          };
+          return (
+            parameters.currency === 'INR' &&
+            parameters.value === 349 &&
+            parameters.items?.[0]?.item_id === 'product-1' &&
+            parameters.items[0].variant_id === 'variant-1' &&
+            parameters.items[0].quantity === 1 &&
+            parameters.items[0].price === 349
+          );
+        }),
+      ),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.fbq?.queue.some((entry) => {
+          const values = Array.from(entry);
+          if (values[0] !== 'track' || values[1] !== 'AddToCart') return false;
+          const parameters = values[2] as Record<string, unknown>;
+          return (
+            parameters.content_ids?.[0] === 'product-1' &&
+            parameters.variant_id === 'variant-1' &&
+            parameters.variant_name === 'Rose Pink' &&
+            parameters.num_items === 1 &&
+            parameters.value === 349 &&
+            parameters.currency === 'INR'
+          );
+        }),
+      ),
+    )
+    .toBe(true);
 
   await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
   const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });

@@ -249,7 +249,9 @@ test('reorders variants and additional angle photos', async ({ page }) => {
   expect(state.products[0].image_path).toBe('seed/rose-ivory.jpg');
 
   const rosePink = rose.getByRole('group', { name: 'Rose Pink variant' });
-  await rosePink.getByLabel('Add an additional photo to Rose Pink').setInputFiles({
+  const addAnglePhoto = rosePink.getByLabel('Add an additional photo to Rose Pink');
+  await expect(addAnglePhoto).toBeEnabled();
+  await addAnglePhoto.setInputFiles({
     name: 'angle-2.png',
     mimeType: 'image/png',
     buffer: Buffer.from(

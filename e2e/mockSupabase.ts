@@ -258,6 +258,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
   let currentUser = adminUser;
 
   await page.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, (route) => route.abort());
+  await page.route('https://connect.facebook.net/**', (route) => route.abort());
 
   await page.route('http://supabase.test/**', async (route) => {
     const request = route.request();
