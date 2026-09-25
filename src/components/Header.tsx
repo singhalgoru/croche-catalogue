@@ -31,16 +31,27 @@ export default function Header({
           <button
             type="button"
             onClick={onOpenCart}
-            className={`right-4 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream shadow-md transition-colors hover:bg-cocoa-dark sm:right-6 ${
+            className={`right-4 flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream shadow-md transition-colors hover:bg-cocoa-dark sm:right-6 ${
               cartItemCount > 0
                 ? 'fixed top-12 z-[70]'
                 : 'absolute top-3'
             }`}
             aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`}
           >
-            Cart
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <circle cx="9" cy="20" r="1" />
+              <circle cx="18" cy="20" r="1" />
+              <path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H7" />
+            </svg>
             {cartItemCount > 0 && (
-              <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-mustard px-1.5 py-0.5 text-xs font-bold text-cocoa">
+              <span className="absolute -right-1.5 -top-1.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-mustard px-1 text-xs font-bold text-cocoa">
                 {cartItemCount}
               </span>
             )}

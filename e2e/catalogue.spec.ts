@@ -101,6 +101,7 @@ test('positions the cart below the ticker and floats it after an item is added',
 }) => {
   const ticker = page.getByLabel('Shipping available across India');
   const cartButton = page.getByRole('button', { name: 'Open cart with 0 items' });
+  await expect(cartButton).toHaveText('');
   const logo = page.getByRole('img', {
     name: 'Luvia — Crochet, Accessories & More, made with love',
   });
