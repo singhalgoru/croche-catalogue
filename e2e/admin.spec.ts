@@ -215,6 +215,7 @@ test('reorders variants and additional angle photos', async ({ page }) => {
       'base64',
     ),
   });
+  await expect(rosePink.getByText('New angle photo ready')).toBeVisible();
   await rosePink.getByRole('button', { name: 'Upload angle photo' }).click();
   await expect(page.getByText('Added an angle photo to “Rose Pink”.')).toBeVisible();
 
@@ -264,6 +265,83 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   await lilac.getByRole('button', { name: 'Yes, remove' }).click();
   await expect(page.getByText('“Lilac” was removed from Rose Charm.')).toBeVisible();
   expect(state.products[0].product_variants).toHaveLength(2);
+});
+
+test('enhances an already uploaded variant main image with AI', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+
+  const rosePink = rose.getByRole('group', { name: 'Rose Pink variant' });
+  const originalImagePath = state.products[0].product_variants[0].image_path;
+  await rosePink.getByRole('button', {
+    name: 'Enhance Rose Pink main image with AI',
+  }).click();
+  await expect(rosePink.getByText('Improve uploaded main image')).toBeVisible();
+
+  const generationRequest = page.waitForRequest('**/functions/v1/enhance-product-image');
+  await rosePink.getByRole('button', { name: 'Create studio image' }).click();
+  expect((await generationRequest).postDataJSON()).toMatchObject({ mode: 'studio' });
+  await expect(
+    rosePink.getByRole('img', { name: 'AI generated product preview' }),
+  ).toBeVisible();
+
+  await rosePink.getByRole('button', { name: 'Use this image' }).click();
+  await expect(
+    page.getByText('Updated the main image for “Rose Pink” with AI.'),
+  ).toBeVisible();
+  expect(state.products[0].product_variants[0].image_path).not.toBe(originalImagePath);
+  expect(state.products[0].product_variants[0].image_path).toMatch(/\.webp$/);
+  expect(state.products[0].image_path).toBe(state.products[0].product_variants[0].image_path);
+});
+
+test('creates a new angle and a prefilled variant from existing images with AI', async ({
+  page,
+}) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+
+  const rosePink = rose.getByRole('group', { name: 'Rose Pink variant' });
+  const variantRow = () => state.products[0].product_variants.find(
+    (variant) => variant.id === 'variant-1',
+  )!;
+  expect(variantRow().product_variant_images).toHaveLength(1);
+
+  await rosePink.getByRole('button', {
+    name: 'Create new image from Rose Pink main image with AI',
+  }).click();
+  await expect(rosePink.getByText('Create from Rose Pink main image')).toBeVisible();
+  await expect(rosePink.getByRole('button', { name: 'New angle' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await rosePink.getByRole('button', { name: 'Create studio image' }).click();
+  await rosePink.getByRole('button', { name: 'Use this image' }).click();
+  await expect(page.getByText('Created a new AI angle photo for “Rose Pink”.')).toBeVisible();
+  expect(variantRow().product_variant_images).toHaveLength(2);
+
+  await rosePink.getByRole('button', {
+    name: 'Create new image from additional photo 1 of Rose Pink with AI',
+  }).click();
+  await rosePink.getByRole('button', { name: 'New variant' }).click();
+  await rosePink.getByRole('button', { name: 'Create lifestyle image' }).click();
+  await rosePink.getByRole('button', { name: 'Use this image' }).click();
+
+  const newVariant = rose.getByRole('heading', { name: 'New variant' }).locator('..');
+  await expect(newVariant.getByText(/luvia-lifestyle-\d+\.png/)).toBeVisible();
+  await newVariant.getByLabel('Variant name').fill('AI Rose Gold');
+  await newVariant.getByRole('button', { name: 'Add variant' }).click();
+  await expect(page.getByText('“AI Rose Gold” was added to Rose Charm.')).toBeVisible();
+  expect(state.products[0].product_variants).toHaveLength(3);
 });
 
 test('promotes a gallery photo to the main image without losing it, and removes gallery photos', async ({

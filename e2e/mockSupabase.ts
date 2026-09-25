@@ -45,7 +45,11 @@ export interface MockCatalogueState {
 }
 
 const image =
-  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20"%3E%3Crect width="20" height="20" fill="%23f6c453"/%3E%3C/svg%3E';
+  'http://supabase.test/storage/v1/object/public/product-images/seed/mock.png';
+const imageBuffer = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
+  'base64',
+);
 
 const adminUser = {
   id: 'admin-user',
@@ -472,6 +476,18 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
         mimeType: 'image/png',
         model: '@cf/black-forest-labs/flux-2-klein-9b',
+      });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      pathname.startsWith('/storage/v1/object/public/product-images/')
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: imageBuffer,
       });
       return;
     }

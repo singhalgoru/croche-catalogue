@@ -49,6 +49,20 @@ interface ExistingGalleryEnhancement {
   sourceUrl: string;
 }
 
+interface ExistingVariantEnhancement {
+  variantId: string;
+  sourceFile: File;
+  sourceUrl: string;
+}
+
+interface ExistingImageCreation {
+  sourceVariantId: string;
+  sourceFile: File;
+  sourceUrl: string;
+  sourceLabel: string;
+  target: 'angle' | 'variant';
+}
+
 const emptyDraft = (): Draft => ({
   name: '',
   color: '#f6c453',
@@ -84,8 +98,12 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [activeDraftGalleryIndex, setActiveDraftGalleryIndex] = useState<number | null>(null);
   const [pendingGalleryImage, setPendingGalleryImage] = useState<PendingGalleryImage | null>(null);
+  const [existingVariantEnhancement, setExistingVariantEnhancement] =
+    useState<ExistingVariantEnhancement | null>(null);
   const [existingGalleryEnhancement, setExistingGalleryEnhancement] =
     useState<ExistingGalleryEnhancement | null>(null);
+  const [existingImageCreation, setExistingImageCreation] =
+    useState<ExistingImageCreation | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -230,15 +248,134 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     }
   };
 
-  const fileFromExistingImage = async (image: ProductVariantImage) => {
-    const response = await fetch(image.image, { mode: 'cors' });
+  const fileFromExistingImage = async (imageUrl: string, fileName: string) => {
+    const response = await fetch(imageUrl, { mode: 'cors' });
     if (!response.ok) {
       throw new Error(`Unable to load the photo for AI editing: ${response.statusText}`);
     }
     const blob = await response.blob();
     const type = blob.type || 'image/jpeg';
     const extension = type.split('/')[1] || 'jpg';
-    return new File([blob], `angle-${image.id}.${extension}`, { type });
+    return new File([blob], `${fileName}.${extension}`, { type });
+  };
+
+  const openVariantEnhancement = async (variant: ProductVariant) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      setExistingGalleryEnhancement(null);
+      setExistingImageCreation(null);
+      setExistingVariantEnhancement({
+        variantId: variant.id,
+        sourceFile: await fileFromExistingImage(variant.image, `variant-${variant.id}`),
+        sourceUrl: variant.image,
+      });
+    } catch (enhanceError) {
+      setError(
+        enhanceError instanceof Error
+          ? enhanceError.message
+          : 'Unable to prepare the variant image for AI editing.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const saveEnhancedVariantImage = async (variant: ProductVariant, file: File) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await updateProductVariant(product, variant, {
+        name: variant.name,
+        color: variant.color,
+        inStock: variant.inStock,
+        imageFile: file,
+      });
+      setExistingVariantEnhancement(null);
+      await onSaved(saved, `Updated the main image for “${variant.name}” with AI.`);
+    } catch (enhanceError) {
+      setError(
+        enhanceError instanceof Error
+          ? enhanceError.message
+          : 'Unable to update the variant image.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const openExistingImageCreation = async (
+    variant: ProductVariant,
+    sourceUrl: string,
+    sourceLabel: string,
+  ) => {
+    setIsBusy(true);
+    setError(null);
+    try {
+      setExistingVariantEnhancement(null);
+      setExistingGalleryEnhancement(null);
+      setExistingImageCreation({
+        sourceVariantId: variant.id,
+        sourceFile: await fileFromExistingImage(
+          sourceUrl,
+          `ai-source-${variant.id}-${Date.now()}`,
+        ),
+        sourceUrl,
+        sourceLabel,
+        target: 'angle',
+      });
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : 'Unable to prepare the existing image for AI creation.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const applyCreatedImage = async (variant: ProductVariant, file: File) => {
+    if (!existingImageCreation) return;
+
+    if (existingImageCreation.target === 'variant') {
+      setDraft((current) => {
+        if (current.previewUrl) URL.revokeObjectURL(current.previewUrl);
+        for (const url of current.galleryPreviewUrls) URL.revokeObjectURL(url);
+        return {
+          ...emptyDraft(),
+          color: variant.color,
+          imageFile: file,
+          previewUrl: URL.createObjectURL(file),
+        };
+      });
+      setEditingId(null);
+      setDeleteId(null);
+      setIsAdding(true);
+      setExistingImageCreation(null);
+      return;
+    }
+
+    if (variant.gallery.length >= MAX_GALLERY_IMAGES) {
+      setError(`“${variant.name}” already has the maximum number of angle photos.`);
+      return;
+    }
+
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await addVariantGalleryImage(product, variant, file);
+      setExistingImageCreation(null);
+      await onSaved(saved, `Created a new AI angle photo for “${variant.name}”.`);
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : 'Unable to save the new AI angle photo.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const openGalleryEnhancement = async (
@@ -248,10 +385,12 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     setIsBusy(true);
     setError(null);
     try {
+      setExistingVariantEnhancement(null);
+      setExistingImageCreation(null);
       setExistingGalleryEnhancement({
         variantId: variant.id,
         imageId: image.id,
-        sourceFile: await fileFromExistingImage(image),
+        sourceFile: await fileFromExistingImage(image.image, `angle-${image.id}`),
         sourceUrl: image.image,
       });
     } catch (enhanceError) {
@@ -428,7 +567,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         label={requiresImage ? 'Variant image' : 'Replace image (optional)'}
         file={draft.imageFile}
         onChange={selectImage}
-        required={requiresImage}
+        required={requiresImage && !draft.imageFile}
         disabled={isBusy}
       />
       <label className="min-w-0 text-sm font-semibold text-cocoa">
@@ -655,6 +794,30 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                 </button>
                 <button
                   type="button"
+                  onClick={() => void openVariantEnhancement(variant)}
+                  disabled={isBusy}
+                  className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
+                  aria-label={`Enhance ${variant.name} main image with AI`}
+                >
+                  AI enhance
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void openExistingImageCreation(
+                      variant,
+                      variant.image,
+                      `${variant.name} main image`,
+                    )
+                  }
+                  disabled={isBusy}
+                  className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
+                  aria-label={`Create new image from ${variant.name} main image with AI`}
+                >
+                  AI create
+                </button>
+                <button
+                  type="button"
                   onClick={() => void moveVariant(index, -1)}
                   disabled={isBusy || index === 0}
                   className="text-sm font-semibold text-cocoa underline disabled:opacity-35"
@@ -681,67 +844,178 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
               </div>
             </div>
 
+            {existingVariantEnhancement?.variantId === variant.id && (
+              <div className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-cocoa">
+                      Improve uploaded main image
+                    </p>
+                    <p className="text-xs text-cocoa/55">
+                      Generate a result, review it, then replace this variant image only if approved.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExistingVariantEnhancement(null)}
+                    disabled={isBusy}
+                    className="rounded-full border border-cocoa/30 px-3 py-1 text-xs font-semibold text-cocoa disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <ImageGenerationPanel
+                  sourceFile={existingVariantEnhancement.sourceFile}
+                  sourceUrl={existingVariantEnhancement.sourceUrl}
+                  disabled={isBusy}
+                  onUseImage={(file) => void saveEnhancedVariantImage(variant, file)}
+                />
+              </div>
+            )}
+
+            {existingImageCreation?.sourceVariantId === variant.id && (
+              <div className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-cocoa">
+                      Create from {existingImageCreation.sourceLabel}
+                    </p>
+                    <p className="text-xs text-cocoa/55">
+                      Choose what the approved AI result should become.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExistingImageCreation(null)}
+                    disabled={isBusy}
+                    className="self-start rounded-full border border-cocoa/30 px-3 py-1 text-xs font-semibold text-cocoa disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={existingImageCreation.target === 'angle'}
+                    onClick={() =>
+                      setExistingImageCreation((current) =>
+                        current ? { ...current, target: 'angle' } : current,
+                      )
+                    }
+                    disabled={isBusy || variant.gallery.length >= MAX_GALLERY_IMAGES}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-35 ${
+                      existingImageCreation.target === 'angle'
+                        ? 'border-cocoa bg-cocoa text-white'
+                        : 'border-mustard/60 bg-white text-cocoa'
+                    }`}
+                  >
+                    New angle
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={existingImageCreation.target === 'variant'}
+                    onClick={() =>
+                      setExistingImageCreation((current) =>
+                        current ? { ...current, target: 'variant' } : current,
+                      )
+                    }
+                    disabled={isBusy}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-35 ${
+                      existingImageCreation.target === 'variant'
+                        ? 'border-cocoa bg-cocoa text-white'
+                        : 'border-mustard/60 bg-white text-cocoa'
+                    }`}
+                  >
+                    New variant
+                  </button>
+                </div>
+                <ImageGenerationPanel
+                  sourceFile={existingImageCreation.sourceFile}
+                  sourceUrl={existingImageCreation.sourceUrl}
+                  disabled={isBusy}
+                  onUseImage={(file) => void applyCreatedImage(variant, file)}
+                />
+              </div>
+            )}
+
             <div className="mt-3 border-t border-mustard/20 pt-3">
               <span className="text-xs font-semibold text-cocoa/70">Additional angles</span>
               <div className="mt-2 flex flex-wrap gap-2">
                 {variant.gallery.map((image, galleryIndex) => (
-                  <div key={image.id} className="relative">
-                    <img
-                      src={image.image}
-                      alt=""
-                      className="h-14 w-14 rounded-lg border border-mustard/40 object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void makeMainImage(variant, image)}
-                      disabled={isBusy}
-                      title="Set as main image"
-                      aria-label={`Set additional photo ${galleryIndex + 1} as the main image for ${variant.name}`}
-                      className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-mustard text-xs font-bold text-cocoa disabled:opacity-50"
-                    >
-                      ★
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void removeGalleryImage(variant, image)}
-                      disabled={isBusy}
-                      aria-label={`Remove additional photo ${galleryIndex + 1} from ${variant.name}`}
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
-                    >
-                      ×
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void openGalleryEnhancement(variant, image)}
-                      disabled={isBusy}
-                      title="Improve with AI"
-                      aria-label={`Improve additional photo ${galleryIndex + 1} from ${variant.name} with AI`}
-                      className="absolute bottom-1 left-1 rounded-full bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-50"
-                    >
-                      AI
-                    </button>
-                    <div className="absolute bottom-1 right-1 flex gap-0.5">
+                  <div key={image.id}>
+                    <div className="relative h-14 w-14">
+                      <img
+                        src={image.image}
+                        alt=""
+                        className="h-14 w-14 rounded-lg border border-mustard/40 object-cover"
+                      />
                       <button
                         type="button"
-                        onClick={() => void moveGalleryImage(variant, galleryIndex, -1)}
-                        disabled={isBusy || galleryIndex === 0}
-                        title="Move angle photo left"
-                        aria-label={`Move additional photo ${galleryIndex + 1} left for ${variant.name}`}
-                        className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                        onClick={() => void makeMainImage(variant, image)}
+                        disabled={isBusy}
+                        title="Set as main image"
+                        aria-label={`Set additional photo ${galleryIndex + 1} as the main image for ${variant.name}`}
+                        className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-mustard text-xs font-bold text-cocoa disabled:opacity-50"
                       >
-                        ‹
+                        ★
                       </button>
                       <button
                         type="button"
-                        onClick={() => void moveGalleryImage(variant, galleryIndex, 1)}
-                        disabled={isBusy || galleryIndex === variant.gallery.length - 1}
-                        title="Move angle photo right"
-                        aria-label={`Move additional photo ${galleryIndex + 1} right for ${variant.name}`}
-                        className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                        onClick={() => void removeGalleryImage(variant, image)}
+                        disabled={isBusy}
+                        aria-label={`Remove additional photo ${galleryIndex + 1} from ${variant.name}`}
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-cream disabled:opacity-50"
                       >
-                        ›
+                        ×
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => void openGalleryEnhancement(variant, image)}
+                        disabled={isBusy}
+                        title="Improve with AI"
+                        aria-label={`Improve additional photo ${galleryIndex + 1} from ${variant.name} with AI`}
+                        className="absolute bottom-1 left-1 rounded-full bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-50"
+                      >
+                        AI
+                      </button>
+                      <div className="absolute bottom-1 right-1 flex gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => void moveGalleryImage(variant, galleryIndex, -1)}
+                          disabled={isBusy || galleryIndex === 0}
+                          title="Move angle photo left"
+                          aria-label={`Move additional photo ${galleryIndex + 1} left for ${variant.name}`}
+                          className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void moveGalleryImage(variant, galleryIndex, 1)}
+                          disabled={isBusy || galleryIndex === variant.gallery.length - 1}
+                          title="Move angle photo right"
+                          aria-label={`Move additional photo ${galleryIndex + 1} right for ${variant.name}`}
+                          className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[11px] font-bold text-cocoa shadow ring-1 ring-mustard/50 disabled:opacity-35"
+                        >
+                          ›
+                        </button>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void openExistingImageCreation(
+                          variant,
+                          image.image,
+                          `${variant.name} angle photo ${galleryIndex + 1}`,
+                        )
+                      }
+                      disabled={isBusy}
+                      aria-label={`Create new image from additional photo ${galleryIndex + 1} of ${variant.name} with AI`}
+                      className="mt-1 block w-14 rounded-full border border-mustard/50 bg-white px-1 py-0.5 text-[10px] font-bold text-cocoa disabled:opacity-35"
+                    >
+                      + AI
+                    </button>
                   </div>
                 ))}
                 {variant.gallery.length < MAX_GALLERY_IMAGES && (
