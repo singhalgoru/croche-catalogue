@@ -96,6 +96,40 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
   await expect(productDialog.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
 });
 
+test('positions the cart below the ticker and floats it after an item is added', async ({
+  page,
+}) => {
+  const ticker = page.getByLabel('Shipping available across India');
+  const cartButton = page.getByRole('button', { name: 'Open cart with 0 items' });
+  const logo = page.getByRole('img', {
+    name: 'Luvia — Crochet, Accessories & More, made with love',
+  });
+  const [tickerBox, cartBox, logoBox] = await Promise.all([
+    ticker.boundingBox(),
+    cartButton.boundingBox(),
+    logo.boundingBox(),
+  ]);
+
+  expect(tickerBox).not.toBeNull();
+  expect(cartBox).not.toBeNull();
+  expect(logoBox).not.toBeNull();
+  expect(cartBox!.y).toBeGreaterThanOrEqual(tickerBox!.y + tickerBox!.height);
+  expect(cartBox!.x + cartBox!.width).toBeGreaterThan(logoBox!.x + logoBox!.width);
+  expect(cartBox!.y).toBeLessThan(logoBox!.y + logoBox!.height);
+
+  const roseCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm' }),
+  });
+  await roseCard.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  const floatingCart = page.getByRole('button', { name: 'Open cart with 1 item' });
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const floatingBox = await floatingCart.boundingBox();
+  expect(floatingBox).not.toBeNull();
+  expect(floatingBox!.y).toBeGreaterThanOrEqual(40);
+  expect(floatingBox!.y).toBeLessThanOrEqual(60);
+  expect(floatingBox!.x + floatingBox!.width).toBeGreaterThan(logoBox!.x + logoBox!.width);
+});
+
 test('decreases and removes an individual variant from the cart', async ({ page }) => {
   const roseCard = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm' }),

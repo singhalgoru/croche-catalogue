@@ -26,6 +26,27 @@ export default function Header({
           </div>
         </div>
       )}
+      {onOpenCart && (
+        <div className="relative z-10 mx-auto h-0 max-w-6xl">
+          <button
+            type="button"
+            onClick={onOpenCart}
+            className={`right-4 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream shadow-md transition-colors hover:bg-cocoa-dark sm:right-6 ${
+              cartItemCount > 0
+                ? 'fixed top-12 z-[70]'
+                : 'absolute top-3'
+            }`}
+            aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`}
+          >
+            Cart
+            {cartItemCount > 0 && (
+              <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-mustard px-1.5 py-0.5 text-xs font-bold text-cocoa">
+                {cartItemCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 flex flex-col items-center text-center gap-3">
         <img
           src={`${import.meta.env.BASE_URL}images/luvia-logo.jpg`}
@@ -39,24 +60,7 @@ export default function Header({
           Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
           Every piece is stitched with love and shipped across India.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {showInstallPrompt && <InstallAppButton />}
-          {onOpenCart && (
-            <button
-              type="button"
-              onClick={onOpenCart}
-              className="relative rounded-full bg-cocoa px-5 py-2 text-sm font-semibold text-cream"
-              aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`}
-            >
-              Cart
-              {cartItemCount > 0 && (
-                <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-mustard px-1.5 py-0.5 text-xs font-bold text-cocoa">
-                  {cartItemCount}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
+        {showInstallPrompt && <InstallAppButton />}
       </div>
     </header>
   );
