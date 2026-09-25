@@ -137,7 +137,9 @@ export default function CartDrawer({
                       />
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-cocoa">{item.productName}</h3>
-                        <p className="text-sm text-cocoa/60">{item.variantName}</p>
+                        <p className="text-sm font-semibold text-cocoa/65">
+                          Variant: {item.variantName}
+                        </p>
                         <p className="mt-1 text-sm font-bold text-cocoa">
                           {item.unitPrice === null
                             ? 'Price on enquiry'
@@ -157,7 +159,7 @@ export default function CartDrawer({
                           onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                           disabled={isBusy || item.quantity <= 1}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
-                          aria-label={`Decrease quantity of ${item.productName}`}
+                          aria-label={`Decrease quantity of ${item.productName} — ${item.variantName}`}
                         >
                           −
                         </button>
@@ -169,7 +171,7 @@ export default function CartDrawer({
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                           disabled={isBusy || item.quantity >= 99}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
-                          aria-label={`Increase quantity of ${item.productName}`}
+                          aria-label={`Increase quantity of ${item.productName} — ${item.variantName}`}
                         >
                           +
                         </button>
@@ -179,6 +181,7 @@ export default function CartDrawer({
                         onClick={() => onRemove(item.id)}
                         disabled={isBusy}
                         className="text-sm font-semibold text-red-700 underline disabled:opacity-50"
+                        aria-label={`Remove ${item.productName} — ${item.variantName} from cart`}
                       >
                         Remove
                       </button>

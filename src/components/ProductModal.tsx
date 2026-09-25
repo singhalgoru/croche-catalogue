@@ -8,6 +8,8 @@ import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
 import { isProductNew } from '../utils/productStatus';
 import CartIconButton from './CartIconButton';
+import ProductQuantityControl from './ProductQuantityControl';
+import type { CartItem } from '../types/cart';
 
 interface Props {
   product: Product;
@@ -19,6 +21,9 @@ interface Props {
   onAddToCart?: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy?: boolean;
   getCartQuantity?: (productId: string, variantId: string) => number;
+  getCartItem?: (productId: string, variantId: string) => CartItem | undefined;
+  onUpdateCartItem?: (itemId: string, quantity: number) => Promise<boolean>;
+  onRemoveCartItem?: (itemId: string) => Promise<boolean>;
 }
 
 interface GalleryImage {
@@ -37,6 +42,9 @@ export default function ProductModal({
   onAddToCart,
   isCartBusy = false,
   getCartQuantity,
+  getCartItem,
+  onUpdateCartItem,
+  onRemoveCartItem,
 }: Props) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +57,9 @@ export default function ProductModal({
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
+  const selectedCartItem = selectedVariant
+    ? getCartItem?.(product.id, selectedVariant.id)
+    : undefined;
   const galleryImages = useMemo((): GalleryImage[] => {
     if (selectedVariant?.gallery.length) {
       return [
@@ -235,7 +246,24 @@ export default function ProductModal({
             className="w-full aspect-square object-cover"
             {...productImageProtection}
           />
-          {onAddToCart && selectedVariant?.inStock && (
+          {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
+            <ProductQuantityControl
+              productName={product.name}
+              variantName={selectedVariant.name}
+              quantity={selectedCartItem.quantity}
+              disabled={isCartBusy}
+              onDecrease={() => {
+                void onUpdateCartItem(selectedCartItem.id, selectedCartItem.quantity - 1);
+              }}
+              onIncrease={() => {
+                if (!onAddToCart) return;
+                void onAddToCart(product, selectedVariant);
+              }}
+              onRemove={() => {
+                void onRemoveCartItem(selectedCartItem.id);
+              }}
+            />
+          ) : onAddToCart && selectedVariant?.inStock ? (
             <CartIconButton
               productName={product.name}
               status={cartStatus}
@@ -250,7 +278,7 @@ export default function ProductModal({
               className="bottom-3 right-16"
               quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
             />
-          )}
+          ) : null}
           <div className="absolute bottom-3 right-3 flex gap-2">
             <button
               type="button"
@@ -355,6 +383,7 @@ export default function ProductModal({
               <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
                 {product.variants.map((variant) => {
                   const isSelected = variant.id === selectedVariant?.id;
+                  const cartQuantity = getCartQuantity?.(product.id, variant.id) ?? 0;
                   return (
                     <button
                       key={variant.id}
@@ -369,7 +398,7 @@ export default function ProductModal({
                         selectVariant(variant.id);
                       }}
                       aria-pressed={isSelected}
-                      className={`min-w-[5.5rem] rounded-xl border-2 p-1.5 text-left transition-colors ${
+                      className={`relative min-w-[5.5rem] rounded-xl border-2 p-1.5 text-left transition-colors ${
                         isSelected
                           ? 'border-cocoa bg-mustard/20'
                           : 'border-mustard/30 bg-white hover:border-mustard'
@@ -381,6 +410,14 @@ export default function ProductModal({
                         className="aspect-square w-full rounded-lg bg-cream object-cover"
                         {...productImageProtection}
                       />
+                      {cartQuantity > 0 && (
+                        <span
+                          className="absolute right-0 top-0 flex h-6 min-w-6 -translate-y-1/3 translate-x-1/3 items-center justify-center rounded-full border-2 border-white bg-mustard px-1 text-xs font-extrabold text-cocoa shadow-md"
+                          aria-label={`${cartQuantity} of ${variant.name} in cart`}
+                        >
+                          {cartQuantity > 99 ? '99+' : cartQuantity}
+                        </span>
+                      )}
                       <span className="mt-1.5 flex items-center gap-1.5 px-0.5 text-xs font-semibold text-cocoa">
                         <span
                           className="h-3 w-3 shrink-0 rounded-full border border-cocoa/20"

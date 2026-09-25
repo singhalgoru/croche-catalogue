@@ -82,11 +82,81 @@ const renderModal = (modalProduct = product) => {
   return callbacks;
 };
 
+const renderModalWithCart = () => {
+  const onAddToCart = vi.fn().mockResolvedValue(true);
+  const onUpdateCartItem = vi.fn().mockResolvedValue(true);
+  const onRemoveCartItem = vi.fn().mockResolvedValue(true);
+  const cartItem = {
+    id: 'cart-item-red',
+    productId: product.id,
+    variantId: 'variant-1',
+    productName: product.name,
+    variantName: 'Red',
+    image: '/rose.jpg',
+    unitPrice: null,
+    quantity: 2,
+  };
+
+  render(
+    <ProductModal
+      product={product}
+      currentIndex={0}
+      totalProducts={3}
+      onClose={vi.fn()}
+      onPrevious={vi.fn()}
+      onNext={vi.fn()}
+      onAddToCart={onAddToCart}
+      getCartQuantity={(_productId, variantId) => (variantId === 'variant-1' ? 2 : 0)}
+      getCartItem={(_productId, variantId) =>
+        variantId === 'variant-1' ? cartItem : undefined
+      }
+      onUpdateCartItem={onUpdateCartItem}
+      onRemoveCartItem={onRemoveCartItem}
+    />,
+  );
+
+  return { onAddToCart, onUpdateCartItem, onRemoveCartItem };
+};
+
 const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 
 describe('ProductModal touch controls', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+  });
+
+  it('manages the selected variant independently from the product image', () => {
+    const { onAddToCart, onUpdateCartItem, onRemoveCartItem } = renderModalWithCart();
+
+    expect(screen.getByLabelText('2 of Red in cart')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Decrease quantity of Crochet Rose — Red',
+      }),
+    );
+    expect(onUpdateCartItem).toHaveBeenCalledWith('cart-item-red', 1);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Increase quantity of Crochet Rose — Red',
+      }),
+    );
+    expect(onAddToCart).toHaveBeenCalledWith(product, product.variants[0]);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Remove Crochet Rose — Red from cart',
+      }),
+    );
+    expect(onRemoveCartItem).toHaveBeenCalledWith('cart-item-red');
+
+    fireEvent.click(screen.getByRole('button', { name: /Ivory/ }));
+    expect(screen.queryByLabelText('2 of Red in cart')).toBeTruthy();
+    expect(
+      screen.queryByRole('button', {
+        name: 'Increase quantity of Crochet Rose — Ivory',
+      }),
+    ).toBeNull();
   });
 
   afterEach(() => {

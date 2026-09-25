@@ -216,6 +216,15 @@ function App() {
               (item) => item.productId === productId && item.variantId === variantId,
             )?.quantity ?? 0
           }
+          getCartItem={(productId, variantId) =>
+            cart.cart?.items.find(
+              (item) => item.productId === productId && item.variantId === variantId,
+            )
+          }
+          onUpdateCartItem={async (itemId, quantity) =>
+            Boolean(await cart.updateQuantity(itemId, quantity))
+          }
+          onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
         />
       )}
       {isCartOpen && (
