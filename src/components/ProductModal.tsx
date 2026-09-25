@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import type { Product, ProductVariant } from '../types/product';
-import { trackEvent, trackProduct3DView, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
+import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
 import { productImageProtection } from '../utils/imageProtection';
-import Product3DViewer from './Product3DViewer';
 import ImageZoomViewer from './ImageZoomViewer';
 import { WhatsAppIcon } from './SocialIcons';
 import { isProductNew } from '../utils/productStatus';
@@ -41,7 +40,6 @@ export default function ProductModal({
   const [showTouchControls, setShowTouchControls] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id ?? '');
   const [isZoomOpen, setIsZoomOpen] = useState(false);
-  const [is3DOpen, setIs3DOpen] = useState(false);
   const [activeImageId, setActiveImageId] = useState('main');
   const [cartMessage, setCartMessage] = useState<string | null>(null);
   const hasCarousel = totalProducts > 1;
@@ -84,7 +82,7 @@ export default function ProductModal({
   }, [product, selectedVariant]);
 
   useEffect(() => {
-    if (galleryImages.length <= 1 || isZoomOpen || is3DOpen) return;
+    if (galleryImages.length <= 1 || isZoomOpen) return;
     const timer = window.setInterval(() => {
       setActiveImageId((currentId) => {
         const currentIndex = Math.max(
@@ -97,7 +95,7 @@ export default function ProductModal({
       });
     }, 3500);
     return () => window.clearInterval(timer);
-  }, [galleryImages, is3DOpen, isZoomOpen]);
+  }, [galleryImages, isZoomOpen]);
 
   const selectVariant = (variantId: string) => {
     setSelectedVariantId(variantId);
@@ -120,13 +118,12 @@ export default function ProductModal({
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (is3DOpen) setIs3DOpen(false);
-        else if (isZoomOpen) setIsZoomOpen(false);
+        if (isZoomOpen) setIsZoomOpen(false);
         else onClose();
         return;
       }
 
-      if (!hasCarousel || isZoomOpen || is3DOpen) return;
+      if (!hasCarousel || isZoomOpen) return;
 
       if (event.key === 'ArrowLeft') onPrevious();
       if (event.key === 'ArrowRight') onNext();
@@ -135,7 +132,6 @@ export default function ProductModal({
     return () => window.removeEventListener('keydown', handleKey);
   }, [
     hasCarousel,
-    is3DOpen,
     isZoomOpen,
     onClose,
     onNext,
@@ -236,17 +232,6 @@ export default function ProductModal({
             {...productImageProtection}
           />
           <div className="absolute bottom-3 right-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                trackProduct3DView(product, selectedVariant);
-                setIs3DOpen(true);
-              }}
-              className="flex h-11 min-w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 px-3 text-sm font-bold text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
-              aria-label="View product image in 3D"
-            >
-              3D
-            </button>
             <button
               type="button"
               onClick={() => {
@@ -480,17 +465,6 @@ export default function ProductModal({
           hasMultipleImages={galleryImages.length > 1}
           onPreviousImage={() => showGalleryImageByOffset(-1)}
           onNextImage={() => showGalleryImageByOffset(1)}
-        />
-      )}
-      {is3DOpen && (
-        <Product3DViewer
-          image={activeImage}
-          alt={
-            selectedVariant && product.variants.length > 1
-              ? `${product.name} — ${selectedVariant.name}`
-              : product.name
-          }
-          onClose={() => setIs3DOpen(false)}
         />
       )}
     </div>

@@ -1,12 +1,19 @@
-import type { Product } from '../types/product';
+import type { Product, ProductVariant } from '../types/product';
 import ProductCard from './ProductCard';
 
 interface Props {
   products: Product[];
   onSelect: (product: Product) => void;
+  onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
+  isCartBusy?: boolean;
 }
 
-export default function ProductGrid({ products, onSelect }: Props) {
+export default function ProductGrid({
+  products,
+  onSelect,
+  onAddToCart,
+  isCartBusy = false,
+}: Props) {
   if (products.length === 0) {
     return (
       <p className="text-center text-rose-500 py-16">
@@ -23,6 +30,8 @@ export default function ProductGrid({ products, onSelect }: Props) {
           product={product}
           isFeatured={product.featured === true}
           onSelect={onSelect}
+          onAddToCart={onAddToCart}
+          isCartBusy={isCartBusy}
         />
       ))}
     </div>

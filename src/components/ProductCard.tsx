@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Product } from '../types/product';
+import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
@@ -8,10 +8,19 @@ interface Props {
   product: Product;
   isFeatured?: boolean;
   onSelect: (product: Product) => void;
+  onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
+  isCartBusy?: boolean;
 }
 
-export default function ProductCard({ product, isFeatured = false, onSelect }: Props) {
+export default function ProductCard({
+  product,
+  isFeatured = false,
+  onSelect,
+  onAddToCart,
+  isCartBusy = false,
+}: Props) {
   const isNew = isProductNew(product);
+  const cartVariant = product.variants.find((variant) => variant.inStock);
   const cardImages = useMemo(
     () => Array.from(new Set([
       product.image,
@@ -21,6 +30,7 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
     [product.image, product.variants],
   );
   const [activeImage, setActiveImage] = useState({ productId: product.id, index: 0 });
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
   const activeImageIndex = activeImage.productId === product.id ? activeImage.index : 0;
   const activeImageUrl = cardImages[activeImageIndex] ?? product.image;
 
@@ -39,23 +49,28 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
   }, [cardImages.length, product.id]);
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(product)}
-      className={`group flex h-full flex-col overflow-hidden rounded-2xl bg-mustard/25 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+    <article
+      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl bg-mustard/25 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
       }`}
     >
       <div className="relative aspect-square min-h-0 flex-1 overflow-hidden bg-cream-dark">
-        <img
-          src={activeImageUrl}
-          alt={product.name}
-          className="h-full w-full object-cover"
-          {...productImageProtection}
-        />
+        <button
+          type="button"
+          onClick={() => onSelect(product)}
+          className="h-full w-full"
+          aria-label={`View ${product.name}`}
+        >
+          <img
+            src={activeImageUrl}
+            alt={product.name}
+            className="h-full w-full object-cover"
+            {...productImageProtection}
+          />
+        </button>
         {cardImages.length > 1 && (
           <div
-            className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1"
+            className="absolute bottom-14 left-1/2 z-10 flex -translate-x-1/2 gap-1"
             aria-hidden="true"
           >
             {cardImages.map((image, index) => (
@@ -95,6 +110,23 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
             </svg>
           </span>
         )}
+        {cartVariant && (
+          <button
+            type="button"
+            onClick={() => {
+              setCartMessage(null);
+              void onAddToCart(product, cartVariant).then((added) => {
+                setCartMessage(added ? 'Added!' : 'Try again');
+                window.setTimeout(() => setCartMessage(null), 1800);
+              });
+            }}
+            disabled={isCartBusy}
+            className="absolute bottom-3 left-3 right-3 z-20 rounded-full bg-cocoa/95 px-3 py-2 text-center text-xs font-bold text-cream shadow-lg backdrop-blur-sm transition-colors hover:bg-cocoa-dark disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+            title={`Add ${product.name} to cart`}
+          >
+            {cartMessage ?? (isCartBusy ? 'Adding…' : 'Add to cart')}
+          </button>
+        )}
       </div>
       <div className="shrink-0 p-4">
         <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
@@ -105,6 +137,6 @@ export default function ProductCard({ product, isFeatured = false, onSelect }: P
           </p>
         )}
       </div>
-    </button>
+    </article>
   );
 }

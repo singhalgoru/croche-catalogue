@@ -186,6 +186,10 @@ function App() {
           <ProductGrid
             products={filteredProducts}
             onSelect={selectProduct}
+            onAddToCart={async (product, variant) =>
+              Boolean(await cart.addItem(product, variant))
+            }
+            isCartBusy={cart.isBusy}
           />
         )}
       </main>

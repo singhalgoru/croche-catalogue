@@ -20,12 +20,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('persists an anonymous cart and sends the complete enquiry to WhatsApp', async ({ page }) => {
-  await page.getByRole('button', { name: /Rose Charm/ }).click();
-  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
-  await productDialog.getByRole('button', { name: 'Add to cart' }).click();
-  await expect(productDialog.getByText('Added to your cart.')).toBeVisible();
+  const roseCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm' }),
+  });
+  await roseCard.getByRole('button', { name: 'Add to cart' }).click();
+  await expect(roseCard.getByRole('button', { name: 'Added!' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toBeVisible();
-  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
   const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
@@ -69,9 +69,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
     )
     .toBe(true);
   await expect(page.getByLabel('Shipping available across India')).toBeVisible();
-  const productCards = page.locator('main').getByRole('button').filter({
-    has: page.locator('img'),
-  });
+  const productCards = page.locator('main').getByRole('article');
   await expect(productCards.first()).toContainText('Rose Charm');
   await expect(productCards.first()).toContainText('Featured');
   await expect(productCards.nth(1)).toContainText('New Heart Charm');
@@ -97,7 +95,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
   await expect(page.getByRole('button', { name: /Flower Coaster/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'All', exact: true }).click();
-  await page.getByRole('button', { name: /Rose Charm/ }).click();
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -226,13 +224,18 @@ test('keeps campaign deep links working after a product is renamed', async ({ pa
 });
 
 test('shows prices only for products opted into price display', async ({ page }) => {
-  const roseCard = page.getByRole('button', { name: /Rose Charm/ });
+  const roseCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm' }),
+  });
   await expect(roseCard.getByText('₹349')).toBeVisible();
 
   // Flower Coaster has a price recorded but has not opted into showing it.
-  await expect(page.getByRole('button', { name: /Flower Coaster/ }).getByText('₹')).toHaveCount(0);
+  const coasterCard = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Flower Coaster' }),
+  });
+  await expect(coasterCard.getByText('₹')).toHaveCount(0);
 
-  await roseCard.click();
+  await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
   await expect(page.getByRole('dialog', { name: 'Rose Charm' }).getByText('₹349')).toBeVisible();
 });
 
