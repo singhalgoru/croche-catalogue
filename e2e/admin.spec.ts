@@ -164,6 +164,7 @@ test('manages rotating ticker messages', async ({ page }) => {
 test('uses Gemini suggestions to publish a product', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'add');
+  await expect(page.getByLabel('Variant name')).toHaveValue('Standard');
 
   await page.getByLabel('Variant image').setInputFiles({
     name: 'a-very-long-crochet-product-image-filename-for-mobile-testing.png',

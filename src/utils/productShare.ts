@@ -3,7 +3,10 @@ import { toProductUrl } from './productLink';
 
 export const getProductShareDetails = (product: Product, variant?: ProductVariant) => {
   const url = toProductUrl(product);
-  const title = variant ? `${product.name} — ${variant.name}` : product.name;
+  const title =
+    variant && product.variants.length > 1
+      ? `${product.name} — ${variant.name}`
+      : product.name;
   const text = `See ${title} from Luvia`;
 
   return {

@@ -19,7 +19,7 @@ export const getGeneralWhatsAppLink = () =>
 export const getProductWhatsAppLink = (product: Product, variant?: ProductVariant) =>
   whatsappLink(
     `Hi Luvia, I would like to order/enquire about "${product.name}"${
-      variant && (product.variants.length > 1 || variant.name !== 'Default')
+      variant && product.variants.length > 1
         ? ` in the “${variant.name}” variant`
         : ''
     } from the ${product.category} collection.`,
@@ -34,7 +34,7 @@ export const getCartWhatsAppLink = (cart: Cart) => {
   );
   const lines = cart.items.flatMap((item, index) => [
     `${index + 1}. ${item.productName}`,
-    `   Variant: ${item.variantName}`,
+    ...(item.variantName ? [`   Variant: ${item.variantName}`] : []),
     `   Quantity: ${item.quantity}`,
     `   Price: ${
       item.unitPrice === null ? 'Price on enquiry' : `${formatINR(item.unitPrice)} each`

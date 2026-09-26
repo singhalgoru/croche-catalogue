@@ -210,7 +210,7 @@ const defaultProducts = (): ProductRow[] => [
       {
         id: 'variant-3',
         product_id: 'product-2',
-        name: 'Default',
+        name: 'Standard',
         color: '#e2a933',
         price: null,
         in_stock: false,
@@ -241,7 +241,7 @@ const defaultProducts = (): ProductRow[] => [
       {
         id: 'variant-4',
         product_id: 'product-3',
-        name: 'Default',
+        name: 'Standard',
         color: '#d96c75',
         price: null,
         in_stock: true,

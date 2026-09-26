@@ -80,7 +80,11 @@ export function useCart(enabled = true) {
       const nextCart = await runCartAction(() => addProductToCart(product, variant));
       if (nextCart) {
         trackAddToCart(product, variant);
-        setAddFeedback(`${product.name} — ${variant.name} added to cart`);
+        setAddFeedback(
+          `${product.name}${
+            product.variants.length > 1 ? ` — ${variant.name}` : ''
+          } added to cart`,
+        );
         setCartUpdateCount((count) => count + 1);
         if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
         feedbackTimer.current = setTimeout(() => setAddFeedback(null), 2400);

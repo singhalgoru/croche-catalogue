@@ -339,6 +339,18 @@ test('uses a selected variant price in the card, modal, and cart', async ({ page
   ).toBeVisible();
 });
 
+test('hides the Standard label for a single-variant product', async ({ page }) => {
+  const heartCard = page.getByRole('article', { name: 'Product: New Heart Charm' });
+  await heartCard.getByRole('button', { name: 'Add to cart — New Heart Charm' }).click();
+  await expect(page.getByRole('status')).toContainText('New Heart Charm added to cart');
+  await expect(page.getByRole('status')).not.toContainText('Standard');
+
+  await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
+  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  await expect(cartDialog.getByRole('article', { name: 'View New Heart Charm' })).toBeVisible();
+  await expect(cartDialog.getByText('Variant: Standard')).toHaveCount(0);
+});
+
 test('opens the exact cart product variant in the product modal', async ({ page }) => {
   catalogueState.products[0].product_variants[1].in_stock = true;
   catalogueState.products[0].product_variants[1].available_quantity = 2;

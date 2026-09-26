@@ -47,7 +47,7 @@ export default function CartDrawer({
               return {
                 ...item,
                 productName: product.name,
-                variantName: variant.name,
+                variantName: product.variants.length > 1 ? variant.name : '',
                 image: variant.image,
                 unitPrice: getPublicVariantPrice(product, variant),
               };
@@ -127,11 +127,14 @@ export default function CartDrawer({
             <div className="space-y-3">
               {checkoutCart?.items.map((item) => {
                 const isUnavailable = unavailableItemIds.has(item.id);
+                const itemName = item.variantName
+                  ? `${item.productName} — ${item.variantName}`
+                  : item.productName;
                 return (
                   <article
                     key={item.id}
                     onClick={() => onOpenProduct(item.productId, item.variantId)}
-                    aria-label={`View ${item.productName} — ${item.variantName}`}
+                    aria-label={`View ${itemName}`}
                     className="cursor-pointer rounded-2xl border border-mustard/30 bg-white p-3 transition-colors hover:border-mustard"
                   >
                     <div className="flex gap-3">
@@ -142,7 +145,7 @@ export default function CartDrawer({
                           onOpenProduct(item.productId, item.variantId);
                         }}
                         className="shrink-0 rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
-                        aria-label={`View ${item.productName} — ${item.variantName}`}
+                        aria-label={`View ${itemName}`}
                       >
                         <img
                           src={item.image}
@@ -161,9 +164,11 @@ export default function CartDrawer({
                         >
                           {item.productName}
                         </button>
-                        <p className="text-sm font-semibold text-cocoa/65">
-                          Variant: {item.variantName}
-                        </p>
+                        {item.variantName && (
+                          <p className="text-sm font-semibold text-cocoa/65">
+                            Variant: {item.variantName}
+                          </p>
+                        )}
                         <p className="mt-1 text-sm font-bold text-cocoa">
                           {item.unitPrice === null
                             ? 'Price on enquiry'
@@ -186,7 +191,7 @@ export default function CartDrawer({
                           onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                           disabled={isBusy || item.quantity <= 1}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
-                          aria-label={`Decrease quantity of ${item.productName} — ${item.variantName}`}
+                          aria-label={`Decrease quantity of ${itemName}`}
                         >
                           −
                         </button>
@@ -198,7 +203,7 @@ export default function CartDrawer({
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                           disabled={isBusy || item.quantity >= 99}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
-                          aria-label={`Increase quantity of ${item.productName} — ${item.variantName}`}
+                          aria-label={`Increase quantity of ${itemName}`}
                         >
                           +
                         </button>
@@ -208,7 +213,7 @@ export default function CartDrawer({
                         onClick={() => onRemove(item.id)}
                         disabled={isBusy}
                         className="text-sm font-semibold text-red-700 underline disabled:opacity-50"
-                        aria-label={`Remove ${item.productName} — ${item.variantName} from cart`}
+                        aria-label={`Remove ${itemName} from cart`}
                       >
                         Remove
                       </button>

@@ -482,7 +482,9 @@ export default function ProductModal({
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
                   productName={product.name}
-                  variantName={selectedVariant.name}
+                  variantName={
+                    product.variants.length > 1 ? selectedVariant.name : undefined
+                  }
                   quantity={selectedCartItem.quantity}
                   disabled={isCartBusy}
                   onDecrease={() => {

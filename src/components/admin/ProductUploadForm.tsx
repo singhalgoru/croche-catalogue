@@ -36,7 +36,7 @@ const EMPTY_DRAFT: ProductDraft = {
 export default function ProductUploadForm({ categories, onPublished }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [draft, setDraft] = useState<ProductDraft>(EMPTY_DRAFT);
-  const [variants, setVariants] = useState<VariantDraft[]>(() => [createEmptyVariant('Default')]);
+  const [variants, setVariants] = useState<VariantDraft[]>(() => [createEmptyVariant('Standard')]);
   const variantsRef = useRef(variants);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -71,7 +71,6 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           index === 0
             ? {
                 ...variant,
-                name: variant.name === 'Default' ? analysis.name : variant.name,
                 color: analysis.color,
               }
             : variant,
@@ -133,7 +132,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       await onPublished();
       releaseVariantPreviews(variants);
       setDraft(EMPTY_DRAFT);
-      setVariants([createEmptyVariant('Default')]);
+      setVariants([createEmptyVariant('Standard')]);
       setSuccessMessage(`${product.name} with ${product.variants.length} variant${
         product.variants.length === 1 ? '' : 's'
       } was published to the catalogue.`);

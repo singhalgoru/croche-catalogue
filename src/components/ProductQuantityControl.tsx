@@ -1,6 +1,6 @@
 interface Props {
   productName: string;
-  variantName: string;
+  variantName?: string;
   quantity: number;
   disabled?: boolean;
   onDecrease: () => void;
@@ -19,7 +19,7 @@ export default function ProductQuantityControl({
   onRemove,
   overlay = true,
 }: Props) {
-  const itemName = `${productName} — ${variantName}`;
+  const itemName = variantName ? `${productName} — ${variantName}` : productName;
 
   return (
     <div

@@ -304,7 +304,7 @@ export const products: Product[] = productsWithoutVariants.map((product) => ({
   variants: [
     {
       id: `${product.id}-default`,
-      name: 'Default',
+      name: 'Standard',
       color: product.color,
       price: null,
       inStock: product.inStock,

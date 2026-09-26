@@ -127,7 +127,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     .map(mapVariantRow);
   const fallbackVariant: ProductVariant = {
     id: `${row.id}-default`,
-    name: 'Default',
+    name: 'Standard',
     color: row.color,
     price: null,
     inStock: row.in_stock,
