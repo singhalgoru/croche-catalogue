@@ -468,57 +468,81 @@ export default function ProductModal({
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
               {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
             </span>
-            {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
-              <ProductQuantityControl
-                productName={product.name}
-                variantName={selectedVariant.name}
-                quantity={selectedCartItem.quantity}
-                disabled={isCartBusy}
-                onDecrease={() => {
-                  void onUpdateCartItem(selectedCartItem.id, selectedCartItem.quantity - 1);
-                }}
-                onIncrease={() => {
-                  if (!onAddToCart) return;
-                  void onAddToCart(product, selectedVariant);
-                }}
-                onRemove={() => {
-                  void onRemoveCartItem(selectedCartItem.id);
-                }}
-                overlay={false}
-              />
-            ) : onAddToCart && selectedVariant?.inStock ? (
-              <CartIconButton
-                productName={product.name}
-                status={cartStatus}
+            <div className="flex items-center gap-2">
+              {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
+                <ProductQuantityControl
+                  productName={product.name}
+                  variantName={selectedVariant.name}
+                  quantity={selectedCartItem.quantity}
+                  disabled={isCartBusy}
+                  onDecrease={() => {
+                    void onUpdateCartItem(selectedCartItem.id, selectedCartItem.quantity - 1);
+                  }}
+                  onIncrease={() => {
+                    if (!onAddToCart) return;
+                    void onAddToCart(product, selectedVariant);
+                  }}
+                  onRemove={() => {
+                    void onRemoveCartItem(selectedCartItem.id);
+                  }}
+                  overlay={false}
+                />
+              ) : onAddToCart && selectedVariant?.inStock ? (
+                <CartIconButton
+                  productName={product.name}
+                  status={cartStatus}
+                  onClick={() => {
+                    setCartStatus('busy');
+                    void onAddToCart(product, selectedVariant).then((added) => {
+                      setCartStatus(added ? 'added' : 'error');
+                      window.setTimeout(() => setCartStatus('idle'), 1800);
+                    });
+                  }}
+                  disabled={isCartBusy}
+                  quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
+                  overlay={false}
+                />
+              ) : null}
+              <button
+                type="button"
                 onClick={() => {
-                  setCartStatus('busy');
-                  void onAddToCart(product, selectedVariant).then((added) => {
-                    setCartStatus(added ? 'added' : 'error');
-                    window.setTimeout(() => setCartStatus('idle'), 1800);
-                  });
+                  setIsShareOpen((current) => !current);
+                  setShareFeedback(null);
                 }}
-                disabled={isCartBusy}
-                quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
-                overlay={false}
-              />
-            ) : null}
+                aria-label="Share this product"
+                aria-expanded={isShareOpen}
+                aria-controls="product-share-options"
+                title="Share this product"
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                  isShareOpen
+                    ? 'border-cocoa bg-cocoa text-cream'
+                    : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
+                }`}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="m8.6 10.5 6.8-4" />
+                  <path d="m8.6 13.5 6.8 4" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div className="mt-5 rounded-xl border border-mustard/30 bg-cream/50 p-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsShareOpen((current) => !current);
-                setShareFeedback(null);
-              }}
-              aria-expanded={isShareOpen}
-              aria-controls="product-share-options"
-              className="flex w-full items-center justify-between gap-3 text-sm font-bold text-cocoa"
+          {isShareOpen && (
+            <div
+              id="product-share-options"
+              className="mt-4 rounded-xl border border-mustard/30 bg-cream/50 p-3"
             >
-              Share this product
-              <span aria-hidden="true">{isShareOpen ? '−' : '+'}</span>
-            </button>
-            {isShareOpen && (
-              <div id="product-share-options" className="mt-3">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -573,9 +597,8 @@ export default function ProductModal({
                     {shareFeedback}
                   </p>
                 )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
           {hasCarousel && (
             <div className="grid grid-cols-2 gap-3 mt-6">
               <button
