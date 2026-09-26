@@ -183,7 +183,7 @@ test('opens the exact cart product variant in the product modal', async ({ page 
   await expect(cartDialog).toHaveCount(0);
 });
 
-test('shares a product through native apps, WhatsApp, Facebook, and copy link', async ({
+test('shares a product through app icons and direct social links', async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -199,16 +199,22 @@ test('shares a product through native apps, WhatsApp, Facebook, and copy link', 
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
   await dialog.getByRole('button', { name: 'Share this product' }).click();
 
-  await expect(dialog.getByRole('link', { name: 'WhatsApp', exact: true })).toHaveAttribute(
+  await expect(dialog.getByRole('link', { name: 'Share on WhatsApp' })).toHaveAttribute(
     'href',
     /wa\.me.*rose-charm--product-1/i,
   );
-  await expect(dialog.getByRole('link', { name: 'Facebook' })).toHaveAttribute(
+  await expect(dialog.getByRole('link', { name: 'Share on Facebook' })).toHaveAttribute(
     'href',
     /facebook\.com\/sharer\/sharer\.php.*rose-charm--product-1/i,
   );
-  await expect(dialog.getByRole('button', { name: 'Copy link' })).toBeVisible();
-  await expect(dialog.getByText(/Instagram and other installed apps/)).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Share on Reddit' })).toHaveAttribute(
+    'href',
+    /reddit\.com\/submit.*rose-charm--product-1/i,
+  );
+  await expect(dialog.getByRole('button', { name: 'Share on Instagram' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Share on Snapchat' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Copy product link' })).toBeVisible();
+  await expect(dialog.getByText(/Instagram and Snapchat open your device share menu/)).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Share to apps' }).click();
   await expect
@@ -221,6 +227,18 @@ test('shares a product through native apps, WhatsApp, Facebook, and copy link', 
     .toMatchObject({
       title: 'Rose Charm — Rose Pink',
       text: 'See Rose Charm — Rose Pink from Luvia',
+      url: expect.stringContaining('#product=rose-charm--product-1'),
+    });
+
+  await dialog.getByRole('button', { name: 'Share on Instagram' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { lastSharedProduct?: ShareData }).lastSharedProduct,
+      ),
+    )
+    .toMatchObject({
       url: expect.stringContaining('#product=rose-charm--product-1'),
     });
 });

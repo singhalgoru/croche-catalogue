@@ -5,7 +5,15 @@ import { getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
 import { productImageProtection } from '../utils/imageProtection';
 import ImageZoomViewer from './ImageZoomViewer';
-import { WhatsAppIcon } from './SocialIcons';
+import {
+  CopyIcon,
+  FacebookIcon,
+  InstagramIcon,
+  RedditIcon,
+  ShareIcon,
+  SnapchatIcon,
+  WhatsAppIcon,
+} from './SocialIcons';
 import { isProductNew } from '../utils/productStatus';
 import CartIconButton from './CartIconButton';
 import ProductQuantityControl from './ProductQuantityControl';
@@ -104,9 +112,9 @@ export default function ProductModal({
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
   const shareDetails = getProductShareDetails(product, selectedVariant);
 
-  const shareNatively = async () => {
+  const shareNatively = async (method = 'native') => {
     if (!navigator.share) {
-      setShareFeedback('Use WhatsApp, Facebook, or Copy link below.');
+      setShareFeedback('Native sharing is not available. Use WhatsApp, Facebook, Reddit, or Copy link.');
       return;
     }
     try {
@@ -116,7 +124,7 @@ export default function ProductModal({
         url: shareDetails.url,
       });
       trackEvent('share_product', {
-        method: 'native',
+        method,
         product_id: product.id,
         variant_id: selectedVariant?.id,
       });
@@ -519,22 +527,7 @@ export default function ProductModal({
                     : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
                 }`}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <path d="m8.6 10.5 6.8-4" />
-                  <path d="m8.6 13.5 6.8 4" />
-                </svg>
+                <ShareIcon />
               </button>
             </div>
           </div>
@@ -543,13 +536,15 @@ export default function ProductModal({
               id="product-share-options"
               className="mt-4 rounded-xl border border-mustard/30 bg-cream/50 p-3"
             >
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-wrap justify-center gap-3">
                   <button
                     type="button"
                     onClick={() => void shareNatively()}
-                    className="rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-cream"
+                    aria-label="Share to apps"
+                    title="Share to apps"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream"
                   >
-                    Share to apps
+                    <ShareIcon />
                   </button>
                   <a
                     href={shareDetails.whatsappUrl}
@@ -562,9 +557,11 @@ export default function ProductModal({
                         variant_id: selectedVariant?.id,
                       })
                     }
-                    className="rounded-full bg-[#25D366] px-3 py-2 text-center text-sm font-semibold text-white"
+                    aria-label="Share on WhatsApp"
+                    title="WhatsApp"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white"
                   >
-                    WhatsApp
+                    <WhatsAppIcon />
                   </a>
                   <a
                     href={shareDetails.facebookUrl}
@@ -577,20 +574,59 @@ export default function ProductModal({
                         variant_id: selectedVariant?.id,
                       })
                     }
-                    className="rounded-full bg-[#1877F2] px-3 py-2 text-center text-sm font-semibold text-white"
+                    aria-label="Share on Facebook"
+                    title="Facebook"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1877F2] text-white"
                   >
-                    Facebook
+                    <FacebookIcon />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void shareNatively('instagram')}
+                    aria-label="Share on Instagram"
+                    title="Instagram"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#FCAF45] text-white"
+                  >
+                    <InstagramIcon />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void shareNatively('snapchat')}
+                    aria-label="Share on Snapchat"
+                    title="Snapchat"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FFFC00] text-black"
+                  >
+                    <SnapchatIcon />
+                  </button>
+                  <a
+                    href={shareDetails.redditUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() =>
+                      trackEvent('share_product', {
+                        method: 'reddit',
+                        product_id: product.id,
+                        variant_id: selectedVariant?.id,
+                      })
+                    }
+                    aria-label="Share on Reddit"
+                    title="Reddit"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4500] text-white"
+                  >
+                    <RedditIcon />
                   </a>
                   <button
                     type="button"
                     onClick={() => void copyShareLink()}
-                    className="rounded-full border border-cocoa/30 px-3 py-2 text-sm font-semibold text-cocoa"
+                    aria-label="Copy product link"
+                    title="Copy link"
+                    className="flex h-12 w-12 items-center justify-center rounded-full border border-cocoa/30 bg-white text-cocoa"
                   >
-                    Copy link
+                    <CopyIcon />
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-cocoa/60">
-                  Use Share to apps for Instagram and other installed apps.
+                  Instagram and Snapchat open your device share menu.
                 </p>
                 {shareFeedback && (
                   <p className="mt-2 text-xs font-semibold text-cocoa" role="status">

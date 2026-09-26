@@ -12,5 +12,6 @@ export const getProductShareDetails = (product: Product, variant?: ProductVarian
     url,
     whatsappUrl: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`,
     facebookUrl: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    redditUrl: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`,
   };
 };

@@ -31,3 +31,88 @@ export function InstagramIcon({ className = 'h-5 w-5' }: IconProps) {
     </svg>
   );
 }
+
+export function FacebookIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M14 8.5V7c0-.8.5-1 1-1h2V2.2A27 27 0 0 0 14.1 2C11.2 2 9 3.8 9 7.2v1.3H6V13h3v9h4.5v-9h3.1l.5-4.5H14Z" />
+    </svg>
+  );
+}
+
+export function SnapchatIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3.2c-2.9 0-4.5 2.2-4.5 5.1 0 1-.1 1.8-.5 2.5-.5.8-1.3 1.1-2.2 1.5-.5.2-.5.9 0 1.1.7.3 1.5.5 2.2.6.4 1.2 1.4 1.9 2.8 2.1.5.1.8.7 1 1.2.2.5.6.8 1.2.8s1-.3 1.2-.8c.2-.5.5-1.1 1-1.2 1.4-.2 2.4-.9 2.8-2.1.7-.1 1.5-.3 2.2-.6.5-.2.5-.9 0-1.1-.9-.4-1.7-.7-2.2-1.5-.4-.7-.5-1.5-.5-2.5 0-2.9-1.6-5.1-4.5-5.1Z" />
+    </svg>
+  );
+}
+
+export function RedditIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="14" r="6.5" />
+      <circle cx="9.5" cy="13" r=".8" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="13" r=".8" fill="currentColor" stroke="none" />
+      <path d="M9.5 16c1.5 1 3.5 1 5 0M12 7.5l1-4 3.2.7" />
+      <circle cx="17.5" cy="4.5" r="1.5" />
+      <circle cx="5" cy="11" r="1.5" />
+      <circle cx="19" cy="11" r="1.5" />
+    </svg>
+  );
+}
+
+export function ShareIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
+    </svg>
+  );
+}
+
+export function CopyIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </svg>
+  );
+}
