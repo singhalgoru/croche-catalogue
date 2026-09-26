@@ -194,6 +194,50 @@ test('opens a product from its card and restores the browsing position', async (
     .toBeGreaterThanOrEqual(originalScrollY - 2);
 });
 
+test('scrolls the first matching product below sticky controls after category selection', async ({
+  page,
+}) => {
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.getByRole('button', { name: 'Home Decor', exact: true }).click();
+  const firstProduct = page.getByRole('article', { name: 'Product: Flower Coaster' });
+  await expect(firstProduct).toBeVisible();
+  await expect
+    .poll(async () => {
+      const productBox = await firstProduct.boundingBox();
+      const categoryBox = await page.getByLabel('Product categories').boundingBox();
+      if (!productBox || !categoryBox) return false;
+      if (test.info().project.name !== 'mobile-chromium') {
+        const scrollPosition = await page.evaluate(() => ({
+          current: window.scrollY,
+          maximum: document.documentElement.scrollHeight - window.innerHeight,
+        }));
+        return (
+          productBox.y >= 0 &&
+          (productBox.y <= 30 || scrollPosition.current >= scrollPosition.maximum - 2)
+        );
+      }
+      return (
+        productBox.y >= categoryBox.y + categoryBox.height - 2 &&
+        productBox.y <= categoryBox.y + categoryBox.height + 30
+      );
+    })
+    .toBe(true);
+});
+
+test('shows all category chips at the top and compacts them after scrolling', async ({ page }) => {
+  const categories = page.getByLabel('Product categories');
+  await expect(categories).toHaveClass(/flex-wrap/);
+  await expect(categories).not.toHaveClass(/overflow-x-auto/);
+
+  await page.evaluate(() => window.scrollTo(0, 700));
+  await expect(categories).toHaveClass(/overflow-x-auto/);
+  await expect(categories).not.toHaveClass(/justify-center overflow-visible/);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(categories).toHaveClass(/flex-wrap/);
+  await expect(categories).not.toHaveClass(/overflow-x-auto/);
+});
+
 test('previews product variants from the landing card without opening details', async ({
   page,
 }) => {

@@ -60,12 +60,30 @@ function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
+  const [categoryScrollRequest, setCategoryScrollRequest] = useState(0);
+  const [areCatalogueToolsSticky, setAreCatalogueToolsSticky] = useState(false);
   const pendingProductReference = useRef(readProductReferenceFromHash());
   const productReturnScrollY = useRef<number | null>(null);
+  const catalogueToolsRef = useRef<HTMLDivElement>(null);
+  const productGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const updateStickyState = () => {
+      const tools = catalogueToolsRef.current;
+      setAreCatalogueToolsSticky(Boolean(tools && tools.getBoundingClientRect().top <= 0));
+    };
+    updateStickyState();
+    window.addEventListener('scroll', updateStickyState, { passive: true });
+    window.addEventListener('resize', updateStickyState);
+    return () => {
+      window.removeEventListener('scroll', updateStickyState);
+      window.removeEventListener('resize', updateStickyState);
+    };
   }, []);
 
   // Campaign links such as #product=rose-charm--<id> open the advertised product
@@ -129,6 +147,7 @@ function App() {
   const selectCategory = (category: CatalogueFilter) => {
     trackEvent('select_category', { category });
     setActiveCategory(category);
+    setCategoryScrollRequest((current) => current + 1);
   };
 
   const filteredProducts = useMemo(() => {
@@ -157,6 +176,24 @@ function App() {
             (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER),
       );
   }, [activeCategory, catalogueTime, categorySettings, products, query]);
+
+  useEffect(() => {
+    if (categoryScrollRequest === 0 || isLoading) return;
+    const frame = window.requestAnimationFrame(() => {
+      const productGrid = productGridRef.current;
+      if (!productGrid) return;
+      const stickyOffset =
+        window.innerWidth < 640 ? (catalogueToolsRef.current?.offsetHeight ?? 0) + 12 : 16;
+      const top = productGrid.getBoundingClientRect().top + window.scrollY - stickyOffset;
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [categoryScrollRequest, filteredProducts, isLoading]);
 
   const selectedProductIndex = selectedProduct
     ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
@@ -201,7 +238,10 @@ function App() {
       )}
 
       <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
-        <div className="sticky top-0 z-40 -mx-4 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none sm:backdrop-blur-none">
+        <div
+          ref={catalogueToolsRef}
+          className="sticky top-0 z-40 -mx-4 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none sm:backdrop-blur-none"
+        >
           <SearchBar
             value={query}
             onChange={setQuery}
@@ -216,6 +256,7 @@ function App() {
             categories={categories}
             active={activeCategory}
             onSelect={selectCategory}
+            compactOnMobile={areCatalogueToolsSticky}
           />
         </div>
         <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
@@ -226,23 +267,25 @@ function App() {
             {loadError}
           </p>
         )}
-        {isLoading ? (
-          <p className="py-16 text-center text-cocoa/60">Loading the catalogue…</p>
-        ) : (
-          <ProductGrid
-            products={filteredProducts}
-            onSelect={selectProduct}
-            onAddToCart={async (product, variant) =>
-              Boolean(await cart.addItem(product, variant))
-            }
-            isCartBusy={cart.isBusy}
-            getCartQuantity={(productId, variantId) =>
-              cart.cart?.items.find(
-                (item) => item.productId === productId && item.variantId === variantId,
-              )?.quantity ?? 0
-            }
-          />
-        )}
+        <div ref={productGridRef}>
+          {isLoading ? (
+            <p className="py-16 text-center text-cocoa/60">Loading the catalogue…</p>
+          ) : (
+            <ProductGrid
+              products={filteredProducts}
+              onSelect={selectProduct}
+              onAddToCart={async (product, variant) =>
+                Boolean(await cart.addItem(product, variant))
+              }
+              isCartBusy={cart.isBusy}
+              getCartQuantity={(productId, variantId) =>
+                cart.cart?.items.find(
+                  (item) => item.productId === productId && item.variantId === variantId,
+                )?.quantity ?? 0
+              }
+            />
+          )}
+        </div>
       </main>
 
       <Footer />
