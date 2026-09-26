@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
 import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
 import CartIconButton from './CartIconButton';
 
 interface Props {
   product: Product;
   isFeatured?: boolean;
+  isFirstProduct?: boolean;
   onSelect: (product: Product) => void;
   onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy?: boolean;
@@ -18,12 +20,15 @@ interface Props {
 export default function ProductCard({
   product,
   isFeatured = false,
+  isFirstProduct = false,
   onSelect,
   onAddToCart,
   isCartBusy = false,
   cartQuantity = 0,
 }: Props) {
   const isNew = isProductNew(product);
+  const cardRef = useRef<HTMLElement>(null);
+  const [isNearViewport, setIsNearViewport] = useState(isFirstProduct);
   const cardImages = useMemo(
     () => Array.from(new Set([
       product.image,
@@ -54,6 +59,18 @@ export default function ProductCard({
   const displayedPrice = getPublicVariantPrice(product, previewedVariant ?? cartVariant);
 
   useEffect(() => {
+    if (!cardRef.current) return;
+    if (!('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(entry.isIntersecting),
+      { rootMargin: '200px' },
+    );
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isNearViewport && 'IntersectionObserver' in window) return;
     if (cardImages.length <= 1) return;
     const timer = window.setInterval(() => {
       setActiveImage((currentImage) => {
@@ -71,10 +88,11 @@ export default function ProductCard({
       });
     }, 3500);
     return () => window.clearInterval(timer);
-  }, [cardImages, product.id, product.variants]);
+  }, [cardImages, isNearViewport, product.id, product.variants]);
 
   return (
     <article
+      ref={cardRef}
       onClick={(event) => {
         if ((event.target as HTMLElement).closest('button, a')) return;
         onSelect(product);
@@ -92,7 +110,12 @@ export default function ProductCard({
           aria-label={`View ${product.name}`}
         >
           <img
-            src={activeImageUrl}
+            src={getProductImageUrl(activeImageUrl, 480)}
+            srcSet={getProductCardSrcSet(activeImageUrl)}
+            sizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+            loading={isFirstProduct ? 'eager' : 'lazy'}
+            fetchPriority={isFirstProduct ? 'high' : 'auto'}
+            decoding="async"
             alt={product.name}
             className="h-full w-full object-cover"
             {...productImageProtection}
@@ -170,7 +193,9 @@ export default function ProductCard({
                   }`}
                 >
                   <img
-                    src={variant.image}
+                    src={getProductImageUrl(variant.image, 96)}
+                    loading="lazy"
+                    decoding="async"
                     alt=""
                     className="h-full w-full object-cover"
                     {...productImageProtection}

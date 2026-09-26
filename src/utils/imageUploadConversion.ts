@@ -1,4 +1,5 @@
-const WEBP_UPLOAD_QUALITY = 0.95;
+const WEBP_UPLOAD_QUALITY = 0.82;
+const MAX_IMAGE_DIMENSION = 1600;
 
 const extensionPattern = /\.[^.]+$/;
 
@@ -8,8 +9,12 @@ const getWebpFileName = (name: string) => {
 };
 
 const canvasToBlob = (canvas: HTMLCanvasElement) =>
-  new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, 'image/webp', WEBP_UPLOAD_QUALITY);
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error('Unable to encode the product image as WebP.')),
+      'image/webp',
+      WEBP_UPLOAD_QUALITY,
+    );
   });
 
 const loadImageElement = (file: File) =>
@@ -28,27 +33,29 @@ const loadImageElement = (file: File) =>
   });
 
 export async function convertImageForUpload(file: File): Promise<File> {
-  if (file.type === 'image/webp') return file;
-  if (!['image/jpeg', 'image/png'].includes(file.type)) return file;
-
-  try {
-    const image = await loadImageElement(file);
-    const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth || image.width;
-    canvas.height = image.naturalHeight || image.height;
-
-    const context = canvas.getContext('2d');
-    if (!context || canvas.width === 0 || canvas.height === 0) return file;
-
-    context.drawImage(image, 0, 0);
-    const blob = await canvasToBlob(canvas);
-    if (!blob || blob.size === 0) return file;
-
-    return new File([blob], getWebpFileName(file.name), {
-      type: 'image/webp',
-      lastModified: file.lastModified,
-    });
-  } catch {
-    return file;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Upload a JPG, PNG or WebP product image.');
   }
+
+  const image = await loadImageElement(file);
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error('The selected product image has invalid dimensions.');
+
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Unable to prepare the product image for upload.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await canvasToBlob(canvas);
+  if (blob.type !== 'image/webp') throw new Error('WebP image encoding is not supported by this browser.');
+  if (file.type === 'image/webp' && scale === 1 && blob.size >= file.size) return file;
+
+  return new File([blob], getWebpFileName(file.name), {
+    type: 'image/webp',
+    lastModified: file.lastModified,
+  });
 }

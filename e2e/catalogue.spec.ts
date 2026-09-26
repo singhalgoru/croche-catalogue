@@ -295,6 +295,17 @@ test('allows uninterrupted upward scrolling past the mobile sticky controls', as
   await expect(page.getByLabel('Product categories')).toHaveCount(1);
 });
 
+test('prioritizes the first product image and defers other card images', async ({ page }) => {
+  const cards = page.getByRole('article', { name: /Product:/ });
+  const firstImage = cards.first().getByRole('img', { name: 'Rose Charm' });
+  await expect(firstImage).toHaveAttribute('loading', 'eager');
+  await expect(firstImage).toHaveAttribute('fetchpriority', 'high');
+
+  const laterImage = cards.nth(1).locator('button img').first();
+  await expect(laterImage).toHaveAttribute('loading', 'lazy');
+  await expect(laterImage).toHaveAttribute('fetchpriority', 'auto');
+});
+
 test('previews product variants from the landing card without opening details', async ({
   page,
 }) => {

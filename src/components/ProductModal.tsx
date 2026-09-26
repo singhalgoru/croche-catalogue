@@ -20,6 +20,7 @@ import ProductQuantityControl from './ProductQuantityControl';
 import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductImageUrl } from '../utils/productImageUrl';
 
 interface Props {
   product: Product;
@@ -388,7 +389,7 @@ export default function ProductModal({
                     : 'border-mustard/30 hover:border-mustard'
                 }`}
               >
-                <img src={item.image} alt="" className="h-full w-full object-cover" {...productImageProtection} />
+                <img src={getProductImageUrl(item.image, 160)} alt="" className="h-full w-full object-cover" {...productImageProtection} />
               </button>
             ))}
           </div>
@@ -431,7 +432,7 @@ export default function ProductModal({
                       }`}
                     >
                       <img
-                        src={variant.image}
+                        src={getProductImageUrl(variant.image, 160)}
                         alt=""
                         className="aspect-square w-full rounded-lg bg-cream object-cover"
                         {...productImageProtection}

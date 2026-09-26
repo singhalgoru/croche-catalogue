@@ -34,6 +34,19 @@ npm run test -- --run
 npm run build
 ```
 
+## Product images
+
+The catalogue requests responsive thumbnails from Supabase Storage's public image
+transformation endpoint for product cards and variant selectors. Opening a product
+still uses the original high-resolution image for zoom. Static images outside
+Supabase continue to load without transformation. Public image transformations
+must remain enabled in the Supabase project.
+
+New admin uploads (JPG, PNG or WebP) are resized to at most 1600 pixels on the
+longest side and encoded as WebP at 82% quality when this reduces file size.
+This does not change images already stored in Supabase; to reduce storage usage,
+existing originals need a separate, reviewed migration.
+
 ## Analytics
 
 GA4 and the Meta Pixel are loaded for the public catalogue only; the `#admin`
