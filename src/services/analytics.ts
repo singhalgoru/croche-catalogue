@@ -1,4 +1,5 @@
 import type { Product, ProductVariant } from '../types/product';
+import { afterPageLoad } from '../utils/afterPageLoad';
 import { getCampaignParameters } from '../utils/campaign';
 import { INTERNAL_TRAFFIC_TYPE, isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
@@ -35,10 +36,12 @@ export const initializeAnalytics = () => {
     ...(isInternalTraffic() ? { traffic_type: INTERNAL_TRAFFIC_TYPE } : {}),
   });
 
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
-  document.head.append(script);
+  afterPageLoad(() => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+    document.head.append(script);
+  });
 };
 
 export const trackEvent = (name: string, parameters: AnalyticsParameters = {}) => {

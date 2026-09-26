@@ -1,4 +1,5 @@
 import type { Product, ProductVariant } from '../types/product';
+import { afterPageLoad } from '../utils/afterPageLoad';
 import { isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
 
@@ -47,10 +48,12 @@ export const initializeMetaPixel = () => {
   window.fbq('init', pixelId);
   window.fbq('track', 'PageView');
 
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = 'https://connect.facebook.net/en_US/fbevents.js';
-  document.head.append(script);
+  afterPageLoad(() => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+    document.head.append(script);
+  });
 };
 
 export const trackMetaEvent = (name: string, parameters: MetaParameters = {}) => {

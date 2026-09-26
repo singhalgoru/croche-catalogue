@@ -58,6 +58,9 @@ than depending on a render-blocking Google Fonts stylesheet. Characters
 outside their Latin subset use the system font.
 The redistributed font licenses are in [Baloo 2](./public/fonts/OFL-Baloo-2.txt)
 and [Quicksand](./public/fonts/OFL-Quicksand.txt).
+GA4 and Meta Pixel queue their page-view events immediately but fetch their
+external scripts after the page load event, so they do not compete with the
+initial product image download.
 
 ## Analytics
 
