@@ -1,7 +1,24 @@
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+const supabasePreconnect = (): Plugin => {
+  let origin: string | undefined
+  return {
+    name: 'supabase-preconnect',
+    configResolved(config) {
+      origin = config.env.VITE_SUPABASE_URL
+        ? new URL(config.env.VITE_SUPABASE_URL).origin
+        : undefined
+    },
+    transformIndexHtml() {
+      return origin
+        ? [{ tag: 'link', attrs: { rel: 'preconnect', href: origin, crossorigin: '' }, injectTo: 'head' }]
+        : []
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -25,6 +42,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    supabasePreconnect(),
     react(),
     tailwindcss(),
     VitePWA({

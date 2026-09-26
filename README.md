@@ -47,6 +47,18 @@ longest side and encoded as WebP at 82% quality when this reduces file size.
 This does not change images already stored in Supabase; to reduce storage usage,
 existing originals need a separate, reviewed migration.
 
+## Initial page load
+
+The public catalogue loads without downloading the admin console or product
+detail modal; those modules load when their respective views open. The page
+preconnects to the configured Supabase origin so the catalogue and its first
+image do not wait for a new connection after JavaScript starts. Baloo 2 and
+Quicksand are self-hosted variable fonts with `font-display: swap`, rather
+than depending on a render-blocking Google Fonts stylesheet. Characters
+outside their Latin subset use the system font.
+The redistributed font licenses are in [Baloo 2](./public/fonts/OFL-Baloo-2.txt)
+and [Quicksand](./public/fonts/OFL-Quicksand.txt).
+
 ## Analytics
 
 GA4 and the Meta Pixel are loaded for the public catalogue only; the `#admin`

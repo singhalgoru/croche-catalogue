@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CategoryFilter from './components/CategoryFilter';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
-import ProductModal from './components/ProductModal';
 import CartDrawer from './components/CartDrawer';
 import BackToTopButton from './components/BackToTopButton';
-import AdminPage from './components/admin/AdminPage';
 import { useCart } from './hooks/useCart';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { useTickerMessages } from './hooks/useTickerMessages';
@@ -21,6 +19,9 @@ import {
   toProductHash,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
+
+const AdminPage = lazy(() => import('./components/admin/AdminPage'));
+const ProductModal = lazy(() => import('./components/ProductModal'));
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts } =
@@ -236,7 +237,11 @@ function App() {
   };
 
   if (isAdminPage) {
-    return <AdminPage onProductPublished={refreshProducts} />;
+    return (
+      <Suspense fallback={<p role="status">Loading admin console…</p>}>
+        <AdminPage onProductPublished={refreshProducts} />
+      </Suspense>
+    );
   }
 
   return (
@@ -336,32 +341,34 @@ function App() {
       {!selectedProduct && !isCartOpen && <BackToTopButton />}
 
       {selectedProduct && (
-        <ProductModal
-          key={`${selectedProduct.id}:${selectedVariantId ?? ''}`}
-          product={selectedProduct}
-          initialVariantId={selectedVariantId ?? undefined}
-          currentIndex={selectedProductIndex}
-          totalProducts={filteredProducts.length}
-          onClose={closeSelectedProduct}
-          onPrevious={showPreviousProduct}
-          onNext={showNextProduct}
-          onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
-          isCartBusy={cart.isBusy}
-          getCartQuantity={(productId, variantId) =>
-            cart.cart?.items.find(
-              (item) => item.productId === productId && item.variantId === variantId,
-            )?.quantity ?? 0
-          }
-          getCartItem={(productId, variantId) =>
-            cart.cart?.items.find(
-              (item) => item.productId === productId && item.variantId === variantId,
-            )
-          }
-          onUpdateCartItem={async (itemId, quantity) =>
-            Boolean(await cart.updateQuantity(itemId, quantity))
-          }
-          onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
-        />
+        <Suspense fallback={<p role="status">Loading product details…</p>}>
+          <ProductModal
+            key={`${selectedProduct.id}:${selectedVariantId ?? ''}`}
+            product={selectedProduct}
+            initialVariantId={selectedVariantId ?? undefined}
+            currentIndex={selectedProductIndex}
+            totalProducts={filteredProducts.length}
+            onClose={closeSelectedProduct}
+            onPrevious={showPreviousProduct}
+            onNext={showNextProduct}
+            onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
+            isCartBusy={cart.isBusy}
+            getCartQuantity={(productId, variantId) =>
+              cart.cart?.items.find(
+                (item) => item.productId === productId && item.variantId === variantId,
+              )?.quantity ?? 0
+            }
+            getCartItem={(productId, variantId) =>
+              cart.cart?.items.find(
+                (item) => item.productId === productId && item.variantId === variantId,
+              )
+            }
+            onUpdateCartItem={async (itemId, quantity) =>
+              Boolean(await cart.updateQuantity(itemId, quantity))
+            }
+            onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
+          />
+        </Suspense>
       )}
       {isCartOpen && (
         <CartDrawer

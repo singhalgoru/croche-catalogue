@@ -19,6 +19,21 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
 });
 
+test('defers admin and product detail bundles until needed', async ({ page }) => {
+  const loadedChunks = () => page.evaluate(() =>
+    performance.getEntriesByType('resource').map((entry) => entry.name),
+  );
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
+  expect((await loadedChunks()).some((url) => /AdminPage-|ProductModal-/.test(url))).toBe(false);
+  expect(await page.locator('link[href*="fonts.googleapis.com"]').count()).toBe(0);
+  await expect(page.locator('link[rel="preconnect"][href="http://supabase.test"]')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await expect(page.getByRole('dialog', { name: 'Rose Charm' })).toBeVisible();
+  expect((await loadedChunks()).some((url) => url.includes('ProductModal-'))).toBe(true);
+  expect((await loadedChunks()).some((url) => url.includes('AdminPage-'))).toBe(false);
+});
+
 test('persists an anonymous cart and sends the complete enquiry to WhatsApp', async ({ page }) => {
   const roseCard = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm' }),

@@ -1,8 +1,24 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Baloo 2 Variable";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("@fontsource-variable/baloo-2/files/baloo-2-latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Quicksand Variable";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("@fontsource-variable/quicksand/files/quicksand-latin-wght-normal.woff2") format("woff2");
+}
+
 @theme {
-  --font-heading: "Baloo 2", "Segoe UI", system-ui, sans-serif;
-  --font-sans: "Quicksand", "Segoe UI", system-ui, sans-serif;
+  --font-heading: "Baloo 2 Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Quicksand Variable", "Segoe UI", system-ui, sans-serif;
 
   --color-cream: #fffaf0;
   --color-cream-dark: #fdf1d6;
