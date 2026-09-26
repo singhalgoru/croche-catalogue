@@ -26,6 +26,7 @@ function App() {
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [returnToCartOnProductClose, setReturnToCartOnProductClose] = useState(false);
   const cart = useCart(!isAdminPage);
   const tickerMessages = useTickerMessages(!isAdminPage);
 
@@ -102,8 +103,18 @@ function App() {
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);
+    setReturnToCartOnProductClose(false);
     setSelectedVariantId(null);
     setSelectedProduct(product);
+  };
+
+  const closeSelectedProduct = () => {
+    setSelectedProduct(null);
+    setSelectedVariantId(null);
+    if (returnToCartOnProductClose) {
+      setReturnToCartOnProductClose(false);
+      setIsCartOpen(true);
+    }
   };
 
   const selectCategory = (category: CatalogueFilter) => {
@@ -228,7 +239,7 @@ function App() {
           initialVariantId={selectedVariantId ?? undefined}
           currentIndex={selectedProductIndex}
           totalProducts={filteredProducts.length}
-          onClose={() => setSelectedProduct(null)}
+          onClose={closeSelectedProduct}
           onPrevious={showPreviousProduct}
           onNext={showNextProduct}
           onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
@@ -273,6 +284,7 @@ function App() {
             const product = products.find((candidate) => candidate.id === productId);
             if (!product) return;
             trackProductSelected(product);
+            setReturnToCartOnProductClose(true);
             setSelectedVariantId(variantId);
             setSelectedProduct(product);
             setIsCartOpen(false);

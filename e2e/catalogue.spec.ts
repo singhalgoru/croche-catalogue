@@ -132,6 +132,12 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
   expect(cardImageBox).not.toBeNull();
   expect(cardCartBox).not.toBeNull();
   expect(cardCartBox!.y).toBeGreaterThanOrEqual(cardImageBox!.y + cardImageBox!.height);
+  const cardPriceBox = await roseCard.getByText('₹349').boundingBox();
+  expect(cardPriceBox).not.toBeNull();
+  expect(Math.abs(
+    cardCartBox!.y + cardCartBox!.height / 2 -
+      (cardPriceBox!.y + cardPriceBox!.height / 2),
+  )).toBeLessThan(8);
   await cardCartButton.hover();
   await expect(roseCard.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
 
@@ -173,7 +179,7 @@ test('opens the exact cart product variant in the product modal', async ({ page 
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
   const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
-  await cartDialog.getByRole('button', { name: 'View Rose Charm — Ivory' }).click();
+  await cartDialog.locator('article[aria-label="View Rose Charm — Ivory"]').click();
 
   productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
   await expect(
@@ -181,6 +187,8 @@ test('opens the exact cart product variant in the product modal', async ({ page 
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(productDialog.getByRole('img', { name: 'Rose Charm — Ivory' })).toBeVisible();
   await expect(cartDialog).toHaveCount(0);
+  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Shopping cart' })).toBeVisible();
 });
 
 test('shares a product through app icons and direct social links', async ({

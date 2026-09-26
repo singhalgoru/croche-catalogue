@@ -41,6 +41,7 @@ body {
 }
 
 .cart-updated {
+  transform-origin: top right;
   animation: cart-updated 650ms ease-out;
 }
 
@@ -51,11 +52,11 @@ body {
   }
 
   35% {
-    transform: scale(1.25) rotate(-8deg);
+    transform: scale(1.25);
   }
 
   65% {
-    transform: scale(1.12) rotate(8deg);
+    transform: scale(1.12);
   }
 }
 

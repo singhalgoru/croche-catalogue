@@ -129,12 +129,17 @@ export default function CartDrawer({
                 return (
                   <article
                     key={item.id}
-                    className="rounded-2xl border border-mustard/30 bg-white p-3"
+                    onClick={() => onOpenProduct(item.productId, item.variantId)}
+                    aria-label={`View ${item.productName} — ${item.variantName}`}
+                    className="cursor-pointer rounded-2xl border border-mustard/30 bg-white p-3 transition-colors hover:border-mustard"
                   >
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={() => onOpenProduct(item.productId, item.variantId)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenProduct(item.productId, item.variantId);
+                        }}
                         className="shrink-0 rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
                         aria-label={`View ${item.productName} — ${item.variantName}`}
                       >
@@ -147,7 +152,10 @@ export default function CartDrawer({
                       <div className="min-w-0 flex-1">
                         <button
                           type="button"
-                          onClick={() => onOpenProduct(item.productId, item.variantId)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onOpenProduct(item.productId, item.variantId);
+                          }}
                           className="text-left font-semibold text-cocoa underline-offset-2 hover:underline"
                         >
                           {item.productName}
@@ -167,7 +175,10 @@ export default function CartDrawer({
                         )}
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center justify-between">
+                    <div
+                      className="mt-3 flex items-center justify-between"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
