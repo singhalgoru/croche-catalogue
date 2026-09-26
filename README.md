@@ -52,7 +52,11 @@ existing originals need a separate, reviewed migration.
 The public catalogue loads without downloading the admin console or product
 detail modal; those modules load when their respective views open. The page
 preconnects to the configured Supabase origin so the catalogue and its first
-image do not wait for a new connection after JavaScript starts. Baloo 2 and
+image do not wait for a new connection after JavaScript starts. A small,
+early script starts the public, published-only product and category requests
+while the main bundle downloads; the app reuses their responses instead of
+fetching twice.
+Baloo 2 and
 Quicksand are self-hosted variable fonts with `font-display: swap`, rather
 than depending on a render-blocking Google Fonts stylesheet. Characters
 outside their Latin subset use the system font.

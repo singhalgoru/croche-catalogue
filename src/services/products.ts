@@ -1,6 +1,13 @@
 import { supabase } from '../lib/supabase';
 import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
+import { PRODUCT_COLUMNS } from './productColumns';
+
+declare global {
+  interface Window {
+    cataloguePrefetch?: Promise<ProductRow[]>;
+  }
+}
 
 interface ProductVariantImageRow {
   id: string;
@@ -86,11 +93,6 @@ export interface VariantUpdate {
   availableQuantity: number;
   imageFile?: File | null;
 }
-
-const VARIANT_COLUMNS =
-  'id, name, color, price, in_stock, available_quantity, image_path, image_url, sort_order, product_variant_images(id, image_path, image_url, sort_order)';
-const PRODUCT_COLUMNS =
-  `id, name, category, description, featured, price, show_price, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
 
 const requireSupabase = () => {
   if (!supabase) {
@@ -228,6 +230,9 @@ const syncProductSummary = async (productId: string) => {
 };
 
 export async function fetchPublishedProducts(): Promise<Product[]> {
+  const initial = window.cataloguePrefetch;
+  window.cataloguePrefetch = undefined;
+  if (initial) return (await initial as ProductRow[]).map(mapProductRow);
   const client = requireSupabase();
   const { data, error } = await client
     .from('products')

@@ -34,6 +34,35 @@ test('defers admin and product detail bundles until needed', async ({ page }) =>
   expect((await loadedChunks()).some((url) => url.includes('AdminPage-'))).toBe(false);
 });
 
+test('starts public catalogue requests before the main bundle finishes loading', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (/\/rest\/v1\/(products|categories)$/.test(new URL(request.url()).pathname) &&
+        request.method() === 'GET') {
+      requests.push(request.url());
+    }
+  });
+  await page.reload({ waitUntil: 'load' });
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
+  expect(requests).toHaveLength(2);
+  const productRequest = requests.find((url) => new URL(url).pathname.endsWith('/products'));
+  expect(productRequest).toBeDefined();
+  expect(new URL(productRequest!).searchParams.get('published')).toBe('eq.true');
+  const timings = await page.evaluate(() => {
+    const resources = performance.getEntriesByType('resource');
+    return {
+      products: resources.find((entry) => entry.name.includes('/rest/v1/products?'))?.startTime,
+      categories: resources.find((entry) => entry.name.includes('/rest/v1/categories?'))?.startTime,
+      mainBundle: resources.find((entry) => /\/assets\/index-[^/]+\.js/.test(entry.name))?.responseEnd,
+    };
+  });
+  expect(timings.products).toBeDefined();
+  expect(timings.categories).toBeDefined();
+  expect(timings.mainBundle).toBeDefined();
+  expect(timings.products!).toBeLessThan(timings.mainBundle!);
+  expect(timings.categories!).toBeLessThan(timings.mainBundle!);
+});
+
 test('persists an anonymous cart and sends the complete enquiry to WhatsApp', async ({ page }) => {
   const roseCard = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm' }),

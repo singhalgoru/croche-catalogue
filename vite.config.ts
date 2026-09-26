@@ -2,20 +2,37 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { PRODUCT_COLUMNS } from './src/services/productColumns.js'
 
 const supabasePreconnect = (): Plugin => {
   let origin: string | undefined
+  let url: string | undefined
+  let anonKey: string | undefined
+  let base: string
   return {
     name: 'supabase-preconnect',
     configResolved(config) {
-      origin = config.env.VITE_SUPABASE_URL
-        ? new URL(config.env.VITE_SUPABASE_URL).origin
-        : undefined
+      url = config.env.VITE_SUPABASE_URL
+      anonKey = config.env.VITE_SUPABASE_ANON_KEY
+      origin = url ? new URL(url).origin : undefined
+      base = config.base
     },
     transformIndexHtml() {
-      return origin
-        ? [{ tag: 'link', attrs: { rel: 'preconnect', href: origin, crossorigin: '' }, injectTo: 'head' }]
-        : []
+      if (!origin || !url || !anonKey) return []
+      return [
+        { tag: 'link', attrs: { rel: 'preconnect', href: origin, crossorigin: '' }, injectTo: 'head' },
+        {
+          tag: 'script',
+          attrs: {
+            src: `${base}catalogue-prefetch.js`,
+            async: true,
+            'data-supabase-url': url,
+            'data-supabase-key': anonKey,
+            'data-select': PRODUCT_COLUMNS,
+          },
+          injectTo: 'head',
+        },
+      ]
     },
   }
 }

@@ -6,6 +6,12 @@ interface CategoryRow {
   sort_order: number;
 }
 
+declare global {
+  interface Window {
+    categoriesPrefetch?: Promise<CategoryRow[]>;
+  }
+}
+
 const requireSupabase = () => {
   if (!supabase) {
     throw new Error(
@@ -16,18 +22,23 @@ const requireSupabase = () => {
 };
 
 export async function fetchCategorySettings(): Promise<CategorySettings[]> {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from('categories')
-    .select('name, sort_order')
-    .order('sort_order')
-    .order('name');
-
-  if (error) {
-    throw new Error(`Unable to load categories: ${error.message}`);
+  const initial = window.categoriesPrefetch;
+  window.categoriesPrefetch = undefined;
+  let rows: CategoryRow[];
+  if (initial) {
+    rows = await initial;
+  } else {
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from('categories')
+      .select('name, sort_order')
+      .order('sort_order')
+      .order('name');
+    if (error) throw new Error(`Unable to load categories: ${error.message}`);
+    rows = data as CategoryRow[];
   }
 
-  return (data as CategoryRow[]).map((category) => ({
+  return rows.map((category) => ({
     name: category.name,
     priority: category.sort_order,
   }));
