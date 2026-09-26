@@ -5,6 +5,7 @@ interface Props {
   disabled?: boolean;
   className?: string;
   quantity?: number;
+  overlay?: boolean;
 }
 
 const statusLabel = {
@@ -21,11 +22,12 @@ export default function CartIconButton({
   disabled = false,
   className = '',
   quantity = 0,
+  overlay = true,
 }: Props) {
   const label = statusLabel[status];
 
   return (
-    <div className={`group/cart absolute z-20 ${className}`}>
+    <div className={`group/cart ${overlay ? 'absolute z-20' : 'relative shrink-0'} ${className}`}>
       <button
         type="button"
         onClick={onClick}

@@ -6,6 +6,7 @@ interface Props {
   onDecrease: () => void;
   onIncrease: () => void;
   onRemove: () => void;
+  overlay?: boolean;
 }
 
 export default function ProductQuantityControl({
@@ -16,11 +17,16 @@ export default function ProductQuantityControl({
   onDecrease,
   onIncrease,
   onRemove,
+  overlay = true,
 }: Props) {
   const itemName = `${productName} — ${variantName}`;
 
   return (
-    <div className="absolute bottom-3 right-16 z-20 flex items-center gap-1 rounded-full border border-white/70 bg-cocoa/95 p-1 text-cream shadow-lg backdrop-blur-md">
+    <div
+      className={`flex items-center gap-1 rounded-full border border-white/70 bg-cocoa/95 p-1 text-cream shadow-lg backdrop-blur-md ${
+        overlay ? 'absolute bottom-3 right-16 z-20' : 'relative shrink-0'
+      }`}
+    >
       <button
         type="button"
         onClick={onDecrease}

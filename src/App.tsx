@@ -56,6 +56,7 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>('All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const pendingProductReference = useRef(readProductReferenceFromHash());
 
@@ -101,6 +102,7 @@ function App() {
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);
+    setSelectedVariantId(null);
     setSelectedProduct(product);
   };
 
@@ -145,6 +147,7 @@ function App() {
     const previousIndex =
       selectedProductIndex === 0 ? filteredProducts.length - 1 : selectedProductIndex - 1;
     setSelectedProduct(filteredProducts[previousIndex]);
+    setSelectedVariantId(null);
   };
 
   const showNextProduct = () => {
@@ -152,6 +155,7 @@ function App() {
     const nextIndex =
       selectedProductIndex === filteredProducts.length - 1 ? 0 : selectedProductIndex + 1;
     setSelectedProduct(filteredProducts[nextIndex]);
+    setSelectedVariantId(null);
   };
 
   if (isAdminPage) {
@@ -162,9 +166,19 @@ function App() {
     <div className="min-h-screen flex flex-col">
       <Header
         cartItemCount={cart.itemCount}
+        cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
         tickerMessages={tickerMessages}
       />
+      {cart.addFeedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed left-1/2 top-24 z-[90] -translate-x-1/2 rounded-full bg-emerald-700 px-4 py-2 text-center text-sm font-bold text-white shadow-lg"
+        >
+          ✓ {cart.addFeedback}
+        </div>
+      )}
 
       <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
         <SearchBar
@@ -209,7 +223,9 @@ function App() {
 
       {selectedProduct && (
         <ProductModal
+          key={`${selectedProduct.id}:${selectedVariantId ?? ''}`}
           product={selectedProduct}
+          initialVariantId={selectedVariantId ?? undefined}
           currentIndex={selectedProductIndex}
           totalProducts={filteredProducts.length}
           onClose={() => setSelectedProduct(null)}
@@ -252,6 +268,14 @@ function App() {
           }}
           onWhatsAppStarted={() => {
             void cart.markWhatsAppStarted();
+          }}
+          onOpenProduct={(productId, variantId) => {
+            const product = products.find((candidate) => candidate.id === productId);
+            if (!product) return;
+            trackProductSelected(product);
+            setSelectedVariantId(variantId);
+            setSelectedProduct(product);
+            setIsCartOpen(false);
           }}
         />
       )}

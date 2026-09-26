@@ -10,6 +10,7 @@ import { isProductNew } from '../utils/productStatus';
 import CartIconButton from './CartIconButton';
 import ProductQuantityControl from './ProductQuantityControl';
 import type { CartItem } from '../types/cart';
+import { getProductShareDetails } from '../utils/productShare';
 
 interface Props {
   product: Product;
@@ -24,6 +25,7 @@ interface Props {
   getCartItem?: (productId: string, variantId: string) => CartItem | undefined;
   onUpdateCartItem?: (itemId: string, quantity: number) => Promise<boolean>;
   onRemoveCartItem?: (itemId: string) => Promise<boolean>;
+  initialVariantId?: string;
 }
 
 interface GalleryImage {
@@ -45,15 +47,24 @@ export default function ProductModal({
   getCartItem,
   onUpdateCartItem,
   onRemoveCartItem,
+  initialVariantId,
 }: Props) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showTouchControls, setShowTouchControls] = useState(false);
-  const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id ?? '');
+  const initialVariant =
+    product.variants.find((variant) => variant.id === initialVariantId) ?? product.variants[0];
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    initialVariant?.id ?? '',
+  );
   const [isZoomOpen, setIsZoomOpen] = useState(false);
-  const [activeImageId, setActiveImageId] = useState('main');
+  const [activeImageId, setActiveImageId] = useState(
+    initialVariant?.gallery.length ? 'main' : `variant:${initialVariant?.id ?? ''}`,
+  );
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
@@ -91,6 +102,44 @@ export default function ProductModal({
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
+  const shareDetails = getProductShareDetails(product, selectedVariant);
+
+  const shareNatively = async () => {
+    if (!navigator.share) {
+      setShareFeedback('Use WhatsApp, Facebook, or Copy link below.');
+      return;
+    }
+    try {
+      await navigator.share({
+        title: shareDetails.title,
+        text: shareDetails.text,
+        url: shareDetails.url,
+      });
+      trackEvent('share_product', {
+        method: 'native',
+        product_id: product.id,
+        variant_id: selectedVariant?.id,
+      });
+      setShareFeedback('Share menu opened.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setShareFeedback(error instanceof Error ? error.message : 'Unable to open the share menu.');
+    }
+  };
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareDetails.url);
+      trackEvent('share_product', {
+        method: 'copy_link',
+        product_id: product.id,
+        variant_id: selectedVariant?.id,
+      });
+      setShareFeedback('Product link copied.');
+    } catch (error) {
+      setShareFeedback(error instanceof Error ? error.message : 'Unable to copy the product link.');
+    }
+  };
 
   useEffect(() => {
     trackProductViewed(product, selectedVariant);
@@ -246,39 +295,6 @@ export default function ProductModal({
             className="w-full aspect-square object-cover"
             {...productImageProtection}
           />
-          {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
-            <ProductQuantityControl
-              productName={product.name}
-              variantName={selectedVariant.name}
-              quantity={selectedCartItem.quantity}
-              disabled={isCartBusy}
-              onDecrease={() => {
-                void onUpdateCartItem(selectedCartItem.id, selectedCartItem.quantity - 1);
-              }}
-              onIncrease={() => {
-                if (!onAddToCart) return;
-                void onAddToCart(product, selectedVariant);
-              }}
-              onRemove={() => {
-                void onRemoveCartItem(selectedCartItem.id);
-              }}
-            />
-          ) : onAddToCart && selectedVariant?.inStock ? (
-            <CartIconButton
-              productName={product.name}
-              status={cartStatus}
-              onClick={() => {
-                setCartStatus('busy');
-                void onAddToCart(product, selectedVariant).then((added) => {
-                  setCartStatus(added ? 'added' : 'error');
-                  window.setTimeout(() => setCartStatus('idle'), 1800);
-                });
-              }}
-              disabled={isCartBusy}
-              className="bottom-3 right-16"
-              quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
-            />
-          ) : null}
           <div className="absolute bottom-3 right-3 flex gap-2">
             <button
               type="button"
@@ -448,6 +464,118 @@ export default function ProductModal({
             </p>
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
+              {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
+            </span>
+            {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
+              <ProductQuantityControl
+                productName={product.name}
+                variantName={selectedVariant.name}
+                quantity={selectedCartItem.quantity}
+                disabled={isCartBusy}
+                onDecrease={() => {
+                  void onUpdateCartItem(selectedCartItem.id, selectedCartItem.quantity - 1);
+                }}
+                onIncrease={() => {
+                  if (!onAddToCart) return;
+                  void onAddToCart(product, selectedVariant);
+                }}
+                onRemove={() => {
+                  void onRemoveCartItem(selectedCartItem.id);
+                }}
+                overlay={false}
+              />
+            ) : onAddToCart && selectedVariant?.inStock ? (
+              <CartIconButton
+                productName={product.name}
+                status={cartStatus}
+                onClick={() => {
+                  setCartStatus('busy');
+                  void onAddToCart(product, selectedVariant).then((added) => {
+                    setCartStatus(added ? 'added' : 'error');
+                    window.setTimeout(() => setCartStatus('idle'), 1800);
+                  });
+                }}
+                disabled={isCartBusy}
+                quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
+                overlay={false}
+              />
+            ) : null}
+          </div>
+          <div className="mt-5 rounded-xl border border-mustard/30 bg-cream/50 p-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIsShareOpen((current) => !current);
+                setShareFeedback(null);
+              }}
+              aria-expanded={isShareOpen}
+              aria-controls="product-share-options"
+              className="flex w-full items-center justify-between gap-3 text-sm font-bold text-cocoa"
+            >
+              Share this product
+              <span aria-hidden="true">{isShareOpen ? '−' : '+'}</span>
+            </button>
+            {isShareOpen && (
+              <div id="product-share-options" className="mt-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void shareNatively()}
+                    className="rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-cream"
+                  >
+                    Share to apps
+                  </button>
+                  <a
+                    href={shareDetails.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() =>
+                      trackEvent('share_product', {
+                        method: 'whatsapp',
+                        product_id: product.id,
+                        variant_id: selectedVariant?.id,
+                      })
+                    }
+                    className="rounded-full bg-[#25D366] px-3 py-2 text-center text-sm font-semibold text-white"
+                  >
+                    WhatsApp
+                  </a>
+                  <a
+                    href={shareDetails.facebookUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() =>
+                      trackEvent('share_product', {
+                        method: 'facebook',
+                        product_id: product.id,
+                        variant_id: selectedVariant?.id,
+                      })
+                    }
+                    className="rounded-full bg-[#1877F2] px-3 py-2 text-center text-sm font-semibold text-white"
+                  >
+                    Facebook
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void copyShareLink()}
+                    className="rounded-full border border-cocoa/30 px-3 py-2 text-sm font-semibold text-cocoa"
+                  >
+                    Copy link
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-cocoa/60">
+                  Use Share to apps for Instagram and other installed apps.
+                </p>
+                {shareFeedback && (
+                  <p className="mt-2 text-xs font-semibold text-cocoa" role="status">
+                    {shareFeedback}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
           {hasCarousel && (
             <div className="grid grid-cols-2 gap-3 mt-6">
               <button
@@ -466,11 +594,6 @@ export default function ProductModal({
               </button>
             </div>
           )}
-          <div className="flex items-center justify-end mt-6">
-            <span className={selectedVariant?.inStock ? 'text-green-700 font-medium' : 'text-cocoa/60 font-medium'}>
-              {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
-            </span>
-          </div>
           <a
             href={whatsappOrderLink}
             target="_blank"

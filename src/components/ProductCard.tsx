@@ -114,31 +114,36 @@ export default function ProductCard({
             </svg>
           </span>
         )}
-        {cartVariant && (
-          <CartIconButton
-            productName={product.name}
-            status={cartStatus}
-            onClick={() => {
-              setCartStatus('busy');
-              void onAddToCart(product, cartVariant).then((added) => {
-                setCartStatus(added ? 'added' : 'error');
-                window.setTimeout(() => setCartStatus('idle'), 1800);
-              });
-            }}
-            disabled={isCartBusy}
-            className="bottom-3 right-3"
-            quantity={cartQuantity}
-          />
-        )}
       </div>
       <div className="shrink-0 p-4">
         <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
-        <h3 className="font-heading font-semibold text-cocoa mt-1">{product.name}</h3>
-        {product.showPrice && product.price !== null && (
-          <p className="mt-1 font-heading text-lg font-bold text-cocoa">
-            {formatINR(product.price)}
-          </p>
-        )}
+        <div className="mt-1 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-heading font-semibold text-cocoa">{product.name}</h3>
+            <p className="mt-1 line-clamp-2 text-xs text-cocoa/65">{product.description}</p>
+            {product.showPrice && product.price !== null && (
+              <p className="mt-1 font-heading text-lg font-bold text-cocoa">
+                {formatINR(product.price)}
+              </p>
+            )}
+          </div>
+          {cartVariant && (
+            <CartIconButton
+              productName={product.name}
+              status={cartStatus}
+              onClick={() => {
+                setCartStatus('busy');
+                void onAddToCart(product, cartVariant).then((added) => {
+                  setCartStatus(added ? 'added' : 'error');
+                  window.setTimeout(() => setCartStatus('idle'), 1800);
+                });
+              }}
+              disabled={isCartBusy}
+              quantity={cartQuantity}
+              overlay={false}
+            />
+          )}
+        </div>
       </div>
     </article>
   );

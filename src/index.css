@@ -40,6 +40,25 @@ body {
   }
 }
 
+.cart-updated {
+  animation: cart-updated 650ms ease-out;
+}
+
+@keyframes cart-updated {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.25) rotate(-8deg);
+  }
+
+  65% {
+    transform: scale(1.12) rotate(8deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shipping-ticker-track {
     width: 100%;
@@ -49,5 +68,9 @@ body {
 
   .shipping-ticker-track span[aria-hidden='true'] {
     display: none;
+  }
+
+  .cart-updated {
+    animation: none;
   }
 }

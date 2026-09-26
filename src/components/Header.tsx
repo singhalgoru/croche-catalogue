@@ -6,7 +6,9 @@ const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
 interface Props {
   showShippingTicker?: boolean;
   showInstallPrompt?: boolean;
+  compact?: boolean;
   cartItemCount?: number;
+  cartUpdateCount?: number;
   onOpenCart?: () => void;
   tickerMessages?: string[];
 }
@@ -14,7 +16,9 @@ interface Props {
 export default function Header({
   showShippingTicker = true,
   showInstallPrompt = true,
+  compact = false,
   cartItemCount = 0,
+  cartUpdateCount = 0,
   onOpenCart,
   tickerMessages = DEFAULT_TICKER_MESSAGES,
 }: Props) {
@@ -47,9 +51,12 @@ export default function Header({
       {onOpenCart && (
         <div className="relative z-10 mx-auto h-0 max-w-6xl">
           <button
+            key={cartUpdateCount}
             type="button"
             onClick={onOpenCart}
             className={`right-4 flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream shadow-md transition-colors hover:bg-cocoa-dark sm:right-6 ${
+              cartUpdateCount > 0 ? 'cart-updated' : ''
+            } ${
               cartItemCount > 0
                 ? 'fixed top-12 z-[70]'
                 : 'absolute top-3'
@@ -76,19 +83,35 @@ export default function Header({
           </button>
         </div>
       )}
-      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 flex flex-col items-center text-center gap-3">
+      <div
+        className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
+          compact
+            ? 'flex-row justify-center gap-3 py-3'
+            : 'flex-col gap-3 py-6 sm:py-8'
+        }`}
+      >
         <img
           src={`${import.meta.env.BASE_URL}images/luvia-logo.jpg`}
           alt="Luvia — Crochet, Accessories & More, made with love"
-          className="h-28 w-28 sm:h-36 sm:w-36 md:h-44 md:w-44 rounded-full object-cover shadow-lg ring-4 ring-white"
+          className={`rounded-full object-cover shadow-lg ring-white ${
+            compact
+              ? 'h-12 w-12 ring-2'
+              : 'h-28 w-28 ring-4 sm:h-36 sm:w-36 md:h-44 md:w-44'
+          }`}
         />
-        <h1 className="font-heading text-2xl font-extrabold text-cocoa sm:text-3xl">
+        <h1
+          className={`font-heading font-extrabold text-cocoa ${
+            compact ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'
+          }`}
+        >
           Handmade Crochet Products &amp; Gifts
         </h1>
-        <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-          Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
-          Every piece is stitched with love and shipped across India.
-        </p>
+        {!compact && (
+          <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
+            Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
+            Every piece is stitched with love and shipped across India.
+          </p>
+        )}
         {showInstallPrompt && <InstallAppButton />}
       </div>
     </header>

@@ -125,6 +125,13 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
     name: 'Add to cart — Rose Charm',
   });
   await expect(cardCartButton).toHaveText('');
+  const [cardImageBox, cardCartBox] = await Promise.all([
+    roseCard.getByRole('img', { name: 'Rose Charm' }).boundingBox(),
+    cardCartButton.boundingBox(),
+  ]);
+  expect(cardImageBox).not.toBeNull();
+  expect(cardCartBox).not.toBeNull();
+  expect(cardCartBox!.y).toBeGreaterThanOrEqual(cardImageBox!.y + cardImageBox!.height);
   await cardCartButton.hover();
   await expect(roseCard.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
 
@@ -134,8 +141,88 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
     name: 'Add to cart — Rose Charm',
   });
   await expect(modalCartButton).toHaveText('');
+  const [modalImageBox, modalCartBox] = await Promise.all([
+    productDialog.getByRole('img', { name: 'Rose Charm — Rose Pink' }).boundingBox(),
+    modalCartButton.boundingBox(),
+  ]);
+  expect(modalImageBox).not.toBeNull();
+  expect(modalCartBox).not.toBeNull();
+  expect(modalCartBox!.y).toBeGreaterThanOrEqual(modalImageBox!.y + modalImageBox!.height);
   await modalCartButton.hover();
   await expect(productDialog.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
+  await modalCartButton.click();
+  await expect(page.getByRole('status')).toContainText(
+    'Rose Charm — Rose Pink added to cart',
+  );
+  await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toHaveClass(
+    /cart-updated/,
+  );
+});
+
+test('opens the exact cart product variant in the product modal', async ({ page }) => {
+  catalogueState.products[0].product_variants[1].in_stock = true;
+  catalogueState.products[0].product_variants[1].available_quantity = 2;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  let productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const ivoryVariant = productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' });
+  await ivoryVariant.click();
+  await productDialog.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
+  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  await cartDialog.getByRole('button', { name: 'View Rose Charm — Ivory' }).click();
+
+  productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await expect(
+    productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(productDialog.getByRole('img', { name: 'Rose Charm — Ivory' })).toBeVisible();
+  await expect(cartDialog).toHaveCount(0);
+});
+
+test('shares a product through native apps, WhatsApp, Facebook, and copy link', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: ShareData) => {
+        (window as unknown as { lastSharedProduct: ShareData }).lastSharedProduct = data;
+      },
+    });
+  });
+
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await dialog.getByRole('button', { name: 'Share this product' }).click();
+
+  await expect(dialog.getByRole('link', { name: 'WhatsApp', exact: true })).toHaveAttribute(
+    'href',
+    /wa\.me.*rose-charm--product-1/i,
+  );
+  await expect(dialog.getByRole('link', { name: 'Facebook' })).toHaveAttribute(
+    'href',
+    /facebook\.com\/sharer\/sharer\.php.*rose-charm--product-1/i,
+  );
+  await expect(dialog.getByRole('button', { name: 'Copy link' })).toBeVisible();
+  await expect(dialog.getByText(/Instagram and other installed apps/)).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Share to apps' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { lastSharedProduct?: ShareData }).lastSharedProduct,
+      ),
+    )
+    .toMatchObject({
+      title: 'Rose Charm — Rose Pink',
+      text: 'See Rose Charm — Rose Pink from Luvia',
+      url: expect.stringContaining('#product=rose-charm--product-1'),
+    });
 });
 
 test('positions the cart below the ticker and floats it after an item is added', async ({
@@ -424,7 +511,9 @@ test('supports full-modal swipes and touch-only overlay controls', async ({ page
   });
   await expect(page.getByRole('dialog', { name: 'New Heart Charm' })).toBeVisible();
 
-  const nextDescription = page.getByText('A newly published crochet heart charm.');
+  const nextDescription = page
+    .getByRole('dialog', { name: 'New Heart Charm' })
+    .getByText('A newly published crochet heart charm.');
   await nextDescription.dispatchEvent('touchstart', {
     touches: [touch(180, 650, 2)],
     changedTouches: [touch(180, 650, 2)],

@@ -16,6 +16,7 @@ interface Props {
   onRemove: (itemId: string) => void;
   onClear: () => void;
   onWhatsAppStarted: () => void;
+  onOpenProduct: (productId: string, variantId: string) => void;
 }
 
 export default function CartDrawer({
@@ -29,6 +30,7 @@ export default function CartDrawer({
   onRemove,
   onClear,
   onWhatsAppStarted,
+  onOpenProduct,
 }: Props) {
   const checkoutCart = useMemo(
     () =>
@@ -130,13 +132,26 @@ export default function CartDrawer({
                     className="rounded-2xl border border-mustard/30 bg-white p-3"
                   >
                     <div className="flex gap-3">
-                      <img
-                        src={item.image}
-                        alt=""
-                        className="h-20 w-20 shrink-0 rounded-xl bg-cream object-cover"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => onOpenProduct(item.productId, item.variantId)}
+                        className="shrink-0 rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
+                        aria-label={`View ${item.productName} — ${item.variantName}`}
+                      >
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="h-20 w-20 rounded-xl bg-cream object-cover"
+                        />
+                      </button>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-cocoa">{item.productName}</h3>
+                        <button
+                          type="button"
+                          onClick={() => onOpenProduct(item.productId, item.variantId)}
+                          className="text-left font-semibold text-cocoa underline-offset-2 hover:underline"
+                        >
+                          {item.productName}
+                        </button>
                         <p className="text-sm font-semibold text-cocoa/65">
                           Variant: {item.variantName}
                         </p>

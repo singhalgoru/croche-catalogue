@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-const signIn = async (page: Page) => {
+const signIn = async (page: Page, productSection?: 'add' | 'manage') => {
   await page.goto('./#admin', { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Email').fill('admin@luvia.test');
   await page.getByLabel('Password').fill('test-password');
@@ -13,6 +13,12 @@ const signIn = async (page: Page) => {
       scriptCount: document.querySelectorAll('script[src*="googletagmanager.com/gtag"]').length,
     })),
   ).toEqual({ hasGtag: false, scriptCount: 0 });
+  if (productSection === 'add') {
+    await page.getByRole('button', { name: /Add product/ }).click();
+  }
+  if (productSection === 'manage') {
+    await page.getByRole('button', { name: /Manage products/ }).click();
+  }
 };
 
 const expectNoHorizontalOverflow = async (page: Page) => {
@@ -28,6 +34,15 @@ const expectNoHorizontalOverflow = async (page: Page) => {
 test('authenticates and manages the complete category lifecycle', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
+  await expect(page.getByRole('button', { name: /Add product/ })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: /Manage products/ })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expectNoHorizontalOverflow(page);
 
   await page.getByRole('button', { name: /Manage categories/ }).click();
   const charmsDisplay = page.getByLabel('Priority for Charms').locator('..').locator('..');
@@ -148,7 +163,7 @@ test('manages rotating ticker messages', async ({ page }) => {
 
 test('uses Gemini suggestions to publish a product', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'add');
 
   await page.getByLabel('Variant image').setInputFiles({
     name: 'a-very-long-crochet-product-image-filename-for-mobile-testing.png',
@@ -208,6 +223,7 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   expect(
     state.products.find((product) => product.name === 'AI Bunny')?.product_variants,
   ).toHaveLength(1);
+  await page.getByRole('button', { name: /Manage products/ }).click();
   await expect(
     page.getByRole('heading', { name: 'AI Bunny', exact: true }),
   ).toBeVisible();
@@ -215,7 +231,7 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
 
 test('edits visibility and permanently removes products', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
@@ -246,7 +262,7 @@ test('edits visibility and permanently removes products', async ({ page }) => {
 
 test('controls product price visibility from the admin console', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const coaster = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
@@ -278,7 +294,7 @@ test('searches managed products by product, category, description, and variant',
   page,
 }) => {
   await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const search = page.getByLabel('Search products');
   const rose = page.locator('article').filter({
@@ -310,7 +326,7 @@ test('searches managed products by product, category, description, and variant',
 
 test('reorders variants and additional angle photos', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
@@ -352,7 +368,7 @@ test('reorders variants and additional angle photos', async ({ page }) => {
 
 test('adds, updates, and removes product variants', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
@@ -396,7 +412,7 @@ test('adds, updates, and removes product variants', async ({ page }) => {
 
 test('records confirmed sales and restocks depleted variants', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
@@ -433,7 +449,7 @@ test('records confirmed sales and restocks depleted variants', async ({ page }) 
 
 test('enhances an already uploaded variant main image with AI', async ({ page }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
@@ -467,7 +483,7 @@ test('creates a new angle and a prefilled variant from existing images with AI',
   page,
 }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
@@ -512,7 +528,7 @@ test('promotes a gallery photo to the main image without losing it, and removes 
   page,
 }) => {
   const state = await installMockSupabase(page);
-  await signIn(page);
+  await signIn(page, 'manage');
 
   const rose = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),

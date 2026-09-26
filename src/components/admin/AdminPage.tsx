@@ -169,27 +169,31 @@ export default function AdminPage({ onProductPublished }: Props) {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header showShippingTicker={false} showInstallPrompt={false} />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Header showShippingTicker={false} showInstallPrompt={false} compact />
+      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-8">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-heading text-sm font-semibold uppercase tracking-widest text-mustard-dark">
               Catalogue admin
             </p>
-            <h1 className="font-heading text-3xl font-bold text-cocoa">Manage catalogue</h1>
-            <p className="mt-1 text-sm text-cocoa/65">{session.user.email}</p>
+            <h1 className="font-heading text-2xl font-bold text-cocoa sm:text-3xl">
+              Manage catalogue
+            </h1>
+            <p className="mt-1 truncate text-xs text-cocoa/65 sm:text-sm">
+              {session.user.email}
+            </p>
           </div>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
             <a
               href="./"
-              className="rounded-full border-2 border-mustard px-4 py-2 text-sm font-semibold text-cocoa"
+              className="rounded-full border-2 border-mustard px-3 py-2 text-center text-sm font-semibold text-cocoa sm:px-4"
             >
               View catalogue
             </a>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream"
+              className="rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-cream sm:px-4"
             >
               Sign out
             </button>

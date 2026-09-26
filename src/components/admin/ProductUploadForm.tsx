@@ -41,6 +41,7 @@ const parsePrice = (value: string): number | null | undefined => {
 };
 
 export default function ProductUploadForm({ categories, onPublished }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [draft, setDraft] = useState<ProductDraft>(EMPTY_DRAFT);
   const [variants, setVariants] = useState<VariantDraft[]>(() => [createEmptyVariant('Default')]);
   const variantsRef = useRef(variants);
@@ -147,8 +148,38 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     : (categories[0] ?? '');
 
   return (
-    <form className="space-y-6" onSubmit={submitProduct}>
-      <section className="rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-mustard/40 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((current) => !current)}
+        aria-expanded={isExpanded}
+        aria-controls="add-product-panel"
+        className="flex w-full items-center justify-between gap-4 p-4 text-left sm:p-5"
+      >
+        <span>
+          <span className="block font-heading text-xl font-bold text-cocoa sm:text-2xl">
+            Add product
+          </span>
+          <span className="mt-0.5 block text-xs text-cocoa/60 sm:text-sm">
+            Upload photos, add details, and publish
+          </span>
+        </span>
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mustard/25 text-xl font-bold text-cocoa transition-transform ${
+            isExpanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden="true"
+        >
+          ⌄
+        </span>
+      </button>
+      {isExpanded && (
+        <form
+          id="add-product-panel"
+          className="space-y-4 border-t border-mustard/30 p-3 sm:space-y-6 sm:p-5"
+          onSubmit={submitProduct}
+        >
+      <section className="rounded-2xl border border-mustard/40 bg-white p-4 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
           Step 1 of 3
         </p>
@@ -168,7 +199,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-mustard/40 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
@@ -285,7 +316,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-mustard/40 bg-white p-4 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
           Step 3 of 3
         </p>
@@ -315,6 +346,8 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           }`}
         </button>
       </section>
-    </form>
+        </form>
+      )}
+    </section>
   );
 }

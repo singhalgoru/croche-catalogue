@@ -45,6 +45,7 @@ const parsePrice = (value: string): number | null | undefined => {
 };
 
 export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -170,31 +171,55 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   };
 
   return (
-    <section className="mt-10 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-heading text-2xl font-bold text-cocoa">Manage products</h2>
-          <p className="mt-1 text-sm text-cocoa/65">
-            Edit product details, replace an image, hide an item, or remove it permanently.
-          </p>
-        </div>
+    <section className="mt-4 rounded-2xl border border-mustard/40 bg-white shadow-sm sm:mt-6">
+      <div className="flex items-center gap-2 p-4 sm:p-5">
         <button
           type="button"
-          onClick={() => void loadProducts()}
-          disabled={isLoading || busyId !== null}
-          className="self-start rounded-full border-2 border-mustard px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+          aria-controls="manage-products-panel"
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
         >
-          Refresh
+          <span className="min-w-0">
+            <span className="block font-heading text-xl font-bold text-cocoa sm:text-2xl">
+              Manage products
+            </span>
+            <span className="mt-0.5 block text-xs text-cocoa/60 sm:text-sm">
+              {isLoading
+                ? 'Loading products…'
+                : `${products.length} product${products.length === 1 ? '' : 's'} · Search, edit, stock, or remove`}
+            </span>
+          </span>
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mustard/25 text-xl font-bold text-cocoa transition-transform ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+            aria-hidden="true"
+          >
+            ⌄
+          </span>
         </button>
+        {isExpanded && (
+          <button
+            type="button"
+            onClick={() => void loadProducts()}
+            disabled={isLoading || busyId !== null}
+            className="shrink-0 rounded-full border-2 border-mustard px-3 py-2 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
+          >
+            Refresh
+          </button>
+        )}
       </div>
 
       {error && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">
           {error}
         </p>
       )}
+      {isExpanded && (
+        <div id="manage-products-panel" className="border-t border-mustard/30 p-3 sm:p-5">
       {message && (
-        <p className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+        <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
           {message}
         </p>
       )}
@@ -239,7 +264,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           No products match “{searchQuery.trim()}”.
         </p>
       ) : (
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
           {filteredProducts.map((product) => {
             const isEditing = editingId === product.id && draft;
             const isDeleting = deleteId === product.id;
@@ -248,13 +273,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             return (
               <article
                 key={product.id}
-                className="min-w-0 rounded-2xl border border-mustard/30 bg-cream/50 p-4"
+                className="min-w-0 rounded-2xl border border-mustard/30 bg-cream/50 p-3 sm:p-4"
               >
-                <div className="flex gap-4">
+                <div className="flex gap-3 sm:gap-4">
                   <img
                     src={product.image}
                     alt={product.name}
-                    className="h-24 w-24 shrink-0 rounded-xl bg-cream object-cover"
+                    className="h-20 w-20 shrink-0 rounded-xl bg-cream object-cover sm:h-24 sm:w-24"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -281,12 +306,12 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                           </span>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-3 sm:flex">
                         <button
                           type="button"
                           onClick={() => void copyProductLink(product)}
                           disabled={isBusy}
-                          className="rounded-full border-2 border-cocoa/30 px-4 py-1.5 text-sm font-semibold text-cocoa disabled:opacity-60"
+                          className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
                         >
                           {copiedId === product.id ? 'Copied!' : 'Copy link'}
                         </button>
@@ -294,7 +319,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                           type="button"
                           onClick={() => startEditing(product)}
                           disabled={isBusy}
-                          className="rounded-full border-2 border-mustard px-4 py-1.5 text-sm font-semibold text-cocoa disabled:opacity-60"
+                          className="rounded-full border-2 border-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
                         >
                           Edit
                         </button>
@@ -306,7 +331,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             setDraft(null);
                           }}
                           disabled={isBusy}
-                          className="rounded-full border-2 border-red-300 px-4 py-1.5 text-sm font-semibold text-red-700 disabled:opacity-60"
+                          className="rounded-full border-2 border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-60 sm:px-4 sm:text-sm"
                         >
                           Remove
                         </button>
@@ -483,6 +508,8 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
               </article>
             );
           })}
+        </div>
+      )}
         </div>
       )}
     </section>

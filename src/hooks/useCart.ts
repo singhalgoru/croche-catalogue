@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addProductToCart,
   clearCart,
@@ -16,6 +16,9 @@ export function useCart(enabled = true) {
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addFeedback, setAddFeedback] = useState<string | null>(null);
+  const [cartUpdateCount, setCartUpdateCount] = useState(0);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -37,6 +40,13 @@ export function useCart(enabled = true) {
       isCurrent = false;
     };
   }, [enabled]);
+
+  useEffect(
+    () => () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    },
+    [],
+  );
 
   const runCartAction = useCallback(async (action: () => Promise<Cart>) => {
     setIsBusy(true);
@@ -64,9 +74,17 @@ export function useCart(enabled = true) {
     isLoading,
     isBusy,
     error,
+    addFeedback,
+    cartUpdateCount,
     addItem: async (product: Product, variant: ProductVariant) => {
       const nextCart = await runCartAction(() => addProductToCart(product, variant));
-      if (nextCart) trackAddToCart(product, variant);
+      if (nextCart) {
+        trackAddToCart(product, variant);
+        setAddFeedback(`${product.name} — ${variant.name} added to cart`);
+        setCartUpdateCount((count) => count + 1);
+        if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+        feedbackTimer.current = setTimeout(() => setAddFeedback(null), 2400);
+      }
       return nextCart;
     },
     updateQuantity: (itemId: string, quantity: number) =>
