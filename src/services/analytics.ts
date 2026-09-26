@@ -1,5 +1,6 @@
 import type { Product, ProductVariant } from '../types/product';
 import { getCampaignParameters } from '../utils/campaign';
+import { INTERNAL_TRAFFIC_TYPE, isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { metaProductParameters, trackMetaEvent } from './meta';
 
@@ -29,6 +30,9 @@ export const initializeAnalytics = () => {
     allow_ad_personalization_signals: false,
     page_path: `${window.location.pathname}${window.location.search}`,
     page_title: document.title,
+    // Tagging rather than dropping the hit lets GA4's Internal Traffic filter
+    // exclude it from reports while keeping it visible in DebugView.
+    ...(isInternalTraffic() ? { traffic_type: INTERNAL_TRAFFIC_TYPE } : {}),
   });
 
   const script = document.createElement('script');

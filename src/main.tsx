@@ -5,8 +5,10 @@ import App from './App.tsx'
 import { initializeAnalytics } from './services/analytics'
 import { initializeMetaPixel } from './services/meta'
 import { captureCampaign } from './utils/campaign'
+import { captureInternalTrafficPreference } from './utils/internalTraffic'
 
 captureCampaign()
+captureInternalTrafficPreference()
 initializeAnalytics()
 initializeMetaPixel()
 
