@@ -224,6 +224,27 @@ test('scrolls the first matching product below sticky controls after category se
     .toBe(true);
 });
 
+test('does not refocus category results when the catalogue clock updates', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeSetInterval = window.setInterval.bind(window);
+    window.setInterval = ((
+      handler: TimerHandler,
+      timeout?: number,
+      ...args: unknown[]
+    ) => nativeSetInterval(handler, timeout === 60_000 ? 100 : timeout, ...args)) as typeof window.setInterval;
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const settledScrollY = await page.evaluate(() => window.scrollY);
+
+  await page.waitForTimeout(350);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(settledScrollY - 2);
+});
+
 test('shows all category chips at the top and compacts them after scrolling', async ({ page }) => {
   const categories = page.getByLabel('Product categories');
   await expect(categories).toHaveClass(/flex-wrap/);

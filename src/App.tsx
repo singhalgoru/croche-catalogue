@@ -213,7 +213,7 @@ function App() {
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [categoryScrollRequest, filteredProducts, isLoading]);
+  }, [categoryScrollRequest, isLoading]);
 
   const selectedProductIndex = selectedProduct
     ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
