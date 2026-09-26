@@ -7,6 +7,7 @@ import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
 import ProductModal from './components/ProductModal';
 import CartDrawer from './components/CartDrawer';
+import BackToTopButton from './components/BackToTopButton';
 import AdminPage from './components/admin/AdminPage';
 import { useCart } from './hooks/useCart';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
@@ -231,6 +232,7 @@ function App() {
       </main>
 
       <Footer />
+      {!selectedProduct && !isCartOpen && <BackToTopButton />}
 
       {selectedProduct && (
         <ProductModal

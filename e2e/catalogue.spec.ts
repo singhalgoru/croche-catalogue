@@ -124,6 +124,10 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
   const cardCartButton = roseCard.getByRole('button', {
     name: 'Add to cart — Rose Charm',
   });
+  await expect(roseCard.getByText('Charms')).toHaveCount(0);
+  await expect(
+    roseCard.getByText('A detailed handmade rose charm for bags and keys.'),
+  ).toHaveCount(0);
   await expect(cardCartButton).toHaveText('');
   const [cardImageBox, cardCartBox] = await Promise.all([
     roseCard.getByRole('img', { name: 'Rose Charm' }).boundingBox(),
@@ -131,6 +135,9 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
   ]);
   expect(cardImageBox).not.toBeNull();
   expect(cardCartBox).not.toBeNull();
+  if (test.info().project.name === 'mobile-chromium') {
+    expect(cardImageBox!.width).toBeGreaterThan(300);
+  }
   expect(cardCartBox!.y).toBeGreaterThanOrEqual(cardImageBox!.y + cardImageBox!.height);
   const cardPriceBox = await roseCard.getByText('₹349').boundingBox();
   expect(cardPriceBox).not.toBeNull();
@@ -163,6 +170,15 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
   await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toHaveClass(
     /cart-updated/,
   );
+});
+
+test('shows a back-to-top control after scrolling the landing page', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'Go to top' })).toHaveCount(0);
+  await page.evaluate(() => window.scrollTo(0, 700));
+  const goToTop = page.getByRole('button', { name: 'Go to top' });
+  await expect(goToTop).toBeVisible();
+  await goToTop.click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
 });
 
 test('opens the exact cart product variant in the product modal', async ({ page }) => {

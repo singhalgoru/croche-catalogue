@@ -115,22 +115,18 @@ export default function ProductCard({
           </span>
         )}
       </div>
-      <div className="shrink-0 p-4">
-        <p className="text-xs uppercase tracking-wide text-cocoa/60 font-semibold">{product.category}</p>
-        <div className="mt-1">
-          <h3 className="font-heading font-semibold text-cocoa">{product.name}</h3>
-          <p className="mt-1 line-clamp-2 text-xs text-cocoa/65">{product.description}</p>
-        </div>
-        <div
-          className={`mt-2 flex min-h-12 items-center gap-3 ${
-            product.showPrice && product.price !== null ? 'justify-between' : 'justify-end'
-          }`}
-        >
-          {product.showPrice && product.price !== null && (
-            <p className="font-heading text-lg font-bold text-cocoa">
-              {formatINR(product.price)}
-            </p>
-          )}
+      <div className="shrink-0 p-4 sm:p-3 lg:p-4">
+        <h3 className="font-heading text-lg font-semibold text-cocoa sm:text-base">
+          {product.name}
+        </h3>
+        <div className="mt-2 flex min-h-12 items-center justify-between gap-3">
+          <div>
+            {product.showPrice && product.price !== null && (
+              <p className="font-heading text-xl font-bold text-cocoa sm:text-lg">
+                {formatINR(product.price)}
+              </p>
+            )}
+          </div>
           {cartVariant && (
             <CartIconButton
               productName={product.name}
