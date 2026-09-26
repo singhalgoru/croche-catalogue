@@ -230,12 +230,29 @@ test('shows all category chips at the top and compacts them after scrolling', as
   await expect(categories).not.toHaveClass(/overflow-x-auto/);
 
   await page.evaluate(() => window.scrollTo(0, 700));
-  await expect(categories).toHaveClass(/overflow-x-auto/);
-  await expect(categories).not.toHaveClass(/justify-center overflow-visible/);
+  if (test.info().project.name === 'mobile-chromium') {
+    await expect(page.getByLabel('Product categories')).toHaveCount(1);
+    const stickyCategories = page.getByLabel('Product categories');
+    await expect(stickyCategories).toHaveClass(/overflow-x-auto/);
+    await expect(stickyCategories).not.toHaveClass(/justify-center overflow-visible/);
+  } else {
+    await expect(page.getByLabel('Product categories')).toHaveCount(1);
+  }
 
   await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(page.getByLabel('Product categories')).toHaveCount(1);
   await expect(categories).toHaveClass(/flex-wrap/);
   await expect(categories).not.toHaveClass(/overflow-x-auto/);
+});
+
+test('allows uninterrupted upward scrolling past the mobile sticky controls', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile-chromium');
+  await page.evaluate(() => window.scrollTo(0, 900));
+  await expect(page.getByLabel('Product categories')).toHaveCount(1);
+
+  await page.mouse.wheel(0, -2000);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(5);
+  await expect(page.getByLabel('Product categories')).toHaveCount(1);
 });
 
 test('previews product variants from the landing card without opening details', async ({

@@ -62,9 +62,12 @@ function App() {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [categoryScrollRequest, setCategoryScrollRequest] = useState(0);
   const [areCatalogueToolsSticky, setAreCatalogueToolsSticky] = useState(false);
+  const [catalogueToolsHeight, setCatalogueToolsHeight] = useState(0);
   const pendingProductReference = useRef(readProductReferenceFromHash());
   const productReturnScrollY = useRef<number | null>(null);
+  const catalogueToolsSentinelRef = useRef<HTMLDivElement>(null);
   const catalogueToolsRef = useRef<HTMLDivElement>(null);
+  const stickyCatalogueToolsRef = useRef<HTMLDivElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,9 +76,24 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const tools = catalogueToolsRef.current;
+    if (!tools) return;
+    const observer = new ResizeObserver(() => setCatalogueToolsHeight(tools.offsetHeight));
+    setCatalogueToolsHeight(tools.offsetHeight);
+    observer.observe(tools);
+    return () => observer.disconnect();
+  }, [areCatalogueToolsSticky]);
+
+  useEffect(() => {
     const updateStickyState = () => {
-      const tools = catalogueToolsRef.current;
-      setAreCatalogueToolsSticky(Boolean(tools && tools.getBoundingClientRect().top <= 0));
+      const sentinel = catalogueToolsSentinelRef.current;
+      setAreCatalogueToolsSticky(
+        Boolean(
+          window.innerWidth < 640 &&
+            sentinel &&
+            sentinel.getBoundingClientRect().top < 0,
+        ),
+      );
     };
     updateStickyState();
     window.addEventListener('scroll', updateStickyState, { passive: true });
@@ -183,7 +201,9 @@ function App() {
       const productGrid = productGridRef.current;
       if (!productGrid) return;
       const stickyOffset =
-        window.innerWidth < 640 ? (catalogueToolsRef.current?.offsetHeight ?? 0) + 12 : 16;
+        window.innerWidth < 640
+          ? (stickyCatalogueToolsRef.current?.offsetHeight ?? 112) + 12
+          : 16;
       const top = productGrid.getBoundingClientRect().top + window.scrollY - stickyOffset;
       window.scrollTo({
         top: Math.max(0, top),
@@ -238,27 +258,51 @@ function App() {
       )}
 
       <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
-        <div
-          ref={catalogueToolsRef}
-          className="sticky top-0 z-40 -mx-4 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none sm:backdrop-blur-none"
-        >
-          <SearchBar
-            value={query}
-            onChange={setQuery}
-            onSearch={(searchQuery) =>
-              trackEvent('catalogue_search', {
-                query_length: searchQuery.trim().length,
-                result_count: filteredProducts.length,
-              })
-            }
-          />
-          <CategoryFilter
-            categories={categories}
-            active={activeCategory}
-            onSelect={selectCategory}
-            compactOnMobile={areCatalogueToolsSticky}
-          />
-        </div>
+        <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
+        {areCatalogueToolsSticky ? (
+          <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
+        ) : (
+          <div ref={catalogueToolsRef} className="space-y-3">
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              onSearch={(searchQuery) =>
+                trackEvent('catalogue_search', {
+                  query_length: searchQuery.trim().length,
+                  result_count: filteredProducts.length,
+                })
+              }
+            />
+            <CategoryFilter
+              categories={categories}
+              active={activeCategory}
+              onSelect={selectCategory}
+            />
+          </div>
+        )}
+        {areCatalogueToolsSticky && (
+          <div
+            ref={stickyCatalogueToolsRef}
+            className="fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:hidden"
+          >
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              onSearch={(searchQuery) =>
+                trackEvent('catalogue_search', {
+                  query_length: searchQuery.trim().length,
+                  result_count: filteredProducts.length,
+                })
+              }
+            />
+            <CategoryFilter
+              categories={categories}
+              active={activeCategory}
+              onSelect={selectCategory}
+              compactOnMobile
+            />
+          </div>
+        )}
         <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
           Shop the Collection
         </h2>
