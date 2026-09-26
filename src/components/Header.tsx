@@ -49,7 +49,7 @@ export default function Header({
         </div>
       )}
       {onOpenCart && (
-        <div className="relative z-10 mx-auto h-0 max-w-6xl">
+        <div className="relative z-50 mx-auto h-0 max-w-6xl">
           <button
             key={cartUpdateCount}
             type="button"

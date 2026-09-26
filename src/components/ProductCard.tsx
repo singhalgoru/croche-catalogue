@@ -32,7 +32,15 @@ export default function ProductCard({
     ].filter(Boolean))),
     [product.image, product.variants],
   );
-  const [activeImage, setActiveImage] = useState({ productId: product.id, index: 0 });
+  const [activeImage, setActiveImage] = useState<{
+    productId: string;
+    index: number;
+    variantId?: string;
+  }>({
+    productId: product.id,
+    index: 0,
+    variantId: product.variants[0]?.id,
+  });
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const activeImageIndex = activeImage.productId === product.id ? activeImage.index : 0;
@@ -41,22 +49,33 @@ export default function ProductCard({
   useEffect(() => {
     if (cardImages.length <= 1) return;
     const timer = window.setInterval(() => {
-      setActiveImage((currentImage) => ({
-        productId: product.id,
-        index:
+      setActiveImage((currentImage) => {
+        const nextIndex =
           currentImage.productId === product.id
             ? (currentImage.index + 1) % cardImages.length
-            : 1 % cardImages.length,
-      }));
+            : 1 % cardImages.length;
+        return {
+          productId: product.id,
+          index: nextIndex,
+          variantId: product.variants.find(
+            (variant) => variant.image === cardImages[nextIndex],
+          )?.id,
+        };
+      });
     }, 3500);
     return () => window.clearInterval(timer);
-  }, [cardImages.length, product.id]);
+  }, [cardImages, product.id, product.variants]);
 
   return (
     <article
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('button, a')) return;
+        onSelect(product);
+      }}
+      aria-label={`Product: ${product.name}`}
       className={`group relative flex h-full flex-col overflow-hidden rounded-2xl bg-mustard/25 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
-      }`}
+      } cursor-pointer`}
     >
       <div className="relative aspect-square min-h-0 flex-1 overflow-hidden bg-cream-dark">
         <button
@@ -119,6 +138,41 @@ export default function ProductCard({
         <h3 className="font-heading text-lg font-semibold text-cocoa sm:text-base">
           {product.name}
         </h3>
+        {product.variants.length > 1 && (
+          <div className="mt-2 flex flex-wrap gap-2" aria-label={`${product.name} variants`}>
+            {product.variants.map((variant) => {
+              const imageIndex = cardImages.indexOf(variant.image);
+              const isActive =
+                activeImage.productId === product.id && activeImage.variantId === variant.id;
+              return (
+                <button
+                  key={variant.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveImage({
+                      productId: product.id,
+                      index: imageIndex >= 0 ? imageIndex : 0,
+                      variantId: variant.id,
+                    })
+                  }
+                  aria-label={`Show ${variant.name} variant image for ${product.name}`}
+                  aria-pressed={isActive}
+                  title={variant.name}
+                  className={`h-7 w-7 overflow-hidden rounded-full border-2 bg-cream shadow-sm transition-transform hover:scale-110 ${
+                    isActive ? 'border-cocoa ring-2 ring-mustard' : 'border-white'
+                  }`}
+                >
+                  <img
+                    src={variant.image}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    {...productImageProtection}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="mt-2 flex min-h-12 items-center justify-between gap-3">
           <div>
             {product.showPrice && product.price !== null && (

@@ -181,6 +181,36 @@ test('shows a back-to-top control after scrolling the landing page', async ({ pa
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
 });
 
+test('opens a product from its card and restores the browsing position', async ({ page }) => {
+  const roseCard = page.getByRole('article', { name: 'Product: Rose Charm' });
+  await page.evaluate(() => window.scrollTo(0, 650));
+  const originalScrollY = await page.evaluate(() => window.scrollY);
+  await roseCard.getByRole('heading', { name: 'Rose Charm' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThanOrEqual(originalScrollY - 2);
+});
+
+test('previews product variants from the landing card without opening details', async ({
+  page,
+}) => {
+  const roseCard = page.getByRole('article', { name: 'Product: Rose Charm' });
+  const ivoryPreview = roseCard.getByRole('button', {
+    name: 'Show Ivory variant image for Rose Charm',
+  });
+  await ivoryPreview.click();
+  await expect(ivoryPreview).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    roseCard.getByRole('button', {
+      name: 'Show Rose Pink variant image for Rose Charm',
+    }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('dialog', { name: 'Rose Charm' })).toHaveCount(0);
+});
+
 test('opens the exact cart product variant in the product modal', async ({ page }) => {
   catalogueState.products[0].product_variants[1].in_stock = true;
   catalogueState.products[0].product_variants[1].available_quantity = 2;
