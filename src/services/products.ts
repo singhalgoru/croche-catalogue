@@ -13,6 +13,7 @@ interface ProductVariantRow {
   id: string;
   name: string;
   color: string;
+  price: number | null;
   in_stock: boolean;
   available_quantity: number;
   image_path: string;
@@ -42,6 +43,7 @@ interface ProductRow {
 export interface NewVariant {
   name: string;
   color: string;
+  price: number | null;
   inStock: boolean;
   availableQuantity: number;
   imageFile: File;
@@ -79,13 +81,14 @@ export interface ProductUpdate {
 export interface VariantUpdate {
   name: string;
   color: string;
+  price: number | null;
   inStock: boolean;
   availableQuantity: number;
   imageFile?: File | null;
 }
 
 const VARIANT_COLUMNS =
-  'id, name, color, in_stock, available_quantity, image_path, image_url, sort_order, product_variant_images(id, image_path, image_url, sort_order)';
+  'id, name, color, price, in_stock, available_quantity, image_path, image_url, sort_order, product_variant_images(id, image_path, image_url, sort_order)';
 const PRODUCT_COLUMNS =
   `id, name, category, description, featured, price, show_price, color, in_stock, image_path, image_url, published, published_at, created_at, product_variants(${VARIANT_COLUMNS})`;
 
@@ -108,6 +111,7 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   id: row.id,
   name: row.name,
   color: row.color,
+  price: row.price,
   inStock: row.in_stock,
   availableQuantity: row.available_quantity,
   image: row.image_url,
@@ -125,6 +129,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     id: `${row.id}-default`,
     name: 'Default',
     color: row.color,
+    price: null,
     inStock: row.in_stock,
     availableQuantity: row.in_stock ? 1 : 0,
     image: row.image_url,
@@ -284,6 +289,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
           product_id: productId,
           name: variant.name.trim(),
           color: variant.color,
+          price: variant.price,
           in_stock: variant.inStock && variant.availableQuantity > 0,
           available_quantity: variant.availableQuantity,
           image_path: uploads[index].imagePath,
@@ -367,6 +373,7 @@ export async function addProductVariant(
         product_id: product.id,
         name: variant.name.trim(),
         color: variant.color,
+        price: variant.price,
         in_stock: variant.inStock && variant.availableQuantity > 0,
         available_quantity: variant.availableQuantity,
         image_path: upload.imagePath,
@@ -525,6 +532,7 @@ export async function updateProductVariant(
     .update({
       name: update.name.trim(),
       color: update.color,
+      price: update.price,
       in_stock: update.inStock && update.availableQuantity > 0,
       available_quantity: update.availableQuantity,
       ...(upload ? { image_path: upload.imagePath, image_url: upload.imageUrl } : {}),

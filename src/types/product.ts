@@ -16,6 +16,8 @@ export interface ProductVariant {
   id: string;
   name: string;
   color: string;
+  /** Optional price override in whole rupees. Falls back to the product price. */
+  price: number | null;
   inStock: boolean;
   availableQuantity: number;
   image: string;

@@ -1,4 +1,5 @@
 import type { Product, ProductVariant } from '../types/product';
+import { getPublicVariantPrice } from '../utils/productPrice';
 
 type MetaParameters = Record<string, unknown>;
 
@@ -54,13 +55,14 @@ export const trackMetaEvent = (name: string, parameters: MetaParameters = {}) =>
   window.fbq('track', name, parameters);
 };
 
-export const metaProductParameters = (product: Product, variant?: ProductVariant) => ({
-  content_ids: [product.id],
-  content_name: variant ? `${product.name} — ${variant.name}` : product.name,
-  content_category: product.category,
-  content_type: 'product',
-  // A value lets Meta optimise towards higher-worth enquiries.
-  ...(product.showPrice && product.price !== null && product.price > 0
-    ? { value: product.price, currency: 'INR' }
-    : {}),
-});
+export const metaProductParameters = (product: Product, variant?: ProductVariant) => {
+  const price = getPublicVariantPrice(product, variant);
+  return {
+    content_ids: [product.id],
+    content_name: variant ? `${product.name} — ${variant.name}` : product.name,
+    content_category: product.category,
+    content_type: 'product',
+    // A value lets Meta optimise towards higher-worth enquiries.
+    ...(price !== null && price > 0 ? { value: price, currency: 'INR' } : {}),
+  };
+};

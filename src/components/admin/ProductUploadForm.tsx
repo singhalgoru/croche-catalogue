@@ -8,6 +8,7 @@ import {
   releaseVariantPreviews,
   type VariantDraft,
 } from './variantDraft';
+import { parseOptionalPrice } from './price';
 
 interface Props {
   categories: Category[];
@@ -30,14 +31,6 @@ const EMPTY_DRAFT: ProductDraft = {
   featured: false,
   price: '',
   showPrice: false,
-};
-
-/** Returns the rupee amount, or `undefined` when the entry is not a valid price. */
-const parsePrice = (value: string): number | null | undefined => {
-  const trimmed = value.trim();
-  if (trimmed === '') return null;
-  const amount = Number(trimmed);
-  return Number.isInteger(amount) && amount >= 0 ? amount : undefined;
 };
 
 export default function ProductUploadForm({ categories, onPublished }: Props) {
@@ -102,13 +95,20 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       setErrorMessage('Every variant needs a name and image.');
       return;
     }
-    const price = parsePrice(draft.price);
+    const price = parseOptionalPrice(draft.price);
     if (price === undefined) {
       setErrorMessage('Enter the price as a whole number of rupees, or leave it blank.');
       return;
     }
     if (draft.showPrice && price === null) {
       setErrorMessage('Add a price before showing it in the catalogue.');
+      return;
+    }
+    const variantPrices = variants.map((variant) => parseOptionalPrice(variant.price));
+    if (variantPrices.some((variantPrice) => variantPrice === undefined)) {
+      setErrorMessage(
+        'Enter each variant price as a whole number of rupees, or leave it blank.',
+      );
       return;
     }
 
@@ -120,9 +120,10 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         ...draft,
         category,
         price,
-        variants: variants.map((variant) => ({
+        variants: variants.map((variant, index) => ({
           name: variant.name.trim(),
           color: variant.color,
+          price: variantPrices[index]!,
           inStock: variant.inStock,
           availableQuantity: variant.availableQuantity,
           imageFile: variant.imageFile!,

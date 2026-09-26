@@ -236,6 +236,23 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                 </div>
               </label>
               <label className="min-w-0 text-sm font-semibold text-cocoa">
+                Variant price (₹)
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  step="1"
+                  value={variant.price}
+                  onChange={(event) => updateVariant(variant.key, { price: event.target.value })}
+                  placeholder="Use product price"
+                  disabled={disabled}
+                  className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+                />
+                <span className="mt-1 block text-xs font-normal text-cocoa/55">
+                  Leave blank to use the product price.
+                </span>
+              </label>
+              <label className="min-w-0 text-sm font-semibold text-cocoa">
                 Stock status
                 <select
                   value={variant.inStock ? 'in-stock' : 'out-of-stock'}

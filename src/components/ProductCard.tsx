@@ -3,6 +3,7 @@ import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
+import { getPublicVariantPrice } from '../utils/productPrice';
 import CartIconButton from './CartIconButton';
 
 interface Props {
@@ -23,7 +24,6 @@ export default function ProductCard({
   cartQuantity = 0,
 }: Props) {
   const isNew = isProductNew(product);
-  const cartVariant = product.variants.find((variant) => variant.inStock);
   const cardImages = useMemo(
     () => Array.from(new Set([
       product.image,
@@ -45,6 +45,13 @@ export default function ProductCard({
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const activeImageIndex = activeImage.productId === product.id ? activeImage.index : 0;
   const activeImageUrl = cardImages[activeImageIndex] ?? product.image;
+  const previewedVariant = product.variants.find(
+    (variant) => variant.id === activeImage.variantId,
+  );
+  const cartVariant =
+    (previewedVariant?.inStock ? previewedVariant : null)
+    ?? product.variants.find((variant) => variant.inStock);
+  const displayedPrice = getPublicVariantPrice(product, previewedVariant ?? cartVariant);
 
   useEffect(() => {
     if (cardImages.length <= 1) return;
@@ -175,9 +182,9 @@ export default function ProductCard({
         )}
         <div className="mt-2 flex min-h-12 items-center justify-between gap-3">
           <div>
-            {product.showPrice && product.price !== null && (
+            {displayedPrice !== null && (
               <p className="font-heading text-xl font-bold text-cocoa sm:text-lg">
-                {formatINR(product.price)}
+                {formatINR(displayedPrice)}
               </p>
             )}
           </div>

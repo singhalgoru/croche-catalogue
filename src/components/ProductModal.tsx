@@ -19,6 +19,7 @@ import CartIconButton from './CartIconButton';
 import ProductQuantityControl from './ProductQuantityControl';
 import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
+import { getPublicVariantPrice } from '../utils/productPrice';
 
 interface Props {
   product: Product;
@@ -76,6 +77,7 @@ export default function ProductModal({
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
+  const displayedPrice = getPublicVariantPrice(product, selectedVariant);
   const selectedCartItem = selectedVariant
     ? getCartItem?.(product.id, selectedVariant.id)
     : undefined;
@@ -466,9 +468,9 @@ export default function ProductModal({
             )}
           </div>
           <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>
-          {product.showPrice && product.price !== null && (
+          {displayedPrice !== null && (
             <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
-              {formatINR(product.price)}
+              {formatINR(displayedPrice)}
             </p>
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>

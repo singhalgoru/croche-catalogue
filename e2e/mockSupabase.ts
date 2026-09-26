@@ -24,6 +24,7 @@ export interface VariantRow {
   product_id: string;
   name: string;
   color: string;
+  price: number | null;
   in_stock: boolean;
   image_path: string;
   image_url: string;
@@ -159,6 +160,7 @@ const defaultProducts = (): ProductRow[] => [
         product_id: 'product-1',
         name: 'Rose Pink',
         color: '#f6c453',
+        price: null,
         in_stock: true,
         available_quantity: 3,
         image_path: 'seed/rose.jpg',
@@ -179,6 +181,7 @@ const defaultProducts = (): ProductRow[] => [
         product_id: 'product-1',
         name: 'Ivory',
         color: '#fffaf0',
+        price: null,
         in_stock: false,
         available_quantity: 0,
         image_path: 'seed/rose-ivory.jpg',
@@ -209,6 +212,7 @@ const defaultProducts = (): ProductRow[] => [
         product_id: 'product-2',
         name: 'Default',
         color: '#e2a933',
+        price: null,
         in_stock: false,
         available_quantity: 0,
         image_path: 'seed/coaster.jpg',
@@ -239,6 +243,7 @@ const defaultProducts = (): ProductRow[] => [
         product_id: 'product-3',
         name: 'Default',
         color: '#d96c75',
+        price: null,
         in_stock: true,
         available_quantity: 1,
         image_path: 'seed/heart.jpg',

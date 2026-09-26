@@ -17,7 +17,10 @@ import {
 import type { ProductVariant, ProductVariantImage } from '../../types/product';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
+import { parseOptionalPrice } from './price';
 import { suggestVariantColor } from './variantColor';
+import { formatINR } from '../../utils/currency';
+import { getVariantPrice } from '../../utils/productPrice';
 
 const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
 const MAX_GALLERY_IMAGES = 6;
@@ -31,6 +34,7 @@ interface Props {
 interface Draft {
   name: string;
   color: string;
+  price: string;
   inStock: boolean;
   availableQuantity: number;
   imageFile: File | null;
@@ -69,6 +73,7 @@ interface ExistingImageCreation {
 const emptyDraft = (): Draft => ({
   name: '',
   color: '#f6c453',
+  price: '',
   inStock: true,
   availableQuantity: 1,
   imageFile: null,
@@ -80,6 +85,7 @@ const emptyDraft = (): Draft => ({
 const draftFromVariant = (variant: ProductVariant): Draft => ({
   name: variant.name,
   color: variant.color,
+  price: variant.price === null ? '' : String(variant.price),
   inStock: variant.inStock,
   availableQuantity: variant.availableQuantity,
   imageFile: null,
@@ -295,6 +301,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       const saved = await updateProductVariant(product, variant, {
         name: variant.name,
         color: variant.color,
+        price: variant.price,
         inStock: variant.inStock,
         availableQuantity: variant.availableQuantity,
         imageFile: file,
@@ -498,12 +505,18 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       setError('Choose an image for the new variant.');
       return;
     }
+    const price = parseOptionalPrice(draft.price);
+    if (price === undefined) {
+      setError('Enter the variant price as a whole number of rupees, or leave it blank.');
+      return;
+    }
     setIsBusy(true);
     setError(null);
     try {
       const saved = await addProductVariant(product, {
         ...draft,
         name: draft.name.trim(),
+        price,
         imageFile: draft.imageFile,
         galleryFiles: draft.galleryFiles,
       });
@@ -522,10 +535,15 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     variant: ProductVariant,
   ) => {
     event.preventDefault();
+    const price = parseOptionalPrice(draft.price);
+    if (price === undefined) {
+      setError('Enter the variant price as a whole number of rupees, or leave it blank.');
+      return;
+    }
     setIsBusy(true);
     setError(null);
     try {
-      const update: VariantUpdate = draft;
+      const update: VariantUpdate = { ...draft, price };
       const saved = await updateProductVariant(product, variant, update);
       setEditingId(null);
       setDraft(emptyDraft());
@@ -637,6 +655,24 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
             className="h-10 w-12 rounded-lg border border-mustard/60 bg-white p-1"
           />
         </div>
+      </label>
+      <label className="min-w-0 text-sm font-semibold text-cocoa">
+        Variant price (₹)
+        <input
+          type="number"
+          inputMode="numeric"
+          min="0"
+          step="1"
+          value={draft.price}
+          onChange={(event) =>
+            setDraft((current) => ({ ...current, price: event.target.value }))
+          }
+          placeholder={`Use product price${product.price === null ? '' : ` (${product.price})`}`}
+          className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+        />
+        <span className="mt-1 block text-xs font-normal text-cocoa/55">
+          Leave blank to use the product price.
+        </span>
       </label>
       <label className="min-w-0 text-sm font-semibold text-cocoa">
         Stock status
@@ -852,6 +888,11 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                   <p className={`text-xs ${variant.inStock ? 'text-green-700' : 'text-cocoa/50'}`}>
                     {variant.inStock ? 'In stock' : 'Out of stock'} · {variant.availableQuantity}{' '}
                     available
+                  </p>
+                  <p className="text-xs text-cocoa/60">
+                    {variant.price === null
+                      ? `Product price${product.price === null ? ' not set' : `: ${formatINR(product.price)}`}`
+                      : `Variant price: ${formatINR(getVariantPrice(product, variant)!)}`}
                   </p>
                 </div>
               </div>

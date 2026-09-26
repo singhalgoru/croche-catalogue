@@ -211,6 +211,7 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   await expect(page.getByLabel('Description')).toHaveValue(
     'A soft handmade crochet bunny suggested by Gemini.',
   );
+  await page.getByLabel('Variant price (₹)').fill('725');
   await page.getByLabel('Feature this product at the top of the catalogue').check();
 
   await page.getByRole('button', { name: 'Publish product' }).click();
@@ -223,6 +224,9 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   expect(
     state.products.find((product) => product.name === 'AI Bunny')?.product_variants,
   ).toHaveLength(1);
+  expect(
+    state.products.find((product) => product.name === 'AI Bunny')?.product_variants[0].price,
+  ).toBe(725);
   await page.getByRole('button', { name: /Manage products/ }).click();
   await expect(
     page.getByRole('heading', { name: 'AI Bunny', exact: true }),
@@ -378,6 +382,7 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
   const newVariant = rose.getByRole('heading', { name: 'New variant' }).locator('..');
   await newVariant.getByLabel('Variant name').fill('Lavender');
+  await newVariant.getByLabel('Variant price (₹)').fill('399');
   await expect(newVariant.getByLabel('Colour').first()).toHaveValue('#a78bfa');
   await newVariant.getByLabel('Variant image').setInputFiles({
     name: 'lavender.png',
@@ -390,15 +395,18 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   await newVariant.getByRole('button', { name: 'Add variant' }).click();
   await expect(page.getByText('“Lavender” was added to Rose Charm.')).toBeVisible();
   expect(state.products[0].product_variants).toHaveLength(3);
+  expect(state.products[0].product_variants.at(-1)?.price).toBe(399);
 
   const lavender = rose.getByRole('group', { name: 'Lavender variant' });
   await lavender.getByRole('button', { name: 'Edit' }).click();
   await lavender.getByLabel('Variant name').fill('Lilac');
+  await lavender.getByLabel('Variant price (₹)').fill('449');
   await lavender.getByLabel('Stock status').selectOption('out-of-stock');
   await lavender.getByLabel('Available quantity').fill('4');
   await lavender.getByRole('button', { name: 'Save variant' }).click();
   await expect(page.getByText('“Lilac” was updated.')).toBeVisible();
   expect(state.products[0].product_variants.at(-1)).toMatchObject({
+    price: 449,
     in_stock: false,
     available_quantity: 4,
   });

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Cart } from '../types/cart';
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
+import { getPublicVariantPrice } from '../utils/productPrice';
 import { getCartWhatsAppLink } from '../utils/whatsapp';
 import { WhatsAppIcon } from './SocialIcons';
 
@@ -48,7 +49,7 @@ export default function CartDrawer({
                 productName: product.name,
                 variantName: variant.name,
                 image: variant.image,
-                unitPrice: product.showPrice ? product.price : null,
+                unitPrice: getPublicVariantPrice(product, variant),
               };
             }),
           }

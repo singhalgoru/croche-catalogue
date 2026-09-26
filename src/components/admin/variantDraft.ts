@@ -2,6 +2,7 @@ export interface VariantDraft {
   key: string;
   name: string;
   color: string;
+  price: string;
   inStock: boolean;
   availableQuantity: number;
   imageFile: File | null;
@@ -14,6 +15,7 @@ export const createEmptyVariant = (name = ''): VariantDraft => ({
   key: crypto.randomUUID(),
   name,
   color: '#f6c453',
+  price: '',
   inStock: true,
   availableQuantity: 1,
   imageFile: null,

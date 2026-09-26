@@ -235,14 +235,33 @@ test('does not refocus category results when the catalogue clock updates', async
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
 
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.evaluate(() => {
+    const trackedWindow = window as typeof window & { catalogueScrollCalls: number };
+    trackedWindow.catalogueScrollCalls = 0;
+    const nativeScrollTo = window.scrollTo.bind(window);
+    window.scrollTo = (...args: Parameters<typeof window.scrollTo>) => {
+      trackedWindow.catalogueScrollCalls += 1;
+      nativeScrollTo(...args);
+    };
+  });
   await page.getByRole('button', { name: 'All', exact: true }).click();
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const settledScrollY = await page.evaluate(() => window.scrollY);
+  await expect.poll(() =>
+    page.evaluate(() =>
+      (window as typeof window & { catalogueScrollCalls: number }).catalogueScrollCalls,
+    ),
+  ).toBe(1);
+  await page.evaluate(() => {
+    (window as typeof window & { catalogueScrollCalls: number }).catalogueScrollCalls = 0;
+  });
 
   await page.waitForTimeout(350);
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(settledScrollY - 2);
+  expect(
+    await page.evaluate(() =>
+      (window as typeof window & { catalogueScrollCalls: number }).catalogueScrollCalls,
+    ),
+  ).toBe(0);
 });
 
 test('shows all category chips at the top and compacts them after scrolling', async ({ page }) => {
@@ -291,6 +310,33 @@ test('previews product variants from the landing card without opening details', 
     }),
   ).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('dialog', { name: 'Rose Charm' })).toHaveCount(0);
+});
+
+test('uses a selected variant price in the card, modal, and cart', async ({ page }) => {
+  catalogueState.products[0].product_variants[1].in_stock = true;
+  catalogueState.products[0].product_variants[1].available_quantity = 2;
+  catalogueState.products[0].product_variants[1].price = 499;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+
+  const roseCard = page.getByRole('article', { name: 'Product: Rose Charm' });
+  await roseCard.getByRole('button', {
+    name: 'Show Ivory variant image for Rose Charm',
+  }).click();
+  await expect(roseCard.getByText('₹499')).toBeVisible();
+  await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
+
+  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  await productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' }).click();
+  await expect(productDialog.getByText('₹499')).toBeVisible();
+  await productDialog.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
+  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  await expect(cartDialog.getByText('Variant: Ivory')).toBeVisible();
+  await expect(
+    cartDialog.getByRole('article', { name: 'View Rose Charm — Ivory' }).getByText('₹499'),
+  ).toBeVisible();
 });
 
 test('opens the exact cart product variant in the product modal', async ({ page }) => {

@@ -1,5 +1,6 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Product, ProductVariant } from '../types/product';
+import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartItem } from '../types/cart';
 
 interface CartItemRow {
@@ -209,7 +210,7 @@ export async function addProductToCart(
             productName: product.name,
             variantName: variant.name,
             image: variant.image,
-            unitPrice: product.showPrice ? product.price : null,
+            unitPrice: getPublicVariantPrice(product, variant),
             quantity: 1,
           },
         ];
@@ -227,7 +228,7 @@ export async function addProductToCart(
     product_name: product.name,
     variant_name: variant.name,
     image_url: variant.image,
-    unit_price: product.showPrice ? product.price : null,
+    unit_price: getPublicVariantPrice(product, variant),
     quantity: Math.min((existing?.quantity ?? 0) + 1, 99),
     updated_at: new Date().toISOString(),
   };

@@ -1,5 +1,6 @@
 import type { Product, ProductVariant } from '../types/product';
 import { getCampaignParameters } from '../utils/campaign';
+import { getPublicVariantPrice } from '../utils/productPrice';
 import { metaProductParameters, trackMetaEvent } from './meta';
 
 type AnalyticsParameters = Record<string, unknown>;
@@ -72,7 +73,8 @@ export const trackAddToCart = (
   variant: ProductVariant,
   quantity = 1,
 ) => {
-  const price = product.showPrice && product.price !== null ? product.price : undefined;
+  const publicPrice = getPublicVariantPrice(product, variant);
+  const price = publicPrice === null ? undefined : publicPrice;
   trackEvent('add_to_cart', {
     currency: 'INR',
     ...(price !== undefined ? { value: price * quantity } : {}),
