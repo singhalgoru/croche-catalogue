@@ -2,6 +2,7 @@ import type { Page, Route } from '@playwright/test';
 
 export interface ProductRow {
   id: string;
+  sort_order: number;
   name: string;
   category: string;
   description: string;
@@ -141,6 +142,7 @@ const json = (route: Route, body: unknown, status = 200) =>
 const defaultProducts = (): ProductRow[] => [
   {
     id: 'product-1',
+    sort_order: 0,
     name: 'Rose Charm',
     category: 'Charms',
     description: 'A detailed handmade rose charm for bags and keys.',
@@ -193,6 +195,7 @@ const defaultProducts = (): ProductRow[] => [
   },
   {
     id: 'product-2',
+    sort_order: 2,
     name: 'Flower Coaster',
     category: 'Home Decor',
     description: 'A cheerful crochet coaster for a cosy table setting.',
@@ -224,6 +227,7 @@ const defaultProducts = (): ProductRow[] => [
   },
   {
     id: 'product-3',
+    sort_order: 1,
     name: 'New Heart Charm',
     category: 'Charms',
     description: 'A newly published crochet heart charm.',
@@ -376,6 +380,34 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       variant.available_quantity += body.added_quantity;
       variant.in_stock = true;
       product.in_stock = true;
+      await json(route, null);
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/reorder_catalogue_products') {
+      const body = getRequestBody<{ ordered_product_ids: string[] }>(route);
+      if (currentUser.is_anonymous) {
+        await json(route, { message: 'Admin access required.' }, 403);
+        return;
+      }
+      if (
+        body.ordered_product_ids.length !== state.products.length ||
+        new Set(body.ordered_product_ids).size !== state.products.length ||
+        body.ordered_product_ids.some(
+          (id) => !state.products.some((product) => product.id === id),
+        )
+      ) {
+        await json(
+          route,
+          { message: 'Product ordering must include every product exactly once.' },
+          400,
+        );
+        return;
+      }
+      body.ordered_product_ids.forEach((id, sortOrder) => {
+        const product = state.products.find((item) => item.id === id);
+        if (product) product.sort_order = sortOrder;
+      });
       await json(route, null);
       return;
     }
@@ -582,9 +614,19 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         const products = (publishedOnly
           ? state.products.filter((product) => product.published)
           : state.products
-        ).filter((product) => !id || product.id === id);
+        )
+          .filter((product) => !id || product.id === id)
+          .sort(
+            (left, right) =>
+              (url.searchParams.get('order')?.startsWith('sort_order.desc')
+                ? right.sort_order - left.sort_order
+                : left.sort_order - right.sort_order) ||
+              left.created_at.localeCompare(right.created_at),
+          );
+        const limit = Number(url.searchParams.get('limit'));
+        const limitedProducts = limit > 0 ? products.slice(0, limit) : products;
         const wantsSingle = request.headers()['accept']?.includes('application/vnd.pgrst.object+json');
-        await json(route, wantsSingle ? products[0] : products);
+        await json(route, wantsSingle ? limitedProducts[0] : limitedProducts);
         return;
       }
 

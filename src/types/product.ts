@@ -28,6 +28,8 @@ export interface ProductVariant {
 
 export interface Product {
   id: string;
+  /** Shared display order used in the full catalogue and category filters. */
+  sortOrder?: number;
   name: string;
   category: Category;
   /** Price in whole rupees. `null` when no price has been set yet. */

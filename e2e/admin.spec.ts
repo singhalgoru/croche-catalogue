@@ -75,6 +75,26 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   expect(state.categories).not.toContain('Tote Bags');
 });
 
+test('saves one product order for the main catalogue and category views', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page, 'manage');
+
+  await page.getByRole('button', { name: 'Move Rose Charm down' }).click();
+  await expect(page.getByText('Display order updated for Rose Charm.')).toBeVisible();
+  expect(
+    [...state.products]
+      .sort((left, right) => left.sort_order - right.sort_order)
+      .map((product) => product.name),
+  ).toEqual(['New Heart Charm', 'Rose Charm', 'Flower Coaster']);
+
+  await page.goto('./', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('article', { name: 'Product: New Heart Charm' })).toBeVisible();
+  await expect(page.getByRole('article').nth(0)).toHaveAccessibleName('Product: New Heart Charm');
+  await page.getByRole('button', { name: 'Charms', exact: true }).click();
+  await expect(page.getByRole('article').nth(0)).toHaveAccessibleName('Product: New Heart Charm');
+  await expect(page.getByRole('article').nth(1)).toHaveAccessibleName('Product: Rose Charm');
+});
+
 test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => {
   const state = await installMockSupabase(page);
   const now = new Date().toISOString();

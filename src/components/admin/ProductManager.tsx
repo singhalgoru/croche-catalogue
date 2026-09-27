@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import {
   deleteProduct,
   fetchManagedProducts,
+  reorderProducts,
   updateProduct,
   type ManagedProduct,
   type ProductUpdate,
@@ -163,6 +164,41 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     }
   };
 
+  const moveProduct = async (product: ManagedProduct, direction: -1 | 1) => {
+    const currentIndex = products.findIndex((item) => item.id === product.id);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= products.length) return;
+
+    const reordered = [...products];
+    [reordered[currentIndex], reordered[targetIndex]] = [
+      reordered[targetIndex],
+      reordered[currentIndex],
+    ];
+    setBusyId(product.id);
+    setError(null);
+    setMessage(null);
+    try {
+      await reorderProducts(reordered.map((item) => item.id));
+      setProducts(
+        reordered.map((item, sortOrder) => ({
+          ...item,
+          sortOrder,
+        })),
+      );
+      setMessage(`Display order updated for ${product.name}.`);
+      await onChanged();
+    } catch (reorderError) {
+      setError(
+        reorderError instanceof Error
+          ? reorderError.message
+          : 'Unable to save the product display order.',
+      );
+      await loadProducts();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleVariantSaved = async (saved: ManagedProduct, successMessage: string) => {
     setProducts((current) => current.map((item) => (item.id === saved.id ? saved : item)));
     setMessage(successMessage);
@@ -251,6 +287,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           <p className="mt-2 text-xs text-cocoa/55" aria-live="polite">
             Showing {filteredProducts.length} of {products.length} product
             {products.length === 1 ? '' : 's'}
+            {searchQuery.trim() && ' · Clear search to change display order'}
           </p>
         </div>
       )}
@@ -307,6 +344,33 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-3 sm:flex">
+                        <button
+                          type="button"
+                          onClick={() => void moveProduct(product, -1)}
+                          disabled={
+                            busyId !== null ||
+                            Boolean(searchQuery.trim()) ||
+                            products.findIndex((item) => item.id === product.id) === 0
+                          }
+                          aria-label={`Move ${product.name} up`}
+                          className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-40 sm:px-4 sm:text-sm"
+                        >
+                          Move up
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void moveProduct(product, 1)}
+                          disabled={
+                            busyId !== null ||
+                            Boolean(searchQuery.trim()) ||
+                            products.findIndex((item) => item.id === product.id) ===
+                              products.length - 1
+                          }
+                          aria-label={`Move ${product.name} down`}
+                          className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-40 sm:px-4 sm:text-sm"
+                        >
+                          Move down
+                        </button>
                         <button
                           type="button"
                           onClick={() => void copyProductLink(product)}

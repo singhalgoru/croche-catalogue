@@ -186,14 +186,18 @@ function App() {
         const matchesQuery = matchesProductSearch(product, query);
         return matchesCategory && matchesQuery;
       })
-      .sort(
-        (left, right) =>
+      .sort((left, right) => {
+        if (left.sortOrder !== undefined && right.sortOrder !== undefined) {
+          return left.sortOrder - right.sortOrder;
+        }
+        return (
           Number(Boolean(right.featured)) - Number(Boolean(left.featured)) ||
           Number(isProductNew(right, catalogueTime)) -
             Number(isProductNew(left, catalogueTime)) ||
           (categoryRanks.get(left.category) ?? Number.MAX_SAFE_INTEGER) -
-            (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER),
-      );
+            (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER)
+        );
+      });
   }, [activeCategory, catalogueTime, categorySettings, products, query]);
 
   useEffect(() => {

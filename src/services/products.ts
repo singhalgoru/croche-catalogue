@@ -31,6 +31,7 @@ interface ProductVariantRow {
 
 interface ProductRow {
   id: string;
+  sort_order: number;
   name: string;
   category: Product['category'];
   description: string;
@@ -143,6 +144,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
 
   return {
     id: row.id,
+    sortOrder: row.sort_order,
     name: row.name,
     category: row.category,
     price: row.price,
@@ -238,6 +240,7 @@ export async function fetchPublishedProducts(): Promise<Product[]> {
     .from('products')
     .select(PRODUCT_COLUMNS)
     .eq('published', true)
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
   if (error) throw new Error(`Unable to load uploaded products: ${error.message}`);
   return (data as ProductRow[]).map(mapProductRow);
@@ -248,6 +251,7 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
   const { data, error } = await client
     .from('products')
     .select(PRODUCT_COLUMNS)
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
   if (error) throw new Error(`Unable to load products for management: ${error.message}`);
   return (data as ProductRow[]).map(mapProductRow);
@@ -256,6 +260,17 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
 export async function publishProduct(product: NewProduct): Promise<Product> {
   if (product.variants.length === 0) throw new Error('Add at least one product variant.');
   const { client, user } = await getCurrentUser();
+  const { data: lastProduct, error: orderError } = await client
+    .from('products')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1);
+  if (orderError) {
+    throw new Error(`Unable to determine the product display order: ${orderError.message}`);
+  }
+  const lastSortOrder =
+    (lastProduct as Array<{ sort_order: number }> | null)?.[0]?.sort_order ?? -1;
+  const nextSortOrder = lastSortOrder + 1;
   const uploads: Array<{ imagePath: string; imageUrl: string }> = [];
 
   try {
@@ -279,6 +294,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
         image_path: primaryUpload.imagePath,
         image_url: primaryUpload.imageUrl,
         published: true,
+        sort_order: nextSortOrder,
         created_by: user.id,
       })
       .select('id')
@@ -339,6 +355,14 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
     }
     throw error;
   }
+}
+
+export async function reorderProducts(productIds: string[]): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc('reorder_catalogue_products', {
+    ordered_product_ids: productIds,
+  });
+  if (error) throw new Error(`Unable to save product display order: ${error.message}`);
 }
 
 export async function updateProduct(

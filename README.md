@@ -13,6 +13,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 - Responsive product catalogue
 - Category filtering and search
+- Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel
 - Variant and additional-angle image previews
 - Zoom and 3D-style image viewing
