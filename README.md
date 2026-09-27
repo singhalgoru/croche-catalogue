@@ -95,3 +95,9 @@ https://luviacreations.com/
 The previous GitHub Pages URL redirects to the custom domain:
 
 https://singhalgoru.github.io/croche-catalogue/
+
+For Google Search Console, verify the domain property `luviacreations.com`
+using the TXT record Google provides, then submit
+`https://luviacreations.com/sitemap.xml`. The catalogue is a single-page app,
+so the sitemap lists the homepage; product detail views use URL fragments
+and are not separate indexable pages.
