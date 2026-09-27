@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getProductCardSrcSet, getProductImageUrl } from './productImageUrl';
+import {
+  getProductCardSrcSet,
+  getProductImageUrl,
+  normalizeProductImageUrl,
+} from './productImageUrl';
 
 const source = 'https://catalogue.supabase.co/storage/v1/object/public/product-images/admin/photo.png';
 
@@ -19,5 +23,13 @@ describe('product image delivery', () => {
       expect(getProductImageUrl(image, 96)).toBe(image);
       expect(getProductCardSrcSet(image)).toBeUndefined();
     }
+  });
+
+  it('moves legacy GitHub Pages image URLs to the current domain root', () => {
+    const legacyImage =
+      'https://singhalgoru.github.io/croche-catalogue/images/Flower%20Charm.jpeg';
+
+    expect(normalizeProductImageUrl(legacyImage)).toBe('/images/Flower%20Charm.jpeg');
+    expect(getProductImageUrl(legacyImage, 960)).toBe('/images/Flower%20Charm.jpeg');
   });
 });

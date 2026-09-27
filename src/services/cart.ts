@@ -1,5 +1,6 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Product, ProductVariant } from '../types/product';
+import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartItem } from '../types/cart';
 
@@ -37,7 +38,7 @@ const mapItem = (row: CartItemRow): CartItem => ({
   variantId: row.variant_id,
   productName: row.product_name,
   variantName: row.variant_name,
-  image: row.image_url,
+  image: normalizeProductImageUrl(row.image_url),
   unitPrice: row.unit_price,
   quantity: row.quantity,
 });
@@ -72,7 +73,13 @@ const readLocalCart = (): Cart => {
     if (!stored) return createLocalCart();
     const cart = JSON.parse(stored) as Cart;
     if (new Date(cart.expiresAt).getTime() <= Date.now()) return createLocalCart();
-    return cart;
+    return {
+      ...cart,
+      items: cart.items.map((item) => ({
+        ...item,
+        image: normalizeProductImageUrl(item.image),
+      })),
+    };
   } catch {
     return createLocalCart();
   }

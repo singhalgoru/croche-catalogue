@@ -1,5 +1,24 @@
 const PUBLIC_IMAGE_PATH = '/storage/v1/object/public/product-images/';
 const RENDER_IMAGE_PATH = '/storage/v1/render/image/public/product-images/';
+const LEGACY_CATALOGUE_IMAGE_PATH = '/croche-catalogue/images/';
+
+export const normalizeProductImageUrl = (source: string): string => {
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    return source;
+  }
+
+  if (
+    url.hostname === 'singhalgoru.github.io' &&
+    url.pathname.startsWith(LEGACY_CATALOGUE_IMAGE_PATH)
+  ) {
+    return `${url.pathname.replace('/croche-catalogue', '')}${url.search}${url.hash}`;
+  }
+
+  return source;
+};
 
 const transformedImageUrl = (source: string, width: number): string | null => {
   let url: URL;
@@ -19,7 +38,7 @@ const transformedImageUrl = (source: string, width: number): string | null => {
 };
 
 export const getProductImageUrl = (source: string, width: number): string =>
-  transformedImageUrl(source, width) ?? source;
+  transformedImageUrl(source, width) ?? normalizeProductImageUrl(source);
 
 export const getProductCardSrcSet = (source: string): string | undefined => {
   const small = transformedImageUrl(source, 480);

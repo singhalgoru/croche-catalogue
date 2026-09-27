@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
+import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { PRODUCT_COLUMNS } from './productColumns';
 
 declare global {
@@ -106,7 +107,7 @@ const requireSupabase = () => {
 
 const mapGalleryRow = (row: ProductVariantImageRow): ProductVariantImage => ({
   id: row.id,
-  image: row.image_url,
+  image: normalizeProductImageUrl(row.image_url),
   imagePath: row.image_path,
 });
 
@@ -117,7 +118,7 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   price: row.price,
   inStock: row.in_stock,
   availableQuantity: row.available_quantity,
-  image: row.image_url,
+  image: normalizeProductImageUrl(row.image_url),
   imagePath: row.image_path,
   gallery: [...(row.product_variant_images ?? [])]
     .sort((left, right) => left.sort_order - right.sort_order)
@@ -135,7 +136,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     price: null,
     inStock: row.in_stock,
     availableQuantity: row.in_stock ? 1 : 0,
-    image: row.image_url,
+    image: normalizeProductImageUrl(row.image_url),
     imagePath: row.image_path,
     gallery: [],
   };
