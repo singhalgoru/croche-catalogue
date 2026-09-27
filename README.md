@@ -92,6 +92,6 @@ The public catalogue is deployed with GitHub Pages at:
 
 https://luviacreations.com/
 
-The previous GitHub Pages URL remains available:
+The previous GitHub Pages URL redirects to the custom domain:
 
 https://singhalgoru.github.io/croche-catalogue/
