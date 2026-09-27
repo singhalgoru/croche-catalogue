@@ -75,7 +75,7 @@ console is never tracked.
 To keep your own browsing out of the reports, open the catalogue once with
 `?traffic=internal` appended to the URL:
 
-https://singhalgoru.github.io/croche-catalogue/?traffic=internal
+https://luviacreations.com/?traffic=internal
 
 That browser then tags every GA4 hit with `traffic_type=internal` and stops
 sending Meta Pixel events. Enable the built-in **Internal Traffic** data filter
@@ -88,6 +88,10 @@ untagged and count as new users.
 
 ## Deployment
 
-The public catalogue is deployed with GitHub Pages:
+The public catalogue is deployed with GitHub Pages at:
+
+https://luviacreations.com/
+
+The previous GitHub Pages URL remains available:
 
 https://singhalgoru.github.io/croche-catalogue/

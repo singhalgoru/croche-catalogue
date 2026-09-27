@@ -39,9 +39,8 @@ const supabasePreconnect = (): Plugin => {
 
 // https://vite.dev/config/
 export default defineConfig({
-  // GitHub Pages serves this project from https://<user>.github.io/croche-catalogue/,
-  // so all built asset URLs need this repo-name base path.
-  base: '/croche-catalogue/',
+  // The catalogue is published at the root of luviacreations.com.
+  base: '/',
   build: {
     // No source maps in the deployed build: the shipped JS should be
     // minified/mangled, not a readable 1:1 copy of the source.
@@ -77,8 +76,8 @@ export default defineConfig({
         description: 'Browse and order Luvia handmade crochet accessories, gifts, and decor.',
         // Tags installed-app launches with utm_source=pwa so Analytics can
         // report on this channel separately from web/social/direct traffic.
-        start_url: '/croche-catalogue/?utm_source=pwa&utm_medium=app',
-        scope: '/croche-catalogue/',
+        start_url: '/?utm_source=pwa&utm_medium=app',
+        scope: '/',
         display: 'standalone',
         background_color: '#fdf6ec',
         theme_color: '#5f3825',

@@ -8,7 +8,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4187/croche-catalogue/',
+    baseURL: 'http://127.0.0.1:4187/',
     trace: 'on-first-retry',
   },
   projects: [
@@ -23,7 +23,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4187 --strictPort',
-    url: 'http://127.0.0.1:4187/croche-catalogue/',
+    url: 'http://127.0.0.1:4187/',
     env: {
       VITE_SUPABASE_URL: 'http://supabase.test',
       VITE_SUPABASE_ANON_KEY: 'test-anon-key',

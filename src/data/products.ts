@@ -3,8 +3,8 @@ import type { Product } from '../types/product';
 // Real Luvia product photos live in `public/images`. Filenames are the
 // original WhatsApp export names, so we URL-encode each path segment
 // (but keep any `/` separators intact) for use as <img src>. `BASE_URL`
-// picks up Vite's configured base path (e.g. `/croche-catalogue/` on
-// GitHub Pages) so images resolve correctly wherever the site is hosted.
+// picks up Vite's configured base path so images resolve correctly wherever
+// the site is hosted.
 const img = (filename: string) =>
   `${import.meta.env.BASE_URL}images/${filename.split('/').map(encodeURIComponent).join('/')}`;
 
