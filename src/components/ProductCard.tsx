@@ -5,7 +5,11 @@ import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
+import { getProductShareDetails } from '../utils/productShare';
+import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
+import { trackEvent } from '../services/analytics';
 import CartIconButton from './CartIconButton';
+import ShareIconButton from './ShareIconButton';
 
 interface Props {
   product: Product;
@@ -57,6 +61,86 @@ export default function ProductCard({
     (previewedVariant?.inStock ? previewedVariant : null)
     ?? product.variants.find((variant) => variant.inStock);
   const displayedPrice = getPublicVariantPrice(product, previewedVariant ?? cartVariant);
+  const shareVariant = previewedVariant ?? cartVariant ?? product.variants[0];
+  const shareDetails = getProductShareDetails(product, shareVariant);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+
+  // Pre-fetch the shareable image in the background (not inside the click
+  // handler) so navigator.share() can be called synchronously — awaiting a
+  // fetch first can silently consume the click's "user activation" and
+  // prevent the share sheet from opening on some Android browsers.
+  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react/set-state-in-effect -- resets stale share state while the new image loads
+    setPreparedShareFile(null);
+    void getShareableImageFile(
+      getProductImageUrl(activeImageUrl, 1080),
+      toShareFileName(shareDetails.title),
+    ).then((file) => {
+      if (!cancelled) setPreparedShareFile(file);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeImageUrl, shareDetails.title]);
+
+  const shareProduct = () => {
+    const canShareImage =
+      preparedShareFile !== null &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [preparedShareFile] });
+
+    if (!navigator.share) {
+      void navigator.clipboard
+        ?.writeText(shareDetails.url)
+        .then(() => setShareFeedback('Link copied!'))
+        .catch(() => setShareFeedback('Unable to share.'));
+      return;
+    }
+
+    // Apps like Instagram accept a shared photo but drop the accompanying
+    // link text, so copy the link to the clipboard as a fallback.
+    if (canShareImage) {
+      navigator.clipboard?.writeText(shareDetails.url).catch(() => {});
+    }
+
+    navigator
+      .share(
+        canShareImage
+          ? {
+              title: shareDetails.title,
+              text: `${shareDetails.text}\n${shareDetails.url}`,
+              files: [preparedShareFile],
+            }
+          : {
+              title: shareDetails.title,
+              text: shareDetails.text,
+              url: shareDetails.url,
+            },
+      )
+      .then(() => {
+        trackEvent('share_product', {
+          method: 'native',
+          product_id: product.id,
+          variant_id: shareVariant?.id,
+          with_image: canShareImage,
+        });
+        setShareFeedback(
+          canShareImage ? 'Photo shared. Link copied too!' : 'Share menu opened.',
+        );
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setShareFeedback(error instanceof Error ? error.message : 'Unable to share.');
+      });
+  };
+
+  useEffect(() => {
+    if (!shareFeedback) return;
+    const timer = window.setTimeout(() => setShareFeedback(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [shareFeedback]);
 
   useEffect(() => {
     if (!cardRef.current) return;
@@ -213,22 +297,30 @@ export default function ProductCard({
               </p>
             )}
           </div>
-          {cartVariant && (
-            <CartIconButton
+          <div className="flex shrink-0 items-center gap-2">
+            <ShareIconButton
               productName={product.name}
-              status={cartStatus}
-              onClick={() => {
-                setCartStatus('busy');
-                void onAddToCart(product, cartVariant).then((added) => {
-                  setCartStatus(added ? 'added' : 'error');
-                  window.setTimeout(() => setCartStatus('idle'), 1800);
-                });
-              }}
-              disabled={isCartBusy}
-              quantity={cartQuantity}
+              onClick={shareProduct}
+              feedback={shareFeedback}
               overlay={false}
             />
-          )}
+            {cartVariant && (
+              <CartIconButton
+                productName={product.name}
+                status={cartStatus}
+                onClick={() => {
+                  setCartStatus('busy');
+                  void onAddToCart(product, cartVariant).then((added) => {
+                    setCartStatus(added ? 'added' : 'error');
+                    window.setTimeout(() => setCartStatus('idle'), 1800);
+                  });
+                }}
+                disabled={isCartBusy}
+                quantity={cartQuantity}
+                overlay={false}
+              />
+            )}
+          </div>
         </div>
       </div>
     </article>
