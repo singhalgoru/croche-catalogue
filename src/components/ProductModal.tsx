@@ -116,7 +116,29 @@ export default function ProductModal({
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
   const shareDetails = getProductShareDetails(product, selectedVariant);
 
-  const shareNatively = async (method = 'native') => {
+  // Fetching the image must happen ahead of time, not inside the share
+  // button's click handler: navigator.share() only works while the click's
+  // "user activation" is still active, and awaiting a network request first
+  // can consume it, silently preventing the share sheet from opening at all
+  // (seen on some Android PWAs). Pre-fetch in the background instead so the
+  // click handler can call navigator.share() synchronously.
+  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react/set-state-in-effect -- resets stale share state while the new image loads
+    setPreparedShareFile(null);
+    void getShareableImageFile(
+      getProductImageUrl(activeImage, 1080),
+      toShareFileName(shareDetails.title),
+    ).then((file) => {
+      if (!cancelled) setPreparedShareFile(file);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeImage, shareDetails.title]);
+
+  const shareNatively = (method = 'native') => {
     if (!navigator.share) {
       setShareFeedback('Native sharing is not available. Use WhatsApp, Facebook, Reddit, or Copy link.');
       return;
@@ -125,40 +147,38 @@ export default function ProductModal({
     // Attach the product photo when the target app supports shared files
     // (Web Share API level 2). Apps like Instagram only show a plain text
     // link otherwise, so this lets the photo come along with the share.
-    const imageFile = await getShareableImageFile(
-      getProductImageUrl(activeImage, 1080),
-      toShareFileName(shareDetails.title),
-    );
     const canShareImage =
-      imageFile !== null &&
+      preparedShareFile !== null &&
       typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [imageFile] });
+      navigator.canShare({ files: [preparedShareFile] });
 
-    try {
-      await navigator.share(
+    navigator
+      .share(
         canShareImage
           ? {
               title: shareDetails.title,
               text: `${shareDetails.text}\n${shareDetails.url}`,
-              files: [imageFile],
+              files: [preparedShareFile],
             }
           : {
               title: shareDetails.title,
               text: shareDetails.text,
               url: shareDetails.url,
             },
-      );
-      trackEvent('share_product', {
-        method,
-        product_id: product.id,
-        variant_id: selectedVariant?.id,
-        with_image: canShareImage,
+      )
+      .then(() => {
+        trackEvent('share_product', {
+          method,
+          product_id: product.id,
+          variant_id: selectedVariant?.id,
+          with_image: canShareImage,
+        });
+        setShareFeedback('Share menu opened.');
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setShareFeedback(error instanceof Error ? error.message : 'Unable to open the share menu.');
       });
-      setShareFeedback('Share menu opened.');
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      setShareFeedback(error instanceof Error ? error.message : 'Unable to open the share menu.');
-    }
   };
 
   const copyShareLink = async () => {
@@ -567,7 +587,7 @@ export default function ProductModal({
                 <div className="flex flex-wrap justify-center gap-3">
                   <button
                     type="button"
-                    onClick={() => void shareNatively()}
+                    onClick={() => shareNatively()}
                     aria-label="Share to apps"
                     title="Share to apps"
                     className="flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream"
@@ -610,7 +630,7 @@ export default function ProductModal({
                   </a>
                   <button
                     type="button"
-                    onClick={() => void shareNatively('instagram')}
+                    onClick={() => shareNatively('instagram')}
                     aria-label="Share on Instagram"
                     title="Instagram"
                     className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#FCAF45] text-white"
@@ -619,7 +639,7 @@ export default function ProductModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void shareNatively('snapchat')}
+                    onClick={() => shareNatively('snapchat')}
                     aria-label="Share on Snapchat"
                     title="Snapchat"
                     className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FFFC00] text-black"
