@@ -152,6 +152,15 @@ export default function ProductModal({
       typeof navigator.canShare === 'function' &&
       navigator.canShare({ files: [preparedShareFile] });
 
+    // Many apps (notably Instagram Direct, Stories, and Feed) accept a
+    // shared photo but silently drop any accompanying caption/link text.
+    // Copy the link to the clipboard as a fallback so it's ready to paste
+    // once the user lands in the target app. Best-effort: clipboard access
+    // can fail on some browsers, and Copy link remains available regardless.
+    if (canShareImage) {
+      navigator.clipboard?.writeText(shareDetails.url).catch(() => {});
+    }
+
     navigator
       .share(
         canShareImage
@@ -173,7 +182,11 @@ export default function ProductModal({
           variant_id: selectedVariant?.id,
           with_image: canShareImage,
         });
-        setShareFeedback('Share menu opened.');
+        setShareFeedback(
+          canShareImage
+            ? 'Photo shared. Product link copied too — paste it if the app drops it.'
+            : 'Share menu opened.',
+        );
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -675,7 +688,8 @@ export default function ProductModal({
                 </div>
                 <p className="mt-2 text-xs text-cocoa/60">
                   Instagram and Snapchat open your device share menu with the product photo
-                  attached where supported.
+                  attached where supported. Those apps often drop the link text, so it's
+                  also copied to your clipboard to paste in.
                 </p>
                 {shareFeedback && (
                   <p className="mt-2 text-xs font-semibold text-cocoa" role="status">
