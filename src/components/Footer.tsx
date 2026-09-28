@@ -37,6 +37,28 @@ export default function Footer() {
             Contact on Instagram
           </a>
         </div>
+        <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-6">
+          <p>
+            Orders:{' '}
+            <a
+              href="mailto:orders@luviacreations.com"
+              onClick={() => trackContactClick('email', 'footer_orders')}
+              className="font-semibold text-cream underline underline-offset-2 hover:text-mustard"
+            >
+              orders@luviacreations.com
+            </a>
+          </p>
+          <p>
+            General enquiries:{' '}
+            <a
+              href="mailto:hello@luviacreations.com"
+              onClick={() => trackContactClick('email', 'footer_hello')}
+              className="font-semibold text-cream underline underline-offset-2 hover:text-mustard"
+            >
+              hello@luviacreations.com
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );

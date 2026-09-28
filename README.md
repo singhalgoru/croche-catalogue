@@ -3,7 +3,7 @@
 A mobile-friendly catalogue for Luvia handmade crochet products.
 
 It lets visitors browse crochet products, view product details, check available
-variants and angle photos, zoom images, and start an enquiry on WhatsApp.
+variants and angle photos, zoom images, and get in touch by WhatsApp or email.
 
 © 2026 Luvia. All rights reserved. This repository is public for transparency,
 but its code, brand assets, catalogue content, and product photography are not
@@ -18,6 +18,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Variant and additional-angle image previews
 - Zoom and 3D-style image viewing
 - WhatsApp enquiry links
+- Email contacts for orders and general enquiries
 - Installable app experience on supported browsers
 
 ## Local development
