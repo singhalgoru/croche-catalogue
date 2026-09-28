@@ -21,6 +21,7 @@ import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductImageUrl } from '../utils/productImageUrl';
+import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 
 interface Props {
   product: Product;
@@ -120,16 +121,38 @@ export default function ProductModal({
       setShareFeedback('Native sharing is not available. Use WhatsApp, Facebook, Reddit, or Copy link.');
       return;
     }
+
+    // Attach the product photo when the target app supports shared files
+    // (Web Share API level 2). Apps like Instagram only show a plain text
+    // link otherwise, so this lets the photo come along with the share.
+    const imageFile = await getShareableImageFile(
+      getProductImageUrl(activeImage, 1080),
+      toShareFileName(shareDetails.title),
+    );
+    const canShareImage =
+      imageFile !== null &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [imageFile] });
+
     try {
-      await navigator.share({
-        title: shareDetails.title,
-        text: shareDetails.text,
-        url: shareDetails.url,
-      });
+      await navigator.share(
+        canShareImage
+          ? {
+              title: shareDetails.title,
+              text: `${shareDetails.text}\n${shareDetails.url}`,
+              files: [imageFile],
+            }
+          : {
+              title: shareDetails.title,
+              text: shareDetails.text,
+              url: shareDetails.url,
+            },
+      );
       trackEvent('share_product', {
         method,
         product_id: product.id,
         variant_id: selectedVariant?.id,
+        with_image: canShareImage,
       });
       setShareFeedback('Share menu opened.');
     } catch (error) {
@@ -631,7 +654,8 @@ export default function ProductModal({
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-cocoa/60">
-                  Instagram and Snapchat open your device share menu.
+                  Instagram and Snapchat open your device share menu with the product photo
+                  attached where supported.
                 </p>
                 {shareFeedback && (
                   <p className="mt-2 text-xs font-semibold text-cocoa" role="status">
