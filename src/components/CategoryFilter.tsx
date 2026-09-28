@@ -5,6 +5,7 @@ interface Props {
   active: CatalogueFilter;
   onSelect: (category: CatalogueFilter) => void;
   compactOnMobile?: boolean;
+  showNew?: boolean;
 }
 
 export default function CategoryFilter({
@@ -12,8 +13,13 @@ export default function CategoryFilter({
   active,
   onSelect,
   compactOnMobile = false,
+  showNew = true,
 }: Props) {
-  const allOptions: CatalogueFilter[] = ['All', 'New', ...categories];
+  const allOptions: CatalogueFilter[] = [
+    'All',
+    ...(showNew ? (['New'] as const) : []),
+    ...categories,
+  ];
 
   return (
     <div

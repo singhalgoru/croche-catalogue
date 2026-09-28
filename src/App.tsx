@@ -76,6 +76,16 @@ function App() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const hasNewProducts = useMemo(
+    () => products.some((product) => isProductNew(product, catalogueTime)),
+    [products, catalogueTime],
+  );
+
+  // Fall back to "All" during render (rather than in an effect) when the "New"
+  // filter is active but no longer has any matching products.
+  const effectiveActiveCategory: CatalogueFilter =
+    activeCategory === 'New' && !hasNewProducts ? 'All' : activeCategory;
+
   useEffect(() => {
     const tools = catalogueToolsRef.current;
     if (!tools) return;
@@ -179,10 +189,10 @@ function App() {
     return products
       .filter((product) => {
         const matchesCategory =
-          activeCategory === 'All' ||
-          (activeCategory === 'New'
+          effectiveActiveCategory === 'All' ||
+          (effectiveActiveCategory === 'New'
             ? isProductNew(product)
-            : product.category === activeCategory);
+            : product.category === effectiveActiveCategory);
         const matchesQuery = matchesProductSearch(product, query);
         return matchesCategory && matchesQuery;
       })
@@ -198,7 +208,7 @@ function App() {
             (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER)
         );
       });
-  }, [activeCategory, catalogueTime, categorySettings, products, query]);
+  }, [effectiveActiveCategory, catalogueTime, categorySettings, products, query]);
 
   useEffect(() => {
     if (categoryScrollRequest === 0 || isLoading) return;
@@ -284,8 +294,9 @@ function App() {
             />
             <CategoryFilter
               categories={categories}
-              active={activeCategory}
+              active={effectiveActiveCategory}
               onSelect={selectCategory}
+              showNew={hasNewProducts}
             />
           </div>
         )}
@@ -306,8 +317,9 @@ function App() {
             />
             <CategoryFilter
               categories={categories}
-              active={activeCategory}
+              active={effectiveActiveCategory}
               onSelect={selectCategory}
+              showNew={hasNewProducts}
               compactOnMobile
             />
           </div>
