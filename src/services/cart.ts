@@ -44,11 +44,14 @@ const mapItem = (row: CartItemRow): CartItem => ({
   quantity: row.quantity,
 });
 
+// Newest additions appear first. Sorting on created_at (never touched by
+// quantity updates) keeps an item anchored in place while its quantity
+// changes, unlike updated_at which would make the row jump to the top.
 export const sortCartItemsByCreatedAt = (items: CartItemRow[]) =>
   [...items].sort((left, right) => {
     const leftCreatedAt = new Date(left.created_at).getTime();
     const rightCreatedAt = new Date(right.created_at).getTime();
-    return leftCreatedAt - rightCreatedAt;
+    return rightCreatedAt - leftCreatedAt;
   });
 
 const mapCart = (row: CartRow): Cart => ({
@@ -217,7 +220,6 @@ export async function addProductToCart(
           item.id === existing.id ? { ...item, quantity: Math.min(item.quantity + 1, 99) } : item,
         )
       : [
-          ...current.items,
           {
             id: crypto.randomUUID(),
             productId: product.id,
@@ -228,6 +230,7 @@ export async function addProductToCart(
             unitPrice: getPublicVariantPrice(product, variant),
             quantity: 1,
           },
+          ...current.items,
         ];
     return writeLocalCart({ ...refreshLocalCart(current), items });
   }
