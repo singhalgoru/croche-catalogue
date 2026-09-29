@@ -176,6 +176,8 @@ const getCurrentUser = async () => {
   return { client, user };
 };
 
+const PRODUCT_IMAGE_CACHE_SECONDS = 24 * 60 * 60;
+
 const uploadProductImage = async (file: File, userId: string) => {
   const client = requireSupabase();
   const uploadFile = await convertImageForUpload(file);
@@ -183,6 +185,8 @@ const uploadProductImage = async (file: File, userId: string) => {
   const imagePath = `${userId}/${crypto.randomUUID()}.${extension}`;
   const { error } = await client.storage.from('product-images').upload(imagePath, uploadFile, {
     contentType: uploadFile.type,
+    // Each upload gets a fresh UUID path, so the file never changes in place.
+    cacheControl: String(PRODUCT_IMAGE_CACHE_SECONDS),
     upsert: false,
   });
 

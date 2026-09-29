@@ -91,7 +91,13 @@ export default function Header({
         }`}
       >
         <img
-          src={`${import.meta.env.BASE_URL}images/luvia-logo.jpg`}
+          src={`${import.meta.env.BASE_URL}images/luvia-logo-320.webp`}
+          srcSet={[160, 320, 480]
+            .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
+            .join(', ')}
+          sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 112px'}
+          width={320}
+          height={320}
           alt="Luvia — Crochet, Accessories & More, made with love"
           className={`rounded-full object-cover shadow-lg ring-white ${
             compact

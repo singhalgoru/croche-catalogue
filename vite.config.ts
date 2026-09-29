@@ -66,6 +66,51 @@ export default defineConfig({
       // The service worker is registered manually (see App.tsx / useRegisterSW)
       // so it can drive an in-app "update available" experience later.
       injectRegister: false,
+      workbox: {
+        // GitHub Pages fixes Cache-Control at 10 minutes and existing Supabase
+        // objects were uploaded with 1 hour, so keep images in the service
+        // worker for a day. Uploads get a fresh UUID path and site images are
+        // effectively static, so a day-old hit is harmless.
+        runtimeCaching: [
+          {
+            urlPattern: ({ sameOrigin, url }) =>
+              sameOrigin && url.pathname.startsWith('/images/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'site-images',
+              expiration: { maxEntries: 60, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith('.supabase.co') &&
+              /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'product-images',
+              expiration: { maxEntries: 150, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [200] },
+              plugins: [
+                {
+                  // <img> requests are no-cors, whose opaque responses hide
+                  // the status (so errors could be cached) and are padded to
+                  // megabytes of storage quota each. Supabase allows CORS, so
+                  // fetch in cors mode, keeping Accept so WebP is negotiated.
+                  requestWillFetch: async ({ request }) =>
+                    request.mode === 'no-cors'
+                      ? new Request(request.url, {
+                          mode: 'cors',
+                          credentials: 'omit',
+                          headers: { Accept: request.headers.get('Accept') ?? 'image/webp,image/*' },
+                        })
+                      : request,
+                },
+              ],
+            },
+          },
+        ],
+      },
       manifest: {
         // This is the customer-facing shop app. AdminPage.tsx swaps the
         // manifest link to public/admin-manifest.webmanifest while the
