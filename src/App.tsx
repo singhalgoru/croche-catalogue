@@ -299,7 +299,12 @@ function App() {
         {areCatalogueToolsSticky && (
           <div
             ref={stickyCatalogueToolsRef}
-            className="fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:hidden"
+            className={`fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 py-3 pl-4 shadow-sm backdrop-blur-md sm:hidden ${
+              // The cart button floats above this bar once the cart has items,
+              // so reserve room for it rather than letting it swallow taps on
+              // whichever control sits under it.
+              cart.itemCount > 0 ? 'pr-20' : 'pr-4'
+            }`}
           >
             <SearchBar
               value={query}
