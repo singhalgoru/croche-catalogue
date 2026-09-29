@@ -21,3 +21,18 @@ export const getCartEmailLink = (cart: Cart) => {
   if (detailed.length <= MAX_MAILTO_LENGTH) return detailed;
   return toMailto(subject, buildEmailCartBody(cart, campaign, 'compact'));
 };
+
+/**
+ * Webmail fallback for desktops with no mail client registered, where
+ * clicking a mailto: link silently does nothing.
+ */
+export const getCartGmailLink = (cart: Cart) =>
+  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+    ORDERS_EMAIL,
+  )}&su=${encodeURIComponent(
+    buildEmailCartSubject(cart),
+  )}&body=${encodeURIComponent(buildEmailCartBody(cart, getCampaignReference()))}`;
+
+/** Plain-text order the customer can paste into any mail client. */
+export const getCartEmailText = (cart: Cart) =>
+  `${buildEmailCartSubject(cart)}\n\n${buildEmailCartBody(cart, getCampaignReference())}`;

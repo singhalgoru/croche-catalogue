@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getCartEmailLink, MAX_MAILTO_LENGTH, ORDERS_EMAIL } from './email';
+import {
+  getCartEmailLink,
+  getCartEmailText,
+  getCartGmailLink,
+  MAX_MAILTO_LENGTH,
+  ORDERS_EMAIL,
+} from './email';
 import type { Cart } from '../types/cart';
 
 const buildCart = (items: Cart['items']): Cart => ({
@@ -108,5 +114,30 @@ describe('getCartEmailLink', () => {
     // A client that cuts the body short should lose the blank form, not the order.
     expect(body.indexOf('ESTIMATED TOTAL')).toBeLessThan(body.indexOf('DELIVERY DETAILS'));
     expect(body.indexOf('Cart reference  :')).toBeLessThan(body.indexOf('DELIVERY DETAILS'));
+  });
+});
+
+describe('getCartGmailLink', () => {
+  it('opens a Gmail compose window addressed to the orders inbox', () => {
+    const link = getCartGmailLink(buildCart([buildItem()]));
+    expect(link.startsWith('https://mail.google.com/mail/?view=cm')).toBe(true);
+    expect(link).toContain(`to=${encodeURIComponent(ORDERS_EMAIL)}`);
+  });
+
+  it('carries the same order details as the mailto link', () => {
+    const link = getCartGmailLink(buildCart([buildItem()]));
+    const body = decodeURIComponent(link.split('&body=')[1]);
+    expect(body).toContain('ORDER SUMMARY');
+    expect(body).toContain('Cute Bunny');
+    expect(body).toContain('DELIVERY DETAILS');
+  });
+});
+
+describe('getCartEmailText', () => {
+  it('pairs the subject with the order so it can be pasted anywhere', () => {
+    const text = getCartEmailText(buildCart([buildItem()]));
+    expect(text).toContain('Order request — Luvia cart LUV-1234');
+    expect(text).toContain('ORDER SUMMARY');
+    expect(text).toContain('Cute Bunny');
   });
 });

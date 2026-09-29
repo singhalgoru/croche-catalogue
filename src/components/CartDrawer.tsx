@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Cart } from '../types/cart';
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getCartWhatsAppLink } from '../utils/whatsapp';
-import { getCartEmailLink, ORDERS_EMAIL } from '../utils/email';
+import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 
 interface Props {
@@ -36,6 +36,10 @@ export default function CartDrawer({
   onEmailStarted,
   onOpenProduct,
 }: Props) {
+  // Desktop browsers with no mail client registered silently ignore mailto:
+  // links, so reveal webmail and copy fallbacks once Email has been tried.
+  const [hasTriedEmail, setHasTriedEmail] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const checkoutCart = useMemo(
     () =>
       cart
@@ -88,6 +92,18 @@ export default function CartDrawer({
     checkoutCart && checkoutCart.items.length > 0
       ? getCartEmailLink(checkoutCart)
       : '#';
+  const gmailLink =
+    checkoutCart && checkoutCart.items.length > 0
+      ? getCartGmailLink(checkoutCart)
+      : '#';
+
+  const copyOrderDetails = () => {
+    if (!checkoutCart) return;
+    navigator.clipboard
+      ?.writeText(getCartEmailText(checkoutCart))
+      .then(() => setCopyState('copied'))
+      .catch(() => setCopyState('failed'));
+  };
 
   return (
     <div
@@ -271,6 +287,8 @@ export default function CartDrawer({
                     event.preventDefault();
                     return;
                   }
+                  setHasTriedEmail(true);
+                  setCopyState('idle');
                   onEmailStarted();
                 }}
                 aria-disabled={unavailableItemIds.size > 0 || isBusy}
@@ -285,6 +303,37 @@ export default function CartDrawer({
                 Email
               </a>
             </div>
+            {hasTriedEmail && unavailableItemIds.size === 0 && (
+              <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 px-3 py-2 text-xs text-cocoa">
+                <p className="font-semibold">Mail app didn&apos;t open?</p>
+                <p className="mt-0.5 text-cocoa/70">
+                  Use Gmail instead, or copy the order and send it to {ORDERS_EMAIL}.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a
+                    href={gmailLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onEmailStarted()}
+                    className="rounded-full border-2 border-cocoa px-3 py-1 font-semibold text-cocoa hover:bg-cocoa hover:text-white"
+                  >
+                    Open in Gmail
+                  </a>
+                  <button
+                    type="button"
+                    onClick={copyOrderDetails}
+                    className="rounded-full border-2 border-cocoa px-3 py-1 font-semibold text-cocoa hover:bg-cocoa hover:text-white"
+                  >
+                    {copyState === 'copied' ? 'Copied!' : 'Copy order details'}
+                  </button>
+                </div>
+                {copyState === 'failed' && (
+                  <p className="mt-1 text-red-700">
+                    Copying failed — please select the items above manually.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="mt-3 flex items-center justify-between gap-3 text-xs">
               <button
                 type="button"
