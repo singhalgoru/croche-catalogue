@@ -3,6 +3,7 @@ import type { Product, ProductVariant, ProductVariantImage } from '../types/prod
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { PRODUCT_COLUMNS } from './productColumns';
+import { getNewProductSortOrder } from './catalogueOrder';
 
 declare global {
   interface Window {
@@ -242,7 +243,7 @@ export async function fetchPublishedProducts(): Promise<Product[]> {
     .select(PRODUCT_COLUMNS)
     .eq('published', true)
     .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false });
   if (error) throw new Error(`Unable to load uploaded products: ${error.message}`);
   return (data as ProductRow[]).map(mapProductRow);
 }
@@ -253,7 +254,7 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
     .from('products')
     .select(PRODUCT_COLUMNS)
     .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false });
   if (error) throw new Error(`Unable to load products for management: ${error.message}`);
   return (data as ProductRow[]).map(mapProductRow);
 }
@@ -261,17 +262,17 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
 export async function publishProduct(product: NewProduct): Promise<Product> {
   if (product.variants.length === 0) throw new Error('Add at least one product variant.');
   const { client, user } = await getCurrentUser();
-  const { data: lastProduct, error: orderError } = await client
+  const { data: firstProduct, error: orderError } = await client
     .from('products')
     .select('sort_order')
-    .order('sort_order', { ascending: false })
+    .order('sort_order', { ascending: true })
     .limit(1);
   if (orderError) {
     throw new Error(`Unable to determine the product display order: ${orderError.message}`);
   }
-  const lastSortOrder =
-    (lastProduct as Array<{ sort_order: number }> | null)?.[0]?.sort_order ?? -1;
-  const nextSortOrder = lastSortOrder + 1;
+  const firstSortOrder =
+    (firstProduct as Array<{ sort_order: number }> | null)?.[0]?.sort_order ?? 0;
+  const nextSortOrder = getNewProductSortOrder(firstSortOrder);
   const uploads: Array<{ imagePath: string; imageUrl: string }> = [];
 
   try {

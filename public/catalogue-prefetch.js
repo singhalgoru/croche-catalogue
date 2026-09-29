@@ -15,7 +15,7 @@ if (script && window.location.hash !== '#admin') {
   };
   window.cataloguePrefetch = fetchRows(
     'products',
-    { select, published: 'eq.true', order: 'sort_order.asc,created_at.asc' },
+    { select, published: 'eq.true', order: 'sort_order.asc,created_at.desc' },
     'uploaded products',
   );
   window.categoriesPrefetch = fetchRows(
