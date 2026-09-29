@@ -114,6 +114,14 @@ export default function ProductModal({
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
+  const openImageZoom = () => {
+    trackEvent('zoom_product_image', {
+      product_id: product.id,
+      product_name: product.name,
+      variant_name: selectedVariant?.name,
+    });
+    setIsZoomOpen(true);
+  };
   const shareDetails = getProductShareDetails(product, selectedVariant);
 
   // Fetching the image must happen ahead of time, not inside the share
@@ -352,27 +360,27 @@ export default function ProductModal({
         }}
       >
         <div className="relative">
-          <img
-            src={activeImage}
-            alt={
-              selectedVariant && product.variants.length > 1
-                ? `${product.name} — ${selectedVariant.name}`
-                : product.name
-            }
-            className="w-full aspect-square object-cover"
-            {...productImageProtection}
-          />
+          <button
+            type="button"
+            onClick={openImageZoom}
+            className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa focus-visible:ring-offset-2"
+            aria-label="Open zoomed product image"
+          >
+            <img
+              src={activeImage}
+              alt={
+                selectedVariant && product.variants.length > 1
+                  ? `${product.name} — ${selectedVariant.name}`
+                  : product.name
+              }
+              className="w-full aspect-square object-cover"
+              {...productImageProtection}
+            />
+          </button>
           <div className="absolute bottom-3 right-3 flex gap-2">
             <button
               type="button"
-              onClick={() => {
-                trackEvent('zoom_product_image', {
-                  product_id: product.id,
-                  product_name: product.name,
-                  variant_name: selectedVariant?.name,
-                });
-                setIsZoomOpen(true);
-              }}
+              onClick={openImageZoom}
               className="flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
               aria-label="Zoom product image"
             >

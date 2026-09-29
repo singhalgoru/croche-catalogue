@@ -295,6 +295,12 @@ describe('ProductModal touch controls', () => {
   it('opens, controls, and closes image zoom without closing the product modal', () => {
     const { onClose } = renderModal();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Open zoomed product image' }));
+    expect(screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
     expect(screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeTruthy();
 

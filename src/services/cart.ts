@@ -13,6 +13,7 @@ interface CartItemRow {
   image_url: string;
   unit_price: number | null;
   quantity: number;
+  created_at: string;
 }
 
 interface CartRow {
@@ -43,6 +44,13 @@ const mapItem = (row: CartItemRow): CartItem => ({
   quantity: row.quantity,
 });
 
+export const sortCartItemsByCreatedAt = (items: CartItemRow[]) =>
+  [...items].sort((left, right) => {
+    const leftCreatedAt = new Date(left.created_at).getTime();
+    const rightCreatedAt = new Date(right.created_at).getTime();
+    return leftCreatedAt - rightCreatedAt;
+  });
+
 const mapCart = (row: CartRow): Cart => ({
   id: row.id,
   reference: row.reference,
@@ -50,7 +58,7 @@ const mapCart = (row: CartRow): Cart => ({
   updatedAt: row.updated_at,
   expiresAt: row.expires_at,
   whatsappStartedAt: row.whatsapp_started_at,
-  items: (row.cart_items ?? []).map(mapItem),
+  items: sortCartItemsByCreatedAt(row.cart_items ?? []).map(mapItem),
 });
 
 const createLocalCart = (): Cart => {
