@@ -35,6 +35,7 @@ export default function CategoryFilter({
           key={option}
           type="button"
           onClick={() => onSelect(option)}
+          aria-pressed={active === option}
           className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-colors ${
             compactOnMobile ? 'snap-start' : ''
           } ${

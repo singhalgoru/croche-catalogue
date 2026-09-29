@@ -14,6 +14,7 @@ import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
 import { compareCatalogueProducts } from './utils/catalogueSort';
+import { resolveCategorySelection } from './utils/categorySelection';
 import {
   findProductByReference,
   readProductReferenceFromHash,
@@ -174,9 +175,12 @@ function App() {
     }
   };
 
+  // Tapping the active category again clears the filter, so users can get
+  // back to the full catalogue without hunting for the "All" chip.
   const selectCategory = (category: CatalogueFilter) => {
-    trackEvent('select_category', { category });
-    setActiveCategory(category);
+    const next = resolveCategorySelection(category, effectiveActiveCategory);
+    trackEvent('select_category', { category: next });
+    setActiveCategory(next);
     setCategoryScrollRequest((current) => current + 1);
   };
 
