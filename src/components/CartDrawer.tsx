@@ -250,8 +250,11 @@ export default function CartDrawer({
               }`}
             >
               <WhatsAppIcon />
-              Enquire about cart on WhatsApp
+              Send cart to Luvia on WhatsApp
             </a>
+            <p className="mt-2 text-center text-xs text-cocoa/60">
+              Opens WhatsApp with your items listed, so Luvia can confirm availability and process your order.
+            </p>
             <button
               type="button"
               onClick={onClear}

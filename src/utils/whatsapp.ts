@@ -43,11 +43,13 @@ export const getCartWhatsAppLink = (cart: Cart) => {
 
   return whatsappLink(
     [
-      'Hi Luvia, I would like to enquire about these items:',
+      'Hi Luvia, here is my cart. I would like to place an order for these items:',
       '',
       ...lines,
       '',
       hasCompletePricing ? `Estimated total: ${formatINR(total)}` : 'Total: Please confirm',
+      '',
+      'Please confirm availability and the final total so we can proceed.',
     ].join('\n'),
   );
 };
