@@ -36,7 +36,16 @@ export default function AdminPage({ onProductPublished }: Props) {
   const categories = categorySettings.map((category) => category.name);
   const [session, setSession] = useState<Session | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(isSupabaseConfigured);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  // Supabase re-emits SIGNED_IN / TOKEN_REFRESHED whenever the tab becomes
+  // visible again. Keying the access check on the user id (rather than the
+  // session object) keeps the console mounted through those refreshes, so
+  // half-filled forms aren't wiped when the admin switches apps and returns.
+  const sessionUserId = session?.user.id ?? null;
+  const [adminCheck, setAdminCheck] = useState<{ userId: string; isAdmin: boolean } | null>(
+    null,
+  );
+  const isAdmin =
+    sessionUserId && adminCheck?.userId === sessionUserId ? adminCheck.isAdmin : null;
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,7 +61,6 @@ export default function AdminPage({ onProductPublished }: Props) {
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, nextSession) => {
-      setIsAdmin(null);
       setSession(nextSession);
       setIsCheckingSession(false);
     });
@@ -61,24 +69,24 @@ export default function AdminPage({ onProductPublished }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session) return;
+    if (!supabase || !sessionUserId) return;
 
     let isCurrent = true;
     void supabase.rpc('is_catalogue_admin').then(({ data, error }) => {
       if (!isCurrent) return;
       if (error) {
         setAuthError(`Unable to verify catalogue access: ${error.message}`);
-        setIsAdmin(false);
+        setAdminCheck({ userId: sessionUserId, isAdmin: false });
         return;
       }
       setAuthError(null);
-      setIsAdmin(data === true);
+      setAdminCheck({ userId: sessionUserId, isAdmin: data === true });
     });
 
     return () => {
       isCurrent = false;
     };
-  }, [session]);
+  }, [sessionUserId]);
 
   useEffect(() => {
     if (!isAdmin) return;

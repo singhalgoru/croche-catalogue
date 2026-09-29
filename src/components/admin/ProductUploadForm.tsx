@@ -9,35 +9,31 @@ import {
   type VariantDraft,
 } from './variantDraft';
 import { parseOptionalPrice } from './price';
+import {
+  EMPTY_PRODUCT_DRAFT as EMPTY_DRAFT,
+  clearProductDraft,
+  fromStoredProductDraft,
+  isProductDraftEmpty,
+  loadProductDraft,
+  saveProductDraft,
+  type ProductDraft,
+} from './productDraftStore';
 
 interface Props {
   categories: Category[];
   onPublished: () => Promise<void>;
 }
 
-interface ProductDraft {
-  name: string;
-  category: Category;
-  description: string;
-  featured: boolean;
-  price: string;
-  showPrice: boolean;
-}
-
-const EMPTY_DRAFT: ProductDraft = {
-  name: '',
-  category: 'Charms & Keychains',
-  description: '',
-  featured: false,
-  price: '',
-  showPrice: false,
-};
+const DRAFT_SAVE_DELAY_MS = 400;
 
 export default function ProductUploadForm({ categories, onPublished }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [draft, setDraft] = useState<ProductDraft>(EMPTY_DRAFT);
   const [variants, setVariants] = useState<VariantDraft[]>(() => [createEmptyVariant('Standard')]);
   const variantsRef = useRef(variants);
+  const draftRef = useRef(draft);
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+  const [restoredDraftAt, setRestoredDraftAt] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -45,8 +41,60 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
 
   useEffect(() => {
     variantsRef.current = variants;
-  }, [variants]);
+    draftRef.current = draft;
+  }, [draft, variants]);
   useEffect(() => () => releaseVariantPreviews(variantsRef.current), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadProductDraft().then((stored) => {
+      if (cancelled) return;
+      // Don't overwrite anything typed while the draft was loading.
+      if (stored && isProductDraftEmpty(draftRef.current, variantsRef.current)) {
+        const restored = fromStoredProductDraft(stored);
+        releaseVariantPreviews(variantsRef.current);
+        setDraft(restored.draft);
+        setVariants(restored.variants);
+        setIsExpanded(true);
+        setRestoredDraftAt(stored.savedAt);
+      }
+      setIsDraftLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftLoaded) return;
+    const timer = window.setTimeout(() => {
+      if (isProductDraftEmpty(draft, variants)) void clearProductDraft();
+      else void saveProductDraft(draft, variants);
+    }, DRAFT_SAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [draft, variants, isDraftLoaded]);
+
+  // The debounce above can be cut short when the admin switches apps, so
+  // save straight away as the page is hidden.
+  useEffect(() => {
+    if (!isDraftLoaded) return;
+    const saveNow = () => {
+      if (document.visibilityState !== 'hidden') return;
+      if (isProductDraftEmpty(draftRef.current, variantsRef.current)) return;
+      void saveProductDraft(draftRef.current, variantsRef.current);
+    };
+    document.addEventListener('visibilitychange', saveNow);
+    return () => document.removeEventListener('visibilitychange', saveNow);
+  }, [isDraftLoaded]);
+
+  const discardDraft = () => {
+    releaseVariantPreviews(variants);
+    setDraft(EMPTY_DRAFT);
+    setVariants([createEmptyVariant('Standard')]);
+    setRestoredDraftAt(null);
+    setErrorMessage(null);
+    void clearProductDraft();
+  };
 
   const analyzeImage = async () => {
     const imageFile = variants[0]?.imageFile;
@@ -133,6 +181,8 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       releaseVariantPreviews(variants);
       setDraft(EMPTY_DRAFT);
       setVariants([createEmptyVariant('Standard')]);
+      setRestoredDraftAt(null);
+      void clearProductDraft();
       setSuccessMessage(`${product.name} with ${product.variants.length} variant${
         product.variants.length === 1 ? '' : 's'
       } was published to the catalogue.`);
@@ -179,6 +229,29 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           className="space-y-4 border-t border-mustard/30 p-3 sm:space-y-6 sm:p-5"
           onSubmit={submitProduct}
         >
+      {restoredDraftAt !== null && (
+        <div
+          role="status"
+          className="flex flex-col gap-2 rounded-2xl border border-mustard/50 bg-mustard/15 p-3 text-sm text-cocoa sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>
+            Restored your unsaved draft from{' '}
+            {new Date(restoredDraftAt).toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+            .
+          </span>
+          <button
+            type="button"
+            onClick={discardDraft}
+            disabled={isAnalyzing || isPublishing}
+            className="shrink-0 self-start rounded-full border border-cocoa/30 px-3 py-1 text-xs font-semibold text-cocoa disabled:opacity-60 sm:self-auto"
+          >
+            Discard draft
+          </button>
+        </div>
+      )}
       <section className="rounded-2xl border border-mustard/40 bg-white p-4 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
           Step 1 of 3
