@@ -4,7 +4,8 @@ import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getCartWhatsAppLink } from '../utils/whatsapp';
-import { WhatsAppIcon } from './SocialIcons';
+import { getCartEmailLink, ORDERS_EMAIL } from '../utils/email';
+import { MailIcon, WhatsAppIcon } from './SocialIcons';
 
 interface Props {
   cart: Cart | null;
@@ -17,6 +18,7 @@ interface Props {
   onRemove: (itemId: string) => void;
   onClear: () => void;
   onWhatsAppStarted: () => void;
+  onEmailStarted: () => void;
   onOpenProduct: (productId: string, variantId: string) => void;
 }
 
@@ -31,6 +33,7 @@ export default function CartDrawer({
   onRemove,
   onClear,
   onWhatsAppStarted,
+  onEmailStarted,
   onOpenProduct,
 }: Props) {
   const checkoutCart = useMemo(
@@ -80,6 +83,10 @@ export default function CartDrawer({
   const whatsappLink =
     checkoutCart && checkoutCart.items.length > 0
       ? getCartWhatsAppLink(checkoutCart)
+      : '#';
+  const emailLink =
+    checkoutCart && checkoutCart.items.length > 0
+      ? getCartEmailLink(checkoutCart)
       : '#';
 
   return (
@@ -254,6 +261,29 @@ export default function CartDrawer({
             </a>
             <p className="mt-2 text-center text-xs text-cocoa/60">
               Opens WhatsApp with your items listed, so Luvia can confirm availability and process your order.
+            </p>
+            <a
+              href={unavailableItemIds.size === 0 ? emailLink : undefined}
+              onClick={(event) => {
+                if (unavailableItemIds.size > 0) {
+                  event.preventDefault();
+                  return;
+                }
+                onEmailStarted();
+              }}
+              aria-disabled={unavailableItemIds.size > 0 || isBusy}
+              className={`mt-3 flex w-full items-center justify-center gap-2 rounded-full border-2 py-3 font-semibold ${
+                unavailableItemIds.size > 0 || isBusy
+                  ? 'cursor-not-allowed border-gray-300 text-gray-400'
+                  : 'border-cocoa text-cocoa hover:bg-cocoa hover:text-white'
+              }`}
+            >
+              <MailIcon />
+              Email cart to Luvia
+            </a>
+            <p className="mt-2 text-center text-xs text-cocoa/60">
+              Opens your email app with the items and a short delivery-details form, addressed to{' '}
+              {ORDERS_EMAIL}.
             </p>
             <button
               type="button"

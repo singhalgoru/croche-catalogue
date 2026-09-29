@@ -406,6 +406,12 @@ function App() {
           onWhatsAppStarted={() => {
             void cart.markWhatsAppStarted();
           }}
+          onEmailStarted={() => {
+            trackEvent('email_cart', {
+              cart_reference: cart.cart?.reference ?? '',
+              item_count: cart.cart?.items.length ?? 0,
+            });
+          }}
           onOpenProduct={(productId, variantId) => {
             const product = products.find((candidate) => candidate.id === productId);
             if (!product) return;

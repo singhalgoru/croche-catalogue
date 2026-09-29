@@ -25,7 +25,7 @@ export const getProductWhatsAppLink = (product: Product, variant?: ProductVarian
     } from the ${product.category} collection.`,
   );
 
-export const getCartWhatsAppLink = (cart: Cart) => {
+export const buildCartSummaryLines = (cart: Cart) => {
   const pricedItems = cart.items.filter((item) => item.unitPrice !== null);
   const hasCompletePricing = pricedItems.length === cart.items.length;
   const total = pricedItems.reduce(
@@ -41,15 +41,20 @@ export const getCartWhatsAppLink = (cart: Cart) => {
     }`,
   ]);
 
-  return whatsappLink(
+  return [
+    ...lines,
+    '',
+    hasCompletePricing ? `Estimated total: ${formatINR(total)}` : 'Total: Please confirm',
+  ];
+};
+
+export const getCartWhatsAppLink = (cart: Cart) =>
+  whatsappLink(
     [
       'Hi Luvia, here is my cart. I would like to place an order for these items:',
       '',
-      ...lines,
-      '',
-      hasCompletePricing ? `Estimated total: ${formatINR(total)}` : 'Total: Please confirm',
+      ...buildCartSummaryLines(cart),
       '',
       'Please confirm availability and the final total so we can proceed.',
     ].join('\n'),
   );
-};
