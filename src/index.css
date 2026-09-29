@@ -76,6 +76,26 @@ body {
   }
 }
 
+/*
+ * Draws attention to the Featured and New badges with a slow pulsing halo.
+ * Each badge sets --badge-glow-color so the halo suits its own background.
+ */
+.badge-glow {
+  --badge-glow-color: rgb(246 196 83 / 0.75);
+  animation: badge-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes badge-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--badge-glow-color);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shipping-ticker-track {
     width: 100%;
@@ -89,5 +109,11 @@ body {
 
   .cart-updated {
     animation: none;
+  }
+
+  /* Keep a static halo so the badges still stand out without motion. */
+  .badge-glow {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--badge-glow-color);
   }
 }

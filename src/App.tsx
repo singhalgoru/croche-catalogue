@@ -13,6 +13,7 @@ import { useTickerMessages } from './hooks/useTickerMessages';
 import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
+import { compareCatalogueProducts } from './utils/catalogueSort';
 import {
   findProductByReference,
   readProductReferenceFromHash,
@@ -191,23 +192,14 @@ function App() {
         const matchesCategory =
           effectiveActiveCategory === 'All' ||
           (effectiveActiveCategory === 'New'
-            ? isProductNew(product)
+            ? isProductNew(product, catalogueTime)
             : product.category === effectiveActiveCategory);
         const matchesQuery = matchesProductSearch(product, query);
         return matchesCategory && matchesQuery;
       })
-      .sort((left, right) => {
-        if (left.sortOrder !== undefined && right.sortOrder !== undefined) {
-          return left.sortOrder - right.sortOrder;
-        }
-        return (
-          Number(Boolean(right.featured)) - Number(Boolean(left.featured)) ||
-          Number(isProductNew(right, catalogueTime)) -
-            Number(isProductNew(left, catalogueTime)) ||
-          (categoryRanks.get(left.category) ?? Number.MAX_SAFE_INTEGER) -
-            (categoryRanks.get(right.category) ?? Number.MAX_SAFE_INTEGER)
-        );
-      });
+      .sort((left, right) =>
+        compareCatalogueProducts(left, right, { now: catalogueTime, categoryRanks }),
+      );
   }, [effectiveActiveCategory, catalogueTime, categorySettings, products, query]);
 
   useEffect(() => {

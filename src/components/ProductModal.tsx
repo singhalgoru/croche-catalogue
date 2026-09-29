@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 import type { Product, ProductVariant } from '../types/product';
 import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
 import { getProductWhatsAppLink } from '../utils/whatsapp';
@@ -405,7 +405,10 @@ export default function ProductModal({
             </button>
           </div>
           {isNew && (
-            <span className="absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md">
+            <span
+              className="badge-glow absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md"
+              style={{ '--badge-glow-color': 'rgb(93 64 55 / 0.55)' } as CSSProperties}
+            >
               New
             </span>
           )}

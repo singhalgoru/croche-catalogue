@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
@@ -228,12 +229,18 @@ export default function ProductCard({
         {(isFeatured || isNew) && (
           <div className="absolute left-2 top-2 flex flex-col items-start gap-1.5">
             {isFeatured && (
-              <span className="rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream shadow-md">
+              <span
+                className="badge-glow rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream shadow-md"
+                style={{ '--badge-glow-color': 'rgb(246 196 83 / 0.85)' } as CSSProperties}
+              >
                 ★ Featured
               </span>
             )}
             {isNew && (
-              <span className="rounded-full bg-mustard px-2.5 py-1 text-xs font-bold text-cocoa shadow-md">
+              <span
+                className="badge-glow rounded-full bg-mustard px-2.5 py-1 text-xs font-bold text-cocoa shadow-md"
+                style={{ '--badge-glow-color': 'rgb(93 64 55 / 0.55)' } as CSSProperties}
+              >
                 New
               </span>
             )}
