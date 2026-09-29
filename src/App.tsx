@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CategoryFilter from './components/CategoryFilter';
+import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
 import CartDrawer from './components/CartDrawer';
@@ -306,16 +307,21 @@ function App() {
               cart.itemCount > 0 ? 'pr-20' : 'pr-4'
             }`}
           >
-            <SearchBar
-              value={query}
-              onChange={setQuery}
-              onSearch={(searchQuery) =>
-                trackEvent('catalogue_search', {
-                  query_length: searchQuery.trim().length,
-                  result_count: filteredProducts.length,
-                })
-              }
-            />
+            <div className="flex items-center gap-2">
+              <BrandMark className="h-10 w-10" />
+              <div className="min-w-0 flex-1">
+                <SearchBar
+                  value={query}
+                  onChange={setQuery}
+                  onSearch={(searchQuery) =>
+                    trackEvent('catalogue_search', {
+                      query_length: searchQuery.trim().length,
+                      result_count: filteredProducts.length,
+                    })
+                  }
+                />
+              </div>
+            </div>
             <CategoryFilter
               categories={categories}
               active={effectiveActiveCategory}
