@@ -238,64 +238,64 @@ export default function CartDrawer({
               <span>{hasUnpricedItems ? 'Priced items total' : 'Estimated total'}</span>
               <span>{formatINR(total)}</span>
             </div>
-            <a
-              href={unavailableItemIds.size === 0 ? whatsappLink : undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => {
-                if (unavailableItemIds.size > 0) {
-                  event.preventDefault();
-                  return;
-                }
-                onWhatsAppStarted();
-              }}
-              aria-disabled={unavailableItemIds.size > 0 || isBusy}
-              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold text-white ${
-                unavailableItemIds.size > 0 || isBusy
-                  ? 'cursor-not-allowed bg-gray-400'
-                  : 'bg-[#25D366] hover:bg-[#1ebe5d]'
-              }`}
-            >
-              <WhatsAppIcon />
-              Send cart to Luvia on WhatsApp
-            </a>
-            <p className="mt-2 text-center text-xs text-cocoa/60">
-              Opens WhatsApp with your items listed, so Luvia can confirm availability and process your order.
+            <p className="mt-3 text-center text-xs text-cocoa/60">
+              Send your cart to Luvia to confirm availability and process your order.
             </p>
-            <a
-              href={unavailableItemIds.size === 0 ? emailLink : undefined}
-              onClick={(event) => {
-                if (unavailableItemIds.size > 0) {
-                  event.preventDefault();
-                  return;
-                }
-                onEmailStarted();
-              }}
-              aria-disabled={unavailableItemIds.size > 0 || isBusy}
-              className={`mt-3 flex w-full items-center justify-center gap-2 rounded-full border-2 py-3 font-semibold ${
-                unavailableItemIds.size > 0 || isBusy
-                  ? 'cursor-not-allowed border-gray-300 text-gray-400'
-                  : 'border-cocoa text-cocoa hover:bg-cocoa hover:text-white'
-              }`}
-            >
-              <MailIcon />
-              Email cart to Luvia
-            </a>
-            <p className="mt-2 text-center text-xs text-cocoa/60">
-              Opens your email app with the items and a short delivery-details form, addressed to{' '}
-              {ORDERS_EMAIL}.
-            </p>
-            <button
-              type="button"
-              onClick={onClear}
-              disabled={isBusy}
-              className="mt-3 w-full text-sm font-semibold text-red-700 underline disabled:opacity-50"
-            >
-              Clear cart
-            </button>
-            <p className="mt-3 text-center text-xs text-cocoa/50">
-              Your anonymous cart is saved for up to 30 days on this browser.
-            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <a
+                href={unavailableItemIds.size === 0 ? whatsappLink : undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => {
+                  if (unavailableItemIds.size > 0) {
+                    event.preventDefault();
+                    return;
+                  }
+                  onWhatsAppStarted();
+                }}
+                aria-disabled={unavailableItemIds.size > 0 || isBusy}
+                aria-label="Send cart to Luvia on WhatsApp"
+                className={`flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold text-white ${
+                  unavailableItemIds.size > 0 || isBusy
+                    ? 'cursor-not-allowed bg-gray-400'
+                    : 'bg-[#25D366] hover:bg-[#1ebe5d]'
+                }`}
+              >
+                <WhatsAppIcon />
+                WhatsApp
+              </a>
+              <a
+                href={unavailableItemIds.size === 0 ? emailLink : undefined}
+                onClick={(event) => {
+                  if (unavailableItemIds.size > 0) {
+                    event.preventDefault();
+                    return;
+                  }
+                  onEmailStarted();
+                }}
+                aria-disabled={unavailableItemIds.size > 0 || isBusy}
+                aria-label={`Email cart to Luvia at ${ORDERS_EMAIL}`}
+                className={`flex w-full items-center justify-center gap-2 rounded-full border-2 py-3 font-semibold ${
+                  unavailableItemIds.size > 0 || isBusy
+                    ? 'cursor-not-allowed border-gray-300 text-gray-400'
+                    : 'border-cocoa text-cocoa hover:bg-cocoa hover:text-white'
+                }`}
+              >
+                <MailIcon />
+                Email
+              </a>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+              <button
+                type="button"
+                onClick={onClear}
+                disabled={isBusy}
+                className="shrink-0 font-semibold text-red-700 underline disabled:opacity-50"
+              >
+                Clear cart
+              </button>
+              <span className="text-right text-cocoa/50">Cart saved for 30 days</span>
+            </div>
           </div>
         )}
       </aside>
