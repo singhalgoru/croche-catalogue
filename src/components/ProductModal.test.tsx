@@ -261,7 +261,9 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByRole('img', { name: 'Crochet Rose — Ivory' }).getAttribute('src')).toBe(
       '/rose-ivory.jpg',
     );
-    expect(screen.getByRole('button', { name: 'Show main product image' })).toBeTruthy();
+    // Ivory has no angle photos of its own, so the strip drops away rather
+    // than degrading into a second copy of the variant picker.
+    expect(screen.queryByLabelText('Product image angles')).toBeNull();
   });
 
   it('automatically rotates through image angles', () => {
@@ -290,6 +292,37 @@ describe('ProductModal touch controls', () => {
     expect(
       screen.getByRole('img', { name: 'Variant Image Product — Side' }).getAttribute('src'),
     ).toBe('/side.jpg');
+  });
+
+  it('stops auto-rotating once a variant is chosen so the order keeps that variant', () => {
+    renderModal(variantImageProduct);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Side' }));
+    expect(
+      screen.getByRole('img', { name: 'Variant Image Product — Side' }).getAttribute('src'),
+    ).toBe('/side.jpg');
+
+    act(() => vi.advanceTimersByTime(3500 * 3));
+
+    expect(
+      screen.getByRole('img', { name: 'Variant Image Product — Side' }).getAttribute('src'),
+    ).toBe('/side.jpg');
+    expect(screen.getByRole('button', { name: 'Side' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+  });
+
+  it('hides the angle thumbnail strip when it would just repeat the variant picker', () => {
+    renderModal(variantImageProduct);
+
+    expect(screen.queryByLabelText('Product image angles')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Side' })).toBeTruthy();
+  });
+
+  it('still shows the angle thumbnail strip for a variant with its own photos', () => {
+    renderModal();
+
+    expect(screen.getByLabelText('Product image angles')).toBeTruthy();
   });
 
   it('opens, controls, and closes image zoom without closing the product modal', () => {

@@ -75,6 +75,7 @@ export default function ProductModal({
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [hasChosenImage, setHasChosenImage] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const hasCarousel = totalProducts > 1;
   const selectedVariant =
@@ -111,6 +112,10 @@ export default function ProductModal({
   );
   const activeImage =
     galleryImages[activeImageIndex]?.image ?? galleryImages[0].image;
+  // The thumbnail strip is only meaningful when the selected variant has its
+  // own extra angle photos. Otherwise galleryImages falls back to one photo
+  // per variant, which would duplicate the "Choose a variant" picker below.
+  const hasAngleThumbnails = Boolean(selectedVariant?.gallery.length);
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
@@ -221,7 +226,10 @@ export default function ProductModal({
   }, [product, selectedVariant]);
 
   useEffect(() => {
-    if (galleryImages.length <= 1 || isZoomOpen) return;
+    // Auto-rotation previews the other photos on open, but it must stop once
+    // the shopper picks something: it also switches selectedVariantId, so
+    // letting it run would silently change which variant gets ordered.
+    if (hasChosenImage || galleryImages.length <= 1 || isZoomOpen) return;
     const timer = window.setInterval(() => {
       setActiveImageId((currentId) => {
         const currentIndex = Math.max(
@@ -234,15 +242,17 @@ export default function ProductModal({
       });
     }, 3500);
     return () => window.clearInterval(timer);
-  }, [galleryImages, isZoomOpen]);
+  }, [galleryImages, isZoomOpen, hasChosenImage]);
 
   const selectVariant = (variantId: string) => {
+    setHasChosenImage(true);
     setSelectedVariantId(variantId);
     const variant = product.variants.find((item) => item.id === variantId);
     setActiveImageId(variant?.gallery.length ? 'main' : `variant:${variantId}`);
   };
 
   const selectGalleryImage = (image: GalleryImage) => {
+    setHasChosenImage(true);
     if (image.variantId) setSelectedVariantId(image.variantId);
     setActiveImageId(image.id);
   };
@@ -373,7 +383,7 @@ export default function ProductModal({
                   ? `${product.name} — ${selectedVariant.name}`
                   : product.name
               }
-              className="w-full aspect-square object-cover"
+              className="w-full aspect-square max-h-[55vh] object-cover"
               {...productImageProtection}
             />
           </button>
@@ -435,7 +445,7 @@ export default function ProductModal({
             </>
           )}
         </div>
-        {galleryImages.length > 1 && (
+        {hasAngleThumbnails && galleryImages.length > 1 && (
           <div
             className="flex gap-2 overflow-x-auto border-b border-mustard/20 bg-cream/40 p-3"
             aria-label="Product image angles"
