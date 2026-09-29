@@ -1,7 +1,7 @@
 import type { Product, ProductVariant } from '../types/product';
 import type { Cart } from '../types/cart';
 import { getCampaignReference } from './campaign';
-import { formatINR } from './currency';
+import { buildWhatsAppCartMessage } from './cartMessage';
 
 // Fallback keeps local dev working if the env var isn't set; production reads
 // VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
@@ -25,36 +25,5 @@ export const getProductWhatsAppLink = (product: Product, variant?: ProductVarian
     } from the ${product.category} collection.`,
   );
 
-export const buildCartSummaryLines = (cart: Cart) => {
-  const pricedItems = cart.items.filter((item) => item.unitPrice !== null);
-  const hasCompletePricing = pricedItems.length === cart.items.length;
-  const total = pricedItems.reduce(
-    (sum, item) => sum + (item.unitPrice ?? 0) * item.quantity,
-    0,
-  );
-  const lines = cart.items.flatMap((item, index) => [
-    `${index + 1}. ${item.productName}`,
-    ...(item.variantName ? [`   Variant: ${item.variantName}`] : []),
-    `   Quantity: ${item.quantity}`,
-    `   Price: ${
-      item.unitPrice === null ? 'Price on enquiry' : `${formatINR(item.unitPrice)} each`
-    }`,
-  ]);
-
-  return [
-    ...lines,
-    '',
-    hasCompletePricing ? `Estimated total: ${formatINR(total)}` : 'Total: Please confirm',
-  ];
-};
-
 export const getCartWhatsAppLink = (cart: Cart) =>
-  whatsappLink(
-    [
-      'Hi Luvia, here is my cart. I would like to place an order for these items:',
-      '',
-      ...buildCartSummaryLines(cart),
-      '',
-      'Please confirm availability and the final total so we can proceed.',
-    ].join('\n'),
-  );
+  whatsappLink(buildWhatsAppCartMessage(cart));

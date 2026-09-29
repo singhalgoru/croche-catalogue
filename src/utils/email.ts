@@ -1,33 +1,23 @@
 import type { Cart } from '../types/cart';
 import { getCampaignReference } from './campaign';
-import { buildCartSummaryLines } from './whatsapp';
+import { buildEmailCartBody, buildEmailCartSubject } from './cartMessage';
 
 export const ORDERS_EMAIL = 'orders@luviacreations.com';
 export const GENERAL_EMAIL = 'hello@luviacreations.com';
 
-export const getCartEmailLink = (cart: Cart) => {
-  const campaign = getCampaignReference();
-  const subject = `Order request — Luvia cart ${cart.reference}`;
-  const body = [
-    'Hi Luvia,',
-    '',
-    'I would like to place an order for these items:',
-    '',
-    ...buildCartSummaryLines(cart),
-    '',
-    'Please confirm availability and the final total so we can proceed.',
-    '',
-    'My delivery details:',
-    'Name:',
-    'Phone:',
-    'Address:',
-    'Pincode:',
-    '',
-    `Cart reference: ${cart.reference}`,
-    ...(campaign ? [`Ref: ${campaign}`] : []),
-  ].join('\n');
+// Several mail clients truncate mailto URLs around 2000 characters, which
+// would drop items off the end of a large order without telling the customer.
+export const MAX_MAILTO_LENGTH = 1900;
 
-  return `mailto:${ORDERS_EMAIL}?subject=${encodeURIComponent(
+const toMailto = (subject: string, body: string) =>
+  `mailto:${ORDERS_EMAIL}?subject=${encodeURIComponent(
     subject,
   )}&body=${encodeURIComponent(body)}`;
+
+export const getCartEmailLink = (cart: Cart) => {
+  const campaign = getCampaignReference();
+  const subject = buildEmailCartSubject(cart);
+  const detailed = toMailto(subject, buildEmailCartBody(cart, campaign, 'detailed'));
+  if (detailed.length <= MAX_MAILTO_LENGTH) return detailed;
+  return toMailto(subject, buildEmailCartBody(cart, campaign, 'compact'));
 };
