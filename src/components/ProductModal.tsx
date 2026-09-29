@@ -62,6 +62,7 @@ export default function ProductModal({
 }: Props) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sharePanelRef = useRef<HTMLDivElement>(null);
   const [showTouchControls, setShowTouchControls] = useState(false);
   const initialVariant =
     product.variants.find((variant) => variant.id === initialVariantId) ?? product.variants[0];
@@ -244,6 +245,13 @@ export default function ProductModal({
     return () => window.clearInterval(timer);
   }, [galleryImages, isZoomOpen, hasChosenImage]);
 
+  useEffect(() => {
+    // The actions row is pinned to the bottom, so the share panel opens
+    // beneath it. Bring it into view instead of leaving it off-screen.
+    if (!isShareOpen) return;
+    sharePanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [isShareOpen]);
+
   const selectVariant = (variantId: string) => {
     setHasChosenImage(true);
     setSelectedVariantId(variantId);
@@ -349,17 +357,6 @@ export default function ProductModal({
           ×
         </span>
       </button>
-      <a
-        href={whatsappOrderLink}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={openWhatsAppOrder}
-        className="fixed bottom-5 right-3 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366] sm:bottom-6 sm:right-5"
-        aria-label="Quick order on WhatsApp"
-        title="Quick order on WhatsApp"
-      >
-        <WhatsAppIcon />
-      </a>
       <div
         className="touch-pan-y bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
         onClick={(event) => event.stopPropagation()}
@@ -549,11 +546,26 @@ export default function ProductModal({
             </p>
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          {/* Pinned to the bottom of the modal's scrollport so the buy and
+              share actions stay reachable on short viewports, where the
+              image plus variant picker can otherwise push them below the
+              fold (phone browser URL bars make this worse). */}
+          <div className="sticky bottom-0 z-30 -mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-mustard/25 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
               {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
             </span>
             <div className="flex items-center gap-2">
+              <a
+                href={whatsappOrderLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={openWhatsAppOrder}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
+                aria-label="Quick order on WhatsApp"
+                title="Quick order on WhatsApp"
+              >
+                <WhatsAppIcon />
+              </a>
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
                   productName={product.name}
@@ -613,6 +625,7 @@ export default function ProductModal({
           {isShareOpen && (
             <div
               id="product-share-options"
+              ref={sharePanelRef}
               className="mt-4 rounded-xl border border-mustard/30 bg-cream/50 p-3"
             >
                 <div className="flex flex-wrap justify-center gap-3">
