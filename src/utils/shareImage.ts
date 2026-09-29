@@ -1,4 +1,5 @@
 const FALLBACK_EXTENSION = 'jpg';
+export const SHARE_IMAGE_ACCEPT = 'image/webp,image/jpeg;q=0.9,image/*;q=0.8';
 
 const extensionFromContentType = (contentType: string): string => {
   const subtype = contentType.split('/')[1]?.split(';')[0]?.split('+')[0];
@@ -23,7 +24,13 @@ export const getShareableImageFile = async (
   fileNameBase: string,
 ): Promise<File | null> => {
   try {
-    const response = await fetch(imageUrl, { mode: 'cors' });
+    // fetch() sends "Accept: */*" by default, which makes Supabase's image
+    // transformer answer with PNG — often 5-6x larger than the WebP it
+    // serves to <img>. Accept is CORS-safelisted, so this adds no preflight.
+    const response = await fetch(imageUrl, {
+      mode: 'cors',
+      headers: { Accept: SHARE_IMAGE_ACCEPT },
+    });
     if (!response.ok) return null;
     const blob = await response.blob();
     if (!blob.type.startsWith('image/')) return null;

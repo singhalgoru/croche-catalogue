@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getShareableImageFile, toShareFileName } from './shareImage';
+import { SHARE_IMAGE_ACCEPT, getShareableImageFile, toShareFileName } from './shareImage';
 
 const originalFetch = globalThis.fetch;
 
@@ -28,6 +28,20 @@ describe('getShareableImageFile', () => {
     expect(file).not.toBeNull();
     expect(file?.name).toBe('crochet-rose.webp');
     expect(file?.type).toBe('image/webp');
+  });
+
+  it('asks for a compressed image format rather than the default PNG', async () => {
+    const blob = new Blob(['fake-image-bytes'], { type: 'image/webp' });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+    globalThis.fetch = fetchMock;
+
+    await getShareableImageFile('https://example.com/rose.png', 'crochet-rose');
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/rose.png', {
+      mode: 'cors',
+      headers: { Accept: SHARE_IMAGE_ACCEPT },
+    });
+    expect(SHARE_IMAGE_ACCEPT.startsWith('image/webp')).toBe(true);
   });
 
   it('returns null when the response is not ok', async () => {

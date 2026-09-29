@@ -70,8 +70,25 @@ export default function ProductCard({
   // handler) so navigator.share() can be called synchronously — awaiting a
   // fetch first can silently consume the click's "user activation" and
   // prevent the share sheet from opening on some Android browsers.
+  // Preparing it on mount for every card downloaded megabytes of full-size
+  // images during page load and delayed the first product photo, so wait
+  // until the page has loaded and the card is near the screen, or the
+  // shopper reaches for the share button.
   const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null);
+  const [hasPageLoaded, setHasPageLoaded] = useState(
+    () => typeof document === 'undefined' || document.readyState === 'complete',
+  );
+  const [hasShareIntent, setHasShareIntent] = useState(false);
   useEffect(() => {
+    if (hasPageLoaded) return;
+    const markLoaded = () => setHasPageLoaded(true);
+    window.addEventListener('load', markLoaded, { once: true });
+    return () => window.removeEventListener('load', markLoaded);
+  }, [hasPageLoaded]);
+  const shouldPrepareShareFile = hasShareIntent || (hasPageLoaded && isNearViewport);
+  const prepareShareFile = () => setHasShareIntent(true);
+  useEffect(() => {
+    if (!shouldPrepareShareFile) return;
     let cancelled = false;
     // eslint-disable-next-line react/set-state-in-effect -- resets stale share state while the new image loads
     setPreparedShareFile(null);
@@ -84,7 +101,7 @@ export default function ProductCard({
     return () => {
       cancelled = true;
     };
-  }, [activeImageUrl, shareDetails.title]);
+  }, [activeImageUrl, shareDetails.title, shouldPrepareShareFile]);
 
   const shareProduct = () => {
     const canShareImage =
@@ -304,7 +321,12 @@ export default function ProductCard({
               </p>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div
+            className="flex shrink-0 items-center gap-2"
+            onPointerEnter={prepareShareFile}
+            onTouchStart={prepareShareFile}
+            onFocusCapture={prepareShareFile}
+          >
             <ShareIconButton
               productName={product.name}
               onClick={shareProduct}
