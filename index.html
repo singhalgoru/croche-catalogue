@@ -85,7 +85,13 @@
     </script>
   </head>
   <body>
-    <div id="root">
+    <!--
+      Everything between the shell markers is replaced at build time by
+      scripts/prerender.mjs with the real catalogue, so crawlers that do not
+      run JavaScript still receive the products. React swaps it for the
+      interactive app on mount. The copy below is the no-Supabase fallback.
+    -->
+    <div id="root"><!--shell-->
       <header>
         <h1>Handmade Crochet Products and Gifts in India</h1>
         <p>
@@ -103,7 +109,7 @@
           variants, then contact Luvia directly through WhatsApp or Instagram.
         </p>
       </main>
-    </div>
+      <!--/shell--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

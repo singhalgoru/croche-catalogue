@@ -1,4 +1,37 @@
 User-agent: *
 Allow: /
 
+# Named explicitly so the AI crawlers are not left to a default. These read
+# plain HTML and do not run JavaScript, which is why the catalogue is rendered
+# into the initial response at build time (scripts/prerender.mjs).
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
 Sitemap: https://luviacreations.com/sitemap.xml

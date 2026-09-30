@@ -1,0 +1,477 @@
+/**
+ * Renders the published catalogue into the built HTML.
+ *
+ * The catalogue is a client-rendered SPA, so without this step the only thing
+ * a crawler receives is an empty shell: every product name, price and
+ * description arrives later over the Supabase API. AI crawlers such as GPTBot,
+ * ClaudeBot and PerplexityBot do not run JavaScript, so none of the catalogue
+ * was visible to them.
+ *
+ * After `vite build` this script:
+ *   - replaces the shell markers in dist/index.html with the real catalogue,
+ *   - writes a standalone static page per product under dist/p/<reference>/,
+ *   - regenerates dist/sitemap.xml so those pages are discoverable.
+ *
+ * React replaces the injected markup when it mounts, so visitors still get the
+ * interactive app and the rendered text always matches what a person sees.
+ */
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadEnv } from 'vite';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const DIST = path.join(ROOT, 'dist');
+const ORIGIN = 'https://luviacreations.com';
+const FALLBACK_WHATSAPP_NUMBER = '918800221074';
+
+const PRODUCT_SELECT =
+  'id,name,category,description,price,show_price,in_stock,image_url,published_at,sort_order,created_at,' +
+  'product_variants(id,name,color,price,in_stock,image_url,sort_order)';
+
+// --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
+
+export const toProductSlug = (product) =>
+  product.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || product.id;
+
+export const toProductReference = (product) => {
+  const slug = toProductSlug(product);
+  const id = product.id.toLowerCase();
+  return slug === id ? id : `${slug}--${id}`;
+};
+
+const PUBLIC_IMAGE_PATH = '/storage/v1/object/public/product-images/';
+const RENDER_IMAGE_PATH = '/storage/v1/render/image/public/product-images/';
+const LEGACY_CATALOGUE_IMAGE_PATH = '/croche-catalogue/images/';
+
+export const getProductImageUrl = (source, width) => {
+  let url;
+  try {
+    url = new URL(source);
+  } catch {
+    return source;
+  }
+
+  if (
+    url.protocol === 'https:' &&
+    url.hostname.endsWith('.supabase.co') &&
+    url.pathname.startsWith(PUBLIC_IMAGE_PATH)
+  ) {
+    url.pathname = url.pathname.replace(PUBLIC_IMAGE_PATH, RENDER_IMAGE_PATH);
+    url.searchParams.set('width', String(width));
+    url.searchParams.set('quality', '75');
+    url.searchParams.set('resize', 'contain');
+    return url.toString();
+  }
+
+  if (
+    url.hostname === 'singhalgoru.github.io' &&
+    url.pathname.startsWith(LEGACY_CATALOGUE_IMAGE_PATH)
+  ) {
+    return `${ORIGIN}${url.pathname.replace('/croche-catalogue', '')}${url.search}`;
+  }
+
+  return source;
+};
+
+// --- rendering ---
+
+export const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/** Keeps meta descriptions within the ~160 characters search engines show. */
+export const truncate = (value, limit) => {
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  if (text.length <= limit) return text;
+  const cut = text.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+};
+
+const formatPrice = (value) => `₹${value.toLocaleString('en-IN')}`;
+
+const toProduct = (row) => {
+  const variants = [...(row.product_variants ?? [])].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+  );
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category ?? 'Crochet',
+    description: row.description ?? '',
+    price: row.show_price === false ? null : (row.price ?? null),
+    inStock: row.in_stock !== false,
+    image: row.image_url ?? '',
+    publishedAt: row.published_at ?? null,
+    variants: variants.map((variant) => ({
+      name: variant.name ?? variant.color ?? '',
+      price: variant.price ?? null,
+      inStock: variant.in_stock !== false,
+    })),
+  };
+};
+
+/** Lowest and highest asking price across variants, for schema.org offers. */
+const priceRange = (product) => {
+  if (product.price === null) return null;
+  const prices = product.variants
+    .map((variant) => variant.price ?? product.price)
+    .filter((price) => typeof price === 'number');
+  const all = prices.length > 0 ? prices : [product.price];
+  return { low: Math.min(...all), high: Math.max(...all) };
+};
+
+const whatsappLink = (product, number) =>
+  `https://wa.me/${number}?text=${encodeURIComponent(
+    `Hi Luvia, I would like to order/enquire about "${product.name}" from the ${product.category} collection.`,
+  )}`;
+
+const productUrl = (product) => `${ORIGIN}/p/${toProductReference(product)}/`;
+
+const availability = (product) =>
+  product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
+
+const productJsonLd = (product) => {
+  const range = priceRange(product);
+  const url = productUrl(product);
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    '@id': `${url}#product`,
+    name: product.name,
+    description: product.description,
+    category: product.category,
+    url,
+    image: product.image ? getProductImageUrl(product.image, 960) : undefined,
+    brand: { '@type': 'Brand', name: 'Luvia Creations' },
+    material: 'Crochet yarn',
+    // Every piece is crocheted to order by a single maker.
+    additionalProperty: {
+      '@type': 'PropertyValue',
+      name: 'Handmade',
+      value: 'Yes',
+    },
+  };
+
+  if (product.variants.length > 1) {
+    data.hasVariant = product.variants.map((variant) => ({
+      '@type': 'Product',
+      name: `${product.name} — ${variant.name}`,
+    }));
+  }
+
+  if (range) {
+    data.offers =
+      range.low === range.high
+        ? {
+            '@type': 'Offer',
+            price: String(range.low),
+            priceCurrency: 'INR',
+            availability: availability(product),
+            url,
+            seller: { '@id': `${ORIGIN}/#store` },
+          }
+        : {
+            '@type': 'AggregateOffer',
+            lowPrice: String(range.low),
+            highPrice: String(range.high),
+            offerCount: String(product.variants.length),
+            priceCurrency: 'INR',
+            availability: availability(product),
+            url,
+            seller: { '@id': `${ORIGIN}/#store` },
+          };
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      data,
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Catalogue', item: `${ORIGIN}/` },
+          { '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}/` },
+          { '@type': 'ListItem', position: 3, name: product.name, item: url },
+        ],
+      },
+    ],
+  };
+};
+
+/**
+ * JSON-LD is embedded in a <script> element, so `<` and the closing sequence
+ * must not be able to terminate it early.
+ */
+const jsonLdScript = (data) =>
+  `<script type="application/ld+json">${JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028|\u2029/g, '')}</script>`;
+
+const groupByCategory = (products) => {
+  const groups = new Map();
+  for (const product of products) {
+    const list = groups.get(product.category);
+    if (list) list.push(product);
+    else groups.set(product.category, [product]);
+  }
+  return [...groups];
+};
+
+/**
+ * The homepage listing deliberately carries no <img>: it is replaced within a
+ * moment of load, and 30-plus image requests would compete with the real app
+ * for bandwidth. Photographs belong on the product pages, which is also where
+ * a crawler finds them.
+ */
+const renderShell = (products) => {
+  const groups = groupByCategory(products);
+  const categories = groups.map(([category]) => category);
+
+  const sections = groups
+    .map(([category, items]) => {
+      const rows = items
+        .map((product) => {
+          const price = product.price === null ? '' : ` ${formatPrice(product.price)}.`;
+          const stock = product.inStock ? 'In stock.' : 'Made to order.';
+          return [
+            '<li>',
+            `<article><h4><a href="/p/${toProductReference(product)}/">${escapeHtml(product.name)}</a></h4>`,
+            `<p>${escapeHtml(truncate(product.description, 150))}</p>`,
+            `<p>${escapeHtml(`${product.name} is a handmade crochet piece from the ${category} collection by Luvia Creations.${price} ${stock}`)}</p>`,
+            '</article></li>',
+          ].join('');
+        })
+        .join('');
+      return `<section><h3>Handmade Crochet ${escapeHtml(category)}</h3><ul>${rows}</ul></section>`;
+    })
+    .join('');
+
+  return [
+    '<header>',
+    '<h1>Handmade Crochet Products and Gifts in India</h1>',
+    "<p>Browse Luvia Creations' handmade crochet catalogue. Every piece is crocheted by hand and shipped across India.</p>",
+    '</header>',
+    '<main>',
+    `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
+      `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Order directly through WhatsApp or Instagram.`,
+    )}</p>`,
+    sections,
+    '</main>',
+  ].join('');
+};
+
+const catalogueJsonLd = (products) => ({
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  '@id': `${ORIGIN}/#catalogue`,
+  name: 'Luvia Creations handmade crochet catalogue',
+  numberOfItems: products.length,
+  itemListElement: products.map((product, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: product.name,
+    url: productUrl(product),
+  })),
+});
+
+const PAGE_STYLE = `:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fdf6ec;color:#4a2c1d;line-height:1.6}
+a{color:#8a4f2d}
+.bar{padding:16px 20px;border-bottom:1px solid #ecd9c6}
+.bar a{display:inline-flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;color:#5f3825}
+.bar img{width:36px;height:36px;border-radius:50%}
+.wrap{max-width:860px;margin:0 auto;padding:28px 20px 56px}
+.crumb{font-size:.85rem;margin:0 0 18px}
+h1{font-size:1.7rem;margin:0 0 6px;color:#5f3825}
+.cat{margin:0 0 18px;font-size:.95rem;color:#8a6b57}
+.hero{width:100%;max-width:460px;height:auto;border-radius:16px;border:1px solid #ecd9c6;background:#fff}
+.price{font-size:1.35rem;font-weight:700;margin:20px 0 4px;color:#5f3825}
+.stock{margin:0 0 18px;font-size:.95rem}
+.cta{display:inline-block;margin:6px 10px 6px 0;padding:11px 20px;border-radius:999px;background:#5f3825;color:#fff;text-decoration:none;font-weight:600}
+.cta.alt{background:#fff;color:#5f3825;border:1px solid #d8bfa8}
+ul.variants{padding-left:20px}
+footer{margin-top:40px;padding-top:18px;border-top:1px solid #ecd9c6;font-size:.85rem;color:#8a6b57}`;
+
+const renderProductPage = (product, whatsappNumber) => {
+  const url = productUrl(product);
+  const title = `${product.name} — Handmade Crochet ${product.category} | Luvia Creations`;
+  const description = truncate(
+    product.description || `${product.name}, a handmade crochet piece from the ${product.category} collection by Luvia Creations.`,
+    155,
+  );
+  const image = product.image ? getProductImageUrl(product.image, 960) : `${ORIGIN}/images/luvia-logo.jpg`;
+  const range = priceRange(product);
+  const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
+
+  const priceLine = range
+    ? range.low === range.high
+      ? formatPrice(range.low)
+      : `${formatPrice(range.low)} – ${formatPrice(range.high)}`
+    : 'Price on request';
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- These pages are static: no scripts, only the inline stylesheet below. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self' https://luviacreations.com https://singhalgoru.github.io https://*.supabase.co; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#5f3825" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/favicon-192.png" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+    <link rel="canonical" href="${url}" />
+    <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(description)}" />
+    <meta property="og:type" content="product" />
+    <meta property="og:site_name" content="Luvia Creations" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:image" content="${escapeHtml(image)}" />
+    <meta property="og:image:alt" content="${escapeHtml(product.name)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${escapeHtml(image)}" />
+    ${jsonLdScript(productJsonLd(product))}
+    <style>${PAGE_STYLE}</style>
+  </head>
+  <body>
+    <div class="bar">
+      <a href="/"><img src="/images/favicon-96.png" width="36" height="36" alt="" />Luvia Creations</a>
+    </div>
+    <div class="wrap">
+      <p class="crumb"><a href="/">Catalogue</a> › ${escapeHtml(product.category)} › ${escapeHtml(product.name)}</p>
+      <h1>${escapeHtml(product.name)}</h1>
+      <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
+      <img class="hero" src="${escapeHtml(image)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />
+      <p class="price">${escapeHtml(priceLine)}</p>
+      <p class="stock">${product.inStock ? 'In stock and ready to ship across India.' : 'Made to order — message us for the current lead time.'}</p>
+      <p>${escapeHtml(product.description)}</p>
+      ${
+        variantNames.length > 0
+          ? `<h2>Available colours and variants</h2><ul class="variants">${variantNames
+              .map((name) => `<li>${escapeHtml(name)}</li>`)
+              .join('')}</ul>`
+          : ''
+      }
+      <p>
+        <a class="cta" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Order on WhatsApp</a>
+        <a class="cta alt" href="/#product=${encodeURIComponent(toProductReference(product))}">View in the catalogue</a>
+      </p>
+      <footer>
+        <p>Luvia Creations makes handmade crochet accessories, gifts, bags, toys and decor, shipped across India.
+        <a href="/">Browse the full catalogue</a> or follow
+        <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>
+      </footer>
+    </div>
+  </body>
+</html>
+`;
+};
+
+const renderSitemap = (products, today) => {
+  const entry = (loc, lastmod, priority, changefreq) =>
+    `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+
+  const urls = [
+    entry(`${ORIGIN}/`, today, '1.0', 'daily'),
+    ...products.map((product) =>
+      entry(
+        productUrl(product),
+        (product.publishedAt ?? today).slice(0, 10),
+        '0.8',
+        'weekly',
+      ),
+    ),
+  ];
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+};
+
+// --- build step ---
+
+const fetchProducts = async (supabaseUrl, anonKey) => {
+  const endpoint = new URL('/rest/v1/products', supabaseUrl);
+  endpoint.searchParams.set('select', PRODUCT_SELECT);
+  endpoint.searchParams.set('published', 'eq.true');
+  endpoint.searchParams.set('order', 'sort_order.asc,created_at.desc');
+
+  const response = await fetch(endpoint, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Supabase responded ${response.status} ${response.statusText}`);
+  }
+  return (await response.json()).map(toProduct);
+};
+
+const injectShell = (html, products) => {
+  const shell = /<!--shell-->[\s\S]*?<!--\/shell-->/;
+  if (!shell.test(html)) {
+    throw new Error('index.html is missing the <!--shell--> markers');
+  }
+  return html
+    .replace(shell, () => `<!--shell-->${renderShell(products)}<!--/shell-->`)
+    .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
+};
+
+const main = async () => {
+  const env = { ...loadEnv('production', ROOT, 'VITE_'), ...process.env };
+  const supabaseUrl = env.VITE_SUPABASE_URL;
+  const anonKey = env.VITE_SUPABASE_ANON_KEY;
+  const whatsappNumber = env.VITE_WHATSAPP_NUMBER?.trim() || FALLBACK_WHATSAPP_NUMBER;
+
+  if (!supabaseUrl || !anonKey) {
+    console.warn('[prerender] Supabase is not configured — leaving the built shell as is.');
+    return;
+  }
+
+  const products = await fetchProducts(supabaseUrl, anonKey);
+  if (products.length === 0) {
+    console.warn('[prerender] No published products returned — leaving the built shell as is.');
+    return;
+  }
+
+  const indexPath = path.join(DIST, 'index.html');
+  await writeFile(indexPath, injectShell(await readFile(indexPath, 'utf8'), products));
+
+  for (const product of products) {
+    const dir = path.join(DIST, 'p', toProductReference(product));
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, 'index.html'), renderProductPage(product, whatsappNumber));
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  await writeFile(path.join(DIST, 'sitemap.xml'), renderSitemap(products, today));
+
+  console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);
+};
+
+const invokedDirectly =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly) {
+  main().catch((error) => {
+    console.error(`[prerender] Failed: ${error.message}`);
+    process.exit(1);
+  });
+}
+
+export { injectShell, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };

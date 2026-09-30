@@ -67,6 +67,10 @@ export default defineConfig({
       // so it can drive an in-app "update available" experience later.
       injectRegister: false,
       workbox: {
+        // scripts/prerender.mjs emits a real static page per product under
+        // /p/. Without this the SPA shell would be served in their place for
+        // visitors who already have the service worker installed.
+        navigateFallbackDenylist: [/^\/p\//],
         // GitHub Pages fixes Cache-Control at 10 minutes and existing Supabase
         // objects were uploaded with 1 hour, so keep images in the service
         // worker for a day. Uploads get a fresh UUID path and site images are
