@@ -1,5 +1,6 @@
 import type { Product, ProductVariant } from '../types/product';
 import { afterPageLoad } from '../utils/afterPageLoad';
+import { isAutomatedVisit } from '../utils/automatedVisit';
 import { isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
 
@@ -28,7 +29,9 @@ const isAdminRoute = () => window.location.hash === '#admin';
 export const initializeMetaPixel = () => {
   // Meta has no equivalent of GA4's internal traffic filter, so our own visits
   // are never sent to the pixel at all.
-  if (!pixelId || isAdminRoute() || isInternalTraffic() || window.fbq) return;
+  if (!pixelId || isAdminRoute() || isInternalTraffic() || isAutomatedVisit() || window.fbq) {
+    return;
+  }
 
   // Mirrors Meta's loader stub: events are queued until fbevents.js takes over.
   const pixel = Object.assign(

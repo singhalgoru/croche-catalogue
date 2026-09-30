@@ -1,5 +1,6 @@
 import type { Product, ProductVariant } from '../types/product';
 import { afterPageLoad } from '../utils/afterPageLoad';
+import { isAutomatedVisit } from '../utils/automatedVisit';
 import { getCampaignParameters } from '../utils/campaign';
 import { INTERNAL_TRAFFIC_TYPE, isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
@@ -19,7 +20,7 @@ const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
 const isAdminRoute = () => window.location.hash === '#admin';
 
 export const initializeAnalytics = () => {
-  if (!measurementId || isAdminRoute() || window.gtag) return;
+  if (!measurementId || isAdminRoute() || isAutomatedVisit() || window.gtag) return;
 
   window.dataLayer = window.dataLayer ?? [];
   window.gtag = function gtag(..._args: unknown[]) {
