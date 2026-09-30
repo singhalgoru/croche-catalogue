@@ -7,7 +7,11 @@
       content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.googletagmanager.com https://connect.facebook.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://singhalgoru.github.io https://luviacreations.com https://*.supabase.co https://www.google-analytics.com https://www.facebook.com; connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://connect.facebook.net https://www.facebook.com %VITE_CSP_EXTRA_CONNECT_SRC%; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <link rel="icon" type="image/png" href="%BASE_URL%images/luvia-logo-64.png" />
+    <!-- Google Search only shows favicons whose size is a multiple of 48px. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="96x96" href="%BASE_URL%images/favicon-96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%images/favicon-192.png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%images/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#5f3825" />
@@ -22,7 +26,7 @@
       content="handmade crochet India, crochet products, crochet accessories, crochet gifts, crochet hair accessories, crochet keychains, crochet bags, crochet toys, Luvia crochet"
     />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Luvia" />
+    <meta property="og:site_name" content="Luvia Creations" />
     <meta property="og:title" content="Handmade Crochet Products in India | Luvia" />
     <meta
       property="og:description"
@@ -51,7 +55,8 @@
           {
             "@type": "OnlineStore",
             "@id": "https://luviacreations.com/#store",
-            "name": "Luvia",
+            "name": "Luvia Creations",
+            "alternateName": "Luvia",
             "url": "https://luviacreations.com/",
             "logo": "https://luviacreations.com/images/luvia-logo.jpg",
             "image": "https://luviacreations.com/images/luvia-logo.jpg",
@@ -68,7 +73,8 @@
             "@type": "WebSite",
             "@id": "https://luviacreations.com/#website",
             "url": "https://luviacreations.com/",
-            "name": "Luvia Handmade Crochet Catalogue",
+            "name": "Luvia Creations",
+            "alternateName": ["Luvia", "luviacreations.com"],
             "publisher": {
               "@id": "https://luviacreations.com/#store"
             },
