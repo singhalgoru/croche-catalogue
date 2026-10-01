@@ -189,7 +189,7 @@ const callGeminiImage = async (
     }
 
     const errorPayload = await geminiResponse.json().catch(() => null);
-    apiMessage =
+    const rawMessage =
       errorPayload &&
       typeof errorPayload === 'object' &&
       'error' in errorPayload &&
@@ -199,6 +199,12 @@ const callGeminiImage = async (
       typeof errorPayload.error.message === 'string'
         ? errorPayload.error.message
         : `Gemini image generation failed with status ${geminiResponse.status}.`;
+
+    if (rawMessage.toLowerCase().includes('limit: 0') || (rawMessage.toLowerCase().includes('quota') && rawMessage.toLowerCase().includes('free_tier'))) {
+      apiMessage = 'Google Gemini sets image generation quota to 0 on the free tier. Switch AI Engine to "Cloudflare Workers AI" for free generation, or link a billing account in Google AI Studio (aistudio.google.com).';
+    } else {
+      apiMessage = rawMessage;
+    }
 
     if (geminiResponse.status !== 429 && geminiResponse.status < 500) {
       break;
