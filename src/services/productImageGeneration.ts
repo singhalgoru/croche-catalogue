@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 
 export type ProductImageMode = 'studio' | 'lifestyle';
-export type ImageGenerationProvider = 'auto' | 'cloudflare' | 'openai';
+export type ImageGenerationProvider = 'auto' | 'gemini' | 'cloudflare' | 'openai';
 
 interface GeneratedImagePayload {
   imageBase64: string;

@@ -15,6 +15,7 @@ interface Props {
 
 const PROVIDER_OPTIONS: { id: ImageGenerationProvider; label: string; hint: string }[] = [
   { id: 'auto', label: 'Auto (Recommended)', hint: 'Best available engine with automatic fallback' },
+  { id: 'gemini', label: 'Google Gemini', hint: 'High quality with configured GEMINI_API_KEY' },
   { id: 'cloudflare', label: 'Cloudflare Workers AI', hint: 'Free tier with FLUX.2 Klein 9B & SD fallback' },
   { id: 'openai', label: 'OpenAI', hint: 'Studio quality image editing' },
 ];

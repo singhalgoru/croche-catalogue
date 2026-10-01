@@ -776,12 +776,19 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     }
 
     if (pathname === '/functions/v1/enhance-product-image') {
+      const body = getRequestBody<{ provider?: string }>(route);
+      const provider = body.provider || 'auto';
       await json(route, {
         imageBase64:
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
         mimeType: 'image/png',
-        provider: 'cloudflare',
-        model: '@cf/black-forest-labs/flux-2-klein-9b',
+        provider,
+        model:
+          provider === 'openai'
+            ? 'dall-e-2'
+            : provider === 'gemini'
+              ? 'gemini-3.1-flash-image'
+              : '@cf/black-forest-labs/flux-2-klein-9b',
       });
       return;
     }

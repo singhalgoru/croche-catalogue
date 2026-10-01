@@ -134,6 +134,108 @@ const callOpenAi = async (
   };
 };
 
+const callGeminiImage = async (
+  apiKey: string,
+  base64Image: string,
+  mimeType: string,
+  prompt: string,
+): Promise<ImageGenerationResult> => {
+  const models = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image'];
+  let geminiResponse: Response | null = null;
+  let apiMessage = '';
+  let successfulModel = models[0];
+
+  const requestBody = JSON.stringify({
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType,
+              data: base64Image,
+            },
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+    },
+  });
+
+  for (const model of models) {
+    successfulModel = model;
+    try {
+      geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        },
+      );
+    } catch (error) {
+      apiMessage =
+        error instanceof Error
+          ? `${model} could not be reached: ${error.message}`
+          : `${model} could not be reached.`;
+      continue;
+    }
+
+    if (geminiResponse.ok) {
+      break;
+    }
+
+    const errorPayload = await geminiResponse.json().catch(() => null);
+    apiMessage =
+      errorPayload &&
+      typeof errorPayload === 'object' &&
+      'error' in errorPayload &&
+      errorPayload.error &&
+      typeof errorPayload.error === 'object' &&
+      'message' in errorPayload.error &&
+      typeof errorPayload.error.message === 'string'
+        ? errorPayload.error.message
+        : `Gemini image generation failed with status ${geminiResponse.status}.`;
+
+    if (geminiResponse.status !== 429 && geminiResponse.status < 500) {
+      break;
+    }
+  }
+
+  if (!geminiResponse?.ok) {
+    throw new Error(apiMessage || 'Gemini image generation failed.');
+  }
+
+  const payload = await geminiResponse.json();
+  const parts = payload?.candidates?.[0]?.content?.parts;
+  const imagePart = Array.isArray(parts)
+    ? parts.find(
+        (part: { inlineData?: { data?: string; mimeType?: string }; inline_data?: { data?: string; mime_type?: string } }) =>
+          typeof part?.inlineData?.data === 'string' ||
+          typeof part?.inline_data?.data === 'string',
+      )
+    : null;
+
+  const imageBase64 =
+    imagePart?.inlineData?.data || imagePart?.inline_data?.data;
+  const returnedMimeType =
+    imagePart?.inlineData?.mimeType || imagePart?.inline_data?.mime_type || 'image/png';
+
+  if (typeof imageBase64 !== 'string' || imageBase64.length === 0) {
+    throw new Error('Gemini completed without returning an image.');
+  }
+
+  return {
+    imageBase64,
+    mimeType: returnedMimeType,
+    provider: 'gemini',
+    model: successfulModel,
+  };
+};
+
 const callCloudflareFlux = async (
   accountId: string,
   apiToken: string,
@@ -305,17 +407,19 @@ Deno.serve(async (request) => {
   }
 
   const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   const cloudflareAccountId = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
   const cloudflareApiToken = Deno.env.get('CLOUDFLARE_API_TOKEN');
 
   const hasOpenAi = Boolean(openAiApiKey);
+  const hasGemini = Boolean(geminiApiKey);
   const hasCloudflare = Boolean(cloudflareAccountId && cloudflareApiToken);
 
-  if (!hasOpenAi && !hasCloudflare) {
+  if (!hasOpenAi && !hasGemini && !hasCloudflare) {
     return jsonResponse(
       {
         error:
-          'No AI image provider is configured. Configure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN, or OPENAI_API_KEY in Supabase secrets.',
+          'No AI image provider is configured. Configure GEMINI_API_KEY, OPENAI_API_KEY, or Cloudflare credentials in Supabase secrets.',
       },
       500,
     );
@@ -323,13 +427,19 @@ Deno.serve(async (request) => {
 
   const requestedProvider =
     typeof payload.provider === 'string' &&
-    ['auto', 'cloudflare', 'openai'].includes(payload.provider)
+    ['auto', 'cloudflare', 'openai', 'gemini'].includes(payload.provider)
       ? payload.provider
       : 'auto';
 
   if (requestedProvider === 'openai' && !hasOpenAi) {
     return jsonResponse(
       { error: 'OpenAI is selected but OPENAI_API_KEY is not configured in Supabase secrets.' },
+      400,
+    );
+  }
+  if (requestedProvider === 'gemini' && !hasGemini) {
+    return jsonResponse(
+      { error: 'Google Gemini is selected but GEMINI_API_KEY is not configured in Supabase secrets.' },
       400,
     );
   }
@@ -386,6 +496,13 @@ Deno.serve(async (request) => {
       const message = error instanceof Error ? error.message : 'OpenAI image edit failed.';
       return jsonResponse({ error: message }, 502);
     }
+  } else if (requestedProvider === 'gemini') {
+    try {
+      result = await callGeminiImage(geminiApiKey!, payload.imageBase64, payload.mimeType, prompt);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gemini image generation failed.';
+      return jsonResponse({ error: message }, 502);
+    }
   } else if (requestedProvider === 'cloudflare') {
     try {
       result = await callCloudflareFlux(
@@ -412,44 +529,40 @@ Deno.serve(async (request) => {
     }
   } else {
     // 'auto' mode:
-    // If OpenAI is available, prioritize it for photorealism and stitch retention.
-    // If OpenAI fails (or quota exceeded) and Cloudflare is available, seamlessly fall back to Cloudflare.
+    // Priority order: OpenAI -> Gemini -> Cloudflare FLUX -> Cloudflare SD 1.5
+    let lastError: Error | null = null;
+
     if (hasOpenAi) {
       try {
         result = await callOpenAi(openAiApiKey!, inputImage, payload.mimeType, prompt);
-      } catch (openAiError) {
-        if (!hasCloudflare) {
-          const message =
-            openAiError instanceof Error ? openAiError.message : 'OpenAI image edit failed.';
-          return jsonResponse({ error: message }, 502);
-        }
-        console.warn('OpenAI failed in auto mode, falling back to Cloudflare Workers AI:', openAiError);
-        try {
-          result = await callCloudflareFlux(
-            cloudflareAccountId!,
-            cloudflareApiToken!,
-            inputImage,
-            payload.mimeType,
-            prompt,
-          );
-        } catch (fluxError) {
-          console.warn('Cloudflare FLUX failed, attempting SD 1.5 fallback:', fluxError);
-          try {
-            result = await callCloudflareSdFallback(
-              cloudflareAccountId!,
-              cloudflareApiToken!,
-              payload.imageBase64,
-              prompt,
-            );
-          } catch {
-            const message =
-              openAiError instanceof Error ? openAiError.message : 'AI image generation failed.';
-            return jsonResponse({ error: message }, 502);
-          }
-        }
+        return jsonResponse({
+          imageBase64: result.imageBase64,
+          mimeType: result.mimeType,
+          provider: result.provider,
+          model: result.model,
+        });
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('OpenAI image edit failed.');
+        console.warn('OpenAI failed in auto mode, trying next provider:', lastError.message);
       }
-    } else {
-      // Cloudflare only in auto mode:
+    }
+
+    if (hasGemini) {
+      try {
+        result = await callGeminiImage(geminiApiKey!, payload.imageBase64, payload.mimeType, prompt);
+        return jsonResponse({
+          imageBase64: result.imageBase64,
+          mimeType: result.mimeType,
+          provider: result.provider,
+          model: result.model,
+        });
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Gemini image generation failed.');
+        console.warn('Gemini failed in auto mode, trying next provider:', lastError.message);
+      }
+    }
+
+    if (hasCloudflare) {
       try {
         result = await callCloudflareFlux(
           cloudflareAccountId!,
@@ -458,6 +571,12 @@ Deno.serve(async (request) => {
           payload.mimeType,
           prompt,
         );
+        return jsonResponse({
+          imageBase64: result.imageBase64,
+          mimeType: result.mimeType,
+          provider: result.provider,
+          model: result.model,
+        });
       } catch (fluxError) {
         console.warn('Cloudflare FLUX failed, attempting SD 1.5 fallback:', fluxError);
         try {
@@ -467,13 +586,24 @@ Deno.serve(async (request) => {
             payload.imageBase64,
             prompt,
           );
+          return jsonResponse({
+            imageBase64: result.imageBase64,
+            mimeType: result.mimeType,
+            provider: result.provider,
+            model: result.model,
+          });
         } catch {
           const message =
-            fluxError instanceof Error ? fluxError.message : 'Cloudflare Workers AI failed.';
+            lastError?.message || (fluxError instanceof Error ? fluxError.message : 'Cloudflare Workers AI failed.');
           return jsonResponse({ error: message }, 502);
         }
       }
     }
+
+    return jsonResponse(
+      { error: lastError?.message || 'No available AI provider succeeded in generating the image.' },
+      502,
+    );
   }
 
   return jsonResponse({

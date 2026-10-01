@@ -88,6 +88,35 @@ describe('productImageGeneration', () => {
     expect(result.name).toMatch(/^luvia-lifestyle-\d+\.png$/);
   });
 
+  it('passes gemini provider selection to enhance-product-image', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: {
+        imageBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
+        mimeType: 'image/png',
+        provider: 'gemini',
+        model: 'gemini-3.1-flash-image',
+      },
+      error: null,
+    });
+
+    const file = new File(['fake-image'], 'crochet.png', { type: 'image/png' });
+    const result = await generateProductImage(file, 'studio', 'clean backdrop', 'gemini');
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'enhance-product-image',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          mode: 'studio',
+          styleSuggestion: 'clean backdrop',
+          provider: 'gemini',
+        }),
+      }),
+    );
+    expect(result).toBeInstanceOf(File);
+    expect(result.type).toBe('image/png');
+    expect(result.name).toMatch(/^luvia-studio-\d+\.png$/);
+  });
+
   it('rejects empty styling directions in optimizeProductImagePrompt', async () => {
     await expect(optimizeProductImagePrompt('   ')).rejects.toThrow(
       'Add a rough styling idea before optimizing the prompt.',
