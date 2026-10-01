@@ -543,7 +543,7 @@ Deno.serve(async (request) => {
     }
   } else {
     // 'auto' mode:
-    // Priority order: OpenAI -> Gemini -> Cloudflare FLUX -> Cloudflare SD 1.5
+    // Priority order: OpenAI (if configured) -> Cloudflare Workers AI (free tier default) -> Google Gemini (if billing active)
     let lastError: Error | null = null;
 
     if (hasOpenAi) {
@@ -558,21 +558,6 @@ Deno.serve(async (request) => {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('OpenAI image edit failed.');
         console.warn('OpenAI failed in auto mode, trying next provider:', lastError.message);
-      }
-    }
-
-    if (hasGemini) {
-      try {
-        result = await callGeminiImage(geminiApiKey!, payload.imageBase64, payload.mimeType, prompt);
-        return jsonResponse({
-          imageBase64: result.imageBase64,
-          mimeType: result.mimeType,
-          provider: result.provider,
-          model: result.model,
-        });
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Gemini image generation failed.');
-        console.warn('Gemini failed in auto mode, trying next provider:', lastError.message);
       }
     }
 
@@ -607,10 +592,26 @@ Deno.serve(async (request) => {
             model: result.model,
           });
         } catch {
-          const message =
-            lastError?.message || (fluxError instanceof Error ? fluxError.message : 'Cloudflare Workers AI failed.');
-          return jsonResponse({ error: message }, 502);
+          const cloudflareMsg =
+            fluxError instanceof Error ? fluxError.message : 'Cloudflare Workers AI failed.';
+          lastError = new Error(cloudflareMsg);
+          console.warn('Cloudflare failed in auto mode, trying next provider:', cloudflareMsg);
         }
+      }
+    }
+
+    if (hasGemini) {
+      try {
+        result = await callGeminiImage(geminiApiKey!, payload.imageBase64, payload.mimeType, prompt);
+        return jsonResponse({
+          imageBase64: result.imageBase64,
+          mimeType: result.mimeType,
+          provider: result.provider,
+          model: result.model,
+        });
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Gemini image generation failed.');
+        console.warn('Gemini failed in auto mode:', lastError.message);
       }
     }
 
