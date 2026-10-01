@@ -411,15 +411,23 @@ const fetchProducts = async (supabaseUrl, anonKey) => {
   const endpoint = new URL('/rest/v1/products', supabaseUrl);
   endpoint.searchParams.set('select', PRODUCT_SELECT);
   endpoint.searchParams.set('published', 'eq.true');
-  endpoint.searchParams.set('order', 'sort_order.asc,created_at.desc');
-
-  const response = await fetch(endpoint, {
-    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Supabase responded ${response.status} ${response.statusText}`);
+  endpoint.searchParams.set('order', 'sort_order.asc,created_at.desc,id.asc');
+  const pageSize = 1000;
+  const products = [];
+  for (let offset = 0; ; offset += pageSize) {
+    endpoint.searchParams.set('limit', String(pageSize));
+    endpoint.searchParams.set('offset', String(offset));
+    const response = await fetch(endpoint.toString(), {
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Supabase responded ${response.status} ${response.statusText}`);
+    }
+    const page = await response.json();
+    if (!Array.isArray(page)) throw new Error('Supabase returned an invalid products response');
+    products.push(...page.map(toProduct));
+    if (page.length < pageSize) return products;
   }
-  return (await response.json()).map(toProduct);
 };
 
 const injectShell = (html, products) => {
@@ -439,15 +447,14 @@ const main = async () => {
   const whatsappNumber = env.VITE_WHATSAPP_NUMBER?.trim() || FALLBACK_WHATSAPP_NUMBER;
 
   if (!supabaseUrl || !anonKey) {
+    if (process.env.CI) {
+      throw new Error('Supabase is not configured; refusing to deploy an outdated catalogue and sitemap.');
+    }
     console.warn('[prerender] Supabase is not configured — leaving the built shell as is.');
     return;
   }
 
   const products = await fetchProducts(supabaseUrl, anonKey);
-  if (products.length === 0) {
-    console.warn('[prerender] No published products returned — leaving the built shell as is.');
-    return;
-  }
 
   const indexPath = path.join(DIST, 'index.html');
   await writeFile(indexPath, injectShell(await readFile(indexPath, 'utf8'), products));
@@ -474,4 +481,4 @@ if (invokedDirectly) {
   });
 }
 
-export { injectShell, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };
+export { fetchProducts, injectShell, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };

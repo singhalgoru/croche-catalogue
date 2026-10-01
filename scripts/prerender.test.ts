@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   escapeHtml,
+  fetchProducts,
   getProductImageUrl as prerenderImageUrl,
   injectShell,
   priceRange,
@@ -32,6 +33,30 @@ const row = {
 };
 
 const product = toProduct(row);
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('fetchProducts', () => {
+  it('fetches every published page, not just Supabase’s first 1,000 products', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => Array(1000).fill(row) })
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ ...row, id: 'new-product' }] });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const products = await fetchProducts('https://example.supabase.co', 'public-key');
+
+    expect(products).toHaveLength(1001);
+    expect(products.at(-1)?.id).toBe('new-product');
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('offset')).toBe('0');
+    expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('offset')).toBe('1000');
+    expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('published')).toBe('eq.true');
+  });
+
+  it('rejects a failed fetch rather than deploying a stale sitemap', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Unavailable' }));
+    await expect(fetchProducts('https://example.supabase.co', 'public-key')).rejects.toThrow('503');
+  });
+});
 
 describe('parity with the app helpers', () => {
   // The prerenderer runs in Node and cannot import the TypeScript utilities,
@@ -179,6 +204,21 @@ describe('renderSitemap', () => {
     expect(xml).toContain('<loc>https://luviacreations.com/</loc>');
     expect(xml).toContain(`<loc>https://luviacreations.com/p/${prerenderReference(product)}/</loc>`);
     expect(xml.match(/<url>/g)).toHaveLength(2);
+  });
+
+  it('reflects newly published products on the next build', () => {
+    const nextProduct = { ...product, id: 'new-product-id', name: 'Crochet Bunny' };
+    const updated = renderSitemap([product, nextProduct], '2026-10-01');
+
+    expect(updated.match(/<url>/g)).toHaveLength(3);
+    expect(updated).toContain(`<loc>https://luviacreations.com/p/${prerenderReference(nextProduct)}/</loc>`);
+    expect(xml).not.toContain(prerenderReference(nextProduct));
+  });
+
+  it('removes unpublished products and retains the homepage if the catalogue is empty', () => {
+    const empty = renderSitemap([], '2026-10-01');
+    expect(empty.match(/<url>/g)).toHaveLength(1);
+    expect(empty).not.toContain('/p/');
   });
 
   it('dates product entries from their publish date', () => {

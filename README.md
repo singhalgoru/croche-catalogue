@@ -99,6 +99,11 @@ https://singhalgoru.github.io/croche-catalogue/
 
 For Google Search Console, verify the domain property `luviacreations.com`
 using the TXT record Google provides, then submit
-`https://luviacreations.com/sitemap.xml`. The catalogue is a single-page app,
-so the sitemap lists the homepage; product detail views use URL fragments
-and are not separate indexable pages.
+`https://luviacreations.com/sitemap.xml`. The build fetches published products
+from Supabase and generates a crawlable `/p/<product>/` page and sitemap entry
+for each one. The deploy workflow rebuilds on every push to `main` and runs
+hourly at minute 23 UTC, so products added, edited, unpublished, or deleted in
+admin appear in the generated pages and sitemap after the next successful
+deployment (GitHub may delay scheduled runs). The sitemap is not updated
+directly by the browser or Supabase; check the deploy workflow if an update
+has not appeared. GitHub Pages and browsers may cache the sitemap briefly.
