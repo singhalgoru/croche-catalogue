@@ -107,7 +107,7 @@ const callOpenAi = async (
 
   if (!response.ok) {
     const errorPayload = await response.json().catch(() => null);
-    const message =
+    const rawMessage =
       errorPayload &&
       typeof errorPayload === 'object' &&
       'error' in errorPayload &&
@@ -117,6 +117,14 @@ const callOpenAi = async (
       typeof errorPayload.error.message === 'string'
         ? errorPayload.error.message
         : `OpenAI image edit failed with status ${response.status}.`;
+
+    const lower = rawMessage.toLowerCase();
+    let message = rawMessage;
+    if (response.status === 429 || lower.includes('quota') || lower.includes('insufficient_quota') || lower.includes('billing')) {
+      message = 'OpenAI API quota exceeded or prepaid balance is empty. Switch AI Engine to "Cloudflare Workers AI" for free generation, or add credits at platform.openai.com/settings/organization/billing.';
+    } else if (response.status === 401 || lower.includes('invalid_api_key')) {
+      message = 'OpenAI rejected the API key. Check the OPENAI_API_KEY in Supabase secrets, or switch AI Engine to "Cloudflare Workers AI".';
+    }
     throw new Error(message);
   }
 
