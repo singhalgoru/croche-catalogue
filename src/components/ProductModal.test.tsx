@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../types/product';
 import ProductModal from './ProductModal';
 
+const getShareableImageFile = vi.hoisted(() => vi.fn());
+vi.mock('../utils/shareImage', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../utils/shareImage')>(),
+  getShareableImageFile,
+}));
+
 const product: Product = {
   id: 'product-1',
   name: 'Crochet Rose',
@@ -131,6 +137,11 @@ const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 describe('ProductModal touch controls', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    getShareableImageFile.mockReset().mockResolvedValue(null);
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   it('manages the selected variant independently from the product image', () => {
@@ -170,6 +181,8 @@ describe('ProductModal touch controls', () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    vi.unstubAllGlobals();
   });
 
   it('reveals controls after touching the details area and hides them after two seconds', () => {
@@ -323,6 +336,49 @@ describe('ProductModal touch controls', () => {
     renderModal();
 
     expect(screen.getByLabelText('Product image angles')).toBeTruthy();
+  });
+
+  it('does not prepare a share photo until the share panel opens', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: 'Show product image 2' }));
+    expect(getShareableImageFile).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share this product' }));
+    expect(getShareableImageFile).toHaveBeenCalledOnce();
+    expect(getShareableImageFile).toHaveBeenCalledWith('/rose-top.jpg', expect.any(String));
+  });
+
+  it('uses a resized image in the modal and reserves a larger version for zoom', () => {
+    const original = 'https://example.supabase.co/storage/v1/object/public/product-images/rose.jpg';
+    renderModal({
+      ...product,
+      image: original,
+      variants: [{ ...product.variants[0], image: original, gallery: [] }],
+    });
+
+    expect(screen.getByRole('img', { name: 'Crochet Rose' }).getAttribute('src')).toContain('width=960');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+    expect(
+      screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose' })
+        .querySelector('img')?.getAttribute('src'),
+    ).toContain('width=1600');
+    expect(getShareableImageFile).not.toHaveBeenCalled();
+  });
+
+  it('does not share a stale photo after the selected image changes', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, share, canShare: vi.fn().mockReturnValue(true) });
+    getShareableImageFile.mockResolvedValue(new File(['rose'], 'rose.webp', { type: 'image/webp' }));
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: 'Share this product' }));
+    await act(async () => { await Promise.resolve(); });
+
+    getShareableImageFile.mockReturnValue(new Promise(() => {}));
+    fireEvent.click(screen.getByRole('button', { name: 'Show product image 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share to apps' }));
+
+    expect(share.mock.calls[0][0]).toHaveProperty('url');
+    expect(share.mock.calls[0][0]).not.toHaveProperty('files');
   });
 
   it('opens, controls, and closes image zoom without closing the product modal', () => {

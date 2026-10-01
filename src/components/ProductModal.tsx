@@ -130,27 +130,27 @@ export default function ProductModal({
   };
   const shareDetails = getProductShareDetails(product, selectedVariant);
 
-  // Fetching the image must happen ahead of time, not inside the share
-  // button's click handler: navigator.share() only works while the click's
-  // "user activation" is still active, and awaiting a network request first
-  // can consume it, silently preventing the share sheet from opening at all
-  // (seen on some Android PWAs). Pre-fetch in the background instead so the
-  // click handler can call navigator.share() synchronously.
-  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null);
+  // Prepare the photo only after the share options are opened; a normal
+  // product view no longer downloads a separate 1080px image. Until it is
+  // ready, the synchronous native share call shares the link instead.
+  const [preparedShareFile, setPreparedShareFile] = useState<{
+    image: string;
+    file: File;
+  } | null>(null);
   useEffect(() => {
+    if (!isShareOpen) return;
+    if (preparedShareFile?.image === activeImage) return;
     let cancelled = false;
-    // eslint-disable-next-line react/set-state-in-effect -- resets stale share state while the new image loads
-    setPreparedShareFile(null);
     void getShareableImageFile(
       getProductImageUrl(activeImage, 1080),
       toShareFileName(shareDetails.title),
     ).then((file) => {
-      if (!cancelled) setPreparedShareFile(file);
+      if (!cancelled && file) setPreparedShareFile({ image: activeImage, file });
     });
     return () => {
       cancelled = true;
     };
-  }, [activeImage, shareDetails.title]);
+  }, [activeImage, isShareOpen, preparedShareFile?.image, shareDetails.title]);
 
   const shareNatively = (method = 'native') => {
     if (!navigator.share) {
@@ -158,13 +158,14 @@ export default function ProductModal({
       return;
     }
 
+    const file = preparedShareFile?.image === activeImage ? preparedShareFile.file : null;
     // Attach the product photo when the target app supports shared files
     // (Web Share API level 2). Apps like Instagram only show a plain text
     // link otherwise, so this lets the photo come along with the share.
     const canShareImage =
-      preparedShareFile !== null &&
+      file !== null &&
       typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [preparedShareFile] });
+      navigator.canShare({ files: [file] });
 
     // Many apps (notably Instagram Direct, Stories, and Feed) accept a
     // shared photo but silently drop any accompanying caption/link text.
@@ -181,7 +182,7 @@ export default function ProductModal({
           ? {
               title: shareDetails.title,
               text: `${shareDetails.text}\n${shareDetails.url}`,
-              files: [preparedShareFile],
+              files: [file],
             }
           : {
               title: shareDetails.title,
@@ -374,7 +375,7 @@ export default function ProductModal({
             aria-label="Open zoomed product image"
           >
             <img
-              src={activeImage}
+              src={getProductImageUrl(activeImage, 960)}
               alt={
                 selectedVariant && product.variants.length > 1
                   ? `${product.name} — ${selectedVariant.name}`
@@ -771,7 +772,7 @@ export default function ProductModal({
       </div>
       {isZoomOpen && (
         <ImageZoomViewer
-          image={activeImage}
+          image={getProductImageUrl(activeImage, 1600)}
           alt={
             selectedVariant && product.variants.length > 1
               ? `${product.name} — ${selectedVariant.name}`

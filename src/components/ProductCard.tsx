@@ -66,48 +66,36 @@ export default function ProductCard({
   const shareDetails = getProductShareDetails(product, shareVariant);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
-  // Pre-fetch the shareable image in the background (not inside the click
-  // handler) so navigator.share() can be called synchronously — awaiting a
-  // fetch first can silently consume the click's "user activation" and
-  // prevent the share sheet from opening on some Android browsers.
-  // Preparing it on mount for every card downloaded megabytes of full-size
-  // images during page load and delayed the first product photo, so wait
-  // until the page has loaded and the card is near the screen, or the
-  // shopper reaches for the share button.
-  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null);
-  const [hasPageLoaded, setHasPageLoaded] = useState(
-    () => typeof document === 'undefined' || document.readyState === 'complete',
-  );
-  const [hasShareIntent, setHasShareIntent] = useState(false);
+  // Fetch only for the photo the shopper intends to share, not every card
+  // near the viewport (or every photo as the card's carousel rotates).
+  // The native share call must remain synchronous with the click; while the
+  // photo is loading, it falls back to sharing the product link.
+  const [preparedShareFile, setPreparedShareFile] = useState<{
+    image: string;
+    file: File;
+  } | null>(null);
+  const [shareIntentImage, setShareIntentImage] = useState<string | null>(null);
   useEffect(() => {
-    if (hasPageLoaded) return;
-    const markLoaded = () => setHasPageLoaded(true);
-    window.addEventListener('load', markLoaded, { once: true });
-    return () => window.removeEventListener('load', markLoaded);
-  }, [hasPageLoaded]);
-  const shouldPrepareShareFile = hasShareIntent || (hasPageLoaded && isNearViewport);
-  const prepareShareFile = () => setHasShareIntent(true);
-  useEffect(() => {
-    if (!shouldPrepareShareFile) return;
+    if (shareIntentImage !== activeImageUrl) return;
+    if (preparedShareFile?.image === activeImageUrl) return;
     let cancelled = false;
-    // eslint-disable-next-line react/set-state-in-effect -- resets stale share state while the new image loads
-    setPreparedShareFile(null);
     void getShareableImageFile(
       getProductImageUrl(activeImageUrl, 1080),
       toShareFileName(shareDetails.title),
     ).then((file) => {
-      if (!cancelled) setPreparedShareFile(file);
+      if (!cancelled && file) setPreparedShareFile({ image: activeImageUrl, file });
     });
     return () => {
       cancelled = true;
     };
-  }, [activeImageUrl, shareDetails.title, shouldPrepareShareFile]);
+  }, [activeImageUrl, preparedShareFile?.image, shareDetails.title, shareIntentImage]);
 
   const shareProduct = () => {
+    const file = preparedShareFile?.image === activeImageUrl ? preparedShareFile.file : null;
     const canShareImage =
-      preparedShareFile !== null &&
+      file !== null &&
       typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [preparedShareFile] });
+      navigator.canShare({ files: [file] });
 
     if (!navigator.share) {
       void navigator.clipboard
@@ -129,7 +117,7 @@ export default function ProductCard({
           ? {
               title: shareDetails.title,
               text: `${shareDetails.text}\n${shareDetails.url}`,
-              files: [preparedShareFile],
+              files: [file],
             }
           : {
               title: shareDetails.title,
@@ -175,6 +163,7 @@ export default function ProductCard({
     if (!isNearViewport && 'IntersectionObserver' in window) return;
     if (cardImages.length <= 1) return;
     const timer = window.setInterval(() => {
+      setShareIntentImage(null);
       setActiveImage((currentImage) => {
         const nextIndex =
           currentImage.productId === product.id
@@ -286,13 +275,14 @@ export default function ProductCard({
                 <button
                   key={variant.id}
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    setShareIntentImage(null);
                     setActiveImage({
                       productId: product.id,
                       index: imageIndex >= 0 ? imageIndex : 0,
                       variantId: variant.id,
-                    })
-                  }
+                    });
+                  }}
                   aria-label={`Show ${variant.name} variant image for ${product.name}`}
                   aria-pressed={isActive}
                   title={variant.name}
@@ -321,15 +311,11 @@ export default function ProductCard({
               </p>
             )}
           </div>
-          <div
-            className="flex shrink-0 items-center gap-2"
-            onPointerEnter={prepareShareFile}
-            onTouchStart={prepareShareFile}
-            onFocusCapture={prepareShareFile}
-          >
+          <div className="flex shrink-0 items-center gap-2">
             <ShareIconButton
               productName={product.name}
               onClick={shareProduct}
+              onShareIntent={() => setShareIntentImage(activeImageUrl)}
               feedback={shareFeedback}
               overlay={false}
             />

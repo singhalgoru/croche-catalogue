@@ -3,6 +3,7 @@ import { ShareIcon } from './SocialIcons';
 interface Props {
   productName: string;
   onClick: () => void;
+  onShareIntent?: () => void;
   feedback?: string | null;
   className?: string;
   overlay?: boolean;
@@ -11,6 +12,7 @@ interface Props {
 export default function ShareIconButton({
   productName,
   onClick,
+  onShareIntent,
   feedback = null,
   className = '',
   overlay = true,
@@ -20,6 +22,9 @@ export default function ShareIconButton({
       <button
         type="button"
         onClick={onClick}
+        onPointerEnter={onShareIntent}
+        onTouchStart={onShareIntent}
+        onFocus={onShareIntent}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-cocoa/95 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-cocoa-dark"
         aria-label={`Share ${productName}`}
       >
