@@ -1,10 +1,13 @@
 import { supabase } from '../lib/supabase';
 
 export type ProductImageMode = 'studio' | 'lifestyle';
+export type ImageGenerationProvider = 'auto' | 'cloudflare' | 'openai';
 
 interface GeneratedImagePayload {
   imageBase64: string;
   mimeType: string;
+  provider?: string;
+  model?: string;
 }
 
 interface OptimizedPromptPayload {
@@ -63,6 +66,7 @@ export async function generateProductImage(
   file: File,
   mode: ProductImageMode,
   styleSuggestion?: string,
+  provider: ImageGenerationProvider = 'auto',
 ): Promise<File> {
   if (!supabase) {
     throw new Error(
@@ -83,6 +87,7 @@ export async function generateProductImage(
       mimeType: file.type,
       mode,
       styleSuggestion: styleSuggestion?.trim() || undefined,
+      provider,
     },
   });
   if (error) {

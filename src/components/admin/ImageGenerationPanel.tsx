@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   generateProductImage,
   optimizeProductImagePrompt,
+  type ImageGenerationProvider,
   type ProductImageMode,
 } from '../../services/productImageGeneration';
 
@@ -11,6 +12,12 @@ interface Props {
   disabled?: boolean;
   onUseImage: (file: File) => void;
 }
+
+const PROVIDER_OPTIONS: { id: ImageGenerationProvider; label: string; hint: string }[] = [
+  { id: 'auto', label: 'Auto (Recommended)', hint: 'Best available engine with automatic fallback' },
+  { id: 'cloudflare', label: 'Cloudflare Workers AI', hint: 'Free tier with FLUX.2 Klein 9B & SD fallback' },
+  { id: 'openai', label: 'OpenAI', hint: 'Studio quality image editing' },
+];
 
 const STYLE_SUGGESTIONS = [
   {
@@ -42,6 +49,7 @@ export default function ImageGenerationPanel({
   const [generatedFile, setGeneratedFile] = useState<File | null>(null);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [activeMode, setActiveMode] = useState<ProductImageMode | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<ImageGenerationProvider>('auto');
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
@@ -68,7 +76,7 @@ export default function ImageGenerationPanel({
       return;
     }
     try {
-      const file = await generateProductImage(sourceFile, mode, styleInstruction);
+      const file = await generateProductImage(sourceFile, mode, styleInstruction, selectedProvider);
       if (generatedUrl) URL.revokeObjectURL(generatedUrl);
       setGeneratedFile(file);
       setGeneratedUrl(URL.createObjectURL(file));
@@ -128,6 +136,32 @@ export default function ImageGenerationPanel({
           <p className="text-xs text-cocoa/55">
             The original stays unchanged until you approve the result.
           </p>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <p className="text-xs font-semibold text-cocoa">AI Engine</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {PROVIDER_OPTIONS.map((option) => {
+            const selected = selectedProvider === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setSelectedProvider(option.id)}
+                disabled={disabled || activeMode !== null || isOptimizingPrompt}
+                title={option.hint}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                  selected
+                    ? 'border-cocoa bg-cocoa text-white'
+                    : 'border-mustard/60 bg-cream/50 text-cocoa'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

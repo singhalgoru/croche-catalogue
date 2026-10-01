@@ -10,6 +10,14 @@ interface EnhanceRequest {
   mimeType?: unknown;
   mode?: unknown;
   styleSuggestion?: unknown;
+  provider?: unknown;
+}
+
+interface ImageGenerationResult {
+  imageBase64: string;
+  mimeType: string;
+  provider: string;
+  model: string;
 }
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -57,6 +65,182 @@ const base64ToBlob = (base64: string, mimeType: string) => {
   } catch {
     return null;
   }
+};
+
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
+};
+
+const callOpenAi = async (
+  apiKey: string,
+  inputBlob: Blob,
+  mimeType: string,
+  prompt: string,
+): Promise<ImageGenerationResult> => {
+  const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png';
+  const formData = new FormData();
+  formData.append('image', inputBlob, `product.${extension}`);
+  formData.append('prompt', prompt);
+  formData.append('size', '1024x1024');
+  formData.append('response_format', 'b64_json');
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? `: ${error.message}` : '';
+    throw new Error(`OpenAI could not be reached${message}`);
+  }
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    const message =
+      errorPayload &&
+      typeof errorPayload === 'object' &&
+      'error' in errorPayload &&
+      errorPayload.error &&
+      typeof errorPayload.error === 'object' &&
+      'message' in errorPayload.error &&
+      typeof errorPayload.error.message === 'string'
+        ? errorPayload.error.message
+        : `OpenAI image edit failed with status ${response.status}.`;
+    throw new Error(message);
+  }
+
+  const payload = await response.json().catch(() => null);
+  const b64 = payload?.data?.[0]?.b64_json;
+  if (typeof b64 !== 'string' || b64.length === 0) {
+    throw new Error('OpenAI completed without returning an edited image.');
+  }
+
+  return {
+    imageBase64: b64,
+    mimeType: 'image/png',
+    provider: 'openai',
+    model: 'dall-e-2',
+  };
+};
+
+const callCloudflareFlux = async (
+  accountId: string,
+  apiToken: string,
+  inputBlob: Blob,
+  mimeType: string,
+  prompt: string,
+): Promise<ImageGenerationResult> => {
+  const model = '@cf/black-forest-labs/flux-2-klein-9b';
+  const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png';
+  const formData = new FormData();
+  formData.append('prompt', prompt);
+  formData.append('input_image_0', inputBlob, `product.${extension}`);
+  formData.append('width', '1024');
+  formData.append('height', '1024');
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiToken}` },
+        body: formData,
+      },
+    );
+  } catch (error) {
+    const message = error instanceof Error ? `: ${error.message}` : '';
+    throw new Error(`Cloudflare Workers AI could not be reached${message}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(await getApiMessage(response));
+  }
+
+  const cloudflarePayload = (await response.json().catch(() => null)) as CloudflareResponse | null;
+  const generatedImage = cloudflarePayload?.result?.image;
+  if (cloudflarePayload?.success !== true || typeof generatedImage !== 'string') {
+    throw new Error('Cloudflare Workers AI completed without returning an edited image.');
+  }
+
+  return {
+    imageBase64: generatedImage,
+    mimeType: 'image/jpeg',
+    provider: 'cloudflare',
+    model,
+  };
+};
+
+const callCloudflareSdFallback = async (
+  accountId: string,
+  apiToken: string,
+  base64Image: string,
+  prompt: string,
+): Promise<ImageGenerationResult> => {
+  const model = '@cf/runwayml/stable-diffusion-v1-5-img2img';
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/run/${model}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_b64: base64Image,
+          prompt,
+          strength: 0.65,
+          guidance: 7.5,
+          num_steps: 20,
+        }),
+      },
+    );
+  } catch (error) {
+    const message = error instanceof Error ? `: ${error.message}` : '';
+    throw new Error(`Cloudflare SD fallback could not be reached${message}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(await getApiMessage(response));
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const json = (await response.json().catch(() => null)) as CloudflareResponse | null;
+    if (json?.result?.image && typeof json.result.image === 'string') {
+      return {
+        imageBase64: json.result.image,
+        mimeType: 'image/png',
+        provider: 'cloudflare',
+        model,
+      };
+    }
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+    throw new Error('Cloudflare SD fallback returned an empty image stream.');
+  }
+
+  return {
+    imageBase64: arrayBufferToBase64(arrayBuffer),
+    mimeType: 'image/png',
+    provider: 'cloudflare',
+    model,
+  };
 };
 
 Deno.serve(async (request) => {
@@ -120,15 +304,42 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Image styling instructions must be 300 characters or less.' }, 400);
   }
 
+  const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
   const cloudflareAccountId = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
   const cloudflareApiToken = Deno.env.get('CLOUDFLARE_API_TOKEN');
-  if (!cloudflareAccountId || !cloudflareApiToken) {
+
+  const hasOpenAi = Boolean(openAiApiKey);
+  const hasCloudflare = Boolean(cloudflareAccountId && cloudflareApiToken);
+
+  if (!hasOpenAi && !hasCloudflare) {
     return jsonResponse(
       {
         error:
-          'Cloudflare Workers AI is not configured. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN.',
+          'No AI image provider is configured. Configure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN, or OPENAI_API_KEY in Supabase secrets.',
       },
       500,
+    );
+  }
+
+  const requestedProvider =
+    typeof payload.provider === 'string' &&
+    ['auto', 'cloudflare', 'openai'].includes(payload.provider)
+      ? payload.provider
+      : 'auto';
+
+  if (requestedProvider === 'openai' && !hasOpenAi) {
+    return jsonResponse(
+      { error: 'OpenAI is selected but OPENAI_API_KEY is not configured in Supabase secrets.' },
+      400,
+    );
+  }
+  if (requestedProvider === 'cloudflare' && !hasCloudflare) {
+    return jsonResponse(
+      {
+        error:
+          'Cloudflare is selected but CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are not configured in Supabase secrets.',
+      },
+      400,
     );
   }
 
@@ -166,46 +377,109 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'The uploaded image data is not valid Base64.' }, 400);
   }
 
-  const model = '@cf/black-forest-labs/flux-2-klein-9b';
-  const formData = new FormData();
-  formData.append('prompt', prompt);
-  formData.append('input_image_0', inputImage, `product.${payload.mimeType.split('/')[1]}`);
-  formData.append('width', '1024');
-  formData.append('height', '1024');
+  let result: ImageGenerationResult;
 
-  let cloudflareResponse: Response;
-  try {
-    cloudflareResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(cloudflareAccountId)}/ai/run/${model}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${cloudflareApiToken}` },
-        body: formData,
-      },
-    );
-  } catch (error) {
-    const message = error instanceof Error ? `: ${error.message}` : '';
-    return jsonResponse({ error: `Cloudflare Workers AI could not be reached${message}` }, 502);
-  }
-
-  if (!cloudflareResponse.ok) {
-    return jsonResponse({ error: await getApiMessage(cloudflareResponse) }, 502);
-  }
-
-  const cloudflarePayload = (await cloudflareResponse.json().catch(() => null)) as
-    | CloudflareResponse
-    | null;
-  const generatedImage = cloudflarePayload?.result?.image;
-  if (cloudflarePayload?.success !== true || typeof generatedImage !== 'string') {
-    return jsonResponse(
-      { error: 'Cloudflare Workers AI completed without returning an edited image.' },
-      502,
-    );
+  if (requestedProvider === 'openai') {
+    try {
+      result = await callOpenAi(openAiApiKey!, inputImage, payload.mimeType, prompt);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OpenAI image edit failed.';
+      return jsonResponse({ error: message }, 502);
+    }
+  } else if (requestedProvider === 'cloudflare') {
+    try {
+      result = await callCloudflareFlux(
+        cloudflareAccountId!,
+        cloudflareApiToken!,
+        inputImage,
+        payload.mimeType,
+        prompt,
+      );
+    } catch (fluxError) {
+      console.warn('Cloudflare FLUX failed, attempting SD 1.5 fallback:', fluxError);
+      try {
+        result = await callCloudflareSdFallback(
+          cloudflareAccountId!,
+          cloudflareApiToken!,
+          payload.imageBase64,
+          prompt,
+        );
+      } catch {
+        const message =
+          fluxError instanceof Error ? fluxError.message : 'Cloudflare Workers AI failed.';
+        return jsonResponse({ error: message }, 502);
+      }
+    }
+  } else {
+    // 'auto' mode:
+    // If OpenAI is available, prioritize it for photorealism and stitch retention.
+    // If OpenAI fails (or quota exceeded) and Cloudflare is available, seamlessly fall back to Cloudflare.
+    if (hasOpenAi) {
+      try {
+        result = await callOpenAi(openAiApiKey!, inputImage, payload.mimeType, prompt);
+      } catch (openAiError) {
+        if (!hasCloudflare) {
+          const message =
+            openAiError instanceof Error ? openAiError.message : 'OpenAI image edit failed.';
+          return jsonResponse({ error: message }, 502);
+        }
+        console.warn('OpenAI failed in auto mode, falling back to Cloudflare Workers AI:', openAiError);
+        try {
+          result = await callCloudflareFlux(
+            cloudflareAccountId!,
+            cloudflareApiToken!,
+            inputImage,
+            payload.mimeType,
+            prompt,
+          );
+        } catch (fluxError) {
+          console.warn('Cloudflare FLUX failed, attempting SD 1.5 fallback:', fluxError);
+          try {
+            result = await callCloudflareSdFallback(
+              cloudflareAccountId!,
+              cloudflareApiToken!,
+              payload.imageBase64,
+              prompt,
+            );
+          } catch {
+            const message =
+              openAiError instanceof Error ? openAiError.message : 'AI image generation failed.';
+            return jsonResponse({ error: message }, 502);
+          }
+        }
+      }
+    } else {
+      // Cloudflare only in auto mode:
+      try {
+        result = await callCloudflareFlux(
+          cloudflareAccountId!,
+          cloudflareApiToken!,
+          inputImage,
+          payload.mimeType,
+          prompt,
+        );
+      } catch (fluxError) {
+        console.warn('Cloudflare FLUX failed, attempting SD 1.5 fallback:', fluxError);
+        try {
+          result = await callCloudflareSdFallback(
+            cloudflareAccountId!,
+            cloudflareApiToken!,
+            payload.imageBase64,
+            prompt,
+          );
+        } catch {
+          const message =
+            fluxError instanceof Error ? fluxError.message : 'Cloudflare Workers AI failed.';
+          return jsonResponse({ error: message }, 502);
+        }
+      }
+    }
   }
 
   return jsonResponse({
-    imageBase64: generatedImage,
-    mimeType: 'image/jpeg',
-    model,
+    imageBase64: result.imageBase64,
+    mimeType: result.mimeType,
+    provider: result.provider,
+    model: result.model,
   });
 });

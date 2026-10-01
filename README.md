@@ -49,6 +49,15 @@ longest side and encoded as WebP at 82% quality when this reduces file size.
 This does not change images already stored in Supabase; to reduce storage usage,
 existing originals need a separate, reviewed migration.
 
+## AI product image generation
+
+The admin console can generate studio and lifestyle product photos from uploaded
+reference images using the `enhance-product-image` Supabase Edge Function:
+- **Pluggable AI architecture:** Supports **OpenAI** (`OPENAI_API_KEY`) and **Cloudflare Workers AI** (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`).
+- **Auto-routing with fallback:** In "Auto" mode, the function prioritizes OpenAI when configured for superior prompt adherence and stitch preservation, seamlessly falling back to Cloudflare Workers AI if OpenAI is unavailable or hits limits.
+- **Cloudflare resilience:** When running on Cloudflare, the function uses `@cf/black-forest-labs/flux-2-klein-9b` as primary and automatically falls back to `@cf/runwayml/stable-diffusion-v1-5-img2img` if GPU queues or quotas are busy.
+- Secrets are stored securely in Supabase Edge Function secrets and never exposed to the client.
+
 ## Initial page load
 
 The public catalogue loads without downloading the admin console or product
