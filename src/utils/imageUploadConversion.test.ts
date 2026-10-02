@@ -16,13 +16,24 @@ const mockImageEncoding = (width: number, height: number, encodedSize: number) =
     }
   });
   const drawImage = vi.fn();
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+  const context = {
     drawImage,
-  } as unknown as CanvasRenderingContext2D);
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    clip: vi.fn(),
+    fillStyle: '',
+    globalAlpha: 1,
+  };
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    context as unknown as CanvasRenderingContext2D,
+  );
   const toBlob = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => {
     callback(new Blob([new Uint8Array(encodedSize)], { type: 'image/webp' }));
   });
-  return { drawImage, toBlob };
+  return { drawImage, toBlob, context };
 };
 
 afterEach(() => {
@@ -42,10 +53,22 @@ describe('image upload compression', () => {
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.82);
   });
 
-  it('keeps the original if encoding would increase its size', async () => {
+  it('always re-encodes so even small WebP files get the watermark', async () => {
     mockImageEncoding(800, 800, 50_000);
     const original = new File([new Uint8Array(1000)], 'photo.webp', { type: 'image/webp' });
-    expect(await convertImageForUpload(original)).toBe(original);
+    const converted = await convertImageForUpload(original);
+    expect(converted).not.toBe(original);
+    expect(converted.type).toBe('image/webp');
+  });
+
+  it('stamps the Luvia badge in the bottom-right corner at 70% opacity', async () => {
+    const { drawImage, context } = mockImageEncoding(3200, 1600, 50_000);
+    const original = new File([new Uint8Array(1_000_000)], 'photo.jpg', { type: 'image/jpeg' });
+    await convertImageForUpload(original);
+
+    // 1600x800 canvas: badge is 12% of 800 (96px) with a 3% (24px) margin.
+    expect(drawImage).toHaveBeenCalledWith(expect.any(HTMLCanvasElement), 1480, 680);
+    expect(context.globalAlpha).toBe(0.7);
   });
 
   it('rejects formats not supported by the image picker', async () => {

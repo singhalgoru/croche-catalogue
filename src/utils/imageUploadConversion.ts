@@ -1,3 +1,5 @@
+import { drawWatermark, loadWatermarkLogo } from './imageWatermark';
+
 const WEBP_UPLOAD_QUALITY = 0.82;
 const MAX_IMAGE_DIMENSION = 1600;
 
@@ -37,7 +39,7 @@ export async function convertImageForUpload(file: File): Promise<File> {
     throw new Error('Upload a JPG, PNG or WebP product image.');
   }
 
-  const image = await loadImageElement(file);
+  const [image, logo] = await Promise.all([loadImageElement(file), loadWatermarkLogo()]);
   const width = image.naturalWidth || image.width;
   const height = image.naturalHeight || image.height;
   if (!width || !height) throw new Error('The selected product image has invalid dimensions.');
@@ -50,9 +52,10 @@ export async function convertImageForUpload(file: File): Promise<File> {
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Unable to prepare the product image for upload.');
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  // The resized R2 copies are made from this file, so they inherit the mark.
+  drawWatermark(context, canvas.width, canvas.height, logo);
   const blob = await canvasToBlob(canvas);
   if (blob.type !== 'image/webp') throw new Error('WebP image encoding is not supported by this browser.');
-  if (file.type === 'image/webp' && scale === 1 && blob.size >= file.size) return file;
 
   return new File([blob], getWebpFileName(file.name), {
     type: 'image/webp',

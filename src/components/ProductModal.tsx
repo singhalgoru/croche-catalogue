@@ -385,7 +385,8 @@ export default function ProductModal({
               {...productImageProtection}
             />
           </button>
-          <div className="absolute bottom-3 right-3 flex gap-2">
+          {/* Bottom-left keeps the bottom-right photo watermark visible. */}
+          <div className="absolute bottom-3 left-3 flex gap-2">
             <button
               type="button"
               onClick={openImageZoom}

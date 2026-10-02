@@ -491,6 +491,8 @@ Deno.serve(async (request) => {
     'Do not redesign, recolour, duplicate, crop, obscure, or add parts to the product.',
     'Do not add people unless needed to demonstrate how the item is worn or used.',
     'Do not add text, logos, labels, borders, watermarks, or prices.',
+    'If the reference has a small round Luvia logo badge in a corner, remove it and fill',
+    'that area naturally; the brand badge is added again after editing.',
     'Return only the edited image.',
   ]
     .filter(Boolean)
