@@ -42,9 +42,11 @@ Product photos are stored on Cloudflare R2 and served from
 `images.luviacreations.com`. Admin uploads (JPG, PNG or WebP) are resized to at
 most 1600 pixels on the longest side, encoded as WebP, and uploaded with 160,
 480 and 960 pixel copies (`<id>-w160.webp` and so on) through the `r2-images`
-Edge Function; the catalogue picks the smallest copy that fits. If R2 is not
-configured, uploads fall back to Supabase Storage, whose images are resized
-through its public transformation endpoint.
+Edge Function; the catalogue picks the smallest copy that fits. If R2 is
+unavailable, uploads fail explicitly rather than falling back to Supabase
+Storage. The legacy `product-images` Supabase bucket is private and closed
+to uploads; its files are preserved in the private backup repository under
+`supabase-images/product-images/`. Old public Supabase image links are retired.
 
 If the image host changes, update `isR2ImageHost`, the CSP in `index.html`,
 `scripts/prerender.mjs` and `public/catalogue-prefetch.js`. R2 photos are
@@ -63,7 +65,7 @@ public image, without adding the watermark. Raw JPG/PNG uploads are not archived
 Neither an r2.dev URL nor a custom domain is enabled for this bucket.
 Only authenticated catalogue admins can archive files through the Edge Function;
 uploads cannot proceed if archival fails. The public watermarked
-copy uses the same UUID on R2 or the Supabase fallback, linking it to
+copy uses the same UUID on R2, linking it to
 `<admin-id>/<uuid>/original.webp`. Removing a public photo does not
 remove its archived original. Previously watermarked input cannot be unmarked:
 upload a clean original if one is available.

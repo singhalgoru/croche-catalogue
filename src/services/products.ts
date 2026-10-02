@@ -184,29 +184,10 @@ const getCurrentUser = async () => {
   return { client, user };
 };
 
-// Each upload gets a fresh UUID path and is never overwritten, so browsers can
-// keep it for a year; browser cache hits never reach Supabase egress.
-const PRODUCT_IMAGE_CACHE_SECONDS = 365 * 24 * 60 * 60;
-
-const uploadProductImage = async (file: File, userId: string) => {
-  const client = await requireSupabase();
+const uploadProductImage = async (file: File) => {
   const uploadFile = await convertImageForUpload(file);
   const imageId = await archiveImageOriginal(file);
-  const r2Upload = await uploadImageToR2(uploadFile, imageId);
-  if (r2Upload) return r2Upload;
-
-  const extension = uploadFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const imagePath = `${userId}/${imageId}.${extension}`;
-  const { error } = await client.storage.from('product-images').upload(imagePath, uploadFile, {
-    contentType: uploadFile.type,
-    // Each upload gets a fresh UUID path, so the file never changes in place.
-    cacheControl: String(PRODUCT_IMAGE_CACHE_SECONDS),
-    upsert: false,
-  });
-
-  if (error) throw new Error(`Unable to upload the product image: ${error.message}`);
-  const { data } = client.storage.from('product-images').getPublicUrl(imagePath);
-  return { imagePath, imageUrl: data.publicUrl };
+  return uploadImageToR2(uploadFile, imageId);
 };
 
 const removeManagedImage = async (imagePath: string, userId: string) => {
@@ -304,7 +285,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
 
   try {
     for (const variant of product.variants) {
-      uploads.push(await uploadProductImage(variant.imageFile, user.id));
+      uploads.push(await uploadProductImage(variant.imageFile));
     }
 
     const primary = product.variants[0];
@@ -356,7 +337,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
       const variantId = (variantData as { id: string }).id;
       const galleryFiles = variant.galleryFiles ?? [];
       for (const [galleryIndex, file] of galleryFiles.entries()) {
-        const galleryUpload = await uploadProductImage(file, user.id);
+        const galleryUpload = await uploadProductImage(file);
         uploads.push(galleryUpload);
         const { error: galleryError } = await client.from('product_variant_images').insert({
           variant_id: variantId,
@@ -420,8 +401,8 @@ export async function addProductVariant(
   product: ManagedProduct,
   variant: NewVariant,
 ): Promise<ManagedProduct> {
-  const { client, user } = await getCurrentUser();
-  const upload = await uploadProductImage(variant.imageFile, user.id);
+  const { client } = await getCurrentUser();
+  const upload = await uploadProductImage(variant.imageFile);
   const galleryUploads: Array<{ imagePath: string; imageUrl: string }> = [];
 
   try {
@@ -445,7 +426,7 @@ export async function addProductVariant(
     const variantId = (data as { id: string }).id;
     const galleryFiles = variant.galleryFiles ?? [];
     for (const [galleryIndex, file] of galleryFiles.entries()) {
-      const galleryUpload = await uploadProductImage(file, user.id);
+      const galleryUpload = await uploadProductImage(file);
       galleryUploads.push(galleryUpload);
       const { error: galleryError } = await client.from('product_variant_images').insert({
         variant_id: variantId,
@@ -469,8 +450,8 @@ export async function addVariantGalleryImage(
   variant: ProductVariant,
   imageFile: File,
 ): Promise<ManagedProduct> {
-  const { client, user } = await getCurrentUser();
-  const upload = await uploadProductImage(imageFile, user.id);
+  const { client } = await getCurrentUser();
+  const upload = await uploadProductImage(imageFile);
   const { error } = await client.from('product_variant_images').insert({
     variant_id: variant.id,
     image_path: upload.imagePath,
@@ -514,7 +495,7 @@ export async function replaceVariantGalleryImage(
   imageFile: File,
 ): Promise<ManagedProduct> {
   const { client, user } = await getCurrentUser();
-  const upload = await uploadProductImage(imageFile, user.id);
+  const upload = await uploadProductImage(imageFile);
   const { data, error } = await client
     .from('product_variant_images')
     .update({
@@ -584,7 +565,7 @@ export async function updateProductVariant(
   update: VariantUpdate,
 ): Promise<ManagedProduct> {
   const { client, user } = await getCurrentUser();
-  const upload = update.imageFile ? await uploadProductImage(update.imageFile, user.id) : null;
+  const upload = update.imageFile ? await uploadProductImage(update.imageFile) : null;
   const { error } = await client
     .from('product_variants')
     .update({

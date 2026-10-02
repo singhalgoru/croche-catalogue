@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deleteImagesFromR2,
   isR2ImagePath,
-  resetR2AvailabilityForTests,
   uploadImageToR2,
 } from './r2ImageStorage';
 
@@ -30,7 +29,6 @@ const httpError = (status: number, body: unknown = { error: `Status ${status}` }
 describe('r2ImageStorage', () => {
   beforeEach(() => {
     mockInvoke.mockReset();
-    resetR2AvailabilityForTests();
   });
 
   it('uploads the full image and every display width', async () => {
@@ -54,12 +52,11 @@ describe('r2ImageStorage', () => {
     expect([...form.keys()]).toEqual(['full', 'w160', 'w480', 'w960']);
   });
 
-  it.each([404, 501])('falls back and stops retrying when the function returns %i', async (status) => {
-    mockInvoke.mockResolvedValueOnce({ data: null, error: httpError(status) });
-
-    await expect(uploadImageToR2(webpFile())).resolves.toBeNull();
-    await expect(uploadImageToR2(webpFile())).resolves.toBeNull();
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+  it.each([404, 501])('surfaces unavailable storage and permits retry after status %i', async (status) => {
+    mockInvoke.mockResolvedValue({ data: null, error: httpError(status) });
+    await expect(uploadImageToR2(webpFile())).rejects.toThrow(`Status ${status}`);
+    await expect(uploadImageToR2(webpFile())).rejects.toThrow(`Status ${status}`);
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
   });
 
   it('links the published copy to the private original identifier', async () => {
@@ -72,10 +69,10 @@ describe('r2ImageStorage', () => {
     expect(form.get('imageId')).toBe('original-id');
   });
 
-  it('falls back when the function cannot be reached', async () => {
+  it('surfaces network failures without falling back', async () => {
     mockInvoke.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
 
-    await expect(uploadImageToR2(webpFile())).resolves.toBeNull();
+    await expect(uploadImageToR2(webpFile())).rejects.toThrow('Failed to fetch');
   });
 
   it('surfaces real upload failures instead of silently falling back', async () => {
