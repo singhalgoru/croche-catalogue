@@ -120,7 +120,11 @@ preconnects to the configured Supabase origin so the catalogue and its first
 image do not wait for a new connection after JavaScript starts. A small,
 early script starts the public, published-only product and category requests
 while the main bundle downloads; the app reuses their responses instead of
-fetching twice.
+fetching twice. As soon as the product rows arrive, that script also preloads
+the first card's photo from `images.luviacreations.com` (preconnected in
+`index.html`), so the largest image starts before React renders. Its ordering
+and `srcset`/`sizes` must stay in step with `compareCatalogueProducts` and
+`ProductCard`, or the photo downloads twice.
 Baloo 2 and
 Quicksand are self-hosted variable fonts with `font-display: swap`, rather
 than depending on a render-blocking Google Fonts stylesheet. Characters
