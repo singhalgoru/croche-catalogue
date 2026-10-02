@@ -2,9 +2,10 @@
 // One-time job: stamps the Luvia badge (see src/utils/imageWatermark.ts) on
 // product photos uploaded before uploads were watermarked in the browser.
 //
-// R2 objects are immutable and cached for a year, so each photo is re-uploaded
-// under a new "<key>-wm" base and database rows are repointed in one
-// transaction. The unwatermarked originals stay in the private backup repo.
+// R2 objects are immutable and cached for a year, so each photo is re-rendered
+// from its original and uploaded under a new "<key>-wm2" base, then database
+// rows are repointed in one transaction. Originals stay in the private backup
+// repo. Photos uploaded after the browser watermark shipped are skipped.
 //
 //   node --env-file=.env.r2.local scripts/watermark-r2-images.mjs               dry run
 //   node --env-file=.env.r2.local scripts/watermark-r2-images.mjs --apply       watermark + repoint
@@ -46,7 +47,12 @@ const MARGIN_RATIO = 0.03;
 const RING_RATIO = 0.035;
 const OPACITY = 0.7;
 const SIZES = [160, 480, 960];
-const SUFFIX = '-wm';
+// Bumped whenever the badge changes: immutable R2 objects need new keys.
+const SUFFIX = '-wm2';
+const OLD_SUFFIXES = ['', '-wm'];
+const originalBase = (base) => base.replace(/-wm\d*$/, '');
+// Uploads from the admin after this point are watermarked in the browser.
+const BROWSER_WATERMARK_SINCE = Date.parse('2026-10-02T08:25:00Z');
 const TABLES = ['products', 'product_variants', 'product_variant_images'];
 const LOGO = fileURLToPath(new URL('../public/images/luvia-logo-480.webp', import.meta.url));
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -120,8 +126,11 @@ const watermark = async (input) => {
   const margin = Math.round(shortSide * MARGIN_RATIO);
   const ring = Math.max(2, Math.round(size * RING_RATIO));
   if (size < 16) return image.webp({ quality: 82 }).toBuffer();
+  // Bottom-right of the centred square that catalogue cards crop to.
+  const left = Math.round((width + shortSide) / 2) - size - margin;
+  const top = Math.round((height + shortSide) / 2) - size - margin;
   return image
-    .composite([{ input: await renderBadge(size, ring), left: width - size - margin, top: height - size - margin }])
+    .composite([{ input: await renderBadge(size, ring), left, top }])
     .webp({ quality: 82 })
     .toBuffer();
 };
@@ -137,9 +146,10 @@ const baseOf = (imagePath) => String(imagePath).startsWith('r2:') ? String(image
 if (deleteOld) {
   const referenced = new Set(rows.map((row) => baseOf(row.image_path)).filter(Boolean));
   const referencedUrls = new Set(rows.map((row) => row.image_url));
-  const candidates = [...referenced].filter((base) => base.endsWith(SUFFIX)).map((base) => base.slice(0, -SUFFIX.length))
+  const candidates = [...referenced].filter((base) => base.endsWith(SUFFIX))
+    .flatMap((base) => OLD_SUFFIXES.map((suffix) => originalBase(base) + suffix))
     .filter((base) => !referenced.has(base) && !referencedUrls.has(publicUrl + '/' + base + '.webp'));
-  console.log('Found ' + candidates.length + ' replaced originals to delete.');
+  console.log('Found ' + candidates.length + ' replaced image sets to delete.');
   for (const base of candidates) {
     for (const key of objectKeys(base)) await r2Delete(key);
     console.log('Deleted ' + base);
@@ -147,10 +157,24 @@ if (deleteOld) {
   process.exit(0);
 }
 
-const pending = [...new Set(
+const uploadedAt = async (key) => {
+  const response = await r2.fetch(r2Endpoint + '/' + key, { method: 'HEAD' });
+  return response.ok ? Date.parse(response.headers.get('last-modified') || '') : NaN;
+};
+
+const candidates = [...new Set(
   rows.filter((row) => row.tbl !== 'cart_items').map((row) => baseOf(row.image_path))
     .filter((base) => base && !base.endsWith(SUFFIX)),
 )];
+const pending = [];
+for (const base of candidates) {
+  const original = originalBase(base);
+  if (original === base && (await uploadedAt(base + '.webp')) >= BROWSER_WATERMARK_SINCE) {
+    console.log('Skipping ' + base + ': uploaded with the browser watermark.');
+    continue;
+  }
+  pending.push(base);
+}
 const skipped = rows.filter((row) => row.tbl !== 'cart_items' && !baseOf(row.image_path));
 for (const row of skipped) console.warn('Skipping ' + row.tbl + ' ' + row.id + ': not stored on R2 (' + row.image_path + ')');
 
@@ -161,11 +185,11 @@ const done = [];
 let index = 0;
 for (const base of pending) {
   index += 1;
-  const target = base + SUFFIX;
+  const target = originalBase(base) + SUFFIX;
   try {
     const [fullKey, ...sizeKeys] = objectKeys(target);
     if (!(await r2Exists(fullKey)) || !(await Promise.all(sizeKeys.map(r2Exists))).every(Boolean)) {
-      const full = await watermark(await r2Get(base + '.webp'));
+      const full = await watermark(await r2Get(originalBase(base) + '.webp'));
       for (let i = 0; i < SIZES.length; i += 1) {
         const resized = await sharp(full).resize({ width: SIZES[i], withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
         await r2Put(sizeKeys[i], resized);
@@ -182,9 +206,9 @@ for (const base of pending) {
 
 if (done.length) {
   const pathValues = done.map((base) =>
-    `(${sqlText('r2:' + base)}, ${sqlText('r2:' + base + SUFFIX)}, ${sqlText(publicUrl + '/' + base + SUFFIX + '.webp')})`).join(',\n');
+    `(${sqlText('r2:' + base)}, ${sqlText('r2:' + originalBase(base) + SUFFIX)}, ${sqlText(publicUrl + '/' + originalBase(base) + SUFFIX + '.webp')})`).join(',\n');
   const urlValues = done.map((base) =>
-    `(${sqlText(publicUrl + '/' + base + '.webp')}, ${sqlText(publicUrl + '/' + base + SUFFIX + '.webp')})`).join(',\n');
+    `(${sqlText(publicUrl + '/' + base + '.webp')}, ${sqlText(publicUrl + '/' + originalBase(base) + SUFFIX + '.webp')})`).join(',\n');
   // One statement per table, so each table's site-rebuild trigger fires once.
   runSql([
     'begin;',
