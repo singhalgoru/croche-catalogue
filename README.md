@@ -98,8 +98,10 @@ made them depend on R2's conditional CORS headers.
 
 ### Backing up images
 
-R2 has no automatic backup (the database is backed up daily by
-`backup-database.yml`). To copy every image to your computer, run:
+R2 has no automatic backup of its own. The daily `backup-database.yml` workflow
+copies new images into `r2-images/` in the private
+`croche-catalogue-backups` repo, next to the database backup. It uses the
+`R2_*` repository secrets. To make an extra local copy, run:
 
 ```sh
 npm run backup:images                       # into r2-image-backup/ (gitignored)

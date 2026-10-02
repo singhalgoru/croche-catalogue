@@ -1,9 +1,11 @@
-name: Backup Supabase Database
+name: Backup Supabase Database and R2 Images
 
 # Daily encrypted backup of the Supabase Postgres database, pushed to a
 # separate private repo (singhalgoru/croche-catalogue-backups). Only the
-# last 2 backups are kept — each run rotates backup-latest -> backup-previous
-# and overwrites backup-latest with the new dump.
+# last 2 database backups are kept — each run rotates backup-latest -> backup-previous
+# and overwrites backup-latest with the new dump. Product images from R2 are
+# mirrored into r2-images/; only new images are downloaded, and images deleted
+# in admin stay in the backup.
 on:
   schedule:
     - cron: '0 21 * * *' # 21:00 UTC = ~02:30 IST, daily
@@ -16,6 +18,18 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
       - name: Install PostgreSQL 17 client
         # Supabase runs Postgres 17; pg_dump requires a client version >= the
         # server version, and Ubuntu's default postgresql-client package (v16)
@@ -43,12 +57,26 @@ jobs:
             -o backup.sql.gz.gpg backup.sql.gz
           rm backup.sql.gz
 
-      - name: Push rotated backup to private backup repo
+      - name: Clone private backup repo
         env:
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/singhalgoru/croche-catalogue-backups.git" backup-repo
+
+      # An image failure must not stop the database backup from being pushed;
+      # the last step fails the run afterwards so it is still noticed.
+      - name: Mirror R2 images
+        id: images
+        continue-on-error: true
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: node scripts/backup-r2-images.mjs backup-repo/r2-images
+
+      - name: Push rotated backup to private backup repo
         run: |
           set -euo pipefail
-          git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/singhalgoru/croche-catalogue-backups.git" backup-repo
           cd backup-repo
 
           if [ -f backup-latest.sql.gz.gpg ]; then
@@ -62,3 +90,9 @@ jobs:
           git add -A
           git commit -m "Daily backup $(date -u +%Y-%m-%d)" || echo "No changes to commit"
           git push
+
+      - name: Report image backup failure
+        if: steps.images.outcome == 'failure'
+        run: |
+          echo "::error::R2 image backup failed; the database backup was still pushed."
+          exit 1
