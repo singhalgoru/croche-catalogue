@@ -1,13 +1,12 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 
-export const ORIGINALS_BUCKET = 'product-originals';
 const ORIGINAL_EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
 };
 
-export async function archiveImageOriginal(file: File, userId: string): Promise<string> {
+export async function archiveImageOriginal(file: File): Promise<string> {
   const extension = ORIGINAL_EXTENSIONS[file.type];
   if (!extension || file.size === 0 || file.size > 6 * 1024 * 1024) {
     throw new Error('Choose a JPG, PNG or WebP image no larger than 6 MB to preserve its original.');
@@ -15,13 +14,14 @@ export async function archiveImageOriginal(file: File, userId: string): Promise<
   const client = await loadSupabase();
   if (!client) throw new Error('Supabase is not configured.');
   const imageId = crypto.randomUUID();
-  const { error } = await client.storage.from(ORIGINALS_BUCKET).upload(
-    `${userId}/${imageId}/original.${extension}`,
-    file,
-    { contentType: file.type, upsert: false },
-  );
+  const form = new FormData();
+  form.append('action', 'archive-original');
+  form.append('imageId', imageId);
+  form.append('original', file, `original.${extension}`);
+  const { data, error } = await client.functions.invoke('r2-images', { body: form });
   if (error) {
     throw new Error(`Unable to save the private image original. The image was not published: ${error.message}`);
   }
+  if (data?.imageId !== imageId) throw new Error('Private original archive returned an invalid response.');
   return imageId;
 }

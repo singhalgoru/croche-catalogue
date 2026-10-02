@@ -133,14 +133,14 @@ jobs:
       - name: Check private originals are in the image backup
         run: |
           set -euo pipefail
-          psql "$RESTORED_DB" -Atq -c "
-            select name from storage.objects where bucket_id = 'product-originals'" > original-paths.txt
-          missing=0
-          while IFS= read -r path; do
-            if [ ! -s "backup-repo/image-originals/$path" ]; then
-              echo "::error::An archived original is missing from the private image backup."
-              missing=$((missing + 1))
-            fi
-          done < original-paths.txt
-          echo "$(wc -l < original-paths.txt) private originals referenced; $missing backup files missing."
-          [ "$missing" -eq 0 ]
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("backup-repo/image-originals").resolve()
+          objects = json.loads((root / "manifest.json").read_text())
+          for item in objects:
+              file = (root / item["key"]).resolve()
+              if not file.is_relative_to(root) or not file.is_file() or file.stat().st_size != item["size"]:
+                  raise SystemExit("A private original is missing or has an incorrect backup size.")
+          print(f"Verified {len(objects)} private R2 originals against the backup manifest.")
+          PY

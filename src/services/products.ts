@@ -191,7 +191,7 @@ const PRODUCT_IMAGE_CACHE_SECONDS = 365 * 24 * 60 * 60;
 const uploadProductImage = async (file: File, userId: string) => {
   const client = await requireSupabase();
   const uploadFile = await convertImageForUpload(file);
-  const imageId = await archiveImageOriginal(file, userId);
+  const imageId = await archiveImageOriginal(file);
   const r2Upload = await uploadImageToR2(uploadFile, imageId);
   if (r2Upload) return r2Upload;
 

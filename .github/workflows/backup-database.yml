@@ -79,9 +79,13 @@ jobs:
         id: originals
         continue-on-error: true
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/backup-image-originals.mjs backup-repo/image-originals
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_ORIGINALS_BUCKET }}
+        run: |
+          mkdir -p backup-repo/image-originals
+          node scripts/backup-r2-images.mjs backup-repo/image-originals backup-repo/image-originals/manifest.json
 
       - name: Push rotated backup to private backup repo
         run: |

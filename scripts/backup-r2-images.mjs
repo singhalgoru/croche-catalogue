@@ -1,7 +1,9 @@
 /**
  * Copies every object in the R2 image bucket to a local folder.
  *
- *   node --env-file=.env.r2.local scripts/backup-r2-images.mjs [destination]
+ *   node --env-file=.env.r2.local scripts/backup-r2-images.mjs [destination] [manifest]
+ *
+ * R2_BACKUP_BUCKET overrides R2_BUCKET to back up the separate private bucket.
  *
  * Destination defaults to `r2-image-backup/` (gitignored). Point it at a
  * OneDrive or Google Drive folder to keep an off-site copy. Image keys are
@@ -14,7 +16,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AwsClient } from 'aws4fetch';
 
-const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = process.env;
+const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
+const R2_BUCKET = process.env.R2_BACKUP_BUCKET || process.env.R2_BUCKET;
 if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
   console.error('Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET (see .env.r2.local).');
   process.exit(1);
@@ -62,8 +65,9 @@ const listObjects = async () => {
 const localSize = async (file) => {
   try {
     return (await stat(file)).size;
-  } catch {
-    return -1;
+  } catch (error) {
+    if (error.code === 'ENOENT') return -1;
+    throw error;
   }
 };
 
@@ -87,6 +91,11 @@ for (const { key, size } of objects) {
     continue;
   }
   const body = Buffer.from(await response.arrayBuffer());
+  if (body.length !== size) {
+    console.warn(`Failed ${key}: downloaded size does not match R2.`);
+    failed += 1;
+    continue;
+  }
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, body);
   downloaded += 1;
@@ -94,6 +103,9 @@ for (const { key, size } of objects) {
 }
 
 const totalMb = (objects.reduce((sum, object) => sum + object.size, 0) / 1024 / 1024).toFixed(1);
+if (process.argv[3] && !failed) {
+  await writeFile(path.resolve(process.argv[3]), JSON.stringify(objects, null, 2) + '\n');
+}
 console.log(
   `${objects.length} objects in R2 (${totalMb} MB). Downloaded ${downloaded} new ` +
     `(${(downloadedBytes / 1024 / 1024).toFixed(1)} MB) to ${destination}.` +

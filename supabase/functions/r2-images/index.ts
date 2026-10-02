@@ -9,6 +9,7 @@ const CORS_HEADERS = {
 const SIZE_FIELDS = ['w160', 'w480', 'w960'] as const;
 const MAX_FILE_BYTES = 6 * 1024 * 1024;
 const MAX_DELETE_PATHS = 50;
+const IMAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const R2_PATH = /^r2:(products\/[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+)$/;
 // Every upload uses a fresh random key and is never overwritten.
 const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
@@ -138,6 +139,32 @@ Deno.serve(async (request) => {
   }
 
   const files = new Map<string, File>();
+  const originalsBucket = Deno.env.get('R2_ORIGINALS_BUCKET');
+  if (!originalsBucket || originalsBucket === Deno.env.get('R2_BUCKET')) {
+    return jsonResponse({ error: 'A separate private R2 originals bucket is required.' }, 503);
+  }
+  const originalsEndpoint = r2.endpoint.slice(0, r2.endpoint.lastIndexOf('/') + 1) + originalsBucket;
+  if (form.get('action') === 'archive-original') {
+    const id = form.get('imageId');
+    const original = form.get('original');
+    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+    if (typeof id !== 'string' || !IMAGE_ID.test(id) ||
+      !(original instanceof File) || !extensions[original.type] ||
+      !original.size || original.size > MAX_FILE_BYTES) {
+      return jsonResponse({ error: 'A valid image identifier and JPG, PNG or WebP original up to 6 MB are required.' }, 400);
+    }
+    const key = `${userData.user.id}/${id}/original.${extensions[original.type]}`;
+    try {
+      const response = await r2.client.fetch(`${originalsEndpoint}/${key}`, {
+        method: 'PUT', body: new Uint8Array(await original.arrayBuffer()),
+        headers: { 'Content-Type': original.type, 'Cache-Control': 'private, no-store', 'If-None-Match': '*' },
+      });
+      if (!response.ok) throw new Error(`Private R2 archive failed with status ${response.status}.`);
+    } catch (error) {
+      return jsonResponse({ error: error instanceof Error ? error.message : 'Private archive failed.' }, 502);
+    }
+    return jsonResponse({ imageId: id });
+  }
   for (const field of ['full', ...SIZE_FIELDS]) {
     const value = form.get(field);
     if (!(value instanceof File) || value.size === 0 || value.size > MAX_FILE_BYTES) {
@@ -150,18 +177,17 @@ Deno.serve(async (request) => {
   }
 
   const imageId = form.get('imageId');
-  if (imageId !== null && (typeof imageId !== 'string' ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(imageId))) {
+  if (typeof imageId !== 'string' || !IMAGE_ID.test(imageId)) {
     return jsonResponse({ error: 'Invalid image identifier.' }, 400);
   }
-  const base = `products/${userData.user.id}/${imageId ?? crypto.randomUUID()}`;
+  const base = `products/${userData.user.id}/${imageId}`;
   if (imageId) {
-    const { data: originals, error: originalError } = await authClient.storage
-      .from('product-originals').list(`${userData.user.id}/${imageId}`);
-    if (originalError) {
-      return jsonResponse({ error: `Unable to verify the private original: ${originalError.message}` }, 502);
+    const checks = await Promise.all(['jpg', 'png', 'webp'].map((extension) =>
+      r2.client.fetch(`${originalsEndpoint}/${userData.user.id}/${imageId}/original.${extension}`, { method: 'HEAD' })));
+    if (checks.some((response) => !response.ok && response.status !== 404)) {
+      return jsonResponse({ error: 'Unable to verify the private R2 original.' }, 502);
     }
-    if (!originals?.some((file) => file.id && /^original\.(jpg|png|webp)$/.test(file.name))) {
+    if (!checks.some((response) => response.ok)) {
       return jsonResponse({ error: 'Save the private image original before publishing.' }, 400);
     }
     const existing = await r2.client.fetch(`${r2.endpoint}/${base}.webp`, { method: 'HEAD' });

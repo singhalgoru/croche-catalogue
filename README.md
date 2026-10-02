@@ -56,9 +56,11 @@ The database and images are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
 
 Before any new product, variant, gallery or AI-generated image is published,
-its exact unwatermarked JPG/PNG/WebP file is archived in the private Supabase
-Storage bucket `product-originals` (up to 6 MB). Only catalogue admins can
-read it; uploads cannot proceed if archival fails. The public watermarked
+its exact unwatermarked JPG/PNG/WebP file is archived in a separate private R2
+bucket (up to 6 MB), configured through the server-side `R2_ORIGINALS_BUCKET`.
+Neither an r2.dev URL nor a custom domain is enabled for this bucket.
+Only authenticated catalogue admins can archive files through the Edge Function;
+uploads cannot proceed if archival fails. The public watermarked
 copy uses the same UUID on R2 or the Supabase fallback, linking it to
 `<admin-id>/<uuid>/original.<extension>`. Removing a public photo does not
 remove its archived original. Previously watermarked input cannot be unmarked:
@@ -66,7 +68,8 @@ upload a clean original if one is available.
 
 Daily backups retain originals in `image-originals/` alongside public R2
 copies in `r2-images/` in the private backup repository. The originals backup
-requires the GitHub secret `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
+requires the GitHub secret `R2_ORIGINALS_BUCKET` and R2 credentials with access
+to both buckets. A manifest records the private originals for restore checks.
 Neither backup deletes images that disappear from live storage. The existing
 pre-watermark originals remain in the older `r2-images/` backup paths.
 
