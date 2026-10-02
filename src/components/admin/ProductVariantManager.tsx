@@ -875,6 +875,31 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         </p>
       )}
 
+      {isAdding && (
+        <form className="mt-4 min-w-0 rounded-xl border-2 border-dashed border-mustard p-4" onSubmit={(event) => void saveNewVariant(event)}>
+          <h5 className="font-heading font-bold text-cocoa">New variant</h5>
+          <div className="mt-3">{fields(true)}</div>
+          <div className="mt-3 flex gap-2">
+            <button type="submit" disabled={isBusy} className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">
+              {isBusy ? 'Adding…' : 'Add variant'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+                for (const url of draft.galleryPreviewUrls) URL.revokeObjectURL(url);
+                setActiveDraftGalleryIndex(null);
+                setDraft(emptyDraft());
+                setIsAdding(false);
+              }}
+              className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="mt-4 grid gap-3">
         {product.variants.map((variant, index) => (
           <div
@@ -1338,31 +1363,6 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           </div>
         ))}
       </div>
-
-      {isAdding && (
-        <form className="mt-4 min-w-0 rounded-xl border-2 border-dashed border-mustard p-4" onSubmit={(event) => void saveNewVariant(event)}>
-          <h5 className="font-heading font-bold text-cocoa">New variant</h5>
-          <div className="mt-3">{fields(true)}</div>
-          <div className="mt-3 flex gap-2">
-            <button type="submit" disabled={isBusy} className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">
-              {isBusy ? 'Adding…' : 'Add variant'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
-                for (const url of draft.galleryPreviewUrls) URL.revokeObjectURL(url);
-                setActiveDraftGalleryIndex(null);
-                setDraft(emptyDraft());
-                setIsAdding(false);
-              }}
-              className="rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
     </section>
   );
 }
