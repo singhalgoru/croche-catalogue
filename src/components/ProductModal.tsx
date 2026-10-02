@@ -314,6 +314,13 @@ export default function ProductModal({
 
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     const touch = event.touches[0];
+    // Swipes inside a horizontally scrollable rail (variants, thumbnails)
+    // scroll that rail and must not switch products.
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-swipe-ignore]')) {
+      touchStart.current = null;
+      return;
+    }
     touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
   };
 
@@ -459,6 +466,7 @@ export default function ProductModal({
         </div>
         {hasAngleThumbnails && galleryImages.length > 1 && (
           <div
+            data-swipe-ignore
             className="flex gap-2 overflow-x-auto border-b border-mustard/20 bg-cream/40 p-3"
             aria-label="Product image angles"
           >
@@ -493,7 +501,7 @@ export default function ProductModal({
                   {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
                 </span>
               </div>
-              <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
+              <div data-swipe-ignore className="mt-3 flex gap-3 overflow-x-auto pb-2">
                 {product.variants.map((variant) => {
                   const isSelected = variant.id === selectedVariant?.id;
                   const cartQuantity = getCartQuantity?.(product.id, variant.id) ?? 0;

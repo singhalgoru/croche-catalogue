@@ -230,6 +230,22 @@ describe('ProductModal touch controls', () => {
     expect(mainImage.getAttribute('src')).toBe('/rose.jpg');
   });
 
+  it('does not switch products when swiping the variant or thumbnail rails', () => {
+    const { onNext, onPrevious } = renderModal();
+    const variantRail = screen.getByRole('button', { name: /Ivory/ });
+    const thumbnail = screen.getByRole('button', { name: 'Show main product image' });
+
+    for (const rail of [variantRail, thumbnail]) {
+      fireEvent.touchStart(rail, { touches: [touch(300, 600)] });
+      fireEvent.touchEnd(rail, { changedTouches: [touch(100, 605)] });
+      fireEvent.touchStart(rail, { touches: [touch(100, 600)] });
+      fireEvent.touchEnd(rail, { changedTouches: [touch(300, 595)] });
+    }
+
+    expect(onNext).not.toHaveBeenCalled();
+    expect(onPrevious).not.toHaveBeenCalled();
+  });
+
   it('does not navigate for vertical movement or short horizontal touches', () => {
     const { onNext, onPrevious } = renderModal();
     const description = screen.getByText(product.description);
