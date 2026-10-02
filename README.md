@@ -64,6 +64,9 @@ When adding or editing a variant, **✨ Suggest name with AI** sends the variant
 the product name, and the existing variant names to the `analyze-product` Edge Function
 (`mode: "variant-name"`). Gemini vision (free tier) returns a short name that follows the
 existing naming pattern plus a matching hex colour; both stay editable before saving.
+When a variant shares a colour with an existing one, the name adds the distinguishing
+pattern or texture (e.g. "Lavender Stripes"), and the function automatically re-asks
+Gemini (up to 3 attempts) if it suggests a name that is already taken.
 
 ## Initial page load
 

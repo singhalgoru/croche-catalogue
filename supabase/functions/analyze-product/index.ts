@@ -111,23 +111,34 @@ Deno.serve(async (request) => {
         .slice(0, 40)
     : [];
 
+  const buildVariantPrompt = (rejectedNames: string[]) =>
+    [
+      'You name colour/style variants for Luvia, an Indian handmade crochet brand.',
+      'Study the uploaded variant photo and suggest a short, customer-friendly variant name.',
+      productName ? `The product is "${productName}".` : '',
+      existingVariantNames.length > 0
+        ? `Existing variant names for this product are: ${existingVariantNames
+            .map((name) => `"${name}"`)
+            .join(', ')}. Follow the same naming pattern, wording style, and casing,` +
+          ' and never repeat an existing name.'
+        : 'Use a simple colour or pattern name such as "Lavender", "Rose Pink", or "Rainbow Stripes".',
+      'Name the most distinguishing visible feature: colour, colour combination, pattern,',
+      'stitch texture, or motif (e.g. stripes, polka dots, floral, ombre, checks, bobble, shell stitch).',
+      'If the colour matches an existing variant, keep the colour word but add the pattern or',
+      'texture that makes this one different, e.g. "Lavender Stripes" or "Lavender Floral".',
+      rejectedNames.length > 0
+        ? `These names are already taken, so do not use them: ${rejectedNames
+            .map((name) => `"${name}"`)
+            .join(', ')}.`
+        : '',
+      'Use 1-4 words. Do not include the product name, sizes, prices, or marketing words.',
+      'Return the dominant variant colour as a six-digit hexadecimal colour.',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
   const prompt = isVariantMode
-    ? [
-        'You name colour/style variants for Luvia, an Indian handmade crochet brand.',
-        'Study the uploaded variant photo and suggest a short, customer-friendly variant name.',
-        productName ? `The product is "${productName}".` : '',
-        existingVariantNames.length > 0
-          ? `Existing variant names for this product are: ${existingVariantNames
-              .map((name) => `"${name}"`)
-              .join(', ')}. Follow the same naming pattern, wording style, casing, and length,` +
-            ' and do not repeat any existing name.'
-          : 'Use a simple colour or pattern name such as "Lavender", "Rose Pink", or "Rainbow Stripes".',
-        'Use 1-3 words. Describe the visible colour, colour combination, or pattern only.',
-        'Do not include the product name, sizes, prices, or marketing words.',
-        'Return the dominant variant colour as a six-digit hexadecimal colour.',
-      ]
-        .filter(Boolean)
-        .join(' ')
+    ? buildVariantPrompt([])
     : [
         'You are writing catalogue copy for Luvia, an Indian handmade crochet brand.',
         'Study the uploaded product photo and return accurate product metadata.',
@@ -162,84 +173,120 @@ Deno.serve(async (request) => {
         },
       };
 
-  const requestBody = JSON.stringify({
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: payload.mimeType,
-              data: payload.imageBase64,
+  const buildRequestBody = (promptText: string) =>
+    JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType: payload.mimeType,
+                data: payload.imageBase64,
+              },
             },
-          },
-        ],
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: isVariantMode ? 0.5 : 0.3,
+        responseMimeType: 'application/json',
+        responseSchema,
       },
-    ],
-    generationConfig: {
-      temperature: isVariantMode ? 0.5 : 0.3,
-      responseMimeType: 'application/json',
-      responseSchema,
-    },
-  });
+    });
 
   const models = ['gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
-  let geminiResponse: Response | null = null;
-  let apiMessage = '';
 
-  for (const model of models) {
-    try {
-      geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: requestBody,
-        },
-      );
-    } catch (error) {
+  const callGemini = async (
+    requestBody: string,
+  ): Promise<{ data: Record<string, unknown> } | { error: string }> => {
+    let geminiResponse: Response | null = null;
+    let apiMessage = '';
+
+    for (const model of models) {
+      try {
+        geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: requestBody,
+          },
+        );
+      } catch (error) {
+        apiMessage =
+          error instanceof Error
+            ? `${model} could not be reached: ${error.message}`
+            : `${model} could not be reached.`;
+        continue;
+      }
+
+      if (geminiResponse.ok) {
+        break;
+      }
+
+      const errorPayload = await geminiResponse.json().catch(() => null);
       apiMessage =
-        error instanceof Error
-          ? `${model} could not be reached: ${error.message}`
-          : `${model} could not be reached.`;
-      continue;
+        errorPayload &&
+        typeof errorPayload === 'object' &&
+        'error' in errorPayload &&
+        errorPayload.error &&
+        typeof errorPayload.error === 'object' &&
+        'message' in errorPayload.error &&
+        typeof errorPayload.error.message === 'string'
+          ? errorPayload.error.message
+          : `Gemini request failed with status ${geminiResponse.status}.`;
+
+      if (geminiResponse.status !== 429 && geminiResponse.status < 500) {
+        break;
+      }
     }
 
-    if (geminiResponse.ok) {
-      break;
+    if (!geminiResponse?.ok) {
+      return { error: apiMessage || 'Gemini analysis failed.' };
     }
 
-    const errorPayload = await geminiResponse.json().catch(() => null);
-    apiMessage =
-      errorPayload &&
-      typeof errorPayload === 'object' &&
-      'error' in errorPayload &&
-      errorPayload.error &&
-      typeof errorPayload.error === 'object' &&
-      'message' in errorPayload.error &&
-      typeof errorPayload.error.message === 'string'
-        ? errorPayload.error.message
-        : `Gemini request failed with status ${geminiResponse.status}.`;
-
-    if (geminiResponse.status !== 429 && geminiResponse.status < 500) {
-      break;
+    const geminiPayload = await geminiResponse.json();
+    const responseText = geminiPayload?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof responseText !== 'string') {
+      return { error: 'Gemini did not return product details.' };
     }
+
+    try {
+      const parsed: unknown = JSON.parse(responseText);
+      if (!parsed || typeof parsed !== 'object') {
+        return { error: 'Gemini returned malformed product details.' };
+      }
+      return { data: parsed as Record<string, unknown> };
+    } catch {
+      return { error: 'Gemini returned malformed product details.' };
+    }
+  };
+
+  if (!isVariantMode) {
+    const result = await callGemini(buildRequestBody(prompt));
+    return 'error' in result ? jsonResponse({ error: result.error }, 502) : jsonResponse(result.data);
   }
 
-  if (!geminiResponse?.ok) {
-    return jsonResponse({ error: apiMessage || 'Gemini analysis failed.' }, 502);
+  // Variants can share a colour, so re-ask with the taken names until the suggestion is unique.
+  const takenNames = new Set(existingVariantNames.map((name) => name.toLowerCase()));
+  const rejectedNames: string[] = [];
+  let lastSuggestion: Record<string, unknown> | null = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const result = await callGemini(buildRequestBody(buildVariantPrompt(rejectedNames)));
+    if ('error' in result) {
+      return jsonResponse({ error: result.error }, 502);
+    }
+
+    lastSuggestion = result.data;
+    const name = typeof result.data.name === 'string' ? result.data.name.trim() : '';
+    if (name && !takenNames.has(name.toLowerCase())) {
+      return jsonResponse({ ...result.data, name });
+    }
+    if (name) rejectedNames.push(name);
   }
 
-  const geminiPayload = await geminiResponse.json();
-  const responseText = geminiPayload?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof responseText !== 'string') {
-    return jsonResponse({ error: 'Gemini did not return product details.' }, 502);
-  }
-
-  try {
-    return jsonResponse(JSON.parse(responseText));
-  } catch {
-    return jsonResponse({ error: 'Gemini returned malformed product details.' }, 502);
-  }
+  return jsonResponse(lastSuggestion ?? { error: 'Gemini did not suggest a variant name.' });
 });
