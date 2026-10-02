@@ -49,6 +49,49 @@ longest side and encoded as WebP at 82% quality when this reduces file size.
 This does not change images already stored in Supabase; to reduce storage usage,
 existing originals need a separate, reviewed migration.
 
+### Cloudflare R2 image storage
+
+Product images can be served from Cloudflare R2, which has no egress fees, to
+stay within Supabase's cached egress quota. R2 does not resize images on the fly,
+so the admin uploads the full WebP plus 160, 480 and 960 pixel copies
+(`<id>-w160.webp` and so on) through the `r2-images` Edge Function. The catalogue
+picks the smallest copy that fits. Until the function's R2 secrets are set it
+returns 501, and uploads automatically fall back to Supabase Storage.
+
+1. In the Cloudflare dashboard, enable R2 and create a bucket, such as
+   `luvia-product-images`.
+2. Give the bucket a public URL. The preferred option is the custom domain
+   `images.luviacreations.com`, which requires the domain's DNS zone to be on
+   Cloudflare. The `https://pub-….r2.dev` URL is rate-limited, so use it for
+   testing only.
+3. Add a bucket CORS rule that allows `GET` and `HEAD` from
+   `https://luviacreations.com`, `https://singhalgoru.github.io` and
+   `http://localhost:5173`.
+4. Create an R2 API token with **Object Read & Write** access to the bucket.
+5. Set the Edge Function secrets and deploy:
+
+   ```sh
+   npx supabase secrets set R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
+     R2_BUCKET=luvia-product-images R2_PUBLIC_URL=https://images.luviacreations.com \
+     R2_ACCOUNT_ID=<cloudflare-account-id>
+   npx supabase functions deploy r2-images
+   ```
+
+   `R2_ACCOUNT_ID` falls back to `CLOUDFLARE_ACCOUNT_ID` when omitted.
+6. Copy existing images and repoint the database rows. The script does a dry run
+   unless you pass `--apply`. It skips objects already in R2, so it can be rerun,
+   and it keeps the original Supabase objects:
+
+   ```sh
+   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... R2_ACCESS_KEY_ID=... \
+   R2_SECRET_ACCESS_KEY=... R2_BUCKET=... R2_PUBLIC_URL=... R2_ACCOUNT_ID=... \
+     node scripts/migrate-images-to-r2.mjs --apply
+   ```
+
+If you use a public URL other than `images.luviacreations.com` or `*.r2.dev`,
+add its host to `isR2ImageHost`, the CSP in `index.html` and
+`scripts/prerender.mjs`, and the service worker image cache in `vite.config.ts`.
+
 ## AI product image generation
 
 The admin console can generate studio and lifestyle product photos from uploaded

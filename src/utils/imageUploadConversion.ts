@@ -59,3 +59,31 @@ export async function convertImageForUpload(file: File): Promise<File> {
     lastModified: file.lastModified,
   });
 }
+
+const RESIZED_WEBP_QUALITY = 0.75;
+
+// Pre-generated display widths for storage without on-the-fly resizing (R2).
+export async function createResizedWebp(file: File, targetWidth: number): Promise<File> {
+  const image = await loadImageElement(file);
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error('The selected product image has invalid dimensions.');
+
+  const scale = Math.min(1, targetWidth / width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Unable to prepare the product image for upload.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) => result ? resolve(result) : reject(new Error('Unable to encode the product image as WebP.')),
+      'image/webp',
+      RESIZED_WEBP_QUALITY,
+    );
+  });
+  if (blob.type !== 'image/webp') throw new Error('WebP image encoding is not supported by this browser.');
+  return new File([blob], `w${targetWidth}.webp`, { type: 'image/webp' });
+}

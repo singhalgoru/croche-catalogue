@@ -4,6 +4,12 @@ import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { PRODUCT_COLUMNS } from './productColumns';
 import { getNewProductSortOrder } from './catalogueOrder';
+import {
+  deleteImagesFromR2,
+  isR2ImagePath,
+  R2_IMAGE_PATH_PREFIX,
+  uploadImageToR2,
+} from './r2ImageStorage';
 
 declare global {
   interface Window {
@@ -183,6 +189,9 @@ const PRODUCT_IMAGE_CACHE_SECONDS = 365 * 24 * 60 * 60;
 const uploadProductImage = async (file: File, userId: string) => {
   const client = requireSupabase();
   const uploadFile = await convertImageForUpload(file);
+  const r2Upload = await uploadImageToR2(uploadFile);
+  if (r2Upload) return r2Upload;
+
   const extension = uploadFile.name.split('.').pop()?.toLowerCase() || 'jpg';
   const imagePath = `${userId}/${crypto.randomUUID()}.${extension}`;
   const { error } = await client.storage.from('product-images').upload(imagePath, uploadFile, {
@@ -198,6 +207,12 @@ const uploadProductImage = async (file: File, userId: string) => {
 };
 
 const removeManagedImage = async (imagePath: string, userId: string) => {
+  if (isR2ImagePath(imagePath)) {
+    if (imagePath.startsWith(`${R2_IMAGE_PATH_PREFIX}products/${userId}/`)) {
+      await deleteImagesFromR2([imagePath]);
+    }
+    return;
+  }
   if (!imagePath.startsWith(`${userId}/`)) return;
   const client = requireSupabase();
   const { error } = await client.storage.from('product-images').remove([imagePath]);
@@ -206,8 +221,11 @@ const removeManagedImage = async (imagePath: string, userId: string) => {
 
 const cleanupUploadedImages = async (paths: string[]) => {
   if (paths.length === 0) return;
+  await deleteImagesFromR2(paths.filter(isR2ImagePath));
+  const storagePaths = paths.filter((path) => !isR2ImagePath(path));
+  if (storagePaths.length === 0) return;
   const client = requireSupabase();
-  const { error } = await client.storage.from('product-images').remove(paths);
+  const { error } = await client.storage.from('product-images').remove(storagePaths);
   if (error) throw new Error(`Image cleanup failed: ${error.message}`);
 };
 

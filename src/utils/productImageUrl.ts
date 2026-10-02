@@ -37,11 +37,35 @@ const transformedImageUrl = (source: string, width: number): string | null => {
   return url.toString();
 };
 
+// R2 has no on-the-fly resizing, so uploads store fixed widths next to the
+// full image: products/<user>/<id>.webp plus <id>-w160.webp, -w480, -w960.
+export const R2_IMAGE_WIDTHS = [160, 480, 960] as const;
+const R2_IMAGE_PATH = /^\/products\/[^/]+\/[^/]+\.webp$/;
+
+export const isR2ImageHost = (hostname: string) =>
+  hostname === 'images.luviacreations.com' || hostname.endsWith('.r2.dev');
+
+const r2SizedImageUrl = (source: string, width: number): string | null => {
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || !isR2ImageHost(url.hostname) || !R2_IMAGE_PATH.test(url.pathname)) {
+    return null;
+  }
+
+  const size = R2_IMAGE_WIDTHS.find((candidate) => candidate >= width);
+  if (size) url.pathname = url.pathname.replace(/\.webp$/, `-w${size}.webp`);
+  return url.toString();
+};
+
 export const getProductImageUrl = (source: string, width: number): string =>
-  transformedImageUrl(source, width) ?? normalizeProductImageUrl(source);
+  transformedImageUrl(source, width) ?? r2SizedImageUrl(source, width) ?? normalizeProductImageUrl(source);
 
 export const getProductCardSrcSet = (source: string): string | undefined => {
-  const small = transformedImageUrl(source, 480);
-  const large = transformedImageUrl(source, 960);
+  const small = transformedImageUrl(source, 480) ?? r2SizedImageUrl(source, 480);
+  const large = transformedImageUrl(source, 960) ?? r2SizedImageUrl(source, 960);
   return small && large ? `${small} 480w, ${large} 960w` : undefined;
 };

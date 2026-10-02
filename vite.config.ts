@@ -87,8 +87,10 @@ export default defineConfig({
           },
           {
             urlPattern: ({ url }) =>
-              url.hostname.endsWith('.supabase.co') &&
-              /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname),
+              (url.hostname.endsWith('.supabase.co') &&
+                /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname)) ||
+              ((url.hostname === 'images.luviacreations.com' || url.hostname.endsWith('.r2.dev')) &&
+                url.pathname.startsWith('/products/')),
             handler: 'CacheFirst',
             options: {
               cacheName: 'product-images',

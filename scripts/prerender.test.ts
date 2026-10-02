@@ -72,6 +72,13 @@ describe('parity with the app helpers', () => {
     expect(prerenderImageUrl(row.image_url, 960)).toBe(getProductImageUrl(row.image_url, 960));
   });
 
+  it('builds the same R2 sized image URL as the catalogue', () => {
+    for (const width of [96, 480, 960, 1600]) {
+      const r2Image = 'https://images.luviacreations.com/products/admin/abc.webp';
+      expect(prerenderImageUrl(r2Image, width)).toBe(getProductImageUrl(r2Image, width));
+    }
+  });
+
   it('rewrites legacy GitHub Pages images to absolute site URLs', () => {
     expect(
       prerenderImageUrl('https://singhalgoru.github.io/croche-catalogue/images/a.jpeg', 960),

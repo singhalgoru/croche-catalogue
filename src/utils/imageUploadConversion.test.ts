@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { convertImageForUpload } from './imageUploadConversion';
+import { convertImageForUpload, createResizedWebp } from './imageUploadConversion';
 
 const mockImageEncoding = (width: number, height: number, encodedSize: number) => {
   vi.stubGlobal('URL', {
@@ -51,5 +51,18 @@ describe('image upload compression', () => {
   it('rejects formats not supported by the image picker', async () => {
     const original = new File(['not an image'], 'photo.svg', { type: 'image/svg+xml' });
     await expect(convertImageForUpload(original)).rejects.toThrow('Upload a JPG, PNG or WebP');
+  });
+
+  it('creates fixed-width WebP copies without upscaling small images', async () => {
+    const { drawImage, toBlob } = mockImageEncoding(1600, 1200, 9_000);
+    const source = new File([new Uint8Array(10)], 'photo.webp', { type: 'image/webp' });
+
+    const resized = await createResizedWebp(source, 480);
+    expect(resized.name).toBe('w480.webp');
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 480, 360);
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.75);
+
+    await createResizedWebp(source, 2000);
+    expect(drawImage).toHaveBeenLastCalledWith(expect.anything(), 0, 0, 1600, 1200);
   });
 });

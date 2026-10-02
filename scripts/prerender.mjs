@@ -67,6 +67,17 @@ export const getProductImageUrl = (source, width) => {
     return url.toString();
   }
 
+  const R2_IMAGE_WIDTHS = [160, 480, 960];
+  if (
+    url.protocol === 'https:' &&
+    (url.hostname === 'images.luviacreations.com' || url.hostname.endsWith('.r2.dev')) &&
+    /^\/products\/[^/]+\/[^/]+\.webp$/.test(url.pathname)
+  ) {
+    const size = R2_IMAGE_WIDTHS.find((candidate) => candidate >= width);
+    if (size) url.pathname = url.pathname.replace(/\.webp$/, `-w${size}.webp`);
+    return url.toString();
+  }
+
   if (
     url.hostname === 'singhalgoru.github.io' &&
     url.pathname.startsWith(LEGACY_CATALOGUE_IMAGE_PATH)
@@ -326,7 +337,7 @@ const renderProductPage = (product, whatsappNumber) => {
     <!-- These pages are static: no scripts, only the inline stylesheet below. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src 'self' https://luviacreations.com https://singhalgoru.github.io https://*.supabase.co; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'"
+      content="default-src 'none'; img-src 'self' https://luviacreations.com https://singhalgoru.github.io https://*.supabase.co https://images.luviacreations.com https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />

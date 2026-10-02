@@ -32,4 +32,23 @@ describe('product image delivery', () => {
     expect(normalizeProductImageUrl(legacyImage)).toBe('/images/Flower%20Charm.jpeg');
     expect(getProductImageUrl(legacyImage, 960)).toBe('/images/Flower%20Charm.jpeg');
   });
+
+  it('serves the closest pre-generated R2 width, falling back to the full image', () => {
+    const r2Image = 'https://images.luviacreations.com/products/admin/abc.webp';
+
+    expect(getProductImageUrl(r2Image, 96)).toBe(
+      'https://images.luviacreations.com/products/admin/abc-w160.webp',
+    );
+    expect(getProductImageUrl(r2Image, 480)).toBe(
+      'https://images.luviacreations.com/products/admin/abc-w480.webp',
+    );
+    expect(getProductImageUrl(r2Image, 1080)).toBe(r2Image);
+    expect(getProductCardSrcSet(r2Image)).toBe(
+      'https://images.luviacreations.com/products/admin/abc-w480.webp 480w, ' +
+        'https://images.luviacreations.com/products/admin/abc-w960.webp 960w',
+    );
+    expect(getProductImageUrl('https://pub-1.r2.dev/products/admin/abc.webp', 960)).toBe(
+      'https://pub-1.r2.dev/products/admin/abc-w960.webp',
+    );
+  });
 });

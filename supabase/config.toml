@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.enhance-product-image]
 verify_jwt = true
+
+[functions.r2-images]
+verify_jwt = true
