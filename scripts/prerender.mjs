@@ -28,7 +28,7 @@ const FALLBACK_WHATSAPP_NUMBER = '918800221074';
 
 const PRODUCT_SELECT =
   'id,name,category,description,price,show_price,in_stock,image_url,published_at,sort_order,created_at,' +
-  'product_variants(id,name,color,price,in_stock,image_url,sort_order)';
+  'product_variants(id,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
@@ -126,7 +126,12 @@ const toProduct = (row) => {
     image: row.image_url ?? '',
     publishedAt: row.published_at ?? null,
     variants: variants.map((variant) => ({
+      id: variant.id,
       name: variant.name ?? variant.color ?? '',
+      image: variant.image_url ?? '',
+      images: [...(variant.product_variant_images ?? [])]
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((image) => image.image_url).filter(Boolean),
       price: variant.price ?? null,
       inStock: variant.in_stock !== false,
     })),
@@ -148,7 +153,7 @@ const whatsappLink = (product, number) =>
     `Hi Luvia, I would like to order/enquire about "${product.name}" from the ${product.category} collection.`,
   )}`;
 
-const productUrl = (product) => `${ORIGIN}/p/${toProductReference(product)}/`;
+const productUrl = (product) => product.url ?? `${ORIGIN}/p/${toProductReference(product)}/`;
 
 const availability = (product) =>
   product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
@@ -364,7 +369,7 @@ const appRedirectScript = (reference) =>
 
 const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).digest('base64')}'`;
 
-const renderProductPage = (product, whatsappNumber, socialImage = null) => {
+const renderProductPage = (product, whatsappNumber, socialImage = null, redirectToApp = true) => {
   const url = productUrl(product);
   const title = `${product.name} — Handmade Crochet ${product.category} | Luvia Creations`;
   const description = truncate(
@@ -390,7 +395,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src ${scriptHash(redirect)}; img-src 'self' https://luviacreations.com https://singhalgoru.github.io https://*.supabase.co https://images.luviacreations.com https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'"
     />
-    <script>${redirect}</script>
+    ${redirectToApp ? `<script>${redirect}</script>` : ''}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -443,9 +448,10 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
       }
       <p>
         <a class="cta" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Order on WhatsApp</a>
-        <a class="cta alt" href="/#product=${encodeURIComponent(toProductReference(product))}">View in the catalogue</a>
+        <a class="cta alt" href="/#product=${encodeURIComponent(product.catalogueReference ?? toProductReference(product))}">View in the catalogue</a>
       </p>
       <footer>
+        <p><a href="/return-policy/">Return and refund policy</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
         <p>Luvia Creations makes handmade crochet accessories, gifts, toys and decor, shipped across India.
         <a href="/">Browse the full catalogue</a> or follow
         <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>

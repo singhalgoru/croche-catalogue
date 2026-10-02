@@ -77,6 +77,41 @@ to both buckets. A manifest records the private originals for restore checks.
 Neither backup deletes images that disappear from live storage. The existing
 pre-watermark originals remain in the older `r2-images/` backup paths.
 
+## Google Merchant Center
+
+Deployments generate `https://luviacreations.com/merchant-feed.xml`, a Google
+RSS product feed. Add it as a scheduled file data source in Merchant Center
+(English, India, INR; daily fetch). Each priced published variant has a stable
+ID, its own static `/shopping/` landing page, matching price and stock, description,
+brand and a clean WebP `image_link`. Price-on-request products are excluded with
+a build warning. Reviewed photos containing promotional text are listed in
+`scripts/merchant-feed.mjs`: the feed uses an alternate variant gallery photo
+where available, otherwise excludes the item with a warning until a plain photo
+is uploaded. New uploads should be reviewed for Google image-policy compliance.
+Invalid descriptions, prices or missing clean images fail
+deployment rather than publishing incomplete items. Handmade items without
+assigned GTIN/MPN use `identifier_exists=no`; no identifiers are invented.
+
+Only referenced clean processed photos are copied from private R2 to public
+`/merchant-images/` files on GitHub Pages, with content-hashed names. The private
+bucket and historical backups stay private, and the main catalogue retains its
+watermarks. Never upload watermarked inputs into the clean archive. Older clean
+photos must first be restored from the pre-watermark backup to the matching
+`<admin-id>/<image-id>/original.webp` key (or `static/<name>/original.webp`).
+R2 credentials are available only to the separate server-side feed build step,
+not the Vite client build. Catalogue-triggered deployments refresh the feed.
+For local validation, run `npm run build` followed by
+`node --env-file=.env.r2.local scripts/merchant-feed.mjs` with
+`R2_ORIGINALS_BUCKET` set. For a one-time legacy restore, use
+`node --env-file=.env.r2.local scripts/restore-merchant-originals.mjs --backup=<absolute-backup-path>`;
+it verifies the sources in a dry run. Add `--apply` to upload and byte-verify
+them in private R2; existing originals are never overwritten.
+
+Shipping settings must be supplied in Merchant Center with actual delivery
+prices/times; the feed does not invent them. The feed is not an approval
+guarantee: Google reviews the website, images and policies, and WhatsApp-only
+ordering may not meet its online purchase requirements.
+
 ## AI product image generation
 
 The admin console can generate studio and lifestyle product photos from uploaded
