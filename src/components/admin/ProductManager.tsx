@@ -8,6 +8,7 @@ import {
   type ProductUpdate,
 } from '../../services/products';
 import type { Category } from '../../types/product';
+import { getProductImageUrl } from '../../utils/productImageUrl';
 import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
 
@@ -314,8 +315,10 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
               >
                 <div className="flex gap-3 sm:gap-4">
                   <img
-                    src={product.image}
+                    src={getProductImageUrl(product.image, 160)}
                     alt={product.name}
+                    loading="lazy"
+                    decoding="async"
                     className="h-20 w-20 shrink-0 rounded-xl bg-cream object-cover sm:h-24 sm:w-24"
                   />
                   <div className="min-w-0 flex-1">
