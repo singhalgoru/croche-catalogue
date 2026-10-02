@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { requestPageReload } from './utils/pageReload';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CategoryFilter from './components/CategoryFilter';
@@ -36,15 +37,10 @@ function App() {
   const tickerMessages = useTickerMessages(!isAdminPage);
 
   // Registered once for the whole app so both the shop and admin console
-  // (see AdminPage.tsx) are installable as home-screen apps.
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({ immediate: true });
-
-  useEffect(() => {
-    if (needRefresh) void updateServiceWorker(true);
-  }, [needRefresh, updateServiceWorker]);
+  // (see AdminPage.tsx) are installable as home-screen apps. With autoUpdate,
+  // a new deploy activates and reloads the page; requestPageReload defers that
+  // while the install dialog is open.
+  useRegisterSW({ immediate: true, onNeedReload: requestPageReload });
 
   useEffect(() => {
     const updateRoute = () => setIsAdminPage(window.location.hash === '#admin');

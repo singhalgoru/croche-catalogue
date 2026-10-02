@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { trackEvent } from '../services/analytics';
+import { holdPageReload } from '../utils/pageReload';
 
 // Chrome/Android's own type for the event isn't in lib.dom yet.
 interface BeforeInstallPromptEvent extends Event {
@@ -42,11 +43,19 @@ export function useInstallPrompt() {
 
   const promptInstall = async () => {
     if (!deferredPrompt) return;
-    trackEvent('pwa_install_prompt_shown');
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    trackEvent('pwa_install_prompt_result', { outcome });
+    // prompt() works once per event, so drop it before a double tap can reuse it.
     setDeferredPrompt(null);
+    trackEvent('pwa_install_prompt_shown');
+    const releaseReload = holdPageReload();
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      trackEvent('pwa_install_prompt_result', { outcome });
+    } catch {
+      trackEvent('pwa_install_prompt_result', { outcome: 'error' });
+    } finally {
+      releaseReload();
+    }
   };
 
   return { canInstall: Boolean(deferredPrompt) && !isInstalled, promptInstall };
