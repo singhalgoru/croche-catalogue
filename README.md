@@ -90,8 +90,11 @@ returns 501, and uploads automatically fall back to Supabase Storage.
    ```
 
 If you use a public URL other than `images.luviacreations.com` or `*.r2.dev`,
-add its host to `isR2ImageHost`, the CSP in `index.html` and
-`scripts/prerender.mjs`, and the service worker image cache in `vite.config.ts`.
+add its host to `isR2ImageHost`, the CSP in `index.html`,
+`scripts/prerender.mjs` and `public/catalogue-prefetch.js`. R2 photos are
+intentionally left out of the service worker cache: they are served with an
+immutable one-year `Cache-Control`, and routing `<img>` loads through the worker
+made them depend on R2's conditional CORS headers.
 
 ## AI product image generation
 

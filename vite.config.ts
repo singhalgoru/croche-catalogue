@@ -67,6 +67,11 @@ export default defineConfig({
       // so it can drive an in-app "update available" experience later.
       injectRegister: false,
       workbox: {
+        // Activate new versions immediately; otherwise an installed app can
+        // keep running a stale bundle until every window is closed.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // Product pages and crawler files must come from the network, not the
         // cached SPA shell when opened in an installed browser.
         navigateFallbackDenylist: [/^\/p\//, /^\/(?:robots\.txt|sitemap\.xml)$/],
@@ -74,6 +79,10 @@ export default defineConfig({
         // objects were uploaded with short cache lifetimes. Product uploads get
         // a fresh UUID path and are never overwritten, so keep them for 30 days;
         // every service-worker hit is egress Supabase never serves.
+        // Cloudflare R2 photos are deliberately not handled here: they are
+        // served with immutable year-long Cache-Control and free egress, and
+        // R2 only sends CORS headers when a request carries an Origin, so
+        // routing <img> loads through the worker made them fail.
         runtimeCaching: [
           {
             urlPattern: ({ sameOrigin, url }) =>
@@ -87,10 +96,8 @@ export default defineConfig({
           },
           {
             urlPattern: ({ url }) =>
-              (url.hostname.endsWith('.supabase.co') &&
-                /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname)) ||
-              ((url.hostname === 'images.luviacreations.com' || url.hostname.endsWith('.r2.dev')) &&
-                url.pathname.startsWith('/products/')),
+              url.hostname.endsWith('.supabase.co') &&
+              /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname),
             handler: 'CacheFirst',
             options: {
               cacheName: 'product-images',
@@ -101,16 +108,12 @@ export default defineConfig({
                   // <img> requests are no-cors, whose opaque responses hide
                   // the status (so errors could be cached) and are padded to
                   // megabytes of storage quota each, so fetch in cors mode,
-                  // keeping Accept so WebP is negotiated. R2 only adds CORS
-                  // headers when an Origin is sent and doesn't Vary on it, so
-                  // the HTTP cache may hold a header-less copy from an earlier
-                  // <img> load; 'reload' bypasses it to avoid a CORS failure.
+                  // keeping Accept so WebP is negotiated.
                   requestWillFetch: async ({ request }) =>
                     request.mode === 'no-cors'
                       ? new Request(request.url, {
                           mode: 'cors',
                           credentials: 'omit',
-                          cache: 'reload',
                           headers: { Accept: request.headers.get('Accept') ?? 'image/webp,image/*' },
                         })
                       : request,
