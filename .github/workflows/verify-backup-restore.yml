@@ -1,0 +1,131 @@
+name: Verify Backup Restore
+
+# Restore drill. Decrypts the latest database backup from the private backups
+# repo, restores it into a throwaway Supabase Postgres container, and checks
+# that:
+#   - every public table that exists in production was restored;
+#   - catalogue and account row counts match production;
+#   - every image the restored catalogue references is in the image backup.
+# Production is only read (row counts), never written. Logs show counts and
+# error messages only, never row data, because this repository is public.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 22 1 * *' # monthly, 90 minutes after the daily backup
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      RESTORED_DB: postgresql://supabase_admin:postgres@localhost:54329/postgres
+    steps:
+      - name: Start throwaway Supabase Postgres
+        # Same major/minor version as production (PostgreSQL 17.6).
+        run: docker run -d --name restore-db -e POSTGRES_PASSWORD=postgres -p 54329:5432 supabase/postgres:17.6.1.178
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common gnupg
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+
+      - name: Fetch and decrypt the latest backup
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/singhalgoru/croche-catalogue-backups.git" backup-repo
+          echo "Backup taken at: $(cat backup-repo/last-backup-timestamp.txt)"
+          gpg --batch --quiet --passphrase "$BACKUP_GPG_PASSPHRASE" -d backup-repo/backup-latest.sql.gz.gpg | gunzip > backup.sql
+          echo "Decrypted dump: $(du -h backup.sql | cut -f1)"
+
+      - name: Wait for the database to finish initialising
+        run: |
+          for i in $(seq 1 90); do
+            if psql "$RESTORED_DB" -Atq -c "select 1 from pg_roles where rolname = 'authenticated'" 2>/dev/null | grep -q 1; then
+              echo "Ready after ~$((i * 2))s"; exit 0
+            fi
+            sleep 2
+          done
+          docker logs restore-db | tail -40
+          exit 1
+
+      - name: Restore the backup
+        run: |
+          set -uo pipefail
+          psql "$RESTORED_DB" -q -v ON_ERROR_STOP=0 -f backup.sql > /dev/null 2> restore.log
+          errors=$(grep -c 'ERROR:' restore.log || true)
+          echo "Restore finished with ${errors} statement errors (Supabase-managed objects that already exist are expected)."
+          # Message text only: DETAIL lines, which can contain values, are skipped.
+          grep -o 'ERROR: .*' restore.log | sort | uniq -c | sort -rn | head -40 || true
+
+      - name: Compare with production
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          failed=0
+          live_tables=$(psql "$SUPABASE_DB_URL" -Atq -c "select tablename from pg_tables where schemaname = 'public' order by 1")
+          for table in $live_tables; do
+            live=$(psql "$SUPABASE_DB_URL" -Atq -c "select count(*) from public.\"$table\"")
+            restored=$(psql "$RESTORED_DB" -Atq -c "select count(*) from public.\"$table\"" 2>/dev/null || echo missing)
+            case "$table" in
+              products|product_variants|product_variant_images|categories|catalogue_admins) strict=1 ;;
+              *) strict=0 ;;
+            esac
+            if [ "$restored" = missing ]; then
+              echo "::error::public.$table was not restored"; failed=1
+            elif [ "$live" != "$restored" ]; then
+              if [ "$strict" = 1 ]; then
+                echo "::error::public.$table: production $live rows, restored $restored"; failed=1
+              else
+                echo "::warning::public.$table: production $live rows, restored $restored (changes since the backup are expected here)"
+              fi
+            else
+              echo "OK  public.$table  $restored rows"
+            fi
+          done
+
+          live_users=$(psql "$SUPABASE_DB_URL" -Atq -c "select count(*) from auth.users")
+          restored_users=$(psql "$RESTORED_DB" -Atq -c "select count(*) from auth.users" 2>/dev/null || echo missing)
+          if [ "$live_users" = "$restored_users" ]; then
+            echo "OK  auth.users  $restored_users accounts"
+          else
+            echo "::error::auth.users: production $live_users, restored $restored_users"; failed=1
+          fi
+
+          admin_login=$(psql "$RESTORED_DB" -Atq -c "select count(*) from public.catalogue_admins a join auth.users u on u.id = a.user_id" 2>/dev/null || echo 0)
+          echo "Admins with a restored login: $admin_login"
+          [ "$admin_login" -gt 0 ] || { echo "::error::No catalogue admin has a matching restored login"; failed=1; }
+
+          exit $failed
+
+      - name: Check every referenced image is in the image backup
+        run: |
+          set -euo pipefail
+          psql "$RESTORED_DB" -Atq -c "
+            select image_path from public.products
+            union select image_path from public.product_variants
+            union select image_path from public.product_variant_images" > image-paths.txt
+          total=$(wc -l < image-paths.txt)
+          not_r2=$(grep -vc '^r2:' image-paths.txt || true)
+          missing=0
+          while read -r path; do
+            [[ "$path" == r2:* ]] || continue
+            base="backup-repo/r2-images/${path#r2:}"
+            base="${base%.webp}"
+            for file in "$base.webp" "$base-w160.webp" "$base-w480.webp" "$base-w960.webp"; do
+              if [ ! -s "$file" ]; then
+                echo "::error::Missing from image backup: ${file#backup-repo/r2-images/}"; missing=$((missing + 1))
+              fi
+            done
+          done < image-paths.txt
+          echo "$total images referenced; $not_r2 not stored in R2; $missing backup files missing."
+          [ "$not_r2" -eq 0 ] || echo "::warning::$not_r2 images are not in R2, so the image backup does not cover them."
+          [ "$missing" -eq 0 ]
