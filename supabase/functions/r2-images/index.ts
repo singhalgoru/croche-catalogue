@@ -147,13 +147,12 @@ Deno.serve(async (request) => {
   if (form.get('action') === 'archive-original') {
     const id = form.get('imageId');
     const original = form.get('original');
-    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
     if (typeof id !== 'string' || !IMAGE_ID.test(id) ||
-      !(original instanceof File) || !extensions[original.type] ||
+      !(original instanceof File) || original.type !== 'image/webp' ||
       !original.size || original.size > MAX_FILE_BYTES) {
-      return jsonResponse({ error: 'A valid image identifier and JPG, PNG or WebP original up to 6 MB are required.' }, 400);
+      return jsonResponse({ error: 'A valid image identifier and processed unwatermarked WebP up to 6 MB are required.' }, 400);
     }
-    const key = `${userData.user.id}/${id}/original.${extensions[original.type]}`;
+    const key = `${userData.user.id}/${id}/original.webp`;
     try {
       const response = await r2.client.fetch(`${originalsEndpoint}/${key}`, {
         method: 'PUT', body: new Uint8Array(await original.arrayBuffer()),

@@ -42,6 +42,20 @@ afterEach(() => {
 });
 
 describe('image upload compression', () => {
+  it('creates a processed clean WebP with the same size and quality limits but no badge', async () => {
+    const { drawImage, toBlob, context } = mockImageEncoding(3200, 1600, 50_000);
+    const original = new File([new Uint8Array(1_000_000)], 'photo.png', { type: 'image/png' });
+    const converted = await convertImageForUpload(original, { watermark: false });
+
+    expect(converted.name).toBe('photo.webp');
+    expect(converted.type).toBe('image/webp');
+    expect(converted.size).toBe(50_000);
+    expect(drawImage).toHaveBeenCalledTimes(1);
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1600, 800);
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.82);
+    expect(context.save).not.toHaveBeenCalled();
+    expect(context.arc).not.toHaveBeenCalled();
+  });
   it('resizes even existing WebP files to 1600px and recompresses at 82% quality', async () => {
     const { drawImage, toBlob } = mockImageEncoding(3200, 1600, 50_000);
     const original = new File([new Uint8Array(1_000_000)], 'photo.webp', { type: 'image/webp' });

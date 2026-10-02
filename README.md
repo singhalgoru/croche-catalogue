@@ -56,13 +56,15 @@ The database and images are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
 
 Before any new product, variant, gallery or AI-generated image is published,
-its exact unwatermarked JPG/PNG/WebP file is archived in a separate private R2
-bucket (up to 6 MB), configured through the server-side `R2_ORIGINALS_BUCKET`.
+an unwatermarked, processed WebP is archived in a separate private R2 bucket
+(up to 6 MB), configured through the server-side `R2_ORIGINALS_BUCKET`.
+It uses the same 1600-pixel longest-side limit and 82% WebP quality as the
+public image, without adding the watermark. Raw JPG/PNG uploads are not archived.
 Neither an r2.dev URL nor a custom domain is enabled for this bucket.
 Only authenticated catalogue admins can archive files through the Edge Function;
 uploads cannot proceed if archival fails. The public watermarked
 copy uses the same UUID on R2 or the Supabase fallback, linking it to
-`<admin-id>/<uuid>/original.<extension>`. Removing a public photo does not
+`<admin-id>/<uuid>/original.webp`. Removing a public photo does not
 remove its archived original. Previously watermarked input cannot be unmarked:
 upload a clean original if one is available.
 

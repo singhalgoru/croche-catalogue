@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { archiveImageOriginal } from './imageOriginals';
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
+const { invoke, convert } = vi.hoisted(() => ({ invoke: vi.fn(), convert: vi.fn() }));
+vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: convert }));
 vi.mock('../lib/supabaseConfig', () => ({
   loadSupabase: async () => ({ functions: { invoke } }),
 }));
@@ -9,22 +10,24 @@ vi.mock('../lib/supabaseConfig', () => ({
 describe('archiveImageOriginal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    convert.mockResolvedValue(new File(['processed'], 'photo.webp', { type: 'image/webp' }));
     invoke.mockImplementation(async (_name: string, { body }: { body: FormData }) =>
       ({ data: { imageId: body.get('imageId') }, error: null }));
   });
 
-  it.each([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']])(
-    'archives the exact %s file privately before publication',
-    async (type, extension) => {
+  it.each(['image/jpeg', 'image/png', 'image/webp'])(
+    'archives a processed clean WebP for %s input before publication',
+    async (type) => {
       const file = new File(['unwatermarked original bytes'], 'photo', { type });
       const id = await archiveImageOriginal(file);
       const [name, { body }] = invoke.mock.calls[0];
       expect(name).toBe('r2-images');
       expect(body.get('imageId')).toBe(id);
       expect(body.get('action')).toBe('archive-original');
-      expect(body.get('original').name).toBe(`original.${extension}`);
-      expect(body.get('original').type).toBe(type);
-      expect(body.get('original').size).toBe(file.size);
+      expect(convert).toHaveBeenCalledWith(file, { watermark: false });
+      expect(body.get('original').name).toBe('original.webp');
+      expect(body.get('original').type).toBe('image/webp');
+      expect(body.get('original').size).toBe(9);
     },
   );
 
@@ -49,5 +52,12 @@ describe('archiveImageOriginal', () => {
     invoke.mockResolvedValue({ data: { imageId: 'wrong-id' }, error: null });
     await expect(archiveImageOriginal(new File(['x'], 'photo.png', { type: 'image/png' })))
       .rejects.toThrow('invalid response');
+  });
+
+  it('does not archive when clean image processing fails', async () => {
+    convert.mockRejectedValueOnce(new Error('Encoding failed'));
+    await expect(archiveImageOriginal(new File(['x'], 'photo.png', { type: 'image/png' })))
+      .rejects.toThrow('Encoding failed');
+    expect(invoke).not.toHaveBeenCalled();
   });
 });
