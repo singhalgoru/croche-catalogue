@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabaseConfig';
 import { fetchActiveTickerMessages } from '../services/ticker';
 
 const FALLBACK_MESSAGE = '🚚 Shipping available across India';

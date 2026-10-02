@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { isSupabaseConfigured, loadSupabase } from '../lib/supabaseConfig';
 import type { Product, ProductVariant } from '../types/product';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
@@ -113,6 +113,7 @@ const refreshLocalCart = (cart: Cart): Cart => {
 };
 
 const ensureCartSession = async () => {
+  const supabase = await loadSupabase();
   if (!supabase) return null;
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw new Error(`Unable to restore your cart session: ${sessionError.message}`);
@@ -129,6 +130,7 @@ const ensureCartSession = async () => {
 };
 
 const loadRemoteCart = async (): Promise<Cart> => {
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error('Supabase is not configured.');
   const user = await ensureCartSession();
   if (!user) throw new Error('Unable to identify the cart owner.');
@@ -184,6 +186,7 @@ const loadRemoteCart = async (): Promise<Cart> => {
 };
 
 const touchRemoteCart = async (cartId: string) => {
+  const supabase = await loadSupabase();
   if (!supabase) return;
   const { error } = await supabase
     .from('carts')
@@ -198,6 +201,7 @@ const touchRemoteCart = async (cartId: string) => {
 };
 
 export async function fetchCart(): Promise<Cart> {
+  const supabase = await loadSupabase();
   if (!isSupabaseConfigured) return writeLocalCart(readLocalCart());
   if (!supabase) throw new Error('Supabase is not configured.');
   const { data, error } = await supabase.auth.getSession();
@@ -210,6 +214,7 @@ export async function addProductToCart(
   product: Product,
   variant: ProductVariant,
 ): Promise<Cart> {
+  const supabase = await loadSupabase();
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
     const existing = current.items.find(
@@ -259,6 +264,7 @@ export async function addProductToCart(
 }
 
 export async function updateCartItemQuantity(itemId: string, quantity: number): Promise<Cart> {
+  const supabase = await loadSupabase();
   const nextQuantity = Math.min(Math.max(Math.round(quantity), 1), 99);
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
@@ -282,6 +288,7 @@ export async function updateCartItemQuantity(itemId: string, quantity: number): 
 }
 
 export async function removeCartItem(itemId: string): Promise<Cart> {
+  const supabase = await loadSupabase();
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
     if (current.items.length === 1 && current.items[0].id === itemId) {
@@ -312,6 +319,7 @@ export async function removeCartItem(itemId: string): Promise<Cart> {
 }
 
 export async function clearCart(): Promise<Cart> {
+  const supabase = await loadSupabase();
   if (!isSupabaseConfigured || !supabase) {
     localStorage.removeItem(LOCAL_CART_KEY);
     return writeLocalCart(createLocalCart());
@@ -324,6 +332,7 @@ export async function clearCart(): Promise<Cart> {
 }
 
 export async function markCartWhatsAppStarted(): Promise<Cart> {
+  const supabase = await loadSupabase();
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
     const now = new Date().toISOString();
@@ -351,6 +360,7 @@ export async function markCartWhatsAppStarted(): Promise<Cart> {
 }
 
 export async function fetchAdminCarts(): Promise<AdminCart[]> {
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error('Supabase is not configured.');
   const { data, error } = await supabase
     .from('carts')
@@ -368,6 +378,7 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
 }
 
 export async function deleteAdminCart(cartId: string): Promise<void> {
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error('Supabase is not configured.');
   const { error } = await supabase.from('carts').delete().eq('id', cartId);
   if (error) throw new Error(`Unable to delete the customer cart: ${error.message}`);

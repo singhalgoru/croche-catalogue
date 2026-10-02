@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { products as localProducts } from '../data/products';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabaseConfig';
 import { fetchCategorySettings } from '../services/categories';
 import { fetchPublishedProducts } from '../services/products';
 import type { CategorySettings, Product } from '../types/product';

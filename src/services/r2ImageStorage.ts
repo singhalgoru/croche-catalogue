@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { loadSupabase } from '../lib/supabaseConfig';
 import { createResizedWebp } from '../utils/imageUploadConversion';
 import { R2_IMAGE_WIDTHS } from '../utils/productImageUrl';
 
@@ -42,6 +42,7 @@ const getErrorMessage = async (error: { message: string; context?: unknown }) =>
  * Returns null when R2 is not configured so callers can use Supabase Storage.
  */
 export async function uploadImageToR2(file: File): Promise<StoredImage | null> {
+  const supabase = await loadSupabase();
   if (!supabase || r2Unavailable) return null;
 
   const form = new FormData();
@@ -76,6 +77,7 @@ export async function uploadImageToR2(file: File): Promise<StoredImage | null> {
 }
 
 export async function deleteImagesFromR2(imagePaths: string[]): Promise<void> {
+  const supabase = await loadSupabase();
   const paths = imagePaths.filter(isR2ImagePath);
   if (paths.length === 0) return;
   if (!supabase) throw new Error('Supabase is not configured.');

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { loadSupabase } from '../lib/supabaseConfig';
 import type { TickerMessage } from '../types/ticker';
 
 interface TickerMessageRow {
@@ -10,7 +10,8 @@ interface TickerMessageRow {
 
 const COLUMNS = 'id, message, is_active, sort_order';
 
-const requireSupabase = () => {
+const requireSupabase = async () => {
+  const supabase = await loadSupabase();
   if (!supabase) throw new Error('Supabase is not configured.');
   return supabase;
 };
@@ -23,7 +24,7 @@ const mapTickerMessage = (row: TickerMessageRow): TickerMessage => ({
 });
 
 export async function fetchActiveTickerMessages(): Promise<TickerMessage[]> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { data, error } = await client
     .from('ticker_messages')
     .select(COLUMNS)
@@ -35,7 +36,7 @@ export async function fetchActiveTickerMessages(): Promise<TickerMessage[]> {
 }
 
 export async function fetchAdminTickerMessages(): Promise<TickerMessage[]> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { data, error } = await client
     .from('ticker_messages')
     .select(COLUMNS)
@@ -46,7 +47,7 @@ export async function fetchAdminTickerMessages(): Promise<TickerMessage[]> {
 }
 
 export async function createTickerMessage(message: string): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const existing = await fetchAdminTickerMessages();
   const { error } = await client.from('ticker_messages').insert({
     message: message.trim(),
@@ -60,7 +61,7 @@ export async function updateTickerMessage(
   id: string,
   changes: { message?: string; isActive?: boolean },
 ): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client
     .from('ticker_messages')
     .update({
@@ -73,13 +74,13 @@ export async function updateTickerMessage(
 }
 
 export async function deleteTickerMessage(id: string): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.from('ticker_messages').delete().eq('id', id);
   if (error) throw new Error(`Unable to delete the ticker message: ${error.message}`);
 }
 
 export async function reorderTickerMessages(messages: TickerMessage[]): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   for (const [sortOrder, message] of messages.entries()) {
     const { error } = await client
       .from('ticker_messages')

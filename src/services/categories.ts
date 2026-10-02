@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { loadSupabase } from '../lib/supabaseConfig';
 import type { Category, CategorySettings } from '../types/product';
 
 interface CategoryRow {
@@ -12,7 +12,8 @@ declare global {
   }
 }
 
-const requireSupabase = () => {
+const requireSupabase = async () => {
+  const supabase = await loadSupabase();
   if (!supabase) {
     throw new Error(
       'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
@@ -28,7 +29,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
   if (initial) {
     rows = await initial;
   } else {
-    const client = requireSupabase();
+    const client = await requireSupabase();
     const { data, error } = await client
       .from('categories')
       .select('name, sort_order')
@@ -50,7 +51,7 @@ export async function fetchCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(name: string): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const normalizedName = name.trim();
   const { error } = await client.from('categories').insert({ name: normalizedName, sort_order: 100 });
 
@@ -64,7 +65,7 @@ export async function createCategory(name: string): Promise<void> {
 }
 
 export async function renameCategory(currentName: string, replacementName: string): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.rpc('rename_catalogue_category', {
     current_name: currentName,
     replacement_name: replacementName.trim(),
@@ -76,7 +77,7 @@ export async function renameCategory(currentName: string, replacementName: strin
 }
 
 export async function deleteCategory(name: string): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.from('categories').delete().eq('name', name);
 
   if (error) {
@@ -92,7 +93,7 @@ export async function updateCategoryPresentation(
   name: string,
   priority: number,
 ): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.rpc('update_catalogue_category_priority', {
     category_name: name,
     category_priority: priority,

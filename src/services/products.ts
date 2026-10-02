@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { loadSupabase } from '../lib/supabaseConfig';
 import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
@@ -103,7 +103,8 @@ export interface VariantUpdate {
   imageFile?: File | null;
 }
 
-const requireSupabase = () => {
+const requireSupabase = async () => {
+  const supabase = await loadSupabase();
   if (!supabase) {
     throw new Error(
       'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
@@ -171,7 +172,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
 };
 
 const getCurrentUser = async () => {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const {
     data: { user },
     error,
@@ -187,7 +188,7 @@ const getCurrentUser = async () => {
 const PRODUCT_IMAGE_CACHE_SECONDS = 365 * 24 * 60 * 60;
 
 const uploadProductImage = async (file: File, userId: string) => {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const uploadFile = await convertImageForUpload(file);
   const r2Upload = await uploadImageToR2(uploadFile);
   if (r2Upload) return r2Upload;
@@ -214,7 +215,7 @@ const removeManagedImage = async (imagePath: string, userId: string) => {
     return;
   }
   if (!imagePath.startsWith(`${userId}/`)) return;
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.storage.from('product-images').remove([imagePath]);
   if (error) throw new Error(`Unable to remove a product image: ${error.message}`);
 };
@@ -224,13 +225,13 @@ const cleanupUploadedImages = async (paths: string[]) => {
   await deleteImagesFromR2(paths.filter(isR2ImagePath));
   const storagePaths = paths.filter((path) => !isR2ImagePath(path));
   if (storagePaths.length === 0) return;
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.storage.from('product-images').remove(storagePaths);
   if (error) throw new Error(`Image cleanup failed: ${error.message}`);
 };
 
 const fetchProductById = async (productId: string): Promise<ManagedProduct> => {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { data, error } = await client
     .from('products')
     .select(PRODUCT_COLUMNS)
@@ -243,7 +244,7 @@ const fetchProductById = async (productId: string): Promise<ManagedProduct> => {
 const syncProductSummary = async (productId: string) => {
   const product = await fetchProductById(productId);
   const primary = product.variants[0];
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client
     .from('products')
     .update({
@@ -261,7 +262,7 @@ export async function fetchPublishedProducts(): Promise<Product[]> {
   const initial = window.cataloguePrefetch;
   window.cataloguePrefetch = undefined;
   if (initial) return (await initial as ProductRow[]).map(mapProductRow);
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { data, error } = await client
     .from('products')
     .select(PRODUCT_COLUMNS)
@@ -273,7 +274,7 @@ export async function fetchPublishedProducts(): Promise<Product[]> {
 }
 
 export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { data, error } = await client
     .from('products')
     .select(PRODUCT_COLUMNS)
@@ -384,7 +385,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
 }
 
 export async function reorderProducts(productIds: string[]): Promise<void> {
-  const client = requireSupabase();
+  const client = await requireSupabase();
   const { error } = await client.rpc('reorder_catalogue_products', {
     ordered_product_ids: productIds,
   });
