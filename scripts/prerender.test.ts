@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   escapeHtml,
@@ -197,8 +198,19 @@ describe('renderProductPage', () => {
       '910000000000',
     );
     const scripts = escaped.match(/<script/g) ?? [];
-    expect(scripts).toHaveLength(1);
+    // One JSON-LD block plus the app redirect.
+    expect(scripts).toHaveLength(2);
     expect(escaped).toContain('\\u003c/script');
+  });
+
+  it('sends visitors to the app product view but leaves crawlers on the page', () => {
+    const reference = encodeURIComponent(prerenderReference(product));
+    const source = page.match(/<script>([^<]*)<\/script>/)?.[1] ?? '';
+    expect(source).toContain(`location.replace("/#product=${reference}")`);
+    expect(source).toMatch(/bot\|crawl/);
+
+    const hash = createHash('sha256').update(source).digest('base64');
+    expect(page).toContain(`script-src 'sha256-${hash}'`);
   });
 
   it('offers a working order path and a route back to the app', () => {

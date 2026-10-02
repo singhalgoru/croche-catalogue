@@ -177,3 +177,6 @@ admin appear in the generated pages and sitemap after the next successful
 deployment (GitHub may delay scheduled runs). The sitemap is not updated
 directly by the browser or Supabase; check the deploy workflow if an update
 has not appeared. GitHub Pages and browsers may cache the sitemap briefly.
+Shared product links use these pages so link previews show the product photo
+(an 800px `og.jpg` written beside each page). A small hash-pinned script sends
+human visitors on to the app's product view, while crawlers stay on the static page.

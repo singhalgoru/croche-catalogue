@@ -15,6 +15,7 @@
  * React replaces the injected markup when it mounts, so visitors still get the
  * interactive app and the rendered text always matches what a person sees.
  */
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -313,6 +314,18 @@ h1{font-size:1.7rem;margin:0 0 6px;color:#5f3825}
 ul.variants{padding-left:20px}
 footer{margin-top:40px;padding-top:18px;border-top:1px solid #ecd9c6;font-size:.85rem;color:#8a6b57}`;
 
+/**
+ * People who open a shared link belong in the app's product view, while
+ * crawlers (which mostly skip JavaScript, and are matched by user agent when
+ * they do run it) keep the static page so it can be indexed and previewed.
+ */
+const appRedirectScript = (reference) =>
+  `if(!/bot|crawl|spider|slurp|facebookexternalhit|whatsapp|lighthouse|headless/i.test(navigator.userAgent))location.replace(${JSON.stringify(
+    `/#product=${encodeURIComponent(reference)}`,
+  )})`;
+
+const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).digest('base64')}'`;
+
 const renderProductPage = (product, whatsappNumber, socialImage = null) => {
   const url = productUrl(product);
   const title = `${product.name} — Handmade Crochet ${product.category} | Luvia Creations`;
@@ -321,9 +334,11 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
     155,
   );
   const image = product.image ? getProductImageUrl(product.image, 960) : `${ORIGIN}/images/luvia-logo.jpg`;
-  // WhatsApp and some other chat apps skip WebP link previews, so point
-  // og:image at the JPEG copy written next to the page when there is one.
+  // og:image points at the JPEG copy written next to the page when there is
+  // one: WhatsApp skips WebP previews, and the same-origin file also keeps
+  // the page photo visible when a visitor's resolver can't reach the image host.
   const shareImage = socialImage?.url ?? image;
+  const redirect = appRedirectScript(toProductReference(product));
   const range = priceRange(product);
   const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
 
@@ -337,11 +352,12 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- These pages are static: no scripts, only the inline stylesheet below. -->
+    <!-- Static page: the only script is the hash-pinned app redirect below. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src 'self' https://luviacreations.com https://singhalgoru.github.io https://*.supabase.co https://images.luviacreations.com https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'"
+      content="default-src 'none'; script-src ${scriptHash(redirect)}; img-src 'self' https://luviacreations.com https://singhalgoru.github.io https://*.supabase.co https://images.luviacreations.com https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'"
     />
+    <script>${redirect}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -381,7 +397,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
       <p class="crumb"><a href="/">Catalogue</a> › ${escapeHtml(product.category)} › ${escapeHtml(product.name)}</p>
       <h1>${escapeHtml(product.name)}</h1>
       <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
-      <img class="hero" src="${escapeHtml(image)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />
+      <img class="hero" src="${escapeHtml(shareImage)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />
       <p class="price">${escapeHtml(priceLine)}</p>
       <p class="stock">${product.inStock ? 'In stock and ready to ship across India.' : 'Made to order — message us for the current lead time.'}</p>
       <p>${escapeHtml(product.description)}</p>
