@@ -17,6 +17,7 @@ import {
 import type { ProductVariant, ProductVariantImage } from '../../types/product';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
+import VariantNameSuggestButton from './VariantNameSuggestButton';
 import { parseOptionalPrice } from './price';
 import { suggestVariantColor } from './variantColor';
 import { formatINR } from '../../utils/currency';
@@ -612,7 +613,8 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
 
   const fields = (requiresImage: boolean) => (
     <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-      <label className="min-w-0 text-sm font-semibold text-cocoa">
+      <div className="min-w-0">
+      <label className="block min-w-0 text-sm font-semibold text-cocoa">
         Variant name
         <input
           value={draft.name}
@@ -630,6 +632,22 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
         />
       </label>
+      <VariantNameSuggestButton
+        getImageFile={async () => {
+          if (draft.imageFile) return draft.imageFile;
+          const editingVariant = product.variants.find((variant) => variant.id === editingId);
+          return editingVariant
+            ? fileFromExistingImage(editingVariant.image, `variant-${editingVariant.id}`)
+            : null;
+        }}
+        productName={product.name}
+        existingVariantNames={product.variants
+          .filter((variant) => variant.id !== editingId)
+          .map((variant) => variant.name)}
+        onSuggest={({ name, color }) => setDraft((current) => ({ ...current, name, color }))}
+        disabled={isBusy}
+      />
+      </div>
       <ImageFilePicker
         label={requiresImage ? 'Variant image' : 'Replace image (optional)'}
         file={draft.imageFile}

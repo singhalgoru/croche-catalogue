@@ -116,3 +116,75 @@ export async function analyzeProductImage(
 
   return validateAnalysis(data, categories);
 }
+
+export interface VariantNameSuggestion {
+  name: string;
+  color: string;
+}
+
+export interface VariantNameContext {
+  productName?: string;
+  existingVariantNames?: string[];
+}
+
+const validateVariantSuggestion = (
+  value: unknown,
+  existingVariantNames: string[],
+): VariantNameSuggestion => {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Gemini returned an invalid variant name suggestion.');
+  }
+
+  const suggestion = value as Record<string, unknown>;
+  const name = typeof suggestion.name === 'string' ? suggestion.name.trim().slice(0, 60) : '';
+  if (!name || typeof suggestion.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(suggestion.color)) {
+    throw new Error('Gemini returned an incomplete variant name suggestion.');
+  }
+
+  const taken = new Set(existingVariantNames.map((existing) => existing.trim().toLowerCase()));
+  if (taken.has(name.toLowerCase())) {
+    throw new Error(`Gemini suggested “${name}”, which is already used. Try again or type a name.`);
+  }
+
+  return { name, color: suggestion.color.toLowerCase() };
+};
+
+export async function suggestVariantName(
+  file: File,
+  context: VariantNameContext = {},
+): Promise<VariantNameSuggestion> {
+  if (!supabase) {
+    throw new Error(
+      'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+    );
+  }
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select an image file.');
+  }
+
+  if (file.size > MAX_ANALYSIS_FILE_SIZE) {
+    throw new Error('Please use an image smaller than 6 MB for AI naming.');
+  }
+
+  const existingVariantNames = (context.existingVariantNames ?? [])
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const imageBase64 = await fileToBase64(file);
+  const { data, error } = await supabase.functions.invoke('analyze-product', {
+    body: {
+      mode: 'variant-name',
+      imageBase64,
+      mimeType: file.type,
+      productName: context.productName?.trim() ?? '',
+      existingVariantNames,
+    },
+  });
+
+  if (error) {
+    const message = await getFunctionErrorMessage(error);
+    throw new Error(`Unable to suggest a variant name: ${message}`);
+  }
+
+  return validateVariantSuggestion(data, existingVariantNames);
+}

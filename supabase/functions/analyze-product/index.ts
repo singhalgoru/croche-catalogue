@@ -8,7 +8,13 @@ const CORS_HEADERS = {
 interface AnalyzeRequest {
   imageBase64?: unknown;
   mimeType?: unknown;
+  mode?: unknown;
+  productName?: unknown;
+  existingVariantNames?: unknown;
 }
+
+const sanitizeText = (value: unknown, maxLength: number) =>
+  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, maxLength) : '';
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -49,20 +55,6 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'This account is not authorized to manage the catalogue.' }, 403);
   }
 
-  const { data: categoryRows, error: categoryError } = await authClient
-    .from('categories')
-    .select('name')
-    .order('sort_order')
-    .order('name');
-  if (categoryError) {
-    return jsonResponse({ error: `Unable to load product categories: ${categoryError.message}` }, 500);
-  }
-
-  const productCategories = categoryRows.map((category) => category.name);
-  if (productCategories.length === 0) {
-    return jsonResponse({ error: 'Create at least one product category before analysis.' }, 400);
-  }
-
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
     return jsonResponse({ error: 'GEMINI_API_KEY is not configured.' }, 500);
@@ -73,6 +65,27 @@ Deno.serve(async (request) => {
     payload = await request.json();
   } catch {
     return jsonResponse({ error: 'The request body must be valid JSON.' }, 400);
+  }
+
+  const isVariantMode = payload.mode === 'variant-name';
+  let productCategories: string[] = [];
+  if (!isVariantMode) {
+    const { data: categoryRows, error: categoryError } = await authClient
+      .from('categories')
+      .select('name')
+      .order('sort_order')
+      .order('name');
+    if (categoryError) {
+      return jsonResponse(
+        { error: `Unable to load product categories: ${categoryError.message}` },
+        500,
+      );
+    }
+
+    productCategories = categoryRows.map((category) => category.name);
+    if (productCategories.length === 0) {
+      return jsonResponse({ error: 'Create at least one product category before analysis.' }, 400);
+    }
   }
 
   if (
@@ -90,15 +103,64 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Only JPG, PNG, and WebP images are supported.' }, 400);
   }
 
-  const prompt = [
-    'You are writing catalogue copy for Luvia, an Indian handmade crochet brand.',
-    'Study the uploaded product photo and return accurate product metadata.',
-    `Choose exactly one category from: ${productCategories.join(', ')}.`,
-    'Use a concise, appealing product name of 2-7 words.',
-    'Write one warm, factual description of 20-45 words. Do not invent materials, dimensions,',
-    'safety claims, prices, availability, or features that are not visible.',
-    'Return the dominant product colour as a six-digit hexadecimal colour.',
-  ].join(' ');
+  const productName = sanitizeText(payload.productName, 120);
+  const existingVariantNames = Array.isArray(payload.existingVariantNames)
+    ? payload.existingVariantNames
+        .map((name) => sanitizeText(name, 60))
+        .filter(Boolean)
+        .slice(0, 40)
+    : [];
+
+  const prompt = isVariantMode
+    ? [
+        'You name colour/style variants for Luvia, an Indian handmade crochet brand.',
+        'Study the uploaded variant photo and suggest a short, customer-friendly variant name.',
+        productName ? `The product is "${productName}".` : '',
+        existingVariantNames.length > 0
+          ? `Existing variant names for this product are: ${existingVariantNames
+              .map((name) => `"${name}"`)
+              .join(', ')}. Follow the same naming pattern, wording style, casing, and length,` +
+            ' and do not repeat any existing name.'
+          : 'Use a simple colour or pattern name such as "Lavender", "Rose Pink", or "Rainbow Stripes".',
+        'Use 1-3 words. Describe the visible colour, colour combination, or pattern only.',
+        'Do not include the product name, sizes, prices, or marketing words.',
+        'Return the dominant variant colour as a six-digit hexadecimal colour.',
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : [
+        'You are writing catalogue copy for Luvia, an Indian handmade crochet brand.',
+        'Study the uploaded product photo and return accurate product metadata.',
+        `Choose exactly one category from: ${productCategories.join(', ')}.`,
+        'Use a concise, appealing product name of 2-7 words.',
+        'Write one warm, factual description of 20-45 words. Do not invent materials, dimensions,',
+        'safety claims, prices, availability, or features that are not visible.',
+        'Return the dominant product colour as a six-digit hexadecimal colour.',
+      ].join(' ');
+
+  const colorSchema = {
+    type: 'STRING',
+    description: 'Dominant colour in #RRGGBB format.',
+  };
+  const responseSchema = isVariantMode
+    ? {
+        type: 'OBJECT',
+        required: ['name', 'color'],
+        properties: {
+          name: { type: 'STRING' },
+          color: colorSchema,
+        },
+      }
+    : {
+        type: 'OBJECT',
+        required: ['name', 'category', 'description', 'color'],
+        properties: {
+          name: { type: 'STRING' },
+          category: { type: 'STRING', enum: productCategories },
+          description: { type: 'STRING' },
+          color: colorSchema,
+        },
+      };
 
   const requestBody = JSON.stringify({
     contents: [
@@ -116,21 +178,9 @@ Deno.serve(async (request) => {
       },
     ],
     generationConfig: {
-      temperature: 0.3,
+      temperature: isVariantMode ? 0.5 : 0.3,
       responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        required: ['name', 'category', 'description', 'color'],
-        properties: {
-          name: { type: 'STRING' },
-          category: { type: 'STRING', enum: productCategories },
-          description: { type: 'STRING' },
-          color: {
-            type: 'STRING',
-            description: 'Dominant product colour in #RRGGBB format.',
-          },
-        },
-      },
+      responseSchema,
     },
   });
 

@@ -195,6 +195,11 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
     ),
   });
   await expectNoHorizontalOverflow(page);
+  const variantNameRequest = page.waitForRequest('**/functions/v1/analyze-product');
+  await page.getByRole('button', { name: '✨ Suggest name with AI' }).click();
+  expect((await variantNameRequest).postDataJSON()).toMatchObject({ mode: 'variant-name' });
+  await expect(page.getByLabel('Variant name')).toHaveValue('Ocean Blue');
+  await page.getByLabel('Variant name').fill('Standard');
   await page.getByRole('button', { name: 'Warm minimal' }).click();
   const rawPrompt = [
     'Add soft morning light.',

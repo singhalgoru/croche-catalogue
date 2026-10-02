@@ -268,6 +268,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             variants={variants}
             onChange={setVariants}
             disabled={isAnalyzing || isPublishing}
+            productName={draft.name}
           />
         </div>
       </section>

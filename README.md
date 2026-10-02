@@ -58,6 +58,13 @@ reference images using the `enhance-product-image` Supabase Edge Function:
 - **Cloudflare resilience:** When running on Cloudflare, the function uses `@cf/black-forest-labs/flux-2-klein-9b` as primary and automatically falls back to `@cf/runwayml/stable-diffusion-v1-5-img2img` if GPU queues or quotas are busy.
 - Secrets are stored securely in Supabase Edge Function secrets and never exposed to the client.
 
+## AI variant names
+
+When adding or editing a variant, **✨ Suggest name with AI** sends the variant photo,
+the product name, and the existing variant names to the `analyze-product` Edge Function
+(`mode: "variant-name"`). Gemini vision (free tier) returns a short name that follows the
+existing naming pattern plus a matching hex colour; both stay editable before saving.
+
 ## Initial page load
 
 The public catalogue loads without downloading the admin console or product

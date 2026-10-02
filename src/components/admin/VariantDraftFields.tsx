@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent } from 'react';
 import ImageGenerationPanel from './ImageGenerationPanel';
 import ImageFilePicker from './ImageFilePicker';
+import VariantNameSuggestButton from './VariantNameSuggestButton';
 import { suggestVariantColor } from './variantColor';
 import { createEmptyVariant, type VariantDraft } from './variantDraft';
 
@@ -8,6 +9,7 @@ interface Props {
   variants: VariantDraft[];
   onChange: (variants: VariantDraft[]) => void;
   disabled?: boolean;
+  productName?: string;
 }
 
 const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
@@ -21,7 +23,12 @@ const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
   return next;
 };
 
-export default function VariantDraftFields({ variants, onChange, disabled = false }: Props) {
+export default function VariantDraftFields({
+  variants,
+  onChange,
+  disabled = false,
+  productName,
+}: Props) {
   const [activeGalleryEditor, setActiveGalleryEditor] = useState<{
     variantKey: string;
     index: number;
@@ -188,7 +195,8 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
             </div>
 
             <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-              <label className="min-w-0 text-sm font-semibold text-cocoa">
+              <div className="min-w-0">
+              <label className="block min-w-0 text-sm font-semibold text-cocoa">
                 Variant name
                 <input
                   value={variant.name}
@@ -207,6 +215,16 @@ export default function VariantDraftFields({ variants, onChange, disabled = fals
                   className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
                 />
               </label>
+              <VariantNameSuggestButton
+                getImageFile={() => variant.imageFile}
+                productName={productName}
+                existingVariantNames={variants
+                  .filter((item) => item.key !== variant.key)
+                  .map((item) => item.name)}
+                onSuggest={({ name, color }) => updateVariant(variant.key, { name, color })}
+                disabled={disabled}
+              />
+              </div>
               <ImageFilePicker
                 label="Variant image"
                 file={variant.imageFile}

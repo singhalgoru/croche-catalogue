@@ -758,6 +758,11 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     }
 
     if (pathname === '/functions/v1/analyze-product') {
+      const body = getRequestBody<{ mode?: string }>(route);
+      if (body.mode === 'variant-name') {
+        await json(route, { name: 'Ocean Blue', color: '#3b82c4' });
+        return;
+      }
       await json(route, {
         name: 'AI Bunny',
         category: state.categories[0],
