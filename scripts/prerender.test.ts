@@ -306,24 +306,25 @@ describe('renderProductPage', () => {
 describe('renderSitemap', () => {
   const xml = renderSitemap([product], '2026-09-30');
 
-  it('lists the homepage and every product page', () => {
+  it('lists the homepage, return policy and every product page', () => {
     expect(xml).toContain('<loc>https://luviacreations.com/</loc>');
     expect(xml).toContain(`<loc>https://luviacreations.com/p/${prerenderReference(product)}/</loc>`);
-    expect(xml.match(/<url>/g)).toHaveLength(2);
+    expect(xml).toContain('<loc>https://luviacreations.com/return-policy/</loc>');
+    expect(xml.match(/<url>/g)).toHaveLength(3);
   });
 
   it('reflects newly published products on the next build', () => {
     const nextProduct = { ...product, id: 'new-product-id', name: 'Crochet Bunny' };
     const updated = renderSitemap([product, nextProduct], '2026-10-01');
 
-    expect(updated.match(/<url>/g)).toHaveLength(3);
+    expect(updated.match(/<url>/g)).toHaveLength(4);
     expect(updated).toContain(`<loc>https://luviacreations.com/p/${prerenderReference(nextProduct)}/</loc>`);
     expect(xml).not.toContain(prerenderReference(nextProduct));
   });
 
-  it('removes unpublished products and retains the homepage if the catalogue is empty', () => {
+  it('removes unpublished products and retains permanent pages if the catalogue is empty', () => {
     const empty = renderSitemap([], '2026-10-01');
-    expect(empty.match(/<url>/g)).toHaveLength(1);
+    expect(empty.match(/<url>/g)).toHaveLength(2);
     expect(empty).not.toContain('/p/');
   });
 

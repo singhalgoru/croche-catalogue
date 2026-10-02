@@ -13,6 +13,11 @@ afterEach(() => {
 });
 
 describe('Footer', () => {
+  it('links to the published return policy', () => {
+    render(<Footer />);
+    expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
+      .toBe('/return-policy/');
+  });
   it('offers distinct order and general enquiry email links', () => {
     render(<Footer />);
 

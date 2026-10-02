@@ -156,3 +156,10 @@ Stock wording follows the catalogue's "In stock" / "Sold out" status and does
 not promise made-to-order fulfilment or immediate dispatch.
 Each static product page includes Product JSON-LD with its visible price and
 availability, plus breadcrumbs. The sitemap contains URLs and `lastmod` only.
+
+The approved return policy is published at `/return-policy/` from
+[public/return-policy/index.html](./public/return-policy/index.html). It is
+linked in the footer, discovery file and sitemap and is excluded from the
+service worker's SPA navigation fallback. When terms change, update the policy's
+effective date and its sitemap `lastmod` in both the public sitemap and prerenderer.
+Merchant Center return settings must match the published policy.

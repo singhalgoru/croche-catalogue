@@ -15,6 +15,11 @@ export default function Footer() {
           crafted with love in India.
         </p>
         <p>&copy; {new Date().getFullYear()} Luvia Creations. Check product availability in the catalogue.</p>
+        <p className="mt-2">
+          <a href="/return-policy/" className="underline underline-offset-2 hover:text-mustard">
+            Return and refund policy
+          </a>
+        </p>
         <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
             href={getGeneralWhatsAppLink()}
