@@ -172,7 +172,7 @@ using the TXT record Google provides, then submit
 `https://luviacreations.com/sitemap.xml`. The build fetches published products
 from Supabase and generates a crawlable `/p/<product>/` page and sitemap entry
 for each one. The deploy workflow rebuilds on every push to `main` and runs
-daily at 01:23 UTC (06:53 IST), so products added, edited, unpublished, or deleted in
+hourly (at 23 minutes past the hour), so products added, edited, unpublished, or deleted in
 admin appear in the generated pages and sitemap after the next successful
 deployment (GitHub may delay scheduled runs). The sitemap is not updated
 directly by the browser or Supabase; check the deploy workflow if an update

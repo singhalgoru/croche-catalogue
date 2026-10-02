@@ -7,7 +7,8 @@ on:
   # Rebuild prerendered product pages and sitemap from published Supabase data.
   # Offset from the hour to avoid GitHub Actions' busiest scheduling window.
   schedule:
-    - cron: '23 1 * * *'
+    # Hourly so newly published products get share previews quickly.
+    - cron: '23 * * * *'
 
 permissions:
   contents: read
