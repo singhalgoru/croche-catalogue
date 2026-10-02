@@ -176,7 +176,9 @@ const getCurrentUser = async () => {
   return { client, user };
 };
 
-const PRODUCT_IMAGE_CACHE_SECONDS = 24 * 60 * 60;
+// Each upload gets a fresh UUID path and is never overwritten, so browsers can
+// keep it for a year; browser cache hits never reach Supabase egress.
+const PRODUCT_IMAGE_CACHE_SECONDS = 365 * 24 * 60 * 60;
 
 const uploadProductImage = async (file: File, userId: string) => {
   const client = requireSupabase();

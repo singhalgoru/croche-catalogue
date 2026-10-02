@@ -34,11 +34,12 @@ export default function ProductCard({
   const isNew = isProductNew(product);
   const cardRef = useRef<HTMLElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(isFirstProduct);
+  // Cycle only through variant main photos: every extra angle photo here is a
+  // download for each card a shopper scrolls past. Angles stay in the modal.
   const cardImages = useMemo(
     () => Array.from(new Set([
       product.image,
       ...product.variants.map((variant) => variant.image),
-      ...(product.variants[0]?.gallery ?? []).map((image) => image.image),
     ].filter(Boolean))),
     [product.image, product.variants],
   );
@@ -153,7 +154,9 @@ export default function ProductCard({
     if (!('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver(
       ([entry]) => setIsNearViewport(entry.isIntersecting),
-      { rootMargin: '200px' },
+      // Rotate only while most of the card is actually on screen, so cards
+      // being scrolled past don't download every variant photo.
+      { threshold: 0.6 },
     );
     observer.observe(cardRef.current);
     return () => observer.disconnect();

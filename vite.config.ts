@@ -70,10 +70,10 @@ export default defineConfig({
         // Product pages and crawler files must come from the network, not the
         // cached SPA shell when opened in an installed browser.
         navigateFallbackDenylist: [/^\/p\//, /^\/(?:robots\.txt|sitemap\.xml)$/],
-        // GitHub Pages fixes Cache-Control at 10 minutes and existing Supabase
-        // objects were uploaded with 1 hour, so keep images in the service
-        // worker for a day. Uploads get a fresh UUID path and site images are
-        // effectively static, so a day-old hit is harmless.
+        // GitHub Pages fixes Cache-Control at 10 minutes and older Supabase
+        // objects were uploaded with short cache lifetimes. Product uploads get
+        // a fresh UUID path and are never overwritten, so keep them for 30 days;
+        // every service-worker hit is egress Supabase never serves.
         runtimeCaching: [
           {
             urlPattern: ({ sameOrigin, url }) =>
@@ -92,7 +92,7 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'product-images',
-              expiration: { maxEntries: 150, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true },
+              expiration: { maxEntries: 400, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
               cacheableResponse: { statuses: [200] },
               plugins: [
                 {
