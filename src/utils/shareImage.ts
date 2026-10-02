@@ -29,6 +29,8 @@ export const getShareableImageFile = async (
     // serves to <img>. Accept is CORS-safelisted, so this adds no preflight.
     const response = await fetch(imageUrl, {
       mode: 'cors',
+      // Skip a possible CORS-less HTTP cache copy from an earlier <img> load.
+      cache: 'reload',
       headers: { Accept: SHARE_IMAGE_ACCEPT },
     });
     if (!response.ok) return null;

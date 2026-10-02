@@ -34,12 +34,11 @@ export default function ProductCard({
   const isNew = isProductNew(product);
   const cardRef = useRef<HTMLElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(isFirstProduct);
-  // Cycle only through variant main photos: every extra angle photo here is a
-  // download for each card a shopper scrolls past. Angles stay in the modal.
   const cardImages = useMemo(
     () => Array.from(new Set([
       product.image,
       ...product.variants.map((variant) => variant.image),
+      ...(product.variants[0]?.gallery ?? []).map((image) => image.image),
     ].filter(Boolean))),
     [product.image, product.variants],
   );

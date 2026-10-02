@@ -39,6 +39,7 @@ describe('getShareableImageFile', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('https://example.com/rose.png', {
       mode: 'cors',
+      cache: 'reload',
       headers: { Accept: SHARE_IMAGE_ACCEPT },
     });
     expect(SHARE_IMAGE_ACCEPT.startsWith('image/webp')).toBe(true);

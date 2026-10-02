@@ -100,13 +100,17 @@ export default defineConfig({
                 {
                   // <img> requests are no-cors, whose opaque responses hide
                   // the status (so errors could be cached) and are padded to
-                  // megabytes of storage quota each. Supabase allows CORS, so
-                  // fetch in cors mode, keeping Accept so WebP is negotiated.
+                  // megabytes of storage quota each, so fetch in cors mode,
+                  // keeping Accept so WebP is negotiated. R2 only adds CORS
+                  // headers when an Origin is sent and doesn't Vary on it, so
+                  // the HTTP cache may hold a header-less copy from an earlier
+                  // <img> load; 'reload' bypasses it to avoid a CORS failure.
                   requestWillFetch: async ({ request }) =>
                     request.mode === 'no-cors'
                       ? new Request(request.url, {
                           mode: 'cors',
                           credentials: 'omit',
+                          cache: 'reload',
                           headers: { Accept: request.headers.get('Accept') ?? 'image/webp,image/*' },
                         })
                       : request,

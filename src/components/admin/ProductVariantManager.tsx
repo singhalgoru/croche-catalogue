@@ -263,7 +263,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   };
 
   const fileFromExistingImage = async (imageUrl: string, fileName: string) => {
-    const response = await fetch(imageUrl, { mode: 'cors' });
+    const response = await fetch(imageUrl, { mode: 'cors', cache: 'reload' });
     if (!response.ok) {
       throw new Error(`Unable to load the photo for AI editing: ${response.statusText}`);
     }
