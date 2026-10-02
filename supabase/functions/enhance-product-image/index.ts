@@ -170,6 +170,8 @@ const callGeminiImage = async (
     ],
     generationConfig: {
       responseModalities: ['IMAGE'],
+      // Catalogue cards, the popup and zoom all show square photos.
+      imageConfig: { aspectRatio: '1:1' },
     },
   });
 
@@ -488,6 +490,11 @@ Deno.serve(async (request) => {
     typeof payload.styleSuggestion === 'string' && payload.styleSuggestion.trim()
       ? `Styling direction: ${payload.styleSuggestion.trim()}`
       : '',
+    'Framing: output a square 1:1 image (1024x1024 or larger) that fills the whole frame edge to',
+    'edge, with no letterboxing, borders, blurred padding, or empty bands. Centre the product',
+    'and keep the whole product inside the frame with about 10% breathing room on every side.',
+    'Keep the bottom-right corner (roughly the last 15% of width and height) free of the product',
+    'and important details; plain background there is ideal.',
     'Do not redesign, recolour, duplicate, crop, obscure, or add parts to the product.',
     'Do not add people unless needed to demonstrate how the item is worn or used.',
     'Do not add text, logos, labels, borders, watermarks, or prices.',

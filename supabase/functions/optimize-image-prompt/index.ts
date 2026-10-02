@@ -97,7 +97,10 @@ Deno.serve(async (request) => {
     'product catalogue photo. Keep it specific, visual, premium, and safe for image editing.',
     'Preserve the original product exactly: shape, crochet stitches, colours, proportions, and',
     'visible details. Do not request redesigning, recolouring, duplicating, text, logos, labels,',
-    'prices, watermarks, or extra product parts. Keep the result under 300 characters.',
+    'prices, watermarks, or extra product parts. The photo is a square 1:1 catalogue image, so',
+    'describe a centred composition with the whole product in frame and a plain, uncluttered',
+    'bottom-right corner; never ask for portrait, landscape, or wide framing.',
+    'Keep the result under 300 characters.',
     `Rough styling idea: ${styleDirection}`,
   ].join(' ');
 
