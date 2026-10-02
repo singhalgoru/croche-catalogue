@@ -195,7 +195,8 @@ export default function ProductCard({
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
       } cursor-pointer`}
     >
-      <div className="relative aspect-square min-h-0 flex-1 overflow-hidden bg-cream-dark">
+      {/* Kept square (like the stored crop) so the watermark corner shows. */}
+      <div className="relative aspect-square shrink-0 overflow-hidden bg-cream-dark">
         <button
           type="button"
           onClick={() => onSelect(product)}
@@ -263,7 +264,7 @@ export default function ProductCard({
           </span>
         )}
       </div>
-      <div className="shrink-0 p-4 sm:p-3 lg:p-4">
+      <div className="flex flex-1 flex-col p-4 sm:p-3 lg:p-4">
         <h3 className="font-heading text-lg font-semibold text-cocoa sm:text-base">
           {product.name}
         </h3>
@@ -305,7 +306,7 @@ export default function ProductCard({
             })}
           </div>
         )}
-        <div className="mt-2 flex min-h-12 items-center justify-between gap-3">
+        <div className="mt-auto flex min-h-12 items-center justify-between gap-3 pt-2">
           <div>
             {displayedPrice !== null && (
               <p className="font-heading text-xl font-bold text-cocoa sm:text-lg">

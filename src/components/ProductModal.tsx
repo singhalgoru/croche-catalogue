@@ -367,85 +367,88 @@ export default function ProductModal({
           touchStart.current = null;
         }}
       >
-        <div className="relative">
-          <button
-            type="button"
-            onClick={openImageZoom}
-            className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa focus-visible:ring-offset-2"
-            aria-label="Open zoomed product image"
-          >
-            <img
-              src={getProductImageUrl(activeImage, 960)}
-              alt={
-                selectedVariant && product.variants.length > 1
-                  ? `${product.name} — ${selectedVariant.name}`
-                  : product.name
-              }
-              className="w-full aspect-square max-h-[55vh] object-cover"
-              {...productImageProtection}
-            />
-          </button>
-          {/* Bottom-left keeps the bottom-right photo watermark visible. */}
-          <div className="absolute bottom-3 left-3 flex gap-2">
+        {/* Square on short screens too, so the watermark corner is never cropped. */}
+        <div className="bg-cream">
+          <div className="relative mx-auto w-full max-w-[55vh]">
             <button
               type="button"
               onClick={openImageZoom}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
-              aria-label="Zoom product image"
+              className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa focus-visible:ring-offset-2"
+              aria-label="Open zoomed product image"
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                aria-hidden="true"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="m16.5 16.5 4 4M8 11h6M11 8v6" />
-              </svg>
+              <img
+                src={getProductImageUrl(activeImage, 960)}
+                alt={
+                  selectedVariant && product.variants.length > 1
+                    ? `${product.name} — ${selectedVariant.name}`
+                    : product.name
+                }
+                className="block aspect-square w-full object-cover"
+                {...productImageProtection}
+              />
             </button>
+            {/* Bottom-left keeps the bottom-right photo watermark visible. */}
+            <div className="absolute bottom-3 left-3 flex gap-2">
+              <button
+                type="button"
+                onClick={openImageZoom}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white shadow-md backdrop-blur-md transition-colors hover:bg-black/55"
+                aria-label="Zoom product image"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m16.5 16.5 4 4M8 11h6M11 8v6" />
+                </svg>
+              </button>
+            </div>
+            {isNew && (
+              <span
+                className="badge-glow absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md"
+                style={{ '--badge-glow-color': 'rgb(93 64 55 / 0.55)' } as CSSProperties}
+              >
+                New
+              </span>
+            )}
+            {hasCarousel && (
+              <>
+                <button
+                  type="button"
+                  onClick={onPrevious}
+                  className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
+                  style={{
+                    opacity: showTouchControls ? 1 : 0,
+                    pointerEvents: showTouchControls ? 'auto' : 'none',
+                  }}
+                  aria-label="Show previous product"
+                >
+                  <span aria-hidden="true" className="text-2xl leading-none">
+                    ‹
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onNext}
+                  className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
+                  style={{
+                    opacity: showTouchControls ? 1 : 0,
+                    pointerEvents: showTouchControls ? 'auto' : 'none',
+                  }}
+                  aria-label="Show next product"
+                >
+                  <span aria-hidden="true" className="text-2xl leading-none">
+                    ›
+                  </span>
+                </button>
+              </>
+            )}
           </div>
-          {isNew && (
-            <span
-              className="badge-glow absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md"
-              style={{ '--badge-glow-color': 'rgb(93 64 55 / 0.55)' } as CSSProperties}
-            >
-              New
-            </span>
-          )}
-          {hasCarousel && (
-            <>
-              <button
-                type="button"
-                onClick={onPrevious}
-                className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
-                style={{
-                  opacity: showTouchControls ? 1 : 0,
-                  pointerEvents: showTouchControls ? 'auto' : 'none',
-                }}
-                aria-label="Show previous product"
-              >
-                <span aria-hidden="true" className="text-2xl leading-none">
-                  ‹
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={onNext}
-                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-cocoa shadow-md transition-opacity duration-200 hover:bg-mustard/90 sm:h-12 sm:w-12"
-                style={{
-                  opacity: showTouchControls ? 1 : 0,
-                  pointerEvents: showTouchControls ? 'auto' : 'none',
-                }}
-                aria-label="Show next product"
-              >
-                <span aria-hidden="true" className="text-2xl leading-none">
-                  ›
-                </span>
-              </button>
-            </>
-          )}
         </div>
         {hasAngleThumbnails && galleryImages.length > 1 && (
           <div
