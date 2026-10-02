@@ -367,13 +367,20 @@ export default function ProductModal({
           touchStart.current = null;
         }}
       >
-        {/* Square on short screens too, so the watermark corner is never cropped. */}
+        {/* Whole photo (watermark in its real corner) over a blurred copy of itself. */}
         <div className="bg-cream">
-          <div className="relative mx-auto w-full max-w-[55vh]">
+          <div className="relative mx-auto w-full max-w-[55vh] overflow-hidden">
+            <img
+              src={getProductImageUrl(activeImage, 960)}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl"
+              {...productImageProtection}
+            />
             <button
               type="button"
               onClick={openImageZoom}
-              className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa focus-visible:ring-offset-2"
+              className="relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa focus-visible:ring-offset-2"
               aria-label="Open zoomed product image"
             >
               <img
@@ -383,7 +390,7 @@ export default function ProductModal({
                     ? `${product.name} — ${selectedVariant.name}`
                     : product.name
                 }
-                className="block aspect-square w-full object-cover"
+                className="block aspect-square w-full object-contain"
                 {...productImageProtection}
               />
             </button>

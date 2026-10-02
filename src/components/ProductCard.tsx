@@ -195,12 +195,23 @@ export default function ProductCard({
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
       } cursor-pointer`}
     >
-      {/* Kept square (like the stored crop) so the watermark corner shows. */}
+      {/* Whole photo (watermark in its real corner) over a blurred copy of itself. */}
       <div className="relative aspect-square shrink-0 overflow-hidden bg-cream-dark">
+        <img
+          src={getProductImageUrl(activeImageUrl, 480)}
+          srcSet={getProductCardSrcSet(activeImageUrl)}
+          sizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+          loading={isFirstProduct ? 'eager' : 'lazy'}
+          decoding="async"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl"
+          {...productImageProtection}
+        />
         <button
           type="button"
           onClick={() => onSelect(product)}
-          className="h-full w-full"
+          className="relative h-full w-full"
           aria-label={`View ${product.name}`}
         >
           <img
@@ -211,7 +222,7 @@ export default function ProductCard({
             fetchPriority={isFirstProduct ? 'high' : 'auto'}
             decoding="async"
             alt={product.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
             {...productImageProtection}
           />
         </button>

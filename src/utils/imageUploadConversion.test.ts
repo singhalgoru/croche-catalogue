@@ -67,8 +67,8 @@ describe('image upload compression', () => {
     await convertImageForUpload(original);
 
     // 1600x800 canvas: badge is 12% of 800 (96px) with a 3% (24px) margin,
-    // in the corner of the centred 800px square that cards display.
-    expect(drawImage).toHaveBeenCalledWith(expect.any(HTMLCanvasElement), 1080, 680);
+    // in the photo's real bottom-right corner.
+    expect(drawImage).toHaveBeenCalledWith(expect.any(HTMLCanvasElement), 1480, 680);
     expect(context.globalAlpha).toBe(0.7);
   });
 

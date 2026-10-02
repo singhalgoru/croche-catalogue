@@ -9,16 +9,16 @@ const MIN_WATERMARK_SIZE = 16;
 
 export const WATERMARK_LOGO_SRC = `${import.meta.env.BASE_URL}images/luvia-logo-480.webp`;
 
-// Cards and the product popup show a centred square crop (object-cover), so
-// the badge sits in that square's bottom-right corner to stay visible there.
+// Product photos are shown whole (object-contain), so the badge sits in the
+// photo's real bottom-right corner, with a margin based on its shorter side.
 export const getWatermarkBox = (width: number, height: number) => {
   const shortSide = Math.min(width, height);
   const size = Math.round(shortSide * WATERMARK_SIZE_RATIO);
   const margin = Math.round(shortSide * WATERMARK_MARGIN_RATIO);
   const ring = Math.max(2, Math.round(size * WATERMARK_RING_RATIO));
   return {
-    x: Math.round((width + shortSide) / 2) - size - margin,
-    y: Math.round((height + shortSide) / 2) - size - margin,
+    x: width - size - margin,
+    y: height - size - margin,
     size,
     ring,
   };

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// One-time job: stamps the Luvia badge (see src/utils/imageWatermark.ts) on
-// product photos uploaded before uploads were watermarked in the browser.
+// One-time job: stamps the Luvia badge (see src/utils/imageWatermark.ts) in
+// the real bottom-right corner of product photos uploaded before uploads
+// were watermarked that way in the browser.
 //
 // R2 objects are immutable and cached for a year, so each photo is re-rendered
-// from its original and uploaded under a new "<key>-wm2" base, then database
+// from its original and uploaded under a new "<key>-wm3" base, then database
 // rows are repointed in one transaction. Originals stay in the private backup
 // repo. Photos uploaded after the browser watermark shipped are skipped.
 //
@@ -48,8 +49,8 @@ const RING_RATIO = 0.035;
 const OPACITY = 0.7;
 const SIZES = [160, 480, 960];
 // Bumped whenever the badge changes: immutable R2 objects need new keys.
-const SUFFIX = '-wm2';
-const OLD_SUFFIXES = ['', '-wm'];
+const SUFFIX = '-wm3';
+const OLD_SUFFIXES = ['', '-wm', '-wm2'];
 const originalBase = (base) => base.replace(/-wm\d*$/, '');
 // Uploads from the admin after this point are watermarked in the browser.
 const BROWSER_WATERMARK_SINCE = Date.parse('2026-10-02T08:25:00Z');
@@ -126,11 +127,8 @@ const watermark = async (input) => {
   const margin = Math.round(shortSide * MARGIN_RATIO);
   const ring = Math.max(2, Math.round(size * RING_RATIO));
   if (size < 16) return image.webp({ quality: 82 }).toBuffer();
-  // Bottom-right of the centred square that catalogue cards crop to.
-  const left = Math.round((width + shortSide) / 2) - size - margin;
-  const top = Math.round((height + shortSide) / 2) - size - margin;
   return image
-    .composite([{ input: await renderBadge(size, ring), left, top }])
+    .composite([{ input: await renderBadge(size, ring), left: width - size - margin, top: height - size - margin }])
     .webp({ quality: 82 })
     .toBuffer();
 };
