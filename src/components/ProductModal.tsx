@@ -799,6 +799,16 @@ export default function ProductModal({
           }
           onClose={() => setIsZoomOpen(false)}
           hasMultipleImages={galleryImages.length > 1}
+          preloadImages={
+            galleryImages.length > 1
+              ? [1, -1].map((step) =>
+                  getProductImageUrl(
+                    galleryImages[(activeImageIndex + step + galleryImages.length) % galleryImages.length].image,
+                    1600,
+                  ),
+                )
+              : []
+          }
           onPreviousImage={() => showGalleryImageByOffset(-1)}
           onNextImage={() => showGalleryImageByOffset(1)}
         />

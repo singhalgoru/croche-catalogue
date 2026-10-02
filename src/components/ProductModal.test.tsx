@@ -442,14 +442,30 @@ describe('ProductModal touch controls', () => {
     const zoomSurface = image?.parentElement;
     expect(zoomSurface).toBeTruthy();
 
-    fireEvent.touchStart(zoomSurface!, {
-      touches: [{ clientX: 260, clientY: 300 }],
-    });
-    fireEvent.touchEnd(zoomSurface!, {
-      changedTouches: [{ clientX: 80, clientY: 310 }],
-    });
+    const pointer = { pointerId: 1, pointerType: 'touch' };
+    fireEvent.pointerDown(zoomSurface!, { ...pointer, clientX: 260, clientY: 300 });
+    fireEvent.pointerMove(zoomSurface!, { ...pointer, clientX: 200, clientY: 304 });
+    fireEvent.pointerMove(zoomSurface!, { ...pointer, clientX: 80, clientY: 310 });
+    fireEvent.pointerUp(zoomSurface!, { ...pointer, clientX: 80, clientY: 310 });
 
     expect(image?.getAttribute('src')).toBe('/rose-top.jpg');
+  });
+
+  it('keeps the same zoomed image after a short drag', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+
+    const zoomDialog = screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' });
+    const image = zoomDialog.querySelector('img[alt="Crochet Rose — Red"]');
+    const zoomSurface = image!.parentElement!;
+    const originalSrc = image!.getAttribute('src');
+    const pointer = { pointerId: 1, pointerType: 'touch' };
+    fireEvent.pointerDown(zoomSurface, { ...pointer, clientX: 260, clientY: 300 });
+    fireEvent.pointerMove(zoomSurface, { ...pointer, clientX: 240, clientY: 300 });
+    fireEvent.pointerUp(zoomSurface, { ...pointer, clientX: 240, clientY: 300 });
+
+    expect(image!.getAttribute('src')).toBe(originalSrc);
   });
 
 });

@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { preventImageContextMenu } from '../utils/imageProtection';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   onPreviousImage?: () => void;
   onNextImage?: () => void;
   hasMultipleImages?: boolean;
+  preloadImages?: string[];
 }
 
 interface Point {
@@ -35,17 +36,32 @@ export default function ImageZoomViewer({
   onPreviousImage,
   onNextImage,
   hasMultipleImages = false,
+  preloadImages = [],
 }: Props) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
+  const [slideX, setSlideX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const pointers = useRef(new Map<number, Point>());
   const previousPinch = useRef<{ distance: number; center: Point } | null>(null);
   const dragStart = useRef<{ point: Point; offset: Point } | null>(null);
+  const swipeStart = useRef<{ point: Point; time: number } | null>(null);
+  const swipeAxis = useRef<'x' | 'y' | null>(null);
   const lastTapAt = useRef(0);
   const gestureMoved = useRef(false);
   const gestureWasMultiTouch = useRef(false);
-  const touchSwipeStart = useRef<Point | null>(null);
-  const lastImageSwipeAt = useRef(0);
+
+  const preloadKey = preloadImages.join('\n');
+  useEffect(() => {
+    // Warm the cache so neighbouring photos appear instantly when swiping.
+    if (!preloadKey) return;
+    for (const src of preloadKey.split('\n')) {
+      const preload = new Image();
+      preload.decoding = 'async';
+      preload.src = src;
+    }
+  }, [preloadKey]);
 
   const reset = () => {
     setScale(1);
@@ -58,28 +74,43 @@ export default function ImageZoomViewer({
     if (resolvedScale === 1) setOffset({ x: 0, y: 0 });
   };
 
-  const navigateSwipe = (start: Point, end: Point) => {
-    if (scale !== 1 || !hasMultipleImages) return false;
-    const now = Date.now();
-    if (now - lastImageSwipeAt.current < 250) return false;
+  const surfaceWidth = () =>
+    surfaceRef.current?.getBoundingClientRect().width || window.innerWidth || 1;
 
-    const horizontalDistance = end.x - start.x;
-    const verticalDistance = end.y - start.y;
-    const isHorizontalSwipe =
-      Math.abs(horizontalDistance) >= 50 &&
-      Math.abs(horizontalDistance) > Math.abs(verticalDistance) * 1.25;
-
-    if (!isHorizontalSwipe) return false;
-
-    if (horizontalDistance < 0) onNextImage?.();
+  const showAdjacent = (direction: 1 | -1, fromX = 0) => {
+    if (!hasMultipleImages) return;
+    if (direction > 0) onNextImage?.();
     else onPreviousImage?.();
-    lastImageSwipeAt.current = now;
     reset();
-    return true;
+    // Place the new photo just off-screen on the incoming side, then let it glide in.
+    setIsDragging(true);
+    setSlideX(fromX + direction * surfaceWidth());
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        setIsDragging(false);
+        setSlideX(0);
+      }),
+    );
+  };
+
+  const finishSlide = (dx: number, elapsedMs: number) => {
+    const velocity = Math.abs(dx) / Math.max(elapsedMs, 1);
+    const isFlick = Math.abs(dx) >= 30 && velocity > 0.4;
+    const isLongDrag = Math.abs(dx) >= Math.min(120, surfaceWidth() * 0.2);
+    if (hasMultipleImages && (isFlick || isLongDrag)) {
+      showAdjacent(dx < 0 ? 1 : -1, dx);
+      return;
+    }
+    setIsDragging(false);
+    setSlideX(0);
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort; some browsers reject synthetic pointers.
+    }
     const point = { x: event.clientX, y: event.clientY };
     pointers.current.set(event.pointerId, point);
 
@@ -87,6 +118,8 @@ export default function ImageZoomViewer({
       gestureMoved.current = false;
       gestureWasMultiTouch.current = false;
       dragStart.current = { point, offset };
+      swipeStart.current = scale === 1 ? { point, time: Date.now() } : null;
+      swipeAxis.current = null;
     } else if (pointers.current.size === 2) {
       gestureWasMultiTouch.current = true;
       const [first, second] = [...pointers.current.values()];
@@ -95,6 +128,11 @@ export default function ImageZoomViewer({
         center: midpoint(first, second),
       };
       dragStart.current = null;
+      if (swipeStart.current) {
+        swipeStart.current = null;
+        setSlideX(0);
+      }
+      setIsDragging(true);
     }
   };
 
@@ -125,7 +163,22 @@ export default function ImageZoomViewer({
       return;
     }
 
+    const swipe = swipeStart.current;
+    if (swipe) {
+      const dx = event.clientX - swipe.point.x;
+      const dy = event.clientY - swipe.point.y;
+      if (!swipeAxis.current && Math.hypot(dx, dy) > 8) {
+        swipeAxis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      }
+      if (swipeAxis.current === 'x') {
+        setIsDragging(true);
+        setSlideX(hasMultipleImages ? dx : dx * 0.25);
+      }
+      return;
+    }
+
     if (scale > 1 && dragStart.current) {
+      setIsDragging(true);
       setOffset({
         x: dragStart.current.offset.x + event.clientX - dragStart.current.point.x,
         y: dragStart.current.offset.y + event.clientY - dragStart.current.point.y,
@@ -134,15 +187,21 @@ export default function ImageZoomViewer({
   };
 
   const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
-    const start = dragStart.current?.point;
-    const isSinglePointerGesture = pointers.current.size === 1 && !gestureWasMultiTouch.current;
+    const swipe = swipeStart.current;
+    const wasHorizontalSwipe = swipeAxis.current === 'x';
     pointers.current.delete(event.pointerId);
     previousPinch.current = null;
     dragStart.current = null;
 
-    if (isSinglePointerGesture && start) {
-      const end = { x: event.clientX, y: event.clientY };
-      navigateSwipe(start, end);
+    if (swipe && pointers.current.size === 0) {
+      swipeStart.current = null;
+      swipeAxis.current = null;
+      if (wasHorizontalSwipe) {
+        finishSlide(event.clientX - swipe.point.x, Date.now() - swipe.time);
+        gestureMoved.current = false;
+        gestureWasMultiTouch.current = false;
+        return;
+      }
     }
 
     if (
@@ -162,24 +221,8 @@ export default function ImageZoomViewer({
     if (pointers.current.size === 0) {
       gestureMoved.current = false;
       gestureWasMultiTouch.current = false;
+      setIsDragging(false);
     }
-  };
-
-  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length !== 1) {
-      touchSwipeStart.current = null;
-      return;
-    }
-    const touch = event.touches[0];
-    touchSwipeStart.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
-    const start = touchSwipeStart.current;
-    touchSwipeStart.current = null;
-    const touch = event.changedTouches[0];
-    if (!start || !touch) return;
-    navigateSwipe(start, { x: touch.clientX, y: touch.clientY });
   };
 
   return (
@@ -191,6 +234,7 @@ export default function ImageZoomViewer({
       onClick={(event) => event.stopPropagation()}
     >
       <div
+        ref={surfaceRef}
         className={`absolute inset-0 touch-none overflow-hidden ${
           scale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
         }`}
@@ -198,8 +242,6 @@ export default function ImageZoomViewer({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         onDoubleClick={() => setZoom(scale > 1 ? 1 : 2)}
       >
         <img
@@ -207,9 +249,10 @@ export default function ImageZoomViewer({
           alt={alt}
           draggable={false}
           onContextMenu={preventImageContextMenu}
-          className="h-full w-full select-none object-contain transition-transform duration-100"
+          className="h-full w-full select-none object-contain will-change-transform"
           style={{
-            transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
+            transform: `translate3d(${offset.x + slideX}px, ${offset.y}px, 0) scale(${scale})`,
+            transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)',
           }}
         />
       </div>
@@ -227,10 +270,7 @@ export default function ImageZoomViewer({
         <>
           <button
             type="button"
-            onClick={() => {
-              onPreviousImage?.();
-              reset();
-            }}
+            onClick={() => showAdjacent(-1)}
             className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-black/40 text-3xl text-white backdrop-blur-md hover:bg-black/60"
             aria-label="Show previous zoomed product image"
           >
@@ -238,10 +278,7 @@ export default function ImageZoomViewer({
           </button>
           <button
             type="button"
-            onClick={() => {
-              onNextImage?.();
-              reset();
-            }}
+            onClick={() => showAdjacent(1)}
             className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-black/40 text-3xl text-white backdrop-blur-md hover:bg-black/60"
             aria-label="Show next zoomed product image"
           >
