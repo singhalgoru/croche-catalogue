@@ -191,7 +191,7 @@ export default function ImageZoomViewer({
       onClick={(event) => event.stopPropagation()}
     >
       <div
-        className={`absolute inset-0 touch-none overflow-hidden ${
+        className={`absolute inset-0 flex touch-none items-center justify-center overflow-hidden [container-type:size] ${
           scale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
         }`}
         onPointerDown={handlePointerDown}
@@ -207,7 +207,7 @@ export default function ImageZoomViewer({
           alt={alt}
           draggable={false}
           onContextMenu={preventImageContextMenu}
-          className="h-full w-full select-none object-contain transition-transform duration-100"
+          className="h-[100cqmin] w-[100cqmin] max-w-none select-none object-cover transition-transform duration-100"
           style={{
             transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
           }}
