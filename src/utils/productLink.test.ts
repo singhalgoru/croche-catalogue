@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../types/product';
-import { findProductByReference, toProductReference } from './productLink';
+import { findProductByReference, toProductPageUrl, toProductReference } from './productLink';
 
 const createProduct = (id: string, name: string): Product => ({
   id,
@@ -56,5 +56,14 @@ describe('findProductByReference', () => {
   it('returns null when nothing matches', () => {
     expect(findProductByReference(products, 'not-a-product--missing-id')).toBeNull();
     expect(findProductByReference(products, '   ')).toBeNull();
+  });
+});
+
+describe('toProductPageUrl', () => {
+  it('links to the prerendered product page so previews show the product photo', () => {
+    const product = createProduct('8CE989F9-95a8', 'Bunny Toy');
+    expect(toProductPageUrl(product)).toBe(
+      `${window.location.origin}/p/bunny-toy--8ce989f9-95a8/`,
+    );
   });
 });

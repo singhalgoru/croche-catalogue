@@ -1,8 +1,8 @@
 import type { Product, ProductVariant } from '../types/product';
-import { toProductUrl } from './productLink';
+import { toProductPageUrl } from './productLink';
 
 export const getProductShareDetails = (product: Product, variant?: ProductVariant) => {
-  const url = toProductUrl(product);
+  const url = toProductPageUrl(product);
   const title =
     variant && product.variants.length > 1
       ? `${product.name} — ${variant.name}`

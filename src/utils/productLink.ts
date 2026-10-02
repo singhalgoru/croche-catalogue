@@ -52,3 +52,14 @@ export const toProductUrl = (product: LinkableProduct) => {
   const base = new URL(import.meta.env.BASE_URL, window.location.origin);
   return `${base.href}${toProductHash(product)}`;
 };
+
+/**
+ * Link to the prerendered product page, whose og:image is the product photo,
+ * so chat apps preview the item instead of the site logo. Products published
+ * after the last deploy have no page yet; public/404.html sends those links on
+ * to the catalogue's #product= route.
+ */
+export const toProductPageUrl = (product: LinkableProduct) => {
+  const base = new URL(import.meta.env.BASE_URL, window.location.origin);
+  return `${base.href}p/${encodeURIComponent(toProductReference(product))}/`;
+};

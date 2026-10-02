@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex" />
+    <title>Luvia Creations</title>
+    <script>
+      // Product pages are prerendered on each deploy, so a product published
+      // since then has no /p/<reference>/ page yet. Open it in the catalogue.
+      (function () {
+        var match = window.location.pathname.match(/^\/p\/([^/]+)\/?$/);
+        var target = match ? '/#product=' + match[1] : '/';
+        window.location.replace(target);
+      })();
+    </script>
+  </head>
+  <body>
+    <p><a href="/">Continue to the Luvia Creations catalogue</a></p>
+  </body>
+</html>
