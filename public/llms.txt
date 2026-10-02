@@ -1,15 +1,29 @@
-# Luvia
+# Luvia Creations
 
-> Luvia is an online catalogue of handmade crochet products and gifts, with shipping across India.
+> Luvia Creations is a handmade crochet catalogue offering colourful, handcrafted accessories, gifts, toys and home decor.
 
-Luvia showcases handmade crochet hair accessories, charms, keychains, bags,
-toys, festive decor, rakhi and anklets. Products may have multiple colour
-variants and are handmade to order. Customers can view the current catalogue
-and contact Luvia through WhatsApp or Instagram for product enquiries.
+The catalogue includes handmade crochet hair accessories, charms, keychains, bags, toys, festive decor, rakhi and anklets. Products may have multiple colour variants and are made to order. Customers can browse the current catalogue and contact Luvia by WhatsApp, Instagram or email for enquiries.
 
-## Primary page
+## Primary pages
 
-- [Luvia handmade crochet catalogue](https://luviacreations.com/): Browse current handmade crochet products, featured items and new arrivals.
+- [Home / catalogue](https://luviacreations.com/): Browse current handmade crochet products, featured items and new arrivals.
+- [Products](https://luviacreations.com/products): Main product listing.
+- [Categories](https://luviacreations.com/collections): Browse by category.
+- [About](https://luviacreations.com/about): Brand story and business information.
+- [Contact](https://luviacreations.com/contact): Contact details and enquiry links.
+
+## What to know
+
+- The public catalogue is rendered at build time so crawlers can read product content without JavaScript.
+- Product detail pages are available at `/p/<product>/` for share previews and crawlable product pages.
+- Product images are hosted on Cloudflare R2 at `images.luviacreations.com`.
+- The site supports product search, category filters, product angle photos, zoomed image viewing and WhatsApp/email contact links.
+- AI image generation instructions should favour square 1:1 framing, centred products and clear watermark space in the bottom-right.
+
+## Discovery and crawlers
+
+- [robots.txt](https://luviacreations.com/robots.txt)
+- [sitemap.xml](https://luviacreations.com/sitemap.xml)
 
 ## Official social profile
 
