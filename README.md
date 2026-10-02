@@ -114,6 +114,12 @@ Google Drive folder also keeps the copy off this computer. To restore,
 re-upload the files under the same keys, for example with `rclone` or the R2
 dashboard.
 
+`verify-backup-restore.yml` is a restore drill that runs monthly, or on demand
+from the Actions tab. It decrypts the latest database backup, restores it into
+a throwaway Supabase Postgres container, compares row counts and logins with
+production (read-only), and checks that every image the catalogue uses is in
+the image backup. If it fails, the backups need attention before they are needed.
+
 ## AI product image generation
 
 The admin console can generate studio and lifestyle product photos from uploaded
