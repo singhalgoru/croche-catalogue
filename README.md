@@ -96,6 +96,22 @@ intentionally left out of the service worker cache: they are served with an
 immutable one-year `Cache-Control`, and routing `<img>` loads through the worker
 made them depend on R2's conditional CORS headers.
 
+### Backing up images
+
+R2 has no automatic backup (the database is backed up daily by
+`backup-database.yml`). To copy every image to your computer, run:
+
+```sh
+npm run backup:images                       # into r2-image-backup/ (gitignored)
+npm run backup:images -- "D:/OneDrive/Luvia images"   # or any folder
+```
+
+It reads the credentials from `.env.r2.local`, so keep that file. Repeat runs
+only download new images and never delete local copies. Using a OneDrive or
+Google Drive folder also keeps the copy off this computer. To restore,
+re-upload the files under the same keys, for example with `rclone` or the R2
+dashboard.
+
 ## AI product image generation
 
 The admin console can generate studio and lifestyle product photos from uploaded
