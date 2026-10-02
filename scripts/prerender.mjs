@@ -313,7 +313,7 @@ h1{font-size:1.7rem;margin:0 0 6px;color:#5f3825}
 ul.variants{padding-left:20px}
 footer{margin-top:40px;padding-top:18px;border-top:1px solid #ecd9c6;font-size:.85rem;color:#8a6b57}`;
 
-const renderProductPage = (product, whatsappNumber) => {
+const renderProductPage = (product, whatsappNumber, socialImage = null) => {
   const url = productUrl(product);
   const title = `${product.name} — Handmade Crochet ${product.category} | Luvia Creations`;
   const description = truncate(
@@ -321,6 +321,9 @@ const renderProductPage = (product, whatsappNumber) => {
     155,
   );
   const image = product.image ? getProductImageUrl(product.image, 960) : `${ORIGIN}/images/luvia-logo.jpg`;
+  // WhatsApp and some other chat apps skip WebP link previews, so point
+  // og:image at the JPEG copy written next to the page when there is one.
+  const shareImage = socialImage?.url ?? image;
   const range = priceRange(product);
   const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
 
@@ -354,12 +357,19 @@ const renderProductPage = (product, whatsappNumber) => {
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${escapeHtml(image)}" />
-    <meta property="og:image:alt" content="${escapeHtml(product.name)}" />
+    <meta property="og:image" content="${escapeHtml(shareImage)}" />
+    ${
+      socialImage
+        ? `<meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="${socialImage.width}" />
+    <meta property="og:image:height" content="${socialImage.height}" />
+    `
+        : ''
+    }<meta property="og:image:alt" content="${escapeHtml(product.name)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
-    <meta name="twitter:image" content="${escapeHtml(image)}" />
+    <meta name="twitter:image" content="${escapeHtml(shareImage)}" />
     ${jsonLdScript(productJsonLd(product))}
     <style>${PAGE_STYLE}</style>
   </head>
@@ -441,6 +451,33 @@ const fetchProducts = async (supabaseUrl, anonKey) => {
   }
 };
 
+const SOCIAL_IMAGE_SIZE = 800;
+
+/**
+ * Writes dist/p/<reference>/og.jpg from the product photo. Chat apps fetch
+ * og:image themselves, and WhatsApp in particular skips WebP. Any failure
+ * leaves the page on the WebP image rather than failing the deploy.
+ */
+const writeSocialImage = async (product, dir, reference) => {
+  if (!product.image) return null;
+  try {
+    const response = await fetch(getProductImageUrl(product.image, 960));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { default: sharp } = await import('sharp');
+    const { data, info } = await sharp(Buffer.from(await response.arrayBuffer()))
+      .rotate()
+      .resize(SOCIAL_IMAGE_SIZE, SOCIAL_IMAGE_SIZE, { fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 80, mozjpeg: true })
+      .toBuffer({ resolveWithObject: true });
+    await writeFile(path.join(dir, 'og.jpg'), data);
+    return { url: `${ORIGIN}/p/${reference}/og.jpg`, width: info.width, height: info.height };
+  } catch (error) {
+    console.warn(`[prerender] No JPEG share image for ${product.name}: ${error.message}`);
+    return null;
+  }
+};
+
 const injectShell = (html, products) => {
   const shell = /<!--shell-->[\s\S]*?<!--\/shell-->/;
   if (!shell.test(html)) {
@@ -471,9 +508,14 @@ const main = async () => {
   await writeFile(indexPath, injectShell(await readFile(indexPath, 'utf8'), products));
 
   for (const product of products) {
-    const dir = path.join(DIST, 'p', toProductReference(product));
+    const reference = toProductReference(product);
+    const dir = path.join(DIST, 'p', reference);
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(dir, 'index.html'), renderProductPage(product, whatsappNumber));
+    const socialImage = await writeSocialImage(product, dir, reference);
+    await writeFile(
+      path.join(dir, 'index.html'),
+      renderProductPage(product, whatsappNumber, socialImage),
+    );
   }
 
   const today = new Date().toISOString().slice(0, 10);

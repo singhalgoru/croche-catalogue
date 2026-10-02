@@ -153,6 +153,19 @@ describe('injectShell', () => {
 describe('renderProductPage', () => {
   const page = renderProductPage(product, '910000000000');
 
+  it('points og:image at the JPEG share copy when one was written', () => {
+    const withJpeg = renderProductPage(product, '91', {
+      url: 'https://luviacreations.com/p/x/og.jpg',
+      width: 800,
+      height: 600,
+    });
+    expect(withJpeg).toContain('<meta property="og:image" content="https://luviacreations.com/p/x/og.jpg" />');
+    expect(withJpeg).toContain('<meta property="og:image:type" content="image/jpeg" />');
+    expect(withJpeg).toContain('<meta property="og:image:width" content="800" />');
+    expect(withJpeg).toContain('<meta name="twitter:image" content="https://luviacreations.com/p/x/og.jpg" />');
+    expect(page).not.toContain('og:image:type');
+  });
+
   it('is a complete document with a self-referencing canonical', () => {
     expect(page).toContain('<!doctype html>');
     expect(page).toContain(
