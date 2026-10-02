@@ -2,7 +2,7 @@
 
 > Luvia Creations is an India-based handmade crochet brand offering colourful accessories, gifts, toys and decor.
 
-Luvia Creations designs and handcrafts crochet products in India. The catalogue focuses on colourful handmade accessories, gifts, toys and decor, including hair accessories, charms, keychains, bags, festive decor, rakhi and anklets. Products are made to order. Product availability, colours and customisation options may vary by product. The website is the primary source for the current catalogue and pricing. Customers can contact Luvia by WhatsApp, Instagram or email for enquiries.
+Luvia Creations designs and handcrafts crochet products in India, with shipping across India. The website is the primary source for the current catalogue, prices and availability. Product and variant availability is shown as "In stock" or "Sold out"; contact Luvia to confirm delivery timing and customisation options.
 
 ## Brand
 
@@ -12,20 +12,19 @@ Luvia Creations designs and handcrafts crochet products in India. The catalogue 
 - Product availability, colours and customisation options may vary by product.
 - The website is the primary source for the current product catalogue and pricing.
 
-## Primary pages
+## Official catalogue
 
 - [Home / catalogue](https://luviacreations.com/): Browse current handmade crochet products, featured items and new arrivals.
-- [Products](https://luviacreations.com/products): Main product listing.
-- [Categories](https://luviacreations.com/collections): Browse by category.
-- [About](https://luviacreations.com/about): Brand story and business information.
-- [Contact](https://luviacreations.com/contact): Contact details and enquiry links.
 
-## What to know
+## Contact
 
-- The public catalogue is rendered at build time so crawlers can read product content without JavaScript.
-- Product detail pages are available at `/p/<product>/` for share previews and crawlable product pages.
-- Product images are hosted on Cloudflare R2 at `images.luviacreations.com`.
-- The site supports product search, category filters, product angle photos, zoomed image viewing and WhatsApp/email contact links.
+- [WhatsApp enquiries via the catalogue](https://luviacreations.com/): Use the website's WhatsApp contact or product enquiry buttons.
+- [Orders email](mailto:orders@luviacreations.com): orders@luviacreations.com.
+- [General enquiries email](mailto:hello@luviacreations.com): hello@luviacreations.com.
+
+<!--catalogue-->
+The current published products, categories, prices in INR and availability are listed on the [catalogue](https://luviacreations.com/). Product listings below are generated at deployment from the same data as the website.
+<!--/catalogue-->
 
 ## Discovery and crawlers
 

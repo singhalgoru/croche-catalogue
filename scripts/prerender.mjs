@@ -120,7 +120,9 @@ const toProduct = (row) => {
     category: row.category ?? 'Crochet',
     description: row.description ?? '',
     price: row.show_price === false ? null : (row.price ?? null),
-    inStock: row.in_stock !== false,
+    inStock: variants.length > 0
+      ? variants.some((variant) => variant.in_stock !== false)
+      : row.in_stock !== false,
     image: row.image_url ?? '',
     publishedAt: row.published_at ?? null,
     variants: variants.map((variant) => ({
@@ -165,7 +167,6 @@ const productJsonLd = (product) => {
     image: product.image ? getProductImageUrl(product.image, 960) : undefined,
     brand: { '@type': 'Brand', name: 'Luvia Creations' },
     material: 'Crochet yarn',
-    // Every piece is crocheted to order by a single maker.
     additionalProperty: {
       '@type': 'PropertyValue',
       name: 'Handmade',
@@ -238,6 +239,43 @@ const groupByCategory = (products) => {
   return [...groups];
 };
 
+const catalogueDescription = (products) => {
+  const categories = groupByCategory(products).map(([category]) => category.toLowerCase());
+  return categories.length > 0
+    ? `Shop Luvia's handmade crochet ${categories.join(', ')}. Shipping across India.`
+    : 'Explore handmade crochet accessories, gifts, toys and decor by Luvia, with shipping across India.';
+};
+
+const stockLabel = (product) => product.inStock ? 'In stock' : 'Sold out';
+
+const priceLabel = (product) => {
+  const range = priceRange(product);
+  return !range
+    ? 'Price on request'
+    : range.low === range.high
+      ? formatPrice(range.low)
+      : `${formatPrice(range.low)} – ${formatPrice(range.high)}`;
+};
+
+const markdownText = (value) =>
+  String(value).replace(/\s+/g, ' ').trim().replace(/[\\`*_[\]<>#]/g, '\\$&');
+
+const renderLlms = (template, products) => {
+  const marker = /<!--catalogue-->[\s\S]*?<!--\/catalogue-->/;
+  if (!marker.test(template)) throw new Error('llms.txt is missing the <!--catalogue--> markers');
+  const categories = groupByCategory(products);
+  const listing = [
+    'Prices are in INR. Variant prices may differ; confirm current price and availability on the linked product page.',
+    ...categories.map(([category, items]) => [
+      `## ${markdownText(category)}`,
+      ...items.map((product) =>
+        `- [${markdownText(product.name)}](${productUrl(product)}): ${priceLabel(product)}. ${stockLabel(product)}.`,
+      ),
+    ].join('\n')),
+  ].join('\n\n');
+  return template.replace(marker, () => listing);
+};
+
 /**
  * The homepage listing deliberately carries no <img>: it is replaced within a
  * moment of load, and 30-plus image requests would compete with the real app
@@ -252,8 +290,8 @@ const renderShell = (products) => {
     .map(([category, items]) => {
       const rows = items
         .map((product) => {
-          const price = product.price === null ? '' : ` ${formatPrice(product.price)}.`;
-          const stock = product.inStock ? 'In stock.' : 'Made to order.';
+          const price = ` ${priceLabel(product)}.`;
+          const stock = `${stockLabel(product)}.`;
           return [
             '<li>',
             `<article><h4><a href="/p/${toProductReference(product)}/">${escapeHtml(product.name)}</a></h4>`,
@@ -339,14 +377,9 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
   // the page photo visible when a visitor's resolver can't reach the image host.
   const shareImage = socialImage?.url ?? image;
   const redirect = appRedirectScript(toProductReference(product));
-  const range = priceRange(product);
   const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
 
-  const priceLine = range
-    ? range.low === range.high
-      ? formatPrice(range.low)
-      : `${formatPrice(range.low)} – ${formatPrice(range.high)}`
-    : 'Price on request';
+  const priceLine = priceLabel(product);
 
   return `<!doctype html>
 <html lang="en">
@@ -399,7 +432,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
       <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
       <img class="hero" src="${escapeHtml(shareImage)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />
       <p class="price">${escapeHtml(priceLine)}</p>
-      <p class="stock">${product.inStock ? 'In stock and ready to ship across India.' : 'Made to order — message us for the current lead time.'}</p>
+      <p class="stock">${stockLabel(product)}. Message us to confirm delivery timing.</p>
       <p>${escapeHtml(product.description)}</p>
       ${
         variantNames.length > 0
@@ -413,7 +446,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
         <a class="cta alt" href="/#product=${encodeURIComponent(toProductReference(product))}">View in the catalogue</a>
       </p>
       <footer>
-        <p>Luvia Creations makes handmade crochet accessories, gifts, bags, toys and decor, shipped across India.
+        <p>Luvia Creations makes handmade crochet accessories, gifts, toys and decor, shipped across India.
         <a href="/">Browse the full catalogue</a> or follow
         <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>
       </footer>
@@ -424,17 +457,15 @@ const renderProductPage = (product, whatsappNumber, socialImage = null) => {
 };
 
 const renderSitemap = (products, today) => {
-  const entry = (loc, lastmod, priority, changefreq) =>
-    `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+  const entry = (loc, lastmod) =>
+    `  <url>\n    <loc>${escapeHtml(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </url>`;
 
   const urls = [
-    entry(`${ORIGIN}/`, today, '1.0', 'daily'),
+    entry(`${ORIGIN}/`, today),
     ...products.map((product) =>
       entry(
         productUrl(product),
         (product.publishedAt ?? today).slice(0, 10),
-        '0.8',
-        'weekly',
       ),
     ),
   ];
@@ -499,7 +530,12 @@ const injectShell = (html, products) => {
   if (!shell.test(html)) {
     throw new Error('index.html is missing the <!--shell--> markers');
   }
+  const description = catalogueDescription(products);
   return html
+    .replace(/(<meta\s+(?:name="(?:description|twitter:description)"|property="og:description")\s+content=")[^"]*(")/g,
+      (_, before, after) => `${before}${escapeHtml(description)}${after}`)
+    .replace(/("description":\s*")[^"]*(")/,
+      () => `"description":${JSON.stringify(description).replace(/</g, '\\u003c')}`)
     .replace(shell, () => `<!--shell-->${renderShell(products)}<!--/shell-->`)
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };
@@ -536,6 +572,10 @@ const main = async () => {
 
   const today = new Date().toISOString().slice(0, 10);
   await writeFile(path.join(DIST, 'sitemap.xml'), renderSitemap(products, today));
+  await writeFile(
+    path.join(DIST, 'llms.txt'),
+    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products),
+  );
 
   console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);
 };
@@ -550,4 +590,4 @@ if (invokedDirectly) {
   });
 }
 
-export { fetchProducts, injectShell, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };
+export { fetchProducts, injectShell, renderLlms, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };

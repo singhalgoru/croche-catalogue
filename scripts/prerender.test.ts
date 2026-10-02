@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   escapeHtml,
@@ -7,6 +9,7 @@ import {
   injectShell,
   priceRange,
   renderProductPage,
+  renderLlms,
   renderShell,
   renderSitemap,
   toProduct,
@@ -92,6 +95,15 @@ describe('toProduct', () => {
     expect(product.variants.map((variant) => variant.name)).toEqual(['Ivory', 'Blush']);
     expect(toProduct({ ...row, show_price: false }).price).toBeNull();
   });
+
+  it('derives product stock from its variants, like the app', () => {
+    expect(toProduct({ ...row, in_stock: false }).inStock).toBe(true);
+    expect(toProduct({
+      ...row,
+      product_variants: row.product_variants.map((variant) => ({ ...variant, in_stock: false })),
+    }).inStock).toBe(false);
+    expect(toProduct({ ...row, in_stock: false, product_variants: [] }).inStock).toBe(false);
+  });
 });
 
 describe('priceRange', () => {
@@ -149,6 +161,49 @@ describe('injectShell', () => {
   it('fails loudly when the markers are missing', () => {
     expect(() => injectShell('<html></html>', [product])).toThrow(/shell/);
   });
+
+  it('updates all homepage descriptions from published categories', () => {
+    const source = readFileSync(path.resolve('index.html'), 'utf8');
+    const result = injectShell(source, [product, { ...product, category: 'Brooches' }]);
+    for (const key of ['name="description"', 'property="og:description"', 'name="twitter:description"']) {
+      const description = result.match(new RegExp(`${key}\\s+content="([^"]+)"`))?.[1];
+      expect(description).toContain('hair accessories, brooches');
+      expect(description).not.toMatch(/bags|rakhi/i);
+    }
+    const scripts = [...result.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
+    const store = JSON.parse(scripts[0][1])['@graph'][0];
+    expect(store.description).toContain('hair accessories, brooches');
+  });
+});
+
+describe('renderLlms', () => {
+  const template = readFileSync(path.resolve('public', 'llms.txt'), 'utf8');
+
+  it('lists real product links under their categories with price ranges and stock', () => {
+    const text = renderLlms(template, [product]);
+    expect(text).toContain('## Hair Accessories');
+    expect(text).toContain(`[Ivory Rose Gajra](https://luviacreations.com/p/${prerenderReference(product)}/): ₹400 – ₹450. In stock.`);
+    expect(text).toContain('WhatsApp enquiries via the catalogue');
+    expect(text).not.toMatch(/wa\.me\/|tel:/);
+    expect(text).toContain('mailto:orders@luviacreations.com');
+    expect(text).toContain('mailto:hello@luviacreations.com');
+    expect(text).not.toMatch(/luviacreations\.com\/(?:products|collections|about|contact)\b/);
+    expect(text).not.toMatch(/made to order|<!--catalogue-->|AI image generation/i);
+  });
+
+  it('does not expose hidden prices or retain removed products and categories', () => {
+    const text = renderLlms(template, [{ ...product, price: null, inStock: false }]);
+    expect(text).toContain('Price on request. Sold out.');
+    expect(text).not.toContain('₹');
+    expect(renderLlms(template, [])).not.toContain('Ivory Rose Gajra');
+    expect(renderLlms(template, [])).not.toContain('## Hair Accessories');
+  });
+
+  it('escapes Markdown in names and rejects a template without catalogue markers', () => {
+    expect(renderLlms(template, [{ ...product, name: 'Rose [Ivory]\nClip' }]))
+      .toContain('Rose \\[Ivory\\] Clip');
+    expect(() => renderLlms('missing markers', [])).toThrow(/markers/);
+  });
 });
 
 describe('renderProductPage', () => {
@@ -190,6 +245,25 @@ describe('renderProductPage', () => {
     expect(page).toContain('"priceCurrency":"INR"');
     expect(page).toContain('https://schema.org/InStock');
     expect(page).toContain('"@type":"BreadcrumbList"');
+  });
+
+  it('has parseable Product JSON-LD in the raw page source', () => {
+    const source = page.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+    const data = JSON.parse(source!);
+    const schema = data['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product');
+    expect(schema.name).toBe(product.name);
+    expect(schema.url).toBe(`https://luviacreations.com/p/${prerenderReference(product)}/`);
+    expect(schema.offers.priceCurrency).toBe('INR');
+    expect(schema.offers.lowPrice).toBe('400');
+    expect(schema.offers.availability).toBe('https://schema.org/InStock');
+  });
+
+  it('keeps sold-out wording consistent with structured availability', () => {
+    const soldOut = renderProductPage({ ...product, inStock: false }, '91');
+    expect(soldOut).toContain('Sold out. Message us to confirm delivery timing.');
+    expect(soldOut).toContain('https://schema.org/OutOfStock');
+    expect(soldOut).not.toMatch(/made to order|ready to ship/i);
+    expect(renderShell([{ ...product, inStock: false }])).toContain('Sold out.');
   });
 
   it('never lets JSON-LD break out of its script element', () => {
@@ -255,5 +329,9 @@ describe('renderSitemap', () => {
 
   it('dates product entries from their publish date', () => {
     expect(xml).toContain('<lastmod>2026-01-01</lastmod>');
+  });
+
+  it('omits unused priority and changefreq fields', () => {
+    expect(xml).not.toMatch(/priority|changefreq/);
   });
 });

@@ -114,7 +114,7 @@ export default function Header({
         </h1>
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-            Explore handmade crochet accessories, gifts, bags, toys and decor by Luvia.
+            Explore handmade crochet accessories, gifts, toys and decor by Luvia.
             Every piece is stitched with love and shipped across India.
           </p>
         )}

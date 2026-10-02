@@ -123,4 +123,14 @@ Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). A small hash-pinned script sends
 human visitors on to the app's product view, while crawlers stay on the static page.
 
-For AI discovery, the site also publishes [public/llms.txt](./public/llms.txt).
+For AI discovery, the site publishes [public/llms.txt](./public/llms.txt).
+During each build, the prerenderer replaces its catalogue markers with the
+published categories and product-page links, including visible price ranges
+in INR and stock status. It also updates the homepage meta descriptions from
+those categories, so unpublished categories are not advertised. Contact details
+remain in the template; WhatsApp enquiries link to the catalogue's contact
+buttons rather than publishing a mobile number in the discovery file.
+Stock wording follows the catalogue's "In stock" / "Sold out" status and does
+not promise made-to-order fulfilment or immediate dispatch.
+Each static product page includes Product JSON-LD with its visible price and
+availability, plus breadcrumbs. The sitemap contains URLs and `lastmod` only.
