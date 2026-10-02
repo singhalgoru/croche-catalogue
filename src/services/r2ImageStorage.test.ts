@@ -62,6 +62,16 @@ describe('r2ImageStorage', () => {
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 
+  it('links the published copy to the private original identifier', async () => {
+    mockInvoke.mockResolvedValue({
+      data: { imagePath: 'r2:products/user-1/abc', imageUrl: 'https://images.luviacreations.com/products/user-1/abc.webp' },
+      error: null,
+    });
+    await uploadImageToR2(webpFile(), 'original-id');
+    const form = mockInvoke.mock.calls[0][1].body as FormData;
+    expect(form.get('imageId')).toBe('original-id');
+  });
+
   it('falls back when the function cannot be reached', async () => {
     mockInvoke.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
 

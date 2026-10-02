@@ -41,11 +41,12 @@ const getErrorMessage = async (error: { message: string; context?: unknown }) =>
  * Uploads the full image plus fixed display widths to Cloudflare R2.
  * Returns null when R2 is not configured so callers can use Supabase Storage.
  */
-export async function uploadImageToR2(file: File): Promise<StoredImage | null> {
+export async function uploadImageToR2(file: File, imageId?: string): Promise<StoredImage | null> {
   const supabase = await loadSupabase();
   if (!supabase || r2Unavailable) return null;
 
   const form = new FormData();
+  if (imageId) form.append('imageId', imageId);
   form.append('full', file, 'full.webp');
   for (const width of R2_IMAGE_WIDTHS) {
     form.append(`w${width}`, await createResizedWebp(file, width), `w${width}.webp`);

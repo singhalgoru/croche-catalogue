@@ -55,6 +55,21 @@ made them depend on R2's conditional CORS headers.
 The database and images are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
 
+Before any new product, variant, gallery or AI-generated image is published,
+its exact unwatermarked JPG/PNG/WebP file is archived in the private Supabase
+Storage bucket `product-originals` (up to 6 MB). Only catalogue admins can
+read it; uploads cannot proceed if archival fails. The public watermarked
+copy uses the same UUID on R2 or the Supabase fallback, linking it to
+`<admin-id>/<uuid>/original.<extension>`. Removing a public photo does not
+remove its archived original. Previously watermarked input cannot be unmarked:
+upload a clean original if one is available.
+
+Daily backups retain originals in `image-originals/` alongside public R2
+copies in `r2-images/` in the private backup repository. The originals backup
+requires the GitHub secret `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
+Neither backup deletes images that disappear from live storage. The existing
+pre-watermark originals remain in the older `r2-images/` backup paths.
+
 ## AI product image generation
 
 The admin console can generate studio and lifestyle product photos from uploaded

@@ -129,3 +129,18 @@ jobs:
           echo "$total images referenced; $not_r2 not stored in R2; $missing backup files missing."
           [ "$not_r2" -eq 0 ] || echo "::warning::$not_r2 images are not in R2, so the image backup does not cover them."
           [ "$missing" -eq 0 ]
+
+      - name: Check private originals are in the image backup
+        run: |
+          set -euo pipefail
+          psql "$RESTORED_DB" -Atq -c "
+            select name from storage.objects where bucket_id = 'product-originals'" > original-paths.txt
+          missing=0
+          while IFS= read -r path; do
+            if [ ! -s "backup-repo/image-originals/$path" ]; then
+              echo "::error::An archived original is missing from the private image backup."
+              missing=$((missing + 1))
+            fi
+          done < original-paths.txt
+          echo "$(wc -l < original-paths.txt) private originals referenced; $missing backup files missing."
+          [ "$missing" -eq 0 ]

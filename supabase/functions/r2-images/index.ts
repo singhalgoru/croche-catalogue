@@ -149,7 +149,27 @@ Deno.serve(async (request) => {
     files.set(field, value);
   }
 
-  const base = `products/${userData.user.id}/${crypto.randomUUID()}`;
+  const imageId = form.get('imageId');
+  if (imageId !== null && (typeof imageId !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(imageId))) {
+    return jsonResponse({ error: 'Invalid image identifier.' }, 400);
+  }
+  const base = `products/${userData.user.id}/${imageId ?? crypto.randomUUID()}`;
+  if (imageId) {
+    const { data: originals, error: originalError } = await authClient.storage
+      .from('product-originals').list(`${userData.user.id}/${imageId}`);
+    if (originalError) {
+      return jsonResponse({ error: `Unable to verify the private original: ${originalError.message}` }, 502);
+    }
+    if (!originals?.some((file) => file.id && /^original\.(jpg|png|webp)$/.test(file.name))) {
+      return jsonResponse({ error: 'Save the private image original before publishing.' }, 400);
+    }
+    const existing = await r2.client.fetch(`${r2.endpoint}/${base}.webp`, { method: 'HEAD' });
+    if (existing.ok) return jsonResponse({ error: 'This image identifier has already been published.' }, 409);
+    if (existing.status !== 404) {
+      return jsonResponse({ error: `Unable to check image identifier: R2 status ${existing.status}.` }, 502);
+    }
+  }
   const uploads: Array<[string, File]> = [
     [`${base}.webp`, files.get('full')!],
     ...SIZE_FIELDS.map((field): [string, File] => [`${base}-${field}.webp`, files.get(field)!]),

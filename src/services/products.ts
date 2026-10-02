@@ -1,6 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
+import { archiveImageOriginal } from './imageOriginals';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { PRODUCT_COLUMNS } from './productColumns';
 import { getNewProductSortOrder } from './catalogueOrder';
@@ -190,11 +191,12 @@ const PRODUCT_IMAGE_CACHE_SECONDS = 365 * 24 * 60 * 60;
 const uploadProductImage = async (file: File, userId: string) => {
   const client = await requireSupabase();
   const uploadFile = await convertImageForUpload(file);
-  const r2Upload = await uploadImageToR2(uploadFile);
+  const imageId = await archiveImageOriginal(file, userId);
+  const r2Upload = await uploadImageToR2(uploadFile, imageId);
   if (r2Upload) return r2Upload;
 
   const extension = uploadFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const imagePath = `${userId}/${crypto.randomUUID()}.${extension}`;
+  const imagePath = `${userId}/${imageId}.${extension}`;
   const { error } = await client.storage.from('product-images').upload(imagePath, uploadFile, {
     contentType: uploadFile.type,
     // Each upload gets a fresh UUID path, so the file never changes in place.
