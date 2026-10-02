@@ -2,7 +2,11 @@
 // One-time migration: copies product images from Supabase Storage to Cloudflare R2
 // (full image + pre-sized w160/w480/w960 copies) and repoints database rows.
 // Dry run by default; pass --apply to upload and update rows.
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { AwsClient } from 'aws4fetch';
+import sharp from 'sharp';
 
 const apply = process.argv.includes('--apply');
 const env = (name, fallback) => process.env[name] || (fallback ? process.env[fallback] : undefined);
@@ -74,6 +78,52 @@ const objectPathFromUrl = (imageUrl) => {
   }
 };
 
+// Original catalogue photos shipped with the site under public/images, served
+// from GitHub Pages. They are resized locally since there is no transform API.
+const STATIC_DIR = fileURLToPath(new URL('../public/images/', import.meta.url));
+const STATIC_PATH = /^\/(?:croche-catalogue\/)?images\/((?:[^/]+\/)*[^/]+)$/;
+
+const staticFileFromUrl = (imageUrl) => {
+  try {
+    const match = STATIC_PATH.exec(new URL(imageUrl, 'https://luviacreations.com').pathname);
+    if (!match) return null;
+    const fileName = decodeURIComponent(match[1]);
+    if (fileName.split('/').includes('..')) return null;
+    return existsSync(STATIC_DIR + fileName) ? fileName : null;
+  } catch {
+    return null;
+  }
+};
+
+const sourceKeyFromUrl = (imageUrl) => {
+  const objectPath = objectPathFromUrl(imageUrl);
+  if (objectPath) return objectPath;
+  const fileName = staticFileFromUrl(imageUrl);
+  return fileName ? 'static:' + fileName : null;
+};
+
+const migrateStaticFile = async (fileName) => {
+  const slug = fileName.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const base = 'products/static/' + slug;
+  const input = await readFile(STATIC_DIR + fileName);
+  const jobs = [
+    [base + '.webp', () => sharp(input).rotate()
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82 }).toBuffer()],
+    ...SIZES.map((size) => [base + '-w' + size + '.webp', () => sharp(input).rotate()
+      .resize({ width: size, withoutEnlargement: true })
+      .webp({ quality: 75 }).toBuffer()]),
+  ];
+  for (const [key, render] of jobs) {
+    if (await r2Exists(key)) continue;
+    await r2Put(key, new Uint8Array(await render()));
+  }
+  return { imagePath: 'r2:' + base, imageUrl: publicUrl + '/' + base + '.webp' };
+};
+
+const migrateSource = (sourceKey) =>
+  sourceKey.startsWith('static:') ? migrateStaticFile(sourceKey.slice('static:'.length)) : migrateObject(sourceKey);
+
 const migrateObject = async (objectPath) => {
   const base = 'products/' + objectPath.replace(/\.[^./]+$/, '');
   const encoded = objectPath.split('/').map(encodeURIComponent).join('/');
@@ -98,13 +148,15 @@ for (const table of TABLES) {
   rowsByTable[table] = await rest(table + '?select=id,image_path,image_url');
   for (const row of rowsByTable[table]) {
     if (String(row.image_path).startsWith('r2:')) continue;
-    const objectPath = objectPathFromUrl(row.image_url);
-    if (objectPath) objectPaths.add(objectPath);
-    else console.warn('Skipping ' + table + ' ' + row.id + ': not a Supabase public image URL');
+    const sourceKey = sourceKeyFromUrl(row.image_url);
+    if (sourceKey) objectPaths.add(sourceKey);
+    else console.warn('Skipping ' + table + ' ' + row.id + ': unrecognised image URL ' + row.image_url);
   }
 }
 
-console.log('Found ' + objectPaths.size + ' Supabase images to migrate' + (apply ? '.' : ' (dry run, pass --apply to migrate).'));
+const staticCount = [...objectPaths].filter((key) => key.startsWith('static:')).length;
+console.log('Found ' + objectPaths.size + ' images to migrate (' + (objectPaths.size - staticCount) + ' Supabase, ' +
+  staticCount + ' site photos)' + (apply ? '.' : ' (dry run, pass --apply to migrate).'));
 if (!apply) process.exit(0);
 
 const migrated = new Map();
@@ -112,7 +164,7 @@ let index = 0;
 for (const objectPath of objectPaths) {
   index += 1;
   try {
-    migrated.set(objectPath, await migrateObject(objectPath));
+    migrated.set(objectPath, await migrateSource(objectPath));
     console.log('[' + index + '/' + objectPaths.size + '] ' + objectPath);
   } catch (error) {
     console.error('[' + index + '/' + objectPaths.size + '] FAILED ' + objectPath + ': ' + error.message);
@@ -122,8 +174,8 @@ for (const objectPath of objectPaths) {
 let updatedRows = 0;
 for (const table of TABLES) {
   for (const row of rowsByTable[table]) {
-    const objectPath = objectPathFromUrl(row.image_url);
-    const target = objectPath && migrated.get(objectPath);
+    const sourceKey = sourceKeyFromUrl(row.image_url);
+    const target = sourceKey && migrated.get(sourceKey);
     if (!target || String(row.image_path).startsWith('r2:')) continue;
     await rest(table + '?id=eq.' + encodeURIComponent(row.id), {
       method: 'PATCH',
@@ -136,8 +188,8 @@ for (const table of TABLES) {
 
 const cartItems = await rest('cart_items?select=id,image_url');
 for (const item of cartItems) {
-  const objectPath = objectPathFromUrl(item.image_url);
-  const target = objectPath && migrated.get(objectPath);
+  const sourceKey = sourceKeyFromUrl(item.image_url);
+  const target = sourceKey && migrated.get(sourceKey);
   if (!target) continue;
   await rest('cart_items?id=eq.' + encodeURIComponent(item.id), {
     method: 'PATCH',

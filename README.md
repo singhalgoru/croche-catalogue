@@ -78,14 +78,15 @@ returns 501, and uploads automatically fall back to Supabase Storage.
    ```
 
    `R2_ACCOUNT_ID` falls back to `CLOUDFLARE_ACCOUNT_ID` when omitted.
-6. Copy existing images and repoint the database rows. The script does a dry run
-   unless you pass `--apply`. It skips objects already in R2, so it can be rerun,
-   and it keeps the original Supabase objects:
+6. Copy existing images and repoint the database rows. This covers Supabase
+   Storage images and the original photos in `public/images`, which are resized
+   locally with `sharp`. The script does a dry run unless you pass `--apply`. It
+   skips objects already in R2, so it can be rerun, and it keeps the originals.
+   Put the R2 values in a gitignored `.env.r2.local` file:
 
    ```sh
-   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... R2_ACCESS_KEY_ID=... \
-   R2_SECRET_ACCESS_KEY=... R2_BUCKET=... R2_PUBLIC_URL=... R2_ACCOUNT_ID=... \
-     node scripts/migrate-images-to-r2.mjs --apply
+   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+     node --env-file=.env.r2.local scripts/migrate-images-to-r2.mjs --apply
    ```
 
 If you use a public URL other than `images.luviacreations.com` or `*.r2.dev`,
