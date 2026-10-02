@@ -3,6 +3,7 @@ import type { Cart } from '../types/cart';
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductImageUrl } from '../utils/productImageUrl';
 import { getCartWhatsAppLink } from '../utils/whatsapp';
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
@@ -171,8 +172,10 @@ export default function CartDrawer({
                         aria-label={`View ${itemName}`}
                       >
                         <img
-                          src={item.image}
+                          src={getProductImageUrl(item.image, 160)}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           className="h-20 w-20 rounded-xl bg-cream object-cover"
                         />
                       </button>
