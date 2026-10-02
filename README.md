@@ -171,11 +171,22 @@ For Google Search Console, verify the domain property `luviacreations.com`
 using the TXT record Google provides, then submit
 `https://luviacreations.com/sitemap.xml`. The build fetches published products
 from Supabase and generates a crawlable `/p/<product>/` page and sitemap entry
-for each one. The deploy workflow rebuilds on every push to `main` and runs
-hourly (at 23 minutes past the hour), so products added, edited, unpublished, or deleted in
+for each one. The deploy workflow rebuilds on every push to `main`, about a
+minute after any catalogue change in admin, and daily at 01:23 UTC (06:53 IST)
+as a safety net, so products added, edited, unpublished, or deleted in
 admin appear in the generated pages and sitemap after the next successful
-deployment (GitHub may delay scheduled runs). The sitemap is not updated
-directly by the browser or Supabase; check the deploy workflow if an update
+deployment (GitHub may delay scheduled runs). Change-triggered rebuilds need a
+GitHub token in Supabase Vault:
+
+1. Create a fine-grained token at GitHub → Settings → Developer settings →
+   Fine-grained tokens, limited to this repository, with only
+   **Actions: Read and write** permission.
+2. In the Supabase SQL Editor run
+   `select vault.create_secret('<token>', 'github_deploy_token');`
+   (to replace it later: `select vault.update_secret(id, '<token>') from vault.secrets where name = 'github_deploy_token';`).
+
+Without the token, saves still work and the daily run picks up changes.
+Check the deploy workflow if an update
 has not appeared. GitHub Pages and browsers may cache the sitemap briefly.
 Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). A small hash-pinned script sends

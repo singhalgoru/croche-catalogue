@@ -4,11 +4,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      delay_seconds:
+        description: Seconds to wait before building (catalogue-change triggers use this to batch edits)
+        required: false
+        default: '0'
   # Rebuild prerendered product pages and sitemap from published Supabase data.
+  # Catalogue changes also trigger a rebuild from Supabase (see the
+  # request_site_rebuild migration); this daily run is a safety net.
   # Offset from the hour to avoid GitHub Actions' busiest scheduling window.
   schedule:
-    # Hourly so newly published products get share previews quickly.
-    - cron: '23 * * * *'
+    - cron: '23 1 * * *'
 
 permissions:
   contents: read
@@ -23,6 +29,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # A newer catalogue change cancels this run while it waits, so a burst
+      # of admin edits produces one build of the final data.
+      - name: Wait for further catalogue edits
+        if: github.event_name == 'workflow_dispatch' && inputs.delay_seconds != '0'
+        env:
+          DELAY_SECONDS: ${{ inputs.delay_seconds }}
+        run: |
+          case "$DELAY_SECONDS" in ''|*[!0-9]*) exit 0 ;; esac
+          sleep "$(( DELAY_SECONDS > 300 ? 300 : DELAY_SECONDS ))"
+
       - name: Checkout
         uses: actions/checkout@v4
 
