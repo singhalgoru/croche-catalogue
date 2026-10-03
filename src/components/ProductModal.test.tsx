@@ -135,6 +135,37 @@ const renderModalWithCart = () => {
 const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 
 describe('ProductModal touch controls', () => {
+  it('offers full details while preserving the selected variant', () => {
+    const onOpenFullDetails = vi.fn();
+    render(<ProductModal product={product} currentIndex={0} totalProducts={1}
+      initialVariantId="variant-2" onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()}
+      onOpenFullDetails={onOpenFullDetails} />);
+    const link = screen.getByRole('link', { name: 'View full details' });
+    expect(link.getAttribute('href')).toContain('?variant=variant-2');
+    fireEvent.click(link);
+    expect(onOpenFullDetails).toHaveBeenCalledWith('variant-2');
+    act(() => vi.advanceTimersByTime(7000));
+    expect(screen.getByRole('link', { name: 'View full details' }).getAttribute('href')).toContain('?variant=variant-2');
+  });
+
+  it('reuses ordering and zoom as a full page without modal close or product swipes', () => {
+    const onClose = vi.fn();
+    const onNext = vi.fn();
+    render(<ProductModal presentation="page" product={product} currentIndex={0} totalProducts={3}
+      onClose={onClose} onPrevious={vi.fn()} onNext={onNext} />);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(product.name);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close product details' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'View full details' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onNext).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+    expect(screen.getByRole('button', { name: 'Close image zoom' })).toBeTruthy();
+  });
+
   it('shows confirmed product specifications without changing order actions', () => {
     render(
       <ProductModal product={{ ...product, materials: 'Cotton yarn', dimensions: 'Approx. 10 cm', includedItems: 'One rose', careInstructions: 'Spot clean gently.' }}

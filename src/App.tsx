@@ -21,6 +21,9 @@ import { resolveCategorySelection } from './utils/categorySelection';
 import {
   findProductByReference,
   readProductReferenceFromHash,
+  readProductPageReference,
+  toProductPageUrl,
+  toProductReference,
   toProductHash,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
@@ -59,17 +62,25 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>('All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [pageReference, setPageReference] = useState(readProductPageReference);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('variant'));
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [categoryScrollRequest, setCategoryScrollRequest] = useState(0);
   const [areCatalogueToolsSticky, setAreCatalogueToolsSticky] = useState(false);
   const [catalogueToolsHeight, setCatalogueToolsHeight] = useState(0);
-  const pendingProductReference = useRef(readProductReferenceFromHash());
+  const pendingProductReference = useRef(readProductPageReference() ?? readProductReferenceFromHash());
+  const promotedFromCatalogue = useRef(false);
   const productReturnScrollY = useRef<number | null>(null);
   const catalogueToolsSentinelRef = useRef<HTMLDivElement>(null);
   const catalogueToolsRef = useRef<HTMLDivElement>(null);
   const stickyCatalogueToolsRef = useRef<HTMLDivElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
+  const initialMetadata = useRef({
+    title: document.title,
+    canonical: document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href,
+    description: document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content,
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
@@ -93,7 +104,7 @@ function App() {
     setCatalogueToolsHeight(tools.offsetHeight);
     observer.observe(tools);
     return () => observer.disconnect();
-  }, [areCatalogueToolsSticky]);
+  }, [areCatalogueToolsSticky, pageReference]);
 
   useEffect(() => {
     const updateStickyState = () => {
@@ -129,16 +140,54 @@ function App() {
   }, [products]);
 
   useEffect(() => {
-    if (isAdminPage || pendingProductReference.current) return;
+    if (isAdminPage || pendingProductReference.current || pageReference) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct) : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
-  }, [isAdminPage, selectedProduct]);
+  }, [isAdminPage, selectedProduct, pageReference]);
+
+  useEffect(() => {
+    if (!pageReference || !selectedProduct) return;
+    const url = new URL(toProductPageUrl(selectedProduct));
+    const params = new URLSearchParams(window.location.search);
+    params.delete('productPage');
+    url.search = params.toString();
+    window.history.replaceState(window.history.state, '', url);
+    document.title = `${selectedProduct.name} | Luvia Creations`;
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) canonical.href = toProductPageUrl(selectedProduct);
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (description) description.content = selectedProduct.description.slice(0, 155);
+  }, [pageReference, selectedProduct]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const reference = readProductPageReference();
+      setPageReference(reference);
+      setIsCartOpen(false);
+      setReturnToCartOnProductClose(false);
+      setSelectedVariantId(new URLSearchParams(window.location.search).get('variant'));
+      const requested = reference ?? readProductReferenceFromHash();
+      setSelectedProduct(requested ? findProductByReference(products, requested) : null);
+      pendingProductReference.current = requested && products.length === 0 ? requested : null;
+      if (!reference && promotedFromCatalogue.current) {
+        document.title = initialMetadata.current.title;
+        const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+        if (canonical && initialMetadata.current.canonical) canonical.href = initialMetadata.current.canonical;
+        const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+        if (description && initialMetadata.current.description) description.content = initialMetadata.current.description;
+        window.requestAnimationFrame(() => window.scrollTo({ top: productReturnScrollY.current ?? 0, behavior: 'auto' }));
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [products]);
 
   // Opens the product when a link lands in an already-loaded tab, where the
   // browser only changes the hash instead of reloading the page.
   useEffect(() => {
     const openProductFromHash = () => {
+      if (pageReference) return;
       const reference = readProductReferenceFromHash();
       if (!reference) return;
       const match = findProductByReference(products, reference);
@@ -148,7 +197,23 @@ function App() {
     };
     window.addEventListener('hashchange', openProductFromHash);
     return () => window.removeEventListener('hashchange', openProductFromHash);
-  }, [products, selectedProduct]);
+  }, [products, selectedProduct, pageReference]);
+
+  const openFullDetails = (variantId: string) => {
+    if (!selectedProduct) return;
+    const url = new URL(toProductPageUrl(selectedProduct));
+    const params = new URLSearchParams(window.location.search);
+    params.delete('productPage');
+    if (variantId) params.set('variant', variantId);
+    url.search = params.toString();
+    promotedFromCatalogue.current = true;
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    window.history.pushState(null, '', url);
+    setSelectedVariantId(variantId || null);
+    setPageReference(toProductReference(selectedProduct));
+    setAreCatalogueToolsSticky(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);
@@ -255,6 +320,9 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header
+        compact={Boolean(pageReference)}
+        showHeading={!pageReference}
+        showInstallPrompt={!pageReference}
         cartItemCount={cart.itemCount}
         cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
@@ -270,6 +338,50 @@ function App() {
         </div>
       )}
 
+      {pageReference ? (
+        <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 py-4 sm:py-8">
+          <a
+            href={import.meta.env.BASE_URL}
+            onClick={(event) => {
+              if (!promotedFromCatalogue.current || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              window.history.back();
+            }}
+            className="inline-block py-2 text-sm font-semibold text-cocoa underline underline-offset-4"
+          >
+            Back to collection
+          </a>
+          {!selectedProduct && (
+            isLoading
+              ? <p role="status">Loading product details…</p>
+              : <p role="alert" className="rounded-xl border border-mustard/30 bg-white p-4 text-cocoa">
+                {loadError || 'This product is unavailable or no longer published. Browse the collection for available items.'}
+              </p>
+          )}
+          {selectedProduct && (
+            <Suspense fallback={<p role="status">Loading product details…</p>}>
+              <ProductModal
+                key={`page:${selectedProduct.id}:${selectedVariantId ?? ''}`}
+                presentation="page"
+                product={selectedProduct}
+                initialVariantId={selectedVariantId ?? undefined}
+                currentIndex={0}
+                totalProducts={1}
+                onClose={() => {}}
+                onPrevious={() => {}}
+                onNext={() => {}}
+                onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
+                isCartBusy={cart.isBusy}
+                getCartQuantity={(productId, variantId) => cart.cart?.items.find(item => item.productId === productId && item.variantId === variantId)?.quantity ?? 0}
+                getCartItem={(productId, variantId) => cart.cart?.items.find(item => item.productId === productId && item.variantId === variantId)}
+                onUpdateCartItem={async (itemId, quantity) => Boolean(await cart.updateQuantity(itemId, quantity))}
+                onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
+              />
+            </Suspense>
+          )}
+          <OrderingGuide />
+        </main>
+      ) : (
       <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
         <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
@@ -363,11 +475,12 @@ function App() {
         </div>
         <OrderingGuide />
       </main>
+      )}
 
       <Footer />
       {!selectedProduct && !isCartOpen && <BackToTopButton />}
 
-      {selectedProduct && (
+      {selectedProduct && !pageReference && (
         <Suspense fallback={<p role="status">Loading product details…</p>}>
           <ProductModal
             key={`${selectedProduct.id}:${selectedVariantId ?? ''}`}
@@ -378,6 +491,7 @@ function App() {
             onClose={closeSelectedProduct}
             onPrevious={showPreviousProduct}
             onNext={showNextProduct}
+            onOpenFullDetails={openFullDetails}
             onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
             isCartBusy={cart.isBusy}
             getCartQuantity={(productId, variantId) =>
@@ -431,6 +545,12 @@ function App() {
             setReturnToCartOnProductClose(true);
             setSelectedVariantId(variantId);
             setSelectedProduct(product);
+            if (pageReference) {
+              const url = new URL(toProductPageUrl(product));
+              url.searchParams.set('variant', variantId);
+              window.history.replaceState(null, '', url);
+              setPageReference(toProductReference(product));
+            }
             setIsCartOpen(false);
           }}
         />

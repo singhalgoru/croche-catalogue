@@ -62,7 +62,7 @@ describe('buildWhatsAppCartMessage', () => {
   it('puts a product link first so WhatsApp previews the product photo', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem()]));
     const firstLink = message.split('\n').find((line) => line.startsWith('http'));
-    expect(firstLink).toContain('#product=cute-bunny--p1');
+    expect(firstLink).toContain('/p/cute-bunny--p1/');
   });
 
   it('asks for confirmation when an item has no price', () => {

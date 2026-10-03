@@ -23,6 +23,7 @@ import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
+import { toProductPageUrl } from '../utils/productLink';
 
 interface Props {
   product: Product;
@@ -38,6 +39,8 @@ interface Props {
   onUpdateCartItem?: (itemId: string, quantity: number) => Promise<boolean>;
   onRemoveCartItem?: (itemId: string) => Promise<boolean>;
   initialVariantId?: string;
+  presentation?: 'modal' | 'page';
+  onOpenFullDetails?: (variantId: string) => void;
 }
 
 interface GalleryImage {
@@ -60,7 +63,10 @@ export default function ProductModal({
   onUpdateCartItem,
   onRemoveCartItem,
   initialVariantId,
+  presentation = 'modal',
+  onOpenFullDetails,
 }: Props) {
+  const isPage = presentation === 'page';
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sharePanelRef = useRef<HTMLDivElement>(null);
@@ -77,9 +83,9 @@ export default function ProductModal({
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [hasChosenImage, setHasChosenImage] = useState(false);
+  const [hasChosenImage, setHasChosenImage] = useState(Boolean(initialVariantId));
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
-  const hasCarousel = totalProducts > 1;
+  const hasCarousel = !isPage && totalProducts > 1;
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
   const displayedPrice = getPublicVariantPrice(product, selectedVariant);
@@ -278,7 +284,7 @@ export default function ProductModal({
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         if (isZoomOpen) setIsZoomOpen(false);
-        else onClose();
+        else if (!isPage) onClose();
         return;
       }
 
@@ -295,6 +301,7 @@ export default function ProductModal({
     onClose,
     onNext,
     onPrevious,
+    isPage,
   ]);
 
   useEffect(
@@ -345,25 +352,27 @@ export default function ProductModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-      onClick={onClose}
+      className={isPage ? 'w-full' : 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50'}
+      onClick={isPage ? undefined : onClose}
       onTouchStartCapture={revealTouchControls}
-      role="dialog"
-      aria-modal="true"
+      role={isPage ? undefined : 'dialog'}
+      aria-modal={isPage ? undefined : true}
       aria-label={product.name}
     >
-      <button
+      {!isPage && <button
         type="button"
-        onClick={onClose}
+        onClick={(event) => { event.stopPropagation(); onClose(); }}
         className="fixed right-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-cocoa shadow-lg backdrop-blur-md transition-opacity duration-200 hover:bg-white/95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-5 sm:top-5"
         aria-label="Close product details"
       >
         <span aria-hidden="true" className="text-2xl leading-none">
           ×
         </span>
-      </button>
+      </button>}
       <div
-        className="touch-pan-y bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl"
+        className={isPage
+          ? 'touch-pan-y grid min-w-0 w-full overflow-hidden rounded-2xl bg-white shadow-sm md:grid-cols-2 md:items-start'
+          : 'touch-pan-y bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl'}
         onClick={(event) => event.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -372,8 +381,9 @@ export default function ProductModal({
         }}
       >
         {/* Whole photo (watermark in its real corner) over a blurred copy of itself. */}
+        <div className={isPage ? 'min-w-0 md:sticky md:top-4' : ''}>
         <div className="bg-cream">
-          <div className="relative mx-auto w-full max-w-[55vh] overflow-hidden">
+          <div className={`relative mx-auto w-full overflow-hidden ${isPage ? '' : 'max-w-[55vh]'}`}>
             <img
               src={getProductImageUrl(activeImage, 960)}
               alt=""
@@ -485,6 +495,7 @@ export default function ProductModal({
             ))}
           </div>
         )}
+        </div>
         <div className="p-4 sm:p-6">
           {product.variants.length > 1 && (
             <section className="mb-5" aria-label="Product variants">
@@ -559,7 +570,9 @@ export default function ProductModal({
               </p>
             )}
           </div>
-          <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>
+          {isPage
+            ? <h1 className="font-heading text-2xl font-semibold text-cocoa mt-1 sm:text-3xl">{product.name}</h1>
+            : <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>}
           {displayedPrice !== null && (
             <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
               {formatINR(displayedPrice)}
@@ -567,6 +580,19 @@ export default function ProductModal({
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} />
+          {!isPage && (
+            <a
+              href={`${toProductPageUrl(product)}${selectedVariant ? `?variant=${encodeURIComponent(selectedVariant.id)}` : ''}`}
+              onClick={(event) => {
+                if (!onOpenFullDetails || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                onOpenFullDetails(selectedVariant?.id ?? '');
+              }}
+              className="mt-3 inline-block py-2 text-sm font-semibold text-cocoa underline underline-offset-4"
+            >
+              View full details
+            </a>
+          )}
           {/* Pinned to the bottom of the modal's scrollport so the buy and
               share actions stay reachable on short viewports, where the
               image plus variant picker can otherwise push them below the

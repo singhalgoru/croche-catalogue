@@ -19,6 +19,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Below-catalogue ordering guide explains cart-to-WhatsApp confirmation and delivery enquiries, also present in the crawler-readable HTML; the return-policy link appears once in the footer
 - Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel
+- Hybrid product browsing: catalogue quick-view popups link to full product pages with the same gallery, variants, specifications and persistent cart
 - Optional materials, dimensions, package contents and care instructions, edited in Add/Manage products and shown in collapsible customer sections only when filled
 - Gemini photo-and-notes suggestions use confirmed specifications, require selective review before applying, and never publish automatically or generate price, stock or dispatch promises
 - Variant and additional-angle image previews
@@ -213,8 +214,20 @@ database trigger), and daily at 01:23 UTC as a safety net.
 Check the deploy workflow if an update
 has not appeared. GitHub Pages and browsers may cache the sitemap briefly.
 Shared product links use these pages so link previews show the product photo
-(an 800px `og.jpg` written beside each page). A small hash-pinned script sends
-human visitors on to the app's product view, while crawlers stay on the static page.
+(an 800px `og.jpg` written beside each page). These pages contain static product
+content and metadata for crawlers and visitors without JavaScript, then boot the
+interactive product view on the same URL without redirecting to the homepage.
+The product page stacks photos and details on mobile and uses two columns on
+desktop. Its gallery, zoom, variant picker, specifications, cart and sharing
+controls are the same component used by the catalogue popup.
+
+Catalogue clicks still open a quick view. **View full details** carries the chosen
+variant into the full page (`?variant=<id>`); **Back to collection** restores the
+in-session search, category and scroll position. Shared/admin/cart links use the
+full page. Legacy `/#product=...` links still open popups. Pages not generated yet
+bootstrap via the 404 handler, resolve the current published product by immutable
+ID, and restore the product URL. Missing/unpublished products show an explicit
+unavailable message. Merchant `/shopping/` landing pages remain static and unchanged.
 
 For AI discovery, the site publishes [public/llms.txt](./public/llms.txt).
 During each build, the prerenderer replaces its catalogue markers with the

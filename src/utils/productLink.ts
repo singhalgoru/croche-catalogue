@@ -28,6 +28,19 @@ export const readProductReferenceFromHash = (): string | null => {
   return reference.length > 0 ? reference.toLowerCase() : null;
 };
 
+export const readProductPageReference = (): string | null => {
+  const base = new URL(import.meta.env.BASE_URL, window.location.origin).pathname;
+  const path = window.location.pathname.slice(base.length);
+  const match = path.match(/^p\/([^/]+)\/?$/);
+  const reference = match?.[1] ?? new URLSearchParams(window.location.search).get('productPage');
+  if (!reference) return null;
+  try {
+    return decodeURIComponent(reference).trim().toLowerCase() || null;
+  } catch {
+    return null;
+  }
+};
+
 export const findProductByReference = (products: Product[], reference: string) => {
   const normalized = reference.trim().toLowerCase();
   if (normalized === '') return null;
@@ -49,15 +62,12 @@ export const toProductHash = (product: LinkableProduct) =>
 
 /** Absolute, rename-proof link suitable for ad destinations and sharing. */
 export const toProductUrl = (product: LinkableProduct) => {
-  const base = new URL(import.meta.env.BASE_URL, window.location.origin);
-  return `${base.href}${toProductHash(product)}`;
+  return toProductPageUrl(product);
 };
 
 /**
- * Link to the prerendered product page, whose og:image is the product photo,
- * so chat apps preview the item instead of the site logo. Products published
- * after the last deploy have no page yet; public/404.html sends those links on
- * to the catalogue's #product= route.
+ * Shared product pages contain crawlable content and boot the same interactive
+ * product view as the catalogue. The 404 fallback handles newly published pages.
  */
 export const toProductPageUrl = (product: LinkableProduct) => {
   const base = new URL(import.meta.env.BASE_URL, window.location.origin);

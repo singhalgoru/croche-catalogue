@@ -61,7 +61,7 @@ describe('getCartEmailLink', () => {
 
   it('links each item to its catalogue page, where the photo is shown', () => {
     const body = decodeBody(getCartEmailLink(buildCart([buildItem()])));
-    expect(body).toMatch(/ {3}Product {5}: https?:\/\/[^\s]*#product=cute-bunny--p1/);
+    expect(body).toMatch(/ {3}Product {5}: https?:\/\/[^\s]*\/p\/cute-bunny--p1\//);
   });
 
   it('asks for confirmation instead of a total when an item is priced on enquiry', () => {

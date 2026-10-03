@@ -12,6 +12,8 @@ captureInternalTrafficPreference()
 initializeAnalytics()
 initializeMetaPixel()
 
+document.getElementById('product-fallback-style')?.remove()
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

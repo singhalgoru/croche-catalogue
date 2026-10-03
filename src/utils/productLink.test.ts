@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Product } from '../types/product';
-import { findProductByReference, toProductPageUrl, toProductReference } from './productLink';
+import { findProductByReference, readProductPageReference, toProductUrl, toProductPageUrl, toProductReference } from './productLink';
+
+afterEach(() => window.history.replaceState(null, '', '/'));
 
 const createProduct = (id: string, name: string): Product => ({
   id,
@@ -65,5 +67,26 @@ describe('toProductPageUrl', () => {
     expect(toProductPageUrl(product)).toBe(
       `${window.location.origin}/p/bunny-toy--8ce989f9-95a8/`,
     );
+  });
+
+  describe('hybrid product routes', () => {
+    it('reads direct product paths and preserves the immutable reference', () => {
+      window.history.replaceState(null, '', '/p/old-name--product-1/?variant=red');
+      expect(readProductPageReference()).toBe('old-name--product-1');
+    });
+
+    it('reads the bootstrap query for pages not built yet', () => {
+      window.history.replaceState(null, '', '/?productPage=new-product--product-2');
+      expect(readProductPageReference()).toBe('new-product--product-2');
+    });
+
+    it('leaves legacy catalogue popup links as popup routes', () => {
+      window.history.replaceState(null, '', '/#product=rose--product-1');
+      expect(readProductPageReference()).toBeNull();
+    });
+
+    it('uses full pages for links copied from admin or cart', () => {
+      expect(toProductUrl(products[0])).toBe(toProductPageUrl(products[0]));
+    });
   });
 });

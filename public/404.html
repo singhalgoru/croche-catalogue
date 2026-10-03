@@ -6,10 +6,12 @@
     <title>Luvia Creations</title>
     <script>
       // Product pages are prerendered on each deploy, so a product published
-      // since then has no /p/<reference>/ page yet. Open it in the catalogue.
+      // since then has no static page yet. Bootstrap its full product view.
       (function () {
         var match = window.location.pathname.match(/^\/p\/([^/]+)\/?$/);
-        var target = match ? '/#product=' + match[1] : '/';
+        var params = new URLSearchParams(window.location.search);
+        if (match) params.set('productPage', decodeURIComponent(match[1]));
+        var target = match ? '/?' + params.toString() : '/';
         window.location.replace(target);
       })();
     </script>

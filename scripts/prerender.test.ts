@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   escapeHtml,
+  attachProductApp,
   fetchProducts,
   getProductImageUrl as prerenderImageUrl,
   injectShell,
@@ -239,6 +240,7 @@ describe('renderProductPage', () => {
       width: 800,
       height: 600,
     });
+
     expect(withJpeg).toContain('<meta property="og:image" content="https://luviacreations.com/p/x/og.jpg" />');
     expect(withJpeg).toContain('<meta property="og:image:type" content="image/jpeg" />');
     expect(withJpeg).toContain('<meta property="og:image:width" content="800" />');
@@ -347,6 +349,37 @@ describe('renderProductPage', () => {
     const hidden = renderProductPage({ ...product, price: null }, '91');
     expect(hidden).toContain('Price on request');
     expect(hidden).not.toContain('"offers"');
+  });
+});
+
+describe('interactive product page generation', () => {
+  const template = `<head><meta http-equiv="Content-Security-Policy" content="script-src 'self'; connect-src https://*.supabase.co" />
+    <script type="module" crossorigin src="/assets/app.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/app.css">
+    <link rel="manifest" href="/manifest.webmanifest"></head><body></body>`;
+
+  it('boots the app on the product URL without redirecting humans or bots', () => {
+    const page = attachProductApp(renderProductPage(product, '91', null, false), template);
+    expect(page).toContain('<div id="root">');
+    expect(page).toContain('src="/assets/app.js"');
+    expect(page).toContain('href="/assets/app.css"');
+    expect(page).toContain('href="/manifest.webmanifest"');
+    expect(page).toContain('connect-src https://*.supabase.co');
+    expect(page).toContain('id="product-fallback-style"');
+    expect(page).not.toContain('location.replace');
+    expect(page).toContain('<h1>Ivory Rose Gajra</h1>');
+    expect(page).toContain('"@type":"Product"');
+    expect(page).toContain(`rel="canonical" href="https://luviacreations.com/p/${prerenderReference(product)}/"`);
+  });
+
+  it('fails explicitly if build assets are missing', () => {
+    expect(() => attachProductApp('page', '<head></head>')).toThrow('missing the product app assets');
+  });
+
+  it('keeps merchant landing pages static', () => {
+    const page = renderProductPage(product, '91', null, false);
+    expect(page).not.toContain('type="module"');
+    expect(page).not.toContain('location.replace');
   });
 });
 

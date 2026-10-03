@@ -7,6 +7,7 @@ interface Props {
   showShippingTicker?: boolean;
   showInstallPrompt?: boolean;
   compact?: boolean;
+  showHeading?: boolean;
   cartItemCount?: number;
   cartUpdateCount?: number;
   onOpenCart?: () => void;
@@ -17,6 +18,7 @@ export default function Header({
   showShippingTicker = true,
   showInstallPrompt = true,
   compact = false,
+  showHeading = true,
   cartItemCount = 0,
   cartUpdateCount = 0,
   onOpenCart,
@@ -107,13 +109,13 @@ export default function Header({
           }`}
           />
         </div>
-        <h1
+        {showHeading && <h1
           className={`font-heading font-extrabold text-cocoa ${
             compact ? 'text-lg sm:text-xl' : 'text-lg leading-snug sm:text-3xl'
           }`}
         >
           Handmade Crochet Products &amp; Gifts
-        </h1>
+        </h1>}
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
             <span className="sm:hidden">Made with love. Delivered across India.</span>

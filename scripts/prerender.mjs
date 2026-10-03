@@ -572,6 +572,23 @@ const injectShell = (html, products) => {
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };
 
+const attachProductApp = (page, template) => {
+  const cspPattern = /<meta\s+http-equiv="Content-Security-Policy"[\s\S]*?\/>/;
+  const csp = template.match(cspPattern)?.[0];
+  const scripts = template.match(/<script\b[^>]*type="module"[^>]*>[\s\S]*?<\/script>/g) ?? [];
+  const links = (template.match(/<link\b[^>]*>/g) ?? [])
+    .filter((link) => /rel="(?:stylesheet|modulepreload|manifest)"/.test(link));
+  if (!csp || scripts.length === 0 || links.length === 0) {
+    throw new Error('Built template is missing the product app assets or CSP.');
+  }
+  return page
+    .replace(cspPattern, csp)
+    .replace('<style>', '<style id="product-fallback-style">')
+    .replace('</head>', `${links.join('\n')}\n${scripts.join('\n')}\n</head>`)
+    .replace('<body>', '<body><div id="root">')
+    .replace('</body>', '</div></body>');
+};
+
 const main = async () => {
   const env = { ...loadEnv('production', ROOT, 'VITE_'), ...process.env };
   const supabaseUrl = env.VITE_SUPABASE_URL;
@@ -589,7 +606,8 @@ const main = async () => {
   const products = await fetchProducts(supabaseUrl, anonKey);
 
   const indexPath = path.join(DIST, 'index.html');
-  await writeFile(indexPath, injectShell(await readFile(indexPath, 'utf8'), products));
+  const template = await readFile(indexPath, 'utf8');
+  await writeFile(indexPath, injectShell(template, products));
 
   for (const product of products) {
     const reference = toProductReference(product);
@@ -598,7 +616,7 @@ const main = async () => {
     const socialImage = await writeSocialImage(product, dir, reference);
     await writeFile(
       path.join(dir, 'index.html'),
-      renderProductPage(product, whatsappNumber, socialImage),
+      attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
     );
   }
 
@@ -622,4 +640,4 @@ if (invokedDirectly) {
   });
 }
 
-export { fetchProducts, injectShell, renderLlms, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };
+export { attachProductApp, fetchProducts, injectShell, renderLlms, renderProductPage, renderShell, renderSitemap, toProduct, priceRange };
