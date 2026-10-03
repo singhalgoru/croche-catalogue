@@ -27,7 +27,7 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,name,category,description,price,show_price,in_stock,image_url,published_at,sort_order,created_at,' +
+  'id,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,image_url,published_at,sort_order,created_at,' +
   'product_variants(id,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
@@ -119,6 +119,10 @@ const toProduct = (row) => {
     name: row.name,
     category: row.category ?? 'Crochet',
     description: row.description ?? '',
+    materials: row.materials?.trim() || undefined,
+    dimensions: row.dimensions?.trim() || undefined,
+    includedItems: row.included_items?.trim() || undefined,
+    careInstructions: row.care_instructions?.trim() || undefined,
     price: row.show_price === false ? null : (row.price ?? null),
     inStock: variants.length > 0
       ? variants.some((variant) => variant.in_stock !== false)
@@ -392,6 +396,17 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
   const shareImage = socialImage?.url ?? image;
   const redirect = appRedirectScript(toProductReference(product));
   const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
+  const details = [
+    ['Materials', product.materials],
+    ['Dimensions', product.dimensions],
+    ["What's included", product.includedItems],
+    ['Care instructions', product.careInstructions],
+  ]
+    .filter(([, value]) => typeof value === 'string' && value.trim())
+    .map(([label, value]) =>
+      `<section><h2>${escapeHtml(label)}</h2><p style="white-space:pre-line">${escapeHtml(value.trim())}</p></section>`,
+    )
+    .join('');
 
   const priceLine = priceLabel(product);
 
@@ -448,6 +463,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
       <p class="price">${escapeHtml(priceLine)}</p>
       <p class="stock">${stockLabel(product)}. Message us to confirm delivery timing.</p>
       <p>${escapeHtml(product.description)}</p>
+      ${details}
       ${
         variantNames.length > 0
           ? `<h2>Available colours and variants</h2><ul class="variants">${variantNames

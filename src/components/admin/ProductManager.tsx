@@ -11,6 +11,7 @@ import type { Category } from '../../types/product';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
+import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 
 interface Props {
   categories: Category[];
@@ -18,7 +19,7 @@ interface Props {
   onChanged: () => Promise<void>;
 }
 
-interface EditDraft {
+interface EditDraft extends DetailDraft {
   name: string;
   category: Category;
   description: string;
@@ -36,6 +37,10 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   featured: product.featured === true,
   price: product.price === null ? '' : String(product.price),
   showPrice: product.showPrice === true,
+  materials: product.materials ?? '',
+  dimensions: product.dimensions ?? '',
+  includedItems: product.includedItems ?? '',
+  careInstructions: product.careInstructions ?? '',
 });
 
 /** Returns the rupee amount, or `undefined` when the entry is not a valid price. */
@@ -58,6 +63,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
@@ -103,6 +109,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   }, [loadProducts, refreshKey]);
 
   const startEditing = (product: ManagedProduct) => {
+    if (isAnalyzing) return;
     setEditingId(product.id);
     setDeleteId(null);
     setDraft(createDraft(product));
@@ -112,7 +119,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
 
   const saveProduct = async (event: FormEvent<HTMLFormElement>, product: ManagedProduct) => {
     event.preventDefault();
-    if (!draft) return;
+    if (!draft || isAnalyzing) return;
 
     const price = parsePrice(draft.price);
     if (price === undefined) {
@@ -213,6 +220,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         <button
           type="button"
           onClick={() => setIsExpanded((current) => !current)}
+          disabled={isAnalyzing}
           aria-expanded={isExpanded}
           aria-controls="manage-products-panel"
           className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
@@ -240,7 +248,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           <button
             type="button"
             onClick={() => void loadProducts()}
-            disabled={isLoading || busyId !== null}
+            disabled={isLoading || busyId !== null || isAnalyzing}
             className="shrink-0 rounded-full border-2 border-mustard px-3 py-2 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
           >
             Refresh
@@ -269,6 +277,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           <div className="mt-1 flex flex-col gap-2 sm:flex-row">
             <input
               id="admin-product-search"
+              disabled={isAnalyzing}
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -279,6 +288,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
+                disabled={isAnalyzing}
                 className="self-start rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
               >
                 Clear search
@@ -352,6 +362,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                           onClick={() => void moveProduct(product, -1)}
                           disabled={
                             busyId !== null ||
+                            isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
                             products.findIndex((item) => item.id === product.id) === 0
                           }
@@ -365,6 +376,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                           onClick={() => void moveProduct(product, 1)}
                           disabled={
                             busyId !== null ||
+                            isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
                             products.findIndex((item) => item.id === product.id) ===
                               products.length - 1
@@ -377,7 +389,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         <button
                           type="button"
                           onClick={() => void copyProductLink(product)}
-                          disabled={isBusy}
+                          disabled={isBusy || isAnalyzing}
                           className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
                         >
                           {copiedId === product.id ? 'Copied!' : 'Copy link'}
@@ -385,7 +397,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         <button
                           type="button"
                           onClick={() => startEditing(product)}
-                          disabled={isBusy}
+                          disabled={isBusy || isAnalyzing}
                           className="rounded-full border-2 border-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
                         >
                           Edit
@@ -397,7 +409,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             setEditingId(null);
                             setDraft(null);
                           }}
-                          disabled={isBusy}
+                          disabled={isBusy || isAnalyzing}
                           className="rounded-full border-2 border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-60 sm:px-4 sm:text-sm"
                         >
                           Remove
@@ -504,6 +516,17 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
                       />
                     </label>
+                    <div className="sm:col-span-2">
+                      <ProductDetailsEditor
+                        key={product.id}
+                        value={draft}
+                        categories={categories}
+                        imageUrl={product.variants[0]?.image || product.image}
+                        disabled={isBusy}
+                        onBusyChange={setIsAnalyzing}
+                        onChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)}
+                      />
+                    </div>
                     <div className="flex flex-wrap items-center gap-5 sm:col-span-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
                         <input
@@ -550,7 +573,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                     <div className="flex gap-2 sm:col-span-2">
                       <button
                         type="submit"
-                        disabled={isBusy}
+                        disabled={isBusy || isAnalyzing}
                         className="rounded-full bg-cocoa px-5 py-2 text-sm font-semibold text-cream disabled:opacity-60"
                       >
                         {isBusy ? 'Saving…' : 'Save changes'}
@@ -561,7 +584,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                           setEditingId(null);
                           setDraft(null);
                         }}
-                        disabled={isBusy}
+                        disabled={isBusy || isAnalyzing}
                         className="rounded-full border border-cocoa/30 px-5 py-2 text-sm font-semibold text-cocoa"
                       >
                         Cancel

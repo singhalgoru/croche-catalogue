@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { analyzeProductImage } from '../../services/productAnalysis';
+import ProductDetailsEditor from './ProductDetailsEditor';
 import { publishProduct } from '../../services/products';
 import type { Category } from '../../types/product';
 import VariantDraftFields from './VariantDraftFields';
@@ -96,43 +96,9 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     void clearProductDraft();
   };
 
-  const analyzeImage = async () => {
-    const imageFile = variants[0]?.imageFile;
-    if (!imageFile) {
-      setErrorMessage('Add the main variant image before running AI analysis.');
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    try {
-      const analysis = await analyzeProductImage(imageFile, categories);
-      setDraft((current) => ({
-        ...current,
-        name: analysis.name,
-        category: analysis.category,
-        description: analysis.description,
-      }));
-      setVariants((current) =>
-        current.map((variant, index) =>
-          index === 0
-            ? {
-                ...variant,
-                color: analysis.color,
-              }
-            : variant,
-        ),
-      );
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Product analysis failed.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   const submitProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isAnalyzing) return;
     const category = categories.includes(draft.category) ? draft.category : categories[0];
     if (!category) {
       setErrorMessage('Create at least one category before publishing a product.');
@@ -202,6 +168,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       <button
         type="button"
         onClick={() => setIsExpanded((current) => !current)}
+        disabled={isAnalyzing || isPublishing}
         aria-expanded={isExpanded}
         aria-controls="add-product-panel"
         className="flex w-full items-center justify-between gap-4 p-4 text-left sm:p-5"
@@ -283,28 +250,8 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
               Review product details
             </h2>
             <p className="mt-1 text-sm text-cocoa/65">
-              Enter the details yourself or let Gemini suggest them from the main photo.
+              Enter the details yourself or review Gemini suggestions from the main photo and your confirmed notes.
             </p>
-          </div>
-          <div className="shrink-0">
-            <button
-              type="button"
-              onClick={() => void analyzeImage()}
-              disabled={
-                !variants[0]?.imageFile ||
-                categories.length === 0 ||
-                isAnalyzing ||
-                isPublishing
-              }
-              className="w-full rounded-full bg-mustard px-5 py-2.5 font-semibold text-cocoa disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isAnalyzing ? 'Gemini is analyzing…' : 'Suggest details from photo'}
-            </button>
-            {!variants[0]?.imageFile && (
-              <p className="mt-1 text-center text-xs text-cocoa/50">
-                Available after you add the main photo
-              </p>
-            )}
           </div>
         </div>
 
@@ -387,6 +334,19 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             />
             Feature this product at the top of the catalogue
           </label>
+        </div>
+        <div className="mt-5">
+          <ProductDetailsEditor
+            value={draft}
+            categories={categories}
+            imageFile={variants[0]?.imageFile}
+            disabled={isPublishing}
+            onBusyChange={setIsAnalyzing}
+            onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+            onColorSuggested={(color) => setVariants((current) =>
+              current.map((variant, index) => index === 0 ? { ...variant, color } : variant),
+            )}
+          />
         </div>
       </section>
 

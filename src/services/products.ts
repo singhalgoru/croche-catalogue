@@ -1,5 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { Product, ProductVariant, ProductVariantImage } from '../types/product';
+import type { Product, ProductDetails, ProductVariant, ProductVariantImage } from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { archiveImageOriginal } from './imageOriginals';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
@@ -44,6 +44,10 @@ interface ProductRow {
   name: string;
   category: Product['category'];
   description: string;
+  materials?: string | null;
+  dimensions?: string | null;
+  included_items?: string | null;
+  care_instructions?: string | null;
   featured: boolean;
   price: number | null;
   show_price: boolean;
@@ -68,7 +72,7 @@ export interface NewVariant {
   galleryFiles?: File[];
 }
 
-export interface NewProduct {
+export interface NewProduct extends ProductDetails {
   name: string;
   category: Product['category'];
   description: string;
@@ -85,7 +89,7 @@ export interface ManagedProduct extends Product {
   createdAt: string;
 }
 
-export interface ProductUpdate {
+export interface ProductUpdate extends ProductDetails {
   name: string;
   category: Product['category'];
   description: string;
@@ -160,6 +164,10 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     price: row.price,
     showPrice: row.show_price,
     description: row.description,
+    materials: row.materials?.trim() || undefined,
+    dimensions: row.dimensions?.trim() || undefined,
+    includedItems: row.included_items?.trim() || undefined,
+    careInstructions: row.care_instructions?.trim() || undefined,
     featured: row.featured,
     color: primaryVariant.color,
     inStock: resolvedVariants.some((variant) => variant.inStock),
@@ -170,6 +178,30 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     publishedAt: row.published_at,
     createdAt: row.created_at,
   };
+};
+
+const productDetailColumns = (details: ProductDetails) => {
+  const columns: {
+    materials?: string | null;
+    dimensions?: string | null;
+    included_items?: string | null;
+    care_instructions?: string | null;
+  } = {};
+  const fields = [
+    ['materials', 'materials'],
+    ['dimensions', 'dimensions'],
+    ['includedItems', 'included_items'],
+    ['careInstructions', 'care_instructions'],
+  ] as const;
+  for (const [field, column] of fields) {
+    const value = details[field];
+    if (value === undefined) continue;
+    if (typeof value !== 'string' || value.length > 1000) {
+      throw new Error(`Product ${field} must be text of at most 1,000 characters.`);
+    }
+    columns[column] = value.trim() || null;
+  }
+  return columns;
 };
 
 const getCurrentUser = async () => {
@@ -269,6 +301,7 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
 
 export async function publishProduct(product: NewProduct): Promise<Product> {
   if (product.variants.length === 0) throw new Error('Add at least one product variant.');
+  const details = productDetailColumns(product);
   const { client, user } = await getCurrentUser();
   const { data: firstProduct, error: orderError } = await client
     .from('products')
@@ -296,6 +329,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
         name: product.name,
         category: product.category,
         description: product.description,
+        ...details,
         featured: product.featured,
         price: product.price,
         show_price: product.showPrice,
@@ -379,6 +413,7 @@ export async function updateProduct(
   product: ManagedProduct,
   update: ProductUpdate,
 ): Promise<ManagedProduct> {
+  const details = productDetailColumns(update);
   const { client } = await getCurrentUser();
   const { error } = await client
     .from('products')
@@ -386,6 +421,7 @@ export async function updateProduct(
       name: update.name,
       category: update.category,
       description: update.description,
+      ...details,
       published: update.published,
       featured: update.featured,
       price: update.price,

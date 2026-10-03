@@ -19,6 +19,8 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Below-catalogue ordering guide explains cart-to-WhatsApp confirmation and delivery enquiries, also present in the crawler-readable HTML; the return-policy link appears once in the footer
 - Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel
+- Optional materials, dimensions, package contents and care instructions, edited in Add/Manage products and shown in collapsible customer sections only when filled
+- Gemini photo-and-notes suggestions use confirmed specifications, require selective review before applying, and never publish automatically or generate price, stock or dispatch promises
 - Variant and additional-angle image previews
 - Selected card variants stay fixed; automatic card previews are disabled for reduced-motion preferences
 - Zoom and 3D-style image viewing
@@ -125,6 +127,33 @@ The admin console can generate studio and lifestyle product photos from uploaded
 reference images using the `enhance-product-image` Supabase Edge Function. It
 supports Google Gemini, OpenAI and Cloudflare Workers AI, falls back between
 them on quota limits or errors, and keeps API keys in Edge Function secrets.
+
+## Product specifications and Gemini suggestions
+
+Add product and Manage products > Edit share optional Materials, Dimensions,
+What's included and Care instructions fields (up to 1,000 characters each).
+Existing products need no backfill; blank values do not create customer sections.
+The admin preview uses the same collapsible detail sections as the product modal.
+
+Enter verified facts in **Confirmed facts for Gemini** (up to 2,000 characters),
+then choose **Suggest details from photo & notes**. Review and select individual
+suggestions before applying them to the draft. Existing values are unchecked by
+default; selecting them explicitly replaces their draft values. Applying a
+suggestion does not save or publish the product. Unknown specifications stay
+blank; photos alone cannot establish fibre composition, dimensions, package
+quantity or care instructions. Price, stock and dispatch estimates remain manual.
+
+Deploy the optional-detail migration (`20261003170000_add_optional_product_details.sql`)
+and the updated `analyze-product` function before publishing the frontend:
+
+```sh
+npx supabase db push --linked
+npx supabase functions deploy analyze-product --use-api
+```
+
+The existing Gemini secret and admin authentication are reused; no API key is
+exposed to the browser. Product details also appear on generated product pages
+when supplied, without changing existing product routing.
 
 ## AI variant names
 

@@ -17,6 +17,7 @@ import {
 import { isProductNew } from '../utils/productStatus';
 import CartIconButton from './CartIconButton';
 import ProductQuantityControl from './ProductQuantityControl';
+import ProductDetails from './ProductDetails';
 import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
@@ -565,6 +566,7 @@ export default function ProductModal({
             </p>
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
+          <ProductDetails product={product} />
           {/* Pinned to the bottom of the modal's scrollport so the buy and
               share actions stay reachable on short viewports, where the
               image plus variant picker can otherwise push them below the

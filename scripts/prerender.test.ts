@@ -54,6 +54,8 @@ describe('fetchProducts', () => {
     expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('offset')).toBe('0');
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('offset')).toBe('1000');
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('published')).toBe('eq.true');
+    const selected = new URL(fetchMock.mock.calls[0][0]).searchParams.get('select')?.split(',');
+    expect(selected).toEqual(expect.arrayContaining(['materials', 'dimensions', 'included_items', 'care_instructions']));
   });
 
   it('rejects a failed fetch rather than deploying a stale sitemap', async () => {
@@ -91,6 +93,17 @@ describe('parity with the app helpers', () => {
 });
 
 describe('toProduct', () => {
+  it('maps nullable optional details without changing old products', () => {
+    expect(toProduct(row)).toMatchObject({
+      materials: undefined, dimensions: undefined, includedItems: undefined, careInstructions: undefined,
+    });
+    expect(toProduct({
+      ...row, materials: ' Cotton ', dimensions: null, included_items: '  ',
+      care_instructions: ' Spot clean ',
+    })).toMatchObject({
+      materials: 'Cotton', dimensions: undefined, includedItems: undefined, careInstructions: 'Spot clean',
+    });
+  });
   it('sorts variants and respects a hidden price', () => {
     expect(product.variants.map((variant) => variant.name)).toEqual(['Ivory', 'Blush']);
     expect(toProduct({ ...row, show_price: false }).price).toBeNull();
@@ -246,6 +259,29 @@ describe('renderProductPage', () => {
     expect(page).toContain('In stock');
     expect(page).toContain('hand-crocheted ivory roses');
     expect(page).toContain('<li>Ivory</li>');
+  });
+
+  it('renders only supplied detail sections, with HTML escaping and unchanged routing', () => {
+    const details = renderProductPage({
+      ...product, materials: '<script>cotton</script>', dimensions: '10 cm & 4"',
+      includedItems: '1 keychain', careInstructions: 'Spot clean\nDry flat',
+    }, '91');
+    expect(details).toContain('<h2>Materials</h2>');
+    expect(details).toContain('&lt;script&gt;cotton&lt;/script&gt;');
+    expect(details).toContain('10 cm &amp; 4&quot;');
+    expect(details).toContain('<h2>What&#39;s included</h2>');
+    expect(details).toContain('Spot clean\nDry flat');
+    expect(details).toContain('white-space:pre-line');
+    expect(details).not.toContain('<script>cotton');
+    expect(details).toContain(`location.replace("/#product=${encodeURIComponent(prerenderReference(product))}")`);
+    expect(details).toContain(`<link rel="canonical" href="https://luviacreations.com/p/${prerenderReference(product)}/"`);
+  });
+
+  it('omits all empty/missing detail headings for old or blank products', () => {
+    for (const sample of [product, { ...product, materials: ' ', dimensions: '', includedItems: null, careInstructions: '\n' }]) {
+      const html = renderProductPage(sample, '91');
+      expect(html).not.toMatch(/<h2>(Materials|Dimensions|What&#39;s included|Care instructions)<\/h2>/);
+    }
   });
 
   it('describes the product with schema.org data that matches', () => {

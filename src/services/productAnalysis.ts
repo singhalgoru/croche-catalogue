@@ -1,12 +1,44 @@
 import { supabase } from '../lib/supabase';
-import type { Category } from '../types/product';
+import type { Category, ProductDetails } from '../types/product';
 
-export interface ProductAnalysis {
+export interface ProductAnalysis extends ProductDetails {
   name: string;
   category: Category;
   description: string;
   color: string;
 }
+
+export interface ProductAnalysisContext extends ProductDetails {
+  notes?: string;
+  name?: string;
+  category?: Category;
+  description?: string;
+}
+
+const CONTEXT_LIMITS = {
+  notes: 2000,
+  name: 120,
+  category: 120,
+  description: 2000,
+  materials: 1000,
+  dimensions: 1000,
+  includedItems: 1000,
+  careInstructions: 1000,
+} as const;
+const DETAIL_FIELDS = ['materials', 'dimensions', 'includedItems', 'careInstructions'] as const;
+
+const validateContext = (context: ProductAnalysisContext): ProductAnalysisContext => {
+  const normalized: ProductAnalysisContext = {};
+  for (const field of Object.keys(CONTEXT_LIMITS) as Array<keyof typeof CONTEXT_LIMITS>) {
+    const value = context[field];
+    if (value === undefined) continue;
+    if (typeof value !== 'string' || value.length > CONTEXT_LIMITS[field]) {
+      throw new Error(`Analysis ${field} must be text of at most ${CONTEXT_LIMITS[field]} characters.`);
+    }
+    normalized[field] = value.trim();
+  }
+  return normalized;
+};
 
 const MAX_ANALYSIS_FILE_SIZE = 6 * 1024 * 1024;
 
@@ -48,11 +80,22 @@ const validateAnalysis = (value: unknown, categories: Category[]): ProductAnalys
     throw new Error('Gemini returned incomplete or invalid product details.');
   }
 
+  const details: ProductDetails = {};
+  for (const field of DETAIL_FIELDS) {
+    const value = analysis[field];
+    if (value === undefined) continue;
+    if (typeof value !== 'string' || value.length > 1000) {
+      throw new Error('Gemini returned invalid optional product details.');
+    }
+    details[field] = value.trim();
+  }
+
   return {
     name: analysis.name.trim(),
     category: analysis.category,
     description: analysis.description.trim(),
     color: analysis.color,
+    ...details,
   };
 };
 
@@ -79,9 +122,11 @@ const getFunctionErrorMessage = async (error: {
   return error.message;
 };
 
+/** Context is draft-only; notes are limited to 2,000 characters and details to 1,000 each. */
 export async function analyzeProductImage(
   file: File,
   categories: Category[],
+  context?: ProductAnalysisContext,
 ): Promise<ProductAnalysis> {
   if (!supabase) {
     throw new Error(
@@ -101,11 +146,13 @@ export async function analyzeProductImage(
     throw new Error('Create at least one product category before running AI analysis.');
   }
 
+  const normalizedContext = context === undefined ? undefined : validateContext(context);
   const imageBase64 = await fileToBase64(file);
   const { data, error } = await supabase.functions.invoke('analyze-product', {
     body: {
       imageBase64,
       mimeType: file.type,
+      ...(normalizedContext === undefined ? {} : { context: normalizedContext }),
     },
   });
 

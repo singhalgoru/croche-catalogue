@@ -1,12 +1,13 @@
 import type { Category } from '../../types/product';
 import type { VariantDraft } from './variantDraft';
+import type { DetailDraft } from './ProductDetailsEditor';
 
 // Persists the in-progress "Add product" form so it survives the browser
 // discarding a backgrounded tab (common on Android) or the admin navigating
 // away and back. IndexedDB is used because it can store the photo Files
 // directly; localStorage only holds strings.
 
-export interface ProductDraft {
+export interface ProductDraft extends DetailDraft {
   name: string;
   category: Category;
   description: string;
@@ -22,12 +23,16 @@ export const EMPTY_PRODUCT_DRAFT: ProductDraft = {
   featured: false,
   price: '',
   showPrice: false,
+  materials: '',
+  dimensions: '',
+  includedItems: '',
+  careInstructions: '',
 };
 
 type StoredVariant = Omit<VariantDraft, 'previewUrl' | 'galleryPreviewUrls'>;
 
 export interface StoredProductDraft {
-  draft: ProductDraft;
+  draft: Partial<ProductDraft>;
   variants: StoredVariant[];
   savedAt: number;
 }
@@ -42,6 +47,10 @@ export const isProductDraftEmpty = (draft: ProductDraft, variants: VariantDraft[
   draft.name.trim() === '' &&
   draft.description.trim() === '' &&
   draft.price.trim() === '' &&
+  draft.materials.trim() === '' &&
+  draft.dimensions.trim() === '' &&
+  draft.includedItems.trim() === '' &&
+  draft.careInstructions.trim() === '' &&
   !draft.featured &&
   !draft.showPrice &&
   variants.every(

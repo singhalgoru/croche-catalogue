@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { suggestVariantName } from './productAnalysis';
+import { analyzeProductImage, suggestVariantName } from './productAnalysis';
 
 const mockInvoke = vi.fn();
 
@@ -12,6 +12,77 @@ vi.mock('../lib/supabase', () => ({
 }));
 
 const imageFile = () => new File(['image'], 'variant.png', { type: 'image/png' });
+
+describe('analyzeProductImage', () => {
+  const analysis = {
+    name: ' Bunny Keychain ',
+    category: 'Accessories',
+    description: ' A lavender bunny. ',
+    color: '#B57EDC',
+  };
+  beforeEach(() => mockInvoke.mockReset());
+
+  it('preserves the image-only API and accepts legacy responses without optional details', async () => {
+    mockInvoke.mockResolvedValue({ data: analysis, error: null });
+    expect(await analyzeProductImage(imageFile(), ['Accessories'])).toEqual({
+      ...analysis, name: 'Bunny Keychain', description: 'A lavender bunny.',
+    });
+    expect(mockInvoke.mock.calls[0][1].body).not.toHaveProperty('context');
+  });
+
+  it('sends trimmed notes and current details and returns all optional fields', async () => {
+    const details = {
+      materials: ' Cotton ', dimensions: ' 10 cm ',
+      includedItems: ' One keychain ', careInstructions: ' Spot clean ',
+    };
+    mockInvoke.mockResolvedValue({ data: { ...analysis, ...details }, error: null });
+    expect(await analyzeProductImage(imageFile(), ['Accessories'], {
+      ...details, notes: ' Cotton; 10 cm; one keychain; spot clean ',
+      name: ' Bunny ', category: 'Accessories', description: ' Handmade bunny ',
+    })).toMatchObject({
+      materials: 'Cotton', dimensions: '10 cm',
+      includedItems: 'One keychain', careInstructions: 'Spot clean',
+    });
+    expect(mockInvoke.mock.calls[0][1].body.context).toEqual({
+      notes: 'Cotton; 10 cm; one keychain; spot clean',
+      name: 'Bunny', category: 'Accessories', description: 'Handmade bunny',
+      materials: 'Cotton', dimensions: '10 cm',
+      includedItems: 'One keychain', careInstructions: 'Spot clean',
+    });
+  });
+
+  it('accepts exact note/detail limits and preserves intentional blanks', async () => {
+    mockInvoke.mockResolvedValue({ data: { ...analysis, materials: ' ' }, error: null });
+    expect(await analyzeProductImage(imageFile(), ['Accessories'], {
+      notes: 'a'.repeat(2000), dimensions: 'b'.repeat(1000),
+    })).toHaveProperty('materials', '');
+  });
+
+  it.each([
+    { notes: 'a'.repeat(2001) },
+    { materials: 'a'.repeat(1001) },
+    { dimensions: 'a'.repeat(1001) },
+    { includedItems: 'a'.repeat(1001) },
+    { careInstructions: 'a'.repeat(1001) },
+  ])('rejects oversized context before invoking the function', async (context) => {
+    await expect(analyzeProductImage(imageFile(), ['Accessories'], context)).rejects.toThrow('at most');
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 3, {}, 'a'.repeat(1001)])('rejects malformed optional output (%s)', async (materials) => {
+    mockInvoke.mockResolvedValue({ data: { ...analysis, materials }, error: null });
+    await expect(analyzeProductImage(imageFile(), ['Accessories'])).rejects.toThrow('optional product details');
+  });
+
+  it('surfaces function validation errors and rejects invalid categories', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: null, error: { message: 'Bad request', context: new Response(JSON.stringify({ error: 'Invalid notes' })) },
+    });
+    await expect(analyzeProductImage(imageFile(), ['Accessories'])).rejects.toThrow('Invalid notes');
+    mockInvoke.mockResolvedValueOnce({ data: { ...analysis, category: 'Unknown' }, error: null });
+    await expect(analyzeProductImage(imageFile(), ['Accessories'])).rejects.toThrow('invalid product details');
+  });
+});
 
 describe('suggestVariantName', () => {
   beforeEach(() => {

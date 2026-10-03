@@ -26,7 +26,14 @@ export interface ProductVariant {
   gallery: ProductVariantImage[];
 }
 
-export interface Product {
+export interface ProductDetails {
+  materials?: string;
+  dimensions?: string;
+  includedItems?: string;
+  careInstructions?: string;
+}
+
+export interface Product extends ProductDetails {
   id: string;
   /** Shared display order used in the full catalogue and category filters. */
   sortOrder?: number;

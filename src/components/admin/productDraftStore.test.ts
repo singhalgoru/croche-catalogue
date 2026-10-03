@@ -22,6 +22,13 @@ describe('isProductDraftEmpty', () => {
     ).toBe(false);
   });
 
+  it('preserves drafts with specifications even when basic fields are blank', () => {
+    expect(isProductDraftEmpty(
+      { ...EMPTY_PRODUCT_DRAFT, materials: 'Cotton yarn' },
+      [createEmptyVariant('Standard')],
+    )).toBe(false);
+  });
+
   it('counts an uploaded photo as work worth keeping', () => {
     const variant = { ...createEmptyVariant('Standard'), imageFile: photo() };
     expect(isProductDraftEmpty(EMPTY_PRODUCT_DRAFT, [variant])).toBe(false);
@@ -38,6 +45,18 @@ describe('isProductDraftEmpty', () => {
 });
 
 describe('stored product drafts', () => {
+  it('restores old drafts with blank optional specifications', () => {
+    const stored = toStoredProductDraft(EMPTY_PRODUCT_DRAFT, [createEmptyVariant('Standard')], 1000);
+    const { materials: _materials, dimensions: _dimensions, includedItems: _included, careInstructions: _care, ...legacy } = stored.draft;
+    const restored = fromStoredProductDraft({
+      ...stored, draft: legacy,
+    });
+    expect(restored.draft.materials).toBe('');
+    expect(restored.draft.dimensions).toBe('');
+    expect(restored.draft.includedItems).toBe('');
+    expect(restored.draft.careInstructions).toBe('');
+  });
+
   it('round-trips photos and rebuilds their previews', () => {
     const imageFile = photo();
     const galleryFile = photo();

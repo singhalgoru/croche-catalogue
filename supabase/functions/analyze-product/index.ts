@@ -1,4 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  buildProductPrompt,
+  DETAIL_FIELDS,
+  OPTIONAL_DETAIL_SCHEMA,
+  validateContext,
+  validateProductAnalysis,
+  type AnalysisContext,
+} from './productDetails.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +19,7 @@ interface AnalyzeRequest {
   mode?: unknown;
   productName?: unknown;
   existingVariantNames?: unknown;
+  context?: unknown;
 }
 
 const sanitizeText = (value: unknown, maxLength: number) =>
@@ -67,7 +76,18 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'The request body must be valid JSON.' }, 400);
   }
 
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return jsonResponse({ error: 'The request body must be a JSON object.' }, 400);
+  }
   const isVariantMode = payload.mode === 'variant-name';
+  let context: AnalysisContext = {};
+  if (!isVariantMode) {
+    try {
+      context = validateContext(payload.context);
+    } catch (error) {
+      return jsonResponse({ error: error instanceof Error ? error.message : 'Invalid analysis context.' }, 400);
+    }
+  }
   let productCategories: string[] = [];
   if (!isVariantMode) {
     const { data: categoryRows, error: categoryError } = await authClient
@@ -139,15 +159,7 @@ Deno.serve(async (request) => {
 
   const prompt = isVariantMode
     ? buildVariantPrompt([])
-    : [
-        'You are writing catalogue copy for Luvia, an Indian handmade crochet brand.',
-        'Study the uploaded product photo and return accurate product metadata.',
-        `Choose exactly one category from: ${productCategories.join(', ')}.`,
-        'Use a concise, appealing product name of 2-7 words.',
-        'Write one warm, factual description of 20-45 words. Do not invent materials, dimensions,',
-        'safety claims, prices, availability, or features that are not visible.',
-        'Return the dominant product colour as a six-digit hexadecimal colour.',
-      ].join(' ');
+    : buildProductPrompt(productCategories, context);
 
   const colorSchema = {
     type: 'STRING',
@@ -164,12 +176,13 @@ Deno.serve(async (request) => {
       }
     : {
         type: 'OBJECT',
-        required: ['name', 'category', 'description', 'color'],
+        required: ['name', 'category', 'description', 'color', ...DETAIL_FIELDS],
         properties: {
           name: { type: 'STRING' },
           category: { type: 'STRING', enum: productCategories },
           description: { type: 'STRING' },
           color: colorSchema,
+          ...OPTIONAL_DETAIL_SCHEMA,
         },
       };
 
@@ -266,7 +279,12 @@ Deno.serve(async (request) => {
 
   if (!isVariantMode) {
     const result = await callGemini(buildRequestBody(prompt));
-    return 'error' in result ? jsonResponse({ error: result.error }, 502) : jsonResponse(result.data);
+    if ('error' in result) return jsonResponse({ error: result.error }, 502);
+    try {
+      return jsonResponse(validateProductAnalysis(result.data, productCategories, context));
+    } catch (error) {
+      return jsonResponse({ error: error instanceof Error ? error.message : 'Invalid product analysis.' }, 502);
+    }
   }
 
   // Variants can share a colour, so re-ask with the taken names until the suggestion is unique.

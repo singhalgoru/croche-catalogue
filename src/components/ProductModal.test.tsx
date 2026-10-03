@@ -135,6 +135,18 @@ const renderModalWithCart = () => {
 const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 
 describe('ProductModal touch controls', () => {
+  it('shows confirmed product specifications without changing order actions', () => {
+    render(
+      <ProductModal product={{ ...product, materials: 'Cotton yarn', dimensions: 'Approx. 10 cm', includedItems: 'One rose', careInstructions: 'Spot clean gently.' }}
+        currentIndex={0} totalProducts={1} onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />,
+    );
+    expect(screen.getByText('Cotton yarn')).toBeTruthy();
+    expect(screen.getByText('Approx. 10 cm')).toBeTruthy();
+    expect(screen.getByText('One rose')).toBeTruthy();
+    expect(screen.getByText('Spot clean gently.')).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: 'Quick order on WhatsApp' })).toHaveLength(1);
+  });
+
   it('shows explicit ordering labels while keeping the enquiry and cart actions available', () => {
     render(
       <ProductModal product={product} currentIndex={0} totalProducts={1}
