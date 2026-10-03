@@ -137,7 +137,7 @@ const main = async () => {
     const response = await r2.fetch(`https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_ORIGINALS_BUCKET}/${key}`);
     if (!response.ok) throw new Error(`Clean Merchant image download failed (${response.status}): ${key}`);
     return Buffer.from(await response.arrayBuffer());
-  }, env.VITE_WHATSAPP_NUMBER?.trim() || '918800221074');
+  }, env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350');
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

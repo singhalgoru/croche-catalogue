@@ -5,7 +5,7 @@ import { buildWhatsAppCartMessage } from './cartMessage';
 
 // Fallback keeps local dev working if the env var isn't set; production reads
 // VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
-const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '918800221074';
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350';
 
 const whatsappLink = (message: string) => {
   const reference = getCampaignReference();

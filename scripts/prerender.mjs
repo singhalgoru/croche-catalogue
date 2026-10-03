@@ -24,7 +24,7 @@ import { loadEnv } from 'vite';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
 const ORIGIN = 'https://luviacreations.com';
-const FALLBACK_WHATSAPP_NUMBER = '918800221074';
+const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
   'id,name,category,description,price,show_price,in_stock,image_url,published_at,sort_order,created_at,' +
