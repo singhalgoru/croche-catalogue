@@ -24,4 +24,17 @@ describe('ProductDetails', () => {
     expect(container.querySelector('script')).toBeNull();
     expect(container.textContent).toContain('<script>unsafe</script>');
   });
+
+  it('shows all provided details upfront without collapse controls when requested', () => {
+    const { container } = render(<ProductDetails collapsible={false} product={{
+      materials: 'Cotton yarn', dimensions: '10 cm', includedItems: 'One coaster',
+      careInstructions: 'Hand wash gently.',
+    }} />);
+    expect(container.querySelectorAll('details, summary')).toHaveLength(0);
+    expect(screen.getByRole('heading', { level: 2, name: 'Product details' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Care instructions' })).toBeTruthy();
+    for (const text of ['Cotton yarn', '10 cm', 'One coaster', 'Hand wash gently.']) {
+      expect(screen.getByText(text)).toBeTruthy();
+    }
+  });
 });

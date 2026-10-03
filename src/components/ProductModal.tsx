@@ -579,7 +579,7 @@ export default function ProductModal({
             </p>
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
-          <ProductDetails product={product} />
+          <ProductDetails product={product} collapsible={!isPage} />
           {!isPage && (
             <a
               href={`${toProductPageUrl(product)}${selectedVariant ? `?variant=${encodeURIComponent(selectedVariant.id)}` : ''}`}

@@ -26,4 +26,15 @@ describe('Header', () => {
     expect(screen.queryByText('Made with love. Delivered across India.')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
   });
+
+  it('places the product-page logo left with space reserved for the cart', () => {
+    render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
+      onOpenCart={vi.fn()} />);
+    const logo = screen.getByRole('img', { name: /Luvia/ });
+    const row = logo.parentElement?.parentElement;
+    expect(row?.className).toContain('justify-start pr-20 text-left');
+    expect(row?.className).not.toContain('justify-center');
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();
+  });
 });

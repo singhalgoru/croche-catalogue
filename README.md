@@ -224,6 +224,9 @@ interactive product view on the same URL without redirecting to the homepage.
 The product page stacks photos and details on mobile and uses two columns on
 desktop. Its gallery, zoom, variant picker, specifications, cart and sharing
 controls are the same component used by the catalogue popup.
+Specifications and care instructions are always visible on the full product page;
+the catalogue quick view keeps these sections collapsible. Empty fields stay hidden.
+The full product page uses a compact top-left logo with the cart on the right.
 
 Catalogue clicks still open a quick view. **View full details** carries the chosen
 variant into the full page (`?variant=<id>`); **Back to collection** restores the

@@ -8,6 +8,7 @@ interface Props {
   showInstallPrompt?: boolean;
   compact?: boolean;
   showHeading?: boolean;
+  alignLogoLeft?: boolean;
   cartItemCount?: number;
   cartUpdateCount?: number;
   onOpenCart?: () => void;
@@ -19,6 +20,7 @@ export default function Header({
   showInstallPrompt = true,
   compact = false,
   showHeading = true,
+  alignLogoLeft = false,
   cartItemCount = 0,
   cartUpdateCount = 0,
   onOpenCart,
@@ -88,7 +90,7 @@ export default function Header({
       <div
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
-            ? 'flex-row justify-center gap-3 py-3'
+            ? `flex-row gap-3 py-3 ${alignLogoLeft ? 'justify-start pr-20 text-left' : 'justify-center'}`
             : 'flex-col gap-3 py-4 sm:py-8'
         }`}
       >

@@ -321,6 +321,7 @@ function App() {
     <div className="min-h-screen flex flex-col">
       <Header
         compact={Boolean(pageReference)}
+        alignLogoLeft={Boolean(pageReference)}
         showHeading={!pageReference}
         showInstallPrompt={!pageReference}
         cartItemCount={cart.itemCount}

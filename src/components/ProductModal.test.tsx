@@ -176,6 +176,22 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByText('One rose')).toBeTruthy();
     expect(screen.getByText('Spot clean gently.')).toBeTruthy();
     expect(screen.getAllByRole('link', { name: 'Quick order on WhatsApp' })).toHaveLength(1);
+    expect(screen.getByText('Cotton yarn').closest('details')?.open).toBe(false);
+  });
+
+  it('keeps specifications and care visible upfront on the full product page', () => {
+    const { container } = render(
+      <ProductModal presentation="page" product={{ ...product, materials: 'Cotton yarn',
+        dimensions: 'Approx. 10 cm', includedItems: 'One rose', careInstructions: 'Spot clean gently.' }}
+        currentIndex={0} totalProducts={1} onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />,
+    );
+    expect(container.querySelectorAll('details, summary')).toHaveLength(0);
+    expect(screen.getByRole('heading', { name: 'Product details', level: 2 })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Care instructions', level: 2 })).toBeTruthy();
+    expect(screen.getByText('Cotton yarn')).toBeTruthy();
+    expect(screen.getByText('Approx. 10 cm')).toBeTruthy();
+    expect(screen.getByText('One rose')).toBeTruthy();
+    expect(screen.getByText('Spot clean gently.')).toBeTruthy();
   });
 
   it('shows explicit ordering labels while keeping the enquiry and cart actions available', () => {
