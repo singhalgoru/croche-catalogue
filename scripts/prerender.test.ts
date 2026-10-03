@@ -338,6 +338,11 @@ describe('renderProductPage', () => {
 
   it('offers a working order path and a route back to the app', () => {
     expect(page).toContain('https://wa.me/910000000000?text=');
+    const orderHref = page.match(/href="(https:\/\/wa\.me\/910000000000\?text=[^"]+)"/)?.[1];
+    expect(orderHref).toBeTruthy();
+    expect(new URL(orderHref!).searchParams.get('text')).toContain(
+      `Product: https://luviacreations.com/p/${prerenderReference(product)}/`,
+    );
     expect(page).toContain(`href="/#product=${encodeURIComponent(prerenderReference(product))}"`);
   });
 

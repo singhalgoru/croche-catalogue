@@ -1,4 +1,14 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import type { Product } from '../types/product';
+import { toProductPageUrl } from './productLink';
+
+const product: Product = {
+  id: 'bunny', name: 'Bunny Charm', category: 'Charms', description: '', price: 100,
+  color: '#fff', inStock: true, image: '/bunny.webp', variants: [{
+    id: 'lavender-id', name: 'Lavender', color: '#b57edc', price: null,
+    inStock: true, availableQuantity: 1, image: '/bunny.webp', imagePath: 'bunny.webp', gallery: [],
+  }],
+};
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -27,4 +37,18 @@ it('respects a configured WhatsApp number override', async () => {
   vi.stubEnv('VITE_WHATSAPP_NUMBER', ' 911234567890 ');
   const { getGeneralWhatsAppLink } = await import('./whatsapp');
   expect(new URL(getGeneralWhatsAppLink()).pathname).toBe('/911234567890');
+});
+
+it('includes the selected variant even for a single-variant product and links to that variant', async () => {
+  const { getProductWhatsAppLink } = await import('./whatsapp');
+  const text = new URL(getProductWhatsAppLink(product, product.variants[0])).searchParams.get('text')!;
+  expect(text).toContain('"Bunny Charm" in the “Lavender” variant');
+  expect(text).toContain(`Product: ${toProductPageUrl(product)}?variant=lavender-id`);
+});
+
+it('links enquiries without a selected variant to the full product page', async () => {
+  const { getProductWhatsAppLink } = await import('./whatsapp');
+  const text = new URL(getProductWhatsAppLink(product)).searchParams.get('text')!;
+  expect(text).toContain(`Product: ${toProductPageUrl(product)}`);
+  expect(text).not.toContain('variant');
 });

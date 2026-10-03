@@ -148,6 +148,16 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByRole('link', { name: 'View full details' }).getAttribute('href')).toContain('?variant=variant-2');
   });
 
+  it.each(['modal', 'page'] as const)('includes the currently selected variant in %s WhatsApp enquiries', (presentation) => {
+    render(<ProductModal presentation={presentation} product={product}
+      currentIndex={0} totalProducts={1} initialVariantId="variant-2"
+      onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
+    const href = screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')!;
+    const text = new URL(href).searchParams.get('text');
+    expect(text).toContain('“Ivory” variant');
+    expect(text).toContain('/p/crochet-rose--product-1/?variant=variant-2');
+  });
+
   it('reuses ordering and zoom as a full page without modal close or product swipes', () => {
     const onClose = vi.fn();
     const onNext = vi.fn();
