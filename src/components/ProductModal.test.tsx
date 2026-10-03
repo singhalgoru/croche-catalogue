@@ -143,6 +143,8 @@ describe('ProductModal touch controls', () => {
     );
     expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).textContent).toContain('Order on WhatsApp');
     expect(screen.getByRole('button', { name: 'Add to cart — Crochet Rose' }).textContent).toContain('Add to cart');
+    expect(screen.queryByRole('link', { name: 'Order / Enquire on WhatsApp' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Close$/ })).toBeNull();
   });
 
   beforeEach(() => {
@@ -201,13 +203,15 @@ describe('ProductModal touch controls', () => {
     const controls = [
       screen.getByRole('button', { name: 'Show previous product' }),
       screen.getByRole('button', { name: 'Show next product' }),
-      screen.getByRole('button', { name: 'Close product details' }),
     ];
 
     for (const control of controls) {
       expect(control.style.opacity).toBe('0');
       expect(control.style.pointerEvents).toBe('none');
     }
+    const close = screen.getByRole('button', { name: 'Close product details' });
+    expect(close.style.opacity).not.toBe('0');
+    expect(close.style.pointerEvents).not.toBe('none');
 
     fireEvent.touchStart(description, { touches: [touch(180, 600)] });
 
@@ -217,6 +221,8 @@ describe('ProductModal touch controls', () => {
     }
 
     act(() => vi.advanceTimersByTime(2000));
+    expect(close.style.opacity).not.toBe('0');
+    expect(close.style.pointerEvents).not.toBe('none');
 
     for (const control of controls) {
       expect(control.style.opacity).toBe('0');
@@ -278,9 +284,6 @@ describe('ProductModal touch controls', () => {
       '/rose-ivory.jpg',
     );
     expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
-    expect(
-      screen.getByRole('link', { name: 'Order / Enquire on WhatsApp' }).getAttribute('href'),
-    ).toContain('%E2%80%9CIvory%E2%80%9D');
     expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')).toContain(
       '%E2%80%9CIvory%E2%80%9D',
     );

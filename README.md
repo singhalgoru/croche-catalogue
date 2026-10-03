@@ -13,6 +13,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 - Responsive product catalogue
 - Compact mobile header and horizontally scrolling categories, with explicit WhatsApp ordering guidance
+- Top-left mobile branding and a single sticky product ordering area; product close control stays visible
 - Category filtering and search
 - Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel

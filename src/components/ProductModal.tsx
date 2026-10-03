@@ -355,10 +355,6 @@ export default function ProductModal({
         type="button"
         onClick={onClose}
         className="fixed right-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-cocoa shadow-lg backdrop-blur-md transition-opacity duration-200 hover:bg-white/95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-5 sm:top-5"
-        style={{
-          opacity: showTouchControls ? 1 : 0,
-          pointerEvents: showTouchControls ? 'auto' : 'none',
-        }}
         aria-label="Close product details"
       >
         <span aria-hidden="true" className="text-2xl leading-none">
@@ -772,23 +768,6 @@ export default function ProductModal({
               </button>
             </div>
           )}
-          <a
-            href={whatsappOrderLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={openWhatsAppOrder}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
-          >
-            <WhatsAppIcon />
-            Order / Enquire on WhatsApp
-          </a>
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-3 w-full py-2 rounded-full bg-cocoa text-cream font-semibold hover:bg-cocoa-dark transition-colors"
-          >
-            Close
-          </button>
         </div>
       </div>
       {isZoomOpen && (
