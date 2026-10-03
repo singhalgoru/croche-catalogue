@@ -569,22 +569,46 @@ export default function ProductModal({
               share actions stay reachable on short viewports, where the
               image plus variant picker can otherwise push them below the
               fold (phone browser URL bars make this worse). */}
-          <div className="sticky bottom-0 z-30 -mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-mustard/25 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+          <div className="sticky bottom-0 z-30 -mx-4 mt-4 flex flex-col gap-2 border-t border-mustard/25 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+            <div className="flex items-center justify-between gap-2">
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
               {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
             </span>
-            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsShareOpen((current) => !current);
+                  setShareFeedback(null);
+                }}
+                aria-label="Share this product"
+                aria-expanded={isShareOpen}
+                aria-controls="product-share-options"
+                title="Share this product"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                  isShareOpen
+                    ? 'border-cocoa bg-cocoa text-cream'
+                    : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
+                }`}
+              >
+                <ShareIcon />
+              </button>
+            </div>
+            <div className={`grid items-center gap-2 ${
+              selectedCartItem && onUpdateCartItem && onRemoveCartItem
+                ? 'grid-cols-1 justify-items-end sm:grid-cols-[minmax(0,1fr)_auto]'
+                : 'grid-cols-[minmax(0,1fr)_auto]'
+            }`}>
               <a
                 href={whatsappOrderLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={openWhatsAppOrder}
-                className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#25D366] px-3 text-white shadow-sm transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
+                className="flex h-12 w-full min-w-0 items-center justify-center gap-1 rounded-full bg-[#25D366] px-2 text-white shadow-sm transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
                 aria-label="Quick order on WhatsApp"
                 title="Quick order on WhatsApp"
               >
                 <WhatsAppIcon />
-                <span className="text-xs font-semibold">Order on WhatsApp</span>
+                <span className="text-xs font-semibold leading-tight">Order on WhatsApp</span>
               </a>
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
@@ -623,24 +647,6 @@ export default function ProductModal({
                   showLabel
                 />
               ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsShareOpen((current) => !current);
-                  setShareFeedback(null);
-                }}
-                aria-label="Share this product"
-                aria-expanded={isShareOpen}
-                aria-controls="product-share-options"
-                title="Share this product"
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                  isShareOpen
-                    ? 'border-cocoa bg-cocoa text-cream'
-                    : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
-                }`}
-              >
-                <ShareIcon />
-              </button>
             </div>
           </div>
           {isShareOpen && (

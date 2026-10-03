@@ -87,11 +87,11 @@ export default function Header({
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
             ? 'flex-row justify-center gap-3 py-3'
-            : 'flex-col gap-2 py-3 sm:gap-3 sm:py-8'
+            : 'flex-col gap-3 py-4 sm:py-8'
         }`}
       >
         <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-16 text-left sm:contents'}>
-        <img
+          <img
           src={`${import.meta.env.BASE_URL}images/luvia-logo-320.webp`}
           srcSet={[160, 320, 480]
             .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
@@ -105,20 +105,23 @@ export default function Header({
               ? 'h-12 w-12 ring-2'
               : 'h-12 w-12 shrink-0 ring-4 sm:h-36 sm:w-36 md:h-44 md:w-44'
           }`}
-        />
-        {!compact && <span className="font-heading text-lg font-bold text-cocoa sm:hidden">Luvia Creations</span>}
+          />
+          {!compact && <span className="font-heading text-lg font-bold text-cocoa sm:hidden">Luvia Creations</span>}
         </div>
         <h1
           className={`font-heading font-extrabold text-cocoa ${
-            compact ? 'text-lg sm:text-xl' : 'text-xl sm:text-3xl'
+            compact ? 'text-lg sm:text-xl' : 'text-lg leading-snug sm:text-3xl'
           }`}
         >
           Handmade Crochet Products &amp; Gifts
         </h1>
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-            Explore handmade crochet accessories, gifts, toys and decor by Luvia.
-            Every piece is stitched with love and shipped across India.
+            <span className="sm:hidden">Made with love. Delivered across India.</span>
+            <span className="hidden sm:inline">
+              Explore handmade crochet accessories, gifts, toys and decor by Luvia.
+              Every piece is stitched with love and shipped across India.
+            </span>
           </p>
         )}
         {showInstallPrompt && <InstallAppButton />}
