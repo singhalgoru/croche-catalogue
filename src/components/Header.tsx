@@ -96,14 +96,14 @@ export default function Header({
           srcSet={[160, 320, 480]
             .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
             .join(', ')}
-          sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 48px'}
+          sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 64px'}
           width={320}
           height={320}
           alt="Luvia — Crochet, Accessories & More, made with love"
           className={`rounded-full object-cover shadow-lg ring-white ${
             compact
               ? 'h-12 w-12 ring-2'
-              : 'h-12 w-12 shrink-0 ring-4 sm:h-36 sm:w-36 md:h-44 md:w-44'
+              : 'h-16 w-16 shrink-0 ring-4 sm:h-36 sm:w-36 md:h-44 md:w-44'
           }`}
           />
         </div>
