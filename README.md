@@ -16,6 +16,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
 - A logo-only mobile brand row with a 64px logo and short header tagline keep browsing uncluttered; desktop retains the full introduction
 - Category filtering and search
+- Below-catalogue ordering guide explains cart-to-WhatsApp confirmation, delivery enquiries and return-policy links, also present in the crawler-readable HTML
 - Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel
 - Variant and additional-angle image previews

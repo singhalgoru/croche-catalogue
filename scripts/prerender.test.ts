@@ -128,6 +128,15 @@ describe('escapeHtml and truncate', () => {
 describe('renderShell', () => {
   const shell = renderShell([product]);
 
+  it('includes ordering and delivery guidance after the products for non-JavaScript visitors', () => {
+    expect(shell).toContain('How to order &amp; delivery');
+    expect(shell).toContain('Your order is confirmed with us, not by adding items to the cart.');
+    expect(shell).toContain('confirm shipping charges and the estimated dispatch time before payment');
+    expect(shell).toContain('href="mailto:orders@luviacreations.com"');
+    expect(shell).toContain('href="/return-policy/"');
+    expect(shell.indexOf('ordering-guide-title')).toBeGreaterThan(shell.indexOf('Ivory Rose Gajra'));
+  });
+
   it('puts the product name, price and description in the markup', () => {
     expect(shell).toContain('Ivory Rose Gajra');
     expect(shell).toContain('₹400');

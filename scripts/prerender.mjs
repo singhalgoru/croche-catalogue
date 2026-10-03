@@ -320,6 +320,14 @@ const renderShell = (products) => {
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Order directly through WhatsApp or Instagram.`,
     )}</p>`,
     sections,
+    '<section aria-labelledby="ordering-guide-title">',
+    '<h2 id="ordering-guide-title">How to order &amp; delivery</h2>',
+    '<ol><li>Choose your favourites: explore the products and select your preferred colour or variant.</li>',
+    '<li>Add to cart: add available items, then review your selections and quantities in the cart.</li>',
+    '<li>Send your order on WhatsApp: use the cart\'s WhatsApp option to send your order details. Your order is confirmed with us, not by adding items to the cart.</li></ol>',
+    '<p>Shipping is available across India. Contact us to confirm shipping charges and the estimated dispatch time before payment.</p>',
+    '<p><a href="mailto:orders@luviacreations.com">Email about an order</a> &middot; <a href="/return-policy/">Return and refund policy</a></p>',
+    '</section>',
     '</main>',
   ].join('');
 };

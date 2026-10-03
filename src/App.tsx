@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { requestPageReload } from './utils/pageReload';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import OrderingGuide from './components/OrderingGuide';
 import CategoryFilter from './components/CategoryFilter';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -360,6 +361,7 @@ function App() {
             />
           )}
         </div>
+        <OrderingGuide />
       </main>
 
       <Footer />
