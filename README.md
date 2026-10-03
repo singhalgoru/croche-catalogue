@@ -227,6 +227,12 @@ controls are the same component used by the catalogue popup.
 Specifications and care instructions are always visible on the full product page;
 the catalogue quick view keeps these sections collapsible. Empty fields stay hidden.
 The full product page uses a compact top-left logo with the cart on the right.
+Below the product, **More from this collection** shows up to four other published
+products in the same category: in-stock first, then newest publication, with ID
+as a stable tie-breaker. Missing/invalid publication dates sort last within their
+stock group. No unrelated-category filler is used; an empty section is hidden.
+Recommendations open full product pages in-session, retaining the cart and
+catalogue return state. The grid has two mobile columns and four desktop columns.
 
 Catalogue clicks still open a quick view. **View full details** carries the chosen
 variant into the full page (`?variant=<id>`); **Back to collection** restores the

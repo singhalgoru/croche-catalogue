@@ -12,10 +12,11 @@ const product: Product = {
   }],
 };
 const addItem = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+let catalogueProducts = [product];
 vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: vi.fn() }));
 vi.mock('./hooks/useCatalogueProducts', () => ({
   useCatalogueProducts: () => ({
-    products: [product], categorySettings: [{ name: 'Home', priority: 0 }],
+    products: catalogueProducts, categorySettings: [{ name: 'Home', priority: 0 }],
     isLoading: false, loadError: null, refreshProducts: vi.fn(),
   }),
 }));
@@ -33,6 +34,7 @@ vi.mock('./components/ProductGrid', () => ({
 }));
 
 beforeEach(() => {
+  catalogueProducts = [product];
   window.history.replaceState(null, '', '/');
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
@@ -47,6 +49,39 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('opens related pages with the same cart and restores the prior page on browser Back', async () => {
+    const related = { ...product, id: 'related-product', name: 'Related Coaster' };
+    catalogueProducts = [product, related];
+    window.history.replaceState(null, '', '/p/test-coaster--test-product/?variant=variant-red&utm_source=instagram');
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 }, { timeout: 5000 });
+    fireEvent.click(screen.getByRole('link', { name: /Related Coaster/ }));
+    await screen.findByRole('heading', { name: 'Related Coaster', level: 1 });
+    expect(window.location.pathname).toBe('/p/related-coaster--related-product/');
+    expect(window.location.search).not.toContain('variant=');
+    expect(window.location.search).toContain('utm_source=instagram');
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Related Coaster' }));
+    await waitFor(() => expect(addItem).toHaveBeenCalledWith(related, related.variants[0]));
+    window.history.back();
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(window.location.search).toContain('variant=variant-red');
+  });
+
+  it('returns directly to the catalogue after following related products from a quick view', async () => {
+    catalogueProducts = [product, { ...product, id: 'related-product', name: 'Related Coaster' }];
+    render(<App />);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search crochet items' }), { target: { value: 'coaster' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open test product' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByRole('region', { name: 'More from this collection' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'View full details' }));
+    fireEvent.click(await screen.findByRole('link', { name: /Related Coaster/ }));
+    await screen.findByRole('heading', { name: 'Related Coaster', level: 1 });
+    fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search crochet items' })).toHaveProperty('value', 'coaster'));
+    expect(window.location.pathname).toBe('/');
+  });
+
   it('opens direct product links as full pages with the existing cart actions', async () => {
     window.history.replaceState(null, '', '/p/old-name--test-product/?variant=variant-red');
     render(<App />);

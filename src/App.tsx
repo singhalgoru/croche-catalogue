@@ -4,6 +4,7 @@ import { requestPageReload } from './utils/pageReload';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import OrderingGuide from './components/OrderingGuide';
+import RelatedProducts from './components/RelatedProducts';
 import CategoryFilter from './components/CategoryFilter';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -208,10 +209,31 @@ function App() {
     url.search = params.toString();
     promotedFromCatalogue.current = true;
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    window.history.pushState(null, '', url);
+    window.history.pushState({ catalogueDepth: 1 }, '', url);
     setSelectedVariantId(variantId || null);
     setPageReference(toProductReference(selectedProduct));
     setAreCatalogueToolsSticky(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const openRelatedProduct = (product: Product) => {
+    trackProductSelected(product);
+    const url = new URL(toProductPageUrl(product));
+    const params = new URLSearchParams(window.location.search);
+    params.delete('variant');
+    params.delete('productPage');
+    url.search = params.toString();
+    const depth = window.history.state?.catalogueDepth;
+    window.history.pushState(
+      promotedFromCatalogue.current
+        ? { catalogueDepth: typeof depth === 'number' ? depth + 1 : 1 }
+        : null,
+      '', url,
+    );
+    setSelectedProduct(product);
+    setSelectedVariantId(null);
+    setPageReference(toProductReference(product));
+    setReturnToCartOnProductClose(false);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -346,7 +368,8 @@ function App() {
             onClick={(event) => {
               if (!promotedFromCatalogue.current || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
               event.preventDefault();
-              window.history.back();
+              const depth = window.history.state?.catalogueDepth;
+              window.history.go(-(typeof depth === 'number' ? depth : 1));
             }}
             className="inline-block py-2 text-sm font-semibold text-cocoa underline underline-offset-4"
           >
@@ -379,6 +402,9 @@ function App() {
                 onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
               />
             </Suspense>
+          )}
+          {selectedProduct && (
+            <RelatedProducts product={selectedProduct} products={products} onSelect={openRelatedProduct} />
           )}
           <OrderingGuide />
         </main>
@@ -549,7 +575,7 @@ function App() {
             if (pageReference) {
               const url = new URL(toProductPageUrl(product));
               url.searchParams.set('variant', variantId);
-              window.history.replaceState(null, '', url);
+              window.history.replaceState(window.history.state, '', url);
               setPageReference(toProductReference(product));
             }
             setIsCartOpen(false);
