@@ -17,6 +17,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Product detail view with image carousel
 - Variant and additional-angle image previews
 - Zoom and 3D-style image viewing
+- Close image zoom by clicking/tapping outside the visible photo; image gestures and viewer controls remain active
 - WhatsApp enquiry links
 - Email contacts for orders and general enquiries
 - Installable app experience on supported browsers

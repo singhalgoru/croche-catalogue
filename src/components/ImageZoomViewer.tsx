@@ -43,6 +43,8 @@ export default function ImageZoomViewer({
   const [slideX, setSlideX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const suppressDismissClick = useRef(false);
   const pointers = useRef(new Map<number, Point>());
   const previousPinch = useRef<{ distance: number; center: Point } | null>(null);
   const dragStart = useRef<{ point: Point; offset: Point } | null>(null);
@@ -115,12 +117,14 @@ export default function ImageZoomViewer({
     pointers.current.set(event.pointerId, point);
 
     if (pointers.current.size === 1) {
+      suppressDismissClick.current = false;
       gestureMoved.current = false;
       gestureWasMultiTouch.current = false;
       dragStart.current = { point, offset };
       swipeStart.current = scale === 1 ? { point, time: Date.now() } : null;
       swipeAxis.current = null;
     } else if (pointers.current.size === 2) {
+      suppressDismissClick.current = true;
       gestureWasMultiTouch.current = true;
       const [first, second] = [...pointers.current.values()];
       previousPinch.current = {
@@ -138,6 +142,10 @@ export default function ImageZoomViewer({
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!pointers.current.has(event.pointerId)) return;
+    if (dragStart.current &&
+      Math.hypot(event.clientX - dragStart.current.point.x, event.clientY - dragStart.current.point.y) > 8) {
+      suppressDismissClick.current = true;
+    }
     const previousPoint = pointers.current.get(event.pointerId);
     if (
       previousPoint &&
@@ -187,6 +195,7 @@ export default function ImageZoomViewer({
   };
 
   const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.type === 'pointercancel') suppressDismissClick.current = true;
     const swipe = swipeStart.current;
     const wasHorizontalSwipe = swipeAxis.current === 'x';
     pointers.current.delete(event.pointerId);
@@ -231,7 +240,22 @@ export default function ImageZoomViewer({
       role="dialog"
       aria-modal="true"
       aria-label={`Zoomed image of ${alt}`}
-      onClick={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (event.target instanceof Element && event.target.closest('button')) return;
+        if (suppressDismissClick.current) return;
+        const photo = imageRef.current;
+        if (!photo || !photo.naturalWidth || !photo.naturalHeight) return;
+        // object-contain leaves clickable letterboxing inside the full-screen img element.
+        const bounds = photo.getBoundingClientRect();
+        const ratio = Math.min(bounds.width / photo.naturalWidth, bounds.height / photo.naturalHeight);
+        const width = photo.naturalWidth * ratio;
+        const height = photo.naturalHeight * ratio;
+        const left = bounds.left + (bounds.width - width) / 2;
+        const top = bounds.top + (bounds.height - height) / 2;
+        if (event.clientX < left || event.clientX > left + width ||
+          event.clientY < top || event.clientY > top + height) onClose();
+      }}
     >
       <div
         ref={surfaceRef}
@@ -245,6 +269,7 @@ export default function ImageZoomViewer({
         onDoubleClick={() => setZoom(scale > 1 ? 1 : 2)}
       >
         <img
+          ref={imageRef}
           src={image}
           alt={alt}
           draggable={false}
