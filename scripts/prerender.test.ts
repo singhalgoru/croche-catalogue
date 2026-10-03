@@ -56,7 +56,7 @@ describe('fetchProducts', () => {
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('offset')).toBe('1000');
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('published')).toBe('eq.true');
     const selected = new URL(fetchMock.mock.calls[0][0]).searchParams.get('select')?.split(',');
-    expect(selected).toEqual(expect.arrayContaining(['materials', 'dimensions', 'included_items', 'care_instructions']));
+    expect(selected).toEqual(expect.arrayContaining(['materials', 'dimensions', 'included_items', 'care_instructions', 'updated_at']));
   });
 
   it('rejects a failed fetch rather than deploying a stale sitemap', async () => {
@@ -415,6 +415,36 @@ describe('renderSitemap', () => {
 
   it('dates product entries from their publish date', () => {
     expect(xml).toContain('<lastmod>2026-01-01</lastmod>');
+  });
+
+  it('uses the stored modification date and stays unchanged across rebuilds', () => {
+    const edited = toProduct({ ...row, updated_at: '2026-10-03T12:00:00Z' });
+    expect(edited.updatedAt).toBe('2026-10-03T12:00:00Z');
+    for (const buildDate of ['2026-10-04', '2026-10-05']) {
+      const sitemap = renderSitemap([edited], buildDate);
+      const entry = sitemap.split('<url>')[3];
+      expect(entry).toContain('<lastmod>2026-10-03</lastmod>');
+      expect(entry).not.toContain(`<lastmod>${buildDate}</lastmod>`);
+      expect(entry).not.toContain('<lastmod>2026-01-01</lastmod>');
+    }
+  });
+
+  it('normalises timestamps to UTC and falls back to publication only if needed', () => {
+    expect(renderSitemap([{ ...product, updatedAt: '2026-10-03T01:00:00+05:30' }], '2026-10-05'))
+      .toContain('<lastmod>2026-10-02</lastmod>');
+    expect(renderSitemap([{ ...product, updatedAt: 'invalid' }], '2026-10-05'))
+      .toContain('<lastmod>2026-01-01</lastmod>');
+  });
+
+  it('omits unknown product dates with a warning instead of inventing a build-date modification', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const sitemap = renderSitemap([{ ...product, updatedAt: null, publishedAt: null }], '2026-10-05');
+      expect(sitemap.split('<url>')[3]).not.toContain('<lastmod>');
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining('no valid modification or publication date'));
+    } finally {
+      warning.mockRestore();
+    }
   });
 
   it('omits unused priority and changefreq fields', () => {

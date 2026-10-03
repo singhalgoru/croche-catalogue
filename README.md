@@ -217,6 +217,13 @@ every push to `main`, about a minute after any catalogue change in admin (via a
 database trigger), and daily at 01:23 UTC as a safety net.
 Check the deploy workflow if an update
 has not appeared. GitHub Pages and browsers may cache the sitemap briefly.
+Product sitemap `lastmod` uses the stored `updated_at` timestamp (UTC date), not
+the deployment date. Migration `20261003180000_track_product_page_modifications.sql`
+tracks product, variant and gallery changes, including removals. Existing dates
+are backfilled only from known variant edits/gallery creation times; historical
+gallery edits without recorded timestamps cannot be reconstructed. Missing edit
+dates fall back to publication; if neither date is valid, `lastmod` is omitted
+with a build warning.
 Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). These pages contain static product
 content and metadata for crawlers and visitors without JavaScript, then boot the

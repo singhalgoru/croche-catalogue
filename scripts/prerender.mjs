@@ -27,7 +27,7 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,image_url,published_at,sort_order,created_at,' +
+  'id,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,image_url,published_at,updated_at,sort_order,created_at,' +
   'product_variants(id,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
@@ -129,6 +129,7 @@ const toProduct = (row) => {
       : row.in_stock !== false,
     image: row.image_url ?? '',
     publishedAt: row.published_at ?? null,
+    updatedAt: row.updated_at ?? null,
     variants: variants.map((variant) => ({
       id: variant.id,
       name: variant.name ?? variant.color ?? '',
@@ -489,7 +490,16 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
 
 const renderSitemap = (products, today) => {
   const entry = (loc, lastmod) =>
-    `  <url>\n    <loc>${escapeHtml(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </url>`;
+    `  <url>\n    <loc>${escapeHtml(loc)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}\n  </url>`;
+  const productLastmod = (product) => {
+    for (const value of [product.updatedAt, product.publishedAt]) {
+      if (typeof value === 'string' && value.trim() && Number.isFinite(Date.parse(value))) {
+        return new Date(value).toISOString().slice(0, 10);
+      }
+    }
+    console.warn(`[prerender] Omitting sitemap lastmod for ${product.name}: no valid modification or publication date.`);
+    return null;
+  };
 
   const urls = [
     entry(`${ORIGIN}/`, today),
@@ -497,7 +507,7 @@ const renderSitemap = (products, today) => {
     ...products.map((product) =>
       entry(
         productUrl(product),
-        (product.publishedAt ?? today).slice(0, 10),
+        productLastmod(product),
       ),
     ),
   ];
