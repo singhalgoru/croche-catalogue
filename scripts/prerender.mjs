@@ -326,9 +326,10 @@ const renderShell = (products) => {
     '<li>Add to cart: add available items, then review your selections and quantities in the cart.</li>',
     '<li>Send your order on WhatsApp: use the cart\'s WhatsApp option to send your order details. Your order is confirmed with us, not by adding items to the cart.</li></ol>',
     '<p>Shipping is available across India. Contact us to confirm shipping charges and the estimated dispatch time before payment.</p>',
-    '<p><a href="mailto:orders@luviacreations.com">Email about an order</a> &middot; <a href="/return-policy/">Return and refund policy</a></p>',
+    '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
     '</section>',
     '</main>',
+    '<footer><a href="/return-policy/">Return and refund policy</a></footer>',
   ].join('');
 };
 

@@ -134,6 +134,8 @@ describe('renderShell', () => {
     expect(shell).toContain('confirm shipping charges and the estimated dispatch time before payment');
     expect(shell).toContain('href="mailto:orders@luviacreations.com"');
     expect(shell).toContain('href="/return-policy/"');
+    expect(shell.match(/href="\/return-policy\/"/g)).toHaveLength(1);
+    expect(shell).toContain('<footer><a href="/return-policy/">');
     expect(shell.indexOf('ordering-guide-title')).toBeGreaterThan(shell.indexOf('Ivory Rose Gajra'));
   });
 

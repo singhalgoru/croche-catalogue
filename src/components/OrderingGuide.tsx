@@ -45,9 +45,6 @@ export default function OrderingGuide() {
         >
           Email about an order
         </a>
-        <a href="/return-policy/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">
-          Return and refund policy
-        </a>
       </div>
     </section>
   );
