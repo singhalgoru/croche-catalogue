@@ -38,6 +38,22 @@ describe('facts-only analysis prompt and schema', () => {
     expect(prompt).toContain('dispatch or delivery timing');
     expect(Object.keys(OPTIONAL_DETAIL_SCHEMA)).toEqual(DETAIL_FIELDS);
   });
+
+  it('requests polished copy without turning editing into invented specifications', () => {
+    const prompt = buildProductPrompt(['Toys'], {
+      notes: 'Acrylic Yarn, fibre fill, 6 inches, hand wash with mild shampoo',
+    });
+    expect(prompt).toContain('Act as an editor, not just a fact extractor');
+    expect(prompt).toContain('Improve the current copy rather than repeating it verbatim');
+    expect(prompt).toContain('Made with acrylic yarn and fibre filling.');
+    expect(prompt).toContain('Size: 6 inches.');
+    expect(prompt).toContain('not an invented height, width, diameter or length');
+    expect(prompt).toContain('advice that was not supplied');
+    expect(prompt).toContain('never reuse its facts unless they occur in the supplied facts');
+    for (const schema of Object.values(OPTIONAL_DETAIL_SCHEMA)) {
+      expect(schema.description).toContain('not verbatim shorthand');
+    }
+  });
 });
 
 describe('analysis response validation', () => {

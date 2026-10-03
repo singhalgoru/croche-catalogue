@@ -143,6 +143,10 @@ default; selecting them explicitly replaces their draft values. Applying a
 suggestion does not save or publish the product. Unknown specifications stay
 blank; photos alone cannot establish fibre composition, dimensions, package
 quantity or care instructions. Price, stock and dispatch estimates remain manual.
+Gemini edits shorthand into customer-ready wording and combines visible features
+with confirmed facts in the description. It must not expand a bare measurement
+into an assumed height or add unconfirmed care advice. The review lists details
+that still need confirmation; add or clarify facts before generating again.
 
 Deploy the optional-detail migration (`20261003170000_add_optional_product_details.sql`)
 and the updated `analyze-product` function before publishing the frontend:

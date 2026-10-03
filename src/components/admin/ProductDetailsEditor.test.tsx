@@ -40,6 +40,25 @@ describe('ProductDetailsEditor', () => {
     expect(screen.getByRole('status').textContent).toContain('nothing has been published');
   });
 
+  it('identifies missing confirmations without supplying guessed details', async () => {
+    render(<ProductDetailsEditor value={value} categories={['Home']} imageFile={imageFile} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
+    await screen.findByText('Review Gemini suggestions');
+    expect(screen.getByRole('status').textContent).toContain("Needs your confirmation: Dimensions, What's included, Care instructions");
+    expect(screen.getByRole('status').textContent).not.toContain('Materials');
+  });
+
+  it('omits the confirmation reminder when all specifications were suggested', async () => {
+    vi.mocked(analyzeProductImage).mockResolvedValueOnce({
+      ...suggestion, dimensions: 'Size: 6 inches.', includedItems: 'One coaster.',
+      careInstructions: 'Hand wash with mild shampoo.',
+    });
+    render(<ProductDetailsEditor value={value} categories={['Home']} imageFile={imageFile} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
+    await screen.findByText('Review Gemini suggestions');
+    expect(screen.queryByText(/Needs your confirmation/)).toBeNull();
+  });
+
   it('requires an explicit selection before replacing existing specifications', async () => {
     const onChange = vi.fn();
     render(<ProductDetailsEditor value={{ ...value, materials: 'Wool' }} categories={['Home']} imageFile={imageFile} onChange={onChange} />);

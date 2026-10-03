@@ -129,7 +129,8 @@ export default function ProductDetailsEditor({
         />
       </label>
       <p className="text-xs text-cocoa/70">
-        Gemini uses your photo and confirmed facts. Unknown specifications stay blank.
+        Gemini rewrites your photo observations and confirmed facts into customer-ready copy.
+        It improves wording, not facts: unknown specifications stay blank.
         Price, stock and dispatch promises are not generated. Suggestions must be reviewed.
       </p>
       <button
@@ -149,6 +150,14 @@ export default function ProductDetailsEditor({
             Select fields to apply. Checked fields replace their current draft values.
             Existing fields are unchecked by default. Verify all facts before saving.
           </p>
+          {PRODUCT_DETAIL_FIELDS.some(({ key }) => !analysis[key]?.trim()) && (
+            <p role="status" className="text-sm text-cocoa/70">
+              Needs your confirmation: {PRODUCT_DETAIL_FIELDS
+                .filter(({ key }) => !analysis[key]?.trim())
+                .map(({ label }) => label).join(', ')}. Add the missing facts or clarify
+              conflicting details in the fields above, then generate again.
+            </p>
+          )}
           {SUGGESTION_FIELDS.filter(({ key }) => analysis[key]?.trim() && (key !== 'color' || onColorSuggested)).map(({ key, label }) => (
             <label key={key} className="flex items-start gap-2 text-sm text-cocoa">
               <input
