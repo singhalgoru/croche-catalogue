@@ -106,7 +106,6 @@ export default function Header({
               : 'h-12 w-12 shrink-0 ring-4 sm:h-36 sm:w-36 md:h-44 md:w-44'
           }`}
           />
-          {!compact && <span className="font-heading text-lg font-bold text-cocoa sm:hidden">Luvia Creations</span>}
         </div>
         <h1
           className={`font-heading font-extrabold text-cocoa ${
