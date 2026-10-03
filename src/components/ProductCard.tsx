@@ -51,6 +51,7 @@ export default function ProductCard({
     index: 0,
     variantId: product.variants[0]?.id,
   });
+  const [chosenImageProductId, setChosenImageProductId] = useState<string | null>(null);
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const activeImageIndex = activeImage.productId === product.id ? activeImage.index : 0;
@@ -162,6 +163,8 @@ export default function ProductCard({
   }, []);
 
   useEffect(() => {
+    if (chosenImageProductId === product.id) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     if (!isNearViewport && 'IntersectionObserver' in window) return;
     if (cardImages.length <= 1) return;
     const timer = window.setInterval(() => {
@@ -181,7 +184,7 @@ export default function ProductCard({
       });
     }, 3500);
     return () => window.clearInterval(timer);
-  }, [cardImages, isNearViewport, product.id, product.variants]);
+  }, [cardImages, isNearViewport, product.id, product.variants, chosenImageProductId]);
 
   return (
     <article
@@ -290,6 +293,7 @@ export default function ProductCard({
                   key={variant.id}
                   type="button"
                   onClick={() => {
+                    setChosenImageProductId(product.id);
                     setShareIntentImage(null);
                     setActiveImage({
                       productId: product.id,

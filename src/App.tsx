@@ -269,7 +269,7 @@ function App() {
         </div>
       )}
 
-      <main className="max-w-6xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 space-y-5 sm:space-y-6">
+      <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
         <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
           <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
@@ -290,6 +290,7 @@ function App() {
               active={effectiveActiveCategory}
               onSelect={selectCategory}
               showNew={hasNewProducts}
+              compactOnMobile
             />
           </div>
         )}
@@ -327,9 +328,14 @@ function App() {
             />
           </div>
         )}
-        <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa text-center">
-          Shop the Collection
-        </h2>
+        <div className="text-center">
+          <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa">
+            Shop the Collection
+          </h2>
+          <p className="mt-1 text-xs text-cocoa/80 sm:text-sm">
+            Add your favourites to the cart, then confirm your order on WhatsApp.
+          </p>
+        </div>
         {loadError && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
             {loadError}

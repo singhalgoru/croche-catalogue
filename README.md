@@ -12,10 +12,12 @@ licensed for reuse — see [LICENSE](./LICENSE).
 ## Features
 
 - Responsive product catalogue
+- Compact mobile header and horizontally scrolling categories, with explicit WhatsApp ordering guidance
 - Category filtering and search
 - Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel
 - Variant and additional-angle image previews
+- Selected card variants stay fixed; automatic card previews are disabled for reduced-motion preferences
 - Zoom and 3D-style image viewing
 - Close image zoom by clicking/tapping outside the visible photo; image gestures and viewer controls remain active
 - WhatsApp enquiry links

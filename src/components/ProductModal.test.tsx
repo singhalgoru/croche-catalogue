@@ -135,6 +135,16 @@ const renderModalWithCart = () => {
 const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 
 describe('ProductModal touch controls', () => {
+  it('shows explicit ordering labels while keeping the enquiry and cart actions available', () => {
+    render(
+      <ProductModal product={product} currentIndex={0} totalProducts={1}
+        onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()}
+        onAddToCart={vi.fn().mockResolvedValue(true)} />,
+    );
+    expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).textContent).toContain('Order on WhatsApp');
+    expect(screen.getByRole('button', { name: 'Add to cart — Crochet Rose' }).textContent).toContain('Add to cart');
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     getShareableImageFile.mockReset().mockResolvedValue(null);

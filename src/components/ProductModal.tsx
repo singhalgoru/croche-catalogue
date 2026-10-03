@@ -577,17 +577,18 @@ export default function ProductModal({
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
               {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <a
                 href={whatsappOrderLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={openWhatsAppOrder}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
+                className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#25D366] px-3 text-white shadow-sm transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
                 aria-label="Quick order on WhatsApp"
                 title="Quick order on WhatsApp"
               >
                 <WhatsAppIcon />
+                <span className="text-xs font-semibold">Order on WhatsApp</span>
               </a>
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
@@ -623,6 +624,7 @@ export default function ProductModal({
                   disabled={isCartBusy}
                   quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
                   overlay={false}
+                  showLabel
                 />
               ) : null}
               <button

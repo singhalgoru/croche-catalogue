@@ -88,6 +88,41 @@ describe('ProductCard share image preparation', () => {
     }
   });
 
+  it('keeps a shopper-selected variant and its price stable across carousel intervals', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ProductCard product={{
+          ...product,
+          showPrice: true,
+          variants: product.variants.map((variant) => ({
+            ...variant, price: variant.id === 'white' ? 250 : 200,
+          })),
+        }} isFirstProduct onSelect={vi.fn()} onAddToCart={vi.fn()} />,
+      );
+      const choice = screen.getByRole('button', { name: 'Show White variant image for Crochet Rose' });
+      fireEvent.click(choice);
+      act(() => vi.advanceTimersByTime(3500 * 3));
+      expect(choice.getAttribute('aria-pressed')).toBe('true');
+      expect(screen.getByRole('img', { name: 'Crochet Rose' }).getAttribute('src')).toBe('/white.jpg');
+      expect(screen.getByText('₹250')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not rotate photos when reduced motion is requested', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+    try {
+      renderCard();
+      act(() => vi.advanceTimersByTime(3500));
+      expect(screen.getByRole('img', { name: 'Crochet Rose' }).getAttribute('src')).toBe('/rose.jpg');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shares the link while a requested photo is still loading', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share, canShare: vi.fn().mockReturnValue(true) });

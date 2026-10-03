@@ -6,6 +6,7 @@ interface Props {
   className?: string;
   quantity?: number;
   overlay?: boolean;
+  showLabel?: boolean;
 }
 
 const statusLabel = {
@@ -23,6 +24,7 @@ export default function CartIconButton({
   className = '',
   quantity = 0,
   overlay = true,
+  showLabel = false,
 }: Props) {
   const label = statusLabel[status];
 
@@ -32,7 +34,7 @@ export default function CartIconButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/70 text-white shadow-lg backdrop-blur-md transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`flex h-11 ${showLabel ? 'gap-2 px-3' : 'w-11'} items-center justify-center rounded-full border border-white/70 text-white shadow-lg backdrop-blur-md transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
           status === 'added'
             ? 'bg-green-600/95 hover:bg-green-700'
             : 'bg-cocoa/95 hover:bg-cocoa-dark'
@@ -67,6 +69,7 @@ export default function CartIconButton({
             <path d="M14 9v4M12 11h4" />
           </svg>
         )}
+        {showLabel && <span className="text-xs font-semibold">{label}</span>}
         {quantity > 0 && (
           <span
             className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-mustard px-1 text-xs font-extrabold leading-none text-cocoa shadow-md"
