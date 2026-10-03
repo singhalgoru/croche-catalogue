@@ -21,11 +21,11 @@ export const getProductWhatsAppLink = (product: Product, variant?: ProductVarian
   const url = new URL(toProductPageUrl(product));
   if (variant) url.searchParams.set('variant', variant.id);
   return whatsappLink(
-    `Hi Luvia, I would like to order/enquire about "${product.name}"${
+    `Hi Luvia, I'm interested in ${product.name}${
       variant?.name.trim()
-        ? ` in the “${variant.name}” variant`
+        ? ` — ${variant.name.trim()}`
         : ''
-    } from the ${product.category} collection.\n\nProduct: ${url.href}`,
+    }.\n\n${url.href}`,
   );
 };
 

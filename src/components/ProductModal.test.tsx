@@ -154,7 +154,9 @@ describe('ProductModal touch controls', () => {
       onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
     const href = screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')!;
     const text = new URL(href).searchParams.get('text');
-    expect(text).toContain('“Ivory” variant');
+    expect(text).toContain("Hi Luvia, I'm interested in Crochet Rose — Ivory.");
+    expect(text).not.toContain('Product:');
+    expect(text).not.toContain('collection');
     expect(text).toContain('/p/crochet-rose--product-1/?variant=variant-2');
   });
 
@@ -354,7 +356,7 @@ describe('ProductModal touch controls', () => {
     );
     expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')).toContain(
-      '%E2%80%9CIvory%E2%80%9D',
+      '%E2%80%94%20Ivory',
     );
   });
 

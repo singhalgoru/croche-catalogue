@@ -155,7 +155,7 @@ const priceRange = (product) => {
 
 const whatsappLink = (product, number) =>
   `https://wa.me/${number}?text=${encodeURIComponent(
-    `Hi Luvia, I would like to order/enquire about "${product.name}" from the ${product.category} collection.\n\nProduct: ${productUrl(product)}`,
+    `Hi Luvia, I'm interested in ${product.name}.\n\n${productUrl(product)}`,
   )}`;
 
 const productUrl = (product) => product.url ?? `${ORIGIN}/p/${toProductReference(product)}/`;

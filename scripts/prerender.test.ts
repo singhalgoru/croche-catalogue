@@ -340,8 +340,8 @@ describe('renderProductPage', () => {
     expect(page).toContain('https://wa.me/910000000000?text=');
     const orderHref = page.match(/href="(https:\/\/wa\.me\/910000000000\?text=[^"]+)"/)?.[1];
     expect(orderHref).toBeTruthy();
-    expect(new URL(orderHref!).searchParams.get('text')).toContain(
-      `Product: https://luviacreations.com/p/${prerenderReference(product)}/`,
+    expect(new URL(orderHref!.replace(/&#39;/g, "'").replace(/&amp;/g, '&')).searchParams.get('text')).toBe(
+      `Hi Luvia, I'm interested in ${product.name}.\n\nhttps://luviacreations.com/p/${prerenderReference(product)}/`,
     );
     expect(page).toContain(`href="/#product=${encodeURIComponent(prerenderReference(product))}"`);
   });

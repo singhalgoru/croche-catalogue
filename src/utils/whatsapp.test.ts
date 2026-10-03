@@ -42,13 +42,12 @@ it('respects a configured WhatsApp number override', async () => {
 it('includes the selected variant even for a single-variant product and links to that variant', async () => {
   const { getProductWhatsAppLink } = await import('./whatsapp');
   const text = new URL(getProductWhatsAppLink(product, product.variants[0])).searchParams.get('text')!;
-  expect(text).toContain('"Bunny Charm" in the “Lavender” variant');
-  expect(text).toContain(`Product: ${toProductPageUrl(product)}?variant=lavender-id`);
+  expect(text).toBe(`Hi Luvia, I'm interested in Bunny Charm — Lavender.\n\n${toProductPageUrl(product)}?variant=lavender-id`);
 });
 
 it('links enquiries without a selected variant to the full product page', async () => {
   const { getProductWhatsAppLink } = await import('./whatsapp');
   const text = new URL(getProductWhatsAppLink(product)).searchParams.get('text')!;
-  expect(text).toContain(`Product: ${toProductPageUrl(product)}`);
+  expect(text).toBe(`Hi Luvia, I'm interested in Bunny Charm.\n\n${toProductPageUrl(product)}`);
   expect(text).not.toContain('variant');
 });
