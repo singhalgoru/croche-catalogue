@@ -6,6 +6,7 @@ import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
+import { toProductPageUrl } from '../utils/productLink';
 import { getProductShareDetails } from '../utils/productShare';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { trackEvent } from '../services/analytics';
@@ -280,7 +281,12 @@ export default function ProductCard({
       </div>
       <div className="flex flex-1 flex-col p-4 sm:p-3 lg:p-4">
         <h3 className="font-heading text-lg font-semibold text-cocoa sm:text-base">
-          {product.name}
+          <a
+            href={toProductPageUrl(product)}
+            className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
+          >
+            {product.name}
+          </a>
         </h3>
         {product.variants.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-2" aria-label={`${product.name} variants`}>

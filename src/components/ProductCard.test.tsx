@@ -58,6 +58,13 @@ describe('ProductCard share image preparation', () => {
     vi.unstubAllGlobals();
   });
 
+  it('links the product title directly to its full details page', () => {
+    renderCard();
+    const link = screen.getByRole('link', { name: 'Crochet Rose' });
+    expect(link.getAttribute('href')).toBe(`${window.location.origin}/p/crochet-rose/`);
+    expect(screen.getByRole('button', { name: 'View Crochet Rose' })).toBeTruthy();
+  });
+
   it('does not download full-size images just because the card is visible or the cart is used', () => {
     renderCard();
     expect(getShareableImageFile).not.toHaveBeenCalled();

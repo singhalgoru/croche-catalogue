@@ -27,7 +27,7 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,public_slug,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,image_url,published_at,updated_at,sort_order,created_at,' +
+  'id,public_slug,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,featured,image_url,published_at,updated_at,sort_order,created_at,' +
   'product_variants(id,public_slug,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
@@ -120,7 +120,7 @@ const toProduct = (row) => {
   return {
     id: row.id,
     publicSlug: row.public_slug ?? undefined,
-    name: row.name,
+    name: row.name.trim(),
     category: row.category ?? 'Crochet',
     description: row.description ?? '',
     materials: row.materials?.trim() || undefined,
@@ -128,12 +128,15 @@ const toProduct = (row) => {
     includedItems: row.included_items?.trim() || undefined,
     careInstructions: row.care_instructions?.trim() || undefined,
     price: row.show_price === false ? null : (row.price ?? null),
+    featured: row.featured === true,
+    sortOrder: row.sort_order ?? undefined,
     inStock: variants.length > 0
       ? variants.some((variant) => variant.in_stock !== false)
       : row.in_stock !== false,
     image: row.image_url ?? '',
     publishedAt: row.published_at ?? null,
     updatedAt: row.updated_at ?? null,
+    createdAt: row.created_at ?? null,
     variants: variants.map((variant) => ({
       id: variant.id,
       publicSlug: variant.public_slug ?? undefined,
@@ -304,14 +307,23 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
     .replaceAll('{{WHATSAPP_NUMBER}}', contact.digits);
 };
 
-/**
- * The homepage listing deliberately carries no <img>: it is replaced within a
- * moment of load, and 30-plus image requests would compete with the real app
- * for bandwidth. Photographs belong on the product pages, which is also where
- * a crawler finds them.
- */
+const INITIAL_NEW_PRODUCT_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
+
+const compareInitialProducts = (left, right, now = Date.now()) => {
+  const isNew = (product) => {
+    const publishedAt = Date.parse(product.publishedAt);
+    const age = now - publishedAt;
+    return Number.isFinite(publishedAt) && age >= 0 && age < INITIAL_NEW_PRODUCT_DURATION_MS;
+  };
+  return Number(Boolean(right.featured)) - Number(Boolean(left.featured))
+    || Number(isNew(right)) - Number(isNew(left))
+    || (left.sortOrder ?? 0) - (right.sortOrder ?? 0);
+};
+
 const renderShell = (products) => {
-  const groups = groupByCategory(products);
+  const orderedProducts = [...products].sort(compareInitialProducts);
+  const firstProductId = orderedProducts[0]?.id;
+  const groups = groupByCategory(orderedProducts);
   const categories = groups.map(([category]) => category);
 
   const sections = groups
@@ -320,9 +332,12 @@ const renderShell = (products) => {
         .map((product) => {
           const price = ` ${priceLabel(product)}.`;
           const stock = `${stockLabel(product)}.`;
+          const image = product.id === firstProductId && product.image
+            ? `<img src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" loading="eager" fetchpriority="high" decoding="async" alt="${escapeHtml(product.name)}" />`
+            : '';
           return [
             '<li>',
-            `<article><h4><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h4>`,
+            `<article>${image}<h4><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h4>`,
             `<p>${escapeHtml(truncate(product.description, 150))}</p>`,
             `<p>${escapeHtml(`${product.name} is a handmade crochet piece from the ${category} collection by Luvia Creations.${price} ${stock}`)}</p>`,
             '</article></li>',

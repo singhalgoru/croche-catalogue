@@ -120,6 +120,10 @@ describe('toProduct', () => {
     }).inStock).toBe(false);
     expect(toProduct({ ...row, in_stock: false, product_variants: [] }).inStock).toBe(false);
   });
+
+  it('trims product names before generating catalogue output', () => {
+    expect(toProduct({ ...row, name: '  Ivory Rose Gajra  ' }).name).toBe('Ivory Rose Gajra');
+  });
 });
 
 describe('priceRange', () => {
@@ -166,12 +170,25 @@ describe('renderShell', () => {
     expect(shell).toContain(`href="/p/${prerenderSlug(product)}/"`);
   });
 
+  it('preloads the first catalogue product image in the initial HTML', () => {
+    const escapedImage = prerenderImageUrl(product.image, 480).replace(/&/g, '&amp;');
+    expect(shell).toContain(`<img src="${escapedImage}" width="480" height="480" loading="eager" fetchpriority="high"`);
+    expect(shell.match(/<img\b/g)).toHaveLength(1);
+  });
+
+  it('renders the initially featured product first, matching the hydrated catalogue', () => {
+    const second = { ...product, id: 'featured', name: 'Featured item', featured: true };
+    const html = renderShell([product, second]);
+    expect(html.indexOf('Featured item')).toBeLessThan(html.indexOf('Ivory Rose Gajra'));
+    expect(html).toContain(`alt="Featured item"`);
+  });
+
   it('groups products under a category heading', () => {
     expect(shell).toContain('<h3>Handmade Crochet Hair Accessories</h3>');
   });
 
-  it('omits images so the listing does not compete with the app for bandwidth', () => {
-    expect(shell).not.toContain('<img');
+  it('does not add image requests for every catalogue item', () => {
+    expect(shell.match(/<img\b/g)).toHaveLength(1);
   });
 });
 

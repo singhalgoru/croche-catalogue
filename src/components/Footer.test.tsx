@@ -25,6 +25,11 @@ describe('Footer', () => {
     expect(mobile.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919205907350\?text=/);
   });
 
+  it('uses accessible dark text on the WhatsApp green button', () => {
+    render(<Footer />);
+    expect(screen.getByRole('link', { name: 'Contact on WhatsApp' }).className).toContain('text-cocoa');
+  });
+
   it('offers distinct order and general enquiry email links', () => {
     render(<Footer />);
 

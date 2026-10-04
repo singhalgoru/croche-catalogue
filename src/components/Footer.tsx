@@ -26,7 +26,7 @@ export default function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackContactClick('whatsapp', 'footer')}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2 font-semibold text-white transition-colors hover:bg-[#1ebe5d]"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2 font-semibold text-cocoa transition-colors hover:bg-[#1ebe5d]"
           >
             <WhatsAppIcon />
             Contact on WhatsApp
