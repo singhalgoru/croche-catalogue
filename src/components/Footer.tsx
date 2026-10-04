@@ -1,4 +1,4 @@
-import { getGeneralWhatsAppLink } from '../utils/whatsapp';
+import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
 import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
 
@@ -42,6 +42,17 @@ export default function Footer() {
             Contact on Instagram
           </a>
         </div>
+        <p className="mt-2">
+          WhatsApp / mobile:{' '}
+          <a
+            href={getGeneralWhatsAppLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold underline underline-offset-2 hover:text-mustard"
+          >
+            {formatWhatsAppNumber()}
+          </a>
+        </p>
         <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-6">
           <p>
             Orders:{' '}

@@ -6,12 +6,19 @@ import { toProductPageUrl, toPublicVariantSlug } from './productLink';
 
 // Fallback keeps local dev working if the env var isn't set; production reads
 // VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
-const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350';
+export const getWhatsAppNumber = () =>
+  (import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350').replace(/\D/g, '');
+
+export const formatWhatsAppNumber = (number = getWhatsAppNumber()) => {
+  const digits = number.replace(/\D/g, '');
+  if (/^91\d{10}$/.test(digits)) return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
+  return `+${digits}`;
+};
 
 const whatsappLink = (message: string) => {
   const reference = getCampaignReference();
   const text = reference ? `${message}\n\n(Ref: ${reference})` : message;
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(text)}`;
 };
 
 export const getGeneralWhatsAppLink = () =>

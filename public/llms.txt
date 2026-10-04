@@ -19,6 +19,7 @@ Luvia Creations designs and handcrafts crochet products in India, with shipping 
 
 ## Contact
 
+- WhatsApp / mobile: [{{WHATSAPP_DISPLAY_NUMBER}}](https://wa.me/{{WHATSAPP_NUMBER}}). Message us about products and orders.
 - [WhatsApp enquiries via the catalogue](https://luviacreations.com/): Use the website's WhatsApp contact or product enquiry buttons.
 - [Orders email](mailto:orders@luviacreations.com): orders@luviacreations.com.
 - [General enquiries email](mailto:hello@luviacreations.com): hello@luviacreations.com.

@@ -211,12 +211,21 @@ describe('renderLlms', () => {
     const text = renderLlms(template, [product]);
     expect(text).toContain('## Hair Accessories');
     expect(text).toContain(`[Ivory Rose Gajra](https://luviacreations.com/p/${prerenderSlug(product)}/): ₹400 – ₹450. In stock.`);
+    expect(text).toContain('[+91 92059 07350](https://wa.me/919205907350)');
     expect(text).toContain('WhatsApp enquiries via the catalogue');
-    expect(text).not.toMatch(/wa\.me\/|tel:/);
+    expect(text).not.toMatch(/\{\{WHATSAPP_|tel:/);
     expect(text).toContain('mailto:orders@luviacreations.com');
     expect(text).toContain('mailto:hello@luviacreations.com');
     expect(text).not.toMatch(/luviacreations\.com\/(?:products|collections|about|contact)\b/);
     expect(text).not.toMatch(/made to order|<!--catalogue-->|AI image generation/i);
+  });
+
+  it('uses the configured number in crawler contact details', () => {
+    const text = renderLlms(template, [product], '+44 20 1234 5678');
+    expect(text).toContain('[+442012345678](https://wa.me/442012345678)');
+    const shell = injectShell(readFileSync(path.resolve('index.html'), 'utf8'), [product], '911234567890');
+    expect(shell).toContain('"telephone": "+91 12345 67890"');
+    expect(shell).not.toContain('{{WHATSAPP_PHONE}}');
   });
 
   it('does not expose hidden prices or retain removed products and categories', () => {

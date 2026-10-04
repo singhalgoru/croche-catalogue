@@ -275,7 +275,16 @@ const priceLabel = (product) => {
 const markdownText = (value) =>
   String(value).replace(/\s+/g, ' ').trim().replace(/[\\`*_[\]<>#]/g, '\\$&');
 
-const renderLlms = (template, products) => {
+const whatsappContactDetails = (number) => {
+  const digits = String(number).replace(/\D/g, '');
+  if (!digits) throw new Error('WhatsApp contact number must contain digits.');
+  const display = /^91\d{10}$/.test(digits)
+    ? `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`
+    : `+${digits}`;
+  return { digits, display };
+};
+
+const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
   const marker = /<!--catalogue-->[\s\S]*?<!--\/catalogue-->/;
   if (!marker.test(template)) throw new Error('llms.txt is missing the <!--catalogue--> markers');
   const categories = groupByCategory(products);
@@ -288,7 +297,11 @@ const renderLlms = (template, products) => {
       ),
     ].join('\n')),
   ].join('\n\n');
-  return template.replace(marker, () => listing);
+  const contact = whatsappContactDetails(whatsappNumber);
+  return template
+    .replace(marker, () => listing)
+    .replaceAll('{{WHATSAPP_DISPLAY_NUMBER}}', contact.display)
+    .replaceAll('{{WHATSAPP_NUMBER}}', contact.digits);
 };
 
 /**
@@ -572,18 +585,20 @@ const writeSocialImage = async (product, dir, reference) => {
   }
 };
 
-const injectShell = (html, products) => {
+const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
   const shell = /<!--shell-->[\s\S]*?<!--\/shell-->/;
   if (!shell.test(html)) {
     throw new Error('index.html is missing the <!--shell--> markers');
   }
   const description = catalogueDescription(products);
+  const { display } = whatsappContactDetails(whatsappNumber);
   return html
     .replace(/(<meta\s+(?:name="(?:description|twitter:description)"|property="og:description")\s+content=")[^"]*(")/g,
       (_, before, after) => `${before}${escapeHtml(description)}${after}`)
     .replace(/("description":\s*")[^"]*(")/,
       () => `"description":${JSON.stringify(description).replace(/</g, '\\u003c')}`)
     .replace(shell, () => `<!--shell-->${renderShell(products)}<!--/shell-->`)
+    .replaceAll('{{WHATSAPP_PHONE}}', display)
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };
 
@@ -622,7 +637,7 @@ const main = async () => {
 
   const indexPath = path.join(DIST, 'index.html');
   const template = await readFile(indexPath, 'utf8');
-  await writeFile(indexPath, injectShell(template, products));
+  await writeFile(indexPath, injectShell(template, products, whatsappNumber));
 
   for (const product of products) {
     const slug = toProductSlug(product);
@@ -647,7 +662,7 @@ const main = async () => {
   await writeFile(path.join(DIST, 'sitemap.xml'), renderSitemap(products, today));
   await writeFile(
     path.join(DIST, 'llms.txt'),
-    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products),
+    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber),
   );
 
   console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);

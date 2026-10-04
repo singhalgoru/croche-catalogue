@@ -18,6 +18,13 @@ describe('Footer', () => {
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
       .toBe('/return-policy/');
   });
+
+  it('shows the WhatsApp mobile number as a direct WhatsApp link', () => {
+    render(<Footer />);
+    const mobile = screen.getByRole('link', { name: '+91 92059 07350' });
+    expect(mobile.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919205907350\?text=/);
+  });
+
   it('offers distinct order and general enquiry email links', () => {
     render(<Footer />);
 
