@@ -23,7 +23,7 @@ import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
-import { toProductPageUrl } from '../utils/productLink';
+import { toProductPageUrl, toPublicVariantSlug } from '../utils/productLink';
 
 interface Props {
   product: Product;
@@ -72,7 +72,9 @@ export default function ProductModal({
   const sharePanelRef = useRef<HTMLDivElement>(null);
   const [showTouchControls, setShowTouchControls] = useState(false);
   const initialVariant =
-    product.variants.find((variant) => variant.id === initialVariantId) ?? product.variants[0];
+    product.variants.find((variant) =>
+      variant.id === initialVariantId || toPublicVariantSlug(variant) === initialVariantId)
+    ?? product.variants[0];
   const [selectedVariantId, setSelectedVariantId] = useState(
     initialVariant?.id ?? '',
   );
@@ -582,7 +584,7 @@ export default function ProductModal({
           <ProductDetails product={product} collapsible={!isPage} />
           {!isPage && (
             <a
-              href={`${toProductPageUrl(product)}${selectedVariant ? `?variant=${encodeURIComponent(selectedVariant.id)}` : ''}`}
+              href={`${toProductPageUrl(product)}${selectedVariant ? `?variant=${encodeURIComponent(toPublicVariantSlug(selectedVariant))}` : ''}`}
               onClick={(event) => {
                 if (!onOpenFullDetails || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
                 event.preventDefault();

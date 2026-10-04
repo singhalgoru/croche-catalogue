@@ -141,11 +141,11 @@ describe('ProductModal touch controls', () => {
       initialVariantId="variant-2" onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()}
       onOpenFullDetails={onOpenFullDetails} />);
     const link = screen.getByRole('link', { name: 'View full details' });
-    expect(link.getAttribute('href')).toContain('?variant=variant-2');
+    expect(link.getAttribute('href')).toContain('?variant=ivory');
     fireEvent.click(link);
     expect(onOpenFullDetails).toHaveBeenCalledWith('variant-2');
     act(() => vi.advanceTimersByTime(7000));
-    expect(screen.getByRole('link', { name: 'View full details' }).getAttribute('href')).toContain('?variant=variant-2');
+    expect(screen.getByRole('link', { name: 'View full details' }).getAttribute('href')).toContain('?variant=ivory');
   });
 
   it.each(['modal', 'page'] as const)('includes the currently selected variant in %s WhatsApp enquiries', (presentation) => {
@@ -157,7 +157,7 @@ describe('ProductModal touch controls', () => {
     expect(text).toContain("Hi Luvia, I'm interested in Crochet Rose — Ivory.");
     expect(text).not.toContain('Product:');
     expect(text).not.toContain('collection');
-    expect(text).toContain('/p/crochet-rose--product-1/?variant=variant-2');
+    expect(text).toContain('/p/crochet-rose/?variant=ivory');
   });
 
   it('reuses ordering and zoom as a full page without modal close or product swipes', () => {

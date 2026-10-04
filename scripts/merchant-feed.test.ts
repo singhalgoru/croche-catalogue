@@ -8,11 +8,11 @@ import { toProduct } from './prerender.mjs';
 import { cleanImageKey, merchantItems, renderMerchantFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
 
 const product = toProduct({
-  id: 'p1', name: 'Rose & Coaster', category: 'Decor', description: 'Handmade <rose> & leaves.',
+  id: 'p1', public_slug: 'rose-coaster', name: 'Rose & Coaster', category: 'Decor', description: 'Handmade <rose> & leaves.',
   price: 450, image_url: 'https://images.luviacreations.com/products/admin/photo-wm3.webp',
   product_variants: [
-    { id: 'v1', name: 'Red', price: 450, in_stock: true },
-    { id: 'v2', name: 'Blue', price: 500, in_stock: false, image_url: 'https://images.luviacreations.com/products/admin/blue.webp' },
+    { id: 'v1', public_slug: 'red', name: 'Red', price: 450, in_stock: true },
+    { id: 'v2', public_slug: 'blue', name: 'Blue', price: 500, in_stock: false, image_url: 'https://images.luviacreations.com/products/admin/blue.webp' },
   ],
 });
 
@@ -34,7 +34,12 @@ describe('Merchant Center feed', () => {
     expect(items[0].url).not.toBe(items[1].url);
     expect(items[0].variants).toEqual([]);
     expect(items[0].groupId).toBe('p1');
-    expect(items[0].catalogueReference).toBe('rose-coaster--p1');
+    expect(items[0].catalogueReference).toBe('rose-coaster');
+    expect(items.map(item => item.url)).toEqual([
+      'https://luviacreations.com/shopping/rose-coaster/red/',
+      'https://luviacreations.com/shopping/rose-coaster/blue/',
+    ]);
+    expect(items.map(item => item.merchantId)).toEqual(['v1', 'v2']);
   });
 
   it('omits hidden prices explicitly and rejects invalid required data', () => {
@@ -67,9 +72,10 @@ describe('Merchant Center feed', () => {
   });
 
   it('writes valid escaped Google RSS with exact prices and no invented GTIN', () => {
-    const xml = renderMerchantFeed(merchantItems([product]).map((item) => ({
+    const items = merchantItems([product]).map((item) => ({
       ...item, image: 'https://luviacreations.com/merchant-images/clean.webp',
-    })));
+    }));
+    const xml = renderMerchantFeed(items);
     const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
     expect(doc.querySelectorAll('item')).toHaveLength(2);
     const field = (name: string) => doc.getElementsByTagNameNS('http://base.google.com/ns/1.0', name);
@@ -79,6 +85,9 @@ describe('Merchant Center feed', () => {
     expect(field('identifier_exists')[0].textContent).toBe('no');
     expect(field('gtin')).toHaveLength(0);
     expect(field('image_link')[0].textContent).not.toContain('wm3');
+    expect(field('id')[1].textContent).toBe('v2');
+    expect(field('link')[1].textContent).toBe('https://luviacreations.com/shopping/rose-coaster/blue/');
+    expect(xml).not.toContain('rose-coaster--p1');
   });
 
   it('publishes clean images once and matching static landing pages without redirects', async () => {
@@ -90,7 +99,7 @@ describe('Merchant Center feed', () => {
       await writeMerchantCatalogue(items, dir, getImage, '911234567890');
       expect(getImage).toHaveBeenCalledTimes(1);
       expect(await readdir(path.join(dir, 'merchant-images'))).toHaveLength(1);
-      const page = await readFile(path.join(dir, 'shopping', 'rose-coaster--p1', 'v2', 'index.html'), 'utf8');
+      const page = await readFile(path.join(dir, 'shopping', 'rose-coaster', 'blue', 'index.html'), 'utf8');
       const doc = new JSDOM(page).window.document;
       expect(page).not.toContain('location.replace');
       expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(items[1].url);
@@ -99,7 +108,9 @@ describe('Merchant Center feed', () => {
       expect(graph.offers.availability).toContain('OutOfStock');
       expect(graph.image).toContain('/merchant-images/');
       expect(doc.querySelector('.hero')?.getAttribute('src')).toBe(graph.image);
-      expect(doc.querySelector('.cta.alt')?.getAttribute('href')).toBe('/#product=rose-coaster--p1');
+      expect(doc.querySelector('.cta.alt')?.getAttribute('href')).toBe('/#product=rose-coaster');
+      const oldPage = await readFile(path.join(dir, 'shopping', 'rose-coaster--p1', 'v2', 'index.html'), 'utf8');
+      expect(new JSDOM(oldPage).window.document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(items[1].url);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

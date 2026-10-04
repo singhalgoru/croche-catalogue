@@ -1,6 +1,7 @@
-import type { Product } from '../types/product';
+import type { Product, ProductVariant } from '../types/product';
 
-type LinkableProduct = Pick<Product, 'id' | 'name'>;
+type LinkableProduct = Pick<Product, 'id' | 'name'> & Partial<Pick<Product, 'publicSlug'>>;
+type LinkableVariant = Pick<ProductVariant, 'id' | 'name'> & Partial<Pick<ProductVariant, 'publicSlug'>>;
 
 const PRODUCT_HASH_PREFIX = '#product=';
 const REFERENCE_SEPARATOR = '--';
@@ -10,6 +11,20 @@ export const toProductSlug = (product: LinkableProduct) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || product.id;
+
+export const toPublicProductSlug = (product: LinkableProduct & { publicSlug?: string }) =>
+  product.publicSlug || toProductSlug(product);
+
+export const toPublicVariantSlug = (variant: LinkableVariant) =>
+  variant.publicSlug || variant.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || `variant-${variant.id.toLowerCase().replace(/-/g, '').slice(0, 8)}`;
+
+export const findProductVariantByReference = (product: Product, reference: string) =>
+  product.variants.find((variant) =>
+    variant.id.toLowerCase() === reference.toLowerCase()
+    || toPublicVariantSlug(variant) === reference.toLowerCase());
 
 /**
  * Campaign links use `<slug>--<id>` so the URL stays readable while the trailing
@@ -54,7 +69,9 @@ export const findProductByReference = (products: Product[], reference: string) =
   if (byId) return byId;
 
   const slug = separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex);
-  return products.find((product) => toProductSlug(product) === slug) ?? null;
+  return products.find((product) =>
+    (product.publicSlug && product.publicSlug.toLowerCase() === normalized)
+    || toProductSlug(product) === slug) ?? null;
 };
 
 export const toProductHash = (product: LinkableProduct) =>
@@ -71,5 +88,5 @@ export const toProductUrl = (product: LinkableProduct) => {
  */
 export const toProductPageUrl = (product: LinkableProduct) => {
   const base = new URL(import.meta.env.BASE_URL, window.location.origin);
-  return `${base.href}p/${encodeURIComponent(toProductReference(product))}/`;
+  return `${base.href}p/${encodeURIComponent(toPublicProductSlug(product))}/`;
 };

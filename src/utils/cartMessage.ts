@@ -5,7 +5,7 @@ import { toProductUrl } from './productLink';
 const PRICE_ON_ENQUIRY = 'Price on enquiry';
 
 const productUrlFor = (item: CartItem) =>
-  toProductUrl({ id: item.productId, name: item.productName });
+  toProductUrl({ id: item.productId, name: item.productName, publicSlug: item.productSlug });
 
 const lineTotal = (item: CartItem) =>
   item.unitPrice === null ? null : item.unitPrice * item.quantity;

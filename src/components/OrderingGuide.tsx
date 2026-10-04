@@ -8,25 +8,34 @@ export default function OrderingGuide() {
       className="rounded-2xl border border-mustard/30 bg-white/70 p-4 text-cocoa sm:p-6"
     >
       <h2 id="ordering-guide-title" className="font-heading text-xl font-bold sm:text-2xl">
-        How to order &amp; delivery
+        How ordering and delivery work
       </h2>
       <ol className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
         <li>
-          <h3 className="font-semibold">1. Choose your favourites</h3>
-          <p className="mt-1 text-cocoa/80">Explore the products and select your preferred colour or variant.</p>
+          <h3 className="font-semibold">1. Choose your items</h3>
+          <p className="mt-1 text-cocoa/80">
+            Select an available product and colour or variant, then add it to your cart.
+          </p>
         </li>
         <li>
-          <h3 className="font-semibold">2. Add to cart</h3>
-          <p className="mt-1 text-cocoa/80">Add available items, then review your selections and quantities in the cart.</p>
+          <h3 className="font-semibold">2. Send an order request</h3>
+          <p className="mt-1 text-cocoa/80">
+            Review your items and quantities, then send them to us using the cart&apos;s WhatsApp button.
+            Adding items to your cart or sending a message does not confirm an order.
+          </p>
         </li>
         <li>
-          <h3 className="font-semibold">3. Send your order on WhatsApp</h3>
-          <p className="mt-1 text-cocoa/80">Use the cart&apos;s WhatsApp option to send your order details. Your order is confirmed with us, not by adding items to the cart.</p>
+          <h3 className="font-semibold">3. Confirm details before paying</h3>
+          <p className="mt-1 text-cocoa/80">
+            We&apos;ll confirm availability, the total including shipping, and the estimated dispatch time.
+            Your order is confirmed only after we confirm it with you.
+          </p>
         </li>
       </ol>
       <p className="mt-4 text-sm text-cocoa/80">
-        Shipping is available across India. Contact us to confirm shipping charges and
-        the estimated dispatch time before payment.
+        We ship across India. Shipping charges and delivery timing depend on your location and order.
+        Please agree on the total and dispatch estimate with us before paying; we&apos;ll share payment
+        instructions when we confirm your order.
       </p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
         <a

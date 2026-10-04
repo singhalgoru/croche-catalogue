@@ -27,19 +27,22 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,image_url,published_at,updated_at,sort_order,created_at,' +
-  'product_variants(id,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
+  'id,public_slug,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,image_url,published_at,updated_at,sort_order,created_at,' +
+  'product_variants(id,public_slug,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
 export const toProductSlug = (product) =>
-  product.name
+  product.publicSlug || product.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || `product-${String(product.id).replace(/-/g, '').slice(0, 8)}`;
+
+export const toProductReference = (product) => {
+  const slug = product.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || product.id;
-
-export const toProductReference = (product) => {
-  const slug = toProductSlug(product);
   const id = product.id.toLowerCase();
   return slug === id ? id : `${slug}--${id}`;
 };
@@ -116,6 +119,7 @@ const toProduct = (row) => {
   );
   return {
     id: row.id,
+    publicSlug: row.public_slug ?? undefined,
     name: row.name,
     category: row.category ?? 'Crochet',
     description: row.description ?? '',
@@ -132,6 +136,7 @@ const toProduct = (row) => {
     updatedAt: row.updated_at ?? null,
     variants: variants.map((variant) => ({
       id: variant.id,
+      publicSlug: variant.public_slug ?? undefined,
       name: variant.name ?? variant.color ?? '',
       image: variant.image_url ?? '',
       images: [...(variant.product_variant_images ?? [])]
@@ -158,7 +163,7 @@ const whatsappLink = (product, number) =>
     `Hi Luvia, I'm interested in ${product.name}.\n\n${productUrl(product)}`,
   )}`;
 
-const productUrl = (product) => product.url ?? `${ORIGIN}/p/${toProductReference(product)}/`;
+const productUrl = (product) => product.url ?? `${ORIGIN}/p/${toProductSlug(product)}/`;
 
 const availability = (product) =>
   product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
@@ -304,7 +309,7 @@ const renderShell = (products) => {
           const stock = `${stockLabel(product)}.`;
           return [
             '<li>',
-            `<article><h4><a href="/p/${toProductReference(product)}/">${escapeHtml(product.name)}</a></h4>`,
+            `<article><h4><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h4>`,
             `<p>${escapeHtml(truncate(product.description, 150))}</p>`,
             `<p>${escapeHtml(`${product.name} is a handmade crochet piece from the ${category} collection by Luvia Creations.${price} ${stock}`)}</p>`,
             '</article></li>',
@@ -326,11 +331,11 @@ const renderShell = (products) => {
     )}</p>`,
     sections,
     '<section aria-labelledby="ordering-guide-title">',
-    '<h2 id="ordering-guide-title">How to order &amp; delivery</h2>',
-    '<ol><li>Choose your favourites: explore the products and select your preferred colour or variant.</li>',
-    '<li>Add to cart: add available items, then review your selections and quantities in the cart.</li>',
-    '<li>Send your order on WhatsApp: use the cart\'s WhatsApp option to send your order details. Your order is confirmed with us, not by adding items to the cart.</li></ol>',
-    '<p>Shipping is available across India. Contact us to confirm shipping charges and the estimated dispatch time before payment.</p>',
+    '<h2 id="ordering-guide-title">How ordering and delivery work</h2>',
+    '<ol><li>Choose your items: select an available product and colour or variant, then add it to your cart.</li>',
+    '<li>Send an order request: review your items and quantities, then send them to us using the cart\'s WhatsApp button. Adding items to your cart or sending a message does not confirm an order.</li>',
+    '<li>Confirm details before paying: we\'ll confirm availability, the total including shipping, and the estimated dispatch time. Your order is confirmed only after we confirm it with you.</li></ol>',
+    '<p>We ship across India. Shipping charges and delivery timing depend on your location and order. Please agree on the total and dispatch estimate with us before paying; we\'ll share payment instructions when we confirm your order.</p>',
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
     '</section>',
     '</main>',
@@ -395,7 +400,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
   // one: WhatsApp skips WebP previews, and the same-origin file also keeps
   // the page photo visible when a visitor's resolver can't reach the image host.
   const shareImage = socialImage?.url ?? image;
-  const redirect = appRedirectScript(toProductReference(product));
+  const redirect = appRedirectScript(toProductSlug(product));
   const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
   const details = [
     ['Materials', product.materials],
@@ -474,7 +479,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
       }
       <p>
         <a class="cta" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Order on WhatsApp</a>
-        <a class="cta alt" href="/#product=${encodeURIComponent(product.catalogueReference ?? toProductReference(product))}">View in the catalogue</a>
+        <a class="cta alt" href="/#product=${encodeURIComponent(product.catalogueReference ?? toProductSlug(product))}">View in the catalogue</a>
       </p>
       <footer>
         <p><a href="/return-policy/">Return and refund policy</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
@@ -620,14 +625,22 @@ const main = async () => {
   await writeFile(indexPath, injectShell(template, products));
 
   for (const product of products) {
-    const reference = toProductReference(product);
-    const dir = path.join(DIST, 'p', reference);
+    const slug = toProductSlug(product);
+    const dir = path.join(DIST, 'p', slug);
     await mkdir(dir, { recursive: true });
-    const socialImage = await writeSocialImage(product, dir, reference);
+    const socialImage = await writeSocialImage(product, dir, slug);
     await writeFile(
       path.join(dir, 'index.html'),
       attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
     );
+    const legacyDir = path.join(DIST, 'p', toProductReference(product));
+    if (legacyDir !== dir) {
+      await mkdir(legacyDir, { recursive: true });
+      await writeFile(
+        path.join(legacyDir, 'index.html'),
+        attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
+      );
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10);

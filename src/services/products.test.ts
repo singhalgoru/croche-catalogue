@@ -19,7 +19,7 @@ vi.mock('./r2ImageStorage', () => ({
 }));
 
 const row = {
-  id: 'p1', name: 'Bunny', category: 'Accessories', description: 'Crochet bunny',
+  id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Accessories', description: 'Crochet bunny',
   price: 300, show_price: true, featured: false, color: '#B57EDC', in_stock: true,
   image_url: 'https://images.luviacreations.com/products/admin/bunny.webp',
   image_path: 'r2:products/admin/bunny', published: true, published_at: null,
@@ -71,7 +71,8 @@ describe('product detail loading', () => {
     };
     const published = queueQuery([detailedRow]);
     const managed = queueQuery([detailedRow]);
-    for (const products of [await fetchPublishedProducts(), await fetchManagedProducts()]) {
+    const loadedProducts = [await fetchPublishedProducts(), await fetchManagedProducts()];
+    for (const products of loadedProducts) {
       expect(products[0]).toMatchObject({
         materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
         price: 300, inStock: true,
@@ -80,6 +81,9 @@ describe('product detail loading', () => {
     expect(published.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(managed.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(PRODUCT_COLUMNS).toContain('included_items, care_instructions');
+    expect(PRODUCT_COLUMNS).toContain('public_slug');
+    expect(loadedProducts[0][0].publicSlug).toBe('bunny');
+    expect(loadedProducts[1][0].publicSlug).toBe('bunny');
   });
 
   it('keeps old, null and blank rows valid, including catalogue prefetch', async () => {

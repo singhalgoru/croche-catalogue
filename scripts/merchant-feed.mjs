@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AwsClient } from 'aws4fetch';
 import sharp from 'sharp';
 import { loadEnv } from 'vite';
-import { escapeHtml, fetchProducts, renderProductPage, toProductReference } from './prerender.mjs';
+import { escapeHtml, fetchProducts, renderProductPage, toProductReference, toProductSlug } from './prerender.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ORIGIN = 'https://luviacreations.com';
@@ -58,18 +58,24 @@ export const merchantItems = (products) => {
         groupId: product.variants.length > 1 ? product.id : null,
         variantName: product.variants.length > 1 ? variant.name : null,
         name: product.variants.length > 1 ? `${product.name.trim()} - ${variant.name}` : product.name.trim(),
-        catalogueReference: toProductReference(product),
+        catalogueReference: toProductSlug(product),
         price,
         inStock: variant?.inStock ?? product.inStock,
         image,
         cleanKey: cleanImageKey(image),
         variants: [],
-        url: `${ORIGIN}/shopping/${toProductReference(product)}/${id}/`,
+        url: `${ORIGIN}/shopping/${toProductSlug(product)}/${toVariantSlug(variant)}/`,
+        legacyUrl: `${ORIGIN}/shopping/${toProductReference(product)}/${id}/`,
       });
     }
   }
   return items;
 };
+
+const toVariantSlug = (variant) => !variant ? 'standard' : variant.publicSlug || variant.name
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '') || `variant-${String(variant.id).replace(/-/g, '').slice(0, 8)}`;
 
 export const renderMerchantFeed = (items) => {
   const field = (name, value) => `<g:${name}>${escapeHtml(value)}</g:${name}>`;
@@ -118,6 +124,11 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
     const dir = path.join(dist, ...new URL(item.url).pathname.split('/').filter(Boolean));
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'index.html'), renderProductPage(publishedItem, whatsappNumber, null, false));
+    if (item.legacyUrl !== item.url) {
+      const legacyDir = path.join(dist, ...new URL(item.legacyUrl).pathname.split('/').filter(Boolean));
+      await mkdir(legacyDir, { recursive: true });
+      await writeFile(path.join(legacyDir, 'index.html'), renderProductPage(publishedItem, whatsappNumber, null, false));
+    }
     published.push(publishedItem);
   }
   await writeFile(path.join(dist, 'merchant-feed.xml'), renderMerchantFeed(published));

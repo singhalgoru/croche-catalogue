@@ -62,7 +62,16 @@ describe('buildWhatsAppCartMessage', () => {
   it('puts a product link first so WhatsApp previews the product photo', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem()]));
     const firstLink = message.split('\n').find((line) => line.startsWith('http'));
-    expect(firstLink).toContain('/p/cute-bunny--p1/');
+    expect(firstLink).toContain('/p/cute-bunny/');
+  });
+
+  it('uses the saved public slug so renamed products keep valid cart links', () => {
+    const message = buildWhatsAppCartMessage(
+      buildCart([buildItem({ productName: 'Renamed Bunny', productSlug: 'cute-bunny' })]),
+    );
+    const firstLink = message.split('\n').find((line) => line.startsWith('http'));
+    expect(firstLink).toContain('/p/cute-bunny/');
+    expect(firstLink).not.toContain('renamed-bunny');
   });
 
   it('asks for confirmation when an item has no price', () => {

@@ -27,6 +27,7 @@ interface ProductVariantImageRow {
 
 interface ProductVariantRow {
   id: string;
+  public_slug: string;
   name: string;
   color: string;
   price: number | null;
@@ -40,6 +41,7 @@ interface ProductVariantRow {
 
 interface ProductRow {
   id: string;
+  public_slug: string;
   sort_order: number;
   name: string;
   category: Product['category'];
@@ -126,6 +128,7 @@ const mapGalleryRow = (row: ProductVariantImageRow): ProductVariantImage => ({
 
 const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   id: row.id,
+  publicSlug: row.public_slug,
   name: row.name,
   color: row.color,
   price: row.price,
@@ -158,6 +161,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
 
   return {
     id: row.id,
+    publicSlug: row.public_slug,
     sortOrder: row.sort_order,
     name: row.name,
     category: row.category,

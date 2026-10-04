@@ -12,12 +12,13 @@ afterEach(() => {
 });
 
 describe('OrderingGuide', () => {
-  it('explains the three ordering steps and delivery confirmation without promising timelines', () => {
+  it('explains the order request, confirmation, payment and delivery steps without promising timelines', () => {
     render(<OrderingGuide />);
-    expect(screen.getByRole('region', { name: 'How to order & delivery' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'How ordering and delivery work' })).toBeTruthy();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    expect(screen.getByText(/Your order is confirmed with us/)).toBeTruthy();
-    expect(screen.getByText(/confirm shipping charges and the estimated dispatch time before payment/)).toBeTruthy();
+    expect(screen.getByText(/sending a message does not confirm an order/)).toBeTruthy();
+    expect(screen.getByText(/Your order is confirmed only after we confirm it with you/)).toBeTruthy();
+    expect(screen.getByText(/Please agree on the total and dispatch estimate with us before paying/)).toBeTruthy();
   });
 
   it('shows the return policy only once in the footer alongside the guide', () => {

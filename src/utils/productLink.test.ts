@@ -65,8 +65,15 @@ describe('toProductPageUrl', () => {
   it('links to the prerendered product page so previews show the product photo', () => {
     const product = createProduct('8CE989F9-95a8', 'Bunny Toy');
     expect(toProductPageUrl(product)).toBe(
-      `${window.location.origin}/p/bunny-toy--8ce989f9-95a8/`,
+      `${window.location.origin}/p/bunny-toy/`,
     );
+  });
+
+  it('uses the persisted public slug for clean links after a product rename', () => {
+    const renamed = { ...products[0], name: 'Rose Charm Deluxe', publicSlug: 'rose-charm' };
+    expect(toProductPageUrl(renamed)).toBe(`${window.location.origin}/p/rose-charm/`);
+    expect(findProductByReference([renamed], 'rose-charm')).toBe(renamed);
+    expect(findProductByReference([renamed], 'rose-charm--11111111-1111-4111-8111-111111111111')).toBe(renamed);
   });
 
   describe('hybrid product routes', () => {

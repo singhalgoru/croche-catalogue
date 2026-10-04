@@ -14,6 +14,7 @@ export interface ProductVariantImage {
 
 export interface ProductVariant {
   id: string;
+  publicSlug?: string;
   name: string;
   color: string;
   /** Optional price override in whole rupees. Falls back to the product price. */
@@ -35,6 +36,7 @@ export interface ProductDetails {
 
 export interface Product extends ProductDetails {
   id: string;
+  publicSlug?: string;
   /** Shared display order used in the full catalogue and category filters. */
   sortOrder?: number;
   name: string;

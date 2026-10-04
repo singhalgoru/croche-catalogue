@@ -26,6 +26,8 @@ import {
   toProductPageUrl,
   toProductReference,
   toProductHash,
+  findProductVariantByReference,
+  toPublicVariantSlug,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
 
@@ -152,6 +154,11 @@ function App() {
     const url = new URL(toProductPageUrl(selectedProduct));
     const params = new URLSearchParams(window.location.search);
     params.delete('productPage');
+    const incomingVariant = params.get('variant');
+    const resolvedVariant = incomingVariant
+      ? findProductVariantByReference(selectedProduct, incomingVariant)
+      : undefined;
+    if (resolvedVariant) params.set('variant', toPublicVariantSlug(resolvedVariant));
     url.search = params.toString();
     window.history.replaceState(window.history.state, '', url);
     document.title = `${selectedProduct.name} | Luvia Creations`;
@@ -205,7 +212,8 @@ function App() {
     const url = new URL(toProductPageUrl(selectedProduct));
     const params = new URLSearchParams(window.location.search);
     params.delete('productPage');
-    if (variantId) params.set('variant', variantId);
+    const variant = selectedProduct.variants.find((item) => item.id === variantId);
+    if (variant) params.set('variant', toPublicVariantSlug(variant));
     url.search = params.toString();
     promotedFromCatalogue.current = true;
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
@@ -574,7 +582,8 @@ function App() {
             setSelectedProduct(product);
             if (pageReference) {
               const url = new URL(toProductPageUrl(product));
-              url.searchParams.set('variant', variantId);
+              const variant = product.variants.find((item) => item.id === variantId);
+              if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
               window.history.replaceState(window.history.state, '', url);
               setPageReference(toProductReference(product));
             }

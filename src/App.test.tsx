@@ -57,14 +57,14 @@ describe('Hybrid product navigation', () => {
     await screen.findByRole('heading', { name: 'Test Coaster', level: 1 }, { timeout: 5000 });
     fireEvent.click(screen.getByRole('link', { name: /Related Coaster/ }));
     await screen.findByRole('heading', { name: 'Related Coaster', level: 1 });
-    expect(window.location.pathname).toBe('/p/related-coaster--related-product/');
+    expect(window.location.pathname).toBe('/p/related-coaster/');
     expect(window.location.search).not.toContain('variant=');
     expect(window.location.search).toContain('utm_source=instagram');
     fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Related Coaster' }));
     await waitFor(() => expect(addItem).toHaveBeenCalledWith(related, related.variants[0]));
     window.history.back();
     await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
-    expect(window.location.search).toContain('variant=variant-red');
+    expect(window.location.search).toContain('variant=red');
   });
 
   it('returns directly to the catalogue after following related products from a quick view', async () => {
@@ -88,7 +88,7 @@ describe('Hybrid product navigation', () => {
     expect((await screen.findByRole('heading', { level: 1 }, { timeout: 5000 })).textContent).toBe('Test Coaster');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('link', { name: 'Back to collection' })).toBeTruthy();
-    expect(window.location.pathname).toBe('/p/test-coaster--test-product/');
+    expect(window.location.pathname).toBe('/p/test-coaster/');
     fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Test Coaster' }));
     await waitFor(() => expect(addItem).toHaveBeenCalledWith(product, product.variants[0]));
   });
@@ -102,7 +102,7 @@ describe('Hybrid product navigation', () => {
     fireEvent.click(screen.getByRole('link', { name: 'View full details' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Test Coaster');
-    expect(window.location.pathname).toBe('/p/test-coaster--test-product/');
+    expect(window.location.pathname).toBe('/p/test-coaster/');
     fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
     await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search crochet items' })).toHaveProperty('value', 'coaster'));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -126,8 +126,8 @@ describe('Hybrid product navigation', () => {
     window.history.replaceState(null, '', '/?productPage=old-name--test-product&variant=variant-red&utm_source=instagram');
     render(<App />);
     await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
-    expect(window.location.pathname).toBe('/p/test-coaster--test-product/');
-    expect(window.location.search).toContain('variant=variant-red');
+    expect(window.location.pathname).toBe('/p/test-coaster/');
+    expect(window.location.search).toContain('variant=red');
     expect(window.location.search).toContain('utm_source=instagram');
     expect(window.location.search).not.toContain('productPage');
   });

@@ -9,6 +9,7 @@ interface CartItemRow {
   product_id: string;
   variant_id: string;
   product_name: string;
+  product_public_slug?: string | null;
   variant_name: string;
   image_url: string;
   unit_price: number | null;
@@ -29,7 +30,7 @@ interface CartRow {
 }
 
 const CART_COLUMNS =
-  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, cart_items(id, product_id, variant_id, product_name, variant_name, image_url, unit_price, quantity, created_at)';
+  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
 const LOCAL_CART_KEY = 'luvia-cart';
 const CART_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -38,6 +39,7 @@ const mapItem = (row: CartItemRow): CartItem => ({
   productId: row.product_id,
   variantId: row.variant_id,
   productName: row.product_name,
+  productSlug: row.product_public_slug ?? undefined,
   variantName: row.variant_name,
   image: normalizeProductImageUrl(row.image_url),
   unitPrice: row.unit_price,
@@ -230,6 +232,7 @@ export async function addProductToCart(
             productId: product.id,
             variantId: variant.id,
             productName: product.name,
+            productSlug: product.publicSlug,
             variantName: variant.name,
             image: variant.image,
             unitPrice: getPublicVariantPrice(product, variant),
@@ -249,6 +252,7 @@ export async function addProductToCart(
     product_id: product.id,
     variant_id: variant.id,
     product_name: product.name,
+    product_public_slug: product.publicSlug ?? null,
     variant_name: variant.name,
     image_url: variant.image,
     unit_price: getPublicVariantPrice(product, variant),

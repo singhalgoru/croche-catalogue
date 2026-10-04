@@ -15,6 +15,7 @@ import {
   renderSitemap,
   toProduct,
   toProductReference as prerenderReference,
+  toProductSlug as prerenderSlug,
   truncate,
 } from './prerender.mjs';
 import { getProductImageUrl } from '../src/utils/productImageUrl';
@@ -22,6 +23,7 @@ import { toProductReference } from '../src/utils/productLink';
 
 const row = {
   id: 'AAAA1111-2222-3333-4444-555566667777',
+  public_slug: 'ivory-rose-gajra',
   name: 'Ivory Rose Gajra',
   category: 'Hair Accessories',
   description: 'A row of hand-crocheted ivory roses that curves neatly around a bun.',
@@ -32,8 +34,8 @@ const row = {
     'https://bblsjcjypdxntzlszliy.supabase.co/storage/v1/object/public/product-images/a/b.jpg',
   published_at: '2026-01-01T00:00:07+00:00',
   product_variants: [
-    { id: 'v2', name: 'Blush', color: 'pink', price: 450, in_stock: true, sort_order: 2 },
-    { id: 'v1', name: 'Ivory', color: 'white', price: null, in_stock: true, sort_order: 1 },
+    { id: 'v2', public_slug: 'blush', name: 'Blush', color: 'pink', price: 450, in_stock: true, sort_order: 2 },
+    { id: 'v1', public_slug: 'ivory', name: 'Ivory', color: 'white', price: null, in_stock: true, sort_order: 1 },
   ],
 };
 
@@ -56,7 +58,7 @@ describe('fetchProducts', () => {
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('offset')).toBe('1000');
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('published')).toBe('eq.true');
     const selected = new URL(fetchMock.mock.calls[0][0]).searchParams.get('select')?.split(',');
-    expect(selected).toEqual(expect.arrayContaining(['materials', 'dimensions', 'included_items', 'care_instructions', 'updated_at']));
+    expect(selected).toEqual(expect.arrayContaining(['public_slug', 'materials', 'dimensions', 'included_items', 'care_instructions', 'updated_at']));
   });
 
   it('rejects a failed fetch rather than deploying a stale sitemap', async () => {
@@ -143,9 +145,10 @@ describe('renderShell', () => {
   const shell = renderShell([product]);
 
   it('includes ordering and delivery guidance after the products for non-JavaScript visitors', () => {
-    expect(shell).toContain('How to order &amp; delivery');
-    expect(shell).toContain('Your order is confirmed with us, not by adding items to the cart.');
-    expect(shell).toContain('confirm shipping charges and the estimated dispatch time before payment');
+    expect(shell).toContain('How ordering and delivery work');
+    expect(shell).toContain('Adding items to your cart or sending a message does not confirm an order.');
+    expect(shell).toContain('Your order is confirmed only after we confirm it with you.');
+    expect(shell).toContain('Shipping charges and delivery timing depend on your location and order.');
     expect(shell).toContain('href="mailto:orders@luviacreations.com"');
     expect(shell).toContain('href="/return-policy/"');
     expect(shell.match(/href="\/return-policy\/"/g)).toHaveLength(1);
@@ -160,7 +163,7 @@ describe('renderShell', () => {
   });
 
   it('links to the static product page', () => {
-    expect(shell).toContain(`href="/p/${prerenderReference(product)}/"`);
+    expect(shell).toContain(`href="/p/${prerenderSlug(product)}/"`);
   });
 
   it('groups products under a category heading', () => {
@@ -207,7 +210,7 @@ describe('renderLlms', () => {
   it('lists real product links under their categories with price ranges and stock', () => {
     const text = renderLlms(template, [product]);
     expect(text).toContain('## Hair Accessories');
-    expect(text).toContain(`[Ivory Rose Gajra](https://luviacreations.com/p/${prerenderReference(product)}/): ₹400 – ₹450. In stock.`);
+    expect(text).toContain(`[Ivory Rose Gajra](https://luviacreations.com/p/${prerenderSlug(product)}/): ₹400 – ₹450. In stock.`);
     expect(text).toContain('WhatsApp enquiries via the catalogue');
     expect(text).not.toMatch(/wa\.me\/|tel:/);
     expect(text).toContain('mailto:orders@luviacreations.com');
@@ -251,7 +254,7 @@ describe('renderProductPage', () => {
   it('is a complete document with a self-referencing canonical', () => {
     expect(page).toContain('<!doctype html>');
     expect(page).toContain(
-      `<link rel="canonical" href="https://luviacreations.com/p/${prerenderReference(product)}/" />`,
+      `<link rel="canonical" href="https://luviacreations.com/p/${prerenderSlug(product)}/" />`,
     );
   });
 
@@ -275,8 +278,8 @@ describe('renderProductPage', () => {
     expect(details).toContain('Spot clean\nDry flat');
     expect(details).toContain('white-space:pre-line');
     expect(details).not.toContain('<script>cotton');
-    expect(details).toContain(`location.replace("/#product=${encodeURIComponent(prerenderReference(product))}")`);
-    expect(details).toContain(`<link rel="canonical" href="https://luviacreations.com/p/${prerenderReference(product)}/"`);
+    expect(details).toContain(`location.replace("/#product=${encodeURIComponent(prerenderSlug(product))}")`);
+    expect(details).toContain(`<link rel="canonical" href="https://luviacreations.com/p/${prerenderSlug(product)}/"`);
   });
 
   it('omits all empty/missing detail headings for old or blank products', () => {
@@ -301,7 +304,7 @@ describe('renderProductPage', () => {
     const data = JSON.parse(source!);
     const schema = data['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product');
     expect(schema.name).toBe(product.name);
-    expect(schema.url).toBe(`https://luviacreations.com/p/${prerenderReference(product)}/`);
+    expect(schema.url).toBe(`https://luviacreations.com/p/${prerenderSlug(product)}/`);
     expect(schema.offers.priceCurrency).toBe('INR');
     expect(schema.offers.lowPrice).toBe('400');
     expect(schema.offers.availability).toBe('https://schema.org/InStock');
@@ -327,7 +330,7 @@ describe('renderProductPage', () => {
   });
 
   it('sends visitors to the app product view but leaves crawlers on the page', () => {
-    const reference = encodeURIComponent(prerenderReference(product));
+    const reference = encodeURIComponent(prerenderSlug(product));
     const source = page.match(/<script>([^<]*)<\/script>/)?.[1] ?? '';
     expect(source).toContain(`location.replace("/#product=${reference}")`);
     expect(source).toMatch(/bot\|crawl/);
@@ -341,9 +344,9 @@ describe('renderProductPage', () => {
     const orderHref = page.match(/href="(https:\/\/wa\.me\/910000000000\?text=[^"]+)"/)?.[1];
     expect(orderHref).toBeTruthy();
     expect(new URL(orderHref!.replace(/&#39;/g, "'").replace(/&amp;/g, '&')).searchParams.get('text')).toBe(
-      `Hi Luvia, I'm interested in ${product.name}.\n\nhttps://luviacreations.com/p/${prerenderReference(product)}/`,
+      `Hi Luvia, I'm interested in ${product.name}.\n\nhttps://luviacreations.com/p/${prerenderSlug(product)}/`,
     );
-    expect(page).toContain(`href="/#product=${encodeURIComponent(prerenderReference(product))}"`);
+    expect(page).toContain(`href="/#product=${encodeURIComponent(prerenderSlug(product))}"`);
   });
 
   it('shows a single price when no variant overrides it', () => {
@@ -374,7 +377,7 @@ describe('interactive product page generation', () => {
     expect(page).not.toContain('location.replace');
     expect(page).toContain('<h1>Ivory Rose Gajra</h1>');
     expect(page).toContain('"@type":"Product"');
-    expect(page).toContain(`rel="canonical" href="https://luviacreations.com/p/${prerenderReference(product)}/"`);
+    expect(page).toContain(`rel="canonical" href="https://luviacreations.com/p/${prerenderSlug(product)}/"`);
   });
 
   it('fails explicitly if build assets are missing', () => {
@@ -393,7 +396,7 @@ describe('renderSitemap', () => {
 
   it('lists the homepage, return policy and every product page', () => {
     expect(xml).toContain('<loc>https://luviacreations.com/</loc>');
-    expect(xml).toContain(`<loc>https://luviacreations.com/p/${prerenderReference(product)}/</loc>`);
+    expect(xml).toContain(`<loc>https://luviacreations.com/p/${prerenderSlug(product)}/</loc>`);
     expect(xml).toContain('<loc>https://luviacreations.com/return-policy/</loc>');
     expect(xml.match(/<url>/g)).toHaveLength(3);
   });
@@ -403,7 +406,7 @@ describe('renderSitemap', () => {
     const updated = renderSitemap([product, nextProduct], '2026-10-01');
 
     expect(updated.match(/<url>/g)).toHaveLength(4);
-    expect(updated).toContain(`<loc>https://luviacreations.com/p/${prerenderReference(nextProduct)}/</loc>`);
+    expect(updated).toContain(`<loc>https://luviacreations.com/p/${prerenderSlug(nextProduct)}/</loc>`);
     expect(xml).not.toContain(prerenderReference(nextProduct));
   });
 
@@ -449,5 +452,15 @@ describe('renderSitemap', () => {
 
   it('omits unused priority and changefreq fields', () => {
     expect(xml).not.toMatch(/priority|changefreq/);
+  });
+});
+
+describe('legacy clean-link compatibility', () => {
+  it('keeps old product and Merchant URLs routable outside the sitemap', () => {
+    const notFound = readFileSync(path.resolve('public', '404.html'), 'utf8');
+    expect(notFound).toContain('/^\\/p\\/([^/]+)\\/?$/');
+    expect(notFound).toContain('/^\\/shopping\\/([^/]+)\\/([^/]+)\\/?$/');
+    expect(notFound).toContain("params.set('variant', decode(merchant[2]))");
+    expect(renderSitemap([product], '2026-10-01')).not.toContain(prerenderReference(product));
   });
 });

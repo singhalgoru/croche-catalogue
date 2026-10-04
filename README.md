@@ -228,6 +228,14 @@ Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). These pages contain static product
 content and metadata for crawlers and visitors without JavaScript, then boot the
 interactive product view on the same URL without redirecting to the homepage.
+Public product and Merchant variant URLs use persistent, unique slugs instead of
+database IDs. Migration `20261004100000_add_stable_public_catalogue_slugs.sql`
+backfills product and variant slugs once and preserves them across renames.
+The Merchant feed retains its existing UUID-based `g:id` and grouping IDs so
+Google can match existing listings; only the shopper-facing `g:link` changes.
+Previously shared UUID-based product URLs remain available as canonical aliases.
+Legacy Merchant URLs are generated as canonical aliases and older variant links
+fall back through the Pages 404 bootstrap.
 The product page stacks photos and details on mobile and uses two columns on
 desktop. Its gallery, zoom, variant picker, specifications, cart and sharing
 controls are the same component used by the catalogue popup.

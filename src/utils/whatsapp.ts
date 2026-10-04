@@ -2,7 +2,7 @@ import type { Product, ProductVariant } from '../types/product';
 import type { Cart } from '../types/cart';
 import { getCampaignReference } from './campaign';
 import { buildWhatsAppCartMessage } from './cartMessage';
-import { toProductPageUrl } from './productLink';
+import { toProductPageUrl, toPublicVariantSlug } from './productLink';
 
 // Fallback keeps local dev working if the env var isn't set; production reads
 // VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
@@ -19,7 +19,7 @@ export const getGeneralWhatsAppLink = () =>
 
 export const getProductWhatsAppLink = (product: Product, variant?: ProductVariant) => {
   const url = new URL(toProductPageUrl(product));
-  if (variant) url.searchParams.set('variant', variant.id);
+  if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
   return whatsappLink(
     `Hi Luvia, I'm interested in ${product.name}${
       variant?.name.trim()

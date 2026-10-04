@@ -61,7 +61,7 @@ describe('getCartEmailLink', () => {
 
   it('links each item to its catalogue page, where the photo is shown', () => {
     const body = decodeBody(getCartEmailLink(buildCart([buildItem()])));
-    expect(body).toMatch(/ {3}Product {5}: https?:\/\/[^\s]*\/p\/cute-bunny--p1\//);
+    expect(body).toMatch(/ {3}Product {5}: https?:\/\/[^\s]*\/p\/cute-bunny\//);
   });
 
   it('asks for confirmation instead of a total when an item is priced on enquiry', () => {
@@ -102,8 +102,8 @@ describe('getCartEmailLink', () => {
       buildItem({ id: `item-${i}`, productId: `p${i}`, productName: `Handmade Crochet Item ${i}` }),
     );
     const body = decodeBody(getCartEmailLink(buildCart(many)));
-    expect(body).toContain('handmade-crochet-item-0--p0');
-    expect(body).toContain('handmade-crochet-item-24--p24');
+    expect(body).toContain('/p/handmade-crochet-item-0/');
+    expect(body).toContain('/p/handmade-crochet-item-24/');
   });
 
   it('front-loads the order ahead of the optional delivery form so truncation degrades gracefully', () => {
