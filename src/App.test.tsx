@@ -13,11 +13,12 @@ const product: Product = {
 };
 const addItem = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 let catalogueProducts = [product];
+let catalogueLoading = false;
 vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: vi.fn() }));
 vi.mock('./hooks/useCatalogueProducts', () => ({
   useCatalogueProducts: () => ({
     products: catalogueProducts, categorySettings: [{ name: 'Home', priority: 0 }],
-    isLoading: false, loadError: null, refreshProducts: vi.fn(),
+    isLoading: catalogueLoading, loadError: null, refreshProducts: vi.fn(),
   }),
 }));
 vi.mock('./hooks/useTickerMessages', () => ({ useTickerMessages: () => ['Shipping across India'] }));
@@ -35,6 +36,7 @@ vi.mock('./components/ProductGrid', () => ({
 
 beforeEach(() => {
   catalogueProducts = [product];
+  catalogueLoading = false;
   window.history.replaceState(null, '', '/');
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
@@ -49,6 +51,45 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('waits for the live catalogue before resolving a direct product link', async () => {
+    const staleProduct: Product = {
+      ...product,
+      id: 'p29',
+      name: 'Lilac Ruffle Scrunchie',
+      image: '/images/processed/scrunchie-lilac-ruffle.jpg',
+      variants: [{
+        ...product.variants[0],
+        id: 'p29-default',
+        image: '/images/processed/scrunchie-lilac-ruffle.jpg',
+      }],
+    };
+    const liveProduct: Product = {
+      ...staleProduct,
+      id: 'live-lilac-scrunchie',
+      publicSlug: 'lilac-ruffle-scrunchie',
+      image: 'https://images.luviacreations.com/products/lilac-ruffle-scrunchie.webp',
+      variants: [{
+        ...staleProduct.variants[0],
+        id: 'live-lilac-variant',
+        image: 'https://images.luviacreations.com/products/lilac-ruffle-scrunchie.webp',
+      }],
+    };
+    catalogueProducts = [staleProduct];
+    catalogueLoading = true;
+    window.history.replaceState(null, '', '/p/lilac-ruffle-scrunchie/');
+    const { rerender } = render(<App />);
+
+    expect(screen.getByRole('status').textContent).toContain('Loading product details');
+
+    catalogueProducts = [liveProduct];
+    catalogueLoading = false;
+    rerender(<App />);
+
+    await screen.findByRole('heading', { name: 'Lilac Ruffle Scrunchie', level: 1 });
+    expect(screen.getByRole('img', { name: 'Lilac Ruffle Scrunchie' }).getAttribute('src'))
+      .toBe('https://images.luviacreations.com/products/lilac-ruffle-scrunchie.webp');
+  });
+
   it('opens related pages with the same cart and restores the prior page on browser Back', async () => {
     const related = { ...product, id: 'related-product', name: 'Related Coaster' };
     catalogueProducts = [product, related];

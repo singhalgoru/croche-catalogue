@@ -133,14 +133,14 @@ function App() {
   // as soon as the catalogue has loaded.
   useEffect(() => {
     const reference = pendingProductReference.current;
-    if (!reference || products.length === 0) return;
+    if (!reference || products.length === 0 || isLoading) return;
     const match = findProductByReference(products, reference);
     if (!match) return;
     pendingProductReference.current = null;
     trackProductSelected(match);
     // eslint-disable-next-line react/set-state-in-effect -- syncs the opened product with the incoming URL
     setSelectedProduct(match);
-  }, [products]);
+  }, [isLoading, products]);
 
   useEffect(() => {
     if (isAdminPage || pendingProductReference.current || pageReference) return;
