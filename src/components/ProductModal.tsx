@@ -373,7 +373,7 @@ export default function ProductModal({
       </button>}
       <div
         className={isPage
-          ? 'touch-pan-y grid min-w-0 w-full overflow-hidden rounded-2xl bg-white shadow-sm md:grid-cols-2 md:items-start'
+          ? 'touch-pan-y grid grid-cols-1 min-w-0 w-full overflow-hidden rounded-2xl bg-white shadow-sm md:grid-cols-2 md:items-start'
           : 'touch-pan-y bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-x-hidden overflow-y-auto shadow-xl'}
         onClick={(event) => event.stopPropagation()}
         onTouchStart={handleTouchStart}

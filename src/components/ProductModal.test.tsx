@@ -170,6 +170,8 @@ describe('ProductModal touch controls', () => {
     expect(screen.queryByRole('button', { name: 'Close product details' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'View full details' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open zoomed product image' }).closest('.grid')?.className)
+      .toContain('grid-cols-1');
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     expect(onClose).not.toHaveBeenCalled();
