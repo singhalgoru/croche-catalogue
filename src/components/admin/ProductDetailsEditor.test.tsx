@@ -112,9 +112,44 @@ describe('ProductDetailsEditor', () => {
     render(<ProductDetailsEditor value={value} categories={['Home']} imageUrl="https://images.luviacreations.com/photo.webp" onChange={onChange} />);
     fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
     await screen.findByText('Review Gemini suggestions');
-    expect(fetch).toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith('https://images.luviacreations.com/photo.webp', {
+      mode: 'cors', cache: 'reload',
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Discard suggestions' }));
     await waitFor(() => expect(screen.queryByText('Review Gemini suggestions')).toBeNull());
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('fetches an existing sized photo with fresh CORS headers before invoking Gemini', async () => {
+    const url = 'https://images.luviacreations.com/products/admin/coaster.webp';
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (_url, options) => {
+      if (options?.cache !== 'reload') throw new TypeError('Failed to fetch');
+      return { ok: true, blob: async () => new Blob(['photo'], { type: 'image/webp' }) };
+    }));
+    render(<ProductDetailsEditor value={value} categories={['Home']} imageUrl={url} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
+    await screen.findByText('Review Gemini suggestions');
+    expect(fetch).toHaveBeenCalledWith(url.replace('.webp', '-w960.webp'), {
+      mode: 'cors', cache: 'reload',
+    });
+    expect(analyzeProductImage).toHaveBeenCalledWith(
+      expect.any(File), ['Home'], { ...value, notes: '' },
+    );
+  });
+
+  it.each([
+    { response: undefined, message: 'Unable to load the product photo for Gemini: Failed to fetch' },
+    { response: { ok: false, status: 404 }, message: 'Unable to load the product photo (404).' },
+  ])('identifies photo-load failures without invoking Gemini or modifying the draft', async ({ response, message }) => {
+    vi.stubGlobal('fetch', response
+      ? vi.fn().mockResolvedValue(response)
+      : vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const onChange = vi.fn();
+    render(<ProductDetailsEditor value={value} categories={['Home']}
+      imageUrl="https://images.luviacreations.com/products/admin/coaster.webp" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
+    expect((await screen.findByRole('alert')).textContent).toContain(message);
+    expect(analyzeProductImage).not.toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
   });
 });

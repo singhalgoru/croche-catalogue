@@ -64,7 +64,15 @@ export default function ProductDetailsEditor({
     try {
       let file = imageFile;
       if (!file && imageUrl) {
-        const response = await fetch(getProductImageUrl(imageUrl, 960), { mode: 'cors' });
+        let response: Response;
+        try {
+          // Avoid reusing a CORS-less response cached by an earlier <img> load.
+          response = await fetch(getProductImageUrl(imageUrl, 960), { mode: 'cors', cache: 'reload' });
+        } catch (cause) {
+          throw new Error(`Unable to load the product photo for Gemini: ${
+            cause instanceof Error ? cause.message : 'Network request failed'
+          }. Check your connection and try again.`);
+        }
         if (!response.ok) throw new Error(`Unable to load the product photo (${response.status}).`);
         const blob = await response.blob();
         file = new File([blob], 'product.webp', { type: blob.type });

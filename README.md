@@ -63,6 +63,9 @@ If the image host changes, update `isR2ImageHost`, the CSP in `index.html`,
 intentionally left out of the service worker cache: they are served with an
 immutable one-year `Cache-Control`, and routing `<img>` loads through the worker
 made them depend on R2's conditional CORS headers.
+Admin Gemini analysis reloads existing photos with a CORS request, rather than
+reusing a browser-cached `<img>` response that may lack CORS headers. Photo-load
+errors are identified separately from Gemini analysis errors.
 
 The database and images are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
