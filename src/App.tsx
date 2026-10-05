@@ -30,6 +30,7 @@ import {
   toPublicVariantSlug,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
+import { getProductMetaDescription } from './utils/productMetaDescription';
 
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
@@ -83,6 +84,9 @@ function App() {
     title: document.title,
     canonical: document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href,
     description: document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content,
+    socialDescriptions: Array.from(document.querySelectorAll<HTMLMetaElement>(
+      'meta[property="og:description"], meta[name="twitter:description"]',
+    )).map((element) => ({ element, content: element.content })),
   });
 
   useEffect(() => {
@@ -165,7 +169,9 @@ function App() {
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = toProductPageUrl(selectedProduct);
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (description) description.content = selectedProduct.description.slice(0, 155);
+    const summary = getProductMetaDescription(selectedProduct);
+    if (description) description.content = summary;
+    for (const { element } of initialMetadata.current.socialDescriptions) element.content = summary;
   }, [pageReference, selectedProduct]);
 
   useEffect(() => {
@@ -184,6 +190,7 @@ function App() {
         if (canonical && initialMetadata.current.canonical) canonical.href = initialMetadata.current.canonical;
         const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
         if (description && initialMetadata.current.description) description.content = initialMetadata.current.description;
+        for (const { element, content } of initialMetadata.current.socialDescriptions) element.content = content;
         window.requestAnimationFrame(() => window.scrollTo({ top: productReturnScrollY.current ?? 0, behavior: 'auto' }));
       }
     };

@@ -51,6 +51,34 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('keeps search and social descriptions complete when opening a product page', async () => {
+    const metas = [
+      ['name', 'description'],
+      ['property', 'og:description'],
+      ['name', 'twitter:description'],
+    ].map(([attribute, value]) => {
+      const meta = document.createElement('meta');
+      meta.setAttribute(attribute, value);
+      meta.content = 'Original catalogue summary.';
+      document.head.append(meta);
+      return meta;
+    });
+    try {
+      catalogueProducts = [{
+        ...product,
+        description: `${'Long product description '.repeat(20)}.`,
+      }];
+      window.history.replaceState(null, '', '/p/test-coaster/');
+      render(<App />);
+      await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+      for (const meta of metas) {
+        expect(meta.content).toBe("Test Coaster: handmade crochet from Luvia Creations' Home collection. Shipped across India.");
+      }
+    } finally {
+      metas.forEach((meta) => meta.remove());
+    }
+  });
+
   it('waits for the live catalogue before resolving a direct product link', async () => {
     const staleProduct: Product = {
       ...product,

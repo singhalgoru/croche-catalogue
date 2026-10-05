@@ -32,6 +32,16 @@ const PRODUCT_SELECT =
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
+export const getProductMetaDescription = (product) => {
+  const text = product.description.replace(/\s+/g, ' ').trim();
+  if (/[.!?]$/.test(text) && text.length <= 160) return text;
+  const first = text.match(/^.+?[.!?](?=\s|$)/)?.[0];
+  if (first && first.length <= 160) return first;
+  const name = product.name.replace(/\s+/g, ' ').trim();
+  const category = product.category.replace(/\s+/g, ' ').trim();
+  return `${name}: handmade crochet from Luvia Creations' ${category} collection. Shipped across India.`;
+};
+
 export const toProductSlug = (product) =>
   product.publicSlug || product.name
     .toLowerCase()
@@ -419,10 +429,7 @@ const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).di
 const renderProductPage = (product, whatsappNumber, socialImage = null, redirectToApp = true) => {
   const url = productUrl(product);
   const title = `${product.name} — Handmade Crochet ${product.category} | Luvia Creations`;
-  const description = truncate(
-    product.description || `${product.name}, a handmade crochet piece from the ${product.category} collection by Luvia Creations.`,
-    155,
-  );
+  const description = getProductMetaDescription(product);
   const image = product.image ? getProductImageUrl(product.image, 960) : `${ORIGIN}/images/luvia-logo.jpg`;
   // og:image points at the JPEG copy written next to the page when there is
   // one: WhatsApp skips WebP previews, and the same-origin file also keeps

@@ -228,6 +228,10 @@ Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). These pages contain static product
 content and metadata for crawlers and visitors without JavaScript, then boot the
 interactive product view on the same URL without redirecting to the homepage.
+Product search and social descriptions use complete short descriptions or a
+complete first sentence. When the product copy cannot supply a concise sentence,
+they use the product name, collection and India shipping statement instead of
+cutting text mid-sentence. The interactive view uses the same summary logic.
 Public product and Merchant variant URLs use persistent, unique slugs instead of
 database IDs. Migration `20261004100000_add_stable_public_catalogue_slugs.sql`
 backfills product and variant slugs once and preserves them across renames.

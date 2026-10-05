@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   escapeHtml,
+  getProductMetaDescription as prerenderMetaDescription,
   attachProductApp,
   fetchProducts,
   getProductImageUrl as prerenderImageUrl,
@@ -20,6 +21,7 @@ import {
 } from './prerender.mjs';
 import { getProductImageUrl } from '../src/utils/productImageUrl';
 import { toProductReference } from '../src/utils/productLink';
+import { getProductMetaDescription } from '../src/utils/productMetaDescription';
 
 const row = {
   id: 'AAAA1111-2222-3333-4444-555566667777',
@@ -68,6 +70,18 @@ describe('fetchProducts', () => {
 });
 
 describe('parity with the app helpers', () => {
+  it('uses the same complete descriptions for search and social previews', () => {
+    for (const description of ['', row.description, 'Incomplete text', `${'A long description '.repeat(20)}.`]) {
+      const sample = { ...product, description };
+      const summary = getProductMetaDescription(sample);
+      expect(prerenderMetaDescription(sample)).toBe(summary);
+      const html = renderProductPage(sample);
+      for (const attribute of ['name="description"', 'property="og:description"', 'name="twitter:description"']) {
+        expect(html).toContain(`${attribute} content="${escapeHtml(summary)}"`);
+      }
+    }
+  });
+
   // The prerenderer runs in Node and cannot import the TypeScript utilities,
   // so these guard against the two copies drifting apart.
   it('builds the same product reference as the catalogue', () => {
