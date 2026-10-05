@@ -99,7 +99,12 @@ test('bulk generates, reviews and saves descriptions without changing other prod
   const state = await installMockSupabase(page);
   const originals = structuredClone(state.products);
   await signIn(page, 'manage');
-  await page.getByRole('button', { name: 'Bulk descriptions with Gemini' }).click();
+  const bulkButton = page.getByRole('button', { name: 'Bulk descriptions with Gemini' });
+  if (test.info().project.name === 'chromium') {
+    await bulkButton.hover();
+    await expect(bulkButton).toHaveCSS('text-decoration-line', 'underline');
+  }
+  await bulkButton.click();
   await page.getByRole('button', { name: 'Select all shown' }).click();
   await page.getByRole('button', { name: 'Generate selected descriptions' }).click();
   await expect(page.getByText(/Generation complete/)).toBeVisible();

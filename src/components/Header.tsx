@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import InstallAppButton from './InstallAppButton';
 
 const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
@@ -14,6 +14,7 @@ interface Props {
   onOpenCart?: () => void;
   tickerMessages?: string[];
   categories?: string[];
+  onNavigateCatalogue?: (category?: string) => void;
 }
 
 export default function Header({
@@ -27,6 +28,7 @@ export default function Header({
   onOpenCart,
   tickerMessages = DEFAULT_TICKER_MESSAGES,
   categories = [],
+  onNavigateCatalogue,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = useId();
@@ -35,6 +37,12 @@ export default function Header({
   const [tickerIndex, setTickerIndex] = useState(0);
   const messages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
   const tickerMessage = messages[tickerIndex % messages.length];
+  const navigateCatalogue = (event: MouseEvent<HTMLAnchorElement>, category?: string) => {
+    if (!onNavigateCatalogue || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    event.preventDefault();
+    setIsMenuOpen(false);
+    onNavigateCatalogue(category);
+  };
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -107,10 +115,11 @@ export default function Header({
               }}
               className="absolute right-4 top-16 max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:right-6"
             >
-              <a href={import.meta.env.BASE_URL} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
+              <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
               {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
               {categories.map((category) => (
                 <a key={category} href={`${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
+                  onClick={event => navigateCatalogue(event, category)}
                   className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
                   {category}
                 </a>
@@ -171,6 +180,7 @@ export default function Header({
         <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-32 text-left sm:contents'}>
           <a
             href={import.meta.env.BASE_URL}
+            onClick={event => navigateCatalogue(event)}
             aria-label="Luvia Creations — home"
             className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa"
           >

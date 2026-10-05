@@ -5,6 +5,19 @@ import Header from './Header';
 afterEach(cleanup);
 
 describe('Header', () => {
+  it('uses in-app home and collection navigation while preserving modified-click links', () => {
+    const onNavigateCatalogue = vi.fn();
+    render(<Header showInstallPrompt={false} categories={['Toys']} onNavigateCatalogue={onNavigateCatalogue} />);
+    fireEvent.click(screen.getByRole('link', { name: 'Luvia Creations — home' }));
+    expect(onNavigateCatalogue).toHaveBeenCalledWith(undefined);
+    onNavigateCatalogue.mockClear();
+    fireEvent.click(screen.getByRole('link', { name: 'Luvia Creations — home' }), { ctrlKey: true });
+    expect(onNavigateCatalogue).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Toys' }));
+    expect(onNavigateCatalogue).toHaveBeenCalledWith('Toys');
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+  });
   it('opens navigation with real homepage, collection and policy links', () => {
     render(<Header categories={['Charms & Keychains', 'Toys']} showInstallPrompt={false} />);
     const button = screen.getByRole('button', { name: 'Open navigation' });

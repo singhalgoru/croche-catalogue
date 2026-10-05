@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchManagedProducts, fetchPublishedProducts, publishProduct, updateProduct,
   bulkUpdateProductDescriptions,
+  readCatalogueBootstrap,
   type NewProduct, type ProductUpdate,
 } from './products';
 import { PRODUCT_COLUMNS } from './productColumns';
@@ -94,6 +95,34 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('reads the public HTML snapshot without consuming live prefetch data', () => {
+    const script = document.createElement('script');
+    script.id = 'catalogue-bootstrap';
+    script.type = 'application/json';
+    script.textContent = JSON.stringify({
+      products: [row], categories: [{ name: row.category, priority: 10 }],
+      homepage: { title: 'Catalogue', description: 'Catalogue summary.', canonical: 'https://luviacreations.com/' },
+    });
+    document.head.append(script);
+    try {
+      expect(readCatalogueBootstrap()?.products[0]).toMatchObject({ id: row.id, image: row.image_url });
+      expect(readCatalogueBootstrap()?.categories).toEqual([{ name: row.category, priority: 10 }]);
+      expect(from).not.toHaveBeenCalled();
+    } finally { script.remove(); }
+  });
+
+  it('logs malformed snapshots and falls back to live loading', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const script = document.createElement('script');
+    script.id = 'catalogue-bootstrap';
+    script.type = 'application/json';
+    script.textContent = '{broken';
+    document.head.append(script);
+    try {
+      expect(readCatalogueBootstrap()).toBeNull();
+      expect(log).toHaveBeenCalled();
+    } finally { script.remove(); log.mockRestore(); }
+  });
   it('selects and maps all four details for public and admin products', async () => {
     const detailedRow = {
       ...row, materials: ' Cotton ', dimensions: ' 10 cm ', included_items: ' 1 keychain ',

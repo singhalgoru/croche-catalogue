@@ -267,6 +267,10 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         <div id="manage-products-panel" className="border-t border-mustard/30 p-3 sm:p-5">
       <BulkDescriptionEditor products={filteredProducts} categories={categories}
         disabled={busyId !== null || editingId !== null || isLoading}
+        disabledReason={editingId !== null
+          ? 'Save or cancel the open product edit first, then generate bulk descriptions and SEO summaries.'
+          : isLoading ? 'Products are loading. Bulk actions will be available when loading finishes.'
+          : 'Wait for the current product operation to finish.'}
         onBusyChange={setIsAnalyzing}
         onSaved={async () => {
           setProducts(await fetchManagedProducts());

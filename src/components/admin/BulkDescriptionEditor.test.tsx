@@ -36,6 +36,18 @@ function open(props: Partial<React.ComponentProps<typeof BulkDescriptionEditor>>
 }
 
 describe('bulk description editing', () => {
+  it('keeps the bulk section clickable while showing why generation is unavailable', () => {
+    render(<BulkDescriptionEditor products={products} categories={['Home']} disabled
+      disabledReason="Save or cancel the open product edit first."
+      onBusyChange={vi.fn()} onSaved={vi.fn()} />);
+    const button = screen.getByRole('button', { name: 'Bulk descriptions with Gemini' });
+    expect(button).toHaveProperty('disabled', false);
+    expect(button.className).toContain('hover:underline');
+    expect(button.className).toContain('focus-visible:underline');
+    fireEvent.click(button);
+    expect(screen.getByRole('status').textContent).toBe('Save or cancel the open product edit first.');
+    expect(screen.getByRole('button', { name: 'Select all shown' }).closest('fieldset')).toHaveProperty('disabled', true);
+  });
   it('generates once for all selected products, allows edits, then atomically saves only copy', async () => {
     const { onSaved } = open();
     fireEvent.click(screen.getByRole('button', { name: 'Generate selected descriptions' }));

@@ -14,11 +14,14 @@ const product: Product = {
 const addItem = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 let catalogueProducts = [product];
 let catalogueLoading = false;
+let catalogueSnapshot = false;
 vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: vi.fn() }));
 vi.mock('./hooks/useCatalogueProducts', () => ({
   useCatalogueProducts: () => ({
     products: catalogueProducts, categorySettings: [{ name: 'Home', priority: 0 }],
     isLoading: catalogueLoading, loadError: null, refreshProducts: vi.fn(),
+    hasCatalogueSnapshot: catalogueSnapshot,
+    homepageMetadata: { title: 'Catalogue', description: 'Catalogue summary.', canonical: 'https://luviacreations.com/' },
   }),
 }));
 vi.mock('./hooks/useTickerMessages', () => ({ useTickerMessages: () => ['Shipping across India'] }));
@@ -40,6 +43,7 @@ vi.mock('./components/ProductGrid', () => ({
 beforeEach(() => {
   catalogueProducts = [product];
   catalogueLoading = false;
+  catalogueSnapshot = false;
   window.history.replaceState(null, '', '/');
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
@@ -54,6 +58,30 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('displays a built catalogue while live data loads instead of the loading screen', () => {
+    catalogueLoading = true;
+    catalogueSnapshot = true;
+    render(<App />);
+    expect(screen.queryByText('Loading the catalogue…')).toBeNull();
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('Test Coaster');
+    expect(screen.getAllByRole('button', { name: 'Home' }).length).toBeGreaterThan(0);
+  });
+
+  it('returns home from a direct product page without navigation reload and restores homepage metadata', async () => {
+    window.history.replaceState(null, '', '/p/test-coaster/');
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    fireEvent.click(screen.getByRole('link', { name: 'Luvia Creations — home' }));
+    expect(window.location.pathname).toBe('/');
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('Test Coaster');
+    expect(document.title).toBe('Catalogue');
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' }))
+      .getAllByRole('link', { name: 'Home' })[0]);
+    expect(window.location.pathname).toBe('/');
+  });
+
   it('shows linked breadcrumbs only on full product pages', async () => {
     window.history.replaceState(null, '', '/p/test-coaster/');
     render(<App />);

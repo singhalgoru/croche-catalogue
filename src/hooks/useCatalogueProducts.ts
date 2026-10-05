@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { products as localProducts } from '../data/products';
 import { isSupabaseConfigured } from '../lib/supabaseConfig';
 import { fetchCategorySettings } from '../services/categories';
-import { fetchPublishedProducts } from '../services/products';
+import { fetchPublishedProducts, readCatalogueBootstrap } from '../services/products';
 import type { CategorySettings, Product } from '../types/product';
 
 const localCategorySettings = Array.from(
@@ -20,22 +20,22 @@ const categorySettingsFromProducts = (products: Product[]) =>
     }),
   );
 
-const loadCatalogue = async () => {
+const loadCatalogue = async (fallbackProducts: Product[], fallbackCategories: CategorySettings[]) => {
   const [productsResult, categorySettingsResult] = await Promise.allSettled([
     fetchPublishedProducts(),
     fetchCategorySettings(),
   ]);
 
   const nextProducts =
-    productsResult.status === 'fulfilled' ? productsResult.value : localProducts;
+    productsResult.status === 'fulfilled' ? productsResult.value : fallbackProducts;
   const nextCategorySettings =
     categorySettingsResult.status === 'fulfilled'
       ? categorySettingsResult.value
-      : categorySettingsFromProducts(nextProducts);
+      : productsResult.status === 'rejected' ? fallbackCategories : categorySettingsFromProducts(nextProducts);
   const error =
     productsResult.status === 'rejected'
       ? productsResult.reason
-      : nextProducts.length === 0 && categorySettingsResult.status === 'rejected'
+      : categorySettingsResult.status === 'rejected'
         ? categorySettingsResult.reason
         : null;
 
@@ -47,17 +47,20 @@ const loadCatalogue = async () => {
 };
 
 export function useCatalogueProducts() {
-  const [products, setProducts] = useState<Product[]>(localProducts);
+  const [bootstrap] = useState(readCatalogueBootstrap);
+  const initialProducts = bootstrap?.products ?? localProducts;
+  const initialCategories = bootstrap?.categories ?? localCategorySettings;
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [categorySettings, setCategorySettings] =
-    useState<CategorySettings[]>(localCategorySettings);
+    useState<CategorySettings[]>(initialCategories);
 
   const refreshProducts = useCallback(async () => {
     if (!isSupabaseConfigured) return;
 
     try {
-      const result = await loadCatalogue();
+      const result = await loadCatalogue(products, categorySettings);
       setProducts(result.products);
       setCategorySettings(result.categorySettings);
       setLoadError(
@@ -68,13 +71,13 @@ export function useCatalogueProducts() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [products, categorySettings]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
     let isCurrent = true;
-    void loadCatalogue().then(
+    void loadCatalogue(initialProducts, initialCategories).then(
       (result) => {
         if (!isCurrent) return;
         setProducts(result.products);
@@ -94,7 +97,8 @@ export function useCatalogueProducts() {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [initialProducts, initialCategories]);
 
-  return { products, categorySettings, isLoading, loadError, refreshProducts };
+  return { products, categorySettings, isLoading, loadError, refreshProducts,
+    hasCatalogueSnapshot: bootstrap !== null, homepageMetadata: bootstrap?.homepage };
 }

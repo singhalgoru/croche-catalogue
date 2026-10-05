@@ -8,6 +8,7 @@ interface Props {
   products: ManagedProduct[];
   categories: Category[];
   disabled: boolean;
+  disabledReason?: string;
   onBusyChange: (busy: boolean) => void;
   onSaved: () => Promise<void>;
 }
@@ -17,7 +18,7 @@ interface Review extends ProductDescriptionChange {
   approved: boolean;
 }
 
-export default function BulkDescriptionEditor({ products, categories, disabled, onBusyChange, onSaved }: Props) {
+export default function BulkDescriptionEditor({ products, categories, disabled, disabledReason, onBusyChange, onSaved }: Props) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -107,11 +108,16 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
 
   return (
     <div className="my-4 rounded-xl border border-mustard/50 bg-cream/40 p-4">
-      <button type="button" disabled={disabled || busy} aria-expanded={open}
-        onClick={() => setOpen(current => !current)} className="font-semibold text-cocoa">
-        Bulk descriptions with Gemini
+      <button type="button" disabled={busy} aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 text-left font-semibold text-cocoa underline-offset-4 hover:underline focus-visible:underline disabled:cursor-wait">
+        <span>Bulk descriptions with Gemini</span>
+        <span aria-hidden="true">{open ? '-' : '+'}</span>
       </button>
       {open && <>
+        {disabled && <p role="status" className="my-2 text-sm text-cocoa">
+          {disabledReason ?? 'Wait for the current product operation to finish before generating or saving bulk descriptions.'}
+        </p>}
         <p className="my-2 text-sm text-cocoa/70">
           Select up to 100 products from the current search results. Generate once, review, then save
           all approved descriptions and SEO summaries together. Names, specifications, prices,

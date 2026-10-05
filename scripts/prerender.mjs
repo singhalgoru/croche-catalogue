@@ -27,8 +27,8 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,public_slug,name,category,description,seo_description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,featured,image_url,published_at,updated_at,sort_order,created_at,' +
-  'product_variants(id,public_slug,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
+  'id,public_slug,name,category,description,seo_description,materials,dimensions,included_items,care_instructions,price,show_price,color,in_stock,featured,image_url,image_path,published,published_at,updated_at,sort_order,created_at,' +
+  'product_variants(id,public_slug,name,color,price,in_stock,available_quantity,image_url,image_path,sort_order,product_variant_images(id,image_url,image_path,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
@@ -559,7 +559,7 @@ const renderSitemap = (products, today) => {
 
 // --- build step ---
 
-const fetchProducts = async (supabaseUrl, anonKey) => {
+const fetchProductRows = async (supabaseUrl, anonKey) => {
   const endpoint = new URL('/rest/v1/products', supabaseUrl);
   endpoint.searchParams.set('select', PRODUCT_SELECT);
   endpoint.searchParams.set('published', 'eq.true');
@@ -577,10 +577,29 @@ const fetchProducts = async (supabaseUrl, anonKey) => {
     }
     const page = await response.json();
     if (!Array.isArray(page)) throw new Error('Supabase returned an invalid products response');
-    products.push(...page.map(toProduct));
+    products.push(...page);
     if (page.length < pageSize) return products;
   }
 };
+
+const fetchProducts = async (supabaseUrl, anonKey) =>
+  (await fetchProductRows(supabaseUrl, anonKey)).map(toProduct);
+
+export const fetchBootstrapCategories = async (supabaseUrl, anonKey) => {
+  const endpoint = new URL('/rest/v1/categories', supabaseUrl);
+  endpoint.searchParams.set('select', 'name,sort_order');
+  endpoint.searchParams.set('order', 'sort_order.asc,name.asc');
+  const response = await fetch(endpoint, { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
+  if (!response.ok) throw new Error(`Unable to load bootstrap categories: ${response.status} ${response.statusText}`);
+  const rows = await response.json();
+  if (!Array.isArray(rows)) throw new Error('Supabase returned invalid bootstrap categories');
+  return rows.map(row => ({ name: row.name, priority: row.sort_order }));
+};
+
+export const injectCatalogueBootstrap = (html, rows, categories, homepage) =>
+  html.replace('</head>', `<script id="catalogue-bootstrap" type="application/json">${
+    JSON.stringify({ products: rows, categories, homepage }).replace(/</g, '\\u003c')
+  }</script></head>`);
 
 const SOCIAL_IMAGE_SIZE = 800;
 
@@ -627,6 +646,7 @@ const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) 
 };
 
 const attachProductApp = (page, template) => {
+  const bootstrap = template.match(/<script id="catalogue-bootstrap" type="application\/json">[\s\S]*?<\/script>/)?.[0] ?? '';
   const cspPattern = /<meta\s+http-equiv="Content-Security-Policy"[\s\S]*?\/>/;
   const csp = template.match(cspPattern)?.[0];
   const scripts = template.match(/<script\b[^>]*type="module"[^>]*>[\s\S]*?<\/script>/g) ?? [];
@@ -638,7 +658,7 @@ const attachProductApp = (page, template) => {
   return page
     .replace(cspPattern, csp)
     .replace('<style>', '<style id="product-fallback-style">')
-    .replace('</head>', `${links.join('\n')}\n${scripts.join('\n')}\n</head>`)
+    .replace('</head>', `${bootstrap}\n${links.join('\n')}\n${scripts.join('\n')}\n</head>`)
     .replace('<body>', '<body><div id="root">')
     .replace('</body>', '</div></body>');
 };
@@ -657,10 +677,19 @@ const main = async () => {
     return;
   }
 
-  const products = await fetchProducts(supabaseUrl, anonKey);
+  const [rows, categories] = await Promise.all([
+    fetchProductRows(supabaseUrl, anonKey),
+    fetchBootstrapCategories(supabaseUrl, anonKey),
+  ]);
+  const products = rows.map(toProduct);
+  const homepage = {
+    title: 'Handmade Crochet Products in India | Luvia',
+    description: catalogueDescription(products),
+    canonical: `${ORIGIN}/`,
+  };
 
   const indexPath = path.join(DIST, 'index.html');
-  const template = await readFile(indexPath, 'utf8');
+  const template = injectCatalogueBootstrap(await readFile(indexPath, 'utf8'), rows, categories, homepage);
   await writeFile(indexPath, injectShell(template, products, whatsappNumber));
 
   for (const product of products) {

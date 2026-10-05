@@ -9,6 +9,8 @@ import {
   fetchProducts,
   getProductImageUrl as prerenderImageUrl,
   injectShell,
+  injectCatalogueBootstrap,
+  fetchBootstrapCategories,
   priceRange,
   renderProductPage,
   renderLlms,
@@ -46,6 +48,18 @@ const product = toProduct(row);
 afterEach(() => vi.unstubAllGlobals());
 
 describe('fetchProducts', () => {
+  it('fetches category priorities for immediate initial filters', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: async () => [{ name: 'Toys', sort_order: 10 }],
+    }));
+    expect(await fetchBootstrapCategories('https://example.supabase.co', 'public-key'))
+      .toEqual([{ name: 'Toys', priority: 10 }]);
+  });
+
+  it('fails a build if the category snapshot cannot be fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Unavailable' }));
+    await expect(fetchBootstrapCategories('https://example.supabase.co', 'public-key')).rejects.toThrow('503');
+  });
   it('fetches every published page, not just Supabase’s first 1,000 products', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => Array(1000).fill(row) })
@@ -70,6 +84,20 @@ describe('fetchProducts', () => {
 });
 
 describe('parity with the app helpers', () => {
+  it('embeds public snapshots safely and carries them to product pages for instant home navigation', () => {
+    const homepage = { title: 'Catalogue', description: 'Summary.', canonical: 'https://luviacreations.com/' };
+    const rows = [{ ...row, description: '</script><script>alert(1)</script>' }];
+    const template = injectCatalogueBootstrap(
+      '<html><head><meta http-equiv="Content-Security-Policy" content="default-src \'self\'" /><script type="module" src="/app.js"></script><link rel="stylesheet" href="/app.css"></head></html>',
+      rows, [{ name: 'Toys', priority: 10 }], homepage,
+    );
+    expect(template).not.toContain('</script><script>alert(1)');
+    const json = template.match(/id="catalogue-bootstrap" type="application\/json">([\s\S]*?)<\/script>/)![1];
+    expect(JSON.parse(json).products).toEqual(rows);
+    expect(JSON.parse(json).homepage).toEqual(homepage);
+    const page = attachProductApp(renderProductPage(product), template);
+    expect(page).toContain(`id="catalogue-bootstrap" type="application/json">${json}</script>`);
+  });
   it('loads and uses the admin SEO description across static metadata', () => {
     const sample = toProduct({ ...row, seo_description: ' Handmade ivory crochet roses for a bun. ' });
     expect(sample.seoDescription).toBe('Handmade ivory crochet roses for a bun.');

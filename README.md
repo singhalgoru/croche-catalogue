@@ -67,6 +67,16 @@ Admin Gemini analysis reloads existing photos with a CORS request, rather than
 reusing a browser-cached `<img>` response that may lack CORS headers. Photo-load
 errors are identified separately from Gemini analysis errors.
 
+The homepage and interactive product pages embed a build-time public catalogue
+snapshot (including category priorities and homepage metadata). The grid and
+category chips can render immediately without waiting for Supabase. Live data
+still refreshes in the background; cart additions wait for that refresh, and
+product deep links still resolve against the live catalogue. A refresh failure
+keeps the snapshot visible and shows the error instead of reverting to bundled
+legacy products. The logo and hamburger Home/collection links navigate within
+the loaded shop, preserving real link destinations for modified/new-tab clicks.
+Product-wise display ordering is unchanged.
+
 The database and images are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
 

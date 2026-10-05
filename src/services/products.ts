@@ -1,5 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { Product, ProductDetails, ProductVariant, ProductVariantImage } from '../types/product';
+import type { CategorySettings, Product, ProductDetails, ProductVariant, ProductVariantImage } from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { archiveImageOriginal } from './imageOriginals';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
@@ -285,6 +285,31 @@ const syncProductSummary = async (productId: string) => {
     .eq('id', productId);
   if (error) throw new Error(`Unable to update the product preview: ${error.message}`);
 };
+
+export function readCatalogueBootstrap(): {
+  products: Product[];
+  categories: CategorySettings[];
+  homepage: { title: string; description: string; canonical: string };
+} | null {
+  const source = document.getElementById('catalogue-bootstrap')?.textContent;
+  if (!source) return null;
+  try {
+    const data = JSON.parse(source) as {
+      products: ProductRow[];
+      categories: CategorySettings[];
+      homepage: { title: string; description: string; canonical: string };
+    };
+    if (!Array.isArray(data.products) || !Array.isArray(data.categories) ||
+        !data.homepage || typeof data.homepage.title !== 'string' ||
+        typeof data.homepage.description !== 'string' || typeof data.homepage.canonical !== 'string') {
+      throw new Error('Invalid catalogue bootstrap data.');
+    }
+    return { products: data.products.map(mapProductRow), categories: data.categories, homepage: data.homepage };
+  } catch (error) {
+    console.error('Unable to read the initial catalogue snapshot:', error);
+    return null;
+  }
+}
 
 export async function fetchPublishedProducts(): Promise<Product[]> {
   const initial = window.cataloguePrefetch;
