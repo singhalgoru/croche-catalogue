@@ -71,7 +71,10 @@ The homepage and interactive product pages embed a build-time public catalogue
 snapshot (including category priorities and homepage metadata). The grid and
 category chips can render immediately without waiting for Supabase. Live data
 still refreshes in the background; cart additions wait for that refresh, and
-product deep links still resolve against the live catalogue. A refresh failure
+product deep links show built photos and copy immediately, then reconcile against
+the live catalogue (including removing unpublished products). While interactive
+detail controls load, a lightweight photo/details preview remains visible.
+A refresh failure
 keeps the snapshot visible and shows the error instead of reverting to bundled
 legacy products. The logo and hamburger Home/collection links navigate within
 the loaded shop, preserving real link destinations for modified/new-tab clicks.

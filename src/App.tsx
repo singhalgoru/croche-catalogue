@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import OrderingGuide from './components/OrderingGuide';
 import RelatedProducts from './components/RelatedProducts';
+import ProductDetailPreview from './components/ProductDetailPreview';
 import CategoryFilter from './components/CategoryFilter';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -66,9 +67,12 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
     new URLSearchParams(window.location.search).get('category') || 'All');
   const [query, setQuery] = useState('');
-  const [selectedProductSnapshot, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductSnapshot, setSelectedProduct] = useState<Product | null>(() => {
+    const reference = readProductPageReference() ?? readProductReferenceFromHash();
+    return hasCatalogueSnapshot && reference ? findProductByReference(products, reference) : null;
+  });
   const selectedProduct = !isLoading && selectedProductSnapshot
-    ? products.find(product => product.id === selectedProductSnapshot.id) ?? selectedProductSnapshot
+    ? products.find(product => product.id === selectedProductSnapshot.id) ?? null
     : selectedProductSnapshot;
   const [pageReference, setPageReference] = useState(readProductPageReference);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
@@ -459,7 +463,7 @@ function App() {
             </nav>
           )}
           {selectedProduct && (
-            <Suspense fallback={<p role="status">Loading product details…</p>}>
+            <Suspense fallback={<ProductDetailPreview product={selectedProduct} />}>
               <ProductModal
                 key={`page:${selectedProduct.id}:${selectedVariantId ?? ''}`}
                 presentation="page"
@@ -482,6 +486,7 @@ function App() {
           {selectedProduct && (
             <RelatedProducts product={selectedProduct} products={products} onSelect={openRelatedProduct} />
           )}
+          {loadError && selectedProduct && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
           <OrderingGuide />
         </main>
       ) : (

@@ -58,6 +58,34 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('shows snapshot product details immediately and replaces them with live copy without losing the page', async () => {
+    catalogueSnapshot = true;
+    catalogueLoading = true;
+    window.history.replaceState(null, '', '/p/test-coaster/');
+    const view = render(<App />);
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(screen.queryByText('Loading product details…')).toBeNull();
+    catalogueProducts = [{ ...product, description: 'Fresh product description.', image: '/fresh.webp',
+      variants: [{ ...product.variants[0], image: '/fresh.webp' }] }];
+    catalogueLoading = false;
+    view.rerender(<App />);
+    await screen.findByText('Fresh product description.');
+    expect(screen.getByRole('img', { name: 'Test Coaster' }).getAttribute('src')).toBe('/fresh.webp');
+  });
+
+  it('removes snapshot details when live data confirms that the product is no longer published', async () => {
+    catalogueSnapshot = true;
+    catalogueLoading = true;
+    window.history.replaceState(null, '', '/p/test-coaster/');
+    const view = render(<App />);
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    catalogueProducts = [];
+    catalogueLoading = false;
+    view.rerender(<App />);
+    expect(screen.getByRole('alert').textContent).toContain('no longer published');
+    expect(screen.queryByRole('heading', { name: 'Test Coaster', level: 1 })).toBeNull();
+  });
+
   it('displays a built catalogue while live data loads instead of the loading screen', () => {
     catalogueLoading = true;
     catalogueSnapshot = true;
