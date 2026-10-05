@@ -159,7 +159,9 @@ Deno.serve(async (request) => {
 
   const prompt = isVariantMode
     ? buildVariantPrompt([])
-    : buildProductPrompt(productCategories, context);
+    : buildProductPrompt(productCategories, context) + (payload.mode === 'descriptions'
+      ? ' This is a descriptions-only edit. Keep the supplied current product name and category unchanged. Write both descriptions for that exact identity, not a newly suggested name or different product.'
+      : '');
 
   const colorSchema = {
     type: 'STRING',

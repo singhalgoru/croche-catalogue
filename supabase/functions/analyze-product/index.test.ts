@@ -45,6 +45,14 @@ beforeEach(() => {
 });
 
 describe('analyze-product endpoint', () => {
+  it('keeps product identity when generating descriptions in bulk mode', async () => {
+    fetchMock.mockResolvedValue(geminiResponse(metadata));
+    const response = await handler(request({ mode: 'descriptions', context: { name: 'Bunny', category: 'Accessories' } }));
+    expect(response.status).toBe(200);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.contents[0].parts[0].text).toContain('descriptions-only edit');
+    expect(body.contents[0].parts[0].text).toContain('name and category unchanged');
+  });
   it('keeps image-only analysis working with empty optional fields', async () => {
     fetchMock.mockResolvedValue(geminiResponse(metadata));
     const response = await handler(request());

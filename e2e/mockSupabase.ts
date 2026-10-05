@@ -6,6 +6,7 @@ export interface ProductRow {
   name: string;
   category: string;
   description: string;
+  seo_description?: string | null;
   color: string;
   in_stock: boolean;
   available_quantity: number;
@@ -342,6 +343,26 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
 
     if (pathname === '/rest/v1/rpc/is_catalogue_admin') {
       await json(route, currentUser.is_anonymous !== true);
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/bulk_update_product_descriptions') {
+      const body = getRequestBody<{ changes: Array<{
+        id: string; description: string; seoDescription: string;
+        originalDescription: string; originalSeoDescription: string;
+      }> }>(route);
+      const conflict = body.changes.some(change => {
+        const product = state.products.find(item => item.id === change.id);
+        return !product || product.description !== change.originalDescription ||
+          (product.seo_description ?? '') !== change.originalSeoDescription;
+      });
+      if (conflict) { await json(route, { message: 'Products changed; no changes saved.' }, 409); return; }
+      for (const change of body.changes) {
+        const product = state.products.find(item => item.id === change.id)!;
+        product.description = change.description;
+        product.seo_description = change.seoDescription || null;
+      }
+      await json(route, body.changes.length);
       return;
     }
 
@@ -767,6 +788,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         name: 'AI Bunny',
         category: state.categories[0],
         description: 'A soft handmade crochet bunny suggested by Gemini.',
+        seoDescription: 'Handmade crochet bunny with a pastel finish.',
         color: '#d8b4e2',
       });
       return;

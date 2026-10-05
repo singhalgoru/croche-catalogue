@@ -95,6 +95,31 @@ test('saves one product order for the main catalogue and category views', async 
   await expect(page.getByRole('article').nth(1)).toHaveAccessibleName('Product: Rose Charm');
 });
 
+test('bulk generates, reviews and saves descriptions without changing other product fields', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const originals = structuredClone(state.products);
+  await signIn(page, 'manage');
+  await page.getByRole('button', { name: 'Bulk descriptions with Gemini' }).click();
+  await page.getByRole('button', { name: 'Select all shown' }).click();
+  await page.getByRole('button', { name: 'Generate selected descriptions' }).click();
+  await expect(page.getByText(/Generation complete/)).toBeVisible();
+  expect(state.products.map(product => product.description)).toEqual(originals.map(product => product.description));
+  await page.getByRole('textbox', { name: 'Description for Rose Charm', exact: true }).fill('Reviewed handmade rose charm.');
+  await page.getByLabel('Save Flower Coaster', { exact: true }).uncheck();
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Save all approved changes' }).click();
+  await expect(page.getByText('2 products saved. Descriptions and SEO summaries only.')).toBeVisible();
+  expect(state.products[0].description).toBe('Reviewed handmade rose charm.');
+  expect(state.products[0].seo_description).toBe('Handmade crochet bunny with a pastel finish.');
+  expect(state.products.find(product => product.name === 'Flower Coaster'))
+    .toEqual(originals.find(product => product.name === 'Flower Coaster'));
+  for (const [index, product] of state.products.entries()) {
+    const { description: _copy, seo_description: _seo, ...rest } = product;
+    const { description: _original, seo_description: _oldSeo, ...original } = originals[index];
+    expect(rest).toEqual(original);
+  }
+});
+
 test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => {
   const state = await installMockSupabase(page);
   const now = new Date().toISOString();

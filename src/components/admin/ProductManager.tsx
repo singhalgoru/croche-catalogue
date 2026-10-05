@@ -12,6 +12,7 @@ import { getProductImageUrl } from '../../utils/productImageUrl';
 import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
+import BulkDescriptionEditor from './BulkDescriptionEditor';
 
 interface Props {
   categories: Category[];
@@ -264,6 +265,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
       )}
       {isExpanded && (
         <div id="manage-products-panel" className="border-t border-mustard/30 p-3 sm:p-5">
+      <BulkDescriptionEditor products={filteredProducts} categories={categories}
+        disabled={busyId !== null || editingId !== null || isLoading}
+        onBusyChange={setIsAnalyzing}
+        onSaved={async () => {
+          setProducts(await fetchManagedProducts());
+          await onChanged();
+        }} />
       {message && (
         <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
           {message}

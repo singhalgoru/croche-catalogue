@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchManagedProducts, fetchPublishedProducts, publishProduct, updateProduct,
+  bulkUpdateProductDescriptions,
   type NewProduct, type ProductUpdate,
 } from './products';
 import { PRODUCT_COLUMNS } from './productColumns';
 
-const { from, getUser, upload, archive, convert } = vi.hoisted(() => ({
-  from: vi.fn(), getUser: vi.fn(), upload: vi.fn(), archive: vi.fn(), convert: vi.fn(),
+const { from, rpc, getUser, upload, archive, convert } = vi.hoisted(() => ({
+  from: vi.fn(), rpc: vi.fn(), getUser: vi.fn(), upload: vi.fn(), archive: vi.fn(), convert: vi.fn(),
 }));
 vi.mock('../lib/supabaseConfig', () => ({
-  loadSupabase: async () => ({ from, auth: { getUser } }),
+  loadSupabase: async () => ({ from, rpc, auth: { getUser } }),
 }));
 vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: convert }));
 vi.mock('./imageOriginals', () => ({ archiveImageOriginal: archive }));
@@ -61,6 +62,35 @@ beforeEach(() => {
   convert.mockImplementation(async (file: File) => file);
   archive.mockResolvedValue('image-id');
   upload.mockResolvedValue({ imagePath: row.image_path, imageUrl: row.image_url });
+});
+
+describe('atomic bulk descriptions', () => {
+  const change = {
+    id: 'p1', description: 'Reviewed bunny copy.', seoDescription: 'Reviewed bunny summary.',
+    originalDescription: 'Old bunny.', originalSeoDescription: '',
+  };
+  it('uses one RPC and changes no other product fields', async () => {
+    rpc.mockResolvedValue({ data: 2, error: null });
+    const changes = [change, { ...change, id: 'p2' }];
+    expect(await bulkUpdateProductDescriptions(changes)).toBe(2);
+    expect(rpc).toHaveBeenCalledWith('bulk_update_product_descriptions', { changes });
+    expect(from).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+  });
+  it('rejects invalid batch sizes, duplicates and invalid copy before calling the database', async () => {
+    for (const changes of [[], [change, change], Array.from({ length: 101 }, (_, id) => ({ ...change, id: String(id) })),
+      [{ ...change, description: ' ' }], [{ ...change, description: 'a'.repeat(2001) }],
+      [{ ...change, seoDescription: 'a'.repeat(161) }]]) {
+      await expect(bulkUpdateProductDescriptions(changes)).rejects.toThrow();
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it('surfaces conflicts and unexpected save counts', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Products changed. No changes saved.' } });
+    await expect(bulkUpdateProductDescriptions([change])).rejects.toThrow('Products changed');
+    rpc.mockResolvedValueOnce({ data: 0, error: null });
+    await expect(bulkUpdateProductDescriptions([change])).rejects.toThrow('unexpected bulk-save count');
+  });
 });
 
 describe('product detail loading', () => {

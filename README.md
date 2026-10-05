@@ -164,6 +164,26 @@ These checks cannot prove factual accuracy: an admin must still review the copy.
 This is a writing limit, not a Google ranking requirement; Google can rewrite
 the displayed search snippet.
 
+**Bulk descriptions with Gemini** in Manage products works on selected products
+from the current search results (1-100 per batch). One Generate click processes
+photos sequentially using existing confirmed facts and generates both full and
+SEO descriptions. Review/edit suggestions, uncheck any you do not want, then
+choose **Save all approved changes**. Failed generations are listed and excluded.
+Stop finishes the current request and keeps completed suggestions; Discard saves
+nothing. Generation may incur Gemini usage charges.
+
+Bulk saves use the admin-only `bulk_update_product_descriptions` RPC from migration
+`20261005170000_bulk_product_descriptions.sql`. The save is a single transaction:
+if a selected product's existing description/SEO copy changed or it was deleted
+after generation, the whole batch is rejected without updates. Only descriptions
+and SEO summaries are written; names, categories, specifications, price, stock,
+photos and manual display order are untouched. The existing rebuild trigger
+refreshes static metadata after saving.
+Database regression checks are in `supabase/tests/bulk_product_descriptions.sql`;
+run with `npx supabase db query --linked --file supabase/tests/bulk_product_descriptions.sql`.
+The fixture requires two existing admin-owned products and rolls back every test
+write and rebuild notification.
+
 Deploy the optional-detail migration (`20261003170000_add_optional_product_details.sql`)
 and the SEO-description migration (`20261005160000_add_product_seo_description.sql`)
 and the updated `analyze-product` function before publishing the frontend:

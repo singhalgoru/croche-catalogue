@@ -422,6 +422,31 @@ export async function reorderProducts(productIds: string[]): Promise<void> {
   if (error) throw new Error(`Unable to save product display order: ${error.message}`);
 }
 
+export interface ProductDescriptionChange {
+  id: string;
+  description: string;
+  seoDescription: string;
+  originalDescription: string;
+  originalSeoDescription: string;
+}
+
+export async function bulkUpdateProductDescriptions(changes: ProductDescriptionChange[]): Promise<number> {
+  if (changes.length === 0 || changes.length > 100 || new Set(changes.map(change => change.id)).size !== changes.length) {
+    throw new Error('Select between 1 and 100 distinct products per batch.');
+  }
+  for (const change of changes) {
+    if (!change.description.trim() || change.description.length > 2000) {
+      throw new Error('Each product description must contain between 1 and 2,000 characters.');
+    }
+    productDetailColumns({ seoDescription: change.seoDescription });
+  }
+  const { client } = await getCurrentUser();
+  const { data, error } = await client.rpc('bulk_update_product_descriptions', { changes });
+  if (error) throw new Error(`Unable to save bulk descriptions: ${error.message}`);
+  if (data !== changes.length) throw new Error('The database returned an unexpected bulk-save count. Refresh products to verify the saved changes.');
+  return data;
+}
+
 export async function updateProduct(
   product: ManagedProduct,
   update: ProductUpdate,

@@ -136,6 +136,7 @@ export async function analyzeProductImage(
   file: File,
   categories: Category[],
   context?: ProductAnalysisContext,
+  mode?: 'descriptions',
 ): Promise<ProductAnalysis> {
   if (!supabase) {
     throw new Error(
@@ -161,6 +162,7 @@ export async function analyzeProductImage(
     body: {
       imageBase64,
       mimeType: file.type,
+      ...(mode === undefined ? {} : { mode }),
       ...(normalizedContext === undefined ? {} : { context: normalizedContext }),
     },
   });
