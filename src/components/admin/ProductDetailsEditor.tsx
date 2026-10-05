@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { analyzeProductImage, type ProductAnalysis } from '../../services/productAnalysis';
 import type { Category } from '../../types/product';
 import ProductDetails from '../ProductDetails';
@@ -6,6 +6,7 @@ import { PRODUCT_DETAIL_FIELDS } from '../../utils/productDetails';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 
 export interface DetailDraft {
+  seoDescription?: string;
   materials: string;
   dimensions: string;
   includedItems: string;
@@ -33,6 +34,7 @@ const SUGGESTION_FIELDS = [
   { key: 'name', label: 'Product name' },
   { key: 'category', label: 'Category' },
   { key: 'description', label: 'Description' },
+  { key: 'seoDescription', label: 'SEO description' },
   ...PRODUCT_DETAIL_FIELDS,
   { key: 'color', label: 'Main variant colour' },
 ] as const;
@@ -49,6 +51,7 @@ export default function ProductDetailsEditor({
   const [selected, setSelected] = useState<Set<SuggestionKey>>(new Set());
   const [feedback, setFeedback] = useState<string | null>(null);
   const requestId = useRef(0);
+  const seoHelpId = useId();
   useEffect(() => () => { requestId.current += 1; }, []);
 
   const suggest = async () => {
@@ -99,6 +102,23 @@ export default function ProductDetailsEditor({
 
   return (
     <div className="space-y-4 rounded-xl border border-mustard/40 bg-cream/30 p-3 sm:p-4">
+      <label className="block text-sm font-semibold text-cocoa">
+        SEO description
+        <textarea
+          value={value.seoDescription ?? ''}
+          onChange={(event) => onChange({ seoDescription: event.target.value })}
+          maxLength={160}
+          rows={3}
+          disabled={disabled || busy}
+          aria-describedby={seoHelpId}
+          className="mt-1 w-full resize-y rounded-xl border border-mustard/60 bg-white px-3 py-2"
+        />
+      </label>
+      <p id={seoHelpId} className="text-xs text-cocoa/70">
+        {(value.seoDescription ?? '').length}/160 characters. Optional search and social summary;
+        leave blank for an automatic summary. Use a complete, product-specific sentence with
+        confirmed facts, not keyword lists or unsupported promises. Google may choose a different snippet.
+      </p>
       <h3 className="font-heading text-lg font-bold text-cocoa">Specifications &amp; care</h3>
       <p className="text-sm text-cocoa/70">Optional. Only filled fields appear to customers. Enter confirmed facts, not guesses.</p>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -132,6 +152,7 @@ export default function ProductDetailsEditor({
         Gemini rewrites your photo observations and confirmed facts into customer-ready copy.
         It improves wording, not facts: unknown specifications stay blank.
         Price, stock and dispatch promises are not generated. Suggestions must be reviewed.
+        Gemini also suggests a complete SEO description of at most 160 characters.
       </p>
       <button
         type="button"

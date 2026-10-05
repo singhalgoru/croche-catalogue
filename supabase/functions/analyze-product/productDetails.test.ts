@@ -6,6 +6,7 @@ import {
 
 const analysis = {
   name: 'Bunny', category: 'Accessories', description: 'A lavender bunny.', color: '#B57EDC',
+  seoDescription: 'Handmade lavender crochet bunny keychain.',
 };
 
 describe('analysis request context', () => {
@@ -25,6 +26,14 @@ describe('analysis request context', () => {
 });
 
 describe('facts-only analysis prompt and schema', () => {
+  it('requires evidence-based complete SEO copy without stuffing or commercial promises', () => {
+    const prompt = buildProductPrompt(['Accessories'], {});
+    for (const rule of ['seoDescription', '120-155', 'maximum of 160', 'keyword stuffing',
+      'No HTML', 'complete sentences', 'shipping costs', 'safety', 'ranking guarantees',
+      'uncertain claims must be omitted']) {
+      expect(prompt).toContain(rule);
+    }
+  });
   it('treats notes as data and prohibits photo guesses and commercial changes', () => {
     const context = { notes: 'Cotton; 10 cm; one keychain; spot clean.', materials: 'Cotton' };
     const prompt = buildProductPrompt(['Accessories', 'Toys'], context);
@@ -57,6 +66,19 @@ describe('facts-only analysis prompt and schema', () => {
 });
 
 describe('analysis response validation', () => {
+  it('accepts exactly 160 characters of SEO copy and context without truncation', () => {
+    const seoDescription = `${'a'.repeat(159)}.`;
+    expect(validateContext({ seoDescription })).toEqual({ seoDescription });
+    expect(validateProductAnalysis({ ...analysis, seoDescription }, ['Accessories'], {}))
+      .toHaveProperty('seoDescription', seoDescription);
+    expect(() => validateContext({ seoDescription: `${seoDescription}x` })).toThrow('at most 160');
+  });
+  it.each([undefined, '', 'x'.repeat(161), 'Cut off…', 'Cut off...', '<b>Bunny.</b>', 'No punctuation'])(
+    'rejects invalid SEO descriptions', (seoDescription) => {
+      expect(() => validateProductAnalysis({ ...analysis, seoDescription }, ['Accessories'], {}))
+        .toThrow('invalid SEO description');
+    },
+  );
   it('preserves image-only responses and empty optional fields', () => {
     expect(validateProductAnalysis(analysis, ['Accessories'], {})).toEqual(analysis);
     expect(validateProductAnalysis({ ...analysis, materials: ' ' }, ['Accessories'], {}))

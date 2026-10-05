@@ -176,11 +176,12 @@ Deno.serve(async (request) => {
       }
     : {
         type: 'OBJECT',
-        required: ['name', 'category', 'description', 'color', ...DETAIL_FIELDS],
+        required: ['name', 'category', 'description', 'seoDescription', 'color', ...DETAIL_FIELDS],
         properties: {
           name: { type: 'STRING' },
           category: { type: 'STRING', enum: productCategories },
           description: { type: 'STRING' },
+          seoDescription: { type: 'STRING', description: 'Complete factual product-specific SEO summary, plain text, maximum 160 characters, no ellipses or invented claims.' },
           color: colorSchema,
           ...OPTIONAL_DETAIL_SCHEMA,
         },

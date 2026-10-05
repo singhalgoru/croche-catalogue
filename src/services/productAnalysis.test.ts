@@ -18,16 +18,26 @@ describe('analyzeProductImage', () => {
     name: ' Bunny Keychain ',
     category: 'Accessories',
     description: ' A lavender bunny. ',
+    seoDescription: 'Handmade lavender crochet bunny keychain.',
     color: '#B57EDC',
   };
   beforeEach(() => mockInvoke.mockReset());
 
-  it('preserves the image-only API and accepts legacy responses without optional details', async () => {
+  it('preserves the image-only API with SEO copy and no optional specifications', async () => {
     mockInvoke.mockResolvedValue({ data: analysis, error: null });
     expect(await analyzeProductImage(imageFile(), ['Accessories'])).toEqual({
       ...analysis, name: 'Bunny Keychain', description: 'A lavender bunny.',
     });
+
     expect(mockInvoke.mock.calls[0][1].body).not.toHaveProperty('context');
+  });
+
+  it('accepts exactly 160 SEO characters and includes existing SEO copy in context', async () => {
+    const seoDescription = `${'a'.repeat(159)}.`;
+    mockInvoke.mockResolvedValue({ data: { ...analysis, seoDescription }, error: null });
+    expect(await analyzeProductImage(imageFile(), ['Accessories'], { seoDescription }))
+      .toHaveProperty('seoDescription', seoDescription);
+    expect(mockInvoke.mock.calls[0][1].body.context.seoDescription).toBe(seoDescription);
   });
 
   it('sends trimmed notes and current details and returns all optional fields', async () => {
@@ -59,6 +69,7 @@ describe('analyzeProductImage', () => {
   });
 
   it.each([
+    { seoDescription: 'a'.repeat(161) },
     { notes: 'a'.repeat(2001) },
     { materials: 'a'.repeat(1001) },
     { dimensions: 'a'.repeat(1001) },
@@ -68,6 +79,13 @@ describe('analyzeProductImage', () => {
     await expect(analyzeProductImage(imageFile(), ['Accessories'], context)).rejects.toThrow('at most');
     expect(mockInvoke).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, '', 'x'.repeat(161), 'Cut off…', 'Cut off...', '<b>Bunny.</b>', 'No punctuation'])(
+    'rejects invalid SEO suggestions rather than truncating them', async (seoDescription) => {
+      mockInvoke.mockResolvedValue({ data: { ...analysis, seoDescription }, error: null });
+      await expect(analyzeProductImage(imageFile(), ['Accessories'])).rejects.toThrow('invalid SEO description');
+    },
+  );
 
   it.each([null, 3, {}, 'a'.repeat(1001)])('rejects malformed optional output (%s)', async (materials) => {
     mockInvoke.mockResolvedValue({ data: { ...analysis, materials }, error: null });

@@ -46,6 +46,7 @@ interface ProductRow {
   name: string;
   category: Product['category'];
   description: string;
+  seo_description?: string | null;
   materials?: string | null;
   dimensions?: string | null;
   included_items?: string | null;
@@ -168,6 +169,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     price: row.price,
     showPrice: row.show_price,
     description: row.description,
+    seoDescription: row.seo_description?.trim() || undefined,
     materials: row.materials?.trim() || undefined,
     dimensions: row.dimensions?.trim() || undefined,
     includedItems: row.included_items?.trim() || undefined,
@@ -186,11 +188,18 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
 
 const productDetailColumns = (details: ProductDetails) => {
   const columns: {
+    seo_description?: string | null;
     materials?: string | null;
     dimensions?: string | null;
     included_items?: string | null;
     care_instructions?: string | null;
   } = {};
+  if (details.seoDescription !== undefined) {
+    if (typeof details.seoDescription !== 'string' || details.seoDescription.length > 160) {
+      throw new Error('Product SEO description must be text of at most 160 characters.');
+    }
+    columns.seo_description = details.seoDescription.trim() || null;
+  }
   const fields = [
     ['materials', 'materials'],
     ['dimensions', 'dimensions'],

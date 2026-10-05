@@ -28,6 +28,7 @@ export interface ProductVariant {
 }
 
 export interface ProductDetails {
+  seoDescription?: string;
   materials?: string;
   dimensions?: string;
   includedItems?: string;

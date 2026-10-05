@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import type { Category, ProductDetails } from '../types/product';
 
 export interface ProductAnalysis extends ProductDetails {
+  seoDescription: string;
   name: string;
   category: Category;
   description: string;
@@ -20,6 +21,7 @@ const CONTEXT_LIMITS = {
   name: 120,
   category: 120,
   description: 2000,
+  seoDescription: 160,
   materials: 1000,
   dimensions: 1000,
   includedItems: 1000,
@@ -81,6 +83,12 @@ const validateAnalysis = (value: unknown, categories: Category[]): ProductAnalys
   }
 
   const details: ProductDetails = {};
+  if (typeof analysis.seoDescription !== 'string' ||
+      !analysis.seoDescription.trim() || analysis.seoDescription.length > 160 ||
+      !/[.!?]$/.test(analysis.seoDescription.trim()) ||
+      /[<>]|\u2026|\.{3}/.test(analysis.seoDescription)) {
+    throw new Error('Gemini returned an invalid SEO description. Use a complete plain-text sentence of at most 160 characters.');
+  }
   for (const field of DETAIL_FIELDS) {
     const value = analysis[field];
     if (value === undefined) continue;
@@ -94,6 +102,7 @@ const validateAnalysis = (value: unknown, categories: Category[]): ProductAnalys
     name: analysis.name.trim(),
     category: analysis.category,
     description: analysis.description.trim(),
+    seoDescription: analysis.seoDescription.trim(),
     color: analysis.color,
     ...details,
   };

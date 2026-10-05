@@ -60,7 +60,7 @@ describe('fetchProducts', () => {
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('offset')).toBe('1000');
     expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('published')).toBe('eq.true');
     const selected = new URL(fetchMock.mock.calls[0][0]).searchParams.get('select')?.split(',');
-    expect(selected).toEqual(expect.arrayContaining(['public_slug', 'materials', 'dimensions', 'included_items', 'care_instructions', 'updated_at']));
+    expect(selected).toEqual(expect.arrayContaining(['public_slug', 'seo_description', 'materials', 'dimensions', 'included_items', 'care_instructions', 'updated_at']));
   });
 
   it('rejects a failed fetch rather than deploying a stale sitemap', async () => {
@@ -70,6 +70,16 @@ describe('fetchProducts', () => {
 });
 
 describe('parity with the app helpers', () => {
+  it('loads and uses the admin SEO description across static metadata', () => {
+    const sample = toProduct({ ...row, seo_description: ' Handmade ivory crochet roses for a bun. ' });
+    expect(sample.seoDescription).toBe('Handmade ivory crochet roses for a bun.');
+    expect(prerenderMetaDescription(sample)).toBe(getProductMetaDescription(sample));
+    const html = renderProductPage(sample);
+    for (const attribute of ['name="description"', 'property="og:description"', 'name="twitter:description"']) {
+      expect(html).toContain(`${attribute} content="${sample.seoDescription}"`);
+    }
+    expect(sample.description).toBe(row.description);
+  });
   it('links static breadcrumbs and their schema to the actual category filter', () => {
     const html = renderProductPage(product);
     const categoryUrl = `/?category=${encodeURIComponent(product.category)}`;

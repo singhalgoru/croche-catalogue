@@ -4,6 +4,12 @@ import { getProductMetaDescription } from './productMetaDescription';
 const product = { name: 'Bunny Toy', category: 'Toys', description: '' };
 
 describe('getProductMetaDescription', () => {
+  it('prefers an admin summary and returns to automatic summaries when cleared', () => {
+    expect(getProductMetaDescription({ ...product, seoDescription: ' Custom factual summary. ' }))
+      .toBe('Custom factual summary.');
+    expect(getProductMetaDescription({ ...product, seoDescription: ' ', description: 'Handmade bunny.' }))
+      .toBe('Handmade bunny.');
+  });
   it('preserves short complete descriptions and normalizes whitespace', () => {
     expect(getProductMetaDescription({ ...product, description: '  Handmade bunny. \n Custom colours available. ' }))
       .toBe('Handmade bunny. Custom colours available.');

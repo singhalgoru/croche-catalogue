@@ -22,6 +22,13 @@ describe('isProductDraftEmpty', () => {
     ).toBe(false);
   });
 
+  it('preserves SEO-only drafts', () => {
+    expect(isProductDraftEmpty(
+      { ...EMPTY_PRODUCT_DRAFT, seoDescription: 'Handmade crochet bunny.' },
+      [createEmptyVariant('Standard')],
+    )).toBe(false);
+  });
+
   it('preserves drafts with specifications even when basic fields are blank', () => {
     expect(isProductDraftEmpty(
       { ...EMPTY_PRODUCT_DRAFT, materials: 'Cotton yarn' },
@@ -47,7 +54,7 @@ describe('isProductDraftEmpty', () => {
 describe('stored product drafts', () => {
   it('restores old drafts with blank optional specifications', () => {
     const stored = toStoredProductDraft(EMPTY_PRODUCT_DRAFT, [createEmptyVariant('Standard')], 1000);
-    const { materials: _materials, dimensions: _dimensions, includedItems: _included, careInstructions: _care, ...legacy } = stored.draft;
+    const { seoDescription: _seo, materials: _materials, dimensions: _dimensions, includedItems: _included, careInstructions: _care, ...legacy } = stored.draft;
     const restored = fromStoredProductDraft({
       ...stored, draft: legacy,
     });
@@ -55,6 +62,7 @@ describe('stored product drafts', () => {
     expect(restored.draft.dimensions).toBe('');
     expect(restored.draft.includedItems).toBe('');
     expect(restored.draft.careInstructions).toBe('');
+    expect(restored.draft.seoDescription).toBe('');
   });
 
   it('round-trips photos and rebuilds their previews', () => {
@@ -67,7 +75,7 @@ describe('stored product drafts', () => {
       galleryFiles: [galleryFile],
       galleryPreviewUrls: ['blob:stale-gallery'],
     };
-    const draft = { ...EMPTY_PRODUCT_DRAFT, name: 'Bunny', description: 'Soft and cuddly' };
+    const draft = { ...EMPTY_PRODUCT_DRAFT, name: 'Bunny', description: 'Soft and cuddly', seoDescription: 'Handmade crochet bunny.' };
 
     const stored = toStoredProductDraft(draft, [variant], 1000);
     expect(stored.savedAt).toBe(1000);

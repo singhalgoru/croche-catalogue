@@ -94,13 +94,18 @@ describe('Merchant Center feed', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-test-'));
     try {
       const input = await sharp({ create: { width: 600, height: 500, channels: 3, background: '#ffffff' } }).webp().toBuffer();
-      const items = merchantItems([{ ...product, variants: product.variants.map((variant) => ({ ...variant, image: product.image })) }]);
+      const seoDescription = 'Handmade crochet rose coaster with decorative leaves.';
+      const items = merchantItems([{ ...product, seoDescription, variants: product.variants.map((variant) => ({ ...variant, image: product.image })) }]);
       const getImage = vi.fn().mockResolvedValue(input);
       await writeMerchantCatalogue(items, dir, getImage, '911234567890');
       expect(getImage).toHaveBeenCalledTimes(1);
       expect(await readdir(path.join(dir, 'merchant-images'))).toHaveLength(1);
       const page = await readFile(path.join(dir, 'shopping', 'rose-coaster', 'blue', 'index.html'), 'utf8');
       const doc = new JSDOM(page).window.document;
+      for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
+        expect(doc.querySelector(selector)?.getAttribute('content')).toBe(seoDescription);
+      }
+      expect(renderMerchantFeed(items)).toContain('Handmade &lt;rose&gt; &amp; leaves.');
       expect(page).not.toContain('location.replace');
       expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(items[1].url);
       const graph = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!)['@graph'][0];
@@ -110,6 +115,7 @@ describe('Merchant Center feed', () => {
       expect(doc.querySelector('.hero')?.getAttribute('src')).toBe(graph.image);
       expect(doc.querySelector('.cta.alt')?.getAttribute('href')).toBe('/#product=rose-coaster');
       const oldPage = await readFile(path.join(dir, 'shopping', 'rose-coaster--p1', 'v2', 'index.html'), 'utf8');
+      expect(new JSDOM(oldPage).window.document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(seoDescription);
       expect(new JSDOM(oldPage).window.document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(items[1].url);
     } finally {
       await rm(dir, { recursive: true, force: true });

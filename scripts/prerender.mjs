@@ -27,12 +27,13 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,public_slug,name,category,description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,featured,image_url,published_at,updated_at,sort_order,created_at,' +
+  'id,public_slug,name,category,description,seo_description,materials,dimensions,included_items,care_instructions,price,show_price,in_stock,featured,image_url,published_at,updated_at,sort_order,created_at,' +
   'product_variants(id,public_slug,name,color,price,in_stock,image_url,sort_order,product_variant_images(image_url,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
 export const getProductMetaDescription = (product) => {
+  if (product.seoDescription?.trim()) return product.seoDescription.trim();
   const text = product.description.replace(/\s+/g, ' ').trim();
   if (/[.!?]$/.test(text) && text.length <= 160) return text;
   const first = text.match(/^.+?[.!?](?=\s|$)/)?.[0];
@@ -133,6 +134,7 @@ const toProduct = (row) => {
     name: row.name.trim(),
     category: row.category ?? 'Crochet',
     description: row.description ?? '',
+    seoDescription: row.seo_description?.trim() || undefined,
     materials: row.materials?.trim() || undefined,
     dimensions: row.dimensions?.trim() || undefined,
     includedItems: row.included_items?.trim() || undefined,

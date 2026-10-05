@@ -20,6 +20,7 @@ export const EMPTY_PRODUCT_DRAFT: ProductDraft = {
   name: '',
   category: 'Charms & Keychains',
   description: '',
+  seoDescription: '',
   featured: false,
   price: '',
   showPrice: false,
@@ -46,6 +47,7 @@ export const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const isProductDraftEmpty = (draft: ProductDraft, variants: VariantDraft[]): boolean =>
   draft.name.trim() === '' &&
   draft.description.trim() === '' &&
+  !draft.seoDescription?.trim() &&
   draft.price.trim() === '' &&
   draft.materials.trim() === '' &&
   draft.dimensions.trim() === '' &&

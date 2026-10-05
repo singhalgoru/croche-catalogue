@@ -148,7 +148,21 @@ with confirmed facts in the description. It must not expand a bare measurement
 into an assumed height or add unconfirmed care advice. The review lists details
 that still need confirmation; add or clarify facts before generating again.
 
+The add/edit forms also include an optional **SEO description** with a live
+character count and a 160-character limit. Gemini generates it alongside the
+full description, and it follows the same selective review/apply flow; existing
+SEO copy is never replaced without selection. Aim for a specific, natural
+120-155-character summary with a complete sentence and confirmed facts.
+Shorter summaries are valid. The prompt prohibits keyword stuffing, HTML,
+ellipses, invented specifications, safety/age claims, reviews, discounts and
+shipping promises. Server and client validation reject missing, oversized,
+markup-containing or unfinished SEO suggestions rather than truncating them.
+These checks cannot prove factual accuracy: an admin must still review the copy.
+This is a writing limit, not a Google ranking requirement; Google can rewrite
+the displayed search snippet.
+
 Deploy the optional-detail migration (`20261003170000_add_optional_product_details.sql`)
+and the SEO-description migration (`20261005160000_add_product_seo_description.sql`)
 and the updated `analyze-product` function before publishing the frontend:
 
 ```sh
@@ -228,7 +242,13 @@ Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). These pages contain static product
 content and metadata for crawlers and visitors without JavaScript, then boot the
 interactive product view on the same URL without redirecting to the homepage.
-Product search and social descriptions use complete short descriptions or a
+Product search and social descriptions prefer a saved admin SEO description
+(`seo_description` in the database). Leaving it blank or clearing it uses the
+automatic fallback; existing products need no bulk edits. This override applies
+to static product/alias and Merchant variant pages and interactive product
+metadata, without replacing the full product description, Product schema copy
+or Merchant feed description. Updates use the existing catalogue rebuild trigger.
+Automatic descriptions use complete short descriptions or a
 complete first sentence. When the product copy cannot supply a concise sentence,
 they use the product name, collection and India shipping statement instead of
 cutting text mid-sentence. The interactive view uses the same summary logic.

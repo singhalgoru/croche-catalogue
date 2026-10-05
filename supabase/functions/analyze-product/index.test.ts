@@ -14,6 +14,7 @@ const request = (extra: Record<string, unknown> = {}) => new Request('https://ex
 });
 const metadata = {
   name: 'Bunny', category: 'Accessories', description: 'A lavender bunny.', color: '#B57EDC',
+  seoDescription: 'Handmade lavender crochet bunny keychain.',
   materials: '', dimensions: '', includedItems: '', careInstructions: '',
 };
 const geminiResponse = (value: unknown) => new Response(JSON.stringify({
@@ -51,9 +52,16 @@ describe('analyze-product endpoint', () => {
     expect(await response.json()).toEqual(metadata);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.generationConfig.responseSchema.required).toEqual([
-      'name', 'category', 'description', 'color', 'materials', 'dimensions', 'includedItems', 'careInstructions',
+      'name', 'category', 'description', 'seoDescription', 'color', 'materials', 'dimensions', 'includedItems', 'careInstructions',
     ]);
     expect(body.contents[0].parts[0].text).toContain('Never infer materials');
+  });
+
+  it('returns an explicit error for an overlong SEO summary', async () => {
+    fetchMock.mockResolvedValue(geminiResponse({ ...metadata, seoDescription: `${'x'.repeat(161)}.` }));
+    const response = await handler(request());
+    expect(response.status).toBe(502);
+    expect(await response.json()).toHaveProperty('error', expect.stringContaining('invalid SEO description'));
   });
 
   it('passes notes/current facts to Gemini and filters commercial metadata from its response', async () => {

@@ -33,6 +33,7 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   name: product.name,
   category: product.category,
   description: product.description,
+  seoDescription: product.seoDescription ?? '',
   published: product.published,
   featured: product.featured === true,
   price: product.price === null ? '' : String(product.price),

@@ -8,10 +8,12 @@ const value = {
   name: 'Existing coaster',
   category: 'Home',
   description: 'An existing handmade coaster description.',
+  seoDescription: 'An existing SEO summary.',
   materials: '', dimensions: '', includedItems: '', careInstructions: '',
 };
 const suggestion = {
   name: 'Suggested coaster', category: 'Home', description: 'A revised description.',
+  seoDescription: 'Handmade crochet coaster in cotton yarn.',
   color: '#ffffff', materials: 'Cotton yarn', dimensions: '', includedItems: '', careInstructions: '',
 };
 const imageFile = new File(['photo'], 'coaster.webp', { type: 'image/webp' });
@@ -24,6 +26,24 @@ afterEach(() => {
 });
 
 describe('ProductDetailsEditor', () => {
+  it('allows manual SEO editing and requires review before applying generated SEO copy', async () => {
+    const onChange = vi.fn();
+    render(<ProductDetailsEditor value={{ ...value, seoDescription: '' }} categories={['Home']}
+      imageFile={imageFile} onChange={onChange} />);
+    const input = screen.getByLabelText('SEO description');
+    expect(input.getAttribute('maxlength')).toBe('160');
+    fireEvent.change(input, { target: { value: 'A manual summary.' } });
+    expect(onChange).toHaveBeenCalledWith({ seoDescription: 'A manual summary.' });
+    onChange.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
+    await screen.findByText('Review Gemini suggestions');
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply selected suggestions' }));
+    expect(onChange).toHaveBeenCalledWith({
+      materials: 'Cotton yarn', seoDescription: suggestion.seoDescription,
+    });
+  });
+
   it('sends confirmed notes and current facts, then waits for selective approval', async () => {
     const onChange = vi.fn();
     render(<ProductDetailsEditor value={value} categories={['Home']} imageFile={imageFile} onChange={onChange} />);

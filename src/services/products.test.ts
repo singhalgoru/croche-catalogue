@@ -67,6 +67,7 @@ describe('product detail loading', () => {
   it('selects and maps all four details for public and admin products', async () => {
     const detailedRow = {
       ...row, materials: ' Cotton ', dimensions: ' 10 cm ', included_items: ' 1 keychain ',
+      seo_description: ' Handmade lavender crochet bunny. ',
       care_instructions: ' Spot clean ',
     };
     const published = queueQuery([detailedRow]);
@@ -76,6 +77,7 @@ describe('product detail loading', () => {
       expect(products[0]).toMatchObject({
         materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
         price: 300, inStock: true,
+        seoDescription: 'Handmade lavender crochet bunny.',
       });
     }
     expect(published.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
@@ -103,6 +105,18 @@ describe('product detail loading', () => {
 });
 
 describe('product detail persistence', () => {
+  it('saves and reloads SEO summaries at the exact 160-character limit', async () => {
+    const seoDescription = `${'a'.repeat(159)}.`;
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    const write = queueQuery(null);
+    queueQuery({ ...row, seo_description: seoDescription });
+    const saved = await updateProduct(product, { ...update, seoDescription });
+    expect(write.update.mock.calls[0][0].seo_description).toBe(seoDescription);
+    expect(saved.seoDescription).toBe(seoDescription);
+    await expect(updateProduct(product, { ...update, seoDescription: `${seoDescription}x` }))
+      .rejects.toThrow('SEO description');
+  });
   it('stores trimmed snake-case details during upload and returns them on reload', async () => {
     queueQuery([]);
     const insert = queueQuery({ id: row.id });
@@ -110,10 +124,12 @@ describe('product detail persistence', () => {
     queueQuery({ ...row, materials: 'Cotton', dimensions: '10 cm', included_items: '1 keychain', care_instructions: 'Spot clean' });
     const product = await publishProduct({
       ...draft, materials: ' Cotton ', dimensions: ' 10 cm ', includedItems: ' 1 keychain ', careInstructions: ' Spot clean ',
+      seoDescription: ' Handmade lavender crochet bunny. ',
     });
     expect(insert.insert).toHaveBeenCalledWith(expect.objectContaining({
       materials: 'Cotton', dimensions: '10 cm', included_items: '1 keychain', care_instructions: 'Spot clean',
       price: 300, in_stock: true,
+      seo_description: 'Handmade lavender crochet bunny.',
     }));
     expect(product.includedItems).toBe('1 keychain');
   });
@@ -125,10 +141,12 @@ describe('product detail persistence', () => {
     queueQuery({ ...row, materials: null, dimensions: '10 cm', included_items: '1 keychain', care_instructions: 'Spot clean' });
     const edited = await updateProduct(product, {
       ...update, materials: ' ', includedItems: ' 1 keychain ', careInstructions: ' Spot clean ',
+      seoDescription: '',
     });
     const payload = write.update.mock.calls[0][0];
     expect(payload).toMatchObject({ materials: null, included_items: '1 keychain', care_instructions: 'Spot clean', price: 300 });
     expect(payload).not.toHaveProperty('dimensions');
+    expect(payload.seo_description).toBeNull();
     expect(payload).not.toHaveProperty('in_stock');
     expect(payload).not.toHaveProperty('available_quantity');
     expect(edited.materials).toBeUndefined();
@@ -142,9 +160,11 @@ describe('product detail persistence', () => {
     queueQuery(row);
     await publishProduct(draft);
     expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('materials');
+    expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('seo_description');
   });
 
   it('rejects overlong details before uploads and propagates database errors', async () => {
+    await expect(publishProduct({ ...draft, seoDescription: 'x'.repeat(161) })).rejects.toThrow('SEO description');
     await expect(publishProduct({ ...draft, dimensions: 'x'.repeat(1001) })).rejects.toThrow('at most');
     expect(upload).not.toHaveBeenCalled();
     queueQuery([row]);

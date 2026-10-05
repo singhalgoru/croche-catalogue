@@ -28,6 +28,7 @@ const product: ManagedProduct = {
   price: 100, showPrice: true, inStock: true, color: '#ffffff',
   image: '/coaster.webp', imagePath: 'coaster.webp', variants: [],
   published: true, materials: 'Cotton yarn',
+  seoDescription: 'Handmade cotton crochet coaster.',
   publishedAt: null, createdAt: '2026-10-03T00:00:00Z',
 };
 
@@ -45,6 +46,7 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
     fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Coaster' } });
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A handmade coaster.' } });
+    fireEvent.change(screen.getByLabelText('SEO description'), { target: { value: 'Handmade cotton crochet coaster.' } });
     fireEvent.change(screen.getByLabelText('Materials'), { target: { value: 'Cotton yarn' } });
     fireEvent.change(screen.getByLabelText('Dimensions'), { target: { value: 'Approx. 10 cm' } });
     fireEvent.change(screen.getByLabelText("What's included"), { target: { value: 'One coaster' } });
@@ -55,6 +57,7 @@ describe('Product detail admin integration', () => {
     await waitFor(() => expect(publishProduct).toHaveBeenCalled());
     expect(vi.mocked(publishProduct).mock.calls[0][0]).toMatchObject({
       materials: 'Cotton yarn', dimensions: 'Approx. 10 cm',
+      seoDescription: 'Handmade cotton crochet coaster.',
       includedItems: 'One coaster', careInstructions: 'Gentle hand wash',
     });
   });
@@ -65,11 +68,14 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
     fireEvent.click(await screen.findByRole('button', { name: /^Edit$/ }));
     expect(screen.getByLabelText('Materials')).toHaveProperty('value', 'Cotton yarn');
+    expect(screen.getByLabelText('SEO description')).toHaveProperty('value', product.seoDescription);
+    fireEvent.change(screen.getByLabelText('SEO description'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText("What's included"), { target: { value: 'Set of two' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalled());
     expect(vi.mocked(updateProduct).mock.calls[0][1]).toMatchObject({
       materials: 'Cotton yarn', includedItems: 'Set of two', dimensions: '', careInstructions: '',
+      seoDescription: '',
     });
   });
 });
