@@ -70,6 +70,17 @@ describe('fetchProducts', () => {
 });
 
 describe('parity with the app helpers', () => {
+  it('links static breadcrumbs and their schema to the actual category filter', () => {
+    const html = renderProductPage(product);
+    const categoryUrl = `/?category=${encodeURIComponent(product.category)}`;
+    expect(html).toContain(`href="${categoryUrl}"`);
+    expect(html).toContain('aria-label="Breadcrumb"');
+    expect(html).toContain(`<span aria-current="page">${product.name}</span>`);
+    const schema = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+    const breadcrumb = schema['@graph'].find((entry: { '@type': string }) => entry['@type'] === 'BreadcrumbList');
+    expect(breadcrumb.itemListElement[1].item).toBe(`https://luviacreations.com${categoryUrl}`);
+  });
+
   it('uses the same complete descriptions for search and social previews', () => {
     for (const description of ['', row.description, 'Incomplete text', `${'A long description '.repeat(20)}.`]) {
       const sample = { ...product, description };

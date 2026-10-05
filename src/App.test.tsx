@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from './types/product';
 import App from './App';
@@ -30,8 +30,11 @@ vi.mock('./services/analytics', () => ({
   trackWhatsAppEnquiry: vi.fn(), trackContactClick: vi.fn(),
 }));
 vi.mock('./components/ProductGrid', () => ({
-  default: ({ onSelect }: { onSelect: (product: Product) => void }) =>
-    <button onClick={() => onSelect(product)}>Open test product</button>,
+  default: ({ onSelect, products }: { onSelect: (product: Product) => void; products: Product[] }) =>
+    <div>
+      <button onClick={() => onSelect(product)}>Open test product</button>
+      <output aria-label="Filtered products">{products.map((item) => item.name).join(', ')}</output>
+    </div>,
 }));
 
 beforeEach(() => {
@@ -51,6 +54,31 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('shows linked breadcrumbs only on full product pages', async () => {
+    window.history.replaceState(null, '', '/p/test-coaster/');
+    render(<App />);
+    const breadcrumb = within(await screen.findByRole('navigation', { name: 'Breadcrumb' }));
+    const links = breadcrumb.getAllByRole('link');
+    expect(links[0].textContent).toBe('Home');
+    expect(links[0].getAttribute('href')).toBe('/');
+    expect(links[1].getAttribute('href')).toBe('/?category=Home');
+    expect(breadcrumb.getByText('Test Coaster').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('opens category URLs with the matching catalogue filter', () => {
+    catalogueProducts = [product, { ...product, id: 'toy', name: 'Bunny Toy', category: 'Toys' }];
+    window.history.replaceState(null, '', '/?category=Home');
+    render(<App />);
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('Test Coaster');
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+  });
+
+  it('uses the full collection for an unavailable category URL', () => {
+    window.history.replaceState(null, '', '/?category=Unknown');
+    render(<App />);
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('Test Coaster');
+  });
+
   it('keeps search and social descriptions complete when opening a product page', async () => {
     const metas = [
       ['name', 'description'],
@@ -181,6 +209,7 @@ describe('Hybrid product navigation', () => {
     window.history.replaceState(null, '', '/#product=test-coaster--test-product');
     render(<App />);
     expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
     expect(window.location.pathname).toBe('/');
   });
 

@@ -239,8 +239,8 @@ const productJsonLd = (product) => {
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Catalogue', item: `${ORIGIN}/` },
-          { '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}/` },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+          { '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}/?category=${encodeURIComponent(product.category)}` },
           { '@type': 'ListItem', position: 3, name: product.name, item: url },
         ],
       },
@@ -497,7 +497,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
       <a href="/"><img src="/images/favicon-96.png" width="36" height="36" alt="" />Luvia Creations</a>
     </div>
     <div class="wrap">
-      <p class="crumb"><a href="/">Catalogue</a> › ${escapeHtml(product.category)} › ${escapeHtml(product.name)}</p>
+      <nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/?category=${encodeURIComponent(product.category)}">${escapeHtml(product.category)}</a> › <span aria-current="page">${escapeHtml(product.name)}</span></nav>
       <h1>${escapeHtml(product.name)}</h1>
       <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
       <img class="hero" src="${escapeHtml(shareImage)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />

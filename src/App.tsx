@@ -63,7 +63,8 @@ function App() {
       .filter((category) => populatedCategories.has(category));
   }, [categorySettings, products]);
 
-  const [activeCategory, setActiveCategory] = useState<CatalogueFilter>('All');
+  const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
+    new URLSearchParams(window.location.search).get('category') || 'All');
   const [query, setQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [pageReference, setPageReference] = useState(readProductPageReference);
@@ -102,7 +103,9 @@ function App() {
   // Fall back to "All" during render (rather than in an effect) when the "New"
   // filter is active but no longer has any matching products.
   const effectiveActiveCategory: CatalogueFilter =
-    activeCategory === 'New' && !hasNewProducts ? 'All' : activeCategory;
+    (activeCategory === 'New' && !hasNewProducts)
+      || (activeCategory !== 'All' && activeCategory !== 'New' && !categories.includes(activeCategory))
+      ? 'All' : activeCategory;
 
   useEffect(() => {
     const tools = catalogueToolsRef.current;
@@ -280,6 +283,12 @@ function App() {
   const selectCategory = (category: CatalogueFilter) => {
     const next = resolveCategorySelection(category, effectiveActiveCategory);
     trackEvent('select_category', { category: next });
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('category')) {
+      if (next === 'All') url.searchParams.delete('category');
+      else url.searchParams.set('category', next);
+      window.history.replaceState(window.history.state, '', url);
+    }
     setActiveCategory(next);
     setCategoryScrollRequest((current) => current + 1);
   };
@@ -396,6 +405,28 @@ function App() {
               : <p role="alert" className="rounded-xl border border-mustard/30 bg-white p-4 text-cocoa">
                 {loadError || 'This product is unavailable or no longer published. Browse the collection for available items.'}
               </p>
+          )}
+          {selectedProduct && (
+            <nav aria-label="Breadcrumb" className="text-sm text-cocoa">
+              <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <li>
+                  <a href={import.meta.env.BASE_URL} className="underline underline-offset-4">Home</a>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li>
+                  <a
+                    href={`${import.meta.env.BASE_URL}?category=${encodeURIComponent(selectedProduct.category)}`}
+                    className="underline underline-offset-4"
+                  >
+                    {selectedProduct.category}
+                  </a>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="min-w-0 break-words font-semibold">
+                  {selectedProduct.name}
+                </li>
+              </ol>
+            </nav>
           )}
           {selectedProduct && (
             <Suspense fallback={<p role="status">Loading product details…</p>}>

@@ -241,7 +241,10 @@ Previously shared UUID-based product URLs remain available as canonical aliases.
 Legacy Merchant URLs are generated as canonical aliases and older variant links
 fall back through the Pages 404 bootstrap.
 The product page stacks photos and details on mobile and uses two columns on
-desktop. Its gallery, zoom, variant picker, specifications, cart and sharing
+desktop. Product detail breadcrumbs link Home to the catalogue and the category
+to its `/?category=...` filter, with the product marked as the current page.
+Static pages and BreadcrumbList schema use the same category destination.
+Its gallery, zoom, variant picker, specifications, cart and sharing
 controls are the same component used by the catalogue popup.
 Specifications and care instructions are always visible on the full product page;
 the catalogue quick view keeps these sections collapsible. Empty fields stay hidden.
