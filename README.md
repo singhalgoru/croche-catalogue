@@ -244,6 +244,9 @@ The product page stacks photos and details on mobile and uses two columns on
 desktop. Product detail breadcrumbs link Home to the catalogue and the category
 to its `/?category=...` filter, with the product marked as the current page.
 Static pages and BreadcrumbList schema use the same category destination.
+The header navigation button opens Home, current collection filters and the
+return policy without replacing catalogue category chips. The disclosure closes
+on Escape, outside clicks, link selection or opening the cart.
 Its gallery, zoom, variant picker, specifications, cart and sharing
 controls are the same component used by the catalogue popup.
 Specifications and care instructions are always visible on the full product page;

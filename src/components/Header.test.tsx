@@ -5,6 +5,42 @@ import Header from './Header';
 afterEach(cleanup);
 
 describe('Header', () => {
+  it('opens navigation with real homepage, collection and policy links', () => {
+    render(<Header categories={['Charms & Keychains', 'Toys']} showInstallPrompt={false} />);
+    const button = screen.getByRole('button', { name: 'Open navigation' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('link', { name: 'Charms & Keychains' }).getAttribute('href'))
+      .toBe('/?category=Charms%20%26%20Keychains');
+    expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
+      .toBe('/return-policy/');
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+  });
+
+  it('closes on Escape with focus restored and on an outside pointer click', () => {
+    render(<Header showInstallPrompt={false} />);
+    const button = screen.getByRole('button', { name: 'Open navigation' });
+    fireEvent.click(button);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(button);
+    fireEvent.pointerDown(document.body);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('closes navigation when opening the cart', () => {
+    const onOpenCart = vi.fn();
+    render(<Header showInstallPrompt={false} onOpenCart={onOpenCart} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open cart with 0 items' }));
+    expect(onOpenCart).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+  });
+
   it.each([false, true])('links the logo to the homepage with compact=%s', (compact) => {
     render(<Header compact={compact} showInstallPrompt={false} />);
     const link = screen.getByRole('link', { name: 'Luvia Creations — home' });
@@ -39,7 +75,7 @@ describe('Header', () => {
       onOpenCart={vi.fn()} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
-    expect(row?.className).toContain('justify-start pr-20 text-left');
+    expect(row?.className).toContain('justify-start pr-36 text-left');
     expect(row?.className).not.toContain('justify-center');
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();

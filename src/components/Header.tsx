@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import InstallAppButton from './InstallAppButton';
 
 const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
@@ -13,6 +13,7 @@ interface Props {
   cartUpdateCount?: number;
   onOpenCart?: () => void;
   tickerMessages?: string[];
+  categories?: string[];
 }
 
 export default function Header({
@@ -25,10 +26,35 @@ export default function Header({
   cartUpdateCount = 0,
   onOpenCart,
   tickerMessages = DEFAULT_TICKER_MESSAGES,
+  categories = [],
 }: Props) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuId = useId();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [tickerIndex, setTickerIndex] = useState(0);
   const messages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
   const tickerMessage = messages[tickerIndex % messages.length];
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [isMenuOpen]);
 
   useEffect(() => {
     if (messages.length < 2) return;
@@ -52,12 +78,60 @@ export default function Header({
           </div>
         </div>
       )}
+      <div className="relative z-[80] mx-auto h-0 w-full max-w-6xl">
+        <div ref={menuRef}>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-label={isMenuOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={isMenuOpen}
+            aria-controls={menuId}
+            onClick={() => setIsMenuOpen((open) => !open)}
+            className={`absolute top-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-cocoa shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${
+              onOpenCart ? 'right-20 sm:right-24' : 'right-4 sm:right-6'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              {isMenuOpen ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
+            </svg>
+          </button>
+          {isMenuOpen && (
+            <nav
+              id={menuId}
+              aria-label="Main navigation"
+              onClick={(event) => {
+                if (event.target instanceof Element && event.target.closest('a')) setIsMenuOpen(false);
+              }}
+              onBlur={(event) => {
+                if (!event.currentTarget.parentElement?.contains(event.relatedTarget)) setIsMenuOpen(false);
+              }}
+              className="absolute right-4 top-16 max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:right-6"
+            >
+              <a href={import.meta.env.BASE_URL} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
+              {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
+              {categories.map((category) => (
+                <a key={category} href={`${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
+                  className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
+                  {category}
+                </a>
+              ))}
+              <a href={`${import.meta.env.BASE_URL}return-policy/`}
+                className="mt-2 block rounded-lg border-t border-mustard/30 px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
+                Return and refund policy
+              </a>
+            </nav>
+          )}
+        </div>
+      </div>
       {onOpenCart && (
         <div className="relative z-50 mx-auto h-0 max-w-6xl">
           <button
             key={cartUpdateCount}
             type="button"
-            onClick={onOpenCart}
+            onClick={() => {
+              setIsMenuOpen(false);
+              onOpenCart();
+            }}
             className={`right-4 flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream shadow-md transition-colors hover:bg-cocoa-dark sm:right-6 ${
               cartUpdateCount > 0 ? 'cart-updated' : ''
             } ${
@@ -90,11 +164,11 @@ export default function Header({
       <div
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
-            ? `flex-row gap-3 py-3 ${alignLogoLeft ? 'justify-start pr-20 text-left' : 'justify-center'}`
+            ? `flex-row gap-3 py-3 ${alignLogoLeft ? 'justify-start pr-36 text-left' : 'justify-center'}`
             : 'flex-col gap-3 py-4 sm:py-8'
         }`}
       >
-        <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-16 text-left sm:contents'}>
+        <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-32 text-left sm:contents'}>
           <a
             href={import.meta.env.BASE_URL}
             aria-label="Luvia Creations — home"

@@ -374,6 +374,7 @@ function App() {
         cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
         tickerMessages={tickerMessages}
+        categories={categories}
       />
       {cart.addFeedback && (
         <div
