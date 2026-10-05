@@ -5,6 +5,13 @@ import Header from './Header';
 afterEach(cleanup);
 
 describe('Header', () => {
+  it.each([false, true])('links the logo to the homepage with compact=%s', (compact) => {
+    render(<Header compact={compact} showInstallPrompt={false} />);
+    const link = screen.getByRole('link', { name: 'Luvia Creations — home' });
+    expect(link.getAttribute('href')).toBe(import.meta.env.BASE_URL);
+    expect(link.contains(screen.getByRole('img', { name: /Luvia/ }))).toBe(true);
+  });
+
   it('keeps mobile branding concise while preserving the heading and desktop introduction', () => {
     const onOpenCart = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={onOpenCart} cartItemCount={2} />);
@@ -31,7 +38,7 @@ describe('Header', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
       onOpenCart={vi.fn()} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
-    const row = logo.parentElement?.parentElement;
+    const row = logo.parentElement?.parentElement?.parentElement;
     expect(row?.className).toContain('justify-start pr-20 text-left');
     expect(row?.className).not.toContain('justify-center');
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();

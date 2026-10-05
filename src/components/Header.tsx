@@ -95,6 +95,11 @@ export default function Header({
         }`}
       >
         <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-16 text-left sm:contents'}>
+          <a
+            href={import.meta.env.BASE_URL}
+            aria-label="Luvia Creations — home"
+            className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa"
+          >
           <img
           src={`${import.meta.env.BASE_URL}images/luvia-logo-320.webp`}
           srcSet={[160, 320, 480]
@@ -110,6 +115,7 @@ export default function Header({
               : 'h-16 w-16 shrink-0 ring-4 sm:h-36 sm:w-36 md:h-44 md:w-44'
           }`}
           />
+          </a>
         </div>
         {showHeading && <h1
           className={`font-heading font-extrabold text-cocoa ${
