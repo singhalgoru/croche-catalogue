@@ -125,6 +125,43 @@ test('bulk generates, reviews and saves descriptions without changing other prod
   }
 });
 
+test('retries failed bulk descriptions without replacing successful review edits', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const originals = structuredClone(state.products);
+  let requests = 0;
+  await page.route('**/functions/v1/analyze-product', async route => {
+    requests++;
+    if (requests <= 2) {
+      await route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'Gemini rate limit.' }) });
+    } else {
+      await route.fallback();
+    }
+  });
+  await signIn(page, 'manage');
+  await page.getByRole('button', { name: 'Bulk descriptions with Gemini' }).click();
+  await page.getByRole('button', { name: 'Select all shown' }).click();
+  await page.getByRole('button', { name: 'Generate selected descriptions' }).click();
+  await expect(page.getByText(/Generation complete/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry Rose Charm', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry New Heart Charm', exact: true })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Description for Flower Coaster', exact: true }).fill('Reviewed coaster copy.');
+  await page.getByLabel('Save Flower Coaster', { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Retry Rose Charm', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Description for Rose Charm', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry Rose Charm', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Retry all failed', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Description for New Heart Charm', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry all failed', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Description for Flower Coaster', exact: true })).toHaveValue('Reviewed coaster copy.');
+  await expect(page.getByLabel('Save Flower Coaster', { exact: true })).not.toBeChecked();
+  expect(requests).toBe(5);
+  expect(state.products).toEqual(originals);
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Save all approved changes' }).click();
+  await expect(page.getByText('2 products saved. Descriptions and SEO summaries only.')).toBeVisible();
+  expect(state.products.find(product => product.name === 'Flower Coaster')).toEqual(originals.find(product => product.name === 'Flower Coaster'));
+});
+
 test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => {
   const state = await installMockSupabase(page);
   const now = new Date().toISOString();

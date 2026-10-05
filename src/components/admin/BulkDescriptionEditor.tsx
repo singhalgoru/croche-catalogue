@@ -18,11 +18,16 @@ interface Review extends ProductDescriptionChange {
   approved: boolean;
 }
 
+interface GenerationFailure {
+  product: ManagedProduct;
+  message: string;
+}
+
 export default function BulkDescriptionEditor({ products, categories, disabled, disabledReason, onBusyChange, onSaved }: Props) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [failures, setFailures] = useState<string[]>([]);
+  const [failures, setFailures] = useState<GenerationFailure[]>([]);
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [status, setStatus] = useState('');
@@ -31,8 +36,8 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; cancelled.current = true; }; }, []);
 
-  const generate = async () => {
-    const batch = products.filter(product => selected.has(product.id));
+  const generate = async (batch: ManagedProduct[], retry = false) => {
+    if (busy || disabled) return;
     if (!batch.length || batch.length > 100) {
       setError('Select between 1 and 100 products per batch.');
       return;
@@ -41,13 +46,15 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
     setBusy(true);
     setGenerating(true);
     onBusyChange(true);
-    setReviews([]);
-    setFailures([]);
+    if (!retry) {
+      setReviews([]);
+      setFailures([]);
+    }
     setError(null);
     try {
       for (const [index, product] of batch.entries()) {
         if (cancelled.current) break;
-        setStatus(`Generating ${index + 1}/${batch.length}: ${product.name}`);
+        setStatus(`${retry ? 'Retrying' : 'Generating'} ${index + 1}/${batch.length}: ${product.name}`);
         try {
           const response = await fetch(getProductImageUrl(product.image, 960), { mode: 'cors', cache: 'reload' });
           if (!response.ok) throw new Error(`Photo request failed (${response.status}).`);
@@ -62,6 +69,7 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
             }, 'descriptions',
           );
           if (!mounted.current) return;
+          setFailures(current => current.filter(failure => failure.product.id !== product.id));
           setReviews(current => [...current, {
             id: product.id, name: product.name, description: suggestion.description,
             seoDescription: suggestion.seoDescription, originalDescription: product.description,
@@ -69,7 +77,10 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
           }]);
         } catch (cause) {
           if (!mounted.current) return;
-          setFailures(current => [...current, `${product.name}: ${cause instanceof Error ? cause.message : 'Generation failed.'}`]);
+          setFailures(current => [
+            ...current.filter(failure => failure.product.id !== product.id),
+            { product, message: cause instanceof Error ? cause.message : 'Generation failed.' },
+          ]);
         }
       }
       if (mounted.current) setStatus(cancelled.current
@@ -136,7 +147,8 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
             </label>)}
           </div>
           <p className="text-xs text-cocoa/70">{products.filter(product => selected.has(product.id)).length} products selected</p>
-          <button type="button" disabled={selected.size === 0} onClick={() => void generate()}
+          <button type="button" disabled={selected.size === 0}
+            onClick={() => void generate(products.filter(product => selected.has(product.id)))}
             className="rounded-full bg-mustard px-4 py-2 font-semibold text-cocoa disabled:opacity-50">
             Generate selected descriptions
           </button>
@@ -146,7 +158,16 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
         {status && <p role="status" className="my-2 text-sm">{status}</p>}
         {error && <p role="alert" className="my-2 text-sm text-red-700">{error}</p>}
         {failures.length > 0 && <div role="alert" className="my-2 text-sm text-red-700">
-          Failed products (not included in save):<ul>{failures.map((failure, index) => <li key={index}>{failure}</li>)}</ul>
+          Failed products (not included in save):
+          <ul>{failures.map(({ product, message }) => <li key={product.id}>
+            {product.name}: {message}
+            <button type="button" disabled={busy || disabled}
+              onClick={() => void generate([product], true)}
+              className="ml-3 underline disabled:opacity-50">Retry {product.name}</button>
+          </li>)}</ul>
+          <button type="button" disabled={busy || disabled}
+            onClick={() => void generate(failures.map(failure => failure.product), true)}
+            className="mt-2 underline disabled:opacity-50">Retry all failed</button>
         </div>}
         {reviews.length > 0 && <fieldset disabled={busy || disabled} className="space-y-4">
           {reviews.map(review => <div key={review.id} className="rounded-xl border border-mustard/40 bg-white p-3">

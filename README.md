@@ -182,6 +182,9 @@ from the current search results (1-100 per batch). One Generate click processes
 photos sequentially using existing confirmed facts and generates both full and
 SEO descriptions. Review/edit suggestions, uncheck any you do not want, then
 choose **Save all approved changes**. Failed generations are listed and excluded.
+Use **Retry** beside a failed product or **Retry all failed** after the current
+operation finishes. Retries preserve successful suggestions, review edits and
+approval choices; recovered suggestions still need review and an explicit save.
 Stop finishes the current request and keeps completed suggestions; Discard saves
 nothing. Generation may incur Gemini usage charges.
 

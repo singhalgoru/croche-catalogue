@@ -96,6 +96,56 @@ describe('bulk description editing', () => {
     expect(bulkUpdateProductDescriptions).toHaveBeenCalledOnce();
   });
 
+  it('retries only a failed product while preserving successful edits and approval choices', async () => {
+    vi.mocked(analyzeProductImage).mockRejectedValueOnce(new Error('Gemini rate limit.'));
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate selected descriptions' }));
+    await screen.findByText(/Generation complete/);
+    fireEvent.change(screen.getByLabelText('Description for Coaster'), { target: { value: 'Reviewed coaster copy.' } });
+    fireEvent.change(screen.getByLabelText('SEO description for Coaster'), { target: { value: 'Reviewed coaster SEO.' } });
+    fireEvent.click(screen.getByLabelText('Save Coaster'));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Bunny' }));
+    await screen.findByLabelText('Description for Bunny');
+    expect(screen.queryByRole('button', { name: 'Retry Bunny' })).toBeNull();
+    expect(analyzeProductImage).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(analyzeProductImage).mock.calls[2][2]?.name).toBe('Bunny');
+    expect(screen.getByLabelText('Description for Coaster')).toHaveProperty('value', 'Reviewed coaster copy.');
+    expect(screen.getByLabelText('SEO description for Coaster')).toHaveProperty('value', 'Reviewed coaster SEO.');
+    expect(screen.getByLabelText('Save Coaster')).toHaveProperty('checked', false);
+    expect(bulkUpdateProductDescriptions).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save all approved changes' }));
+    await screen.findByText('1 products saved. Descriptions and SEO summaries only.');
+    expect(vi.mocked(bulkUpdateProductDescriptions).mock.calls[0][0].map(change => change.id)).toEqual(['p0']);
+  });
+
+  it('keeps repeated failures retryable and stops a retry batch without losing pending failures', async () => {
+    vi.mocked(analyzeProductImage)
+      .mockRejectedValueOnce(new Error('First failure.'))
+      .mockRejectedValueOnce(new Error('Second failure.'))
+      .mockRejectedValueOnce(new Error('Still unavailable.'));
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate selected descriptions' }));
+    await screen.findByText(/Generation complete/);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Bunny' }));
+    await screen.findByText('Bunny: Still unavailable.');
+    expect(screen.getAllByRole('button', { name: 'Retry Bunny' })).toHaveLength(1);
+    let resolve: (value: typeof suggestion) => void = () => {};
+    vi.mocked(analyzeProductImage).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry all failed' }));
+    await waitFor(() => expect(analyzeProductImage).toHaveBeenCalledTimes(4));
+    expect(screen.getByRole('button', { name: 'Retry all failed' })).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop after current product' }));
+    resolve(suggestion);
+    await screen.findByText(/Generation stopped/);
+    expect(screen.getByLabelText('Description for Coaster')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry Bunny' })).toHaveProperty('disabled', false);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry all failed' }));
+    await screen.findByLabelText('Description for Bunny');
+    expect(screen.queryByRole('button', { name: 'Retry all failed' })).toBeNull();
+    expect(analyzeProductImage).toHaveBeenCalledTimes(5);
+    expect(bulkUpdateProductDescriptions).not.toHaveBeenCalled();
+  });
+
   it('stops between products while preserving completed results', async () => {
     let resolve: (value: typeof suggestion) => void = () => {};
     vi.mocked(analyzeProductImage).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
