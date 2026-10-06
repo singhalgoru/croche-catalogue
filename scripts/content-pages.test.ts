@@ -54,6 +54,15 @@ describe('collection and information pages', () => {
     expect(documentFor('/collections/hair-accessories/').body.textContent).toContain('Price on request');
   });
 
+  it('renders a photo-led collections hub without long descriptions or duplicate links', () => {
+    const doc = documentFor('/collections/');
+    const nav = doc.querySelector('nav[aria-label="Explore collections"]');
+    expect(nav?.querySelectorAll('.collection-tile')).toHaveLength(2);
+    expect(nav?.querySelector('a[href="/collections/toys/"] img')?.getAttribute('src')).toContain('bunny-w480.webp');
+    expect(nav?.querySelector('a[href="/collections/toys/"]')?.textContent).toContain('1 product');
+    expect(nav?.textContent).not.toContain('Meet the handmade crochet toys');
+    expect(doc.querySelector('a.button[href="/"]')?.textContent).toBe('Shop all products');
+  });
   it('uses variant prices rather than an obsolete base price', () => {
     const adjusted = { ...toy, price: 100, variants: [{ price: 600 }, { price: 800 }] };
     const html = buildContentPages([adjusted], '919205907350').get('/collections/toys/');

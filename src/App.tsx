@@ -8,6 +8,7 @@ import RelatedProducts from './components/RelatedProducts';
 import ProductDetailPreview from './components/ProductDetailPreview';
 import StorePages from './components/StorePages';
 import { isStorePage } from './utils/storePageRoute';
+import { collectionPath } from './utils/collectionLink.js';
 import CategoryFilter from './components/CategoryFilter';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -588,6 +589,13 @@ function App() {
             />
           )}
         </div>
+        {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && <section className="space-y-3">
+          <h2 className="font-heading text-xl font-bold text-cocoa">Explore collections</h2>
+          <nav aria-label="Explore collections" className="flex flex-wrap gap-3">
+            {categories.map(category => <a key={category} href={collectionPath(category)}
+              className="rounded-full border border-mustard bg-mustard/20 px-4 py-2 text-sm font-semibold text-cocoa underline-offset-4 hover:underline">{category}</a>)}
+          </nav>
+        </section>}
         <OrderingGuide />
       </main>
       )}

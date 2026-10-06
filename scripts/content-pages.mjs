@@ -27,6 +27,7 @@ nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:7
 .card,details{background:white;border:1px solid #edc357;border-radius:16px;padding:18px}.card h2{font-size:1.15rem}.card p{margin:8px 0}
 .product-card{display:flex;flex-direction:column;overflow:hidden;padding:0;background:rgb(246 196 83 / .25);box-shadow:0 1px 2px rgb(0 0 0 / .05);transition:transform .2s,box-shadow .2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgb(0 0 0 / .1)}
 .product-photo{display:block;position:relative;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.product-photo img{position:relative;width:100%;height:100%;object-fit:contain}.product-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}.product-copy{padding:16px}.product-copy h2{margin:0;font-weight:600}.product-copy a{text-decoration:none}.product-copy a:hover{text-decoration:underline}.product-price{font-weight:700}
+.collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-tile{display:block;height:100%;color:inherit;text-decoration:none}.collection-tile:hover h2{text-decoration:underline}.collection-photo{position:relative;display:block;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.collection-photo img{position:relative;width:100%;height:100%;object-fit:contain}.collection-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}@media(min-width:640px){.collection-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1024px){.collection-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .button{display:inline-block;background:#604239;color:white;padding:10px 18px;border-radius:24px;text-decoration:none;margin:8px 0}.note{font-size:.9rem}details{margin:12px 0}summary{cursor:pointer;font-weight:600}footer{border-top:1px solid #edc357;margin-top:32px}main{min-height:50vh}
 </style></head><body><a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-320.webp" width="64" height="64" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation}</nav></header>
 <main id="main"><nav aria-label="Breadcrumb"><a href="/">Home</a><span aria-current="page">${escapeHtml(title)}</span></nav><h1>${escapeHtml(title)}</h1>${body}</main>
@@ -73,12 +74,20 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
       <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema);
     pages.set(pathname, items.length ? collectionHtml
       : collectionHtml.replace('</head>', '<meta name="robots" content="noindex,follow"></head>'));
-    if (items.length) collectionLinks.push(`<li class="card"><h2><a href="${pathname}">${escapeHtml(category)}</a></h2><p>${escapeHtml(description)}</p><p>${items.length} products</p></li>`);
+    if (items.length) {
+      const image = items.find(product => product.image)?.image;
+      const src = image ? getProductImageUrl(image, 480) : '/images/luvia-logo-320.webp';
+      collectionLinks.push(`<li class="card product-card"><a class="collection-tile" href="${pathname}" aria-label="${escapeHtml(category)}">
+        <span class="collection-photo">${image ? `<img class="photo-backdrop" src="${escapeHtml(src)}" alt="" aria-hidden="true" width="480" height="480" loading="lazy" decoding="async">` : ''}
+        <img src="${escapeHtml(src)}" alt="" width="480" height="480" loading="lazy" decoding="async"></span>
+        <div class="product-copy"><h2>${escapeHtml(category)}</h2><p>${items.length} ${items.length === 1 ? 'product' : 'products'}</p></div></a></li>`);
+    }
   }
   const title = 'Explore our handmade collections';
   const description = 'Browse Luvia Creations collections of handmade crochet accessories, toys, gifts and decor. Explore product details and request orders across India.';
   pages.set('/collections/', page('/collections/', title, description,
-    `<p class="intro">${description}</p><ul class="grid">${collectionLinks.join('')}</ul>`,
+    `<p class="intro">Find your favourites by collection, then open a product for photos and details.</p><a class="button" href="/">Shop all products</a>
+    <nav aria-label="Explore collections"><ul class="grid collection-grid">${collectionLinks.join('')}</ul></nav>`,
     baseSchema('CollectionPage', '/collections/', title, description)));
   const aboutTitle = 'About Luvia & contact';
   const aboutDescription = 'Discover Luvia Creations handmade crochet accessories, toys, gifts and decor. Contact us about products, customisation and orders shipped across India.';

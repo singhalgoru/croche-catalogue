@@ -12,6 +12,18 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('shows a compact photo-led hub with live product counts and no duplicate category section', () => {
+    window.history.replaceState(null, '', '/collections/');
+    const { rerender } = render(<StorePages {...initial} />);
+    const nav = screen.getByRole('navigation', { name: 'Explore collections' });
+    const toyLink = within(nav).getByRole('link', { name: 'Toys' });
+    expect(toyLink.querySelectorAll('img')).toHaveLength(2);
+    expect(toyLink.textContent).toContain('1 product');
+    expect(screen.queryByRole('heading', { name: 'Explore collections' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Shop all products' }).getAttribute('href')).toBe('/');
+    rerender(<StorePages {...initial} products={[...products, { ...products[0], id: 'p2' }]} />);
+    expect(toyLink.textContent).toContain('2 products');
+  });
   it('uses the homepage warm card surface and full-photo layout without white padding', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} />);

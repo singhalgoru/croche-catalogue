@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from './Header';
 import Footer from './Footer';
+import CollectionGrid from './CollectionGrid';
 import storeContent from '../content/storeContent.json';
 import { collectionPath } from '../utils/collectionLink.js';
 import { getProductImageUrl } from '../utils/productImageUrl';
@@ -25,6 +26,7 @@ export default function StorePages({ products, categorySettings, isLoading, load
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
+  const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
   const categories = useMemo(() => [...categorySettings].sort((a, b) => a.priority - b.priority), [categorySettings]);
   const visibleCategories = useMemo(() => {
@@ -148,9 +150,11 @@ export default function StorePages({ products, categorySettings, isLoading, load
             })}
           </ul>}
         </>}
-      </> : <><p>Browse handmade crochet accessories, toys, gifts and decor. Collections reflect the current catalogue.</p>
+      </> : <><p>Find your favourites by collection, then open a product for photos and details.</p>
+        <a href="/" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
+        {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
-      {showCatalogue && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
+      {showCatalogue && !isCollectionsHub && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
       <p className="text-sm">Confirm the final price, shipping charges and dispatch estimate with us before paying.</p>
     </main><Footer />
   </div>;

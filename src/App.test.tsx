@@ -58,6 +58,14 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('offers direct collection links below products without changing product ordering', () => {
+    render(<App />);
+    const nav = screen.getByRole('navigation', { name: 'Explore collections' });
+    expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/collections/home/');
+    const grid = screen.getByLabelText('Filtered products');
+    expect(grid.textContent).toBe('Test Coaster');
+    expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   it('shows snapshot product details immediately and replaces them with live copy without losing the page', async () => {
     catalogueSnapshot = true;
     catalogueLoading = true;

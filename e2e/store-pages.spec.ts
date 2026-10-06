@@ -52,3 +52,21 @@ test('about and ordering FAQ retain accessible content and current category navi
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(overflow).toBe(false);
 });
+
+test('photo-led collections hub and homepage links lead directly to published collections', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await page.goto('/collections/');
+  const nav = page.getByRole('navigation', { name: 'Explore collections' });
+  const charms = nav.getByRole('link', { name: 'Charms', exact: true });
+  await expect(charms).toBeVisible();
+  await expect(charms.locator('img:not([aria-hidden])')).toHaveCount(1);
+  const count = state.products.filter(product => product.published && product.category === 'Charms').length;
+  await expect(charms).toContainText(`${count} products`);
+  await expect(page.getByRole('heading', { name: 'Explore collections', exact: true })).toHaveCount(0);
+  await charms.click();
+  await expect(page.getByRole('heading', { name: 'Handmade Charms', exact: true })).toBeVisible();
+  await page.goto('/');
+  const homepageCollections = page.getByRole('navigation', { name: 'Explore collections' });
+  await expect(homepageCollections.getByRole('link', { name: 'Charms', exact: true })).toHaveAttribute('href', '/collections/charms/');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+});

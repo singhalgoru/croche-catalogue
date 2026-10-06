@@ -150,6 +150,10 @@ The build prerenders `/collections/` and one landing page per admin category,
 plus `/about/` (About & Contact) and `/faq/`. Each mounts the catalogue app with
 the public build snapshot and refreshes categories and products from Supabase.
 Returning focus to these pages or choosing **Refresh catalogue** refreshes data.
+The collections hub uses a compact photo grid with an actual published product
+photo and live product count per category, rather than long category descriptions.
+The homepage also offers direct collection links below the product grid without
+changing product-wise ordering. Empty collections are never promoted.
 New/renamed/deleted categories and published products are not hardcoded.
 Collection pages have their own descriptions, canonical URLs and matching
 CollectionPage/ItemList structured data. They link to interactive product pages
