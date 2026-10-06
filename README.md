@@ -144,6 +144,10 @@ The admin console can generate studio and lifestyle product photos from uploaded
 reference images using the `enhance-product-image` Supabase Edge Function. It
 supports Google Gemini, OpenAI and Cloudflare Workers AI, falls back between
 them on quota limits or errors, and keeps API keys in Edge Function secrets.
+Use **Copy prompt** beside **Optimize prompt with Gemini** to copy the current
+styling instruction, including any selected style suggestion or Gemini-optimized
+text. Copying does not generate an image or save changes; clipboard errors are
+shown explicitly.
 
 ## Product specifications and Gemini suggestions
 

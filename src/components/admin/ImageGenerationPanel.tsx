@@ -54,6 +54,7 @@ export default function ImageGenerationPanel({
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState<{ prompt: string; failed: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const styleInstruction = [selectedSuggestion, customInstruction.trim()]
     .filter(Boolean)
@@ -111,6 +112,15 @@ export default function ImageGenerationPanel({
       );
     } finally {
       setIsOptimizingPrompt(false);
+    }
+  };
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(styleInstruction);
+      setCopyFeedback({ prompt: styleInstruction, failed: false });
+    } catch {
+      setCopyFeedback({ prompt: styleInstruction, failed: true });
     }
   };
 
@@ -233,6 +243,14 @@ export default function ImageGenerationPanel({
           </button>
           <button
             type="button"
+            onClick={() => void copyPrompt()}
+            disabled={disabled || activeMode !== null || isOptimizingPrompt || !hasStyleInstruction}
+            className="rounded-full border border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
+          >
+            Copy prompt
+          </button>
+          <button
+            type="button"
             onClick={() => void generate('studio')}
             disabled={disabled || activeMode !== null || isOptimizingPrompt || isStyleInstructionTooLong}
             className="rounded-full border-2 border-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
@@ -248,6 +266,14 @@ export default function ImageGenerationPanel({
             {activeMode === 'lifestyle' ? 'Creating lifestyle image…' : 'Create lifestyle image'}
           </button>
         </div>
+        {copyFeedback && copyFeedback.prompt === styleInstruction && (
+          <p role={copyFeedback.failed ? 'alert' : 'status'}
+            className={`mt-2 text-xs ${copyFeedback.failed ? 'text-red-700' : 'text-green-700'}`}>
+            {copyFeedback.failed
+              ? 'Unable to copy automatically. Select the instruction text and copy it manually, including any selected style suggestion.'
+              : 'Prompt copied.'}
+          </p>
+        )}
       </div>
 
       {error && (
