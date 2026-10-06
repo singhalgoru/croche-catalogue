@@ -12,6 +12,18 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('uses the homepage warm card surface and full-photo layout without white padding', () => {
+    window.history.replaceState(null, '', '/collections/toys/');
+    render(<StorePages {...initial} />);
+    const photoLink = screen.getByRole('link', { name: 'View Bunny' });
+    const card = photoLink.closest('li');
+    expect(card?.classList.contains('bg-mustard/25')).toBe(true);
+    expect(card?.classList.contains('bg-white')).toBe(false);
+    expect(photoLink.classList.contains('aspect-square')).toBe(true);
+    expect(within(photoLink).getByRole('img', { name: 'Bunny' }).classList.contains('object-contain')).toBe(true);
+    expect(photoLink.querySelector('img[aria-hidden="true"]')?.classList.contains('blur-xl')).toBe(true);
+    expect(screen.getByRole('link', { name: 'Bunny' }).getAttribute('href')).toContain('/p/');
+  });
   it('reflects admin additions and removals in the collections hub', () => {
     window.history.replaceState(null, '', '/collections/');
     const { rerender } = render(<StorePages {...initial} />);

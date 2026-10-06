@@ -127,12 +127,19 @@ export default function StorePages({ products, categorySettings, isLoading, load
             {collectionProducts.map((product, index) => {
               const prices = product.variants.length ? product.variants.map(variant => variant.price ?? product.price).filter((price): price is number => typeof price === 'number') : product.price === null ? [] : [product.price];
               const price = product.price === null || prices.length === 0 ? 'Price on request' : `${Math.min(...prices) !== Math.max(...prices) ? 'From ' : ''}₹${Math.min(...prices).toLocaleString('en-IN')}`;
-              return <li key={product.id} className="rounded-2xl border border-mustard/40 bg-white p-4">
-                <a href={toProductPageUrl(product)}>
+              return <li key={product.id} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-mustard/40 bg-mustard/25 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                <a href={toProductPageUrl(product)} aria-label={`View ${product.name}`}
+                  className="relative block aspect-square shrink-0 overflow-hidden bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+                  <img src={getProductImageUrl(product.image, 480)} alt="" aria-hidden="true" width={480} height={480}
+                    loading={index === 0 ? 'eager' : 'lazy'} decoding="async"
+                    className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" />
                   <img src={getProductImageUrl(product.image, 480)} alt={product.name} width={480} height={480}
-                    loading={index === 0 ? 'eager' : 'lazy'} className="aspect-square w-full rounded-xl object-contain" />
-                  <h2 className="mt-3 font-heading text-xl font-bold underline underline-offset-4">{product.name}</h2>
-                </a><p>{price}</p><p className="text-sm">{isLoading ? 'Checking availability…' : product.inStock ? 'In stock' : 'Out of stock'}</p>
+                    loading={index === 0 ? 'eager' : 'lazy'} decoding="async" className="relative h-full w-full object-contain" />
+                </a><div className="flex flex-1 flex-col p-4 sm:p-3 lg:p-4">
+                  <h2 className="font-heading text-lg font-semibold sm:text-base"><a href={toProductPageUrl(product)}
+                    className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">{product.name}</a></h2>
+                  <p className="mt-2 font-bold">{price}</p><p className="mt-1 text-sm">{isLoading ? 'Checking availability…' : product.inStock ? 'In stock' : 'Out of stock'}</p>
+                </div>
               </li>;
             })}
           </ul>}

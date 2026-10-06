@@ -24,7 +24,9 @@ a{color:inherit;text-underline-offset:4px}a:hover{text-decoration-thickness:2px}
 header,main,footer{max-width:1120px;margin:auto;padding:24px}header{border-bottom:3px solid #edc357}.brand{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none}.brand img{border-radius:50%}.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:8px;background:white;padding:8px}
 nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:760px}h1{font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.2}h2{line-height:1.3}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:20px;list-style:none;padding:0}
-.card,details{background:white;border:1px solid #edc357;border-radius:16px;padding:18px}.card h2{font-size:1.15rem}.card img{width:100%;height:auto;aspect-ratio:1;object-fit:contain;border-radius:12px}.card p{margin:8px 0}
+.card,details{background:white;border:1px solid #edc357;border-radius:16px;padding:18px}.card h2{font-size:1.15rem}.card p{margin:8px 0}
+.product-card{display:flex;flex-direction:column;overflow:hidden;padding:0;background:rgb(246 196 83 / .25);box-shadow:0 1px 2px rgb(0 0 0 / .05);transition:transform .2s,box-shadow .2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgb(0 0 0 / .1)}
+.product-photo{display:block;position:relative;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.product-photo img{position:relative;width:100%;height:100%;object-fit:contain}.product-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}.product-copy{padding:16px}.product-copy h2{margin:0;font-weight:600}.product-copy a{text-decoration:none}.product-copy a:hover{text-decoration:underline}.product-price{font-weight:700}
 .button{display:inline-block;background:#604239;color:white;padding:10px 18px;border-radius:24px;text-decoration:none;margin:8px 0}.note{font-size:.9rem}details{margin:12px 0}summary{cursor:pointer;font-weight:600}footer{border-top:1px solid #edc357;margin-top:32px}main{min-height:50vh}
 </style></head><body><a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-320.webp" width="64" height="64" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation}</nav></header>
 <main id="main"><nav aria-label="Breadcrumb"><a href="/">Home</a><span aria-current="page">${escapeHtml(title)}</span></nav><h1>${escapeHtml(title)}</h1>${body}</main>
@@ -53,10 +55,11 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     const cards = items.map((product, index) => {
       const range = priceRange(product);
       const price = range ? `${range.low !== range.high ? 'From ' : ''}₹${range.low.toLocaleString('en-IN')}` : 'Price on request';
-      return `<li class="card"><a href="/p/${toProductSlug(product)}/">
-      ${product.image ? `<img src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="${escapeHtml(product.name)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">` : ''}
-      <h2>${escapeHtml(product.name)}</h2></a><p>${price}</p>
-      <p>View photos, product details and current availability.</p></li>`;
+      return `<li class="card product-card"><a class="product-photo" href="/p/${toProductSlug(product)}/" aria-label="View ${escapeHtml(product.name)}">
+      ${product.image ? `<img class="photo-backdrop" src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="" aria-hidden="true" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">
+      <img src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="${escapeHtml(product.name)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">` : ''}
+      </a><div class="product-copy"><h2><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h2><p class="product-price">${price}</p>
+      <p>View photos, product details and current availability.</p></div></li>`;
     }).join('');
     const schema = { ...baseSchema('CollectionPage', pathname, title, description), mainEntity: {
       '@type': 'ItemList', numberOfItems: items.length, itemListElement: items.map((product, index) => ({

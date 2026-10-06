@@ -43,6 +43,8 @@ describe('collection and information pages', () => {
     expect(doc.querySelector('.grid')?.textContent).toContain('Bunny');
     expect(doc.querySelector('.grid')?.textContent).not.toContain('Rose Clip');
     expect(doc.querySelector('img[alt="Bunny"]')?.getAttribute('loading')).toBe('eager');
+    expect(doc.querySelector('.product-card .product-photo img[aria-hidden="true"]')).toBeTruthy();
+    expect(doc.querySelector('.product-copy h2 a')?.textContent).toBe('Bunny');
     expect(doc.querySelector('a[href="/p/bunny/"]')).toBeTruthy();
     expect(doc.querySelector('a[href="/?category=Toys"]')).toBeTruthy();
     const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
