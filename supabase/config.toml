@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.verify-delivery-pin]
 verify_jwt = true
+
+[functions.create-razorpay-payment-link]
+verify_jwt = true
+
+[functions.razorpay-payment-webhook]
+verify_jwt = false

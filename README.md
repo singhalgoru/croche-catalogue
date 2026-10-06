@@ -31,6 +31,50 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Email contacts for orders and general enquiries
 - Installable app experience on supported browsers
 
+## Razorpay payment links (backend foundation)
+
+The payment backend issues admin-only Razorpay hosted payment links after an
+order and shipping charge have been confirmed with the customer. It snapshots
+cart lines and catalogue prices server-side, checks current availability and
+pending payment-link reservations, and marks an order paid only from a valid
+Razorpay webhook. It does not add a customer-facing checkout or collect card
+details on this site. SMS and email notifications are disabled; an admin shares
+the returned hosted link with the customer.
+
+Before enabling it, complete Razorpay account onboarding and test these
+functions with Razorpay **Test Mode** credentials. Store secrets only in
+Supabase Edge Function secrets; never add them to the repository or frontend:
+
+```powershell
+supabase db push
+supabase secrets set RAZORPAY_KEY_ID=rzp_test_... RAZORPAY_KEY_SECRET=...
+supabase secrets set RAZORPAY_WEBHOOK_SECRET=...
+supabase functions deploy create-razorpay-payment-link
+supabase functions deploy razorpay-payment-webhook
+```
+
+Apply `supabase/migrations/20261006170000_add_payment_link_orders.sql` before
+deploying the functions. Configure a Razorpay Test Mode webhook at
+`https://<project-ref>.supabase.co/functions/v1/razorpay-payment-webhook` for
+`payment_link.paid`, `payment_link.expired`, and `payment_link.cancelled`; use
+the webhook's separate signing secret for `RAZORPAY_WEBHOOK_SECRET`.
+
+The admin function accepts a signed-in catalogue admin's cart ID, a stable UUID
+request key, the confirmed customer name/mobile, an optional email, and the
+confirmed shipping amount in whole rupees. Reuse the same request key when
+retrying the same request; after a definite Razorpay rejection, correct the
+cause and use a new request key. If the request outcome is ambiguous, check Razorpay
+using the returned order reference before trying again. A pending link reserves
+its cart quantities until it expires (24 hours), is cancelled, or is paid. A
+valid webhook consumes stock once; mismatched, late, or unfulfillable paid
+events are marked `review_required` for manual investigation rather than
+reported as paid. The webhook is idempotent by Razorpay event ID.
+
+These functions are backend-only at this stage: the admin UI, customer-facing
+payment status, refunds, and automated reconciliation still need to be built
+before enabling online payment for customers. Start in Test Mode and verify the
+full order-to-webhook flow before configuring live credentials.
+
 ## Local development
 
 ```bash
