@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 import type { Product, ProductVariant } from '../types/product';
 import { trackEvent, trackProductViewed, trackWhatsAppEnquiry } from '../services/analytics';
-import { getProductWhatsAppLink } from '../utils/whatsapp';
+import { getCustomisationWhatsAppLink, getProductWhatsAppLink } from '../utils/whatsapp';
 import { formatINR } from '../utils/currency';
 import { productImageProtection } from '../utils/imageProtection';
 import ImageZoomViewer from './ImageZoomViewer';
@@ -582,6 +582,17 @@ export default function ProductModal({
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} collapsible={!isPage} />
+          <div className="mt-4 rounded-xl border border-mustard/40 bg-mustard/15 p-3 text-sm">
+            <a href={getCustomisationWhatsAppLink(product, selectedVariant)} target="_blank" rel="noopener noreferrer"
+              onClick={() => {
+                trackWhatsAppEnquiry(product, selectedVariant);
+                trackEvent('customisation_enquiry', { product_id: product.id, variant_id: selectedVariant?.id });
+              }}
+              className="inline-block py-2 font-semibold text-cocoa underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+              Request a different colour or customisation
+            </a>
+            <p className="text-cocoa/80">Tell us your preferred change on WhatsApp. Options, price and dispatch time must be confirmed before ordering.</p>
+          </div>
           {!isPage && (
             <a
               href={`${toProductPageUrl(product)}${selectedVariant ? `?variant=${encodeURIComponent(toPublicVariantSlug(selectedVariant))}` : ''}`}

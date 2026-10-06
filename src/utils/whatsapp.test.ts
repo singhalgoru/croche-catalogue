@@ -51,3 +51,14 @@ it('links enquiries without a selected variant to the full product page', async 
   expect(text).toBe(`Hi Luvia, I'm interested in Bunny Charm.\n\n${toProductPageUrl(product)}`);
   expect(text).not.toContain('variant');
 });
+
+it('prefills customisation requests with the selected product and variant without promising availability', async () => {
+  const { getCustomisationWhatsAppLink } = await import('./whatsapp');
+  const text = new URL(getCustomisationWhatsAppLink(product, product.variants[0])).searchParams.get('text')!;
+  expect(text).toContain('Bunny Charm — Lavender');
+  expect(text).toContain('My preferred colour or change:');
+  expect(text).toContain('Please confirm what is possible, the price and dispatch estimate before I order.');
+  expect(text).toContain(`${toProductPageUrl(product)}?variant=lavender`);
+  const withoutVariant = new URL(getCustomisationWhatsAppLink(product)).searchParams.get('text')!;
+  expect(withoutVariant).not.toContain('?variant=');
+});

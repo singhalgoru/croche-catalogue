@@ -154,6 +154,12 @@ The collections hub uses a compact photo grid with an actual published product
 photo and live product count per category, rather than long category descriptions.
 The homepage also offers direct collection links below the product grid without
 changing product-wise ordering. Empty collections are never promoted.
+Compact collection and information headers keep the logo left-aligned on mobile,
+consistent with product-detail pages.
+Mobile headers use matching 48px logo, menu and cart circles; the larger desktop
+homepage logo is preserved.
+The mobile footer groups navigation and contact actions into two columns, keeps
+44px tap targets for primary links, and reduces spacing and repeated brand copy.
 New/renamed/deleted categories and published products are not hardcoded.
 Collection pages have their own descriptions, canonical URLs and matching
 CollectionPage/ItemList structured data. They link to interactive product pages
@@ -175,6 +181,13 @@ disclosures; no FAQ rich-result eligibility, maker biography, reviews, fixed
 delivery times or automatic customisation availability is claimed. These pages
 are readable without JavaScript and use no external widgets. Category names that produce duplicate
 paths fail the build explicitly.
+
+## Product customisation enquiries
+
+Product quick views and full details offer a WhatsApp customisation enquiry.
+The message includes the product, selected variant and a prompt for the desired
+colour/change; availability, price and dispatch remain subject to confirmation.
+Customisation clicks are enquiries, not confirmed orders or purchases.
 
 ## AI product image generation
 

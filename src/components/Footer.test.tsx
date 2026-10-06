@@ -13,6 +13,15 @@ afterEach(() => {
 });
 
 describe('Footer', () => {
+  it('groups policy and information links for mobile while keeping primary actions touch-friendly', () => {
+    render(<Footer />);
+    const nav = screen.getByRole('navigation', { name: 'Store information' });
+    expect(nav.className).toContain('grid-cols-2');
+    expect(nav.contains(screen.getByRole('link', { name: 'Return and refund policy' }))).toBe(true);
+    for (const name of ['Contact on WhatsApp', 'Contact on Instagram', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
+      expect(screen.getByRole('link', { name }).className).toContain('min-h-11');
+    }
+  });
   it('links to the published return policy', () => {
     render(<Footer />);
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))

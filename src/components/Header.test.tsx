@@ -66,8 +66,8 @@ describe('Header', () => {
     render(<Header showInstallPrompt={false} onOpenCart={onOpenCart} cartItemCount={2} />);
     expect(screen.queryByText('Luvia Creations')).toBeNull();
     const logo = screen.getByRole('img', { name: /Luvia/ });
-    expect(logo.className).toContain('h-16 w-16');
-    expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 64px');
+    expect(logo.className).toContain('h-12 w-12');
+    expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 48px');
     expect(screen.getByText('Made with love. Delivered across India.').className).toContain('sm:hidden');
     expect(screen.getByText(/Explore handmade crochet accessories/).className).toContain('hidden sm:inline');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Handmade Crochet Products & Gifts');
@@ -92,5 +92,12 @@ describe('Header', () => {
     expect(row?.className).not.toContain('justify-center');
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();
+  });
+  it('keeps compact store-page branding left-aligned without a cart', () => {
+    render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} collectionPages />);
+    const logo = screen.getByRole('img', { name: /Luvia/ });
+    const row = logo.parentElement?.parentElement?.parentElement;
+    expect(row?.className).toContain('justify-start');
+    expect(row?.className).not.toContain('justify-center');
   });
 });

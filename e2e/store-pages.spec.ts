@@ -70,3 +70,60 @@ test('photo-led collections hub and homepage links lead directly to published co
   await expect(homepageCollections.getByRole('link', { name: 'Charms', exact: true })).toHaveAttribute('href', '/collections/charms/');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
+
+test('store headers keep the logo left and product details offer a contextual customisation enquiry', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const path of ['/collections/', '/collections/charms/', '/about/', '/faq/']) {
+    await page.goto(path);
+    const logo = page.getByRole('link', { name: 'Luvia Creations — home' });
+    const menu = page.getByRole('button', { name: 'Open navigation' });
+    const logoBox = await logo.boundingBox();
+    const menuBox = await menu.boundingBox();
+    expect(logoBox).not.toBeNull();
+    expect(menuBox).not.toBeNull();
+    expect(logoBox!.x + logoBox!.width).toBeLessThan(menuBox!.x);
+    expect(logoBox!.x).toBeLessThan(150);
+    expect(logoBox!.width).toBe(menuBox!.width);
+    expect(Math.abs(logoBox!.y - menuBox!.y)).toBeLessThan(2);
+  }
+  await page.goto('/collections/charms/');
+  await page.getByRole('link', { name: 'View Rose Charm', exact: true }).click();
+  const request = page.getByRole('link', { name: 'Request a different colour or customisation' });
+  await expect(request).toBeVisible();
+  const text = new URL((await request.getAttribute('href'))!).searchParams.get('text');
+  expect(text).toContain('Rose Charm');
+  expect(text).toContain('My preferred colour or change:');
+  expect(text).toContain('dispatch estimate before I order');
+  expect(text).toContain('?variant=');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  await page.goto('/');
+  const logo = page.getByRole('link', { name: 'Luvia Creations — home' });
+  const cart = page.getByRole('button', { name: /Open cart with/ });
+  const logoBox = await logo.boundingBox();
+  const cartBox = await cart.boundingBox();
+  if (page.viewportSize()!.width < 640) {
+    expect(logoBox!.width).toBe(cartBox!.width);
+    expect(logoBox!.height).toBe(cartBox!.height);
+    expect(Math.abs(logoBox!.y - cartBox!.y)).toBeLessThan(2);
+  }
+});
+
+test('mobile footer is compact with complete contact links and usable tap targets', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/faq/');
+  const footer = page.getByRole('contentinfo');
+  await footer.scrollIntoViewIfNeeded();
+  for (const name of ['Explore collections', 'About & contact', 'Ordering FAQ', 'Return and refund policy',
+    'Contact on WhatsApp', 'Contact on Instagram', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
+    const link = footer.getByRole('link', { name, exact: true });
+    await expect(link).toBeVisible();
+    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+  if (page.viewportSize()!.width < 640) {
+    expect((await footer.boundingBox())!.height).toBeLessThan(420);
+    const whatsapp = await footer.getByRole('link', { name: 'Contact on WhatsApp' }).boundingBox();
+    const instagram = await footer.getByRole('link', { name: 'Contact on Instagram' }).boundingBox();
+    expect(whatsapp!.y).toBe(instagram!.y);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+});

@@ -38,3 +38,13 @@ export const getProductWhatsAppLink = (product: Product, variant?: ProductVarian
 
 export const getCartWhatsAppLink = (cart: Cart) =>
   whatsappLink(buildWhatsAppCartMessage(cart));
+
+export const getCustomisationWhatsAppLink = (product: Product, variant?: ProductVariant) => {
+  const url = new URL(toProductPageUrl(product));
+  if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
+  return whatsappLink(
+    `Hi Luvia, can I request a different colour or customisation for ${product.name}${
+      variant?.name.trim() ? ` — ${variant.name.trim()}` : ''
+    }?\n\nMy preferred colour or change: \n\nPlease confirm what is possible, the price and dispatch estimate before I order.\n\n${url.href}`,
+  );
+};

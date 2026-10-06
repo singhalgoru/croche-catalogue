@@ -135,6 +135,18 @@ const renderModalWithCart = () => {
 const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 
 describe('ProductModal touch controls', () => {
+  it.each(['modal', 'page'] as const)('includes the currently selected variant in %s customisation enquiries, even when sold out', (presentation) => {
+    render(<ProductModal product={product} presentation={presentation} currentIndex={0} totalProducts={1}
+      onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
+    const request = screen.getByRole('link', { name: 'Request a different colour or customisation' });
+    expect(new URL(request.getAttribute('href')!).searchParams.get('text')).toContain('Crochet Rose — Red');
+    fireEvent.click(screen.getByRole('button', { name: /Ivory/ }));
+    const text = new URL(request.getAttribute('href')!).searchParams.get('text');
+    expect(text).toContain('Crochet Rose — Ivory');
+    expect(text).toContain('?variant=ivory');
+    expect(request.getAttribute('target')).toBe('_blank');
+    expect(screen.getByText(/Options, price and dispatch time must be confirmed/)).toBeTruthy();
+  });
   it('offers full details while preserving the selected variant', () => {
     const onOpenFullDetails = vi.fn();
     render(<ProductModal product={product} currentIndex={0} totalProducts={1}
