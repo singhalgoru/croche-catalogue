@@ -177,10 +177,11 @@ export default function CartManager() {
                     {formatINR(total)}
                   </p>
                 )}
-                {blocks.some(block => block.userId === cart.userId) ? (
-                  <p className="mt-3 text-sm font-semibold text-red-700">Cart session blocked</p>
-                ) : blockId === cart.userId ? (
-                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {blocks.some(block => block.userId === cart.userId) ? (
+                    <p className="text-sm font-semibold text-red-700">Cart session blocked</p>
+                  ) : blockId === cart.userId ? (
+                  <div className="basis-full rounded-xl border border-red-200 bg-red-50 p-3">
                     <p className="text-sm text-red-800">Block new cart changes and PIN lookups for this session? This is not an IP ban; a different browser can create a new session.</p>
                     <div className="mt-2 flex gap-3">
                       <button type="button" disabled={busyId !== null} onClick={() => void changeBlock(cart.userId, true)}
@@ -191,10 +192,10 @@ export default function CartManager() {
                   </div>
                 ) : (
                   <button type="button" disabled={busyId !== null} onClick={() => setBlockId(cart.userId)}
-                    className="mt-3 min-h-11 text-sm font-semibold text-red-700 underline disabled:opacity-50">Block cart session</button>
+                    className="min-h-11 text-sm font-semibold text-red-700 underline disabled:opacity-50">Block cart session</button>
                 )}
                 {deleteId === cart.id ? (
-                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                  <div className="basis-full rounded-xl border border-red-200 bg-red-50 p-3">
                     <p className="text-sm font-semibold text-red-800">
                       Delete this cart and all of its items permanently?
                     </p>
@@ -222,11 +223,12 @@ export default function CartManager() {
                     type="button"
                     onClick={() => setDeleteId(cart.id)}
                     disabled={busyId !== null}
-                    className="mt-4 text-sm font-semibold text-red-700 underline disabled:opacity-50"
+                    className="min-h-11 text-sm font-semibold text-red-700 underline disabled:opacity-50"
                   >
                     Delete cart
                   </button>
                 )}
+                </div>
               </article>
             );
           })}
