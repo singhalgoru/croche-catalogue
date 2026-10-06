@@ -131,11 +131,11 @@ export default function CartManager() {
                       Last activity {new Date(cart.updatedAt).toLocaleString()}
                     </p>
                     <p className="mt-2 text-sm text-cocoa/75">
-                      {cart.deliveryPinCode ? `Delivery PIN: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery PIN: not provided'}
+                      {cart.deliveryPinCode ? `Delivery pincode: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery pincode: not provided'}
                     </p>
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
-                      {' '}PIN checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.
+                      {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.
                     </p>}
                   </div>
                   <span

@@ -801,7 +801,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     if (pathname === '/functions/v1/verify-delivery-pin') {
       const body = getRequestBody<{ cartId: string; pin: string }>(route);
       if (body.pin !== '110001') {
-        await json(route, { error: 'Enter a valid PIN code or keep it empty.' }, 422);
+        await json(route, { error: 'Enter a valid pincode or keep it empty.' }, 422);
         return;
       }
       const cart = state.carts.find(item => item.id === body.cartId);

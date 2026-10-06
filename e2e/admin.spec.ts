@@ -200,7 +200,7 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   await expect(page.getByText('Rose Pink · Qty 2')).toBeVisible();
   await expect(page.getByText('WhatsApp opened')).toBeVisible();
   await expect(page.getByText('Estimated total: ₹698')).toBeVisible();
-  await expect(page.getByText('Delivery PIN: 110001 (shopper-provided, unverified)')).toBeVisible();
+  await expect(page.getByText('Delivery pincode: 110001 (shopper-provided, unverified)')).toBeVisible();
   await expect(page.getByText(/Postal area: Central Delhi · Delhi · India/)).toBeVisible();
   await page.getByRole('button', { name: 'Block cart session' }).click();
   await expect(page.getByText(/This is not an IP ban/)).toBeVisible();

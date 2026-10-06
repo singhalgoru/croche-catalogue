@@ -26,13 +26,13 @@ Deno.serve(async request => {
   try { body = await request.json(); } catch { return json({ error: 'Invalid request body.' }, 400); }
   if (!body || typeof body !== 'object' || typeof body.cartId !== 'string'
     || !/^[0-9a-f-]{36}$/i.test(body.cartId) || typeof body.pin !== 'string' || !/^[1-9][0-9]{5}$/.test(body.pin)) {
-    return json({ error: 'Enter a valid 6-digit Indian PIN code or keep it empty.' }, 400);
+    return json({ error: 'Enter a valid 6-digit Indian pincode or keep it empty.' }, 400);
   }
   const { data: cart, error: cartError } = await client.from('carts').select('id,expires_at,cart_items(id)')
     .eq('id', body.cartId).eq('user_id', auth.user.id).maybeSingle();
   if (cartError) return json({ error: 'Unable to check your cart. Please retry.' }, 500);
   if (!cart || new Date(cart.expires_at).getTime() <= Date.now() || !cart.cart_items?.length) {
-    return json({ error: 'Add a product to an active cart before saving a PIN code.' }, 400);
+    return json({ error: 'Add a product to an active cart before saving a pincode.' }, 400);
   }
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: reserved, error: reserveError } = await admin.rpc('reserve_cart_pin_lookup', { cart_id: cart.id, owner_id: auth.user.id });
@@ -55,7 +55,7 @@ Deno.serve(async request => {
       console.error('Postal lookup failed:', error instanceof Error ? error.message : 'Unknown lookup error');
       return json({ error: 'PIN verification is temporarily unavailable. Please retry, or clear the PIN and enquire without it.' }, 503);
     }
-    if (!location) return json({ error: 'Enter a valid PIN code or keep it empty.' }, 422);
+    if (!location) return json({ error: 'Enter a valid pincode or keep it empty.' }, 422);
     checkedAt = new Date().toISOString();
     const { error } = await admin.from('delivery_pin_cache').upsert({ pin: body.pin, location, checked_at: checkedAt });
     if (error) return json({ error: 'Unable to store PIN verification data. Please retry.' }, 500);

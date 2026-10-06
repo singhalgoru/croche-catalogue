@@ -43,9 +43,9 @@ describe('getCartTotals', () => {
 describe('buildWhatsAppCartMessage', () => {
   it('includes only a saved voluntary PIN in WhatsApp and email enquiries', () => {
     const cart = { ...buildCart([buildItem()]), deliveryPinCode: '110001' };
-    expect(buildWhatsAppCartMessage(cart)).toContain('Delivery PIN code (shopper-provided): 110001');
+    expect(buildWhatsAppCartMessage(cart)).toContain('Delivery pincode (shopper-provided): 110001');
     expect(buildEmailCartBody(cart)).toContain('Pincode     : 110001 (shopper-provided)');
-    expect(buildWhatsAppCartMessage({ ...cart, deliveryPinCode: null })).not.toContain('Delivery PIN code');
+    expect(buildWhatsAppCartMessage({ ...cart, deliveryPinCode: null })).not.toContain('Delivery pincode');
   });
   it('bolds each product name so the list is scannable in chat', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem()]));

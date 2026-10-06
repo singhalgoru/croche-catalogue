@@ -355,12 +355,12 @@ export async function updateCartDeliveryPin(value: string): Promise<Cart> {
   if (!isSupabaseConfigured) {
     if (pin) throw new Error('PIN verification requires the online catalogue. Please leave it blank or try again online.');
     const cart = readLocalCart();
-    if (!cart.items.length) throw new Error('Add a product before saving a delivery PIN code.');
+    if (!cart.items.length) throw new Error('Add a product before saving a delivery pincode.');
     return writeLocalCart({ ...cart, deliveryPinCode: null, deliveryPinLocation: null, deliveryPinCheckedAt: null });
   }
   if (!supabase) throw new Error('Supabase is not configured.');
   const cart = await loadRemoteCart();
-  if (!cart.items.length) throw new Error('Add a product before saving a delivery PIN code.');
+  if (!cart.items.length) throw new Error('Add a product before saving a delivery pincode.');
   if (pin) {
     const { error } = await supabase.functions.invoke('verify-delivery-pin', { body: { cartId: cart.id, pin } });
     if (error) {
@@ -377,7 +377,7 @@ export async function updateCartDeliveryPin(value: string): Promise<Cart> {
     .update({ delivery_pin_code: null, delivery_pin_location: null, delivery_pin_checked_at: null, updated_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + CART_LIFETIME_MS).toISOString() })
     .eq('id', cart.id).select(CART_COLUMNS).single();
-  if (error) throw new Error(`Unable to save your delivery PIN code: ${error.message}`);
+  if (error) throw new Error(`Unable to save your delivery pincode: ${error.message}`);
   return mapCart(data as CartRow);
 }
 
