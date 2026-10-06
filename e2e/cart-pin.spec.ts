@@ -12,12 +12,17 @@ test('optional cart PIN persists, is shared only after save, and can be cleared'
   await page.getByRole('button', { name: 'Save PIN' }).click();
   await expect(page.getByRole('alert')).toContainText('6-digit');
   expect(state.carts[0].delivery_pin_code).toBeUndefined();
+  await input.fill('999999');
+  await page.getByRole('button', { name: 'Save PIN' }).click();
+  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByText('Enter a valid PIN code or keep it empty.')).toBeVisible();
+  expect(state.carts[0].delivery_pin_code).toBeUndefined();
   await input.fill('110001');
   const enquiry = page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' });
   expect(new URL((await enquiry.getAttribute('href'))!).searchParams.get('text')).not.toContain('110001');
   await page.getByRole('button', { name: 'Save PIN' }).click();
   await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('status')).toContainText('Delivery PIN code saved.');
   expect(state.carts[0].delivery_pin_code).toBe('110001');
+  await expect(page.getByText(/Postal area: Central Delhi · Delhi · India/)).toBeVisible();
   expect(new URL((await enquiry.getAttribute('href'))!).searchParams.get('text')).toContain('Delivery PIN code (shopper-provided): 110001');
   await page.reload();
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
@@ -25,6 +30,7 @@ test('optional cart PIN persists, is shared only after save, and can be cleared'
   await page.getByRole('button', { name: 'Clear PIN' }).click();
   await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('status')).toContainText('Delivery PIN code cleared.');
   expect(state.carts[0].delivery_pin_code).toBeNull();
+  expect(state.carts[0].delivery_pin_location).toBeNull();
   expect(new URL((await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href'))!).searchParams.get('text')).not.toContain('Delivery PIN code');
 });
 

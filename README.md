@@ -188,12 +188,26 @@ paths fail the build explicitly.
 ## Optional delivery PIN codes
 
 The cart offers an optional delivery PIN code with explicit Save/Clear controls.
-Only six-digit Indian PIN shapes are accepted; no location lookup is performed.
+Only six-digit Indian PIN shapes are accepted. Saving a nonempty PIN calls the
+authenticated `verify-delivery-pin` Edge Function, which verifies the cart owner
+and checks existence using `https://api.postalpincode.in/pincode/{pin}`.
+This is a third-party postal-data API, not an address verification service.
+Only the PIN is sent upstream; no cart IDs, user IDs, IP addresses or GPS are sent.
+Successful postal areas are cached for 30 days. Lookups are limited to one per
+active cart every 10 seconds and have an 8-second upstream timeout. Missing PINs
+and outages produce explicit errors; failures never overwrite saved data.
 Saved PINs are included in WhatsApp/email enquiries and shown in admin as
-shopper-provided and unverified, never as a delivery address or shipping quote.
+shopper-provided; checked PINs also show district(s), state(s), country and the
+postal lookup date. This is not a verified shopper address or shipping quote.
+Existing PINs remain unverified until the shopper saves them again.
 They share the cart's 30-day lifetime and are cleared on cart deletion/renewal.
 No raw IP addresses or GPS coordinates are collected. Apply migration
-`20261006090500_add_cart_delivery_pin.sql` before deploying the frontend.
+`20261006090500_add_cart_delivery_pin.sql` and
+`20261006092000_verify_cart_delivery_pins.sql`, then deploy
+`supabase functions deploy verify-delivery-pin` before deploying the frontend.
+The database rejects direct client writes of nonempty PIN/location fields, so
+clients cannot bypass verification or forge a checked postal area. Clearing all
+PIN metadata remains available without the upstream API.
 
 ## Product customisation enquiries
 

@@ -12,6 +12,8 @@ export interface CartItem {
 
 export interface Cart {
   deliveryPinCode?: string | null;
+  deliveryPinLocation?: { districts: string[]; states: string[]; country: 'India' } | null;
+  deliveryPinCheckedAt?: string | null;
   id: string;
   reference: string;
   status: 'active' | 'whatsapp_started';

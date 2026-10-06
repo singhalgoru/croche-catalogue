@@ -115,6 +115,10 @@ export default function CartManager() {
                     <p className="mt-2 text-sm text-cocoa/75">
                       {cart.deliveryPinCode ? `Delivery PIN: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery PIN: not provided'}
                     </p>
+                    {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
+                      Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
+                      {' '}PIN checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.
+                    </p>}
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-bold ${

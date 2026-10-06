@@ -73,6 +73,8 @@ export interface CartItemRow {
 
 export interface CartRow {
   delivery_pin_code?: string | null;
+  delivery_pin_location?: { districts: string[]; states: string[]; country: 'India' } | null;
+  delivery_pin_checked_at?: string | null;
   id: string;
   user_id: string;
   reference: string;
@@ -779,6 +781,21 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/functions/v1/verify-delivery-pin') {
+      const body = getRequestBody<{ cartId: string; pin: string }>(route);
+      if (body.pin !== '110001') {
+        await json(route, { error: 'Enter a valid PIN code or keep it empty.' }, 422);
+        return;
+      }
+      const cart = state.carts.find(item => item.id === body.cartId);
+      if (!cart) { await json(route, { error: 'Cart not found.' }, 400); return; }
+      const location = { districts: ['Central Delhi'], states: ['Delhi'], country: 'India' as const };
+      cart.delivery_pin_code = body.pin;
+      cart.delivery_pin_location = location;
+      cart.delivery_pin_checked_at = new Date().toISOString();
+      await json(route, { location, checkedAt: cart.delivery_pin_checked_at });
+      return;
+    }
     if (pathname === '/functions/v1/analyze-product') {
       const body = getRequestBody<{ mode?: string }>(route);
       if (body.mode === 'variant-name') {

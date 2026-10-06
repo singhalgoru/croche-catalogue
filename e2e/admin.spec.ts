@@ -168,6 +168,8 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   state.carts.push({
     id: 'cart-admin-view',
     delivery_pin_code: '110001',
+    delivery_pin_location: { districts: ['Central Delhi'], states: ['Delhi'], country: 'India' },
+    delivery_pin_checked_at: now,
     user_id: 'anonymous-customer',
     reference: 'CRT-CUSTOMER',
     status: 'whatsapp_started',
@@ -199,6 +201,7 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   await expect(page.getByText('WhatsApp opened')).toBeVisible();
   await expect(page.getByText('Estimated total: ₹698')).toBeVisible();
   await expect(page.getByText('Delivery PIN: 110001 (shopper-provided, unverified)')).toBeVisible();
+  await expect(page.getByText(/Postal area: Central Delhi · Delhi · India/)).toBeVisible();
   await page.getByRole('button', { name: 'Delete cart' }).click();
   await page.getByRole('button', { name: 'Yes, delete cart' }).click();
   await expect(page.getByRole('heading', { name: 'CRT-CUSTOMER' })).toHaveCount(0);

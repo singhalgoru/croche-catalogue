@@ -20,6 +20,8 @@ interface CartItemRow {
 
 interface CartRow {
   delivery_pin_code?: string | null;
+  delivery_pin_location?: Cart['deliveryPinLocation'];
+  delivery_pin_checked_at?: string | null;
   id: string;
   user_id: string;
   reference: string;
@@ -32,7 +34,7 @@ interface CartRow {
 }
 
 const CART_COLUMNS =
-  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
+  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, delivery_pin_location, delivery_pin_checked_at, cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
 const LOCAL_CART_KEY = 'luvia-cart';
 const CART_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -60,6 +62,8 @@ export const sortCartItemsByCreatedAt = (items: CartItemRow[]) =>
 
 const mapCart = (row: CartRow): Cart => ({
   deliveryPinCode: row.delivery_pin_code ?? null,
+  deliveryPinLocation: row.delivery_pin_location ?? null,
+  deliveryPinCheckedAt: row.delivery_pin_checked_at ?? null,
   id: row.id,
   reference: row.reference,
   status: row.status,
@@ -166,6 +170,8 @@ const loadRemoteCart = async (): Promise<Cart> => {
         expires_at: new Date(Date.now() + CART_LIFETIME_MS).toISOString(),
         whatsapp_started_at: null,
         delivery_pin_code: null,
+        delivery_pin_location: null,
+        delivery_pin_checked_at: null,
       })
       .eq('id', (existing as CartRow).id)
       .select(CART_COLUMNS)
@@ -343,15 +349,28 @@ export async function updateCartDeliveryPin(value: string): Promise<Cart> {
   const pin = normalizeDeliveryPin(value);
   const supabase = await loadSupabase();
   if (!isSupabaseConfigured) {
+    if (pin) throw new Error('PIN verification requires the online catalogue. Please leave it blank or try again online.');
     const cart = readLocalCart();
     if (!cart.items.length) throw new Error('Add a product before saving a delivery PIN code.');
-    return writeLocalCart({ ...cart, deliveryPinCode: pin });
+    return writeLocalCart({ ...cart, deliveryPinCode: null, deliveryPinLocation: null, deliveryPinCheckedAt: null });
   }
   if (!supabase) throw new Error('Supabase is not configured.');
   const cart = await loadRemoteCart();
   if (!cart.items.length) throw new Error('Add a product before saving a delivery PIN code.');
+  if (pin) {
+    const { error } = await supabase.functions.invoke('verify-delivery-pin', { body: { cartId: cart.id, pin } });
+    if (error) {
+      let message = error.message;
+      if ('context' in error && error.context instanceof Response) {
+        const payload: unknown = await error.context.json();
+        if (payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string') message = payload.error;
+      }
+      throw new Error(message);
+    }
+    return loadRemoteCart();
+  }
   const { data, error } = await supabase.from('carts')
-    .update({ delivery_pin_code: pin, updated_at: new Date().toISOString(),
+    .update({ delivery_pin_code: null, delivery_pin_location: null, delivery_pin_checked_at: null, updated_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + CART_LIFETIME_MS).toISOString() })
     .eq('id', cart.id).select(CART_COLUMNS).single();
   if (error) throw new Error(`Unable to save your delivery PIN code: ${error.message}`);

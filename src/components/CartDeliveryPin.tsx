@@ -31,7 +31,9 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
   return <form onSubmit={event => { event.preventDefault(); void save(draft); }}
     className="rounded-xl border border-mustard/40 bg-mustard/10 p-3 text-sm">
     <label htmlFor="cart-delivery-pin" className="font-semibold">Delivery PIN code (optional)</label>
-    <p id="cart-delivery-pin-help" className="mt-1 text-xs text-cocoa/75">Shared with Luvia to help confirm shipping availability and charges. Stored with this cart for up to 30 days; not a verified address or shipping quote.</p>
+    <p id="cart-delivery-pin-help" className="mt-1 text-xs text-cocoa/75">Only the PIN is sent through our backend to Postal PIN Code API to check its postal area. Shared with Luvia to help confirm shipping availability and charges. Stored with this cart for up to 30 days; not a verified address or shipping quote.</p>
+    {cart.deliveryPinLocation && <p className="mt-2 text-xs">Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}. PIN exists; your address is not verified.</p>}
+    {cart.deliveryPinCode && !cart.deliveryPinLocation && <p className="mt-2 text-xs">This previously saved PIN has not been checked against postal records. Save again to verify it.</p>}
     <div className="mt-2 flex flex-wrap gap-2">
       <input id="cart-delivery-pin" value={draft} onChange={event => { setDraft(event.target.value); setMessage(null); setError(null); }}
         type="text" inputMode="numeric" autoComplete="postal-code" maxLength={6} disabled={busy || saving}

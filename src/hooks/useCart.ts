@@ -49,7 +49,7 @@ export function useCart(enabled = true) {
     [],
   );
 
-  const runCartAction = useCallback(async (action: () => Promise<Cart>) => {
+  const runCartAction = useCallback(async (action: () => Promise<Cart>, reportAtField = false) => {
     setIsBusy(true);
     setError(null);
     try {
@@ -57,6 +57,7 @@ export function useCart(enabled = true) {
       setCart(nextCart);
       return nextCart;
     } catch (actionError) {
+      if (reportAtField) throw actionError;
       setError(actionError instanceof Error ? actionError.message : 'Unable to update your cart.');
       return null;
     } finally {
@@ -96,7 +97,7 @@ export function useCart(enabled = true) {
       runCartAction(() => updateCartItemQuantity(itemId, quantity)),
     removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId)),
     clear: () => runCartAction(clearCart),
-    saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value)),
+    saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value), true),
     markWhatsAppStarted: () => runCartAction(markCartWhatsAppStarted),
   };
 }
