@@ -188,6 +188,10 @@ paths fail the build explicitly.
 ## Optional delivery PIN codes
 
 The cart offers an optional delivery PIN code with explicit Save/Clear controls.
+The compact saved view shows the PIN and postal area with Change/Clear actions.
+The editor opens only when needed, and the full provider/storage disclosure is
+available under "How we use your PIN". Saving/clearing is announced to screen
+readers without adding a separate visible confirmation row.
 Only six-digit Indian PIN shapes are accepted. Saving a nonempty PIN calls the
 authenticated `verify-delivery-pin` Edge Function, which verifies the cart owner
 and checks existence using `https://api.postalpincode.in/pincode/{pin}`.

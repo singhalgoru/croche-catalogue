@@ -31,3 +31,21 @@ it('surfaces save failures and preserves the draft for retry', async () => {
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('retry'));
   expect((screen.getByLabelText('Delivery PIN code (optional)') as HTMLInputElement).value).toBe('110001');
 });
+
+it('keeps saved PINs compact with change, cancel and expandable disclosure', () => {
+  const savedCart = { ...cart, deliveryPinCode: '110001',
+    deliveryPinLocation: { districts: ['Central Delhi'], states: ['Delhi'], country: 'India' as const } };
+  const onSave = vi.fn();
+  render(<CartDeliveryPin cart={savedCart} busy={false} onSave={onSave} />);
+  expect(screen.queryByRole('textbox')).toBeNull();
+  expect(screen.getByText('Delivery PIN: 110001')).toBeTruthy();
+  const disclosure = screen.getByText('How we use your PIN').closest('details')!;
+  expect(disclosure.open).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Change PIN' }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '999999' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByRole('textbox')).toBeNull();
+  expect(onSave).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Change PIN' }));
+  expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('110001');
+});
