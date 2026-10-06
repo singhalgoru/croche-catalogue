@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { products as localProducts } from '../data/products';
 import { isSupabaseConfigured } from '../lib/supabaseConfig';
 import { fetchCategorySettings } from '../services/categories';
@@ -55,49 +55,51 @@ export function useCatalogueProducts() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [categorySettings, setCategorySettings] =
     useState<CategorySettings[]>(initialCategories);
+  const latestCatalogue = useRef({ products: initialProducts, categorySettings: initialCategories });
+  const active = useRef(false);
+  const pendingRefresh = useRef<Promise<void> | null>(null);
 
-  const refreshProducts = useCallback(async () => {
-    if (!isSupabaseConfigured) return;
-
-    try {
-      const result = await loadCatalogue(products, categorySettings);
-      setProducts(result.products);
-      setCategorySettings(result.categorySettings);
-      setLoadError(
-        result.error instanceof Error ? result.error.message : null,
-      );
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [products, categorySettings]);
+  const refreshProducts = useCallback((): Promise<void> => {
+    if (!isSupabaseConfigured) return Promise.resolve();
+    if (pendingRefresh.current) return pendingRefresh.current;
+    pendingRefresh.current = (async () => {
+      try {
+        const result = await loadCatalogue(latestCatalogue.current.products, latestCatalogue.current.categorySettings);
+        if (!active.current) return;
+        latestCatalogue.current = { products: result.products, categorySettings: result.categorySettings };
+        setProducts(result.products);
+        setCategorySettings(result.categorySettings);
+        setLoadError(result.error instanceof Error ? result.error.message : result.error ? 'Unable to load catalogue products.' : null);
+      } catch (error) {
+        if (active.current) setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
+      } finally {
+        if (active.current) setIsLoading(false);
+        pendingRefresh.current = null;
+      }
+    })();
+    return pendingRefresh.current;
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    let isCurrent = true;
-    void loadCatalogue(initialProducts, initialCategories).then(
-      (result) => {
-        if (!isCurrent) return;
-        setProducts(result.products);
-        setCategorySettings(result.categorySettings);
-        setLoadError(
-          result.error instanceof Error ? result.error.message : null,
-        );
-        setIsLoading(false);
-      },
-      (error: unknown) => {
-        if (!isCurrent) return;
-        setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
-        setIsLoading(false);
-      },
-    );
-
-    return () => {
-      isCurrent = false;
+    active.current = true;
+    void refreshProducts();
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) void refreshProducts();
     };
-  }, [initialProducts, initialCategories]);
+    window.addEventListener('focus', refreshVisible);
+    window.addEventListener('online', refreshVisible);
+    document.addEventListener('visibilitychange', refreshVisible);
+    const timer = window.setInterval(refreshVisible, 60_000);
+    return () => {
+      active.current = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshVisible);
+      window.removeEventListener('online', refreshVisible);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
+  }, [refreshProducts]);
 
   return { products, categorySettings, isLoading, loadError, refreshProducts,
     hasCatalogueSnapshot: bootstrap !== null, homepageMetadata: bootstrap?.homepage };

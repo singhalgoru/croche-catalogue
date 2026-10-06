@@ -8,10 +8,11 @@ test('store pages reflect added, renamed and removed admin categories without ha
   await expect(collections.getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
   state.categories.push('Gift Sets');
   state.categorySettings['Gift Sets'] = { priority: 1 };
-  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await expect(page.getByRole('button', { name: 'Refresh catalogue' })).toHaveCount(0);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(collections.getByRole('link', { name: 'Gift Sets', exact: true })).toHaveCount(0);
   state.products[0].category = 'Gift Sets';
-  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(collections.getByRole('link', { name: 'Gift Sets', exact: true })).toHaveAttribute('href', '/collections/gift-sets/');
   await collections.getByRole('link', { name: 'Gift Sets', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Handmade Gift Sets', exact: true })).toBeVisible();
@@ -20,7 +21,7 @@ test('store pages reflect added, renamed and removed admin categories without ha
   delete state.categorySettings['Gift Sets'];
   state.categorySettings['Gift Bundles'] = { priority: 1 };
   state.products[0].category = 'Gift Bundles';
-  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('alert')).toContainText('no longer available');
   await page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Gift Bundles', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Handmade Gift Bundles', exact: true })).toBeVisible();
@@ -28,7 +29,7 @@ test('store pages reflect added, renamed and removed admin categories without ha
   state.categories = state.categories.filter(category => category !== 'Gift Bundles');
   delete state.categorySettings['Gift Bundles'];
   state.products[0].category = 'Charms';
-  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('alert')).toContainText('no longer available');
   await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toHaveCount(0);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex,follow');

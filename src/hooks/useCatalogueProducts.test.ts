@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.mocked(readCatalogueBootstrap).mockReturnValue({ products: [product], categories, homepage });
   vi.mocked(fetchCategorySettings).mockResolvedValue(categories);
 });
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.resetAllMocks(); });
 
 describe('initial catalogue snapshot', () => {
   it('provides built products and categories immediately while awaiting live data', async () => {
@@ -63,5 +63,55 @@ describe('initial catalogue snapshot', () => {
     await act(async () => { await result.current.refreshProducts(); });
     expect(result.current.products).toEqual([live]);
     expect(result.current.loadError).toBe('Refresh failed');
+  });
+
+  it('refreshes every minute only while visible and online and cleans up polling', async () => {
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    vi.mocked(fetchPublishedProducts).mockResolvedValue([product]);
+    const { result, unmount } = renderHook(useCatalogueProducts);
+    await act(async () => {});
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999); });
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(1);
+    const updated = { ...product, price: 250 };
+    vi.mocked(fetchPublishedProducts).mockResolvedValue([updated]);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(result.current.products).toEqual([updated]);
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(2);
+    visibility.mockReturnValue('hidden');
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(2);
+    visibility.mockReturnValue('visible');
+    online.mockReturnValue(false);
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(2);
+    online.mockReturnValue(true);
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(3);
+    unmount();
+    await vi.advanceTimersByTimeAsync(60_000);
+    window.dispatchEvent(new Event('focus'));
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(3);
+  });
+
+  it('coalesces focus/visibility events and recovers automatically after an error', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    vi.mocked(fetchPublishedProducts).mockRejectedValueOnce(new Error('Offline'));
+    const { result } = renderHook(useCatalogueProducts);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.loadError).toBe('Offline');
+    let resolve!: (products: Product[]) => void;
+    vi.mocked(fetchPublishedProducts).mockImplementation(() => new Promise(done => { resolve = done; }));
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(fetchPublishedProducts).toHaveBeenCalledTimes(2);
+    await act(async () => resolve([{ ...product, name: 'Restored bunny' }]));
+    expect(result.current.loadError).toBeNull();
+    expect(result.current.products[0].name).toBe('Restored bunny');
   });
 });

@@ -16,11 +16,9 @@ interface Props {
   isLoading: boolean;
   loadError: string | null;
   hasCatalogueSnapshot: boolean;
-  refreshProducts: () => Promise<void>;
 }
 
-export default function StorePages({ products, categorySettings, isLoading, loadError, hasCatalogueSnapshot, refreshProducts }: Props) {
-  const [refreshing, setRefreshing] = useState(false);
+export default function StorePages({ products, categorySettings, isLoading, loadError, hasCatalogueSnapshot }: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
@@ -48,12 +46,6 @@ export default function StorePages({ products, categorySettings, isLoading, load
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    const onFocus = () => { void refreshProducts(); };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [refreshProducts]);
 
   useEffect(() => {
     if (isLoading && !hasCatalogueSnapshot) return;
@@ -84,11 +76,6 @@ export default function StorePages({ products, categorySettings, isLoading, load
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
   }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, requestedPath, title]);
 
-  const refresh = async () => {
-    setRefreshing(true);
-    try { await refreshProducts(); } finally { setRefreshing(false); }
-  };
-
   const categoryLinks = (
     <nav aria-label="Explore collections" className="flex flex-wrap gap-3">
       {visibleCategories.map(item => <a key={item.name} href={collectionPath(item.name)}
@@ -102,10 +89,8 @@ export default function StorePages({ products, categorySettings, isLoading, load
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
       <h1 className="font-heading text-3xl font-bold">{title}</h1>
       {loadError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">Unable to refresh the catalogue: {loadError}.
-        {hasCatalogueSnapshot ? ' Showing the last available catalogue.' : ' Please retry to load the current collections.'}</p>}
+        {hasCatalogueSnapshot ? ' Showing the last available catalogue. Retrying automatically.' : ' Retrying automatically when connected.'}</p>}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
-      <button type="button" disabled={isLoading || refreshing} onClick={() => void refresh()}
-        className="text-sm underline underline-offset-4 disabled:opacity-50">{refreshing ? 'Refreshing catalogue…' : 'Refresh catalogue'}</button>
       {pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
         <h2 className="font-heading text-xl font-bold">Handmade crochet, made with love</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>

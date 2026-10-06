@@ -149,7 +149,11 @@ ordering may not meet its online purchase requirements.
 The build prerenders `/collections/` and one landing page per admin category,
 plus `/about/` (About & Contact) and `/faq/`. Each mounts the catalogue app with
 the public build snapshot and refreshes categories and products from Supabase.
-Returning focus to these pages or choosing **Refresh catalogue** refreshes data.
+The catalogue refreshes automatically on return to a visible tab, reconnection,
+and every 60 seconds while visible and online, on both the homepage and store
+pages. Overlapping refreshes share one request; hidden tabs do not poll.
+There is no manual Refresh catalogue control. Failed requests retain the last
+available data, show an error and retry on the next automatic refresh.
 The collections hub uses a compact photo grid with an actual published product
 photo and live product count per category, rather than long category descriptions.
 The homepage also offers direct collection links below the product grid without

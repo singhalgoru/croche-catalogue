@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorePages from './StorePages';
 import type { Product } from '../types/product';
@@ -8,7 +8,7 @@ vi.mock('./Footer', () => ({ default: () => <footer /> }));
 const products: Product[] = [{ id: 'p1', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
   price: 500, image: 'https://images.luviacreations.com/products/admin/bunny.webp', inStock: true, color: '#ffffff', variants: [] }];
 const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], isLoading: false,
-  loadError: null, hasCatalogueSnapshot: true, refreshProducts: vi.fn().mockResolvedValue(undefined) };
+  loadError: null, hasCatalogueSnapshot: true };
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
@@ -89,14 +89,12 @@ describe('live store pages', () => {
     expect(window.location.pathname).toBe('/collections/toys/');
   });
 
-  it('supports explicit and return-to-tab refreshes without silently hiding load errors', () => {
+  it('removes manual refresh and explains automatic retries without hiding load errors', () => {
     window.history.replaceState(null, '', '/about/');
     render(<StorePages {...initial} loadError="Network unavailable" />);
     expect(screen.getByRole('alert').textContent).toContain('Network unavailable');
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh catalogue' }));
-    expect(initial.refreshProducts).toHaveBeenCalledOnce();
-    fireEvent(window, new Event('focus'));
-    expect(initial.refreshProducts).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: 'Refresh catalogue' })).toBeNull();
+    expect(screen.getByRole('alert').textContent).toContain('Retrying automatically');
   });
 
   it('shows the shared factual FAQ and live category links', () => {
@@ -111,6 +109,6 @@ describe('live store pages', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} hasCatalogueSnapshot={false} loadError="Network unavailable" />);
     expect(screen.queryByRole('heading', { name: 'Bunny' })).toBeNull();
-    expect(screen.getByRole('alert').textContent).toContain('Please retry');
+    expect(screen.getByRole('alert').textContent).toContain('Retrying automatically');
   });
 });

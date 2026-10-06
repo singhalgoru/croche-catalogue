@@ -405,7 +405,7 @@ function App() {
 
   if (isStorePage()) {
     return <StorePages products={products} categorySettings={categorySettings} isLoading={isLoading}
-      loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot} refreshProducts={refreshProducts} />;
+      loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot} />;
   }
 
   return (
