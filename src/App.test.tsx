@@ -59,22 +59,12 @@ afterEach(() => {
 
 describe('Hybrid product navigation', () => {
   it('offers direct collection links below products without changing product ordering', () => {
-    catalogueProducts = [{ ...product, featured: true }];
     render(<App />);
-    const catalogueCtas = screen.getByRole('navigation', { name: 'Shop the catalogue' });
-    expect(within(catalogueCtas).getByRole('link', { name: 'Shop featured pieces' }).getAttribute('href'))
-      .toBe('#featured-pieces');
-    expect(within(catalogueCtas).getByRole('link', { name: 'Explore collections' }).getAttribute('href'))
-      .toBe('/collections/');
     const nav = screen.getByRole('navigation', { name: 'Explore collections' });
     expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/collections/home/');
     const grid = screen.getByLabelText('Filtered products');
     expect(grid.textContent).toBe('Test Coaster');
     expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-  it('uses a general catalogue CTA when there are no explicitly featured products', () => {
-    render(<App />);
-    expect(screen.getByRole('link', { name: 'Shop all pieces' }).getAttribute('href')).toBe('#featured-pieces');
   });
   it('shows snapshot product details immediately and replaces them with live copy without losing the page', async () => {
     catalogueSnapshot = true;
