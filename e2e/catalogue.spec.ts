@@ -492,7 +492,7 @@ test('shares a product through app icons and direct social links', async ({
     });
 });
 
-test('positions the cart below the ticker and floats it after an item is added', async ({
+test('positions the cart below the ticker and keeps it clear of sticky categories after adding', async ({
   page,
 }) => {
   const ticker = page.getByLabel('Store announcements');
@@ -519,12 +519,25 @@ test('positions the cart below the ticker and floats it after an item is added',
     has: page.getByRole('heading', { name: 'Rose Charm' }),
   });
   await roseCard.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
-  const floatingCart = page.getByRole('button', { name: 'Open cart with 1 item' });
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const floatingCart = page.getByRole('button', { name: 'Open cart with 1 item' });
+  await expect(floatingCart).toBeVisible();
   const floatingBox = await floatingCart.boundingBox();
   expect(floatingBox).not.toBeNull();
-  expect(floatingBox!.y).toBeGreaterThanOrEqual(40);
-  expect(floatingBox!.y).toBeLessThanOrEqual(60);
+  if (page.viewportSize()!.width < 640) {
+    const categories = page.getByLabel('Product categories');
+    const categoryBox = await categories.boundingBox();
+    const searchBox = await page.getByRole('searchbox').boundingBox();
+    expect(floatingBox!.y + floatingBox!.height).toBeLessThanOrEqual(categoryBox!.y);
+    expect(searchBox!.x + searchBox!.width).toBeLessThanOrEqual(floatingBox!.x);
+    expect(categoryBox!.width).toBeGreaterThan(page.viewportSize()!.width - 50);
+    await categories.getByRole('button', { name: 'All', exact: true }).click();
+    await floatingCart.click();
+    await expect(page.getByRole('dialog', { name: 'Shopping cart' })).toBeVisible();
+  } else {
+    expect(floatingBox!.y).toBeGreaterThanOrEqual(40);
+    expect(floatingBox!.y).toBeLessThanOrEqual(60);
+  }
   expect(floatingBox!.x + floatingBox!.width).toBeGreaterThan(logoBox!.x + logoBox!.width);
 });
 

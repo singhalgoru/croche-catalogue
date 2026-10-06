@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import InstallAppButton from './InstallAppButton';
+import CartMenuButton from './CartMenuButton';
 import { collectionPath } from '../utils/collectionLink.js';
 
 const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
@@ -17,6 +18,8 @@ interface Props {
   categories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
   collectionPages?: boolean;
+  mobileCartInToolbar?: boolean;
+  hideMobileCart?: boolean;
 }
 
 export default function Header({
@@ -32,6 +35,8 @@ export default function Header({
   categories = [],
   onNavigateCatalogue,
   collectionPages = false,
+  mobileCartInToolbar = false,
+  hideMobileCart = false,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = useId();
@@ -139,41 +144,18 @@ export default function Header({
         </div>
       </div>
       {onOpenCart && (
-        <div className="relative z-50 mx-auto h-0 max-w-6xl">
-          <button
-            key={cartUpdateCount}
-            type="button"
+        <div className={`relative z-50 mx-auto h-0 max-w-6xl ${hideMobileCart ? 'hidden sm:block' : ''}`}>
+          <CartMenuButton itemCount={cartItemCount} updateCount={cartUpdateCount}
             onClick={() => {
               setIsMenuOpen(false);
               onOpenCart();
             }}
-            className={`right-4 flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream shadow-md transition-colors hover:bg-cocoa-dark sm:right-6 ${
-              cartUpdateCount > 0 ? 'cart-updated' : ''
-            } ${
+            className={`right-4 sm:right-6 ${
               cartItemCount > 0
-                ? 'fixed top-12 z-[70]'
+                ? mobileCartInToolbar ? 'absolute top-3 sm:fixed sm:top-12 sm:z-[70]' : 'fixed top-12 z-[70]'
                 : 'absolute top-3'
             }`}
-            aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <circle cx="9" cy="20" r="1" />
-              <circle cx="18" cy="20" r="1" />
-              <path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H7" />
-            </svg>
-            {cartItemCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-mustard px-1 text-xs font-bold text-cocoa">
-                {cartItemCount}
-              </span>
-            )}
-          </button>
+          />
         </div>
       )}
       <div

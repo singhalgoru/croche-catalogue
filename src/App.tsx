@@ -10,6 +10,7 @@ import StorePages from './components/StorePages';
 import { isStorePage } from './utils/storePageRoute';
 import { collectionPath } from './utils/collectionLink.js';
 import CategoryFilter from './components/CategoryFilter';
+import CartMenuButton from './components/CartMenuButton';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
@@ -413,6 +414,8 @@ function App() {
         cartItemCount={cart.itemCount}
         cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
+        mobileCartInToolbar={!pageReference}
+        hideMobileCart={!pageReference && areCatalogueToolsSticky}
         tickerMessages={tickerMessages}
         categories={categories}
         onNavigateCatalogue={navigateCatalogue}
@@ -526,12 +529,7 @@ function App() {
         {areCatalogueToolsSticky && (
           <div
             ref={stickyCatalogueToolsRef}
-            className={`fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 py-3 pl-4 shadow-sm backdrop-blur-md sm:hidden ${
-              // The cart button floats above this bar once the cart has items,
-              // so reserve room for it rather than letting it swallow taps on
-              // whichever control sits under it.
-              cart.itemCount > 0 ? 'pr-20' : 'pr-4'
-            }`}
+            className="fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:hidden"
           >
             <div className="flex items-center gap-2">
               <BrandMark className="h-10 w-10" />
@@ -547,6 +545,7 @@ function App() {
                   }
                 />
               </div>
+              <CartMenuButton itemCount={cart.itemCount} updateCount={cart.cartUpdateCount} onClick={() => setIsCartOpen(true)} />
             </div>
             <CategoryFilter
               categories={categories}

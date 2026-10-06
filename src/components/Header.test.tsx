@@ -5,6 +5,13 @@ import Header from './Header';
 afterEach(cleanup);
 
 describe('Header', () => {
+  it('hands the mobile cart to the catalogue toolbar instead of floating over categories', () => {
+    const { rerender } = render(<Header mobileCartInToolbar cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
+    const button = screen.getByRole('button', { name: 'Open cart with 1 item' });
+    expect(button.className).toContain('absolute top-3 sm:fixed');
+    rerender(<Header mobileCartInToolbar hideMobileCart cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
+    expect(button.parentElement?.className).toContain('hidden sm:block');
+  });
   it('uses in-app home and collection navigation while preserving modified-click links', () => {
     const onNavigateCatalogue = vi.fn();
     render(<Header showInstallPrompt={false} categories={['Toys']} onNavigateCatalogue={onNavigateCatalogue} />);

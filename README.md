@@ -158,6 +158,9 @@ Compact collection and information headers keep the logo left-aligned on mobile,
 consistent with product-detail pages.
 Mobile headers use matching 48px logo, menu and cart circles; the larger desktop
 homepage logo is preserved.
+When the mobile catalogue toolbar sticks, the cart moves into its search row
+instead of floating over the category chips. Categories retain the full row width,
+and the empty cart remains reachable there after removing the last item.
 The mobile footer groups navigation and contact actions into two columns, keeps
 44px tap targets for primary links, and reduces spacing and repeated brand copy.
 New/renamed/deleted categories and published products are not hardcoded.
