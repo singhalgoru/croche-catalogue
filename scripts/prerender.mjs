@@ -530,7 +530,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
 `;
 };
 
-const renderSitemap = (products, today) => {
+const renderSitemap = (products, today, additionalPaths = []) => {
   const entry = (loc, lastmod) =>
     `  <url>\n    <loc>${escapeHtml(loc)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}\n  </url>`;
   const productLastmod = (product) => {
@@ -552,6 +552,7 @@ const renderSitemap = (products, today) => {
         productLastmod(product),
       ),
     ),
+    ...additionalPaths.map(pathname => entry(`${ORIGIN}${pathname}`, null)),
   ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
@@ -712,7 +713,14 @@ const main = async () => {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  await writeFile(path.join(DIST, 'sitemap.xml'), renderSitemap(products, today));
+  const { buildContentPages, renderContentSitemap } = await import('./content-pages.mjs');
+  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories);
+  for (const [pathname, html] of contentPages) {
+    const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, 'index.html'), attachProductApp(html, template));
+  }
+  await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages));
   await writeFile(
     path.join(DIST, 'llms.txt'),
     renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber),

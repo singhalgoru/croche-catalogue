@@ -1,0 +1,53 @@
+import { expect, test } from '@playwright/test';
+import { installMockSupabase } from './mockSupabase';
+
+test('store pages reflect added, renamed and removed admin categories without hardcoded links', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await page.goto('/collections/');
+  const collections = page.getByRole('navigation', { name: 'Explore collections' });
+  await expect(collections.getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
+  state.categories.push('Gift Sets');
+  state.categorySettings['Gift Sets'] = { priority: 1 };
+  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await expect(collections.getByRole('link', { name: 'Gift Sets', exact: true })).toHaveAttribute('href', '/collections/gift-sets/');
+  await collections.getByRole('link', { name: 'Gift Sets', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Handmade Gift Sets', exact: true })).toBeVisible();
+  await expect(page.getByText('No published products in this collection yet.')).toBeVisible();
+  state.products[0].category = 'Gift Sets';
+  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toBeVisible();
+  state.categories = state.categories.map(category => category === 'Gift Sets' ? 'Gift Bundles' : category);
+  delete state.categorySettings['Gift Sets'];
+  state.categorySettings['Gift Bundles'] = { priority: 1 };
+  state.products[0].category = 'Gift Bundles';
+  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await expect(page.getByRole('alert')).toContainText('no longer available');
+  await page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Gift Bundles', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Handmade Gift Bundles', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toBeVisible();
+  state.categories = state.categories.filter(category => category !== 'Gift Bundles');
+  delete state.categorySettings['Gift Bundles'];
+  state.products[0].category = 'Charms';
+  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await expect(page.getByRole('alert')).toContainText('no longer available');
+  await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toHaveCount(0);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex,follow');
+  state.categories.push('Handmade Gifts');
+  state.categorySettings['Handmade Gifts'] = { priority: 1 };
+  await page.goto('/?collectionPage=handmade-gifts');
+  await expect(page.getByRole('heading', { name: 'Handmade Handmade Gifts', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/collections\/handmade-gifts\/$/);
+});
+
+test('about and ordering FAQ retain accessible content and current category navigation', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/about/');
+  await expect(page.getByRole('heading', { name: 'About Luvia & contact', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Read the ordering FAQ', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Ordering, delivery & care FAQ', exact: true })).toBeVisible();
+  await page.getByText('How do I place an order?', { exact: true }).click();
+  await expect(page.getByText(/Adding items or sending a message does not confirm an order/)).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(overflow).toBe(false);
+});

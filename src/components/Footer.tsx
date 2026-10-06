@@ -15,6 +15,11 @@ export default function Footer() {
           crafted with love in India.
         </p>
         <p>&copy; {new Date().getFullYear()} Luvia Creations. Check product availability in the catalogue.</p>
+        <nav aria-label="Store information" className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
+          <a href="/collections/" className="underline underline-offset-2 hover:text-mustard">Explore collections</a>
+          <a href="/about/" className="underline underline-offset-2 hover:text-mustard">About &amp; contact</a>
+          <a href="/faq/" className="underline underline-offset-2 hover:text-mustard">Ordering FAQ</a>
+        </nav>
         <p className="mt-2">
           <a href="/return-policy/" className="underline underline-offset-2 hover:text-mustard">
             Return and refund policy

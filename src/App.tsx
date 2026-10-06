@@ -6,6 +6,8 @@ import Footer from './components/Footer';
 import OrderingGuide from './components/OrderingGuide';
 import RelatedProducts from './components/RelatedProducts';
 import ProductDetailPreview from './components/ProductDetailPreview';
+import StorePages from './components/StorePages';
+import { isStorePage } from './utils/storePageRoute';
 import CategoryFilter from './components/CategoryFilter';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -393,6 +395,11 @@ function App() {
         <AdminPage onProductPublished={refreshProducts} />
       </Suspense>
     );
+  }
+
+  if (isStorePage()) {
+    return <StorePages products={products} categorySettings={categorySettings} isLoading={isLoading}
+      loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot} refreshProducts={refreshProducts} />;
   }
 
   return (

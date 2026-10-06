@@ -144,6 +144,31 @@ prices/times; the feed does not invent them. The feed is not an approval
 guarantee: Google reviews the website, images and policies, and WhatsApp-only
 ordering may not meet its online purchase requirements.
 
+## Collections and store information
+
+The build prerenders `/collections/` and one landing page per admin category,
+plus `/about/` (About & Contact) and `/faq/`. Each mounts the catalogue app with
+the public build snapshot and refreshes categories and products from Supabase.
+Returning focus to these pages or choosing **Refresh catalogue** refreshes data.
+New/renamed/deleted categories and published products are not hardcoded.
+Collection pages have their own descriptions, canonical URLs and matching
+CollectionPage/ItemList structured data. They link to interactive product pages
+and the existing category-filtered cart experience; manual product ordering is
+preserved. Prerendered prices are labelled as snapshots; interactive pages
+refresh price and availability, with final confirmation before payment.
+
+All new pages are linked from the hamburger menu and footer and included in the
+sitemap without adding duplicate query-filter URLs. Empty category pages are
+available but marked noindex and excluded from the sitemap; removed categories
+show an unavailable message rather than displaying unrelated products. The
+existing category/product database triggers request a rebuild to update static
+pages and the sitemap. Newly added collection URLs use the 404 app fallback until
+that build finishes. FAQs use accessible native
+disclosures; no FAQ rich-result eligibility, maker biography, reviews, fixed
+delivery times or automatic customisation availability is claimed. These pages
+are readable without JavaScript and use no external widgets. Category names that produce duplicate
+paths fail the build explicitly.
+
 ## AI product image generation
 
 The admin console can generate studio and lifestyle product photos from uploaded

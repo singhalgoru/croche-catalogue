@@ -38,6 +38,7 @@ export default function OrderingGuide() {
         instructions when we confirm your order.
       </p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+        <a href="/faq/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Read the ordering FAQ</a>
         <a
           href={getGeneralWhatsAppLink()}
           target="_blank"

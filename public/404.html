@@ -10,16 +10,18 @@
       (function () {
         var match = window.location.pathname.match(/^\/p\/([^/]+)\/?$/);
         var merchant = window.location.pathname.match(/^\/shopping\/([^/]+)\/([^/]+)\/?$/);
+        var collection = window.location.pathname.match(/^\/collections\/([^/]+)\/?$/);
         var params = new URLSearchParams(window.location.search);
         var decode = function (value) {
           try { return decodeURIComponent(value); } catch (_) { return value; }
         };
         if (match) params.set('productPage', decode(match[1]));
+        if (collection) params.set('collectionPage', decode(collection[1]));
         if (merchant) {
           params.set('productPage', decode(merchant[1]));
           params.set('variant', decode(merchant[2]));
         }
-        var target = match || merchant ? '/?' + params.toString() : '/';
+        var target = match || merchant || collection ? '/?' + params.toString() : '/';
         window.location.replace(target);
       })();
     </script>

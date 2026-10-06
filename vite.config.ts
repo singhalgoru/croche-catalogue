@@ -74,7 +74,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // Product pages and crawler files must come from the network, not the
         // cached SPA shell when opened in an installed browser.
-        navigateFallbackDenylist: [/^\/(?:p|shopping|merchant-images)\//, /^\/return-policy(?:\/|$)/, /^\/(?:robots\.txt|sitemap\.xml|merchant-feed\.xml)$/],
+        navigateFallbackDenylist: [/^\/(?:p|shopping|merchant-images)\//, /^\/(?:return-policy|collections|about|faq)(?:\/|$)/, /^\/(?:robots\.txt|sitemap\.xml|merchant-feed\.xml)$/],
         // GitHub Pages fixes Cache-Control at 10 minutes and older Supabase
         // objects were uploaded with short cache lifetimes. Product uploads get
         // a fresh UUID path and are never overwritten, so keep them for 30 days;

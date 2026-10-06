@@ -41,4 +41,11 @@ describe('OrderingGuide', () => {
     fireEvent.click(email);
     expect(trackContactClick).toHaveBeenCalledWith('email', 'ordering_guide');
   });
+
+  it('connects ordering help and footer navigation to the static information pages', () => {
+    render(<><OrderingGuide /><Footer /></>);
+    expect(screen.getByRole('link', { name: 'Read the ordering FAQ' }).getAttribute('href')).toBe('/faq/');
+    expect(screen.getByRole('link', { name: 'Explore collections' }).getAttribute('href')).toBe('/collections/');
+    expect(screen.getByRole('link', { name: 'About & contact' }).getAttribute('href')).toBe('/about/');
+  });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import InstallAppButton from './InstallAppButton';
+import { collectionPath } from '../utils/collectionLink.js';
 
 const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
 
@@ -15,6 +16,7 @@ interface Props {
   tickerMessages?: string[];
   categories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
+  collectionPages?: boolean;
 }
 
 export default function Header({
@@ -29,6 +31,7 @@ export default function Header({
   tickerMessages = DEFAULT_TICKER_MESSAGES,
   categories = [],
   onNavigateCatalogue,
+  collectionPages = false,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = useId();
@@ -118,7 +121,7 @@ export default function Header({
               <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
               {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
               {categories.map((category) => (
-                <a key={category} href={`${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
+                <a key={category} href={collectionPages ? collectionPath(category) : `${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
                   onClick={event => navigateCatalogue(event, category)}
                   className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
                   {category}
@@ -128,6 +131,9 @@ export default function Header({
                 className="mt-2 block rounded-lg border-t border-mustard/30 px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
                 Return and refund policy
               </a>
+              <a href={`${import.meta.env.BASE_URL}collections/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Explore collection pages</a>
+              <a href={`${import.meta.env.BASE_URL}about/`} className="block rounded-lg px-3 py-3 hover:bg-cream">About &amp; contact</a>
+              <a href={`${import.meta.env.BASE_URL}faq/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Ordering FAQ</a>
             </nav>
           )}
         </div>

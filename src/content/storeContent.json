@@ -1,0 +1,25 @@
+{
+  "collectionDescriptions": {
+    "Charms & Keychains": "Discover handmade crochet charms and keychains for bags, keys and gifting. Explore the available designs, colours and product details.",
+    "Hair Accessories": "Explore handmade crochet hair accessories, including gajras, clips, scrunchies and headbands. Check each product for available colours and styling details.",
+    "Toys": "Meet the handmade crochet toys in the Luvia collection. Check each product for materials, dimensions and care instructions; ask us about any details you need confirmed.",
+    "Festive Decor": "Explore handmade crochet decorations for festive styling and thoughtful gifting. View individual pieces for sizes, materials and available designs.",
+    "Anklets": "Browse handmade anklets from Luvia Creations. View the individual designs and confirm sizing, materials and availability before ordering.",
+    "Brooches": "Explore handmade crochet brooches for adding a decorative touch to your outfit. View product photos, dimensions and available designs."
+  },
+  "about": [
+    "Luvia Creations offers handmade crochet accessories, toys, gifts and decor, crafted with love in India.",
+    "Explore the collections and individual product pages for photos, materials, dimensions and care information where provided. If a detail is missing, ask us before ordering rather than assuming.",
+    "Interested in a particular colour or a customised piece? Send the product link and your preferences. Customisation depends on the product and must be confirmed with us, including price and dispatch timing.",
+    "We ship across India. Availability, shipping charges, the order total and estimated dispatch time are confirmed before payment. A cart or WhatsApp message is an order request, not a confirmed purchase."
+  ],
+  "questions": [
+    ["How do I place an order?", "Choose the product and variant, add your items to the catalogue cart, then send the order request on WhatsApp. We confirm availability, the total including shipping, and estimated dispatch before payment. Adding items or sending a message does not confirm an order."],
+    ["Can I request different colours or customisation?", "Ask us on WhatsApp with the product link and your preferences. Options depend on the product; we will confirm whether the request is possible, along with any price or timing changes."],
+    ["Do you ship across India, and how much does shipping cost?", "We ship across India. Charges and delivery timing depend on your location and order. Share your delivery location so we can confirm the shipping charge and total before you pay."],
+    ["When will my order be dispatched?", "Dispatch timing depends on the item, its availability and any customisation. Ask us for the estimated dispatch time and agree on it before paying. We do not promise one fixed timeline for every product."],
+    ["How do I pay?", "We share payment instructions when confirming your order. Please confirm the product details, total including shipping and dispatch estimate first."],
+    ["What materials and sizes are used?", "Check the individual product details for confirmed materials and dimensions. Information varies by product; ask us to confirm any missing details, suitability or sizing before ordering."],
+    ["How should I care for my crochet product?", "Follow the care instructions on the individual product page where provided. If instructions are missing or you are unsure, contact us before washing; care depends on the materials and construction."]
+  ]
+}

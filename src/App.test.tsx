@@ -218,7 +218,7 @@ describe('Hybrid product navigation', () => {
     expect(window.location.pathname).toBe('/p/related-coaster/');
     expect(window.location.search).not.toContain('variant=');
     expect(window.location.search).toContain('utm_source=instagram');
-    fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Related Coaster' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to cart — Related Coaster' }));
     await waitFor(() => expect(addItem).toHaveBeenCalledWith(related, related.variants[0]));
     window.history.back();
     await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
