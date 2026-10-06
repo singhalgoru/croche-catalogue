@@ -229,6 +229,11 @@ describe('renderShell', () => {
     expect(shell).toContain('hand-crocheted ivory roses');
   });
 
+  it('uses premium brand positioning in the non-JavaScript homepage introduction', () => {
+    expect(shell).toContain('<h1>Premium Handmade Crochet Creations</h1>');
+    expect(shell).toContain('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.');
+  });
+
   it('links to the static product page', () => {
     expect(shell).toContain(`href="/p/${prerenderSlug(product)}/"`);
   });
@@ -276,11 +281,22 @@ describe('injectShell', () => {
     for (const key of ['name="description"', 'property="og:description"', 'name="twitter:description"']) {
       const description = result.match(new RegExp(`${key}\\s+content="([^"]+)"`))?.[1];
       expect(description).toContain('hair accessories, brooches');
+      expect(description).toContain('Luvia&#39;s premium handmade crochet');
       expect(description).not.toMatch(/bags|rakhi/i);
     }
     const scripts = [...result.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
     const store = JSON.parse(scripts[0][1])['@graph'][0];
     expect(store.description).toContain('hair accessories, brooches');
+  });
+
+  it('bootstraps the premium homepage title for hydrated metadata', async () => {
+    const source = readFileSync(path.resolve('index.html'), 'utf8');
+    const result = injectCatalogueBootstrap(source, [], [], {
+      title: 'Premium Handmade Crochet in India | Luvia Creations',
+      description: 'Premium handmade crochet.',
+      canonical: 'https://luviacreations.com/',
+    });
+    expect(result).toContain('"title":"Premium Handmade Crochet in India | Luvia Creations"');
   });
 });
 

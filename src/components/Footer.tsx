@@ -11,8 +11,8 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 py-5 sm:py-8 text-center text-sm">
         <p className="font-heading text-lg text-mustard mb-1">Luvia Creations</p>
         <p className="mx-auto mb-2 hidden max-w-2xl text-cream/75 sm:block">
-          Handmade crochet accessories, toys, gifts and decor,
-          crafted with love in India.
+          Premium handmade crochet accessories, toys, gifts and decor,
+          thoughtfully crafted in India.
         </p>
         <p>&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
         <nav aria-label="Store information" className="mt-2 grid grid-cols-2 gap-x-3 sm:mt-3 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-5">

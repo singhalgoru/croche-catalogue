@@ -194,14 +194,14 @@ export default function Header({
             compact ? 'text-lg sm:text-xl' : 'text-lg leading-snug sm:text-3xl'
           }`}
         >
-          Handmade Crochet Products &amp; Gifts
+          Premium Handmade Crochet Creations
         </h1>}
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-            <span className="sm:hidden">Made with love. Delivered across India.</span>
+            <span className="sm:hidden">Thoughtfully made. Delivered across India.</span>
             <span className="hidden sm:inline">
-              Explore handmade crochet accessories, gifts, toys and decor by Luvia.
-              Every piece is stitched with love and shipped across India.
+              Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.
+              Handmade in India and shipped nationwide.
             </span>
           </p>
         )}

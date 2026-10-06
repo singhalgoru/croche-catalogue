@@ -75,9 +75,9 @@ describe('Header', () => {
     const logo = screen.getByRole('img', { name: /Luvia/ });
     expect(logo.className).toContain('h-12 w-12');
     expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 48px');
-    expect(screen.getByText('Made with love. Delivered across India.').className).toContain('sm:hidden');
-    expect(screen.getByText(/Explore handmade crochet accessories/).className).toContain('hidden sm:inline');
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Handmade Crochet Products & Gifts');
+    expect(screen.getByText('Thoughtfully made. Delivered across India.').className).toContain('sm:hidden');
+    expect(screen.getByText(/Discover thoughtfully crafted crochet accessories/).className).toContain('hidden sm:inline');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Premium Handmade Crochet Creations');
     fireEvent.click(screen.getByRole('button', { name: 'Open cart with 2 items' }));
     expect(onOpenCart).toHaveBeenCalledOnce();
   });
@@ -86,7 +86,7 @@ describe('Header', () => {
     render(<Header compact showInstallPrompt={false} />);
     expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
     expect(screen.queryByText('Luvia Creations')).toBeNull();
-    expect(screen.queryByText('Made with love. Delivered across India.')).toBeNull();
+    expect(screen.queryByText('Thoughtfully made. Delivered across India.')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
   });
 

@@ -92,7 +92,7 @@ export default function StorePages({ products, categorySettings, isLoading, load
         {hasCatalogueSnapshot ? ' Showing the last available catalogue. Retrying automatically.' : ' Retrying automatically when connected.'}</p>}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
       {pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
-        <h2 className="font-heading text-xl font-bold">Handmade crochet, made with love</h2>
+        <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
         <h2 className="font-heading text-xl font-bold">Contact Luvia</h2>

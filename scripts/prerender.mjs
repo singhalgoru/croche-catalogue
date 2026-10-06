@@ -272,8 +272,8 @@ const groupByCategory = (products) => {
 const catalogueDescription = (products) => {
   const categories = groupByCategory(products).map(([category]) => category.toLowerCase());
   return categories.length > 0
-    ? `Shop Luvia's handmade crochet ${categories.join(', ')}. Shipping across India.`
-    : 'Explore handmade crochet accessories, gifts, toys and decor by Luvia, with shipping across India.';
+    ? truncate(`Discover Luvia's premium handmade crochet ${categories.join(', ')}. Thoughtfully crafted in India and shipped nationwide.`, 160)
+    : 'Discover premium handmade crochet accessories, gifts, toys and decor from Luvia Creations. Thoughtfully crafted in India and shipped nationwide.';
 };
 
 const stockLabel = (product) => product.inStock ? 'In stock' : 'Sold out';
@@ -362,8 +362,8 @@ const renderShell = (products) => {
 
   return [
     '<header>',
-    '<h1>Handmade Crochet Products and Gifts in India</h1>',
-    "<p>Browse Luvia Creations' handmade crochet catalogue. Every piece is crocheted by hand and shipped across India.</p>",
+    '<h1>Premium Handmade Crochet Creations</h1>',
+    "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide.</p>",
     '</header>',
     '<main>',
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
@@ -684,7 +684,7 @@ const main = async () => {
   ]);
   const products = rows.map(toProduct);
   const homepage = {
-    title: 'Handmade Crochet Products in India | Luvia',
+    title: 'Premium Handmade Crochet in India | Luvia Creations',
     description: catalogueDescription(products),
     canonical: `${ORIGIN}/`,
   };

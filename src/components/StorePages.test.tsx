@@ -105,6 +105,13 @@ describe('live store pages', () => {
     expect(within(screen.getByRole('navigation', { name: 'Explore collections' })).getByRole('link', { name: 'Toys' })).toBeTruthy();
   });
 
+  it('positions the brand as premium on the about page without changing product details', () => {
+    window.history.replaceState(null, '', '/about/');
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { name: 'Thoughtfully crafted crochet, made to be treasured' })).toBeTruthy();
+    expect(screen.getByText(/brings a premium touch to handmade crochet accessories/)).toBeTruthy();
+  });
+
   it('does not expose bundled legacy products after an initial live load fails without a snapshot', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} hasCatalogueSnapshot={false} loadError="Network unavailable" />);
