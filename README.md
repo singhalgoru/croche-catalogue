@@ -185,6 +185,16 @@ delivery times or automatic customisation availability is claimed. These pages
 are readable without JavaScript and use no external widgets. Category names that produce duplicate
 paths fail the build explicitly.
 
+## Optional delivery PIN codes
+
+The cart offers an optional delivery PIN code with explicit Save/Clear controls.
+Only six-digit Indian PIN shapes are accepted; no location lookup is performed.
+Saved PINs are included in WhatsApp/email enquiries and shown in admin as
+shopper-provided and unverified, never as a delivery address or shipping quote.
+They share the cart's 30-day lifetime and are cleared on cart deletion/renewal.
+No raw IP addresses or GPS coordinates are collected. Apply migration
+`20261006090500_add_cart_delivery_pin.sql` before deploying the frontend.
+
 ## Product customisation enquiries
 
 Product quick views and full details offer a WhatsApp customisation enquiry.

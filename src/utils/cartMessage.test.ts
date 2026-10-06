@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWhatsAppCartMessage, getCartTotals } from './cartMessage';
+import { buildEmailCartBody, buildWhatsAppCartMessage, getCartTotals } from './cartMessage';
 import type { Cart } from '../types/cart';
 
 const buildCart = (items: Cart['items']): Cart => ({
@@ -41,6 +41,12 @@ describe('getCartTotals', () => {
 });
 
 describe('buildWhatsAppCartMessage', () => {
+  it('includes only a saved voluntary PIN in WhatsApp and email enquiries', () => {
+    const cart = { ...buildCart([buildItem()]), deliveryPinCode: '110001' };
+    expect(buildWhatsAppCartMessage(cart)).toContain('Delivery PIN code (shopper-provided): 110001');
+    expect(buildEmailCartBody(cart)).toContain('Pincode     : 110001 (shopper-provided)');
+    expect(buildWhatsAppCartMessage({ ...cart, deliveryPinCode: null })).not.toContain('Delivery PIN code');
+  });
   it('bolds each product name so the list is scannable in chat', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem()]));
     expect(message).toContain('*1. Cute Bunny*');

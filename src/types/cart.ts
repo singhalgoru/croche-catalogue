@@ -11,6 +11,7 @@ export interface CartItem {
 }
 
 export interface Cart {
+  deliveryPinCode?: string | null;
   id: string;
   reference: string;
   status: 'active' | 'whatsapp_started';

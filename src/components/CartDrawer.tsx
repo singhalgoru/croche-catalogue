@@ -7,8 +7,10 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import { getCartWhatsAppLink } from '../utils/whatsapp';
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
+import CartDeliveryPin from './CartDeliveryPin';
 
 interface Props {
+  onSaveDeliveryPin: (value: string) => Promise<Cart | null>;
   cart: Cart | null;
   products: Product[];
   isLoading: boolean;
@@ -36,6 +38,7 @@ export default function CartDrawer({
   onWhatsAppStarted,
   onEmailStarted,
   onOpenProduct,
+  onSaveDeliveryPin,
 }: Props) {
   // Desktop browsers with no mail client registered silently ignore mailto:
   // links, so reveal webmail and copy fallbacks once Email has been tried.
@@ -149,6 +152,7 @@ export default function CartDrawer({
             </div>
           ) : (
             <div className="space-y-3">
+              <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
               {checkoutCart?.items.map((item) => {
                 const isUnavailable = unavailableItemIds.has(item.id);
                 const itemName = item.variantName
@@ -266,7 +270,7 @@ export default function CartDrawer({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(event) => {
-                  if (unavailableItemIds.size > 0) {
+                  if (unavailableItemIds.size > 0 || isBusy) {
                     event.preventDefault();
                     return;
                   }
@@ -286,7 +290,7 @@ export default function CartDrawer({
               <a
                 href={unavailableItemIds.size === 0 ? emailLink : undefined}
                 onClick={(event) => {
-                  if (unavailableItemIds.size > 0) {
+                  if (unavailableItemIds.size > 0 || isBusy) {
                     event.preventDefault();
                     return;
                   }

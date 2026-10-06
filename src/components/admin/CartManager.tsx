@@ -112,6 +112,9 @@ export default function CartManager() {
                     <p className="text-xs text-cocoa/55">
                       Last activity {new Date(cart.updatedAt).toLocaleString()}
                     </p>
+                    <p className="mt-2 text-sm text-cocoa/75">
+                      {cart.deliveryPinCode ? `Delivery PIN: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery PIN: not provided'}
+                    </p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-bold ${

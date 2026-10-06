@@ -72,6 +72,7 @@ export interface CartItemRow {
 }
 
 export interface CartRow {
+  delivery_pin_code?: string | null;
   id: string;
   user_id: string;
   reference: string;

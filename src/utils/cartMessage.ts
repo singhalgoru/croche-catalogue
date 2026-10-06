@@ -53,6 +53,7 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
       : `*Total: please confirm* (some items are ${PRICE_ON_ENQUIRY.toLowerCase()})`,
     '',
     'Please confirm availability and the final total so we can proceed.',
+    ...(cart.deliveryPinCode ? [`Delivery PIN code (shopper-provided): ${cart.deliveryPinCode}`] : []),
     `Cart reference: ${cart.reference}`,
   ].join('\n');
 };
@@ -132,7 +133,7 @@ export const buildEmailCartBody = (
     'Name        :',
     'Phone       :',
     'Address     :',
-    'Pincode     :',
+    `Pincode     :${cart.deliveryPinCode ? ` ${cart.deliveryPinCode} (shopper-provided)` : ''}`,
     '',
     'Please confirm availability and the final total so we can proceed.',
   ].join('\n');

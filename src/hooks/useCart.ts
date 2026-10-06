@@ -6,6 +6,7 @@ import {
   markCartWhatsAppStarted,
   removeCartItem,
   updateCartItemQuantity,
+  updateCartDeliveryPin,
 } from '../services/cart';
 import { trackAddToCart } from '../services/analytics';
 import type { Cart } from '../types/cart';
@@ -95,6 +96,7 @@ export function useCart(enabled = true) {
       runCartAction(() => updateCartItemQuantity(itemId, quantity)),
     removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId)),
     clear: () => runCartAction(clearCart),
+    saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value)),
     markWhatsAppStarted: () => runCartAction(markCartWhatsAppStarted),
   };
 }

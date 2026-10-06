@@ -236,7 +236,7 @@ export default function ImageZoomViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-black/90"
+      className="fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-black/90"
       role="dialog"
       aria-modal="true"
       aria-label={`Zoomed image of ${alt}`}

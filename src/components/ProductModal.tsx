@@ -354,7 +354,7 @@ export default function ProductModal({
 
   return (
     <div
-      className={isPage ? 'w-full' : 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50'}
+      className={isPage ? 'w-full' : 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]'}
       onClick={isPage ? undefined : onClose}
       onTouchStartCapture={revealTouchControls}
       role={isPage ? undefined : 'dialog'}

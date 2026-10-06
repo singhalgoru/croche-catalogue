@@ -653,6 +653,7 @@ function App() {
           onWhatsAppStarted={() => {
             void cart.markWhatsAppStarted();
           }}
+          onSaveDeliveryPin={cart.saveDeliveryPin}
           onEmailStarted={() => {
             trackEvent('email_cart', {
               cart_reference: cart.cart?.reference ?? '',

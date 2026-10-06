@@ -3,6 +3,7 @@ import type { Product, ProductVariant } from '../types/product';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartItem } from '../types/cart';
+import { normalizeDeliveryPin } from '../utils/deliveryPin';
 
 interface CartItemRow {
   id: string;
@@ -18,6 +19,7 @@ interface CartItemRow {
 }
 
 interface CartRow {
+  delivery_pin_code?: string | null;
   id: string;
   user_id: string;
   reference: string;
@@ -30,7 +32,7 @@ interface CartRow {
 }
 
 const CART_COLUMNS =
-  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
+  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
 const LOCAL_CART_KEY = 'luvia-cart';
 const CART_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -57,6 +59,7 @@ export const sortCartItemsByCreatedAt = (items: CartItemRow[]) =>
   });
 
 const mapCart = (row: CartRow): Cart => ({
+  deliveryPinCode: row.delivery_pin_code ?? null,
   id: row.id,
   reference: row.reference,
   status: row.status,
@@ -162,6 +165,7 @@ const loadRemoteCart = async (): Promise<Cart> => {
         updated_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + CART_LIFETIME_MS).toISOString(),
         whatsapp_started_at: null,
+        delivery_pin_code: null,
       })
       .eq('id', (existing as CartRow).id)
       .select(CART_COLUMNS)
@@ -333,6 +337,25 @@ export async function clearCart(): Promise<Cart> {
   const { error } = await supabase.from('carts').delete().eq('id', cart.id);
   if (error) throw new Error(`Unable to delete your cart: ${error.message}`);
   return createLocalCart();
+}
+
+export async function updateCartDeliveryPin(value: string): Promise<Cart> {
+  const pin = normalizeDeliveryPin(value);
+  const supabase = await loadSupabase();
+  if (!isSupabaseConfigured) {
+    const cart = readLocalCart();
+    if (!cart.items.length) throw new Error('Add a product before saving a delivery PIN code.');
+    return writeLocalCart({ ...cart, deliveryPinCode: pin });
+  }
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const cart = await loadRemoteCart();
+  if (!cart.items.length) throw new Error('Add a product before saving a delivery PIN code.');
+  const { data, error } = await supabase.from('carts')
+    .update({ delivery_pin_code: pin, updated_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + CART_LIFETIME_MS).toISOString() })
+    .eq('id', cart.id).select(CART_COLUMNS).single();
+  if (error) throw new Error(`Unable to save your delivery PIN code: ${error.message}`);
+  return mapCart(data as CartRow);
 }
 
 export async function markCartWhatsAppStarted(): Promise<Cart> {
