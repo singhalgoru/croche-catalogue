@@ -568,20 +568,53 @@ function App() {
             />
           </div>
         )}
-        <div className="text-center">
-          <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa">
-            Shop the Collection
-          </h2>
-          <p className="mt-1 text-xs text-cocoa/80 sm:text-sm">
-            Add your favourites to the cart, then confirm your order on WhatsApp.
-          </p>
-        </div>
+        {effectiveActiveCategory === 'All' && !query.trim() ? (
+          <section
+            aria-labelledby="catalogue-intro-heading"
+            className="flex flex-col gap-3 rounded-2xl border border-mustard/40 bg-cocoa px-4 py-4 text-cream shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6"
+          >
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-mustard">
+                Handmade with care
+              </p>
+              <h2 id="catalogue-intro-heading" className="mt-1 font-heading text-xl font-bold sm:text-2xl">
+                Find a little joy in every stitch
+              </h2>
+              <p className="mt-1 text-xs text-cream/80 sm:text-sm">
+                Explore crochet favourites, thoughtfully made for gifting and everyday moments.
+              </p>
+            </div>
+            <nav aria-label="Shop the catalogue" className="flex shrink-0 flex-wrap gap-2">
+              <a
+                href="#featured-pieces"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-mustard px-3 py-2 text-xs font-bold text-cocoa underline-offset-4 hover:underline sm:px-4 sm:text-sm"
+              >
+                {filteredProducts.some((product) => product.featured) ? 'Shop featured pieces' : 'Shop all pieces'}
+              </a>
+              <a
+                href="/collections/"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-cream/60 px-3 py-2 text-xs font-semibold text-cream underline-offset-4 hover:underline sm:px-4 sm:text-sm"
+              >
+                Explore collections
+              </a>
+            </nav>
+          </section>
+        ) : (
+          <div className="text-center">
+            <h2 className="font-heading text-2xl font-bold text-cocoa md:text-3xl">
+              Shop the Collection
+            </h2>
+            <p className="mt-1 text-xs text-cocoa/80 sm:text-sm">
+              Add your favourites to the cart, then confirm your order on WhatsApp.
+            </p>
+          </div>
+        )}
         {loadError && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
             {loadError}
           </p>
         )}
-        <div ref={productGridRef}>
+        <div id="featured-pieces" ref={productGridRef} className="scroll-mt-4">
           {isLoading && !hasCatalogueSnapshot ? (
             <p className="py-16 text-center text-cocoa/60">Loading the catalogue…</p>
           ) : (
