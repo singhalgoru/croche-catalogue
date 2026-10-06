@@ -9,12 +9,12 @@ test('store pages reflect added, renamed and removed admin categories without ha
   state.categories.push('Gift Sets');
   state.categorySettings['Gift Sets'] = { priority: 1 };
   await page.getByRole('button', { name: 'Refresh catalogue' }).click();
+  await expect(collections.getByRole('link', { name: 'Gift Sets', exact: true })).toHaveCount(0);
+  state.products[0].category = 'Gift Sets';
+  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
   await expect(collections.getByRole('link', { name: 'Gift Sets', exact: true })).toHaveAttribute('href', '/collections/gift-sets/');
   await collections.getByRole('link', { name: 'Gift Sets', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Handmade Gift Sets', exact: true })).toBeVisible();
-  await expect(page.getByText('No published products in this collection yet.')).toBeVisible();
-  state.products[0].category = 'Gift Sets';
-  await page.getByRole('button', { name: 'Refresh catalogue' }).click();
   await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toBeVisible();
   state.categories = state.categories.map(category => category === 'Gift Sets' ? 'Gift Bundles' : category);
   delete state.categorySettings['Gift Sets'];
@@ -34,6 +34,7 @@ test('store pages reflect added, renamed and removed admin categories without ha
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex,follow');
   state.categories.push('Handmade Gifts');
   state.categorySettings['Handmade Gifts'] = { priority: 1 };
+  state.products[0].category = 'Handmade Gifts';
   await page.goto('/?collectionPage=handmade-gifts');
   await expect(page.getByRole('heading', { name: 'Handmade Handmade Gifts', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/collections\/handmade-gifts\/$/);

@@ -158,8 +158,11 @@ preserved. Prerendered prices are labelled as snapshots; interactive pages
 refresh price and availability, with final confirmation before payment.
 
 All new pages are linked from the hamburger menu and footer and included in the
-sitemap without adding duplicate query-filter URLs. Empty category pages are
-available but marked noindex and excluded from the sitemap; removed categories
+sitemap without adding duplicate query-filter URLs. As on the homepage, categories
+with no published products are hidden from collection navigation and the collections
+hub (including categories whose products are all unpublished in admin). Publishing
+a product makes its collection visible on the next refresh. Empty category pages are
+available only by direct URL, marked noindex and excluded from the sitemap; removed categories
 show an unavailable message rather than displaying unrelated products. The
 existing category/product database triggers request a rebuild to update static
 pages and the sitemap. Newly added collection URLs use the 404 app fallback until

@@ -73,7 +73,7 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
       <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema);
     pages.set(pathname, items.length ? collectionHtml
       : collectionHtml.replace('</head>', '<meta name="robots" content="noindex,follow"></head>'));
-    collectionLinks.push(`<li class="card"><h2><a href="${pathname}">${escapeHtml(category)}</a></h2><p>${escapeHtml(description)}</p><p>${items.length} products</p></li>`);
+    if (items.length) collectionLinks.push(`<li class="card"><h2><a href="${pathname}">${escapeHtml(category)}</a></h2><p>${escapeHtml(description)}</p><p>${items.length} products</p></li>`);
   }
   const title = 'Explore our handmade collections';
   const description = 'Browse Luvia Creations collections of handmade crochet accessories, toys, gifts and decor. Explore product details and request orders across India.';

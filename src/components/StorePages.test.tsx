@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorePages from './StorePages';
 import type { Product } from '../types/product';
 
-vi.mock('./Header', () => ({ default: () => <header /> }));
+vi.mock('./Header', () => ({ default: ({ categories }: { categories: string[] }) => <header>{categories.join(', ')}</header> }));
 vi.mock('./Footer', () => ({ default: () => <footer /> }));
 const products: Product[] = [{ id: 'p1', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
   price: 500, image: 'https://images.luviacreations.com/products/admin/bunny.webp', inStock: true, color: '#ffffff', variants: [] }];
@@ -29,11 +29,27 @@ describe('live store pages', () => {
     const { rerender } = render(<StorePages {...initial} />);
     const nav = screen.getByRole('navigation', { name: 'Explore collections' });
     expect(within(nav).getByRole('link', { name: 'Toys' }).getAttribute('href')).toBe('/collections/toys/');
-    rerender(<StorePages {...initial} categorySettings={[{ name: 'Gifts', priority: 1 }]} />);
+    rerender(<StorePages {...initial} products={[{ ...products[0], category: 'Gifts' }]} categorySettings={[{ name: 'Gifts', priority: 1 }]} />);
     expect(within(nav).queryByRole('link', { name: 'Toys' })).toBeNull();
     expect(within(nav).getByRole('link', { name: 'Gifts' }).getAttribute('href')).toBe('/collections/gifts/');
   });
 
+  it('hides categories without published products on every store page and restores them after publication', () => {
+    const settings = [...initial.categorySettings, { name: 'Rakhi', priority: 20 }];
+    for (const pathname of ['/collections/', '/collections/toys/', '/about/', '/faq/']) {
+      window.history.replaceState(null, '', pathname);
+      const { rerender, unmount } = render(<StorePages {...initial} categorySettings={settings} />);
+      const nav = screen.getByRole('navigation', { name: 'Explore collections' });
+      expect(within(nav).queryByRole('link', { name: 'Rakhi' })).toBeNull();
+      expect(screen.getByRole('banner').textContent).not.toContain('Rakhi');
+      rerender(<StorePages {...initial} categorySettings={settings} products={[...products, { ...products[0], id: 'r1', category: 'Rakhi' }]} />);
+      expect(within(nav).getByRole('link', { name: 'Rakhi' })).toBeTruthy();
+      expect(screen.getByRole('banner').textContent).toContain('Rakhi');
+      rerender(<StorePages {...initial} categorySettings={settings} />);
+      expect(within(nav).queryByRole('link', { name: 'Rakhi' })).toBeNull();
+      unmount();
+    }
+  });
   it('updates product prices and removes unpublished items after a live refresh', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     const { rerender } = render(<StorePages {...initial} />);

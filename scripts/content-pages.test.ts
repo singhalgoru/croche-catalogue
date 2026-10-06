@@ -94,5 +94,8 @@ describe('collection and information pages', () => {
     expect(next.has('/collections/toys/')).toBe(false);
     expect(new JSDOM(next.get('/collections/new-gifts/')).window.document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
     expect(renderContentSitemap([], '2026-10-06', next)).not.toContain('/collections/new-gifts/');
+    expect(new JSDOM(next.get('/collections/')).window.document.querySelector('a[href="/collections/new-gifts/"]')).toBeNull();
+    const published = buildContentPages([{ ...toy, category: 'New Gifts' }], '919205907350', [{ name: 'New Gifts', priority: 1 }]);
+    expect(new JSDOM(published.get('/collections/')).window.document.querySelector('a[href="/collections/new-gifts/"]')).toBeTruthy();
   });
 });

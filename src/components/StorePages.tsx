@@ -27,6 +27,10 @@ export default function StorePages({ products, categorySettings, isLoading, load
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
   const categories = useMemo(() => [...categorySettings].sort((a, b) => a.priority - b.priority), [categorySettings]);
+  const visibleCategories = useMemo(() => {
+    const populatedCategories = new Set(products.map(product => product.category));
+    return categories.filter(item => populatedCategories.has(item.name));
+  }, [categories, products]);
   const category = categories.find(item => collectionPath(item.name) === requestedPath)?.name;
   const collectionProducts = useMemo(() => products.filter(product => product.category === category)
     .sort((a, b) => compareCatalogueProducts(a, b, { now: catalogueTime, categoryRanks: new Map() })), [category, products, catalogueTime]);
@@ -67,7 +71,7 @@ export default function StorePages({ products, categorySettings, isLoading, load
     if (schema && requestedPath.startsWith('/collections/')) {
       const listed = isCollection ? collectionProducts.map(product => ({
         name: product.name, url: toProductPageUrl(product),
-      })) : categories.map(item => ({ name: item.name, url: `${window.location.origin}${collectionPath(item.name)}` }));
+      })) : visibleCategories.map(item => ({ name: item.name, url: `${window.location.origin}${collectionPath(item.name)}` }));
       schema.textContent = JSON.stringify({
         '@context': 'https://schema.org', '@type': 'CollectionPage', name: title, url: `${window.location.origin}${requestedPath}`,
         mainEntity: { '@type': 'ItemList', numberOfItems: listed.length, itemListElement: listed.map((item, index) => ({
@@ -76,7 +80,7 @@ export default function StorePages({ products, categorySettings, isLoading, load
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [categories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, requestedPath, title]);
+  }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, requestedPath, title]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -85,12 +89,12 @@ export default function StorePages({ products, categorySettings, isLoading, load
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="flex flex-wrap gap-3">
-      {categories.map(item => <a key={item.name} href={collectionPath(item.name)}
+      {visibleCategories.map(item => <a key={item.name} href={collectionPath(item.name)}
         className="rounded-full border border-mustard px-4 py-2 text-sm underline underline-offset-4">{item.name}</a>)}
     </nav>
   );
   return <div className="flex min-h-screen flex-col">
-    <Header compact showHeading={false} showInstallPrompt={false} categories={showCatalogue ? categories.map(item => item.name) : []} collectionPages />
+    <Header compact showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []} collectionPages />
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
@@ -145,7 +149,7 @@ export default function StorePages({ products, categorySettings, isLoading, load
           </ul>}
         </>}
       </> : <><p>Browse handmade crochet accessories, toys, gifts and decor. Collections reflect the current catalogue.</p>
-        {showCatalogue && categories.length === 0 && <p>No collections are available yet.</p>}</>}
+        {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
       {showCatalogue && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
       <p className="text-sm">Confirm the final price, shipping charges and dispatch estimate with us before paying.</p>
     </main><Footer />
