@@ -76,6 +76,7 @@ export function useCart(enabled = true) {
     isLoading,
     isBusy,
     error,
+    dismissError: () => setError(null),
     addFeedback,
     cartUpdateCount,
     addItem: async (product: Product, variant: ProductVariant) => {

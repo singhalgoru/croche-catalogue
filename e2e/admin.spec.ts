@@ -202,11 +202,20 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   await expect(page.getByText('Estimated total: ₹698')).toBeVisible();
   await expect(page.getByText('Delivery PIN: 110001 (shopper-provided, unverified)')).toBeVisible();
   await expect(page.getByText(/Postal area: Central Delhi · Delhi · India/)).toBeVisible();
+  await page.getByRole('button', { name: 'Block cart session' }).click();
+  await expect(page.getByText(/This is not an IP ban/)).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm block' }).click();
+  await expect(page.getByText('Cart session blocked', { exact: true })).toBeVisible();
+  expect(state.cartSessionBlocks).toHaveLength(1);
   await page.getByRole('button', { name: 'Delete cart' }).click();
   await page.getByRole('button', { name: 'Yes, delete cart' }).click();
   await expect(page.getByRole('heading', { name: 'CRT-CUSTOMER' })).toHaveCount(0);
   await expect(page.getByText('No active customer carts yet.')).toBeVisible();
   expect(state.carts).toHaveLength(0);
+  await expect(page.getByRole('heading', { name: 'Blocked cart sessions' })).toBeVisible();
+  await page.getByRole('button', { name: 'Unblock session' }).click();
+  await expect(page.getByRole('heading', { name: 'Blocked cart sessions' })).toHaveCount(0);
+  expect(state.cartSessionBlocks).toHaveLength(0);
 });
 
 test('manages rotating ticker messages', async ({ page }) => {

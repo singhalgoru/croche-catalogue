@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteAdminCart, fetchAdminCarts } from '../../services/cart';
-import type { AdminCart } from '../../types/cart';
+import { deleteAdminCart, fetchAdminCarts, fetchCartSessionBlocks, setCartSessionBlocked } from '../../services/cart';
+import type { AdminCart, CartSessionBlock } from '../../types/cart';
 import { formatINR } from '../../utils/currency';
 
 export default function CartManager() {
@@ -10,11 +10,15 @@ export default function CartManager() {
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [blocks, setBlocks] = useState<CartSessionBlock[]>([]);
+  const [blockId, setBlockId] = useState<string | null>(null);
 
   const loadCarts = useCallback(async () => {
     setIsLoading(true);
     try {
-      setCarts(await fetchAdminCarts());
+      const [loadedCarts, loadedBlocks] = await Promise.all([fetchAdminCarts(), fetchCartSessionBlocks()]);
+      setCarts(loadedCarts);
+      setBlocks(loadedBlocks);
       setError(null);
     } catch (loadError) {
       setError(
@@ -40,6 +44,20 @@ export default function CartManager() {
       setError(
         deleteError instanceof Error ? deleteError.message : 'Unable to delete the cart.',
       );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const changeBlock = async (userId: string, blocked: boolean) => {
+    setBusyId(userId);
+    setError(null);
+    try {
+      await setCartSessionBlocked(userId, blocked);
+      setBlocks(await fetchCartSessionBlocks());
+      setBlockId(null);
+    } catch (blockError) {
+      setError(blockError instanceof Error ? blockError.message : 'Unable to update the cart session block.');
     } finally {
       setBusyId(null);
     }
@@ -159,6 +177,22 @@ export default function CartManager() {
                     {formatINR(total)}
                   </p>
                 )}
+                {blocks.some(block => block.userId === cart.userId) ? (
+                  <p className="mt-3 text-sm font-semibold text-red-700">Cart session blocked</p>
+                ) : blockId === cart.userId ? (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm text-red-800">Block new cart changes and PIN lookups for this session? This is not an IP ban; a different browser can create a new session.</p>
+                    <div className="mt-2 flex gap-3">
+                      <button type="button" disabled={busyId !== null} onClick={() => void changeBlock(cart.userId, true)}
+                        className="min-h-11 px-3 text-sm font-semibold text-red-700 underline disabled:opacity-50">Confirm block</button>
+                      <button type="button" disabled={busyId !== null} onClick={() => setBlockId(null)}
+                        className="min-h-11 px-3 text-sm underline disabled:opacity-50">Cancel block</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" disabled={busyId !== null} onClick={() => setBlockId(cart.userId)}
+                    className="mt-3 min-h-11 text-sm font-semibold text-red-700 underline disabled:opacity-50">Block cart session</button>
+                )}
                 {deleteId === cart.id ? (
                   <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
                     <p className="text-sm font-semibold text-red-800">
@@ -197,6 +231,17 @@ export default function CartManager() {
             );
           })}
         </div>
+        {blocks.length > 0 && <div className="mt-5 rounded-xl border border-red-200 p-3">
+          <h3 className="font-semibold">Blocked cart sessions</h3>
+          <p className="mt-1 text-xs text-cocoa/65">Blocks remain after cart deletion. Unblock here if a session was flagged by mistake.</p>
+          <ul className="mt-2">
+            {blocks.map(block => <li key={block.userId} className="flex items-center gap-3 border-t border-mustard/20 py-2">
+              <span className="min-w-0 flex-1 break-all text-xs">{block.userId} · {new Date(block.createdAt).toLocaleString()}</span>
+              <button type="button" disabled={busyId !== null} onClick={() => void changeBlock(block.userId, false)}
+                className="min-h-11 shrink-0 px-3 text-sm underline disabled:opacity-50">Unblock session</button>
+            </li>)}
+          </ul>
+        </div>}
       </div>
     </section>
   );

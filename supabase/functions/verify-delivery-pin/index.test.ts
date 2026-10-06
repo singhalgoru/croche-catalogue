@@ -90,6 +90,14 @@ it('rate limits repeated lookups before the upstream request', async () => {
   expect((await handler(request())).status).toBe(429);
   expect(fetchMock).not.toHaveBeenCalled();
 });
+it('rejects admin-blocked cart sessions before any postal lookup', async () => {
+  rpc.mockResolvedValue({ data: null, error: { message: 'This cart session has been blocked.' } });
+  const response = await handler(request());
+  expect(response.status).toBe(403);
+  expect(await response.json()).toHaveProperty('error', expect.stringContaining('blocked'));
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(updateValues).toBeUndefined();
+});
 it('surfaces upstream outages and preserves the saved PIN', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   fetchMock.mockRejectedValue(new Error('Timeout'));

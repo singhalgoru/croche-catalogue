@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/cart-captcha.spec.ts',
   fullyParallel: true,
   workers: 2,
   forbidOnly: Boolean(process.env.CI),
@@ -30,6 +31,7 @@ export default defineConfig({
       VITE_GA_MEASUREMENT_ID: 'G-TEST123456',
       VITE_META_PIXEL_ID: 'TEST-PIXEL-123',
       VITE_CSP_EXTRA_CONNECT_SRC: 'http://supabase.test',
+      VITE_TURNSTILE_SITE_KEY: '',
     },
     reuseExistingServer: false,
     timeout: 120_000,

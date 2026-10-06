@@ -2,8 +2,9 @@ import { isSupabaseConfigured, loadSupabase } from '../lib/supabaseConfig';
 import type { Product, ProductVariant } from '../types/product';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
-import type { AdminCart, Cart, CartItem } from '../types/cart';
+import type { AdminCart, Cart, CartItem, CartSessionBlock } from '../types/cart';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
+import { requestCartCaptcha } from './cartCaptcha';
 
 interface CartItemRow {
   id: string;
@@ -128,7 +129,10 @@ const ensureCartSession = async () => {
   if (sessionError) throw new Error(`Unable to restore your cart session: ${sessionError.message}`);
   if (sessionData.session) return sessionData.session.user;
 
-  const { data, error } = await supabase.auth.signInAnonymously();
+  const captchaToken = await requestCartCaptcha();
+  const { data, error } = await supabase.auth.signInAnonymously(
+    captchaToken ? { options: { captchaToken } } : undefined,
+  );
   if (error) {
     throw new Error(
       `Unable to create an anonymous cart session: ${error.message}. Enable anonymous sign-ins in Supabase Auth settings.`,
@@ -428,4 +432,22 @@ export async function deleteAdminCart(cartId: string): Promise<void> {
   if (!supabase) throw new Error('Supabase is not configured.');
   const { error } = await supabase.from('carts').delete().eq('id', cartId);
   if (error) throw new Error(`Unable to delete the customer cart: ${error.message}`);
+}
+
+export async function fetchCartSessionBlocks(): Promise<CartSessionBlock[]> {
+  const supabase = await loadSupabase();
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { data, error } = await supabase.from('cart_session_blocks')
+    .select('user_id,created_at').order('created_at', { ascending: false });
+  if (error) throw new Error(`Unable to load blocked cart sessions: ${error.message}`);
+  return data.map(row => ({ userId: row.user_id, createdAt: row.created_at }));
+}
+
+export async function setCartSessionBlocked(userId: string, blocked: boolean): Promise<void> {
+  const supabase = await loadSupabase();
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { error } = blocked
+    ? await supabase.from('cart_session_blocks').upsert({ user_id: userId }, { ignoreDuplicates: true })
+    : await supabase.from('cart_session_blocks').delete().eq('user_id', userId);
+  if (error) throw new Error(`Unable to ${blocked ? 'block' : 'unblock'} the cart session: ${error.message}`);
 }

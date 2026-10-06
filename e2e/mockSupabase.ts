@@ -47,6 +47,7 @@ export interface MockCatalogueState {
   categorySettings: Record<string, { priority: number }>;
   products: ProductRow[];
   carts: CartRow[];
+  cartSessionBlocks: { user_id: string; created_at: string }[];
   tickerMessages: TickerMessageRow[];
 }
 
@@ -275,6 +276,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     },
     products: defaultProducts(),
     carts: [],
+    cartSessionBlocks: [],
     tickerMessages: [
       {
         id: 'ticker-1',
@@ -436,6 +438,21 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/rest/v1/cart_session_blocks') {
+      const userId = url.searchParams.get('user_id')?.replace(/^eq\./, '');
+      if (request.method() === 'GET') await json(route, state.cartSessionBlocks);
+      else if (request.method() === 'POST') {
+        const body = getRequestBody<{ user_id: string }>(route);
+        if (!state.cartSessionBlocks.some(block => block.user_id === body.user_id)) {
+          state.cartSessionBlocks.push({ user_id: body.user_id, created_at: new Date().toISOString() });
+        }
+        await json(route, []);
+      } else if (request.method() === 'DELETE') {
+        state.cartSessionBlocks = state.cartSessionBlocks.filter(block => block.user_id !== userId);
+        await json(route, []);
+      } else await json(route, { message: 'Unsupported block operation' }, 400);
+      return;
+    }
     if (pathname === '/rest/v1/carts') {
       const userId = url.searchParams.get('user_id')?.replace(/^eq\./, '');
       const cartId = url.searchParams.get('id')?.replace(/^eq\./, '');

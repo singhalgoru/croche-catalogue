@@ -27,3 +27,8 @@ export interface AdminCart extends Cart {
   userId: string;
   createdAt: string;
 }
+
+export interface CartSessionBlock {
+  userId: string;
+  createdAt: string;
+}

@@ -185,6 +185,52 @@ delivery times or automatic customisation availability is claimed. These pages
 are readable without JavaScript and use no external widgets. Category names that produce duplicate
 paths fail the build explicitly.
 
+## Cart bot and abuse protection
+
+Migration `20261006095000_protect_cart_activity.sql` validates every client cart
+item against a published product and matching variant, and derives names, image,
+slug and public price from catalogue records rather than trusting the browser.
+Cart identity cannot be edited; activity dates and the 30-day expiry are assigned
+by the database. Each authenticated session allows 60 successful cart/item writes
+per minute and 10 cart creations per hour. An upsert and its subsequent cart
+refresh can consume multiple writes. Carts allow at most 50 distinct variants.
+Rejected transactions do not consume a write slot. These are per-user controls,
+not IP limits: a new anonymous identity can evade them.
+
+Admins can confirm **Block cart session** in Anonymous cart activity and later
+unblock it, even after deleting the cart. Blocks stop cart writes and PIN lookups
+but allow cart/item deletion. Luvia does not store raw IP addresses. This does not
+block messages sent directly to WhatsApp/email, nor prove that an enquiry is real.
+
+### Activating CAPTCHA
+
+The on-demand Cloudflare Turnstile integration is disabled while
+`VITE_TURNSTILE_SITE_KEY` is blank. Browsing and restoring an authenticated cart
+do not load the widget. A fresh anonymous sign-in or admin password sign-in
+requests a token; Supabase Auth must verify that token server-side.
+When enabled, Turnstile processes browser/network information through Cloudflare;
+its privacy policy applies. CAPTCHA makes automation harder, not impossible.
+
+1. Create a Managed Turnstile widget allowing `luviacreations.com` and
+   `www.luviacreations.com` (and localhost only if local testing is needed).
+2. Add its public site key as the GitHub Actions repository variable
+   `VITE_TURNSTILE_SITE_KEY` and rebuild/deploy the frontend.
+3. Then enable Turnstile in Supabase **Authentication > Bot and Abuse Protection**
+   using the widget's secret key. Never put the secret in a `VITE_` variable or
+   commit it. Verify cart creation and admin login immediately after activation.
+
+Deploy the frontend first so enabling Supabase CAPTCHA does not lock out users
+with a current frontend. Older cached builds may need a refresh. If rolling back,
+disable Supabase CAPTCHA before removing the frontend site key. Do not use
+Turnstile's always-pass testing keys in production.
+
+Run CAPTCHA UI/browser tests with
+`npx playwright test --config playwright.captcha.config.ts`. The tests mock
+Turnstile and verify token forwarding, retry/cancel and restored-session behavior;
+they do not prove production secret-key configuration. Backend integration
+checks use `supabase db query --linked --file supabase/tests/cart_activity.sql`;
+fixtures and writes run in a transaction that is rolled back.
+
 ## Optional delivery PIN codes
 
 The cart offers an optional delivery PIN code with explicit Save/Clear controls.

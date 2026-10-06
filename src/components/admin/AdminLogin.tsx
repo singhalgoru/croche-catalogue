@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../../lib/supabase';
+import { requestCartCaptcha } from '../../services/cartCaptcha';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -13,11 +14,16 @@ export default function AdminLogin() {
 
     setIsSigningIn(true);
     setErrorMessage(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setIsSigningIn(false);
-
-    if (error) {
-      setErrorMessage(`Unable to sign in: ${error.message}`);
+    try {
+      const captchaToken = await requestCartCaptcha();
+      const { error } = await supabase.auth.signInWithPassword({
+        email, password, ...(captchaToken ? { options: { captchaToken } } : {}),
+      });
+      if (error) throw error;
+    } catch (error) {
+      setErrorMessage(`Unable to sign in: ${error instanceof Error ? error.message : 'Please retry.'}`);
+    } finally {
+      setIsSigningIn(false);
     }
   };
 

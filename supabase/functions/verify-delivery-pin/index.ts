@@ -36,6 +36,9 @@ Deno.serve(async request => {
   }
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: reserved, error: reserveError } = await admin.rpc('reserve_cart_pin_lookup', { cart_id: cart.id, owner_id: auth.user.id });
+  if (reserveError?.message === 'This cart session has been blocked.') {
+    return json({ error: 'This cart session has been blocked. Please contact Luvia if you think this is a mistake.' }, 403);
+  }
   if (reserveError) return json({ error: 'Unable to start PIN verification. Please retry.' }, 500);
   if (!reserved) return json({ error: 'Please wait 10 seconds before retrying PIN verification.' }, 429);
   const { data: cached, error: cacheError } = await admin.from('delivery_pin_cache').select('location,checked_at')
