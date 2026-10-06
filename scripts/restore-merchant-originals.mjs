@@ -16,7 +16,7 @@ for (const name of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'R2_ACCOUNT_I
 const r2 = new AwsClient({ accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY, service: 's3', region: 'auto' });
 const items = merchantItems(await fetchProducts(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY));
 const pending = [];
-for (const key of new Set(items.map((item) => item.cleanKey))) {
+for (const key of new Set(items.flatMap((item) => [item.cleanKey, ...item.additionalCleanKeys]))) {
   const url = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_ORIGINALS_BUCKET}/${key}`;
   const head = await r2.fetch(url, { method: 'HEAD' });
   if (head.ok) continue;

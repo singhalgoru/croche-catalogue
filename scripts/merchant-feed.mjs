@@ -47,7 +47,9 @@ export const merchantItems = (products) => {
       const id = variant?.id ?? product.id;
       if (!id || (variant && !variant.name.trim())) throw new Error(`Missing Merchant variant identity: ${product.name}`);
       const candidates = [variant?.image || product.image, ...(variant?.images ?? [])];
-      const image = candidates.find((source) => !TEXT_OVERLAY_IMAGES.has(cleanImageKey(source)));
+      const cleanKeys = [...new Set(candidates.map(cleanImageKey))]
+        .filter((key) => !TEXT_OVERLAY_IMAGES.has(key));
+      const image = candidates.find((source) => cleanImageKey(source) === cleanKeys[0]);
       if (!image) {
         console.warn(`[merchant] Excluding ${product.name}: its available photos contain added text; upload a plain product photo.`);
         continue;
@@ -63,6 +65,7 @@ export const merchantItems = (products) => {
         inStock: variant?.inStock ?? product.inStock,
         image,
         cleanKey: cleanImageKey(image),
+        additionalCleanKeys: cleanKeys.slice(1, 11),
         variants: [],
         url: `${ORIGIN}/shopping/${toProductSlug(product)}/${toVariantSlug(variant)}/`,
         legacyUrl: `${ORIGIN}/shopping/${toProductReference(product)}/${id}/`,
@@ -88,6 +91,7 @@ ${items.map((item) => `<item>${[
     field('description', item.description.slice(0, 5000)),
     field('link', item.url),
     field('image_link', item.image),
+    ...(item.additionalImages ?? []).map((image) => field('additional_image_link', image)),
     field('availability', item.inStock ? 'in_stock' : 'out_of_stock'),
     field('price', `${item.price.toFixed(2)} INR`),
     field('condition', 'new'),
@@ -104,23 +108,34 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
   const images = new Map();
   await mkdir(path.join(dist, 'merchant-images'), { recursive: true });
   const published = [];
-  for (const item of items) {
-    let image = images.get(item.cleanKey);
+  const publishImage = async (key, name) => {
+    let image = images.get(key);
     if (!image) {
-      const input = await getImage(item.cleanKey);
+      const input = await getImage(key);
       const metadata = await sharp(input).metadata();
-      if (metadata.format !== 'webp') throw new Error(`Merchant original is not processed WebP: ${item.cleanKey}`);
-      if (Math.min(metadata.width, metadata.height) < 500) throw new Error(`Merchant image must be at least 500x500 pixels: ${item.name}`);
+      if (metadata.format !== 'webp') throw new Error(`Merchant original is not processed WebP: ${key}`);
+      if (Math.min(metadata.width, metadata.height) < 500) throw new Error(`Merchant image must be at least 500x500 pixels: ${name} (${key})`);
       const data = await sharp(input).rotate()
         .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
         .keepXmp().webp({ quality: 82 }).toBuffer();
-      if (data.length > 16 * 1024 * 1024) throw new Error(`Merchant image exceeds 16 MB: ${item.name}`);
+      if (data.length > 16 * 1024 * 1024) throw new Error(`Merchant image exceeds 16 MB: ${name}`);
       const filename = `${createHash('sha256').update(data).digest('hex')}.webp`;
       await writeFile(path.join(dist, 'merchant-images', filename), data);
       image = `${ORIGIN}/merchant-images/${filename}`;
-      images.set(item.cleanKey, image);
+      images.set(key, image);
     }
-    const publishedItem = { ...item, image };
+    return image;
+  };
+  for (const item of items) {
+    const image = await publishImage(item.cleanKey, item.name);
+    const additionalImages = [];
+    for (const key of item.additionalCleanKeys ?? []) {
+      const additionalImage = await publishImage(key, item.name);
+      if (additionalImage !== image && !additionalImages.includes(additionalImage)) {
+        additionalImages.push(additionalImage);
+      }
+    }
+    const publishedItem = { ...item, image, additionalImages };
     const dir = path.join(dist, ...new URL(item.url).pathname.split('/').filter(Boolean));
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'index.html'), renderProductPage(publishedItem, whatsappNumber, null, false));

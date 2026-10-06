@@ -53,6 +53,20 @@ describe('Merchant Center feed', () => {
     expect(() => merchantItems([{ ...product, description: ' ' }])).toThrow('Missing Merchant description');
   });
 
+  it('uses only the matching variant gallery, excludes duplicates and overlays, and caps additional images at ten', () => {
+    const angles = Array.from({ length: 12 }, (_, index) => `https://images.luviacreations.com/products/admin/angle-${index}.webp`);
+    const overlay = 'https://images.luviacreations.com/products/static/collages-evil-eye-charm-collage-wm3.webp';
+    const items = merchantItems([{ ...product, variants: [
+      { ...product.variants[0], image: product.image, images: [
+        product.image, product.image.replace('-wm3', ''), overlay, ...angles, angles[0],
+      ] },
+      { ...product.variants[1], images: [angles[11]] },
+    ] }]);
+    expect(items[0].additionalCleanKeys).toEqual(angles.slice(0, 10).map(cleanImageKey));
+    expect(items[1].additionalCleanKeys).toEqual([cleanImageKey(angles[11])]);
+    expect(merchantItems([{ ...product, variants: [] }])[0].additionalCleanKeys).toEqual([]);
+  });
+
   it('does not label a single Standard variant as a colour or duplicate the title', () => {
     const items = merchantItems([{ ...product, variants: [{ ...product.variants[0], name: 'Standard' }] }]);
     expect(items[0].name).toBe(product.name);
@@ -127,6 +141,73 @@ describe('Merchant Center feed', () => {
     try {
       await expect(writeMerchantCatalogue(merchantItems([product]), dir,
         async () => { throw new Error('404 clean original'); }, '911234567890')).rejects.toThrow('404 clean original');
+      await expect(readFile(path.join(dir, 'merchant-feed.xml'))).rejects.toThrow();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('publishes clean gallery photos in repeated XML fields and reuses originals across items', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-gallery-test-'));
+    try {
+      const main = await sharp({ create: { width: 600, height: 500, channels: 3, background: '#ffffff' } }).webp().toBuffer();
+      const angle = await sharp({ create: { width: 600, height: 500, channels: 3, background: '#ff0000' } }).webp().toBuffer();
+      const secondAngle = 'https://images.luviacreations.com/products/admin/angle.webp';
+      const items = merchantItems([{ ...product, variants: [
+        { ...product.variants[0], image: product.image, images: [secondAngle] },
+        { ...product.variants[1], image: product.image, images: [secondAngle] },
+      ] }]);
+      const getImage = vi.fn(async (key: string) => key === cleanImageKey(product.image) ? main : angle);
+      await writeMerchantCatalogue(items, dir, getImage, '911234567890');
+      expect(getImage).toHaveBeenCalledTimes(2);
+      expect(await readdir(path.join(dir, 'merchant-images'))).toHaveLength(2);
+      const xml = await readFile(path.join(dir, 'merchant-feed.xml'), 'utf8');
+      const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+      const entries = [...doc.querySelectorAll('item')];
+      for (const entry of entries) {
+        const extra = entry.getElementsByTagNameNS('http://base.google.com/ns/1.0', 'additional_image_link');
+        expect(extra).toHaveLength(1);
+        expect(extra[0].textContent).toMatch(/^https:\/\/luviacreations.com\/merchant-images\/[a-f0-9]{64}\.webp$/);
+        expect(extra[0].textContent).not.toBe(entry.getElementsByTagNameNS('http://base.google.com/ns/1.0', 'image_link')[0].textContent);
+      }
+      expect(xml).not.toContain('wm3');
+      const additionalUrl = entries[0].getElementsByTagNameNS('http://base.google.com/ns/1.0', 'additional_image_link')[0].textContent!;
+      const published = await readFile(path.join(dir, 'merchant-images', path.basename(additionalUrl)));
+      expect((await sharp(published).metadata()).format).toBe('webp');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not repeat identical image content under different original keys', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-gallery-test-'));
+    try {
+      const input = await sharp({ create: { width: 600, height: 500, channels: 3, background: '#ffffff' } }).webp().toBuffer();
+      const items = merchantItems([{ ...product, variants: [{ ...product.variants[0], images: [
+        'https://images.luviacreations.com/products/admin/duplicate.webp',
+      ] }] }]);
+      await writeMerchantCatalogue(items, dir, async () => input, '911234567890');
+      const xml = await readFile(path.join(dir, 'merchant-feed.xml'), 'utf8');
+      expect(xml).not.toContain('additional_image_link');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails for missing or undersized gallery originals instead of publishing a partial feed', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-gallery-test-'));
+    try {
+      const input = await sharp({ create: { width: 600, height: 500, channels: 3, background: '#ffffff' } }).webp().toBuffer();
+      const small = await sharp({ create: { width: 400, height: 400, channels: 3, background: '#ffffff' } }).webp().toBuffer();
+      const items = merchantItems([{ ...product, variants: [{ ...product.variants[0], images: [
+        'https://images.luviacreations.com/products/admin/angle.webp',
+      ] }] }]);
+      await expect(writeMerchantCatalogue(items, dir, async (key: string) => {
+        if (key === cleanImageKey(product.image)) return input;
+        throw new Error('Missing clean gallery original.');
+      }, '911234567890')).rejects.toThrow('Missing clean gallery original');
+      await expect(writeMerchantCatalogue(items, dir, async (key: string) =>
+        key === cleanImageKey(product.image) ? input : small, '911234567890')).rejects.toThrow('at least 500x500');
       await expect(readFile(path.join(dir, 'merchant-feed.xml'))).rejects.toThrow();
     } finally {
       await rm(dir, { recursive: true, force: true });

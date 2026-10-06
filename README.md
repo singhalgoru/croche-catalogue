@@ -121,7 +121,13 @@ assigned GTIN/MPN use `identifier_exists=no`; no identifiers are invented.
 Only referenced clean processed photos are copied from private R2 to public
 `/merchant-images/` files on GitHub Pages, with content-hashed names. The private
 bucket and historical backups stay private, and the main catalogue retains its
-watermarks. Never upload watermarked inputs into the clean archive. Older clean
+watermarks. Each feed item also includes up to 10 unique additional photos from
+that variant's ordered angle gallery as repeated `additional_image_link` fields.
+Other variants' photos are not mixed in. Known text-overlay photos and duplicate
+originals are excluded; additional images use the same clean-original validation
+and AI metadata preservation as the main image. Google decides whether and when
+to display these photos after fetching the updated feed.
+Never upload watermarked inputs into the clean archive. Older clean
 photos must first be restored from the pre-watermark backup to the matching
 `<admin-id>/<image-id>/original.webp` key (or `static/<name>/original.webp`).
 R2 credentials are available only to the separate server-side feed build step,
