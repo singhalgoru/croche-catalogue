@@ -56,7 +56,18 @@ describe('getCartEmailLink', () => {
     expect(body).toContain('   Line total  : ₹1,000');
     expect(body).toContain('2. Rose Gajra');
     expect(body).toContain('   Variant     : Red');
+    expect(body).toContain('ITEMS SUBTOTAL : ₹1,400');
+    expect(body).toContain('SHIPPING       : Free (orders ₹500+)');
     expect(body).toContain('ESTIMATED TOTAL : ₹1,400');
+  });
+
+  it('lists estimated shipping separately for orders below the free-shipping threshold', () => {
+    const body = decodeBody(
+      getCartEmailLink(buildCart([buildItem({ unitPrice: 300, quantity: 1 })])),
+    );
+    expect(body).toContain('ITEMS SUBTOTAL : ₹300');
+    expect(body).toContain('INDICATIVE SHIPPING : ₹100');
+    expect(body).toContain('ESTIMATED TOTAL : ₹400 (shipping indicative)');
   });
 
   it('links each item to its catalogue page, where the photo is shown', () => {

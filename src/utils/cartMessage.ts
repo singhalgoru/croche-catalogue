@@ -3,6 +3,8 @@ import { formatINR } from './currency';
 import { toProductUrl } from './productLink';
 
 const PRICE_ON_ENQUIRY = 'Price on enquiry';
+export const FREE_SHIPPING_THRESHOLD = 500;
+export const INDICATIVE_SHIPPING_CHARGE = 100;
 
 const productUrlFor = (item: CartItem) =>
   toProductUrl({ id: item.productId, name: item.productName, publicSlug: item.productSlug });
@@ -11,14 +13,20 @@ const lineTotal = (item: CartItem) =>
   item.unitPrice === null ? null : item.unitPrice * item.quantity;
 
 export interface CartTotals {
+  subtotal: number;
+  shipping: number;
   total: number;
   hasCompletePricing: boolean;
 }
 
 export const getCartTotals = (cart: Cart): CartTotals => {
   const priced = cart.items.filter((item) => item.unitPrice !== null);
+  const subtotal = priced.reduce((sum, item) => sum + (item.unitPrice ?? 0) * item.quantity, 0);
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : INDICATIVE_SHIPPING_CHARGE;
   return {
-    total: priced.reduce((sum, item) => sum + (item.unitPrice ?? 0) * item.quantity, 0),
+    subtotal,
+    shipping,
+    total: subtotal + shipping,
     hasCompletePricing: priced.length === cart.items.length,
   };
 };
@@ -28,7 +36,7 @@ export const getCartTotals = (cart: Cart): CartTotals => {
  * preview card, so the leading product link doubles as a product photo.
  */
 export const buildWhatsAppCartMessage = (cart: Cart) => {
-  const { total, hasCompletePricing } = getCartTotals(cart);
+  const { subtotal, shipping, total, hasCompletePricing } = getCartTotals(cart);
   const items = cart.items.flatMap((item, index) => {
     const line = lineTotal(item);
     const heading = item.variantName
@@ -48,9 +56,15 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
     '*New order — Luvia*',
     '',
     ...items,
+    `*Items subtotal: ${formatINR(subtotal)}*`,
+    shipping === 0
+      ? `*Shipping: Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)*`
+      : `*Indicative shipping: ${formatINR(shipping)}*`,
     hasCompletePricing
-      ? `*Total: ${formatINR(total)}*`
-      : `*Total: please confirm* (some items are ${PRICE_ON_ENQUIRY.toLowerCase()})`,
+      ? shipping === 0
+        ? `*Total: ${formatINR(total)}*`
+        : `*Estimated total: ${formatINR(total)} (shipping indicative)*`
+      : `*Estimated total: please confirm* (some items are ${PRICE_ON_ENQUIRY.toLowerCase()})`,
     '',
     'Please confirm availability and the final total so we can proceed.',
     ...(cart.deliveryPinCode ? [`Delivery pincode (shopper-provided): ${cart.deliveryPinCode}`] : []),
@@ -106,7 +120,7 @@ export const buildEmailCartBody = (
   campaignReference?: string | null,
   style: 'detailed' | 'compact' = 'detailed',
 ) => {
-  const { total, hasCompletePricing } = getCartTotals(cart);
+  const { subtotal, shipping, total, hasCompletePricing } = getCartTotals(cart);
   const formatItem = style === 'detailed' ? detailedItemLines : compactItemLines;
   const items = cart.items.flatMap(formatItem);
 
@@ -121,8 +135,12 @@ export const buildEmailCartBody = (
     ...items,
     ...(style === 'compact' ? [''] : []),
     DIVIDER,
+    `ITEMS SUBTOTAL : ${formatINR(subtotal)}`,
+    shipping === 0
+      ? `SHIPPING       : Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)`
+      : `INDICATIVE SHIPPING : ${formatINR(shipping)}`,
     hasCompletePricing
-      ? `ESTIMATED TOTAL : ${formatINR(total)}`
+      ? `ESTIMATED TOTAL : ${formatINR(total)}${shipping === 0 ? '' : ' (shipping indicative)'}`
       : `ESTIMATED TOTAL : please confirm (some items are ${PRICE_ON_ENQUIRY.toLowerCase()})`,
     `Cart reference  : ${cart.reference}`,
     ...(campaignReference ? [`Ref             : ${campaignReference}`] : []),

@@ -8,6 +8,7 @@ import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
 import { toProductPageUrl } from '../utils/productLink';
 import { getProductShareDetails } from '../utils/productShare';
+import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { trackEvent } from '../services/analytics';
 import CartIconButton from './CartIconButton';
@@ -33,6 +34,7 @@ export default function ProductCard({
   cartQuantity = 0,
 }: Props) {
   const isNew = isProductNew(product);
+  const minimumOrderQuantity = normalizeMinimumOrderQuantity(product.minimumOrderQuantity);
   const cardRef = useRef<HTMLElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(isFirstProduct);
   const cardImages = useMemo(
@@ -332,6 +334,11 @@ export default function ProductCard({
             {displayedPrice !== null && (
               <p className="font-heading text-xl font-bold text-cocoa sm:text-lg">
                 {formatINR(displayedPrice)}
+              </p>
+            )}
+            {minimumOrderQuantity > 1 && (
+              <p className="mt-1 text-xs font-semibold text-cocoa/70">
+                Minimum {minimumOrderQuantity} pieces
               </p>
             )}
           </div>

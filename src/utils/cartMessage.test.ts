@@ -29,14 +29,27 @@ describe('getCartTotals', () => {
     const totals = getCartTotals(
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: 400, quantity: 1 })]),
     );
-    expect(totals).toEqual({ total: 1400, hasCompletePricing: true });
+    expect(totals).toEqual({
+      subtotal: 1400, shipping: 0, total: 1400, hasCompletePricing: true,
+    });
   });
 
   it('flags incomplete pricing but still totals the priced items', () => {
     const totals = getCartTotals(
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: null, quantity: 3 })]),
     );
-    expect(totals).toEqual({ total: 1000, hasCompletePricing: false });
+    expect(totals).toEqual({
+      subtotal: 1000, shipping: 0, total: 1000, hasCompletePricing: false,
+    });
+  });
+
+  it('adds indicative shipping below ₹500 and waives it at the threshold', () => {
+    expect(getCartTotals(buildCart([buildItem({ unitPrice: 300, quantity: 1 })]))).toMatchObject({
+      subtotal: 300, shipping: 100, total: 400,
+    });
+    expect(getCartTotals(buildCart([buildItem({ unitPrice: 250, quantity: 2 })]))).toMatchObject({
+      subtotal: 500, shipping: 0, total: 500,
+    });
   });
 });
 
@@ -51,6 +64,7 @@ describe('buildWhatsAppCartMessage', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem()]));
     expect(message).toContain('*1. Cute Bunny*');
     expect(message).toContain('*Total: ₹1,000*');
+    expect(message).toContain('*Shipping: Free (orders ₹500+)*');
   });
 
   it('shows the variant beside the name when there is one', () => {
@@ -63,6 +77,15 @@ describe('buildWhatsAppCartMessage', () => {
   it('spells out quantity, unit price and line total on one line', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem()]));
     expect(message).toContain('Qty 2 × ₹500 = ₹1,000');
+  });
+
+  it('shows an indicative shipping charge separately below the free-shipping threshold', () => {
+    const message = buildWhatsAppCartMessage(
+      buildCart([buildItem({ unitPrice: 300, quantity: 1 })]),
+    );
+    expect(message).toContain('*Items subtotal: ₹300*');
+    expect(message).toContain('*Indicative shipping: ₹100*');
+    expect(message).toContain('*Estimated total: ₹400 (shipping indicative)*');
   });
 
   it('puts a product link first so WhatsApp previews the product photo', () => {
@@ -83,7 +106,7 @@ describe('buildWhatsAppCartMessage', () => {
   it('asks for confirmation when an item has no price', () => {
     const message = buildWhatsAppCartMessage(buildCart([buildItem({ unitPrice: null })]));
     expect(message).toContain('Qty 2 — Price on enquiry');
-    expect(message).toContain('*Total: please confirm*');
+    expect(message).toContain('*Estimated total: please confirm*');
   });
 
   it('carries the cart reference so the order can be matched later', () => {

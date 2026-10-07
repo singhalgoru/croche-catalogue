@@ -2,6 +2,7 @@ interface Props {
   productName: string;
   variantName?: string;
   quantity: number;
+  minimumQuantity?: number;
   disabled?: boolean;
   onDecrease: () => void;
   onIncrease: () => void;
@@ -13,6 +14,7 @@ export default function ProductQuantityControl({
   productName,
   variantName,
   quantity,
+  minimumQuantity = 1,
   disabled = false,
   onDecrease,
   onIncrease,
@@ -30,7 +32,7 @@ export default function ProductQuantityControl({
       <button
         type="button"
         onClick={onDecrease}
-        disabled={disabled || quantity <= 1}
+        disabled={disabled || quantity <= minimumQuantity}
         className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/15 disabled:opacity-35"
         aria-label={`Decrease quantity of ${itemName}`}
       >

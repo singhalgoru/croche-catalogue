@@ -6,6 +6,7 @@ import {
 } from '../../services/productAnalysis';
 import {
   calculatePriceAtSellingPrice,
+  calculateMinimumOrderQuantity,
   estimateProductPrice,
   roundPriceUp,
   type PriceDiscoveryDefaults,
@@ -17,7 +18,12 @@ interface Props {
   defaults: PriceDiscoveryDefaults;
   inputs: PriceDiscoveryInputs;
   onInputsChange: (inputs: PriceDiscoveryInputs) => void;
-  onApplyPrice: (price: number, profitMarginPercent: number, gstPercent: number) => void;
+  onApplyPrice: (
+    price: number,
+    profitMarginPercent: number,
+    gstPercent: number,
+    minimumOrderQuantity: number | null,
+  ) => void;
   onSaveInputs: (inputs: PriceDiscoveryInputs) => Promise<void>;
 }
 
@@ -49,6 +55,9 @@ export default function PriceDiscoveryPanel({
     : null;
   const priceOutcome = hasSuggestedPrice
     ? calculatePriceAtSellingPrice(inputs, defaults, sellingPrice)
+    : null;
+  const suggestedMinimumOrderQuantity = hasSuggestedPrice
+    ? calculateMinimumOrderQuantity(inputs, defaults, sellingPrice)
     : null;
 
   const updateInput = (field: keyof PriceDiscoveryInputs, value: string) => {
@@ -190,6 +199,10 @@ export default function PriceDiscoveryPanel({
                 onChange={(event) => updateInput('shippingCost', event.target.value)}
                 className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2"
               />
+              <span className="mt-1 block text-xs font-normal text-cocoa/60">
+                Keep your actual shipping cost here. Margin estimates conservatively include it
+                even though customers see indicative shipping below ₹500.
+              </span>
             </label>
             <label className="text-sm font-semibold text-cocoa">
               Packaging cost (₹)
@@ -397,6 +410,17 @@ export default function PriceDiscoveryPanel({
                 </div>
               </div>
               {priceOutcome ? (
+                <>
+                <p
+                  role="status"
+                  className="mt-3 rounded-lg border border-mustard/40 bg-mustard/10 p-3 text-sm text-cocoa"
+                >
+                  {suggestedMinimumOrderQuantity === null
+                    ? 'This price cannot reach the target margin at any order quantity. Consider a higher price or lower per-piece costs.'
+                    : suggestedMinimumOrderQuantity > 99
+                      ? `At least ${suggestedMinimumOrderQuantity} pieces are needed to reach the target margin, which exceeds the 99-piece cart limit. Consider a higher price or lower costs.`
+                      : `Suggested minimum order: ${suggestedMinimumOrderQuantity} piece${suggestedMinimumOrderQuantity === 1 ? '' : 's'} to reach the target margin.`}
+                </p>
                 <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-cocoa/10 pt-3 text-sm">
                   <span className="text-cocoa/70">Total cost basis</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.totalCost)}</span>
@@ -415,6 +439,7 @@ export default function PriceDiscoveryPanel({
                     {priceOutcome.profitMarginPercent?.toFixed(1)}%
                   </span>
                 </div>
+                </>
               ) : (
                 <p role="status" className="mt-3 text-sm text-red-700">
                   Enter a positive selling price to calculate profit and margin.
@@ -429,6 +454,9 @@ export default function PriceDiscoveryPanel({
                         Number(sellingPrice),
                         priceOutcome.profitMarginPercent,
                         Number(inputs.gstPercent),
+                        suggestedMinimumOrderQuantity !== null && suggestedMinimumOrderQuantity <= 99
+                          ? suggestedMinimumOrderQuantity
+                          : null,
                       );
                     }
                   }}

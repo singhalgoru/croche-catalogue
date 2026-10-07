@@ -5,6 +5,11 @@ import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartItem, CartSessionBlock } from '../types/cart';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
 import { requestCartCaptcha } from './cartCaptcha';
+import {
+  clampCartQuantity,
+  getNextCartQuantity,
+  normalizeMinimumOrderQuantity,
+} from '../utils/minimumOrderQuantity';
 
 interface CartItemRow {
   id: string;
@@ -230,6 +235,7 @@ export async function addProductToCart(
   product: Product,
   variant: ProductVariant,
 ): Promise<Cart> {
+  const minimumQuantity = normalizeMinimumOrderQuantity(product.minimumOrderQuantity);
   const supabase = await loadSupabase();
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
@@ -238,7 +244,9 @@ export async function addProductToCart(
     );
     const items = existing
       ? current.items.map((item) =>
-          item.id === existing.id ? { ...item, quantity: Math.min(item.quantity + 1, 99) } : item,
+          item.id === existing.id
+            ? { ...item, quantity: getNextCartQuantity(item.quantity, minimumQuantity) }
+            : item,
         )
       : [
           {
@@ -250,7 +258,7 @@ export async function addProductToCart(
             variantName: variant.name,
             image: variant.image,
             unitPrice: getPublicVariantPrice(product, variant),
-            quantity: 1,
+            quantity: minimumQuantity,
           },
           ...current.items,
         ];
@@ -270,7 +278,7 @@ export async function addProductToCart(
     variant_name: variant.name,
     image_url: variant.image,
     unit_price: getPublicVariantPrice(product, variant),
-    quantity: Math.min((existing?.quantity ?? 0) + 1, 99),
+    quantity: getNextCartQuantity(existing?.quantity ?? 0, minimumQuantity),
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase
@@ -281,9 +289,13 @@ export async function addProductToCart(
   return loadRemoteCart();
 }
 
-export async function updateCartItemQuantity(itemId: string, quantity: number): Promise<Cart> {
+export async function updateCartItemQuantity(
+  itemId: string,
+  quantity: number,
+  minimumQuantity = 1,
+): Promise<Cart> {
   const supabase = await loadSupabase();
-  const nextQuantity = Math.min(Math.max(Math.round(quantity), 1), 99);
+  const nextQuantity = clampCartQuantity(quantity, minimumQuantity);
   if (!isSupabaseConfigured || !supabase) {
     const current = readLocalCart();
     return writeLocalCart({

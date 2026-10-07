@@ -23,7 +23,7 @@ vi.mock('./r2ImageStorage', () => ({
 
 const row = {
   id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Accessories', description: 'Crochet bunny',
-  price: 300, show_price: true, featured: false, color: '#B57EDC', in_stock: true,
+  price: 300, minimum_order_quantity: 3, show_price: true, featured: false, color: '#B57EDC', in_stock: true,
   image_url: 'https://images.luviacreations.com/products/admin/bunny.webp',
   image_path: 'r2:products/admin/bunny', published: true, published_at: null,
   sort_order: 0, created_at: '2026-10-03T00:00:00Z',
@@ -38,7 +38,7 @@ const draft: NewProduct = {
 };
 const update: ProductUpdate = {
   name: row.name, category: row.category, description: row.description,
-  published: true, featured: false, price: row.price, showPrice: true,
+  published: true, featured: false, price: row.price, minimumOrderQuantity: 1, showPrice: true,
 };
 
 function queueQuery(data: unknown, error: { message: string } | null = null) {
@@ -139,6 +139,7 @@ describe('product detail loading', () => {
     expect(loadedProducts[0][0]).toMatchObject({
       materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
       price: 300, profitMarginPercent: null, gstPercent: null, inStock: true,
+      minimumOrderQuantity: 3,
       seoDescription: 'Handmade lavender crochet bunny.',
     });
     expect(loadedProducts[1][0]).toMatchObject({
@@ -215,6 +216,7 @@ describe('product detail persistence', () => {
 
     const payload = write.update.mock.calls[0][0];
     expect(payload).toMatchObject({ materials: null, included_items: '1 keychain', care_instructions: 'Spot clean', price: 300 });
+    expect(payload.minimum_order_quantity).toBe(1);
     expect(payload).not.toHaveProperty('dimensions');
     expect(payload.seo_description).toBeNull();
     expect(payload).not.toHaveProperty('in_stock');

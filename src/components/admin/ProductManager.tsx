@@ -17,6 +17,7 @@ import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
   calculatePriceAtSellingPrice,
+  calculateMinimumOrderQuantity,
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
   DEFAULT_TARGET_MARGIN_PERCENT,
   type PriceDiscoveryDefaults,
@@ -36,6 +37,7 @@ interface EditDraft extends DetailDraft {
   published: boolean;
   featured: boolean;
   price: string;
+  minimumOrderQuantity: string;
   profitMarginPercent: number | null;
   gstPercent: number | null;
   showPrice: boolean;
@@ -49,6 +51,7 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   published: product.published,
   featured: product.featured === true,
   price: product.price === null ? '' : String(product.price),
+  minimumOrderQuantity: String(product.minimumOrderQuantity ?? 1),
   profitMarginPercent: product.profitMarginPercent ?? null,
   gstPercent: product.gstPercent ?? null,
   showPrice: product.showPrice === true,
@@ -147,6 +150,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     suggestedPrice?: number,
     profitMarginPercent?: number,
     gstPercent?: number,
+    minimumOrderQuantity?: number | null,
   ) => {
     if (isAnalyzing) return;
     setEditingId(product.id);
@@ -156,6 +160,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
       ...(suggestedPrice === undefined ? {} : { price: String(suggestedPrice) }),
       ...(profitMarginPercent === undefined ? {} : { profitMarginPercent }),
       ...(gstPercent === undefined ? {} : { gstPercent }),
+      ...(minimumOrderQuantity === undefined || minimumOrderQuantity === null
+        ? {}
+        : { minimumOrderQuantity: String(minimumOrderQuantity) }),
     });
     setMessage(null);
     setError(null);
@@ -174,6 +181,15 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
       setError('Add a price before showing it in the catalogue.');
       return;
     }
+    const minimumOrderQuantity = Number(draft.minimumOrderQuantity);
+    if (
+      !Number.isInteger(minimumOrderQuantity)
+      || minimumOrderQuantity < 1
+      || minimumOrderQuantity > 99
+    ) {
+      setError('Minimum order quantity must be a whole number between 1 and 99.');
+      return;
+    }
 
     setBusyId(product.id);
     setError(null);
@@ -189,6 +205,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
       const update: ProductUpdate = {
         ...draft,
         price,
+        minimumOrderQuantity,
         ...(currentPriceOutcome
           ? {
               priceDiscoveryInputs: currentPriceInputs,
@@ -445,6 +462,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             const editorPriceOutcome = isEditing
               ? calculatePriceAtSellingPrice(inputsForProduct, priceDefaults, draft.price)
               : null;
+            const editorMinimumOrderQuantity = isEditing
+              ? calculateMinimumOrderQuantity(inputsForProduct, priceDefaults, draft.price)
+              : null;
 
             return (
               <article
@@ -576,8 +596,8 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       item.id === saved.id ? saved : item
                     )));
                   }}
-                  onApplyPrice={(price, profitMarginPercent, gstPercent) => {
-                    startEditing(product, price, profitMarginPercent, gstPercent);
+                  onApplyPrice={(price, profitMarginPercent, gstPercent, minimumOrderQuantity) => {
+                    startEditing(product, price, profitMarginPercent, gstPercent, minimumOrderQuantity);
                     setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
                   }}
                 />
@@ -702,6 +722,42 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         {' '}Estimated profit margin: {editorPriceOutcome.profitMarginPercent?.toFixed(1)}%.
                         {' '}GST amount and fee update automatically with the price; the GST rate stays unchanged.
                       </p>
+                    )}
+                    <label className="text-sm font-semibold text-cocoa">
+                      Minimum pieces per order
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={99}
+                        step={1}
+                        value={draft.minimumOrderQuantity}
+                        onChange={(event) =>
+                          setDraft((current) => current
+                            ? { ...current, minimumOrderQuantity: event.target.value }
+                            : current)
+                        }
+                        className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
+                      />
+                      <span className="mt-1 block text-xs font-normal text-cocoa/60">
+                        {editorMinimumOrderQuantity === null
+                          ? 'Current price and costs cannot reach the target margin at any order quantity.'
+                          : editorMinimumOrderQuantity > 99
+                            ? `At least ${editorMinimumOrderQuantity} pieces are needed, beyond the 99-piece cart limit.`
+                            : `Price discovery recommends ${editorMinimumOrderQuantity} piece${editorMinimumOrderQuantity === 1 ? '' : 's'} for the target margin.`}
+                      </span>
+                    </label>
+                    {editorMinimumOrderQuantity !== null && editorMinimumOrderQuantity <= 99
+                      && editorMinimumOrderQuantity !== Number(draft.minimumOrderQuantity) && (
+                      <button
+                        type="button"
+                        onClick={() => setDraft((current) => current
+                          ? { ...current, minimumOrderQuantity: String(editorMinimumOrderQuantity) }
+                          : current)}
+                        className="self-end rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
+                      >
+                        Use recommended minimum
+                      </button>
                     )}
                     <div className="sm:col-span-2">
                       <ProductDetailsEditor

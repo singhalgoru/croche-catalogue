@@ -54,6 +54,8 @@ export interface Product extends ProductDetails {
   category: Category;
   /** Price in whole rupees. `null` when no price has been set yet. */
   price: number | null;
+  /** Minimum number of pieces customers must order; defaults to one. */
+  minimumOrderQuantity?: number;
   /** Last profit margin calculated when the admin applied a price recommendation. */
   profitMarginPercent?: number | null;
   /** GST rate used for the saved price and profit-margin estimate. */

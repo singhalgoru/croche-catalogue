@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
   calculatePriceAtSellingPrice,
+  calculateMinimumOrderQuantity,
   estimateProductPrice,
   roundPriceUp,
   type PriceDiscoveryInputs,
@@ -135,6 +136,42 @@ describe('price discovery calculations', () => {
     expect(lowerMargin).not.toBeNull();
     expect(higherMargin).not.toBeNull();
     expect(higherMargin!.suggestedCustomerPrice).toBeGreaterThan(lowerMargin!.suggestedCustomerPrice);
+  });
+
+  it('suggests the smallest order quantity that covers fixed shipping while meeting margin', () => {
+    const inputs: PriceDiscoveryInputs = {
+      timeSpent: '0.1',
+      timeUnit: 'hours',
+      materialCost: '20',
+      shippingCost: '100',
+      packagingCost: '10',
+      gstPercent: '5',
+      targetMarginPercent: '45',
+    };
+    const quantity = calculateMinimumOrderQuantity(
+      inputs,
+      DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+      '200',
+    );
+
+    expect(quantity).toBe(2);
+    const requiredQuantity = quantity ?? 0;
+    const marginContributionPerPiece =
+      200 / 1.05 * 0.55 - 200 * 0.0236 - 10 - 20 - 10;
+    expect((requiredQuantity - 1) * marginContributionPerPiece).toBeLessThan(100);
+    expect(requiredQuantity * marginContributionPerPiece).toBeGreaterThanOrEqual(100);
+  });
+
+  it('returns no quantity when a positive per-piece contribution is impossible', () => {
+    expect(calculateMinimumOrderQuantity({
+      timeSpent: '1',
+      timeUnit: 'hours',
+      materialCost: '200',
+      shippingCost: '100',
+      packagingCost: '20',
+      gstPercent: '5',
+      targetMarginPercent: '45',
+    }, DEFAULT_PRICE_DISCOVERY_DEFAULTS, '80')).toBeNull();
   });
 
   it('rounds up so the selected price does not fall below the calculated suggestion', () => {

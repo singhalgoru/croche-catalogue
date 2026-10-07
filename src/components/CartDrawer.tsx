@@ -8,6 +8,8 @@ import { getCartWhatsAppLink } from '../utils/whatsapp';
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
+import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
+import { FREE_SHIPPING_THRESHOLD, getCartTotals } from '../utils/cartMessage';
 
 interface Props {
   onSaveDeliveryPin: (value: string) => Promise<Cart | null>;
@@ -17,7 +19,7 @@ interface Props {
   isBusy: boolean;
   error: string | null;
   onClose: () => void;
-  onUpdateQuantity: (itemId: string, quantity: number) => void;
+  onUpdateQuantity: (itemId: string, quantity: number, minimumQuantity?: number) => void;
   onRemove: (itemId: string) => void;
   onClear: () => void;
   onWhatsAppStarted: () => void;
@@ -82,10 +84,20 @@ export default function CartDrawer({
       ),
     [cart, products],
   );
-  const total = (checkoutCart?.items ?? []).reduce(
-    (sum, item) => sum + (item.unitPrice ?? 0) * item.quantity,
-    0,
+  const belowMinimumItemIds = useMemo(
+    () =>
+      new Set(
+        (cart?.items ?? [])
+          .filter((item) => {
+            const product = products.find((candidate) => candidate.id === item.productId);
+            return item.quantity < normalizeMinimumOrderQuantity(product?.minimumOrderQuantity);
+          })
+          .map((item) => item.id),
+      ),
+    [cart, products],
   );
+  const totals = checkoutCart ? getCartTotals(checkoutCart) : null;
+  const total = totals?.total ?? 0;
   const hasUnpricedItems =
     checkoutCart?.items.some((item) => item.unitPrice === null) ?? false;
   const whatsappLink =
@@ -155,6 +167,9 @@ export default function CartDrawer({
               <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
               {checkoutCart?.items.map((item) => {
                 const isUnavailable = unavailableItemIds.has(item.id);
+                const isBelowMinimum = belowMinimumItemIds.has(item.id);
+                const product = products.find((candidate) => candidate.id === item.productId);
+                const minimumQuantity = normalizeMinimumOrderQuantity(product?.minimumOrderQuantity);
                 const itemName = item.variantName
                   ? `${item.productName} — ${item.variantName}`
                   : item.productName;
@@ -209,6 +224,11 @@ export default function CartDrawer({
                             Currently unavailable — remove this item to continue.
                           </p>
                         )}
+                        {isBelowMinimum && (
+                          <p className="mt-1 text-xs font-semibold text-red-700">
+                            Increase to the minimum order quantity before checkout.
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div
@@ -218,8 +238,8 @@ export default function CartDrawer({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                          disabled={isBusy || item.quantity <= 1}
+                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1, minimumQuantity)}
+                          disabled={isBusy || item.quantity <= minimumQuantity}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
                           aria-label={`Decrease quantity of ${itemName}`}
                         >
@@ -230,7 +250,7 @@ export default function CartDrawer({
                         </span>
                         <button
                           type="button"
-                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1, minimumQuantity)}
                           disabled={isBusy || item.quantity >= 99}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
                           aria-label={`Increase quantity of ${itemName}`}
@@ -238,6 +258,11 @@ export default function CartDrawer({
                           +
                         </button>
                       </div>
+                      {minimumQuantity > 1 && (
+                        <p className="text-xs font-medium text-cocoa/65">
+                          Minimum order: {minimumQuantity} pieces
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => onRemove(item.id)}
@@ -258,28 +283,42 @@ export default function CartDrawer({
         {cart && cart.items.length > 0 && (
           <div className="border-t border-mustard/30 bg-white p-4">
             <div className="flex items-center justify-between font-bold text-cocoa">
-              <span>{hasUnpricedItems ? 'Priced items total' : 'Estimated total'}</span>
+              <span>{hasUnpricedItems ? 'Priced items subtotal' : 'Items subtotal'}</span>
+              <span>{formatINR(totals?.subtotal ?? 0)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-sm text-cocoa/75">
+              <span>{totals?.shipping === 0 ? 'Shipping' : 'Indicative shipping'}</span>
+              <span>{totals?.shipping === 0 ? 'Free' : formatINR(totals?.shipping ?? 0)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between font-bold text-cocoa">
+              <span>{hasUnpricedItems ? 'Estimated total*' : 'Estimated total'}</span>
               <span>{formatINR(total)}</span>
             </div>
+            {totals && totals.subtotal < FREE_SHIPPING_THRESHOLD && (
+              <p className="mt-1 text-right text-xs text-cocoa/60">
+                Add {formatINR(FREE_SHIPPING_THRESHOLD - totals.subtotal)} more in items for free shipping at {formatINR(FREE_SHIPPING_THRESHOLD)}.
+              </p>
+            )}
             <p className="mt-3 text-center text-xs text-cocoa/60">
-              Send your cart to Luvia to confirm availability and process your order.
+              Shipping is indicative and the final delivery charge will be confirmed by Luvia.
+              {hasUnpricedItems ? ' *Items with no listed price are not included in this estimate.' : ''}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <a
-                href={unavailableItemIds.size === 0 ? whatsappLink : undefined}
+                href={unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 ? whatsappLink : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(event) => {
-                  if (unavailableItemIds.size > 0 || isBusy) {
+                  if (unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy) {
                     event.preventDefault();
                     return;
                   }
                   onWhatsAppStarted();
                 }}
-                aria-disabled={unavailableItemIds.size > 0 || isBusy}
+                aria-disabled={unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy}
                 aria-label="Send cart to Luvia on WhatsApp"
                 className={`flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold text-white ${
-                  unavailableItemIds.size > 0 || isBusy
+                  unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy
                     ? 'cursor-not-allowed bg-gray-400'
                     : 'bg-[#25D366] hover:bg-[#1ebe5d]'
                 }`}
@@ -288,9 +327,9 @@ export default function CartDrawer({
                 WhatsApp
               </a>
               <a
-                href={unavailableItemIds.size === 0 ? emailLink : undefined}
+                href={unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 ? emailLink : undefined}
                 onClick={(event) => {
-                  if (unavailableItemIds.size > 0 || isBusy) {
+                  if (unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy) {
                     event.preventDefault();
                     return;
                   }
@@ -298,10 +337,10 @@ export default function CartDrawer({
                   setCopyState('idle');
                   onEmailStarted();
                 }}
-                aria-disabled={unavailableItemIds.size > 0 || isBusy}
+                aria-disabled={unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy}
                 aria-label={`Email cart to Luvia at ${ORDERS_EMAIL}`}
                 className={`flex w-full items-center justify-center gap-2 rounded-full border-2 py-3 font-semibold ${
-                  unavailableItemIds.size > 0 || isBusy
+                  unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy
                     ? 'cursor-not-allowed border-gray-300 text-gray-400'
                     : 'border-cocoa text-cocoa hover:bg-cocoa hover:text-white'
                 }`}
@@ -310,7 +349,7 @@ export default function CartDrawer({
                 Email
               </a>
             </div>
-            {hasTriedEmail && unavailableItemIds.size === 0 && (
+            {hasTriedEmail && unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 && (
               <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 px-3 py-2 text-xs text-cocoa">
                 <p className="font-semibold">Mail app didn&apos;t open?</p>
                 <p className="mt-0.5 text-cocoa/70">

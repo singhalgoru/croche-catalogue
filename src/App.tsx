@@ -501,7 +501,8 @@ function App() {
                 isCartBusy={cart.isBusy || isLoading}
                 getCartQuantity={(productId, variantId) => cart.cart?.items.find(item => item.productId === productId && item.variantId === variantId)?.quantity ?? 0}
                 getCartItem={(productId, variantId) => cart.cart?.items.find(item => item.productId === productId && item.variantId === variantId)}
-                onUpdateCartItem={async (itemId, quantity) => Boolean(await cart.updateQuantity(itemId, quantity))}
+                onUpdateCartItem={async (itemId, quantity, minimumQuantity) =>
+                  Boolean(await cart.updateQuantity(itemId, quantity, minimumQuantity))}
                 onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
               />
             </Suspense>
@@ -638,8 +639,8 @@ function App() {
                 (item) => item.productId === productId && item.variantId === variantId,
               )
             }
-            onUpdateCartItem={async (itemId, quantity) =>
-              Boolean(await cart.updateQuantity(itemId, quantity))
+            onUpdateCartItem={async (itemId, quantity, minimumQuantity) =>
+              Boolean(await cart.updateQuantity(itemId, quantity, minimumQuantity))
             }
             onRemoveCartItem={async (itemId) => Boolean(await cart.removeItem(itemId))}
           />
@@ -653,8 +654,8 @@ function App() {
           isBusy={cart.isBusy}
           error={cart.error}
           onClose={() => setIsCartOpen(false)}
-          onUpdateQuantity={(itemId, quantity) => {
-            void cart.updateQuantity(itemId, quantity);
+          onUpdateQuantity={(itemId, quantity, minimumQuantity) => {
+            void cart.updateQuantity(itemId, quantity, minimumQuantity);
           }}
           onRemove={(itemId) => {
             void cart.removeItem(itemId);

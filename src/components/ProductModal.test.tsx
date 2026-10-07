@@ -250,7 +250,7 @@ describe('ProductModal touch controls', () => {
         name: 'Decrease quantity of Crochet Rose — Red',
       }),
     );
-    expect(onUpdateCartItem).toHaveBeenCalledWith('cart-item-red', 1);
+    expect(onUpdateCartItem).toHaveBeenCalledWith('cart-item-red', 1, 1);
 
     fireEvent.click(
       screen.getByRole('button', {

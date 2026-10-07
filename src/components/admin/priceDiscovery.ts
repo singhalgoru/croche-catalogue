@@ -16,6 +16,9 @@ export interface PriceDiscoveryInputs {
 
 export interface PriceDiscoveryEstimate {
   labourCost: number;
+  materialCost: number;
+  shippingCost: number;
+  packagingCost: number;
   totalCost: number;
   suggestedCustomerPrice: number;
   gstAmount: number;
@@ -61,6 +64,9 @@ const calculateCostBasis = (
   const labourCost = hours * defaults.labourRate;
   return {
     labourCost,
+    materialCost,
+    shippingCost,
+    packagingCost,
     totalCost: labourCost + materialCost + shippingCost + packagingCost,
     gstPercent,
   };
@@ -87,6 +93,9 @@ export const estimateProductPrice = (
 
   return {
     labourCost: costBasis.labourCost,
+    materialCost: costBasis.materialCost,
+    shippingCost: costBasis.shippingCost,
+    packagingCost: costBasis.packagingCost,
     totalCost: costBasis.totalCost,
     suggestedCustomerPrice: customerTotal,
     gstAmount,
@@ -124,6 +133,32 @@ export const calculatePriceAtSellingPrice = (
     profit,
     profitMarginPercent: profit / saleValueExcludingGst * 100,
   };
+};
+
+export const calculateMinimumOrderQuantity = (
+  inputs: PriceDiscoveryInputs,
+  defaults: PriceDiscoveryDefaults,
+  sellingPriceIncludingGst: string,
+): number | null => {
+  const price = parseNonNegative(sellingPriceIncludingGst);
+  const costBasis = calculateCostBasis(inputs, defaults);
+  const targetMarginPercent = parseNonNegative(inputs.targetMarginPercent);
+  if (
+    price === null || price <= 0 || !costBasis || targetMarginPercent === null
+    || targetMarginPercent >= 100
+  ) return null;
+
+  const gatewayFeeRate =
+    (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
+  const revenueAfterGst = price / (1 + costBasis.gstPercent / 100);
+  const contributionPerPiece =
+    revenueAfterGst * (1 - targetMarginPercent / 100)
+    - price * gatewayFeeRate
+    - costBasis.labourCost
+    - costBasis.materialCost
+    - costBasis.packagingCost;
+  if (contributionPerPiece <= 0) return null;
+  return Math.max(1, Math.ceil(costBasis.shippingCost / contributionPerPiece));
 };
 
 export const roundPriceUp = (price: number, increment: number) =>

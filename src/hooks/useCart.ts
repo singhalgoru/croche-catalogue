@@ -94,8 +94,8 @@ export function useCart(enabled = true) {
       }
       return nextCart;
     },
-    updateQuantity: (itemId: string, quantity: number) =>
-      runCartAction(() => updateCartItemQuantity(itemId, quantity)),
+    updateQuantity: (itemId: string, quantity: number, minimumQuantity = 1) =>
+      runCartAction(() => updateCartItemQuantity(itemId, quantity, minimumQuantity)),
     removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId)),
     clear: () => runCartAction(clearCart),
     saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value), true),

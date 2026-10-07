@@ -71,6 +71,7 @@ interface ProductRow {
   care_instructions?: string | null;
   featured: boolean;
   price: number | null;
+  minimum_order_quantity: number;
   product_profit_margins?:
     | ProductProfitMarginRow
     | ProductProfitMarginRow[]
@@ -122,6 +123,7 @@ export interface ProductUpdate extends ProductDetails {
   published: boolean;
   featured: boolean;
   price: number | null;
+  minimumOrderQuantity: number;
   profitMarginPercent?: number | null;
   gstPercent?: number | null;
   priceDiscoveryInputs?: ProductPricingInputs;
@@ -254,6 +256,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     name: row.name,
     category: row.category,
     price: row.price,
+    minimumOrderQuantity: row.minimum_order_quantity ?? 1,
     profitMarginPercent: marginRow?.profit_margin_percent ?? null,
     gstPercent: marginRow?.gst_percent ?? null,
     priceDiscoveryInputs,
@@ -567,6 +570,13 @@ export async function updateProduct(
   update: ProductUpdate,
 ): Promise<ManagedProduct> {
   if (
+    !Number.isInteger(update.minimumOrderQuantity)
+    || update.minimumOrderQuantity < 1
+    || update.minimumOrderQuantity > 99
+  ) {
+    throw new Error('Minimum order quantity must be a whole number between 1 and 99.');
+  }
+  if (
     update.profitMarginPercent !== undefined
     && update.profitMarginPercent !== null
     && (!Number.isFinite(update.profitMarginPercent) || update.profitMarginPercent > 100)
@@ -595,6 +605,7 @@ export async function updateProduct(
       published: update.published,
       featured: update.featured,
       price: update.price,
+      minimum_order_quantity: update.minimumOrderQuantity,
       show_price: update.showPrice,
       updated_at: new Date().toISOString(),
     })

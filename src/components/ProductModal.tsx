@@ -24,6 +24,7 @@ import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { toProductPageUrl, toPublicVariantSlug } from '../utils/productLink';
+import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
 
 interface Props {
   product: Product;
@@ -36,7 +37,11 @@ interface Props {
   isCartBusy?: boolean;
   getCartQuantity?: (productId: string, variantId: string) => number;
   getCartItem?: (productId: string, variantId: string) => CartItem | undefined;
-  onUpdateCartItem?: (itemId: string, quantity: number) => Promise<boolean>;
+  onUpdateCartItem?: (
+    itemId: string,
+    quantity: number,
+    minimumQuantity?: number,
+  ) => Promise<boolean>;
   onRemoveCartItem?: (itemId: string) => Promise<boolean>;
   initialVariantId?: string;
   presentation?: 'modal' | 'page';
@@ -67,6 +72,7 @@ export default function ProductModal({
   onOpenFullDetails,
 }: Props) {
   const isPage = presentation === 'page';
+  const minimumOrderQuantity = normalizeMinimumOrderQuantity(product.minimumOrderQuantity);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sharePanelRef = useRef<HTMLDivElement>(null);
@@ -580,6 +586,11 @@ export default function ProductModal({
               {formatINR(displayedPrice)}
             </p>
           )}
+          {minimumOrderQuantity > 1 && (
+            <p className="mt-1 text-sm font-semibold text-cocoa">
+              Minimum order: {minimumOrderQuantity} pieces
+            </p>
+          )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} collapsible={!isPage} />
           <div className="mt-4 rounded-xl border border-mustard/40 bg-mustard/15 p-3 text-sm">
@@ -658,9 +669,14 @@ export default function ProductModal({
                     product.variants.length > 1 ? selectedVariant.name : undefined
                   }
                   quantity={selectedCartItem.quantity}
+                  minimumQuantity={minimumOrderQuantity}
                   disabled={isCartBusy}
                   onDecrease={() => {
-                    void onUpdateCartItem(selectedCartItem.id, selectedCartItem.quantity - 1);
+                    void onUpdateCartItem(
+                      selectedCartItem.id,
+                      selectedCartItem.quantity - 1,
+                      minimumOrderQuantity,
+                    );
                   }}
                   onIncrease={() => {
                     if (!onAddToCart) return;
