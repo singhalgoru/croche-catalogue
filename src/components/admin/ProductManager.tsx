@@ -519,6 +519,12 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             {product.showPrice ? '' : ' (hidden)'}
                           </span>
                         )}
+                        <span
+                          aria-label={`${product.name} minimum order: ${product.minimumOrderQuantity ?? 1} piece${(product.minimumOrderQuantity ?? 1) === 1 ? '' : 's'}`}
+                          className="ml-2 mt-1 inline-block rounded-full border border-cocoa/15 bg-white px-2 py-0.5 text-xs font-semibold text-cocoa"
+                        >
+                          Min. order: {product.minimumOrderQuantity ?? 1} piece{(product.minimumOrderQuantity ?? 1) === 1 ? '' : 's'}
+                        </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-3 sm:flex">
                         <button
