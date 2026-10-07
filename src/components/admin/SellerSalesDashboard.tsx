@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import RequiredMark from './RequiredMark';
 import {
   createSellerSale,
   deleteSellerSale,
@@ -446,6 +447,9 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               Cancel
             </button>
           </div>
+          <p className="mt-2 text-xs text-cocoa/70">
+            <RequiredMark /> Required fields. Enter 0 for costs or fees that do not apply.
+          </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm font-semibold text-cocoa">
               Product
@@ -460,7 +464,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               </select>
             </label>
             <label className="text-sm font-semibold text-cocoa">
-              Product name
+              Product name <RequiredMark />
               <input
                 aria-label="Sale product name"
                 value={draft.productName}
@@ -489,7 +493,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               </label>
             )}
             <label className="text-sm font-semibold text-cocoa">
-              Sale date
+              Sale date <RequiredMark />
               <input
                 aria-label="Sale date"
                 type="date"
@@ -500,7 +504,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               />
             </label>
             <label className="text-sm font-semibold text-cocoa">
-              Sales channel
+              Sales channel <RequiredMark />
               <select
                 aria-label="Sales channel"
                 value={draft.channel}
@@ -517,7 +521,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               </select>
             </label>
             <label className="text-sm font-semibold text-cocoa">
-              Quantity
+              Quantity <RequiredMark />
               <input
                 aria-label="Sale quantity"
                 type="number"
@@ -530,7 +534,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               />
             </label>
             <label className="text-sm font-semibold text-cocoa">
-              Unit selling price (₹, incl. GST)
+              Unit selling price (₹, incl. GST) <RequiredMark />
               <input
                 aria-label="Unit selling price"
                 type="number"
@@ -543,7 +547,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               />
             </label>
             <label className="text-sm font-semibold text-cocoa">
-              GST (%)
+              GST (%) <RequiredMark />
               <input
                 aria-label="Sale GST rate"
                 type="number"
@@ -565,7 +569,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
               ['gatewayFeeGstPercent', 'GST on payment fee (%)'],
             ] as const).map(([field, label]) => (
               <label key={field} className="text-sm font-semibold text-cocoa">
-                {label}
+                {label} <RequiredMark />
                 <input
                   aria-label={label}
                   type="number"

@@ -93,6 +93,23 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('marks required sale entries but leaves the optional product selector and notes unmarked', async () => {
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchSellerSales).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    for (const label of ['Sale product name', 'Sale date', 'Sales channel', 'Sale quantity',
+      'Unit selling price', 'Sale GST rate', 'Materials per piece (₹)', 'Labour per piece (₹)',
+      'Packaging per piece (₹)', 'Shipping cost for this sale (₹)', 'Payment processing fee (%)',
+      'GST on payment fee (%)']) {
+      expect(screen.getByLabelText(label).closest('label')?.querySelector('.text-red-600')).toBeTruthy();
+    }
+    for (const label of ['Sale product', 'Sale notes']) {
+      expect(screen.getByLabelText(label).closest('label')?.querySelector('.text-red-600')).toBeNull();
+    }
+    expect(screen.getByText(/Enter 0 for costs or fees/)).toBeTruthy();
+  });
+
   it('starts collapsed and preserves form values when collapsed and reopened', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     const toggle = screen.getByRole('button', { name: /Sales dashboard/ });

@@ -71,6 +71,9 @@ also runs in the product service, not just the browser form. Already published
 legacy products can still be edited without filling newly required facts.
 Required product and variant fields are marked with a red asterisk; the price
 marker appears only when Show price is enabled.
+The Record/Edit sale form also marks required sale details, GST and cost/fee
+inputs with red asterisks. Costs and fees that do not apply should be entered
+as 0; the catalogue product selector and sale notes remain optional.
 
 Product photos are stored on Cloudflare R2 and served from
 `images.luviacreations.com`. Admin uploads (JPG, PNG or WebP) are resized to at
