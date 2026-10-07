@@ -126,6 +126,7 @@ const formatMargin = (margin: number | null) =>
   margin === null ? '—' : `${margin.toFixed(1)}%`;
 
 export default function SellerSalesDashboard({ refreshKey }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [sales, setSales] = useState<SellerSale[]>([]);
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [month, setMonth] = useState(currentMonth);
@@ -324,18 +325,33 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
 
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-mustard-dark">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls="seller-sales-dashboard-content"
+        onClick={() => setIsExpanded((current) => !current)}
+        className="flex w-full items-center justify-between gap-4 text-left"
+      >
+        <span>
+          <span className="block text-sm font-semibold uppercase tracking-widest text-mustard-dark">
             Seller tools
-          </p>
-          <h2 className="font-heading text-2xl font-bold text-cocoa sm:text-3xl">
+          </span>
+          <span className="block font-heading text-2xl font-bold text-cocoa sm:text-3xl">
             Sales dashboard
-          </h2>
-          <p className="mt-1 text-sm text-cocoa/65">
+          </span>
+          <span className="mt-1 block text-sm text-cocoa/65">
             Track monthly sales by product and channel. Profit is an estimate using each sale&apos;s saved cost and GST values.
-          </p>
-        </div>
+          </span>
+        </span>
+        <span
+          aria-hidden="true"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mustard/20 text-xl text-cocoa"
+        >
+          {isExpanded ? '−' : '+'}
+        </span>
+      </button>
+      <div id="seller-sales-dashboard-content" hidden={!isExpanded}>
+      <div className="mt-4 flex flex-col gap-3">
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-sm font-semibold text-cocoa">
             Month
@@ -673,6 +689,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       <p className="mt-4 text-xs text-cocoa/55">
         Estimates subtract GST included in the selling price, payment fees (plus GST on those fees), recorded product costs and shipping paid. Keep original invoices and verify actual tax obligations separately.
       </p>
+      </div>
     </section>
   );
 }

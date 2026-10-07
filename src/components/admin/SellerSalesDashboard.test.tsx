@@ -93,9 +93,28 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('starts collapsed and preserves form values when collapsed and reopened', async () => {
+    render(<SellerSalesDashboard refreshKey={0} />);
+    const toggle = screen.getByRole('button', { name: /Sales dashboard/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Record sale' })).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product name'), {
+      target: { value: 'Custom flower' },
+    });
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('button', { name: 'Save sale' })).toBeNull();
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText('Sale product name')).toHaveProperty('value', 'Custom flower');
+    await waitFor(() => expect(fetchSellerSales).toHaveBeenCalled());
+  });
+
   it('prefills the selected product values and records an editable-channel sale', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchSellerSales).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), {
       target: { value: product.id },
