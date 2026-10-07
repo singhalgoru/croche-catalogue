@@ -99,6 +99,7 @@ describe('Product detail admin integration', () => {
       candidates: [{
         hsnCode: '580810',
         hsnDescription: 'Hand-made braids in the piece',
+        gstRate: 5,
         igstRate: 5,
         cgstRate: 2.5,
         sgstRate: 2.5,
@@ -113,7 +114,7 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Get GST rate & HSN' }));
     expect(await screen.findByText('HSN 580810 — Hand-made braids in the piece')).toBeTruthy();
     expect(screen.getByText(/Match confidence 84%/)).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: 'Use 5% rate in estimate' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Use 5% GST rate in estimate' }));
     fireEvent.click(screen.getByRole('button', { name: 'Suggest price' }));
     expect(await screen.findByText('Suggested ₹800 before GST')).toBeTruthy();
     const sellingPrice = screen.getByLabelText('Coaster selling price before GST');

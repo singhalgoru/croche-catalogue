@@ -21,7 +21,8 @@ export interface ProductGstRateSuggestion {
   candidates: Array<{
     hsnCode: string;
     hsnDescription: string;
-    igstRate: number;
+    gstRate: number;
+    igstRate: number | null;
     cgstRate: number;
     sgstRate: number;
     cessRate: number;
@@ -185,7 +186,8 @@ export async function suggestProductGstRate(
     if (
       typeof item.hsnCode !== 'string' || !/^\d{4}(?:\d{2}){0,2}$/.test(item.hsnCode) ||
       typeof item.hsnDescription !== 'string' || !item.hsnDescription.trim() ||
-      !validRate(item.igstRate) || !validRate(item.cgstRate) ||
+      !validRate(item.gstRate) ||
+      (item.igstRate !== null && !validRate(item.igstRate)) || !validRate(item.cgstRate) ||
       !validRate(item.sgstRate) || !validRate(item.cessRate) ||
       typeof item.confidence !== 'number' || item.confidence < 0 || item.confidence > 1 ||
       (item.notificationRef !== null && typeof item.notificationRef !== 'string') ||

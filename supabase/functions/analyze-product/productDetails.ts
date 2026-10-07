@@ -19,7 +19,8 @@ export interface GstRateSuggestion {
   candidates: Array<{
     hsnCode: string;
     hsnDescription: string;
-    igstRate: number;
+    gstRate: number;
+    igstRate: number | null;
     cgstRate: number;
     sgstRate: number;
     cessRate: number;
@@ -53,14 +54,18 @@ export function validateGstRateSuggestion(
       throw new Error('The HSN provider returned a match without tax rates.');
     }
     const taxRates = rates as Record<string, unknown>;
-    const rate = (field: string, optional = false) => {
+    const rate = (field: string) => {
       const amount = taxRates[field];
-      if (optional && (amount === undefined || amount === null)) return 0;
       if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0 || amount > 100) {
         const receivedType = amount === null ? 'null' : typeof amount;
         throw new Error(`The HSN provider returned an invalid ${field} tax rate (${receivedType}).`);
       }
       return amount;
+    };
+    const optionalRate = (field: string) => {
+      const amount = taxRates[field];
+      if (amount === undefined || amount === null) return null;
+      return rate(field);
     };
     const hsnCode = item.hsn_code;
     const hsnDescription = item.description;
@@ -80,13 +85,18 @@ export function validateGstRateSuggestion(
     ) {
       throw new Error('The HSN provider returned an invalid classification.');
     }
+    const igstRate = optionalRate('igst');
+    const cgstRate = rate('cgst');
+    const sgstRate = rate('sgst');
+    const totalIntrastateRate = optionalRate('total_intrastate');
     return {
       hsnCode,
       hsnDescription: hsnDescription.trim(),
-      igstRate: rate('igst'),
-      cgstRate: rate('cgst'),
-      sgstRate: rate('sgst'),
-      cessRate: rate('cess', true),
+      gstRate: igstRate ?? totalIntrastateRate ?? cgstRate + sgstRate,
+      igstRate,
+      cgstRate,
+      sgstRate,
+      cessRate: optionalRate('cess') ?? 0,
       confidence,
       notificationRef: typeof notificationRef === 'string' ? notificationRef.slice(0, 100) : null,
       conditionApplied: typeof conditionApplied === 'string' ? conditionApplied.slice(0, 300) : null,

@@ -226,7 +226,8 @@ export default function PriceDiscoveryPanel({
                           HSN {candidate.hsnCode} — {candidate.hsnDescription}
                         </p>
                         <p className="mt-1 text-sm text-cocoa">
-                          IGST {candidate.igstRate}% · CGST {candidate.cgstRate}% + SGST {candidate.sgstRate}%
+                          GST total {candidate.gstRate}% · IGST {candidate.igstRate === null ? 'not supplied' : `${candidate.igstRate}%`}
+                          {' '}· CGST {candidate.cgstRate}% + SGST {candidate.sgstRate}%
                           {candidate.cessRate > 0 ? ` · Cess ${candidate.cessRate}%` : ''}
                         </p>
                         <p className="mt-1 text-xs text-cocoa/70">
@@ -244,10 +245,10 @@ export default function PriceDiscoveryPanel({
                         )}
                         <button
                           type="button"
-                          onClick={() => updateInput('gstPercent', String(candidate.igstRate))}
+                          onClick={() => updateInput('gstPercent', String(candidate.gstRate))}
                           className="mt-2 min-h-10 rounded-full bg-mustard px-4 py-2 text-sm font-semibold text-cocoa"
                         >
-                          Use {candidate.igstRate}% rate in estimate
+                          Use {candidate.gstRate}% GST rate in estimate
                         </button>
                       </article>
                     ))}

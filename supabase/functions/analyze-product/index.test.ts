@@ -28,7 +28,7 @@ let gstAcceleratorApiKey: string | undefined = 'test-provider-key';
 const gstMatch = {
   hsn_code: '580810',
   description: 'Hand-made braids in the piece',
-  tax_rates: { igst: 5, cgst: 2.5, sgst: 2.5, cess: 0 },
+  tax_rates: { igst: 5, cgst: 2.5, sgst: 2.5, cess: 0, total_intrastate: 5 },
   condition_applied: null,
   condition_warning: null,
   confidence: 0.84,
@@ -87,6 +87,7 @@ describe('analyze-product endpoint', () => {
       candidates: [{
         hsnCode: '580810',
         hsnDescription: 'Hand-made braids in the piece',
+        gstRate: 5,
         igstRate: 5,
         cgstRate: 2.5,
         sgstRate: 2.5,

@@ -111,6 +111,7 @@ describe('suggestProductGstRate', () => {
       candidates: [{
         hsnCode: '580810',
         hsnDescription: 'Hand-made braids in the piece',
+        gstRate: 5,
         igstRate: 5,
         cgstRate: 2.5,
         sgstRate: 2.5,
@@ -147,7 +148,7 @@ describe('suggestProductGstRate', () => {
         source: 'GST Accelerator',
         candidates: [{
           hsnCode: '1234', hsnDescription: 'Unsupported',
-          igstRate: 150, cgstRate: 0, sgstRate: 0, cessRate: 0,
+          gstRate: 5, igstRate: 150, cgstRate: 0, sgstRate: 0, cessRate: 0,
           confidence: 1, notificationRef: null, conditionApplied: null,
           conditionWarning: null, needsReview: false,
         }],
