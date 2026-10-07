@@ -53,6 +53,59 @@ describe('analyze-product endpoint', () => {
     expect(body.contents[0].parts[0].text).toContain('descriptions-only edit');
     expect(body.contents[0].parts[0].text).toContain('name and category unchanged');
   });
+  it('suggests GST from category and supplied product facts without requiring an image', async () => {
+    fetchMock.mockResolvedValue(geminiResponse({
+      suggestedRate: 5, confidence: 'low',
+      rationale: 'Category alone is broad; verify the exact HSN classification.',
+      hsnCode: 'invented',
+    }));
+    const response = await handler(request({
+      mode: 'gst-rate',
+      imageBase64: undefined,
+      mimeType: undefined,
+      context: {
+        category: 'Accessories', name: 'Crochet charm',
+        description: 'Small handmade crochet bag charm.', materials: 'Cotton yarn',
+      },
+    }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      suggestedRate: 5, confidence: 'low',
+      rationale: 'Category alone is broad; verify the exact HSN classification.',
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.contents[0].parts).toHaveLength(1);
+    expect(body.contents[0].parts[0].text).toContain('Accessories');
+    expect(body.contents[0].parts[0].text).toContain('Cotton yarn');
+    expect(body.contents[0].parts[0].text).toContain('not legal, accounting, or tax advice');
+    expect(body.generationConfig.responseSchema.required).toEqual([
+      'suggestedRate', 'confidence', 'rationale',
+    ]);
+  });
+  it('requires a current category and rejects invalid Gemini GST suggestions', async () => {
+    const missingCategory = await handler(request({
+      mode: 'gst-rate', imageBase64: undefined, mimeType: undefined, context: { name: 'Charm' },
+    }));
+    expect(missingCategory.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const order = vi.fn();
+    order.mockReturnValueOnce({ order })
+      .mockResolvedValueOnce({ data: [{ name: 'Accessories' }], error: null });
+    from.mockReturnValue({ select: () => ({ order }) });
+    fetchMock.mockResolvedValue(geminiResponse({
+      suggestedRate: 180, confidence: 'high', rationale: 'Unsupported rate.',
+    }));
+    const invalidSuggestion = await handler(request({
+      mode: 'gst-rate', imageBase64: undefined, mimeType: undefined,
+      context: { category: 'Accessories', name: 'Charm' },
+    }));
+    expect(invalidSuggestion.status).toBe(502);
+    expect(await invalidSuggestion.json()).toEqual({
+      error: 'Gemini returned an invalid GST rate suggestion.',
+    });
+  });
   it('keeps image-only analysis working with empty optional fields', async () => {
     fetchMock.mockResolvedValue(geminiResponse(metadata));
     const response = await handler(request());

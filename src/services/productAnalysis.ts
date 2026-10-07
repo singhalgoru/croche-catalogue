@@ -16,6 +16,12 @@ export interface ProductAnalysisContext extends ProductDetails {
   description?: string;
 }
 
+export interface ProductGstRateSuggestion {
+  suggestedRate: number | null;
+  confidence: 'low' | 'medium' | 'high';
+  rationale: string;
+}
+
 const CONTEXT_LIMITS = {
   notes: 2000,
   name: 120,
@@ -130,6 +136,47 @@ const getFunctionErrorMessage = async (error: {
 
   return error.message;
 };
+
+export async function suggestProductGstRate(
+  context: ProductAnalysisContext,
+): Promise<ProductGstRateSuggestion> {
+  if (!supabase) {
+    throw new Error(
+      'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+    );
+  }
+  const normalizedContext = validateContext(context);
+  if (!normalizedContext.category) {
+    throw new Error('Choose a product category before requesting a GST suggestion.');
+  }
+
+  const { data, error } = await supabase.functions.invoke('analyze-product', {
+    body: { mode: 'gst-rate', context: normalizedContext },
+  });
+  if (error) {
+    const message = await getFunctionErrorMessage(error);
+    throw new Error(`Unable to suggest a GST rate: ${message}`);
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('Gemini returned an invalid GST rate suggestion.');
+  }
+
+  const suggestion = data as Record<string, unknown>;
+  const rate = suggestion.suggestedRate;
+  const confidence = suggestion.confidence;
+  const rationale = suggestion.rationale;
+  if (
+    (rate !== null &&
+      (typeof rate !== 'number' || !Number.isFinite(rate) || rate < 0 || rate > 100)) ||
+    (confidence !== 'low' && confidence !== 'medium' && confidence !== 'high') ||
+    typeof rationale !== 'string' || !rationale.trim() || rationale.length > 500 ||
+    (rate === null && confidence !== 'low')
+  ) {
+    throw new Error('Gemini returned an invalid GST rate suggestion.');
+  }
+
+  return { suggestedRate: rate, confidence, rationale: rationale.trim() };
+}
 
 /** Context is draft-only; notes are limited to 2,000 characters and details to 1,000 each. */
 export async function analyzeProductImage(

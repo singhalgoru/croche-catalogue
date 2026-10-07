@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { analyzeProductImage, suggestVariantName } from './productAnalysis';
+import { analyzeProductImage, suggestProductGstRate, suggestVariantName } from './productAnalysis';
 
 const mockInvoke = vi.fn();
 
@@ -99,6 +99,47 @@ describe('analyzeProductImage', () => {
     await expect(analyzeProductImage(imageFile(), ['Accessories'])).rejects.toThrow('Invalid notes');
     mockInvoke.mockResolvedValueOnce({ data: { ...analysis, category: 'Unknown' }, error: null });
     await expect(analyzeProductImage(imageFile(), ['Accessories'])).rejects.toThrow('invalid product details');
+  });
+});
+
+describe('suggestProductGstRate', () => {
+  beforeEach(() => mockInvoke.mockReset());
+
+  it('sends category and confirmed product details without an image', async () => {
+    mockInvoke.mockResolvedValue({
+      data: { suggestedRate: 5, confidence: 'low', rationale: 'Verify the HSN classification.' },
+      error: null,
+    });
+    await expect(suggestProductGstRate({
+      category: 'Accessories', name: 'Crochet charm', description: 'A handmade bag charm.',
+      materials: 'Cotton yarn', includedItems: 'One charm',
+    })).resolves.toEqual({
+      suggestedRate: 5, confidence: 'low', rationale: 'Verify the HSN classification.',
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('analyze-product', {
+      body: {
+        mode: 'gst-rate',
+        context: {
+          category: 'Accessories', name: 'Crochet charm', description: 'A handmade bag charm.',
+          materials: 'Cotton yarn', includedItems: 'One charm',
+        },
+      },
+    });
+  });
+
+  it('rejects invalid suggestions and surfaces function errors', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: { suggestedRate: 150, confidence: 'high', rationale: 'Unsupported.' },
+      error: null,
+    });
+    await expect(suggestProductGstRate({ category: 'Accessories' }))
+      .rejects.toThrow('invalid GST rate suggestion');
+
+    mockInvoke.mockResolvedValueOnce({
+      data: null, error: { message: 'Bad request', context: new Response(JSON.stringify({ error: 'Gemini unavailable' })) },
+    });
+    await expect(suggestProductGstRate({ category: 'Accessories' }))
+      .rejects.toThrow('Unable to suggest a GST rate: Gemini unavailable');
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildProductPrompt, DETAIL_FIELDS, OPTIONAL_DETAIL_SCHEMA,
-  validateContext, validateProductAnalysis,
+  validateContext, validateGstRateSuggestion, validateProductAnalysis,
 } from './productDetails';
 
 const analysis = {
@@ -23,6 +23,28 @@ describe('analysis request context', () => {
       expect(() => validateContext(context)).toThrow();
     },
   );
+});
+
+describe('GST rate suggestion validation', () => {
+  it('accepts a bounded provisional rate and a low-confidence no-rate result', () => {
+    expect(validateGstRateSuggestion({
+      suggestedRate: 5, confidence: 'medium', rationale: 'Verify the applicable HSN.',
+    })).toEqual({
+      suggestedRate: 5, confidence: 'medium', rationale: 'Verify the applicable HSN.',
+    });
+    expect(validateGstRateSuggestion({
+      suggestedRate: null, confidence: 'low', rationale: 'The product details are insufficient.',
+    }).suggestedRate).toBeNull();
+  });
+  it.each([
+    { suggestedRate: 101, confidence: 'high', rationale: 'Invalid rate.' },
+    { suggestedRate: -1, confidence: 'medium', rationale: 'Invalid rate.' },
+    { suggestedRate: null, confidence: 'high', rationale: 'Uncertain.' },
+    { suggestedRate: 5, confidence: 'certain', rationale: 'Unsupported confidence.' },
+    { suggestedRate: 5, confidence: 'low', rationale: '' },
+  ])('rejects invalid suggestions', (suggestion) => {
+    expect(() => validateGstRateSuggestion(suggestion)).toThrow('invalid GST rate suggestion');
+  });
 });
 
 describe('facts-only analysis prompt and schema', () => {

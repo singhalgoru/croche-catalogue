@@ -14,6 +14,33 @@ const CONTEXT_LIMITS = {
 
 export type AnalysisContext = Partial<Record<keyof typeof CONTEXT_LIMITS, string>>;
 
+export interface GstRateSuggestion {
+  suggestedRate: number | null;
+  confidence: 'low' | 'medium' | 'high';
+  rationale: string;
+}
+
+export function validateGstRateSuggestion(value: Record<string, unknown>): GstRateSuggestion {
+  const suggestedRate = value.suggestedRate;
+  const confidence = value.confidence;
+  const rationale = value.rationale;
+  if (
+    (suggestedRate !== null &&
+      (typeof suggestedRate !== 'number' || !Number.isFinite(suggestedRate) ||
+        suggestedRate < 0 || suggestedRate > 100)) ||
+    (confidence !== 'low' && confidence !== 'medium' && confidence !== 'high') ||
+    typeof rationale !== 'string' || !rationale.trim() || rationale.length > 500 ||
+    (suggestedRate === null && confidence !== 'low')
+  ) {
+    throw new Error('Gemini returned an invalid GST rate suggestion.');
+  }
+  return {
+    suggestedRate,
+    confidence,
+    rationale: rationale.trim(),
+  };
+}
+
 export function validateContext(value: unknown): AnalysisContext {
   if (value === undefined) return {};
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

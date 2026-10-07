@@ -13,6 +13,12 @@ import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
+import PriceDiscoveryPanel from './PriceDiscoveryPanel';
+import {
+  DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+  type PriceDiscoveryDefaults,
+  type PriceDiscoveryInputs,
+} from './priceDiscovery';
 
 interface Props {
   categories: Category[];
@@ -66,6 +72,11 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showPriceDefaults, setShowPriceDefaults] = useState(false);
+  const [priceDefaults, setPriceDefaults] = useState<PriceDiscoveryDefaults>(
+    DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+  );
+  const [priceInputs, setPriceInputs] = useState<Record<string, PriceDiscoveryInputs>>({});
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
@@ -110,11 +121,14 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     queueMicrotask(() => void loadProducts());
   }, [loadProducts, refreshKey]);
 
-  const startEditing = (product: ManagedProduct) => {
+  const startEditing = (product: ManagedProduct, suggestedPrice?: number) => {
     if (isAnalyzing) return;
     setEditingId(product.id);
     setDeleteId(null);
-    setDraft(createDraft(product));
+    setDraft({
+      ...createDraft(product),
+      ...(suggestedPrice === undefined ? {} : { price: String(suggestedPrice) }),
+    });
     setMessage(null);
     setError(null);
   };
@@ -276,6 +290,59 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           setProducts(await fetchManagedProducts());
           await onChanged();
         }} />
+      <section className="my-4 rounded-xl border border-mustard/50 bg-cream/40 p-4">
+        <button
+          type="button"
+          aria-expanded={showPriceDefaults}
+          onClick={() => setShowPriceDefaults((open) => !open)}
+          className="flex w-full items-center justify-between gap-3 text-left font-semibold text-cocoa"
+        >
+          <span>Price discovery defaults</span>
+          <span aria-hidden="true">{showPriceDefaults ? '−' : '+'}</span>
+        </button>
+        {showPriceDefaults && (
+          <div className="mt-3">
+            <p className="mb-3 text-xs text-cocoa/65">
+              Shared by every product calculator during this admin session. The payment gateway
+              charges GST on its fee; this estimate includes that fee GST.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {([
+                ['labourRate', 'Labour rate (₹/hour)', 0, 10000, 1],
+                ['markupPercent', 'Markup on cost (%)', 0, 500, 1],
+                ['gatewayFeePercent', 'Gateway fee (%)', 0, 100, 0.1],
+                ['gatewayFeeGstPercent', 'GST on gateway fee (%)', 0, 100, 0.1],
+              ] as const).map(([field, label, min, max, step]) => (
+                <label key={field} className="text-sm font-semibold text-cocoa">
+                  {label}
+                  <input
+                    aria-label={label}
+                    type="number"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={priceDefaults[field]}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      if (Number.isFinite(value) && value >= min && value <= max) {
+                        setPriceDefaults((current) => ({ ...current, [field]: value }));
+                      }
+                    }}
+                    className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2"
+                  />
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPriceDefaults(DEFAULT_PRICE_DISCOVERY_DEFAULTS)}
+              className="mt-3 text-sm font-semibold text-cocoa underline underline-offset-2"
+            >
+              Reset defaults
+            </button>
+          </div>
+        )}
+      </section>
       {message && (
         <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
           {message}
@@ -431,6 +498,26 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                     </div>
                   </div>
                 </div>
+
+                <PriceDiscoveryPanel
+                  product={product}
+                  defaults={priceDefaults}
+                  inputs={priceInputs[product.id] ?? {
+                    timeSpent: '',
+                    timeUnit: 'hours',
+                    materialCost: '',
+                    shippingCost: '100',
+                    packagingCost: '100',
+                    gstPercent: '',
+                  }}
+                  onInputsChange={(inputs) =>
+                    setPriceInputs((current) => ({ ...current, [product.id]: inputs }))
+                  }
+                  onApplyPrice={(price) => {
+                    startEditing(product, price);
+                    setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
+                  }}
+                />
 
                 {isDeleting && (
                   <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
