@@ -16,13 +16,17 @@ describe('price discovery calculations', () => {
       shippingCost: '100',
       packagingCost: '100',
       gstPercent: '5',
+      targetMarginPercent: '45',
     }, DEFAULT_PRICE_DISCOVERY_DEFAULTS);
 
     expect(estimate).not.toBeNull();
     expect(estimate?.labourCost).toBe(200);
     expect(estimate?.totalCost).toBe(500);
-    expect(estimate?.targetBeforeGatewayFee).toBe(950);
-    expect(estimate?.expectedNet).toBeCloseTo(950);
+    expect(estimate?.expectedNet).toBeGreaterThan(estimate!.totalCost);
+    expect(
+      (estimate!.expectedNet - estimate!.totalCost)
+      / (estimate!.customerTotal - estimate!.gstAmount) * 100,
+    ).toBeCloseTo(45);
     expect(estimate?.customerTotal).toBe(estimate?.suggestedCustomerPrice);
     expect(estimate?.gstAmount).toBeCloseTo(estimate!.customerTotal * 5 / 105);
   });
@@ -35,6 +39,7 @@ describe('price discovery calculations', () => {
       shippingCost: '100',
       packagingCost: '100',
       gstPercent: '5',
+      targetMarginPercent: '45',
     };
     const minutesEstimate = estimateProductPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS);
     const hoursEstimate = estimateProductPrice({
@@ -51,12 +56,19 @@ describe('price discovery calculations', () => {
   it('requires every cost and a verified GST rate', () => {
     expect(estimateProductPrice({
       timeSpent: '1', timeUnit: 'hours', materialCost: '50', shippingCost: '100', packagingCost: '100', gstPercent: '',
+      targetMarginPercent: '45',
     }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBeNull();
     expect(estimateProductPrice({
       timeSpent: '-1', timeUnit: 'hours', materialCost: '50', shippingCost: '100', packagingCost: '100', gstPercent: '5',
+      targetMarginPercent: '45',
     }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBeNull();
     expect(estimateProductPrice({
       timeSpent: '1', timeUnit: 'hours', materialCost: '50', shippingCost: '100', packagingCost: '100', gstPercent: '101',
+      targetMarginPercent: '45',
+    }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBeNull();
+    expect(estimateProductPrice({
+      timeSpent: '1', timeUnit: 'hours', materialCost: '50', shippingCost: '100', packagingCost: '100', gstPercent: '5',
+      targetMarginPercent: '100',
     }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBeNull();
   });
 
@@ -68,6 +80,7 @@ describe('price discovery calculations', () => {
       shippingCost: '100',
       packagingCost: '100',
       gstPercent: '5',
+      targetMarginPercent: '45',
     };
     const outcome = calculatePriceAtSellingPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS, '1100');
 
@@ -82,8 +95,29 @@ describe('price discovery calculations', () => {
   it.each(['', '0', '-1', 'not-a-price'])('rejects invalid custom selling prices (%s)', (price) => {
     expect(calculatePriceAtSellingPrice({
       timeSpent: '1', timeUnit: 'hours', materialCost: '50', shippingCost: '100',
-      packagingCost: '100', gstPercent: '5',
+      packagingCost: '100', gstPercent: '5', targetMarginPercent: '45',
     }, DEFAULT_PRICE_DISCOVERY_DEFAULTS, price)).toBeNull();
+  });
+
+  it('adjusts the recommended price when the product-specific target margin changes', () => {
+    const inputs: PriceDiscoveryInputs = {
+      timeSpent: '1',
+      timeUnit: 'hours',
+      materialCost: '100',
+      shippingCost: '100',
+      packagingCost: '10',
+      gstPercent: '5',
+      targetMarginPercent: '35',
+    };
+    const lowerMargin = estimateProductPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS);
+    const higherMargin = estimateProductPrice({
+      ...inputs,
+      targetMarginPercent: '55',
+    }, DEFAULT_PRICE_DISCOVERY_DEFAULTS);
+
+    expect(lowerMargin).not.toBeNull();
+    expect(higherMargin).not.toBeNull();
+    expect(higherMargin!.suggestedCustomerPrice).toBeGreaterThan(lowerMargin!.suggestedCustomerPrice);
   });
 
   it('rounds up so the selected price does not fall below the calculated suggestion', () => {

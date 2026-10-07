@@ -53,6 +53,10 @@ interface ProductRow {
   care_instructions?: string | null;
   featured: boolean;
   price: number | null;
+  product_profit_margins?:
+    | { profit_margin_percent: number | null }
+    | { profit_margin_percent: number | null }[]
+    | null;
   show_price: boolean;
   color: string;
   in_stock: boolean;
@@ -99,6 +103,7 @@ export interface ProductUpdate extends ProductDetails {
   published: boolean;
   featured: boolean;
   price: number | null;
+  profitMarginPercent?: number | null;
   showPrice: boolean;
 }
 
@@ -143,6 +148,9 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
 });
 
 const mapProductRow = (row: ProductRow): ManagedProduct => {
+  const marginRow = Array.isArray(row.product_profit_margins)
+    ? row.product_profit_margins[0]
+    : row.product_profit_margins;
   const variants = [...(row.product_variants ?? [])]
     .sort((left, right) => left.sort_order - right.sort_order)
     .map(mapVariantRow);
@@ -167,6 +175,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     name: row.name,
     category: row.category,
     price: row.price,
+    profitMarginPercent: marginRow?.profit_margin_percent ?? null,
     showPrice: row.show_price,
     description: row.description,
     seoDescription: row.seo_description?.trim() || undefined,
@@ -476,6 +485,13 @@ export async function updateProduct(
   product: ManagedProduct,
   update: ProductUpdate,
 ): Promise<ManagedProduct> {
+  if (
+    update.profitMarginPercent !== undefined
+    && update.profitMarginPercent !== null
+    && (!Number.isFinite(update.profitMarginPercent) || update.profitMarginPercent > 100)
+  ) {
+    throw new Error('Product profit margin must be a finite percentage no greater than 100.');
+  }
   const details = productDetailColumns(update);
   const { client } = await getCurrentUser();
   const { error } = await client
@@ -493,6 +509,19 @@ export async function updateProduct(
     })
     .eq('id', product.id);
   if (error) throw new Error(`Unable to update ${product.name}: ${error.message}`);
+  if (update.profitMarginPercent !== undefined) {
+    const marginQuery = client.from('product_profit_margins');
+    const marginResult = update.profitMarginPercent === null
+      ? await marginQuery.delete().eq('product_id', product.id)
+      : await marginQuery.upsert({
+          product_id: product.id,
+          profit_margin_percent: update.profitMarginPercent,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'product_id' });
+    if (marginResult.error) {
+      throw new Error(`Unable to save ${product.name}'s profit margin: ${marginResult.error.message}`);
+    }
+  }
   return fetchProductById(product.id);
 }
 

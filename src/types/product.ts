@@ -44,6 +44,8 @@ export interface Product extends ProductDetails {
   category: Category;
   /** Price in whole rupees. `null` when no price has been set yet. */
   price: number | null;
+  /** Last profit margin calculated when the admin applied a price recommendation. */
+  profitMarginPercent?: number | null;
   /** Controls whether the price is shown to customers in the catalogue. */
   showPrice?: boolean;
   description: string;

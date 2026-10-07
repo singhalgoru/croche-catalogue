@@ -44,10 +44,10 @@ function queueQuery(data: unknown, error: { message: string } | null = null) {
   const response = { data, error };
   const query = {
     select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(),
-    insert: vi.fn(), update: vi.fn(), single: vi.fn(),
+    insert: vi.fn(), update: vi.fn(), upsert: vi.fn(), delete: vi.fn(), single: vi.fn(),
     then: (resolve: (value: typeof response) => unknown) => Promise.resolve(response).then(resolve),
   };
-  for (const method of ['select', 'eq', 'order', 'limit', 'insert', 'update'] as const) {
+  for (const method of ['select', 'eq', 'order', 'limit', 'insert', 'update', 'upsert', 'delete'] as const) {
     query[method].mockReturnValue(query);
   }
   query.single.mockResolvedValue(response);
@@ -129,19 +129,26 @@ describe('product detail loading', () => {
       seo_description: ' Handmade lavender crochet bunny. ',
       care_instructions: ' Spot clean ',
     };
-    const published = queueQuery([detailedRow]);
-    const managed = queueQuery([detailedRow]);
+    const published = queueQuery([{ ...detailedRow, product_profit_margins: [] }]);
+    const managed = queueQuery([{
+      ...detailedRow,
+      product_profit_margins: { profit_margin_percent: 46.2 },
+    }]);
     const loadedProducts = [await fetchPublishedProducts(), await fetchManagedProducts()];
-    for (const products of loadedProducts) {
-      expect(products[0]).toMatchObject({
-        materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
-        price: 300, inStock: true,
-        seoDescription: 'Handmade lavender crochet bunny.',
-      });
-    }
+    expect(loadedProducts[0][0]).toMatchObject({
+      materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
+      price: 300, profitMarginPercent: null, inStock: true,
+      seoDescription: 'Handmade lavender crochet bunny.',
+    });
+    expect(loadedProducts[1][0]).toMatchObject({
+      materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
+      price: 300, profitMarginPercent: 46.2, inStock: true,
+      seoDescription: 'Handmade lavender crochet bunny.',
+    });
     expect(published.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(managed.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(PRODUCT_COLUMNS).toContain('included_items, care_instructions');
+    expect(PRODUCT_COLUMNS).toContain('product_profit_margins(profit_margin_percent)');
     expect(PRODUCT_COLUMNS).toContain('public_slug');
     expect(loadedProducts[0][0].publicSlug).toBe('bunny');
     expect(loadedProducts[1][0].publicSlug).toBe('bunny');
@@ -202,6 +209,7 @@ describe('product detail persistence', () => {
       ...update, materials: ' ', includedItems: ' 1 keychain ', careInstructions: ' Spot clean ',
       seoDescription: '',
     });
+
     const payload = write.update.mock.calls[0][0];
     expect(payload).toMatchObject({ materials: null, included_items: '1 keychain', care_instructions: 'Spot clean', price: 300 });
     expect(payload).not.toHaveProperty('dimensions');
@@ -210,6 +218,30 @@ describe('product detail persistence', () => {
     expect(payload).not.toHaveProperty('available_quantity');
     expect(edited.materials).toBeUndefined();
     expect(edited.dimensions).toBe('10 cm');
+  });
+
+  it('persists the calculated product margin without affecting other product fields', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    const write = queueQuery(null);
+    const marginWrite = queueQuery(null);
+    queueQuery({ ...row, product_profit_margins: { profit_margin_percent: 45.125 } });
+
+    const saved = await updateProduct(product, { ...update, profitMarginPercent: 45.125 });
+
+    expect(write.update.mock.calls[0][0]).not.toHaveProperty('profit_margin_percent');
+    expect(marginWrite.upsert.mock.calls[0][0]).toMatchObject({ profit_margin_percent: 45.125 });
+    expect(saved.profitMarginPercent).toBe(45.125);
+  });
+
+  it('rejects invalid calculated margins before writing', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    for (const profitMarginPercent of [Number.NaN, Number.POSITIVE_INFINITY, 100.01]) {
+      await expect(updateProduct(product, { ...update, profitMarginPercent }))
+        .rejects.toThrow('finite percentage no greater than 100');
+    }
+    expect(from).toHaveBeenCalledTimes(1);
   });
 
   it('keeps legacy upload payloads valid and does not invent new details', async () => {

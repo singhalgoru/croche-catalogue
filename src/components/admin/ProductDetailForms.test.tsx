@@ -90,6 +90,7 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
     fireEvent.click(screen.getByRole('button', { name: /Estimate costs and a selling price/ }));
     expect(screen.getByLabelText('Coaster packaging cost')).toHaveProperty('value', '10');
+    expect(screen.getByLabelText('Coaster target profit margin')).toHaveProperty('value', '45');
     fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '120' } });
     fireEvent.change(screen.getByLabelText('Coaster time unit'), { target: { value: 'minutes' } });
     fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '100' } });
@@ -116,7 +117,7 @@ describe('Product detail admin integration', () => {
     expect(screen.getByText(/Match confidence 84%/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Use 5% GST rate in estimate' }));
     fireEvent.click(screen.getByRole('button', { name: 'Suggest price' }));
-    expect(await screen.findByText('Suggested customer price: ₹840 including GST')).toBeTruthy();
+    expect(await screen.findByText('Suggested customer price: ₹820 including GST')).toBeTruthy();
     const sellingPrice = screen.getByLabelText('Coaster customer price including GST');
     fireEvent.change(sellingPrice, { target: { value: '1100' } });
     expect(screen.getByText('Product profit margin')).toBeTruthy();
@@ -129,6 +130,11 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use in product editor' }));
     expect(screen.getByLabelText('Price (₹)')).toHaveProperty('value', '1100');
     expect(updateProduct).not.toHaveBeenCalled();
+    vi.mocked(updateProduct).mockResolvedValueOnce({ ...product, profitMarginPercent: 58.4 });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(updateProduct).toHaveBeenCalled());
+    expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(58.386, 2);
+    expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('58.4%');
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
       materials: 'Cotton yarn', includedItems: '',
@@ -142,6 +148,7 @@ describe('Product detail admin integration', () => {
       name: 'Bunny',
       category: 'Toys',
       description: 'A crochet bunny toy.',
+      profitMarginPercent: 52,
     };
     vi.mocked(fetchManagedProducts).mockResolvedValue([product, secondProduct]);
     render(<ProductManager categories={['Home', 'Toys']} refreshKey={0} onChanged={vi.fn().mockResolvedValue(undefined)} />);
@@ -150,6 +157,7 @@ describe('Product detail admin integration', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
     const coasterRate = screen.getByLabelText('Coaster GST rate for estimate');
+    expect(screen.getByLabelText('Coaster target profit margin')).toHaveProperty('value', '45');
     expect(coasterRate).toHaveProperty('value', '5');
     fireEvent.change(coasterRate, { target: { value: '12' } });
 
@@ -157,6 +165,7 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[2]);
     const bunnyRate = screen.getByLabelText('Bunny GST rate for estimate');
     expect(bunnyRate).toHaveProperty('value', '5');
+    expect(screen.getByLabelText('Bunny target profit margin')).toHaveProperty('value', '52');
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
     expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '12');
   });

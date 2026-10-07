@@ -17,7 +17,7 @@ interface Props {
   defaults: PriceDiscoveryDefaults;
   inputs: PriceDiscoveryInputs;
   onInputsChange: (inputs: PriceDiscoveryInputs) => void;
-  onApplyPrice: (price: number) => void;
+  onApplyPrice: (price: number, profitMarginPercent: number) => void;
 }
 
 const formatRupees = (amount: number) =>
@@ -180,6 +180,23 @@ export default function PriceDiscoveryPanel({
                 className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2"
               />
             </label>
+            <label className="text-sm font-semibold text-cocoa">
+              Target profit margin (%)
+              <input
+                aria-label={`${product.name} target profit margin`}
+                type="number"
+                min="0"
+                max="95"
+                step="0.5"
+                value={inputs.targetMarginPercent}
+                onChange={(event) => updateInput('targetMarginPercent', event.target.value)}
+                className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2"
+              />
+              <span className="mt-1 block text-xs font-normal text-cocoa/60">
+                Set a product-specific margin. The calculation uses profit divided by the selling
+                price before GST.
+              </span>
+            </label>
             <div className="sm:col-span-2">
               <label htmlFor={`${panelId}-gst`} className="text-sm font-semibold text-cocoa">
                 GST rate for this product estimate (%)
@@ -283,8 +300,10 @@ export default function PriceDiscoveryPanel({
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.labourCost)}</span>
                 <span className="text-cocoa/70">Total cost basis</span>
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.totalCost)}</span>
-                <span className="text-cocoa/70">Markup target ({defaults.markupPercent}%)</span>
-                <span className="text-right font-medium text-cocoa">{formatRupees(estimate.targetBeforeGatewayFee)}</span>
+                <span className="text-cocoa/70">Target profit margin</span>
+                <span className="text-right font-medium text-cocoa">
+                  {Number(inputs.targetMarginPercent).toFixed(1)}%
+                </span>
               </div>
               <div className="mt-4 flex flex-col gap-3 border-t border-cocoa/10 pt-3 sm:flex-row sm:items-end sm:justify-between">
                 <label className="text-xs font-semibold text-cocoa">
@@ -365,8 +384,12 @@ export default function PriceDiscoveryPanel({
               <div className="mt-4 flex justify-end border-t border-cocoa/10 pt-3">
                 <button
                   type="button"
-                  onClick={() => onApplyPrice(Number(sellingPrice))}
-                  disabled={!priceOutcome}
+                  onClick={() => {
+                    if (priceOutcome?.profitMarginPercent !== null && priceOutcome?.profitMarginPercent !== undefined) {
+                      onApplyPrice(Number(sellingPrice), priceOutcome.profitMarginPercent);
+                    }
+                  }}
+                  disabled={!priceOutcome || priceOutcome.profitMarginPercent === null}
                   className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream"
                 >
                   Use in product editor

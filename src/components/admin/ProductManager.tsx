@@ -16,6 +16,7 @@ import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+  DEFAULT_TARGET_MARGIN_PERCENT,
   type PriceDiscoveryDefaults,
   type PriceDiscoveryInputs,
 } from './priceDiscovery';
@@ -33,6 +34,7 @@ interface EditDraft extends DetailDraft {
   published: boolean;
   featured: boolean;
   price: string;
+  profitMarginPercent: number | null;
   showPrice: boolean;
 }
 
@@ -44,6 +46,7 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   published: product.published,
   featured: product.featured === true,
   price: product.price === null ? '' : String(product.price),
+  profitMarginPercent: product.profitMarginPercent ?? null,
   showPrice: product.showPrice === true,
   materials: product.materials ?? '',
   dimensions: product.dimensions ?? '',
@@ -121,13 +124,18 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     queueMicrotask(() => void loadProducts());
   }, [loadProducts, refreshKey]);
 
-  const startEditing = (product: ManagedProduct, suggestedPrice?: number) => {
+  const startEditing = (
+    product: ManagedProduct,
+    suggestedPrice?: number,
+    profitMarginPercent?: number,
+  ) => {
     if (isAnalyzing) return;
     setEditingId(product.id);
     setDeleteId(null);
     setDraft({
       ...createDraft(product),
       ...(suggestedPrice === undefined ? {} : { price: String(suggestedPrice) }),
+      ...(profitMarginPercent === undefined ? {} : { profitMarginPercent }),
     });
     setMessage(null);
     setError(null);
@@ -309,7 +317,6 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {([
                 ['labourRate', 'Labour rate (₹/hour)', 0, 10000, 1],
-                ['markupPercent', 'Markup on cost (%)', 0, 500, 1],
                 ['gatewayFeePercent', 'Gateway fee (%)', 0, 100, 0.1],
                 ['gatewayFeeGstPercent', 'GST on gateway fee (%)', 0, 100, 0.1],
               ] as const).map(([field, label, min, max, step]) => (
@@ -416,6 +423,15 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       <div>
                         <h3 className="font-heading text-lg font-bold text-cocoa">{product.name}</h3>
                         <p className="text-sm text-cocoa/60">{product.category}</p>
+                        {product.profitMarginPercent !== null
+                          && product.profitMarginPercent !== undefined && (
+                          <p
+                            aria-label={`${product.name} saved profit margin`}
+                            className="mt-1 text-sm font-semibold text-cocoa"
+                          >
+                            Saved profit margin: {product.profitMarginPercent.toFixed(1)}%
+                          </p>
+                        )}
                         <p className="mt-1 text-xs font-semibold text-cocoa/55">
                           {product.variants.length} variant{product.variants.length === 1 ? '' : 's'}
                         </p>
@@ -509,12 +525,15 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                     shippingCost: '100',
                     packagingCost: '10',
                     gstPercent: '5',
+                    targetMarginPercent: String(
+                      product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT,
+                    ),
                   }}
                   onInputsChange={(inputs) =>
                     setPriceInputs((current) => ({ ...current, [product.id]: inputs }))
                   }
-                  onApplyPrice={(price) => {
-                    startEditing(product, price);
+                  onApplyPrice={(price, profitMarginPercent) => {
+                    startEditing(product, price, profitMarginPercent);
                     setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
                   }}
                 />
@@ -609,7 +628,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         value={draft.price}
                         onChange={(event) =>
                           setDraft((current) =>
-                            current ? { ...current, price: event.target.value } : current,
+                            current
+                              ? {
+                                  ...current,
+                                  price: event.target.value,
+                                  profitMarginPercent: null,
+                                }
+                              : current,
                           )
                         }
                         placeholder="e.g. 349"
