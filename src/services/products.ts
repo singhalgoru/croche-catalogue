@@ -1,5 +1,12 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { CategorySettings, Product, ProductDetails, ProductVariant, ProductVariantImage } from '../types/product';
+import type {
+  CategorySettings,
+  Product,
+  ProductDetails,
+  ProductPricingInputs,
+  ProductVariant,
+  ProductVariantImage,
+} from '../types/product';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { archiveImageOriginal } from './imageOriginals';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
@@ -16,6 +23,17 @@ declare global {
   interface Window {
     cataloguePrefetch?: Promise<ProductRow[]>;
   }
+}
+
+interface ProductProfitMarginRow {
+  profit_margin_percent: number | null;
+  gst_percent: number | null;
+  time_spent: number | null;
+  time_unit: 'hours' | 'minutes' | null;
+  material_cost: number | null;
+  shipping_cost: number | null;
+  packaging_cost: number | null;
+  target_margin_percent: number | null;
 }
 
 interface ProductVariantImageRow {
@@ -54,8 +72,8 @@ interface ProductRow {
   featured: boolean;
   price: number | null;
   product_profit_margins?:
-    | { profit_margin_percent: number | null; gst_percent: number | null }
-    | { profit_margin_percent: number | null; gst_percent: number | null }[]
+    | ProductProfitMarginRow
+    | ProductProfitMarginRow[]
     | null;
   show_price: boolean;
   color: string;
@@ -94,6 +112,7 @@ export interface ManagedProduct extends Product {
   published: boolean;
   publishedAt: string | null;
   createdAt: string;
+  priceDiscoveryInputs?: ProductPricingInputs | null;
 }
 
 export interface ProductUpdate extends ProductDetails {
@@ -105,6 +124,7 @@ export interface ProductUpdate extends ProductDetails {
   price: number | null;
   profitMarginPercent?: number | null;
   gstPercent?: number | null;
+  priceDiscoveryInputs?: ProductPricingInputs;
   showPrice: boolean;
 }
 
@@ -125,6 +145,46 @@ const requireSupabase = async () => {
     );
   }
   return supabase;
+};
+
+const priceDiscoveryColumns = (inputs: ProductPricingInputs) => {
+  if (
+    [
+      inputs.timeSpent,
+      inputs.materialCost,
+      inputs.shippingCost,
+      inputs.packagingCost,
+      inputs.gstPercent,
+      inputs.targetMarginPercent,
+    ].some((value) => !value.trim())
+  ) {
+    throw new Error('Complete the price discovery fields with valid non-negative values before saving.');
+  }
+  const values = {
+    timeSpent: Number(inputs.timeSpent),
+    materialCost: Number(inputs.materialCost),
+    shippingCost: Number(inputs.shippingCost),
+    packagingCost: Number(inputs.packagingCost),
+    gstPercent: Number(inputs.gstPercent),
+    targetMarginPercent: Number(inputs.targetMarginPercent),
+  };
+  if (
+    Object.values(values).some((value) => !Number.isFinite(value) || value < 0)
+    || values.gstPercent > 100
+    || values.targetMarginPercent >= 100
+    || (inputs.timeUnit !== 'hours' && inputs.timeUnit !== 'minutes')
+  ) {
+    throw new Error('Complete the price discovery fields with valid non-negative values before saving.');
+  }
+  return {
+    time_spent: values.timeSpent,
+    time_unit: inputs.timeUnit,
+    material_cost: values.materialCost,
+    shipping_cost: values.shippingCost,
+    packaging_cost: values.packagingCost,
+    gst_percent: values.gstPercent,
+    target_margin_percent: values.targetMarginPercent,
+  };
 };
 
 const mapGalleryRow = (row: ProductVariantImageRow): ProductVariantImage => ({
@@ -152,6 +212,24 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
   const marginRow = Array.isArray(row.product_profit_margins)
     ? row.product_profit_margins[0]
     : row.product_profit_margins;
+  const priceDiscoveryInputs = marginRow
+    && marginRow.time_spent !== null
+    && marginRow.time_unit !== null
+    && marginRow.material_cost !== null
+    && marginRow.shipping_cost !== null
+    && marginRow.packaging_cost !== null
+    && marginRow.gst_percent !== null
+    && marginRow.target_margin_percent !== null
+    ? {
+        timeSpent: String(marginRow.time_spent),
+        timeUnit: marginRow.time_unit,
+        materialCost: String(marginRow.material_cost),
+        shippingCost: String(marginRow.shipping_cost),
+        packagingCost: String(marginRow.packaging_cost),
+        gstPercent: String(marginRow.gst_percent),
+        targetMarginPercent: String(marginRow.target_margin_percent),
+      }
+    : null;
   const variants = [...(row.product_variants ?? [])]
     .sort((left, right) => left.sort_order - right.sort_order)
     .map(mapVariantRow);
@@ -178,6 +256,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     price: row.price,
     profitMarginPercent: marginRow?.profit_margin_percent ?? null,
     gstPercent: marginRow?.gst_percent ?? null,
+    priceDiscoveryInputs,
     showPrice: row.show_price,
     description: row.description,
     seoDescription: row.seo_description?.trim() || undefined,
@@ -501,6 +580,9 @@ export async function updateProduct(
   ) {
     throw new Error('Product GST rate must be a finite percentage between 0 and 100.');
   }
+  const pricingInputs = update.priceDiscoveryInputs === undefined
+    ? undefined
+    : priceDiscoveryColumns(update.priceDiscoveryInputs);
   const details = productDetailColumns(update);
   const { client } = await getCurrentUser();
   const { error } = await client
@@ -518,19 +600,41 @@ export async function updateProduct(
     })
     .eq('id', product.id);
   if (error) throw new Error(`Unable to update ${product.name}: ${error.message}`);
-  if (update.profitMarginPercent !== undefined) {
+  if (update.profitMarginPercent !== undefined || pricingInputs !== undefined) {
     const marginQuery = client.from('product_profit_margins');
-    const marginResult = update.profitMarginPercent === null
+    const marginResult = update.profitMarginPercent === null && pricingInputs === undefined
       ? await marginQuery.delete().eq('product_id', product.id)
       : await marginQuery.upsert({
           product_id: product.id,
-          profit_margin_percent: update.profitMarginPercent,
-        gst_percent: update.gstPercent ?? null,
+        ...(update.profitMarginPercent === undefined
+          ? {}
+          : { profit_margin_percent: update.profitMarginPercent }),
+        ...(update.gstPercent === undefined ? {} : { gst_percent: update.gstPercent }),
+        ...pricingInputs,
         updated_at: new Date().toISOString(),
         }, { onConflict: 'product_id' });
     if (marginResult.error) {
       throw new Error(`Unable to save ${product.name}'s profit margin: ${marginResult.error.message}`);
     }
+  }
+  return fetchProductById(product.id);
+}
+
+export async function saveProductPriceDiscoveryInputs(
+  product: ManagedProduct,
+  inputs: ProductPricingInputs,
+): Promise<ManagedProduct> {
+  const columns = priceDiscoveryColumns(inputs);
+  const { client } = await getCurrentUser();
+  const { error } = await client
+    .from('product_profit_margins')
+    .upsert({
+      product_id: product.id,
+      ...columns,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'product_id' });
+  if (error) {
+    throw new Error(`Unable to save price discovery values for ${product.name}: ${error.message}`);
   }
   return fetchProductById(product.id);
 }

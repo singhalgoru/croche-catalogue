@@ -35,6 +35,16 @@ export interface ProductDetails {
   careInstructions?: string;
 }
 
+export interface ProductPricingInputs {
+  timeSpent: string;
+  timeUnit: 'hours' | 'minutes';
+  materialCost: string;
+  shippingCost: string;
+  packagingCost: string;
+  gstPercent: string;
+  targetMarginPercent: string;
+}
+
 export interface Product extends ProductDetails {
   id: string;
   publicSlug?: string;

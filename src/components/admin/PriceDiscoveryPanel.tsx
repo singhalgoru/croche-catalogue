@@ -18,6 +18,7 @@ interface Props {
   inputs: PriceDiscoveryInputs;
   onInputsChange: (inputs: PriceDiscoveryInputs) => void;
   onApplyPrice: (price: number, profitMarginPercent: number, gstPercent: number) => void;
+  onSaveInputs: (inputs: PriceDiscoveryInputs) => Promise<void>;
 }
 
 const formatRupees = (amount: number) =>
@@ -29,6 +30,7 @@ export default function PriceDiscoveryPanel({
   inputs,
   onInputsChange,
   onApplyPrice,
+  onSaveInputs,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [roundingIncrement, setRoundingIncrement] = useState(5);
@@ -37,6 +39,9 @@ export default function PriceDiscoveryPanel({
   const [isSuggestingGst, setIsSuggestingGst] = useState(false);
   const [gstSuggestion, setGstSuggestion] = useState<ProductGstRateSuggestion | null>(null);
   const [gstSuggestionError, setGstSuggestionError] = useState<string | null>(null);
+  const [isSavingInputs, setIsSavingInputs] = useState(false);
+  const [saveInputsMessage, setSaveInputsMessage] = useState<string | null>(null);
+  const [saveInputsError, setSaveInputsError] = useState<string | null>(null);
   const panelId = useId();
   const estimate = estimateProductPrice(inputs, defaults);
   const suggestedPrice = estimate
@@ -49,6 +54,8 @@ export default function PriceDiscoveryPanel({
   const updateInput = (field: keyof PriceDiscoveryInputs, value: string) => {
     setHasSuggestedPrice(false);
     setSellingPrice('');
+    setSaveInputsMessage(null);
+    setSaveInputsError(null);
     onInputsChange({ ...inputs, [field]: value });
   };
 
@@ -56,6 +63,22 @@ export default function PriceDiscoveryPanel({
     if (suggestedPrice === null) return;
     setSellingPrice(String(suggestedPrice));
     setHasSuggestedPrice(true);
+  };
+
+  const saveInputs = async () => {
+    setIsSavingInputs(true);
+    setSaveInputsError(null);
+    setSaveInputsMessage(null);
+    try {
+      await onSaveInputs(inputs);
+      setSaveInputsMessage('Price discovery values saved for this product.');
+    } catch (error) {
+      setSaveInputsError(
+        error instanceof Error ? error.message : 'Unable to save price discovery values.',
+      );
+    } finally {
+      setIsSavingInputs(false);
+    }
   };
 
   const getGstSuggestion = async () => {
@@ -328,6 +351,18 @@ export default function PriceDiscoveryPanel({
                   Suggest price
                 </button>
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-cocoa/10 pt-3">
+                <button
+                  type="button"
+                  disabled={isSavingInputs}
+                  onClick={() => void saveInputs()}
+                  className="min-h-10 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
+                >
+                  {isSavingInputs ? 'Saving values…' : 'Save values for this product'}
+                </button>
+                {saveInputsMessage && <span role="status" className="text-sm text-green-800">{saveInputsMessage}</span>}
+                {saveInputsError && <span role="alert" className="text-sm text-red-700">{saveInputsError}</span>}
+              </div>
             </div>
           ) : estimate && suggestedPrice !== null && hasSuggestedPrice ? (
             <div className="rounded-xl bg-cream p-3 sm:p-4">
@@ -402,6 +437,18 @@ export default function PriceDiscoveryPanel({
                 >
                   Use in product editor
                 </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={isSavingInputs}
+                  onClick={() => void saveInputs()}
+                  className="min-h-10 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
+                >
+                  {isSavingInputs ? 'Saving values…' : 'Save values for this product'}
+                </button>
+                {saveInputsMessage && <span role="status" className="text-sm text-green-800">{saveInputsMessage}</span>}
+                {saveInputsError && <span role="alert" className="text-sm text-red-700">{saveInputsError}</span>}
               </div>
             </div>
           ) : (

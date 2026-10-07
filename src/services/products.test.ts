@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchManagedProducts, fetchPublishedProducts, publishProduct, updateProduct,
+  saveProductPriceDiscoveryInputs,
   bulkUpdateProductDescriptions,
   readCatalogueBootstrap,
   type NewProduct, type ProductUpdate,
@@ -148,7 +149,9 @@ describe('product detail loading', () => {
     expect(published.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(managed.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(PRODUCT_COLUMNS).toContain('included_items, care_instructions');
-    expect(PRODUCT_COLUMNS).toContain('product_profit_margins(profit_margin_percent, gst_percent)');
+    expect(PRODUCT_COLUMNS).toContain(
+      'product_profit_margins(profit_margin_percent, gst_percent, time_spent, time_unit, material_cost, shipping_cost, packaging_cost, target_margin_percent)',
+    );
     expect(PRODUCT_COLUMNS).toContain('public_slug');
     expect(loadedProducts[0][0].publicSlug).toBe('bunny');
     expect(loadedProducts[1][0].publicSlug).toBe('bunny');
@@ -241,6 +244,48 @@ describe('product detail persistence', () => {
     expect(marginWrite.upsert.mock.calls[0][0]).toMatchObject({ gst_percent: 5 });
     expect(saved.profitMarginPercent).toBe(45.125);
     expect(saved.gstPercent).toBe(5);
+  });
+
+  it('saves and reloads every price discovery input for an individual product', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    const write = queueQuery(null);
+    const savedInputs = {
+      timeSpent: '2.5',
+      timeUnit: 'hours' as const,
+      materialCost: '160',
+      shippingCost: '100',
+      packagingCost: '10',
+      gstPercent: '5',
+      targetMarginPercent: '45',
+    };
+    queueQuery({
+      ...row,
+      product_profit_margins: {
+        profit_margin_percent: null,
+        gst_percent: 5,
+        time_spent: 2.5,
+        time_unit: 'hours',
+        material_cost: 160,
+        shipping_cost: 100,
+        packaging_cost: 10,
+        target_margin_percent: 45,
+      },
+    });
+
+    const saved = await saveProductPriceDiscoveryInputs(product, savedInputs);
+
+    expect(write.upsert.mock.calls[0][0]).toMatchObject({
+      product_id: product.id,
+      time_spent: 2.5,
+      time_unit: 'hours',
+      material_cost: 160,
+      shipping_cost: 100,
+      packaging_cost: 10,
+      gst_percent: 5,
+      target_margin_percent: 45,
+    });
+    expect(saved.priceDiscoveryInputs).toEqual(savedInputs);
   });
 
   it('rejects invalid calculated margins before writing', async () => {

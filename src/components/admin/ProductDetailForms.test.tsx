@@ -2,13 +2,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProductUploadForm from './ProductUploadForm';
 import ProductManager from './ProductManager';
-import { fetchManagedProducts, publishProduct, updateProduct } from '../../services/products';
+import {
+  fetchManagedProducts,
+  publishProduct,
+  saveProductPriceDiscoveryInputs,
+  updateProduct,
+} from '../../services/products';
 import type { ManagedProduct } from '../../services/products';
 import { suggestProductGstRate } from '../../services/productAnalysis';
 
 vi.mock('../../services/products', () => ({
   fetchManagedProducts: vi.fn(), publishProduct: vi.fn(), updateProduct: vi.fn(),
-  deleteProduct: vi.fn(), reorderProducts: vi.fn(),
+  saveProductPriceDiscoveryInputs: vi.fn(), deleteProduct: vi.fn(), reorderProducts: vi.fn(),
 }));
 vi.mock('../../services/productAnalysis', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/productAnalysis')>(),
@@ -41,6 +46,10 @@ beforeEach(() => {
   vi.mocked(fetchManagedProducts).mockResolvedValue([product]);
   vi.mocked(publishProduct).mockResolvedValue(product);
   vi.mocked(updateProduct).mockResolvedValue(product);
+  vi.mocked(saveProductPriceDiscoveryInputs).mockImplementation(async (savedProduct, inputs) => ({
+    ...savedProduct,
+    priceDiscoveryInputs: inputs,
+  }));
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -94,6 +103,20 @@ describe('Product detail admin integration', () => {
     fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '120' } });
     fireEvent.change(screen.getByLabelText('Coaster time unit'), { target: { value: 'minutes' } });
     fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save values for this product' }));
+    await waitFor(() => expect(saveProductPriceDiscoveryInputs).toHaveBeenCalledWith(
+      product,
+      expect.objectContaining({
+        timeSpent: '120',
+        timeUnit: 'minutes',
+        materialCost: '100',
+        shippingCost: '100',
+        packagingCost: '10',
+        gstPercent: '5',
+        targetMarginPercent: '45',
+      }),
+    ));
+    expect(await screen.findByText('Price discovery values saved for this product.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Suggest price' })).toBeTruthy();
     vi.mocked(suggestProductGstRate).mockResolvedValue({
       source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
@@ -163,6 +186,15 @@ describe('Product detail admin integration', () => {
       category: 'Toys',
       description: 'A crochet bunny toy.',
       profitMarginPercent: 52,
+      priceDiscoveryInputs: {
+        timeSpent: '3',
+        timeUnit: 'hours',
+        materialCost: '160',
+        shippingCost: '90',
+        packagingCost: '12',
+        gstPercent: '12',
+        targetMarginPercent: '52',
+      },
     };
     vi.mocked(fetchManagedProducts).mockResolvedValue([product, secondProduct]);
     render(<ProductManager categories={['Home', 'Toys']} refreshKey={0} onChanged={vi.fn().mockResolvedValue(undefined)} />);
@@ -178,8 +210,12 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[2]);
     const bunnyRate = screen.getByLabelText('Bunny GST rate for estimate');
-    expect(bunnyRate).toHaveProperty('value', '5');
+    expect(bunnyRate).toHaveProperty('value', '12');
     expect(screen.getByLabelText('Bunny target profit margin')).toHaveProperty('value', '52');
+    expect(screen.getByLabelText('Bunny time spent')).toHaveProperty('value', '3');
+    expect(screen.getByLabelText('Bunny materials cost')).toHaveProperty('value', '160');
+    expect(screen.getByLabelText('Bunny shipping cost')).toHaveProperty('value', '90');
+    expect(screen.getByLabelText('Bunny packaging cost')).toHaveProperty('value', '12');
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
     expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '12');
   });

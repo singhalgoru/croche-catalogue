@@ -3,6 +3,7 @@ import {
   deleteProduct,
   fetchManagedProducts,
   reorderProducts,
+  saveProductPriceDiscoveryInputs,
   updateProduct,
   type ManagedProduct,
   type ProductUpdate,
@@ -65,15 +66,16 @@ const parsePrice = (value: string): number | null | undefined => {
   return Number.isInteger(amount) && amount >= 0 ? amount : undefined;
 };
 
-const createDefaultPriceInputs = (product: ManagedProduct): PriceDiscoveryInputs => ({
-  timeSpent: '',
-  timeUnit: 'hours',
-  materialCost: '',
-  shippingCost: '100',
-  packagingCost: '10',
-  gstPercent: String(product.gstPercent ?? 5),
-  targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
-});
+const createDefaultPriceInputs = (product: ManagedProduct): PriceDiscoveryInputs =>
+  product.priceDiscoveryInputs ?? {
+    timeSpent: '',
+    timeUnit: 'hours',
+    materialCost: '',
+    shippingCost: '100',
+    packagingCost: '10',
+    gstPercent: String(product.gstPercent ?? 5),
+    targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
+  };
 
 const formatRupees = (amount: number) =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.ceil(amount))}`;
@@ -177,7 +179,24 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     setError(null);
     setMessage(null);
     try {
-      const update: ProductUpdate = { ...draft, price };
+      const currentPriceInputs =
+        priceInputs[product.id] ?? product.priceDiscoveryInputs ?? createDefaultPriceInputs(product);
+      const currentPriceOutcome = calculatePriceAtSellingPrice(
+        currentPriceInputs,
+        priceDefaults,
+        draft.price,
+      );
+      const update: ProductUpdate = {
+        ...draft,
+        price,
+        ...(currentPriceOutcome
+          ? {
+              priceDiscoveryInputs: currentPriceInputs,
+              profitMarginPercent: currentPriceOutcome.profitMarginPercent,
+              gstPercent: Number(currentPriceInputs.gstPercent),
+            }
+          : {}),
+      };
       const saved = await updateProduct(product, update);
       setProducts((current) => current.map((item) => (item.id === saved.id ? saved : item)));
       setEditingId(null);
@@ -551,6 +570,12 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                   onInputsChange={(inputs) =>
                     setPriceInputs((current) => ({ ...current, [product.id]: inputs }))
                   }
+                  onSaveInputs={async (inputs) => {
+                    const saved = await saveProductPriceDiscoveryInputs(product, inputs);
+                    setProducts((current) => current.map((item) => (
+                      item.id === saved.id ? saved : item
+                    )));
+                  }}
                   onApplyPrice={(price, profitMarginPercent, gstPercent) => {
                     startEditing(product, price, profitMarginPercent, gstPercent);
                     setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
