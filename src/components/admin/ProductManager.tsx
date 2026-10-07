@@ -508,7 +508,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                     materialCost: '',
                     shippingCost: '100',
                     packagingCost: '10',
-                    gstPercent: '',
+                    gstPercent: '5',
                   }}
                   onInputsChange={(inputs) =>
                     setPriceInputs((current) => ({ ...current, [product.id]: inputs }))

@@ -182,7 +182,7 @@ export default function PriceDiscoveryPanel({
             </label>
             <div className="sm:col-span-2">
               <label htmlFor={`${panelId}-gst`} className="text-sm font-semibold text-cocoa">
-                GST rate for estimate (%)
+                GST rate for this product estimate (%)
               </label>
               <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
@@ -194,7 +194,7 @@ export default function PriceDiscoveryPanel({
                   step="0.1"
                   value={inputs.gstPercent}
                   onChange={(event) => updateInput('gstPercent', event.target.value)}
-                  placeholder="Enter confirmed rate"
+                  placeholder="Default estimate: 5%"
                   className="w-full rounded-lg border border-mustard/60 px-3 py-2 sm:max-w-xs"
                 />
                 <button
@@ -207,8 +207,8 @@ export default function PriceDiscoveryPanel({
                 </button>
               </div>
               <p className="mt-1 text-xs text-cocoa/60">
-                Search uses GST Accelerator’s CBIC-sourced HSN/GST dataset; confirm classification and
-                conditions before using it.
+                Each product starts with an editable 5% estimate. Confirm the correct rate for this
+                product before relying on the price calculation; 5% is not an HSN classification.
               </p>
               {gstSuggestionError && (
                 <p role="alert" className="mt-2 text-sm text-red-700">{gstSuggestionError}</p>
@@ -374,7 +374,8 @@ export default function PriceDiscoveryPanel({
             </div>
           ) : (
             <p role="status" className="rounded-xl bg-mustard/15 p-3 text-sm text-cocoa">
-              Complete all cost and time fields and enter a verified GST rate between 0% and 100% to suggest a price.
+              Complete the cost and time fields to suggest a price. The 5% GST rate is an editable estimate;
+              confirm the correct rate for this product.
             </p>
           )}
         </div>

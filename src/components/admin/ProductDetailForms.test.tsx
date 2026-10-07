@@ -93,7 +93,7 @@ describe('Product detail admin integration', () => {
     fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '120' } });
     fireEvent.change(screen.getByLabelText('Coaster time unit'), { target: { value: 'minutes' } });
     fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '100' } });
-    expect(screen.queryByRole('button', { name: 'Suggest price' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Suggest price' })).toBeTruthy();
     vi.mocked(suggestProductGstRate).mockResolvedValue({
       source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
       candidates: [{
@@ -133,5 +133,31 @@ describe('Product detail admin integration', () => {
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
       materials: 'Cotton yarn', includedItems: '',
     });
+  });
+
+  it('starts each product at an independently editable 5% GST estimate', async () => {
+    const secondProduct: ManagedProduct = {
+      ...product,
+      id: 'second-product',
+      name: 'Bunny',
+      category: 'Toys',
+      description: 'A crochet bunny toy.',
+    };
+    vi.mocked(fetchManagedProducts).mockResolvedValue([product, secondProduct]);
+    render(<ProductManager categories={['Home', 'Toys']} refreshKey={0} onChanged={vi.fn().mockResolvedValue(undefined)} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
+    const coasterRate = screen.getByLabelText('Coaster GST rate for estimate');
+    expect(coasterRate).toHaveProperty('value', '5');
+    fireEvent.change(coasterRate, { target: { value: '12' } });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[2]);
+    const bunnyRate = screen.getByLabelText('Bunny GST rate for estimate');
+    expect(bunnyRate).toHaveProperty('value', '5');
+    fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
+    expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '12');
   });
 });
