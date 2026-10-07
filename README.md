@@ -74,6 +74,9 @@ marker appears only when Show price is enabled.
 The Record/Edit sale form also marks required sale details, GST and cost/fee
 inputs with red asterisks. Costs and fees that do not apply should be entered
 as 0; the catalogue product selector and sale notes remain optional.
+GST overrides on a sale (including 0%) are sale-specific snapshots: recording
+or editing a sale does not change the product's saved GST rate. Selecting that
+product for another sale still prefills its catalogue GST rate.
 
 Product photos are stored on Cloudflare R2 and served from
 `images.luviacreations.com`. Admin uploads (JPG, PNG or WebP) are resized to at

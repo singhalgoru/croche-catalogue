@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSellerSale, fetchSellerSales, type SellerSaleInput } from './sellerSales';
+import { createSellerSale, fetchSellerSales, updateSellerSale, type SellerSaleInput } from './sellerSales';
 
 const { from } = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock('../lib/supabaseConfig', () => ({
@@ -47,6 +47,27 @@ const row = {
 beforeEach(() => from.mockReset());
 
 describe('seller sales persistence', () => {
+  it.each(['create', 'update'])('persists zero GST only in the sales ledger on %s', async operation => {
+    const query = {
+      insert: vi.fn(), update: vi.fn(), eq: vi.fn(), select: vi.fn(),
+      single: vi.fn().mockResolvedValue({ data: { ...row, gst_percent: '0.00' }, error: null }),
+    };
+    query.insert.mockReturnValue(query);
+    query.update.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.select.mockReturnValue(query);
+    from.mockReturnValue(query);
+    const input = { ...sale, gstPercent: 0 };
+    const saved = operation === 'create'
+      ? await createSellerSale(input) : await updateSellerSale(row.id, input);
+    expect(saved.gstPercent).toBe(0);
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(from).toHaveBeenCalledWith('seller_sales');
+    expect(operation === 'create' ? query.insert : query.update).toHaveBeenCalledWith(
+      expect.objectContaining({ product_id: sale.productId, gst_percent: 0 }),
+    );
+  });
+
   it('maps database decimals and sale snapshots when fetching rows', async () => {
     const query = {
       select: vi.fn(),

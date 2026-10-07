@@ -93,6 +93,26 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('keeps a zero-GST sale separate from the product GST and subsequent sales', async () => {
+    const originalProduct = structuredClone(product);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    expect(screen.getByLabelText('Sale GST rate')).toHaveProperty('value', '5');
+    fireEvent.change(screen.getByLabelText('Sale GST rate'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale' }));
+    await waitFor(() => expect(createSellerSale).toHaveBeenCalledWith(expect.objectContaining({
+      productId: product.id, gstPercent: 0,
+    })));
+    expect(await screen.findByText('Sale recorded.')).toBeTruthy();
+    expect(product).toEqual(originalProduct);
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    expect(screen.getByLabelText('Sale GST rate')).toHaveProperty('value', '5');
+  });
+
   it('marks required sale entries but leaves the optional product selector and notes unmarked', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchSellerSales).toHaveBeenCalled());
