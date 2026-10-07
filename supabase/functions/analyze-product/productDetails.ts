@@ -16,6 +16,7 @@ export type AnalysisContext = Partial<Record<keyof typeof CONTEXT_LIMITS, string
 
 export interface GstRateSuggestion {
   source: string;
+  message?: string;
   candidates: Array<{
     hsnCode: string;
     hsnDescription: string;
@@ -30,6 +31,70 @@ export interface GstRateSuggestion {
     conditionWarning: string | null;
     needsReview: boolean;
   }>;
+}
+
+const PRODUCT_CLASSIFICATION_STOP_WORDS = new Set([
+  'about', 'after', 'also', 'and', 'article', 'articles', 'beautiful',
+  'crochet', 'crocheted', 'crafted', 'crafting', 'from', 'hand', 'handmade',
+  'handcrafted', 'item', 'made', 'product', 'small', 'the', 'this', 'with',
+]);
+
+const CLASSIFICATION_FAMILY_TERMS = [
+  'crochet', 'crocheted', 'knit', 'knitted', 'textile', 'yarn', 'wool', 'fabric',
+  'toy', 'toys', 'doll', 'dolls', 'stuffed', 'plush', 'apparel', 'garment',
+];
+
+const tokenizeClassificationText = (value: string) =>
+  value.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+
+export function selectRelevantGstCandidates(
+  suggestion: GstRateSuggestion,
+  context: AnalysisContext,
+): GstRateSuggestion {
+  const productFacts = [
+    context.name,
+    context.category,
+    context.description,
+    context.materials,
+    context.includedItems,
+  ].filter((value): value is string => Boolean(value)).join(' ');
+  const productTerms = new Set(
+    tokenizeClassificationText(productFacts)
+      .filter((term) => term.length >= 4 && !PRODUCT_CLASSIFICATION_STOP_WORDS.has(term)),
+  );
+  const relevantCandidates = suggestion.candidates.filter((candidate) => {
+    const description = candidate.hsnDescription.toLowerCase();
+    const descriptionTerms = new Set(tokenizeClassificationText(description));
+    return CLASSIFICATION_FAMILY_TERMS.some((term) => descriptionTerms.has(term)) ||
+      [...productTerms].some((term) => descriptionTerms.has(term));
+  });
+
+  const distinctMatches = new Map<string, GstRateSuggestion['candidates'][number]>();
+  for (const candidate of relevantCandidates) {
+    const key = `${candidate.hsnCode}:${candidate.gstRate}`;
+    const existing = distinctMatches.get(key);
+    if (!existing || candidate.confidence > existing.confidence) distinctMatches.set(key, candidate);
+  }
+
+  if (distinctMatches.size === 0) {
+    return {
+      source: suggestion.source,
+      candidates: [],
+      message: 'No returned HSN description matched the product use or crochet textile details. No rate was suggested; verify the classification manually.',
+    };
+  }
+  if (distinctMatches.size > 1) {
+    return {
+      source: suggestion.source,
+      candidates: [],
+      message: 'Several distinct HSN/rate matches still fit the supplied product details. No rate was suggested; verify the correct product classification manually.',
+    };
+  }
+
+  return {
+    source: suggestion.source,
+    candidates: [...distinctMatches.values()],
+  };
 }
 
 export function validateGstRateSuggestion(

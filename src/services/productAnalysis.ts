@@ -18,6 +18,7 @@ export interface ProductAnalysisContext extends ProductDetails {
 
 export interface ProductGstRateSuggestion {
   source: string;
+  message?: string;
   candidates: Array<{
     hsnCode: string;
     hsnDescription: string;
@@ -172,7 +173,10 @@ export async function suggestProductGstRate(
   if (!data || typeof data !== 'object' || !('source' in data) ||
     typeof data.source !== 'string' || !data.source.trim() ||
     !('candidates' in data) || !Array.isArray(data.candidates) ||
-    data.candidates.length === 0 || data.candidates.length > 5) {
+    data.candidates.length > 5 ||
+    ('message' in data && typeof data.message !== 'string') ||
+    (data.candidates.length === 0 &&
+      (!('message' in data) || typeof data.message !== 'string' || !data.message.trim()))) {
     throw new Error('GST Accelerator returned an invalid HSN lookup.');
   }
 
@@ -200,7 +204,11 @@ export async function suggestProductGstRate(
     return item as ProductGstRateSuggestion['candidates'][number];
   });
 
-  return { source: data.source, candidates };
+  return {
+    source: data.source,
+    ...(typeof data.message === 'string' ? { message: data.message } : {}),
+    candidates,
+  };
 }
 
 /** Context is draft-only; notes are limited to 2,000 characters and details to 1,000 each. */

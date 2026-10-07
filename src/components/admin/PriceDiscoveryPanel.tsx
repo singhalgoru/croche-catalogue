@@ -215,44 +215,52 @@ export default function PriceDiscoveryPanel({
               )}
               {gstSuggestion && (
                 <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 p-3">
-                  <p className="text-xs text-cocoa/70">{gstSuggestion.source}. Compare the candidates and verify the notification before applying.</p>
-                  <div className="mt-2 space-y-2">
-                    {gstSuggestion.candidates.map((candidate) => (
-                      <article
-                        key={`${candidate.hsnCode}:${candidate.hsnDescription}`}
-                        className="rounded-lg border border-cocoa/10 bg-white p-3"
-                      >
-                        <p className="text-sm font-bold text-cocoa">
-                          HSN {candidate.hsnCode} — {candidate.hsnDescription}
-                        </p>
-                        <p className="mt-1 text-sm text-cocoa">
-                          GST total {candidate.gstRate}% · IGST {candidate.igstRate === null ? 'not supplied' : `${candidate.igstRate}%`}
-                          {' '}· CGST {candidate.cgstRate}% + SGST {candidate.sgstRate}%
-                          {candidate.cessRate > 0 ? ` · Cess ${candidate.cessRate}%` : ''}
-                        </p>
-                        <p className="mt-1 text-xs text-cocoa/70">
-                          Match confidence {Math.round(candidate.confidence * 100)}%
-                          {candidate.notificationRef ? ` · CBIC notification ${candidate.notificationRef}` : ''}
-                          {candidate.needsReview ? ' · Review required' : ''}
-                        </p>
-                        {candidate.conditionApplied && (
-                          <p className="mt-1 text-xs text-cocoa/75">Condition applied: {candidate.conditionApplied}</p>
-                        )}
-                        {candidate.conditionWarning && (
-                          <p role="alert" className="mt-1 text-xs font-semibold text-red-800">
-                            Rate condition: {candidate.conditionWarning}
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => updateInput('gstPercent', String(candidate.gstRate))}
-                          className="mt-2 min-h-10 rounded-full bg-mustard px-4 py-2 text-sm font-semibold text-cocoa"
+                  <p className="text-xs text-cocoa/70">
+                    {gstSuggestion.source}. Check the HSN description, product use and conditions before applying.
+                  </p>
+                  {gstSuggestion.message ? (
+                    <p role="status" className="mt-2 text-sm font-semibold text-cocoa">
+                      {gstSuggestion.message}
+                    </p>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      {gstSuggestion.candidates.map((candidate) => (
+                        <article
+                          key={`${candidate.hsnCode}:${candidate.hsnDescription}`}
+                          className="rounded-lg border border-cocoa/10 bg-white p-3"
                         >
-                          Use {candidate.gstRate}% GST rate in estimate
-                        </button>
-                      </article>
-                    ))}
-                  </div>
+                          <p className="text-sm font-bold text-cocoa">
+                            HSN {candidate.hsnCode} — {candidate.hsnDescription}
+                          </p>
+                          <p className="mt-1 text-sm text-cocoa">
+                            GST total {candidate.gstRate}% · IGST {candidate.igstRate === null ? 'not supplied' : `${candidate.igstRate}%`}
+                            {' '}· CGST {candidate.cgstRate}% + SGST {candidate.sgstRate}%
+                            {candidate.cessRate > 0 ? ` · Cess ${candidate.cessRate}%` : ''}
+                          </p>
+                          <p className="mt-1 text-xs text-cocoa/70">
+                            Match confidence {Math.round(candidate.confidence * 100)}%
+                            {candidate.notificationRef ? ` · CBIC notification ${candidate.notificationRef}` : ''}
+                            {candidate.needsReview ? ' · Review required' : ''}
+                          </p>
+                          {candidate.conditionApplied && (
+                            <p className="mt-1 text-xs text-cocoa/75">Condition applied: {candidate.conditionApplied}</p>
+                          )}
+                          {candidate.conditionWarning && (
+                            <p role="alert" className="mt-1 text-xs font-semibold text-red-800">
+                              Rate condition: {candidate.conditionWarning}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => updateInput('gstPercent', String(candidate.gstRate))}
+                            className="mt-2 min-h-10 rounded-full bg-mustard px-4 py-2 text-sm font-semibold text-cocoa"
+                          >
+                            Use {candidate.gstRate}% GST rate in estimate
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                   <a
                     href="https://www.gstaccelerator.in/docs"
                     target="_blank"

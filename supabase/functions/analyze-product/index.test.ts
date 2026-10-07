@@ -27,7 +27,7 @@ const gstAcceleratorResponse = (value: unknown, status = 200) =>
 let gstAcceleratorApiKey: string | undefined = 'test-provider-key';
 const gstMatch = {
   hsn_code: '580810',
-  description: 'Hand-made braids in the piece',
+  description: 'Crocheted textile bag charm articles',
   tax_rates: { igst: 5, cgst: 2.5, sgst: 2.5, cess: 0, total_intrastate: 5 },
   condition_applied: null,
   condition_warning: null,
@@ -86,7 +86,7 @@ describe('analyze-product endpoint', () => {
       source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
       candidates: [{
         hsnCode: '580810',
-        hsnDescription: 'Hand-made braids in the piece',
+        hsnDescription: 'Crocheted textile bag charm articles',
         gstRate: 5,
         igstRate: 5,
         cgstRate: 2.5,
@@ -105,7 +105,7 @@ describe('analyze-product endpoint', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': 'test-provider-key' },
         body: JSON.stringify({
-          description: 'Handmade crochet handicraft; store category: Accessories; product: Crochet charm; product details: Small handmade crochet bag charm.; materials: Cotton yarn',
+          description: 'Finished product for HSN classification: Crochet charm; product type/category: Accessories; actual product use and features: Small handmade crochet bag charm.; confirmed materials: Cotton yarn; construction method: crocheted textile made from yarn; classify the finished product by its actual use and material, not by handmade status alone',
           branded: false,
           supply_type: 'intrastate',
         }),

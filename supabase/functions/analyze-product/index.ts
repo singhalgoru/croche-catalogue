@@ -3,6 +3,7 @@ import {
   buildProductPrompt,
   DETAIL_FIELDS,
   OPTIONAL_DETAIL_SCHEMA,
+  selectRelevantGstCandidates,
   validateContext,
   validateGstRateSuggestion,
   validateProductAnalysis,
@@ -140,12 +141,13 @@ Deno.serve(async (request) => {
     }
 
     const description = [
-      'Handmade crochet handicraft',
-      `store category: ${context.category}`,
-      context.name ? `product: ${context.name}` : '',
-      context.description ? `product details: ${context.description}` : '',
-      context.materials ? `materials: ${context.materials}` : '',
+      `Finished product for HSN classification: ${context.name || context.category}`,
+      `product type/category: ${context.category}`,
+      context.description ? `actual product use and features: ${context.description}` : '',
+      context.materials ? `confirmed materials: ${context.materials}` : '',
       context.includedItems ? `included items: ${context.includedItems}` : '',
+      'construction method: crocheted textile made from yarn',
+      'classify the finished product by its actual use and material, not by handmade status alone',
     ].filter(Boolean).join('; ');
     let response: Response;
     try {
@@ -180,10 +182,11 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: 'GST Accelerator returned an invalid response.' }, 502);
     }
     try {
-      return jsonResponse(validateGstRateSuggestion(
+      const suggestion = validateGstRateSuggestion(
         providerData,
         'GST Accelerator HSN lookup · CBIC-sourced rates',
-      ));
+      );
+      return jsonResponse(selectRelevantGstCandidates(suggestion, context));
     } catch (error) {
       return jsonResponse({
         error: error instanceof Error ? error.message : 'GST Accelerator returned an invalid lookup.',

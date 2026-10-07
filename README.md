@@ -357,6 +357,10 @@ deploying `analyze-product`; never put the provider key in frontend environment
 variables, source control or browser code. The panel displays HSN candidates,
 tax components, confidence and any conditions for admin review. Applying a
 rate only changes the draft estimate and does not save the product.
+The lookup emphasizes the finished product's use, category and confirmed
+materials rather than treating "handmade crochet" as an HSN by itself. Clearly
+unrelated descriptions are discarded; if there is no relevant or unique HSN/rate
+match, the calculator asks for manual verification instead of offering a rate.
 
 After all time, cost and GST inputs are valid, choose **Suggest price** to see
 the rounded recommendation. The suggested selling price is editable; profit

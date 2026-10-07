@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildProductPrompt, DETAIL_FIELDS, OPTIONAL_DETAIL_SCHEMA,
-  validateContext, validateGstRateSuggestion, validateProductAnalysis,
+  selectRelevantGstCandidates, validateContext, validateGstRateSuggestion, validateProductAnalysis,
+  type GstRateSuggestion,
 } from './productDetails';
 
 const analysis = {
@@ -29,7 +30,7 @@ describe('GST rate suggestion validation', () => {
   const source = 'GST Accelerator HSN lookup · CBIC-sourced rates';
   const match = {
     hsn_code: '580810',
-    description: 'Hand-made braids in the piece',
+    description: 'Crocheted textile bag charm articles',
     tax_rates: { igst: 5, cgst: 2.5, sgst: 2.5, cess: 0, total_intrastate: 5 },
     condition_applied: null,
     condition_warning: null,
@@ -37,11 +38,16 @@ describe('GST rate suggestion validation', () => {
     notification_ref: '09/2025-CT(Rate)',
     needs_review: true,
   };
+  const candidateFromMatch = (candidate: unknown): GstRateSuggestion['candidates'][number] => {
+    const normalized = validateGstRateSuggestion([candidate], source).candidates[0];
+    if (!normalized) throw new Error('Expected a normalized GST candidate.');
+    return normalized;
+  };
   it('normalizes provider HSN candidates, rates, conditions, confidence and notification', () => {
     expect(validateGstRateSuggestion([match], source)).toEqual({
       source,
       candidates: [{
-        hsnCode: '580810', hsnDescription: 'Hand-made braids in the piece',
+        hsnCode: '580810', hsnDescription: 'Crocheted textile bag charm articles',
         gstRate: 5, igstRate: 5, cgstRate: 2.5, sgstRate: 2.5, cessRate: 0,
         confidence: 0.84, notificationRef: '09/2025-CT(Rate)',
         conditionApplied: null, conditionWarning: null, needsReview: true,
@@ -84,6 +90,49 @@ describe('GST rate suggestion validation', () => {
     [null, 'invalid match'],
   ])('rejects an invalid provider response', (candidate, expectedError) => {
     expect(() => validateGstRateSuggestion([candidate], source)).toThrow(expectedError);
+  });
+
+  it('drops unrelated paper and instrument matches and refuses to suggest unrelated rates', () => {
+    const result = selectRelevantGstCandidates({
+      source,
+      candidates: [
+        { ...candidateFromMatch(match), hsnCode: '00000092', hsnDescription: 'Indigenous handmade musical instruments', confidence: 0.9 },
+        { ...candidateFromMatch(match), hsnCode: '48119011', hsnDescription: 'Handmade paper and paperboard', confidence: 0.85 },
+      ],
+    }, {
+      name: 'Panda Charm',
+      category: 'Charms & Keychains',
+      description: 'Crochet panda bag charm for keyrings.',
+      materials: 'Acrylic wool and fiber fill.',
+    });
+    expect(result.candidates).toEqual([]);
+    expect(result.message).toContain('No returned HSN description matched');
+  });
+
+  it('returns a single relevant HSN/rate candidate, but refuses distinct plausible matches', () => {
+    const context = {
+      name: 'Crochet bag charm',
+      category: 'Charms & Keychains',
+      description: 'Crocheted textile bag charm.',
+      materials: 'Acrylic yarn.',
+    };
+    const relevant = {
+      ...candidateFromMatch(match),
+      hsnDescription: 'Other articles of crocheted textile goods',
+    };
+    const one = selectRelevantGstCandidates({ source, candidates: [relevant] }, context);
+    expect(one.candidates).toEqual([relevant]);
+    expect(one.message).toBeUndefined();
+
+    const ambiguous = selectRelevantGstCandidates({
+      source,
+      candidates: [
+        relevant,
+        { ...relevant, hsnCode: '950300', hsnDescription: 'Crocheted stuffed toys', gstRate: 12 },
+      ],
+    }, context);
+    expect(ambiguous.candidates).toEqual([]);
+    expect(ambiguous.message).toContain('Several distinct HSN/rate matches');
   });
 
   it('rejects empty and excessive candidate lists', () => {

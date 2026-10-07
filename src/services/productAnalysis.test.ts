@@ -164,6 +164,22 @@ describe('suggestProductGstRate', () => {
     await expect(suggestProductGstRate({ category: 'Accessories' }))
       .rejects.toThrow('Unable to suggest a GST rate: GST Accelerator unavailable');
   });
+
+  it('surfaces a no-relevant-match response without requiring or applying a GST rate', async () => {
+    const message = 'No returned HSN description matched the product details.';
+    mockInvoke.mockResolvedValueOnce({
+      data: { source: 'GST Accelerator', candidates: [], message },
+      error: null,
+    });
+    await expect(suggestProductGstRate({ category: 'Charms & Keychains' }))
+      .resolves.toEqual({ source: 'GST Accelerator', candidates: [], message });
+    mockInvoke.mockResolvedValueOnce({
+      data: { source: 'GST Accelerator', candidates: [] },
+      error: null,
+    });
+    await expect(suggestProductGstRate({ category: 'Charms & Keychains' }))
+      .rejects.toThrow('invalid HSN lookup');
+  });
 });
 
 describe('suggestVariantName', () => {
