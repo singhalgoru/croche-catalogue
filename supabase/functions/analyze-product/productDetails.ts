@@ -12,6 +12,8 @@ const CONTEXT_LIMITS = {
   careInstructions: 1000,
 } as const;
 
+const MAX_GST_HSN_MATCHES = 50;
+
 export type AnalysisContext = Partial<Record<keyof typeof CONTEXT_LIMITS, string>>;
 
 export interface GstRateSuggestion {
@@ -112,8 +114,12 @@ export function validateGstRateSuggestion(
       message: 'GST Accelerator found no HSN matches for these product details. No rate was suggested; verify the classification manually.',
     };
   }
-  if (matches.length > 5) {
-    throw new Error('GST Accelerator returned no usable HSN matches.');
+  if (matches.length > MAX_GST_HSN_MATCHES) {
+    return {
+      source: responseSource,
+      candidates: [],
+      message: 'GST Accelerator returned too many HSN matches to review safely. No rate was suggested; refine the product details or verify the classification manually.',
+    };
   }
 
   const candidates = matches.map((match: unknown) => {

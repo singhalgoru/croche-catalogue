@@ -143,9 +143,27 @@ describe('GST rate suggestion validation', () => {
     });
   });
 
-  it('rejects an excessive number of provider candidates', () => {
-    expect(() => validateGstRateSuggestion([match, match, match, match, match, match], source))
-      .toThrow('no usable HSN matches');
+  it('filters more than five provider candidates before choosing one relevant match', () => {
+    const irrelevant = Array.from({ length: 5 }, (_, index) => ({
+      ...match,
+      hsn_code: `4811901${index}`,
+      description: 'Handmade paper and paperboard',
+    }));
+    const result = validateGstRateSuggestion([...irrelevant, match], source);
+    const selected = selectRelevantGstCandidates(result, {
+      name: 'Crochet bag charm',
+      category: 'Charms & Keychains',
+      description: 'Crocheted textile bag charm.',
+      materials: 'Acrylic yarn.',
+    });
+    expect(selected.candidates).toHaveLength(1);
+    expect(selected.candidates[0].hsnCode).toBe(match.hsn_code);
+  });
+
+  it('returns manual review instead of an API error for an oversized provider response', () => {
+    const result = validateGstRateSuggestion(Array.from({ length: 51 }, () => match), source);
+    expect(result.candidates).toEqual([]);
+    expect(result.message).toContain('too many HSN matches');
   });
 });
 
