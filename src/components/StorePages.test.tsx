@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorePages from './StorePages';
 import type { Product } from '../types/product';
@@ -6,9 +6,12 @@ import type { Product } from '../types/product';
 vi.mock('./Header', () => ({ default: ({ categories }: { categories: string[] }) => <header>{categories.join(', ')}</header> }));
 vi.mock('./Footer', () => ({ default: () => <footer /> }));
 const products: Product[] = [{ id: 'p1', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
-  price: 500, image: 'https://images.luviacreations.com/products/admin/bunny.webp', inStock: true, color: '#ffffff', variants: [] }];
+  price: 500, showPrice: true, image: 'https://images.luviacreations.com/products/admin/bunny.webp', inStock: true, color: '#ffffff',
+  variants: [{ id: 'v1', name: 'White', color: '#ffffff', price: null, inStock: true, availableQuantity: 10,
+    image: 'https://images.luviacreations.com/products/admin/bunny.webp', imagePath: 'products/admin/bunny.webp', gallery: [] }] }];
 const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], isLoading: false,
-  loadError: null, hasCatalogueSnapshot: true };
+  loadError: null, hasCatalogueSnapshot: true, onAddToCart: vi.fn().mockResolvedValue(true),
+  isCartBusy: false, getCartQuantity: () => 0, cartItemCount: 0, cartUpdateCount: 0, onOpenCart: vi.fn() };
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
@@ -27,13 +30,13 @@ describe('live store pages', () => {
   it('uses the homepage warm card surface and full-photo layout without white padding', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} />);
-    const photoLink = screen.getByRole('link', { name: 'View Bunny' });
-    const card = photoLink.closest('li');
+    const photoLink = screen.getByRole('button', { name: 'View Bunny' });
+    const card = photoLink.closest('article');
     expect(card?.classList.contains('bg-mustard/25')).toBe(true);
     expect(card?.classList.contains('bg-white')).toBe(false);
-    expect(photoLink.classList.contains('aspect-square')).toBe(true);
+    expect(photoLink.parentElement?.classList.contains('aspect-square')).toBe(true);
     expect(within(photoLink).getByRole('img', { name: 'Bunny' }).classList.contains('object-contain')).toBe(true);
-    expect(photoLink.querySelector('img[aria-hidden="true"]')?.classList.contains('blur-xl')).toBe(true);
+    expect(photoLink.parentElement?.querySelector('img[aria-hidden="true"]')?.classList.contains('blur-xl')).toBe(true);
     expect(screen.getByRole('link', { name: 'Bunny' }).getAttribute('href')).toContain('/p/');
   });
   it('reflects admin additions and removals in the collections hub', () => {
@@ -66,13 +69,54 @@ describe('live store pages', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     const { rerender } = render(<StorePages {...initial} />);
     expect(screen.getByText('₹500')).toBeTruthy();
-    rerender(<StorePages {...initial} products={[{ ...products[0], price: 650, inStock: false }]} />);
+    rerender(<StorePages {...initial} products={[{ ...products[0], price: 650, inStock: false,
+      variants: products[0].variants.map(variant => ({ ...variant, inStock: false })) }]} />);
     expect(screen.getByText('₹650')).toBeTruthy();
-    expect(screen.getByText('Out of stock')).toBeTruthy();
+    expect(screen.getByText('Sold out')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add to cart — Bunny' })).toBeNull();
     rerender(<StorePages {...initial} products={[]} />);
     expect(screen.queryByRole('heading', { name: 'Bunny' })).toBeNull();
     expect(screen.getByText('No published products in this collection yet.')).toBeTruthy();
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
+  });
+
+  it('adds the selected variant from collection cards and shares the product link', async () => {
+    window.history.replaceState(null, '', '/collections/toys/');
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    try {
+      render(<StorePages {...initial} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Bunny' }));
+      await waitFor(() => expect(initial.onAddToCart).toHaveBeenCalledWith(products[0], products[0].variants[0]));
+      fireEvent.click(screen.getByRole('button', { name: 'Share Bunny' }));
+      await waitFor(() => expect(share).toHaveBeenCalledWith(expect.objectContaining({
+        title: expect.stringContaining('Bunny'), url: expect.stringContaining('/p/bunny/'),
+      })));
+    } finally {
+      Reflect.deleteProperty(navigator, 'share');
+    }
+  });
+
+  it('blocks cart additions while checking availability or when refresh fails', () => {
+    window.history.replaceState(null, '', '/collections/toys/');
+    const { rerender } = render(<StorePages {...initial} isLoading />);
+    expect(screen.getByRole('button', { name: 'Add to cart — Bunny' }).hasAttribute('disabled')).toBe(true);
+    rerender(<StorePages {...initial} loadError="Offline" />);
+    expect(screen.getByRole('button', { name: 'Add to cart — Bunny' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Share Bunny' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('preserves minimum orders, private prices and the shopper-selected variant', async () => {
+    window.history.replaceState(null, '', '/collections/toys/');
+    const second = { ...products[0].variants[0], id: 'v2', name: 'Pink', image: '/pink.webp' };
+    const item = { ...products[0], showPrice: false, minimumOrderQuantity: 3,
+      variants: [...products[0].variants, second] };
+    render(<StorePages {...initial} products={[item]} />);
+    expect(screen.getByText('Minimum 3 pieces')).toBeTruthy();
+    expect(screen.queryByText('₹500')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show Pink variant image for Bunny' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Bunny' }));
+    await waitFor(() => expect(initial.onAddToCart).toHaveBeenCalledWith(item, second));
   });
 
   it('shows a removed collection as unavailable, never the full catalogue', () => {

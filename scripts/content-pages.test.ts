@@ -47,6 +47,8 @@ describe('collection and information pages', () => {
     expect(doc.querySelector('.product-copy h2 a')?.textContent).toBe('Bunny');
     expect(doc.querySelector('a[href="/p/bunny/"]')).toBeTruthy();
     expect(doc.querySelector('a[href="/?category=Toys"]')).toBeTruthy();
+    expect(doc.querySelector('.product-copy a.button[href="/p/bunny/"]')?.textContent).toContain('add to cart');
+    expect(doc.querySelector('.product-copy a[aria-label="Share Bunny"]')?.getAttribute('href')).toContain(encodeURIComponent('https://luviacreations.com/p/bunny/'));
     const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
     expect(schema['@type']).toBe('CollectionPage');
     expect(schema.mainEntity.itemListElement).toEqual([{ '@type': 'ListItem', position: 1, name: 'Bunny', url: 'https://luviacreations.com/p/bunny/' }]);

@@ -403,13 +403,7 @@ function App() {
     );
   }
 
-  if (isStorePage()) {
-    return <StorePages products={products} categorySettings={categorySettings} isLoading={isLoading}
-      loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot} />;
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col">
+  const cartNotifications = <>
       <CartCaptcha />
       {cart.error && !isCartOpen && (
         <div role="alert" className="fixed left-1/2 top-24 z-[120] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 shadow-lg">
@@ -418,6 +412,85 @@ function App() {
             className="min-h-11 shrink-0 px-3 underline">Dismiss</button>
         </div>
       )}
+      {cart.addFeedback && (
+        <div role="status" aria-live="polite"
+          className="fixed left-1/2 top-24 z-[90] -translate-x-1/2 rounded-full bg-emerald-700 px-4 py-2 text-center text-sm font-bold text-white shadow-lg">
+          ✓ {cart.addFeedback}
+        </div>
+      )}
+  </>;
+
+  const cartDrawer = isCartOpen && (
+    <CartDrawer
+      cart={cart.cart}
+      products={products}
+      isLoading={cart.isLoading}
+      isBusy={cart.isBusy}
+      error={cart.error}
+      onClose={() => setIsCartOpen(false)}
+      onUpdateQuantity={(itemId, quantity, minimumQuantity) => {
+        void cart.updateQuantity(itemId, quantity, minimumQuantity);
+      }}
+      onRemove={(itemId) => {
+        void cart.removeItem(itemId);
+      }}
+      onClear={() => {
+        void cart.clear();
+      }}
+      onWhatsAppStarted={() => {
+        void cart.markWhatsAppStarted();
+      }}
+      onSaveDeliveryPin={cart.saveDeliveryPin}
+      onEmailStarted={() => {
+        trackEvent('email_cart', {
+          cart_reference: cart.cart?.reference ?? '',
+          item_count: cart.cart?.items.length ?? 0,
+        });
+      }}
+      onOpenProduct={(productId, variantId) => {
+        const product = products.find((candidate) => candidate.id === productId);
+        if (!product) return;
+        if (isStorePage()) {
+          const url = new URL(toProductPageUrl(product));
+          const variant = product.variants.find((item) => item.id === variantId);
+          if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
+          window.location.assign(url);
+          return;
+        }
+        trackProductSelected(product);
+        productReturnScrollY.current = null;
+        setReturnToCartOnProductClose(true);
+        setSelectedVariantId(variantId);
+        setSelectedProduct(product);
+        if (pageReference) {
+          const url = new URL(toProductPageUrl(product));
+          const variant = product.variants.find((item) => item.id === variantId);
+          if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
+          window.history.replaceState(window.history.state, '', url);
+          setPageReference(toProductReference(product));
+        }
+        setIsCartOpen(false);
+      }}
+    />
+  );
+
+  if (isStorePage()) {
+    return <>
+      {cartNotifications}
+      <StorePages products={products} categorySettings={categorySettings} isLoading={isLoading}
+        loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot}
+        onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
+        isCartBusy={cart.isBusy} getCartQuantity={productId => cart.cart?.items
+          .filter(item => item.productId === productId).reduce((total, item) => total + item.quantity, 0) ?? 0}
+        cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
+        onOpenCart={() => setIsCartOpen(true)} />
+      {cartDrawer}
+    </>;
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {cartNotifications}
       <Header
         compact={Boolean(pageReference)}
         alignLogoLeft={Boolean(pageReference)}
@@ -432,16 +505,6 @@ function App() {
         categories={categories}
         onNavigateCatalogue={navigateCatalogue}
       />
-      {cart.addFeedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed left-1/2 top-24 z-[90] -translate-x-1/2 rounded-full bg-emerald-700 px-4 py-2 text-center text-sm font-bold text-white shadow-lg"
-        >
-          ✓ {cart.addFeedback}
-        </div>
-      )}
-
       {pageReference ? (
         <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 py-4 sm:py-8">
           <a
@@ -646,52 +709,7 @@ function App() {
           />
         </Suspense>
       )}
-      {isCartOpen && (
-        <CartDrawer
-          cart={cart.cart}
-          products={products}
-          isLoading={cart.isLoading}
-          isBusy={cart.isBusy}
-          error={cart.error}
-          onClose={() => setIsCartOpen(false)}
-          onUpdateQuantity={(itemId, quantity, minimumQuantity) => {
-            void cart.updateQuantity(itemId, quantity, minimumQuantity);
-          }}
-          onRemove={(itemId) => {
-            void cart.removeItem(itemId);
-          }}
-          onClear={() => {
-            void cart.clear();
-          }}
-          onWhatsAppStarted={() => {
-            void cart.markWhatsAppStarted();
-          }}
-          onSaveDeliveryPin={cart.saveDeliveryPin}
-          onEmailStarted={() => {
-            trackEvent('email_cart', {
-              cart_reference: cart.cart?.reference ?? '',
-              item_count: cart.cart?.items.length ?? 0,
-            });
-          }}
-          onOpenProduct={(productId, variantId) => {
-            const product = products.find((candidate) => candidate.id === productId);
-            if (!product) return;
-            trackProductSelected(product);
-            productReturnScrollY.current = null;
-            setReturnToCartOnProductClose(true);
-            setSelectedVariantId(variantId);
-            setSelectedProduct(product);
-            if (pageReference) {
-              const url = new URL(toProductPageUrl(product));
-              const variant = product.variants.find((item) => item.id === variantId);
-              if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
-              window.history.replaceState(window.history.state, '', url);
-              setPageReference(toProductReference(product));
-            }
-            setIsCartOpen(false);
-          }}
-        />
-      )}
+      {cartDrawer}
     </div>
   );
 }

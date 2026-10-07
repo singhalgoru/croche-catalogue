@@ -60,7 +60,9 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
       ${product.image ? `<img class="photo-backdrop" src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="" aria-hidden="true" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">
       <img src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="${escapeHtml(product.name)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">` : ''}
       </a><div class="product-copy"><h2><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h2><p class="product-price">${price}</p>
-      <p>View photos, product details and current availability.</p></div></li>`;
+      <p>View photos, product details and current availability.</p>
+      <a class="button" href="/p/${toProductSlug(product)}/">Choose options &amp; add to cart</a>
+      <a class="button" href="https://wa.me/?text=${encodeURIComponent(`${product.name} — ${ORIGIN}/p/${toProductSlug(product)}/`)}" aria-label="Share ${escapeHtml(product.name)}">Share</a></div></li>`;
     }).join('');
     const schema = { ...baseSchema('CollectionPage', pathname, title, description), mainEntity: {
       '@type': 'ItemList', numberOfItems: items.length, itemListElement: items.map((product, index) => ({

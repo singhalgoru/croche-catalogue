@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import ProductCard from './ProductCard';
 import Header from './Header';
 import Footer from './Footer';
 import CollectionGrid from './CollectionGrid';
 import storeContent from '../content/storeContent.json';
 import { collectionPath } from '../utils/collectionLink.js';
-import { getProductImageUrl } from '../utils/productImageUrl';
 import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
 import { getGeneralWhatsAppLink } from '../utils/whatsapp';
-import type { CategorySettings, Product } from '../types/product';
+import type { CategorySettings, Product, ProductVariant } from '../types/product';
 
 interface Props {
   products: Product[];
@@ -16,9 +16,18 @@ interface Props {
   isLoading: boolean;
   loadError: string | null;
   hasCatalogueSnapshot: boolean;
+  onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
+  isCartBusy: boolean;
+  getCartQuantity: (productId: string) => number;
+  cartItemCount: number;
+  cartUpdateCount: number;
+  onOpenCart: () => void;
 }
 
-export default function StorePages({ products, categorySettings, isLoading, loadError, hasCatalogueSnapshot }: Props) {
+export default function StorePages({
+  products, categorySettings, isLoading, loadError, hasCatalogueSnapshot,
+  onAddToCart, isCartBusy, getCartQuantity, cartItemCount, cartUpdateCount, onOpenCart,
+}: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
@@ -83,7 +92,8 @@ export default function StorePages({ products, categorySettings, isLoading, load
     </nav>
   );
   return <div className="flex min-h-screen flex-col">
-    <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []} collectionPages />
+    <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []} collectionPages
+      cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} />
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
@@ -115,24 +125,12 @@ export default function StorePages({ products, categorySettings, isLoading, load
           {category && <a href={`/?category=${encodeURIComponent(category)}`} className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop {category} with the cart</a>}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
           {showCatalogue && <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {collectionProducts.map((product, index) => {
-              const prices = product.variants.length ? product.variants.map(variant => variant.price ?? product.price).filter((price): price is number => typeof price === 'number') : product.price === null ? [] : [product.price];
-              const price = product.price === null || prices.length === 0 ? 'Price on request' : `${Math.min(...prices) !== Math.max(...prices) ? 'From ' : ''}₹${Math.min(...prices).toLocaleString('en-IN')}`;
-              return <li key={product.id} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-mustard/40 bg-mustard/25 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                <a href={toProductPageUrl(product)} aria-label={`View ${product.name}`}
-                  className="relative block aspect-square shrink-0 overflow-hidden bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
-                  <img src={getProductImageUrl(product.image, 480)} alt="" aria-hidden="true" width={480} height={480}
-                    loading={index === 0 ? 'eager' : 'lazy'} decoding="async"
-                    className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" />
-                  <img src={getProductImageUrl(product.image, 480)} alt={product.name} width={480} height={480}
-                    loading={index === 0 ? 'eager' : 'lazy'} decoding="async" className="relative h-full w-full object-contain" />
-                </a><div className="flex flex-1 flex-col p-4 sm:p-3 lg:p-4">
-                  <h2 className="font-heading text-lg font-semibold sm:text-base"><a href={toProductPageUrl(product)}
-                    className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">{product.name}</a></h2>
-                  <p className="mt-2 font-bold">{price}</p><p className="mt-1 text-sm">{isLoading ? 'Checking availability…' : product.inStock ? 'In stock' : 'Out of stock'}</p>
-                </div>
-              </li>;
-            })}
+            {collectionProducts.map((product, index) => <li key={product.id}>
+              <ProductCard product={product} isFirstProduct={index === 0}
+                onSelect={selected => window.location.assign(toProductPageUrl(selected))}
+                onAddToCart={onAddToCart} isCartBusy={isCartBusy || isLoading || Boolean(loadError)}
+                cartQuantity={getCartQuantity(product.id)} />
+            </li>)}
           </ul>}
         </>}
       </> : <><p>Find your favourites by collection, then open a product for photos and details.</p>

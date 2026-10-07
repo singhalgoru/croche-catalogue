@@ -58,6 +58,19 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('adds from a collection card and opens the shared cart without leaving the collection', async () => {
+    window.history.replaceState(null, '', '/collections/home/');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Test Coaster' }));
+    await waitFor(() => expect(addItem).toHaveBeenCalledWith(product, product.variants[0]));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open cart with 0 items' })[0]);
+    expect(await screen.findByRole('dialog', { name: 'Shopping cart' })).toBeTruthy();
+    expect(screen.getByText('Your cart is empty')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close cart' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(window.location.pathname).toBe('/collections/home/');
+  });
+
   it('offers direct collection links below products without changing product ordering', () => {
     render(<App />);
     const nav = screen.getByRole('navigation', { name: 'Explore collections' });

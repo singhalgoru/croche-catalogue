@@ -162,6 +162,10 @@ There is no manual Refresh catalogue control. Failed requests retain the last
 available data, show an error and retry on the next automatic refresh.
 The collections hub uses a compact photo grid with an actual published product
 photo and live product count per category, rather than long category descriptions.
+Collection product cards reuse the homepage variant, minimum-order, Add to cart
+and Share controls. The header opens the same persistent cart and checkout drawer
+without leaving the collection; cart errors and confirmations appear on these
+pages too. Additions are disabled until current availability is confirmed.
 The homepage also offers direct collection links below the product grid without
 changing product-wise ordering. Empty collections are never promoted.
 Compact collection and information headers keep the logo left-aligned on mobile,
