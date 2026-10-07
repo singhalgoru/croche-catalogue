@@ -48,6 +48,11 @@ describe('GST rate suggestion validation', () => {
       }],
     });
   });
+  it.each([undefined, null])('accepts an omitted/non-applicable cess rate (%s)', (cess) => {
+    const rates = { igst: 5, cgst: 2.5, sgst: 2.5, ...(cess === undefined ? {} : { cess }) };
+    expect(validateGstRateSuggestion([{ ...match, tax_rates: rates }], source).candidates[0].cessRate)
+      .toBe(0);
+  });
   it.each([
     [{ ...match, hsn_code: '12345' }, 'invalid classification'],
     [{ ...match, tax_rates: { ...match.tax_rates, igst: 101 } }, 'invalid tax rate'],

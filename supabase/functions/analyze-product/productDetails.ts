@@ -53,8 +53,9 @@ export function validateGstRateSuggestion(
       throw new Error('The HSN provider returned a match without tax rates.');
     }
     const taxRates = rates as Record<string, unknown>;
-    const rate = (field: string) => {
+    const rate = (field: string, optional = false) => {
       const amount = taxRates[field];
+      if (optional && (amount === undefined || amount === null)) return 0;
       if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0 || amount > 100) {
         throw new Error('The HSN provider returned an invalid tax rate.');
       }
@@ -84,7 +85,7 @@ export function validateGstRateSuggestion(
       igstRate: rate('igst'),
       cgstRate: rate('cgst'),
       sgstRate: rate('sgst'),
-      cessRate: rate('cess'),
+      cessRate: rate('cess', true),
       confidence,
       notificationRef: typeof notificationRef === 'string' ? notificationRef.slice(0, 100) : null,
       conditionApplied: typeof conditionApplied === 'string' ? conditionApplied.slice(0, 300) : null,
