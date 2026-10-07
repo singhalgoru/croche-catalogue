@@ -24,8 +24,8 @@ export interface GstRateSuggestion {
     hsnDescription: string;
     gstRate: number;
     igstRate: number | null;
-    cgstRate: number;
-    sgstRate: number;
+    cgstRate: number | null;
+    sgstRate: number | null;
     cessRate: number;
     confidence: number;
     notificationRef: string | null;
@@ -164,13 +164,18 @@ export function validateGstRateSuggestion(
       throw new Error('The HSN provider returned an invalid classification.');
     }
     const igstRate = optionalRate('igst');
-    const cgstRate = rate('cgst');
-    const sgstRate = rate('sgst');
+    const cgstRate = optionalRate('cgst');
+    const sgstRate = optionalRate('sgst');
     const totalIntrastateRate = optionalRate('total_intrastate');
+    const gstRate = igstRate ?? totalIntrastateRate ??
+      (cgstRate !== null && sgstRate !== null ? cgstRate + sgstRate : null);
+    if (gstRate === null) {
+      throw new Error('The HSN provider did not supply a usable GST rate.');
+    }
     return {
       hsnCode,
       hsnDescription: hsnDescription.trim(),
-      gstRate: igstRate ?? totalIntrastateRate ?? cgstRate + sgstRate,
+      gstRate,
       igstRate,
       cgstRate,
       sgstRate,

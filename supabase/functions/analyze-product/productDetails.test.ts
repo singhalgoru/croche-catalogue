@@ -75,6 +75,27 @@ describe('GST rate suggestion validation', () => {
     };
     expect(validateGstRateSuggestion([candidate], source).candidates[0].gstRate).toBe(12);
   });
+  it('accepts omitted CGST/SGST when the provider supplies the total rate', () => {
+    const candidate = {
+      ...match,
+      tax_rates: { igst: null, cgst: null, sgst: null, cess: null, total_intrastate: 5 },
+    };
+    expect(validateGstRateSuggestion([candidate], source).candidates[0]).toMatchObject({
+      gstRate: 5,
+      igstRate: null,
+      cgstRate: null,
+      sgstRate: null,
+      cessRate: 0,
+    });
+  });
+  it('rejects matches without any usable GST rate', () => {
+    const candidate = {
+      ...match,
+      tax_rates: { igst: null, cgst: null, sgst: null, cess: 0 },
+    };
+    expect(() => validateGstRateSuggestion([candidate], source))
+      .toThrow('did not supply a usable GST rate');
+  });
   it.each([undefined, null])('accepts an omitted/non-applicable cess rate (%s)', (cess) => {
     const rates = { igst: 5, cgst: 2.5, sgst: 2.5, ...(cess === undefined ? {} : { cess }) };
     expect(validateGstRateSuggestion([{ ...match, tax_rates: rates }], source).candidates[0].cessRate)

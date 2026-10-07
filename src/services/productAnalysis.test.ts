@@ -165,6 +165,28 @@ describe('suggestProductGstRate', () => {
       .rejects.toThrow('Unable to suggest a GST rate: GST Accelerator unavailable');
   });
 
+  it('accepts a verified total rate when the provider omits component rates', async () => {
+    const suggestion = {
+      source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
+      candidates: [{
+        hsnCode: '580810',
+        hsnDescription: 'Crocheted textile articles',
+        gstRate: 5,
+        igstRate: null,
+        cgstRate: null,
+        sgstRate: null,
+        cessRate: 0,
+        confidence: 0.84,
+        notificationRef: null,
+        conditionApplied: null,
+        conditionWarning: null,
+        needsReview: true,
+      }],
+    };
+    mockInvoke.mockResolvedValue({ data: suggestion, error: null });
+    await expect(suggestProductGstRate({ category: 'Accessories' })).resolves.toEqual(suggestion);
+  });
+
   it('surfaces a no-relevant-match response without requiring or applying a GST rate', async () => {
     const message = 'No returned HSN description matched the product details.';
     mockInvoke.mockResolvedValueOnce({

@@ -234,7 +234,8 @@ export default function PriceDiscoveryPanel({
                           </p>
                           <p className="mt-1 text-sm text-cocoa">
                             GST total {candidate.gstRate}% · IGST {candidate.igstRate === null ? 'not supplied' : `${candidate.igstRate}%`}
-                            {' '}· CGST {candidate.cgstRate}% + SGST {candidate.sgstRate}%
+                            {' '}· CGST {candidate.cgstRate === null ? 'not supplied' : `${candidate.cgstRate}%`}
+                            {' '}+ SGST {candidate.sgstRate === null ? 'not supplied' : `${candidate.sgstRate}%`}
                             {candidate.cessRate > 0 ? ` · Cess ${candidate.cessRate}%` : ''}
                           </p>
                           <p className="mt-1 text-xs text-cocoa/70">

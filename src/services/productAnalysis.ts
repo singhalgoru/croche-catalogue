@@ -24,8 +24,8 @@ export interface ProductGstRateSuggestion {
     hsnDescription: string;
     gstRate: number;
     igstRate: number | null;
-    cgstRate: number;
-    sgstRate: number;
+    cgstRate: number | null;
+    sgstRate: number | null;
     cessRate: number;
     confidence: number;
     notificationRef: string | null;
@@ -191,8 +191,9 @@ export async function suggestProductGstRate(
       typeof item.hsnCode !== 'string' || !/^\d{4}(?:\d{2}){0,2}$/.test(item.hsnCode) ||
       typeof item.hsnDescription !== 'string' || !item.hsnDescription.trim() ||
       !validRate(item.gstRate) ||
-      (item.igstRate !== null && !validRate(item.igstRate)) || !validRate(item.cgstRate) ||
-      !validRate(item.sgstRate) || !validRate(item.cessRate) ||
+      (item.igstRate !== null && !validRate(item.igstRate)) ||
+      (item.cgstRate !== null && !validRate(item.cgstRate)) ||
+      (item.sgstRate !== null && !validRate(item.sgstRate)) || !validRate(item.cessRate) ||
       typeof item.confidence !== 'number' || item.confidence < 0 || item.confidence > 1 ||
       (item.notificationRef !== null && typeof item.notificationRef !== 'string') ||
       (item.conditionApplied !== null && typeof item.conditionApplied !== 'string') ||
