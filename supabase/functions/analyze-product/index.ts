@@ -141,14 +141,13 @@ Deno.serve(async (request) => {
     }
 
     const description = [
-      `Finished product for HSN classification: ${context.name || context.category}`,
-      `product type/category: ${context.category}`,
-      context.description ? `actual product use and features: ${context.description}` : '',
-      context.materials ? `confirmed materials: ${context.materials}` : '',
+      context.name,
+      context.description,
+      `product category: ${context.category}`,
+      context.materials ? `materials: ${context.materials}` : '',
       context.includedItems ? `included items: ${context.includedItems}` : '',
-      'construction method: crocheted textile made from yarn',
-      'classify the finished product by its actual use and material, not by handmade status alone',
-    ].filter(Boolean).join('; ');
+      'Crocheted textile finished product.',
+    ].filter(Boolean).join(' ');
     let response: Response;
     try {
       response = await fetch('https://gstaccelerator.in/api/v1/lookup', {

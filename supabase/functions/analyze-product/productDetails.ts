@@ -105,7 +105,14 @@ export function validateGstRateSuggestion(
     throw new Error('GST Accelerator returned an invalid HSN lookup.');
   }
   const matches = Array.isArray(value) ? value : [value];
-  if (matches.length === 0 || matches.length > 5) {
+  if (matches.length === 0) {
+    return {
+      source: responseSource,
+      candidates: [],
+      message: 'GST Accelerator found no HSN matches for these product details. No rate was suggested; verify the classification manually.',
+    };
+  }
+  if (matches.length > 5) {
     throw new Error('GST Accelerator returned no usable HSN matches.');
   }
 

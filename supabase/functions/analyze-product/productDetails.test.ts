@@ -135,8 +135,15 @@ describe('GST rate suggestion validation', () => {
     expect(ambiguous.message).toContain('Several distinct HSN/rate matches');
   });
 
-  it('rejects empty and excessive candidate lists', () => {
-    expect(() => validateGstRateSuggestion([], source)).toThrow('no usable HSN matches');
+  it('returns a manual-review message when the provider has no HSN matches', () => {
+    expect(validateGstRateSuggestion([], source)).toMatchObject({
+      source,
+      candidates: [],
+      message: 'GST Accelerator found no HSN matches for these product details. No rate was suggested; verify the classification manually.',
+    });
+  });
+
+  it('rejects an excessive number of provider candidates', () => {
     expect(() => validateGstRateSuggestion([match, match, match, match, match, match], source))
       .toThrow('no usable HSN matches');
   });

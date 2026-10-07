@@ -105,12 +105,32 @@ describe('analyze-product endpoint', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': 'test-provider-key' },
         body: JSON.stringify({
-          description: 'Finished product for HSN classification: Crochet charm; product type/category: Accessories; actual product use and features: Small handmade crochet bag charm.; confirmed materials: Cotton yarn; construction method: crocheted textile made from yarn; classify the finished product by its actual use and material, not by handmade status alone',
+          description: 'Crochet charm Small handmade crochet bag charm. product category: Accessories materials: Cotton yarn Crocheted textile finished product.',
           branded: false,
           supply_type: 'intrastate',
         }),
       }),
     );
+  });
+  it('reports no provider HSN matches as a reviewable result rather than an API error', async () => {
+    fetchMock.mockResolvedValue(gstAcceleratorResponse([]));
+    const response = await handler(request({
+      mode: 'gst-rate',
+      imageBase64: undefined,
+      mimeType: undefined,
+      context: {
+        category: 'Accessories',
+        name: 'Panda Charm',
+        description: 'Crochet panda bag charm for keyrings.',
+        materials: 'Acrylic wool and fiber fill.',
+      },
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
+      candidates: [],
+      message: expect.stringContaining('No returned HSN description matched'),
+    });
   });
   it('requires a current category and rejects invalid provider GST matches', async () => {
     const missingCategory = await handler(request({
