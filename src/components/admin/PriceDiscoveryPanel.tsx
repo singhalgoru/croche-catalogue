@@ -389,7 +389,7 @@ export default function PriceDiscoveryPanel({
                   <input
                     aria-label={`${product.name} customer price including GST`}
                     type="number"
-                    min="0.01"
+                    min="1"
                     step="1"
                     value={sellingPrice}
                     onChange={(event) => setSellingPrice(event.target.value)}

@@ -55,6 +55,8 @@ and remains editable; the recommended minimum quantity can also be overridden.
 Pricing inputs survive draft restoration and are saved privately when the
 product is published. The profit margin is recalculated from the final Price
 field, including any override made after applying the suggestion.
+The price discovery customer-price override accepts positive whole rupees,
+matching the product price field.
 
 The admin workspace separates Products, Orders (customer carts), Sales and
 Settings (categories and store announcements). Switching sections preserves

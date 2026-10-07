@@ -48,6 +48,9 @@ test('keeps admin tasks separate and product entry focused without losing the dr
   await dialog.getByLabel('Draft Rose time spent').fill('1');
   await dialog.getByLabel('Draft Rose materials cost').fill('50');
   await dialog.getByRole('button', { name: 'Suggest price', exact: true }).click();
+  const customerPrice = dialog.getByLabel('Draft Rose customer price including GST');
+  await customerPrice.fill('400');
+  expect(await customerPrice.evaluate(input => input instanceof HTMLInputElement && input.validity.valid)).toBe(true);
   await dialog.getByRole('button', { name: 'Use in product editor' }).click();
   await expect(dialog.getByLabel('Price (₹)', { exact: true })).not.toHaveValue('');
   await expectNoHorizontalOverflow(page);
