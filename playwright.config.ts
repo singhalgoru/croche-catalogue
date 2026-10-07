@@ -23,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4187 --strictPort',
+    command: 'npx tsc -b && npx vite build && npm run preview -- --host 127.0.0.1 --port 4187 --strictPort',
     url: 'http://127.0.0.1:4187/',
     env: {
       VITE_SUPABASE_URL: 'http://supabase.test',

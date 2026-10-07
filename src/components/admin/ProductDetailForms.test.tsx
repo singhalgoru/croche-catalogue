@@ -13,6 +13,7 @@ import { suggestProductGstRate } from '../../services/productAnalysis';
 import { loadProductDraft, saveProductDraft, EMPTY_PRODUCT_DRAFT } from './productDraftStore';
 import { createDefaultPriceInputs } from './priceDiscovery';
 import { createEmptyVariant } from './variantDraft';
+import { mockNativeDialog } from './dialogTestSupport';
 
 vi.mock('../../services/products', () => ({
   fetchManagedProducts: vi.fn(), publishProduct: vi.fn(), updateProduct: vi.fn(),
@@ -45,7 +46,9 @@ const product: ManagedProduct = {
   publishedAt: null, createdAt: '2026-10-03T00:00:00Z',
 };
 
+let restoreDialog: () => void;
 beforeEach(() => {
+  restoreDialog = mockNativeDialog();
   vi.mocked(loadProductDraft).mockResolvedValue(null);
   vi.mocked(saveProductDraft).mockResolvedValue(undefined);
   vi.mocked(fetchManagedProducts).mockResolvedValue([product]);
@@ -56,15 +59,37 @@ beforeEach(() => {
     priceDiscoveryInputs: inputs,
   }));
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('opens product entry in a dialog and retains entered details when closed and reopened', async () => {
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    expect(screen.getByRole('dialog', { name: 'Add product' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Rose' } });
+    expect(screen.getByLabelText('Materials')).toHaveProperty('required', true);
+    expect(screen.getByLabelText("What's included")).toHaveProperty('required', true);
+    expect(screen.getByLabelText('Dimensions')).toHaveProperty('required', false);
+    fireEvent.click(screen.getByRole('button', { name: 'Close Add product' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    expect(screen.getByLabelText('Product name')).toHaveProperty('value', 'Rose');
+    fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
+    const form = screen.getByRole('button', { name: 'Publish product with 1 variant' }).closest('form');
+    if (!form) throw new Error('Missing product upload form');
+    fireEvent.submit(form);
+    expect(screen.getByRole('alert').textContent).toContain('description');
+    expect(publishProduct).not.toHaveBeenCalled();
+  });
+
   it('discovers a GST-inclusive price for a new product and publishes saved costs, overrides and minimum quantity', async () => {
     render(<ProductUploadForm categories={['Home']} onPublished={vi.fn().mockResolvedValue(undefined)} />);
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
     fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Coaster' } });
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A handmade coaster.' } });
+    fireEvent.change(screen.getByLabelText('Materials'), { target: { value: 'Cotton yarn' } });
+    fireEvent.change(screen.getByLabelText("What's included"), { target: { value: 'One coaster' } });
     fireEvent.click(screen.getByRole('button', { name: /Price discovery/ }));
     expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '5');
     fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '1' } });
@@ -91,8 +116,12 @@ describe('Product detail admin integration', () => {
     render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Coaster' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A handmade coaster.' } });
+    fireEvent.change(screen.getByLabelText('Materials'), { target: { value: 'Cotton yarn' } });
+    fireEvent.change(screen.getByLabelText("What's included"), { target: { value: 'One coaster' } });
     fireEvent.click(screen.getByRole('button', { name: /Price discovery/ }));
-    fireEvent.change(screen.getByLabelText('New product time spent'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '2' } });
     const form = screen.getByRole('button', { name: 'Publish product with 1 variant' }).closest('form');
     if (!form) throw new Error('Missing product upload form');
     fireEvent.submit(form);

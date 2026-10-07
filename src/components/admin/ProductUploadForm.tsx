@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import ProductDetailsEditor from './ProductDetailsEditor';
+import AdminDialog from './AdminDialog';
+import { getProductPublishError } from '../../utils/productPublishValidation';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
   calculatePriceAtSellingPrice, createDefaultPriceInputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS,
@@ -120,8 +122,9 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       setErrorMessage('Enter the price as a whole number of rupees, or leave it blank.');
       return;
     }
-    if (draft.showPrice && price === null) {
-      setErrorMessage('Add a price before showing it in the catalogue.');
+    const publishError = getProductPublishError({ ...draft, category, price });
+    if (publishError) {
+      setErrorMessage(publishError);
       return;
     }
     const variantPrices = variants.map((variant) => parseOptionalPrice(variant.price));
@@ -208,11 +211,13 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </span>
       </button>
       {isExpanded && (
+        <AdminDialog title="Add product" busy={isAnalyzing || isPublishing} onClose={() => setIsExpanded(false)}>
         <form
           id="add-product-panel"
           className="space-y-4 border-t border-mustard/30 p-3 sm:space-y-6 sm:p-5"
           onSubmit={submitProduct}
         >
+      <p className="text-sm text-cocoa/70">Required: name, category, description, materials, what&apos;s included, and a photo for each named variant. Price is required only when shown in the catalogue. Closing keeps your draft.</p>
       {restoredDraftAt !== null && (
         <div
           role="status"
@@ -279,6 +284,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
               value={draft.name}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
               required
+              minLength={2}
               maxLength={100}
               className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
             />
@@ -287,6 +293,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             Category
             <select
               value={selectedCategory}
+              required
               onChange={(event) =>
                 setDraft((current) => ({ ...current, category: event.target.value as Category }))
               }
@@ -316,8 +323,9 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             <input
               type="number"
               inputMode="numeric"
-              min={0}
+              min={draft.showPrice ? 1 : 0}
               step={1}
+              required={draft.showPrice}
               value={draft.price}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, price: event.target.value }))
@@ -384,6 +392,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             categories={categories}
             imageFile={variants[0]?.imageFile}
             disabled={isPublishing}
+            requirePublishDetails
             onBusyChange={setIsAnalyzing}
             onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
             onColorSuggested={(color) => setVariants((current) =>
@@ -404,7 +413,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </p>
 
         {errorMessage && (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {errorMessage}
           </p>
         )}
@@ -424,6 +433,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </button>
       </section>
         </form>
+        </AdminDialog>
       )}
     </section>
   );

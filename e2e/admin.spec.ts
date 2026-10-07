@@ -31,6 +31,40 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('keeps admin tasks separate and product entry focused without losing the draft', async ({ page }) => {
+  await installMockSupabase(page);
+  await signIn(page);
+  await expect(page.getByRole('button', { name: /Manage categories/ })).not.toBeVisible();
+  await page.getByRole('button', { name: /Add product/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add product', exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Product name', { exact: true }).fill('Draft Rose');
+  await expect(dialog.getByLabel('Materials', { exact: true })).toHaveAttribute('required', '');
+  await expect(dialog.getByLabel("What's included", { exact: true })).toHaveAttribute('required', '');
+  await dialog.getByRole('button', { name: /Price discovery/ }).click();
+  await dialog.getByLabel('Draft Rose time spent').fill('1');
+  await dialog.getByLabel('Draft Rose materials cost').fill('50');
+  await dialog.getByRole('button', { name: 'Suggest price', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Use in product editor' }).click();
+  await expect(dialog.getByLabel('Price (₹)', { exact: true })).not.toHaveValue('');
+  await expectNoHorizontalOverflow(page);
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('button', { name: /Add product/ })).toBeFocused();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Manage categories/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Add product/ })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Products', exact: true }).click();
+  await page.getByRole('button', { name: /Add product/ }).click();
+  await expect(dialog.getByLabel('Product name', { exact: true })).toHaveValue('Draft Rose');
+  await expect(dialog.getByLabel('Materials', { exact: true })).toHaveValue('');
+  await dialog.getByRole('button', { name: 'Publish product with 1 variant', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  expect(await dialog.getByLabel('Variant image', { exact: true }).evaluate(
+    input => input instanceof HTMLInputElement && input.validity.valueMissing,
+  )).toBe(true);
+});
+
 test('authenticates and manages the complete category lifecycle', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
@@ -44,6 +78,7 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   );
   await expectNoHorizontalOverflow(page);
 
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: /Manage categories/ }).click();
   const charmsDisplay = page.getByLabel('Priority for Charms').locator('..').locator('..');
   await page.getByLabel('Priority for Charms').fill('5');
@@ -195,6 +230,7 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
   });
 
   await signIn(page);
+  await page.getByRole('button', { name: 'Orders', exact: true }).click();
   await page.getByRole('button', { name: /Anonymous cart activity/ }).click();
   await expect(page.getByRole('heading', { name: 'CRT-CUSTOMER' })).toBeVisible();
   await expect(page.getByText('Rose Pink · Qty 2')).toBeVisible();
@@ -227,6 +263,7 @@ test('shows anonymous cart contents and WhatsApp activity', async ({ page }) => 
 test('manages rotating ticker messages', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
 
   await page.getByRole('button', { name: /Manage ticker/ }).click();
   await expect(page.getByText('2 active of 3 messages')).toBeVisible();
@@ -325,6 +362,8 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
     'A soft handmade crochet bunny suggested by Gemini.',
   );
   await page.getByLabel('Variant price (₹)').fill('725');
+  await page.getByLabel('Materials', { exact: true }).fill('Cotton yarn');
+  await page.getByLabel("What's included", { exact: true }).fill('One crochet bunny');
   await page.getByLabel('Feature this product at the top of the catalogue').check();
 
   await page.getByRole('button', { name: 'Publish product' }).click();
@@ -340,6 +379,7 @@ test('uses Gemini suggestions to publish a product', async ({ page }) => {
   expect(
     state.products.find((product) => product.name === 'AI Bunny')?.product_variants[0].price,
   ).toBe(725);
+  await page.getByRole('button', { name: 'Close Add product', exact: true }).click();
   await page.getByRole('button', { name: /Manage products/ }).click();
   await expect(
     page.getByRole('heading', { name: 'AI Bunny', exact: true }),

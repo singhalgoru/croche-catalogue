@@ -12,6 +12,7 @@ import { archiveImageOriginal } from './imageOriginals';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { PRODUCT_COLUMNS } from './productColumns';
 import { getNewProductSortOrder } from './catalogueOrder';
+import { getProductPublishError } from '../utils/productPublishValidation';
 import {
   deleteImagesFromR2,
   isR2ImagePath,
@@ -436,6 +437,11 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
 
 export async function publishProduct(product: NewProduct): Promise<Product> {
   if (product.variants.length === 0) throw new Error('Add at least one product variant.');
+  const publishError = getProductPublishError(product);
+  if (publishError) throw new Error(publishError);
+  if (product.variants.some(variant => !variant.name.trim() || !variant.imageFile)) {
+    throw new Error('Every variant needs a name and image before publishing.');
+  }
   const details = productDetailColumns(product);
   const minimumOrderQuantity = product.minimumOrderQuantity ?? 1;
   if (!Number.isInteger(minimumOrderQuantity) || minimumOrderQuantity < 1 || minimumOrderQuantity > 99) {
@@ -607,6 +613,17 @@ export async function updateProduct(
   product: ManagedProduct,
   update: ProductUpdate,
 ): Promise<ManagedProduct> {
+  if (!product.published && update.published) {
+    const publishError = getProductPublishError({
+      ...product, ...update,
+      materials: update.materials ?? product.materials,
+      includedItems: update.includedItems ?? product.includedItems,
+    });
+    if (publishError) throw new Error(publishError);
+    if (product.variants.length === 0 || product.variants.some(variant => !variant.name.trim() || !variant.image)) {
+      throw new Error('Every variant needs a name and image before publishing.');
+    }
+  }
   if (
     !Number.isInteger(update.minimumOrderQuantity)
     || update.minimumOrderQuantity < 1

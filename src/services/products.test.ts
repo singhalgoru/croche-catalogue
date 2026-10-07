@@ -31,6 +31,7 @@ const row = {
 const draft: NewProduct = {
   name: row.name, category: row.category, description: row.description, price: row.price,
   showPrice: true, featured: false,
+  materials: 'Cotton yarn', includedItems: 'One bunny',
   variants: [{
     name: 'Lavender', color: row.color, price: null, inStock: true, availableQuantity: 2,
     imageFile: new File(['image'], 'bunny.png', { type: 'image/png' }),
@@ -134,6 +135,25 @@ describe('product detail loading', () => {
     } })).rejects.toThrow('Complete the price discovery');
     expect(upload).not.toHaveBeenCalled();
     expect(from).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing publication facts at the service boundary', async () => {
+    for (const field of ['name', 'category', 'description', 'materials', 'includedItems'] as const) {
+      await expect(publishProduct({ ...draft, [field]: ' ' })).rejects.toThrow();
+    }
+    await expect(publishProduct({ ...draft, price: null })).rejects.toThrow('positive whole-rupee price');
+    await expect(publishProduct({ ...draft, variants: [{ ...draft.variants[0], name: '' }] }))
+      .rejects.toThrow('name and image');
+    expect(from).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('requires missing facts when republishing without blocking edits to legacy published products', async () => {
+    const legacy = { ...row, published: false, materials: null, included_items: null };
+    queueQuery([legacy]);
+    const [managed] = await fetchManagedProducts();
+    await expect(updateProduct(managed, update)).rejects.toThrow('materials');
+    expect(from).toHaveBeenCalledTimes(1);
   });
 
   it('reads the public HTML snapshot without consuming live prefetch data', () => {
@@ -340,13 +360,14 @@ describe('product detail persistence', () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps legacy upload payloads valid and does not invent new details', async () => {
+  it('does not invent optional details when publishing', async () => {
     queueQuery([]);
     const insert = queueQuery({ id: row.id });
     queueQuery({ id: 'variant-1' });
     queueQuery(row);
     await publishProduct(draft);
-    expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('materials');
+    expect(insert.insert.mock.calls[0][0]).toHaveProperty('materials', 'Cotton yarn');
+    expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('dimensions');
     expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('seo_description');
   });
 

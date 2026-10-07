@@ -351,6 +351,11 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/rest/v1/product_profit_margins' && request.method() === 'DELETE') {
+      await json(route, []);
+      return;
+    }
+
     if (pathname === '/rest/v1/rpc/bulk_update_product_descriptions') {
       const body = getRequestBody<{ changes: Array<{
         id: string; description: string; seoDescription: string;

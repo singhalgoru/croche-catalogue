@@ -56,6 +56,20 @@ Pricing inputs survive draft restoration and are saved privately when the
 product is published. The profit margin is recalculated from the final Price
 field, including any override made after applying the suggestion.
 
+The admin workspace separates Products, Orders (customer carts), Sales and
+Settings (categories and store announcements). Switching sections preserves
+mounted forms. Add product and Edit open focused, scrollable dialogs with a
+pinned header and Close control; Escape closes them unless an operation is
+running. Closing Add product retains the draft.
+
+New products and previously unpublished products require a name (at least
+2 characters), category, description (at least 10 characters), materials,
+what's included, and named variants with photos. A displayed price must be a
+positive whole-rupee amount; price-on-request remains supported. Dimensions,
+care instructions and SEO summaries remain optional. Publication validation
+also runs in the product service, not just the browser form. Already published
+legacy products can still be edited without filling newly required facts.
+
 Product photos are stored on Cloudflare R2 and served from
 `images.luviacreations.com`. Admin uploads (JPG, PNG or WebP) are resized to at
 most 1600 pixels on the longest side, encoded as WebP, and uploaded with 160,

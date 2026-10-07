@@ -15,6 +15,7 @@ import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
+import AdminDialog from './AdminDialog';
 import {
   calculatePriceAtSellingPrice,
   calculateMinimumOrderQuantity,
@@ -324,7 +325,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         )}
       </div>
 
-      {error && (
+      {error && !editingId && (
         <p className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">
           {error}
         </p>
@@ -455,6 +456,27 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             const editorMinimumOrderQuantity = isEditing
               ? calculateMinimumOrderQuantity(inputsForProduct, priceDefaults, draft.price)
               : null;
+            const priceDiscovery = <PriceDiscoveryPanel
+              product={isEditing ? { ...product, ...draft } : product}
+              defaults={priceDefaults}
+              inputs={inputsForProduct}
+              onInputsChange={inputs => setPriceInputs(current => ({ ...current, [product.id]: inputs }))}
+              onSaveInputs={async inputs => {
+                const saved = await saveProductPriceDiscoveryInputs(product, inputs);
+                setProducts(current => current.map(item => item.id === saved.id ? saved : item));
+              }}
+              onApplyPrice={(price, profitMarginPercent, gstPercent, minimumOrderQuantity) => {
+                if (isEditing) {
+                  setDraft(current => current ? {
+                    ...current, price: String(price), profitMarginPercent, gstPercent,
+                    minimumOrderQuantity: String(minimumOrderQuantity ?? Number(current.minimumOrderQuantity)),
+                  } : current);
+                } else {
+                  startEditing(product, price, profitMarginPercent, gstPercent, minimumOrderQuantity);
+                }
+                setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
+              }}
+            />;
 
             return (
               <article
@@ -579,24 +601,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                   </div>
                 </div>
 
-                <PriceDiscoveryPanel
-                  product={product}
-                  defaults={priceDefaults}
-                  inputs={inputsForProduct}
-                  onInputsChange={(inputs) =>
-                    setPriceInputs((current) => ({ ...current, [product.id]: inputs }))
-                  }
-                  onSaveInputs={async (inputs) => {
-                    const saved = await saveProductPriceDiscoveryInputs(product, inputs);
-                    setProducts((current) => current.map((item) => (
-                      item.id === saved.id ? saved : item
-                    )));
-                  }}
-                  onApplyPrice={(price, profitMarginPercent, gstPercent, minimumOrderQuantity) => {
-                    startEditing(product, price, profitMarginPercent, gstPercent, minimumOrderQuantity);
-                    setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
-                  }}
-                />
+                {!isEditing && priceDiscovery}
 
                 {isDeleting && (
                   <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -625,6 +630,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                 )}
 
                 {isEditing && (
+                  <AdminDialog title={`Edit ${product.name}`} busy={isBusy || isAnalyzing} onClose={() => {
+                    setEditingId(null);
+                    setDraft(null);
+                  }}>
+                  <div className="p-4">
+                  {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                  <fieldset disabled={isBusy || isAnalyzing}>{priceDiscovery}</fieldset>
                   <form
                     className="mt-4 grid gap-4 border-t border-mustard/30 pt-4 sm:grid-cols-2"
                     onSubmit={(event) => void saveProduct(event, product)}
@@ -762,6 +774,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         categories={categories}
                         imageUrl={product.variants[0]?.image || product.image}
                         disabled={isBusy}
+                        requirePublishDetails={!product.published && draft.published}
                         onBusyChange={setIsAnalyzing}
                         onChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)}
                       />
@@ -830,9 +843,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       </button>
                     </div>
                   </form>
-                )}
-                {isEditing && (
                   <ProductVariantManager product={product} onSaved={handleVariantSaved} />
+                  </div>
+                  </AdminDialog>
                 )}
               </article>
             );

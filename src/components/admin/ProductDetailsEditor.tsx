@@ -28,6 +28,7 @@ interface Props {
   onChange: (patch: Partial<AnalysisDraft>) => void;
   onColorSuggested?: (color: string) => void;
   onBusyChange?: (busy: boolean) => void;
+  requirePublishDetails?: boolean;
 }
 
 const SUGGESTION_FIELDS = [
@@ -43,6 +44,7 @@ type SuggestionKey = typeof SUGGESTION_FIELDS[number]['key'];
 export default function ProductDetailsEditor({
   value, categories, imageFile, imageUrl, disabled = false, onChange,
   onColorSuggested, onBusyChange,
+  requirePublishDetails = false,
 }: Props) {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -128,7 +130,10 @@ export default function ProductDetailsEditor({
         confirmed facts, not keyword lists or unsupported promises. Google may choose a different snippet.
       </p>
       <h3 className="font-heading text-lg font-bold text-cocoa">Specifications &amp; care</h3>
-      <p className="text-sm text-cocoa/70">Optional. Only filled fields appear to customers. Enter confirmed facts, not guesses.</p>
+      <p className="text-sm text-cocoa/70">
+        {requirePublishDetails ? "Materials and what's included are required to publish. Dimensions and care are optional." : 'Optional. Only filled fields appear to customers.'}
+        {' '}Enter confirmed facts, not guesses.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         {PRODUCT_DETAIL_FIELDS.map(({ key, label }) => (
           <label key={key} className="text-sm font-semibold text-cocoa">
@@ -138,6 +143,7 @@ export default function ProductDetailsEditor({
               onChange={(event) => onChange({ [key]: event.target.value })}
               rows={key === 'careInstructions' ? 3 : 2}
               maxLength={1000}
+              required={requirePublishDetails && (key === 'materials' || key === 'includedItems')}
               disabled={disabled || busy}
               className="mt-1 w-full resize-y rounded-xl border border-mustard/60 bg-white px-3 py-2"
             />

@@ -11,6 +11,7 @@ import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
 import SellerSalesDashboard from './SellerSalesDashboard';
 import TickerManager from './TickerManager';
+import AdminWorkspace from './AdminWorkspace';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -215,16 +216,18 @@ export default function AdminPage({ onProductPublished }: Props) {
           </p>
         )}
 
-        <SellerSalesDashboard refreshKey={productRefreshKey} />
-        <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
-        <TickerManager />
-        <CartManager />
-        <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
-        <ProductManager
-          categories={categories}
-          refreshKey={productRefreshKey}
-          onChanged={handleProductChanged}
-        />
+        <AdminWorkspace>{{
+          Products: <>
+            <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
+            <ProductManager categories={categories} refreshKey={productRefreshKey} onChanged={handleProductChanged} />
+          </>,
+          Orders: <CartManager />,
+          Sales: <SellerSalesDashboard refreshKey={productRefreshKey} />,
+          Settings: <>
+            <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
+            <TickerManager />
+          </>,
+        }}</AdminWorkspace>
       </main>
     </div>
   );
