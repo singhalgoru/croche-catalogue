@@ -129,7 +129,29 @@ describe('analyze-product endpoint', () => {
     expect(await response.json()).toMatchObject({
       source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
       candidates: [],
-      message: expect.stringContaining('No returned HSN description matched'),
+      message: expect.stringContaining('found no HSN matches'),
+    });
+  });
+  it('returns manual review when HSN matches have no usable GST rates', async () => {
+    fetchMock.mockResolvedValue(gstAcceleratorResponse([{
+      ...gstMatch,
+      tax_rates: { igst: null, cgst: null, sgst: null, cess: null },
+    }]));
+    const response = await handler(request({
+      mode: 'gst-rate',
+      imageBase64: undefined,
+      mimeType: undefined,
+      context: {
+        category: 'Accessories',
+        name: 'Panda Charm',
+        description: 'Crochet panda bag charm for keyrings.',
+        materials: 'Acrylic wool and fiber fill.',
+      },
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      candidates: [],
+      message: expect.stringContaining('did not supply a usable GST rate'),
     });
   });
   it('requires a current category and rejects invalid provider GST matches', async () => {

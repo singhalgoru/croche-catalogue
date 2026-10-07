@@ -93,8 +93,21 @@ describe('GST rate suggestion validation', () => {
       ...match,
       tax_rates: { igst: null, cgst: null, sgst: null, cess: 0 },
     };
-    expect(() => validateGstRateSuggestion([candidate], source))
-      .toThrow('did not supply a usable GST rate');
+    expect(validateGstRateSuggestion([candidate], source)).toMatchObject({
+      source,
+      candidates: [],
+      message: 'GST Accelerator returned HSN matches but did not supply a usable GST rate. No rate was suggested; verify the current rate and classification manually.',
+    });
+  });
+  it('keeps rate-bearing results when other matches omit GST rates', () => {
+    const noRate = {
+      ...match,
+      hsn_code: '610990',
+      description: 'Crocheted garments',
+      tax_rates: { igst: null, cgst: null, sgst: null, cess: null },
+    };
+    expect(validateGstRateSuggestion([noRate, match], source).candidates).toHaveLength(1);
+    expect(validateGstRateSuggestion([noRate, match], source).candidates[0].hsnCode).toBe(match.hsn_code);
   });
   it.each([undefined, null])('accepts an omitted/non-applicable cess rate (%s)', (cess) => {
     const rates = { igst: 5, cgst: 2.5, sgst: 2.5, ...(cess === undefined ? {} : { cess }) };

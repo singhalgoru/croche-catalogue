@@ -53,6 +53,8 @@ export function selectRelevantGstCandidates(
   suggestion: GstRateSuggestion,
   context: AnalysisContext,
 ): GstRateSuggestion {
+  if (suggestion.candidates.length === 0 && suggestion.message) return suggestion;
+
   const productFacts = [
     context.name,
     context.category,
@@ -122,7 +124,7 @@ export function validateGstRateSuggestion(
     };
   }
 
-  const candidates = matches.map((match: unknown) => {
+  const candidates = matches.flatMap((match: unknown) => {
     if (!match || typeof match !== 'object') {
       throw new Error('The HSN provider returned an invalid match.');
     }
@@ -170,7 +172,7 @@ export function validateGstRateSuggestion(
     const gstRate = igstRate ?? totalIntrastateRate ??
       (cgstRate !== null && sgstRate !== null ? cgstRate + sgstRate : null);
     if (gstRate === null) {
-      throw new Error('The HSN provider did not supply a usable GST rate.');
+      return [];
     }
     return {
       hsnCode,
@@ -187,6 +189,14 @@ export function validateGstRateSuggestion(
       needsReview,
     };
   });
+
+  if (candidates.length === 0) {
+    return {
+      source: responseSource,
+      candidates: [],
+      message: 'GST Accelerator returned HSN matches but did not supply a usable GST rate. No rate was suggested; verify the current rate and classification manually.',
+    };
+  }
 
   return {
     source: responseSource,
