@@ -23,7 +23,8 @@ describe('price discovery calculations', () => {
     expect(estimate?.totalCost).toBe(500);
     expect(estimate?.targetBeforeGatewayFee).toBe(950);
     expect(estimate?.expectedNet).toBeCloseTo(950);
-    expect(estimate?.customerTotal).toBeGreaterThan(estimate?.suggestedPriceBeforeGst ?? 0);
+    expect(estimate?.customerTotal).toBe(estimate?.suggestedCustomerPrice);
+    expect(estimate?.gstAmount).toBeCloseTo(estimate!.customerTotal * 5 / 105);
   });
 
   it('converts minutes to hours before calculating labour cost', () => {
@@ -44,7 +45,7 @@ describe('price discovery calculations', () => {
 
     expect(minutesEstimate?.labourCost).toBe(200);
     expect(minutesEstimate?.totalCost).toBe(hoursEstimate?.totalCost);
-    expect(minutesEstimate?.suggestedPriceBeforeGst).toBe(hoursEstimate?.suggestedPriceBeforeGst);
+    expect(minutesEstimate?.suggestedCustomerPrice).toBe(hoursEstimate?.suggestedCustomerPrice);
   });
 
   it('requires every cost and a verified GST rate', () => {
@@ -72,9 +73,10 @@ describe('price discovery calculations', () => {
 
     expect(outcome).not.toBeNull();
     expect(outcome?.totalCost).toBe(500);
-    expect(outcome?.customerTotal).toBe(1155);
-    expect(outcome?.profit).toBeCloseTo(572.742);
-    expect(outcome?.profitMarginPercent).toBeCloseTo(52.06745);
+    expect(outcome?.customerTotal).toBe(1100);
+    expect(outcome?.gstAmount).toBeCloseTo(1100 * 5 / 105);
+    expect(outcome?.profit).toBeCloseTo(521.659);
+    expect(outcome?.profitMarginPercent).toBeCloseTo(49.795);
   });
 
   it.each(['', '0', '-1', 'not-a-price'])('rejects invalid custom selling prices (%s)', (price) => {

@@ -40,7 +40,7 @@ export default function PriceDiscoveryPanel({
   const panelId = useId();
   const estimate = estimateProductPrice(inputs, defaults);
   const suggestedPrice = estimate
-    ? roundPriceUp(estimate.suggestedPriceBeforeGst, roundingIncrement)
+    ? roundPriceUp(estimate.suggestedCustomerPrice, roundingIncrement)
     : null;
   const priceOutcome = hasSuggestedPrice
     ? calculatePriceAtSellingPrice(inputs, defaults, sellingPrice)
@@ -93,7 +93,7 @@ export default function PriceDiscoveryPanel({
           <span className="block text-xs text-cocoa/60">
             {suggestedPrice === null
               ? 'Estimate costs and a selling price'
-              : `Suggested ${formatRupees(suggestedPrice)} before GST`}
+              : `Suggested ${formatRupees(suggestedPrice)} including GST`}
           </span>
         </span>
         <span aria-hidden="true" className="text-lg font-bold text-cocoa">
@@ -314,9 +314,9 @@ export default function PriceDiscoveryPanel({
             <div className="rounded-xl bg-cream p-3 sm:p-4">
               <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
                 <label className="text-sm font-semibold text-cocoa">
-                  Your selling price before GST (₹)
+                  Customer price including GST (₹)
                   <input
-                    aria-label={`${product.name} selling price before GST`}
+                    aria-label={`${product.name} customer price including GST`}
                     type="number"
                     min="0.01"
                     step="1"
@@ -327,7 +327,7 @@ export default function PriceDiscoveryPanel({
                 </label>
                 <div className="flex flex-col gap-2 sm:items-start">
                   <p className="text-xs text-cocoa/70">
-                    Suggested price: {formatRupees(suggestedPrice)} before GST
+                    Suggested customer price: {formatRupees(suggestedPrice)} including GST
                   </p>
                   <button
                     type="button"
@@ -342,9 +342,9 @@ export default function PriceDiscoveryPanel({
                 <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-cocoa/10 pt-3 text-sm">
                   <span className="text-cocoa/70">Total cost basis</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.totalCost)}</span>
-                  <span className="text-cocoa/70">GST amount</span>
+                  <span className="text-cocoa/70">GST included in customer price</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.gstAmount)}</span>
-                  <span className="text-cocoa/70">Customer total</span>
+                  <span className="text-cocoa/70">Customer total (GST included)</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.customerTotal)}</span>
                   <span className="text-cocoa/70">Estimated gateway fee (incl. fee GST)</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.gatewayFee)}</span>

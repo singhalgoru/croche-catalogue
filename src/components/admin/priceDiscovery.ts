@@ -18,7 +18,7 @@ export interface PriceDiscoveryEstimate {
   labourCost: number;
   totalCost: number;
   targetBeforeGatewayFee: number;
-  suggestedPriceBeforeGst: number;
+  suggestedCustomerPrice: number;
   gstAmount: number;
   customerTotal: number;
   gatewayFee: number;
@@ -63,19 +63,18 @@ export const estimateProductPrice = (
   const targetBeforeGatewayFee = totalCost * (1 + defaults.markupPercent / 100);
   const gatewayFeeRate =
     (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
-  const denominator = 1 - gatewayFeeRate * (1 + gstPercent / 100);
+  const denominator = 1 / (1 + gstPercent / 100) - gatewayFeeRate;
   if (!Number.isFinite(denominator) || denominator <= 0) return null;
 
-  const suggestedPriceBeforeGst = targetBeforeGatewayFee / denominator;
-  const customerTotal = suggestedPriceBeforeGst * (1 + gstPercent / 100);
+  const customerTotal = targetBeforeGatewayFee / denominator;
   const gatewayFee = customerTotal * gatewayFeeRate;
-  const gstAmount = suggestedPriceBeforeGst * (gstPercent / 100);
+  const gstAmount = customerTotal * gstPercent / (100 + gstPercent);
 
   return {
     labourCost,
     totalCost,
     targetBeforeGatewayFee,
-    suggestedPriceBeforeGst,
+    suggestedCustomerPrice: customerTotal,
     gstAmount,
     customerTotal,
     gatewayFee,
@@ -86,30 +85,31 @@ export const estimateProductPrice = (
 export const calculatePriceAtSellingPrice = (
   inputs: PriceDiscoveryInputs,
   defaults: PriceDiscoveryDefaults,
-  sellingPriceBeforeGst: string,
+  sellingPriceIncludingGst: string,
 ): PriceAtSellingPrice | null => {
-  const price = parseNonNegative(sellingPriceBeforeGst);
+  const price = parseNonNegative(sellingPriceIncludingGst);
   const estimate = estimateProductPrice(inputs, defaults);
   if (price === null || price <= 0 || !estimate) return null;
 
   const gstPercent = Number(inputs.gstPercent);
   const gatewayFeeRate =
     (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
-  const gstAmount = price * gstPercent / 100;
-  const customerTotal = price + gstAmount;
+  const gstAmount = price * gstPercent / (100 + gstPercent);
+  const saleValueExcludingGst = price - gstAmount;
+  const customerTotal = price;
   const gatewayFee = customerTotal * gatewayFeeRate;
   const expectedNet = customerTotal - gstAmount - gatewayFee;
   const profit = expectedNet - estimate.totalCost;
 
   return {
     ...estimate,
-    suggestedPriceBeforeGst: price,
+    suggestedCustomerPrice: price,
     gstAmount,
     customerTotal,
     gatewayFee,
     expectedNet,
     profit,
-    profitMarginPercent: profit / price * 100,
+    profitMarginPercent: profit / saleValueExcludingGst * 100,
   };
 };
 
