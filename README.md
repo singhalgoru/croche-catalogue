@@ -358,6 +358,12 @@ variables, source control or browser code. The panel displays HSN candidates,
 tax components, confidence and any conditions for admin review. Applying a
 rate only changes the draft estimate and does not save the product.
 
+After all time, cost and GST inputs are valid, choose **Suggest price** to see
+the rounded recommendation. The suggested selling price is editable; profit
+and margin update as it changes. Margin is estimated profit after product costs,
+GST and payment fees divided by the selling price before GST. The default
+shipping and packaging inputs are ₹100 and ₹10 respectively.
+
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
 above. A frontend deployment does not deploy Edge Functions.

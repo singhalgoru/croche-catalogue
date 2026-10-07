@@ -5,6 +5,7 @@ import {
   type ProductGstRateSuggestion,
 } from '../../services/productAnalysis';
 import {
+  calculatePriceAtSellingPrice,
   estimateProductPrice,
   roundPriceUp,
   type PriceDiscoveryDefaults,
@@ -31,6 +32,8 @@ export default function PriceDiscoveryPanel({
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [roundingIncrement, setRoundingIncrement] = useState(5);
+  const [hasSuggestedPrice, setHasSuggestedPrice] = useState(false);
+  const [sellingPrice, setSellingPrice] = useState('');
   const [isSuggestingGst, setIsSuggestingGst] = useState(false);
   const [gstSuggestion, setGstSuggestion] = useState<ProductGstRateSuggestion | null>(null);
   const [gstSuggestionError, setGstSuggestionError] = useState<string | null>(null);
@@ -39,16 +42,21 @@ export default function PriceDiscoveryPanel({
   const suggestedPrice = estimate
     ? roundPriceUp(estimate.suggestedPriceBeforeGst, roundingIncrement)
     : null;
-  const gstPercent = Number(inputs.gstPercent);
-  const gatewayFeeRate =
-    (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
-  const gstAmount = suggestedPrice === null ? 0 : suggestedPrice * gstPercent / 100;
-  const customerTotal = suggestedPrice === null ? 0 : suggestedPrice * (1 + gstPercent / 100);
-  const gatewayFee = customerTotal * gatewayFeeRate;
-  const expectedNet = customerTotal - gstAmount - gatewayFee;
+  const priceOutcome = hasSuggestedPrice
+    ? calculatePriceAtSellingPrice(inputs, defaults, sellingPrice)
+    : null;
 
-  const updateInput = (field: keyof PriceDiscoveryInputs, value: string) =>
+  const updateInput = (field: keyof PriceDiscoveryInputs, value: string) => {
+    setHasSuggestedPrice(false);
+    setSellingPrice('');
     onInputsChange({ ...inputs, [field]: value });
+  };
+
+  const suggestPrice = () => {
+    if (suggestedPrice === null) return;
+    setSellingPrice(String(suggestedPrice));
+    setHasSuggestedPrice(true);
+  };
 
   const getGstSuggestion = async () => {
     setIsSuggestingGst(true);
@@ -120,10 +128,14 @@ export default function PriceDiscoveryPanel({
                 <select
                   aria-label={`${product.name} time unit`}
                   value={inputs.timeUnit}
-                  onChange={(event) => onInputsChange({
-                    ...inputs,
-                    timeUnit: event.target.value === 'minutes' ? 'minutes' : 'hours',
-                  })}
+                  onChange={(event) => {
+                    setHasSuggestedPrice(false);
+                    setSellingPrice('');
+                    onInputsChange({
+                      ...inputs,
+                      timeUnit: event.target.value === 'minutes' ? 'minutes' : 'hours',
+                    });
+                  }}
                   className="rounded-lg border border-mustard/60 bg-white px-3 py-2"
                 >
                   <option value="hours">Hours</option>
@@ -253,7 +265,7 @@ export default function PriceDiscoveryPanel({
             </div>
           </div>
 
-          {estimate && suggestedPrice !== null ? (
+          {estimate && suggestedPrice !== null && !hasSuggestedPrice ? (
             <div className="rounded-xl bg-cream p-3 sm:p-4">
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <span className="text-cocoa/70">Labour ({formatRupees(defaults.labourRate)}/hour)</span>
@@ -262,16 +274,6 @@ export default function PriceDiscoveryPanel({
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.totalCost)}</span>
                 <span className="text-cocoa/70">Markup target ({defaults.markupPercent}%)</span>
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.targetBeforeGatewayFee)}</span>
-                <span className="font-bold text-cocoa">Suggested price before GST</span>
-                <span className="text-right font-bold text-cocoa">{formatRupees(suggestedPrice)}</span>
-                <span className="text-cocoa/70">GST amount</span>
-                <span className="text-right font-medium text-cocoa">{formatRupees(gstAmount)}</span>
-                <span className="text-cocoa/70">Customer total</span>
-                <span className="text-right font-medium text-cocoa">{formatRupees(customerTotal)}</span>
-                <span className="text-cocoa/70">Estimated gateway fee (incl. fee GST)</span>
-                <span className="text-right font-medium text-cocoa">{formatRupees(gatewayFee)}</span>
-                <span className="text-cocoa/70">Estimated net after GST and fee</span>
-                <span className="text-right font-semibold text-cocoa">{formatRupees(expectedNet)}</span>
               </div>
               <div className="mt-4 flex flex-col gap-3 border-t border-cocoa/10 pt-3 sm:flex-row sm:items-end sm:justify-between">
                 <label className="text-xs font-semibold text-cocoa">
@@ -290,7 +292,70 @@ export default function PriceDiscoveryPanel({
                 </label>
                 <button
                   type="button"
-                  onClick={() => onApplyPrice(suggestedPrice)}
+                  onClick={suggestPrice}
+                  className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream"
+                >
+                  Suggest price
+                </button>
+              </div>
+            </div>
+          ) : estimate && suggestedPrice !== null && hasSuggestedPrice ? (
+            <div className="rounded-xl bg-cream p-3 sm:p-4">
+              <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
+                <label className="text-sm font-semibold text-cocoa">
+                  Your selling price before GST (₹)
+                  <input
+                    aria-label={`${product.name} selling price before GST`}
+                    type="number"
+                    min="0.01"
+                    step="1"
+                    value={sellingPrice}
+                    onChange={(event) => setSellingPrice(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+                  />
+                </label>
+                <div className="flex flex-col gap-2 sm:items-start">
+                  <p className="text-xs text-cocoa/70">
+                    Suggested price: {formatRupees(suggestedPrice)} before GST
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSellingPrice(String(suggestedPrice))}
+                    className="min-h-10 self-start rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa"
+                  >
+                    Use suggested price
+                  </button>
+                </div>
+              </div>
+              {priceOutcome ? (
+                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-cocoa/10 pt-3 text-sm">
+                  <span className="text-cocoa/70">Total cost basis</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.totalCost)}</span>
+                  <span className="text-cocoa/70">GST amount</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.gstAmount)}</span>
+                  <span className="text-cocoa/70">Customer total</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.customerTotal)}</span>
+                  <span className="text-cocoa/70">Estimated gateway fee (incl. fee GST)</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.gatewayFee)}</span>
+                  <span className="text-cocoa/70">Estimated net after GST and fee</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.expectedNet)}</span>
+                  <span className="font-semibold text-cocoa">Estimated profit after costs</span>
+                  <span className="text-right font-semibold text-cocoa">{formatRupees(priceOutcome.profit)}</span>
+                  <span className="font-bold text-cocoa">Product profit margin</span>
+                  <span className="text-right font-bold text-cocoa">
+                    {priceOutcome.profitMarginPercent?.toFixed(1)}%
+                  </span>
+                </div>
+              ) : (
+                <p role="status" className="mt-3 text-sm text-red-700">
+                  Enter a positive selling price to calculate profit and margin.
+                </p>
+              )}
+              <div className="mt-4 flex justify-end border-t border-cocoa/10 pt-3">
+                <button
+                  type="button"
+                  onClick={() => onApplyPrice(Number(sellingPrice))}
+                  disabled={!priceOutcome}
                   className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream"
                 >
                   Use in product editor
@@ -299,7 +364,7 @@ export default function PriceDiscoveryPanel({
             </div>
           ) : (
             <p role="status" className="rounded-xl bg-mustard/15 p-3 text-sm text-cocoa">
-              Enter time in hours or minutes, non-negative costs, and a verified GST rate between 0% and 100% to see an estimate.
+              Complete all cost and time fields and enter a verified GST rate between 0% and 100% to suggest a price.
             </p>
           )}
         </div>

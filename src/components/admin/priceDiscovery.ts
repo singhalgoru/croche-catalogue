@@ -25,6 +25,11 @@ export interface PriceDiscoveryEstimate {
   expectedNet: number;
 }
 
+export interface PriceAtSellingPrice extends PriceDiscoveryEstimate {
+  profit: number;
+  profitMarginPercent: number | null;
+}
+
 export const DEFAULT_PRICE_DISCOVERY_DEFAULTS: PriceDiscoveryDefaults = {
   labourRate: 100,
   markupPercent: 90,
@@ -75,6 +80,36 @@ export const estimateProductPrice = (
     customerTotal,
     gatewayFee,
     expectedNet: customerTotal - gstAmount - gatewayFee,
+  };
+};
+
+export const calculatePriceAtSellingPrice = (
+  inputs: PriceDiscoveryInputs,
+  defaults: PriceDiscoveryDefaults,
+  sellingPriceBeforeGst: string,
+): PriceAtSellingPrice | null => {
+  const price = parseNonNegative(sellingPriceBeforeGst);
+  const estimate = estimateProductPrice(inputs, defaults);
+  if (price === null || price <= 0 || !estimate) return null;
+
+  const gstPercent = Number(inputs.gstPercent);
+  const gatewayFeeRate =
+    (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
+  const gstAmount = price * gstPercent / 100;
+  const customerTotal = price + gstAmount;
+  const gatewayFee = customerTotal * gatewayFeeRate;
+  const expectedNet = customerTotal - gstAmount - gatewayFee;
+  const profit = expectedNet - estimate.totalCost;
+
+  return {
+    ...estimate,
+    suggestedPriceBeforeGst: price,
+    gstAmount,
+    customerTotal,
+    gatewayFee,
+    expectedNet,
+    profit,
+    profitMarginPercent: profit / price * 100,
   };
 };
 

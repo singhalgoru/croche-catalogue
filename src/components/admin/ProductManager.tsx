@@ -507,7 +507,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                     timeUnit: 'hours',
                     materialCost: '',
                     shippingCost: '100',
-                    packagingCost: '100',
+                    packagingCost: '10',
                     gstPercent: '',
                   }}
                   onInputsChange={(inputs) =>

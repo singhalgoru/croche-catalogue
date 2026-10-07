@@ -130,7 +130,10 @@ describe('analyze-product endpoint', () => {
       context: { category: 'Accessories', name: 'Charm' },
     }));
     expect(invalidMatch.status).toBe(502);
-    expect(await invalidMatch.json()).toHaveProperty('error', 'The HSN provider returned an invalid tax rate.');
+    expect(await invalidMatch.json()).toHaveProperty(
+      'error',
+      'The HSN provider returned an invalid igst tax rate (number).',
+    );
   });
   it('surfaces provider authorization and quota errors without accepting ungrounded model guesses', async () => {
     const order = vi.fn();

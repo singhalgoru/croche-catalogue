@@ -57,7 +57,8 @@ export function validateGstRateSuggestion(
       const amount = taxRates[field];
       if (optional && (amount === undefined || amount === null)) return 0;
       if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0 || amount > 100) {
-        throw new Error('The HSN provider returned an invalid tax rate.');
+        const receivedType = amount === null ? 'null' : typeof amount;
+        throw new Error(`The HSN provider returned an invalid ${field} tax rate (${receivedType}).`);
       }
       return amount;
     };

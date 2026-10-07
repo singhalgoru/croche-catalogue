@@ -55,7 +55,8 @@ describe('GST rate suggestion validation', () => {
   });
   it.each([
     [{ ...match, hsn_code: '12345' }, 'invalid classification'],
-    [{ ...match, tax_rates: { ...match.tax_rates, igst: 101 } }, 'invalid tax rate'],
+    [{ ...match, tax_rates: { ...match.tax_rates, igst: 101 } }, 'invalid igst tax rate (number)'],
+    [{ ...match, tax_rates: { ...match.tax_rates, igst: '5%' } }, 'invalid igst tax rate (string)'],
     [{ ...match, confidence: 2 }, 'invalid classification'],
     [{ ...match, needs_review: 'false' }, 'invalid classification'],
     [{ ...match, notification_ref: 42 }, 'invalid classification'],

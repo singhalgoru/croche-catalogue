@@ -89,9 +89,11 @@ describe('Product detail admin integration', () => {
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
     fireEvent.click(screen.getByRole('button', { name: /Estimate costs and a selling price/ }));
+    expect(screen.getByLabelText('Coaster packaging cost')).toHaveProperty('value', '10');
     fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '120' } });
     fireEvent.change(screen.getByLabelText('Coaster time unit'), { target: { value: 'minutes' } });
     fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '100' } });
+    expect(screen.queryByRole('button', { name: 'Suggest price' })).toBeNull();
     vi.mocked(suggestProductGstRate).mockResolvedValue({
       source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
       candidates: [{
@@ -112,9 +114,19 @@ describe('Product detail admin integration', () => {
     expect(await screen.findByText('HSN 580810 — Hand-made braids in the piece')).toBeTruthy();
     expect(screen.getByText(/Match confidence 84%/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Use 5% rate in estimate' }));
-    expect(await screen.findByText('Suggested ₹975 before GST')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest price' }));
+    expect(await screen.findByText('Suggested ₹800 before GST')).toBeTruthy();
+    const sellingPrice = screen.getByLabelText('Coaster selling price before GST');
+    fireEvent.change(sellingPrice, { target: { value: '1100' } });
+    expect(screen.getByText('Product profit margin')).toBeTruthy();
+    expect(screen.getByText('60.2%')).toBeTruthy();
+    expect(screen.getByText('₹663')).toBeTruthy();
+    fireEvent.change(sellingPrice, { target: { value: '' } });
+    expect(screen.getByLabelText('Coaster selling price before GST')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Use in product editor' })).toHaveProperty('disabled', true);
+    fireEvent.change(sellingPrice, { target: { value: '1100' } });
     fireEvent.click(screen.getByRole('button', { name: 'Use in product editor' }));
-    expect(screen.getByLabelText('Price (₹)')).toHaveProperty('value', '975');
+    expect(screen.getByLabelText('Price (₹)')).toHaveProperty('value', '1100');
     expect(updateProduct).not.toHaveBeenCalled();
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
