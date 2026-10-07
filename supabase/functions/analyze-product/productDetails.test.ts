@@ -140,7 +140,7 @@ describe('GST rate suggestion validation', () => {
       materials: 'Acrylic wool and fiber fill.',
     });
     expect(result.candidates).toEqual([]);
-    expect(result.message).toContain('No returned HSN description matched');
+    expect(result.message).toContain('did not return a plausible crochet-product HSN match');
   });
 
   it('returns relevant HSN/rate candidates for the user to review', () => {
@@ -187,6 +187,26 @@ describe('GST rate suggestion validation', () => {
     });
     expect(result.candidates).toEqual([{ ...candidate, needsReview: true }]);
     expect(result.message).toContain('did not closely match');
+  });
+
+  it('does not surface a high-confidence result from an unrelated HSN chapter', () => {
+    const shrimp = {
+      ...candidateFromMatch(match),
+      hsnCode: '03063500',
+      hsnDescription: 'Cold water shrimps and prawns',
+      confidence: 0.9,
+    };
+    const result = selectRelevantGstCandidates({
+      source,
+      candidates: [shrimp],
+    }, {
+      name: 'Panda Charm',
+      category: 'Charms & Keychains',
+      description: 'Crochet panda bag charm.',
+      materials: 'Acrylic wool.',
+    });
+    expect(result.candidates).toEqual([]);
+    expect(result.message).toContain('plausible crochet-product HSN match');
   });
 
   it('returns a manual-review message when the provider has no HSN matches', () => {

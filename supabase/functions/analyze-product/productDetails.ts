@@ -50,6 +50,12 @@ const CLEARLY_UNRELATED_HSN_TERMS = ['paper', 'paperboard', 'instrument', 'instr
 const tokenizeClassificationText = (value: string) =>
   value.toLowerCase().match(/[a-z0-9]+/g) ?? [];
 
+const isPlausibleCrochetProductHsn = (hsnCode: string) => {
+  const chapter = Number(hsnCode.slice(0, 2));
+  return chapter === 42 || chapter === 46 || (chapter >= 50 && chapter <= 67) ||
+    chapter === 71 || chapter === 95 || chapter === 96 || chapter === 97;
+};
+
 export function selectRelevantGstCandidates(
   suggestion: GstRateSuggestion,
   context: AnalysisContext,
@@ -84,6 +90,7 @@ export function selectRelevantGstCandidates(
 
   if (distinctMatches.size === 0 && suggestion.candidates.length > 0) {
     const firstReviewableCandidate = suggestion.candidates.find((candidate) =>
+      isPlausibleCrochetProductHsn(candidate.hsnCode) &&
       !CLEARLY_UNRELATED_HSN_TERMS.some((term) => candidate.hsnDescription.toLowerCase().includes(term)),
     );
     if (firstReviewableCandidate) {
@@ -99,7 +106,7 @@ export function selectRelevantGstCandidates(
     return {
       source: suggestion.source,
       candidates: [],
-      message: 'No returned HSN description matched the product use or crochet textile details. No rate was suggested; verify the classification manually.',
+      message: 'GST Accelerator did not return a plausible crochet-product HSN match. No rate was suggested; verify the classification manually.',
     };
   }
 
