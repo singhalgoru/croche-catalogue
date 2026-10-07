@@ -18,8 +18,8 @@ import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
   calculatePriceAtSellingPrice,
   calculateMinimumOrderQuantity,
+  createDefaultPriceInputs,
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
-  DEFAULT_TARGET_MARGIN_PERCENT,
   type PriceDiscoveryDefaults,
   type PriceDiscoveryInputs,
 } from './priceDiscovery';
@@ -69,16 +69,6 @@ const parsePrice = (value: string): number | null | undefined => {
   return Number.isInteger(amount) && amount >= 0 ? amount : undefined;
 };
 
-const createDefaultPriceInputs = (product: ManagedProduct): PriceDiscoveryInputs =>
-  product.priceDiscoveryInputs ?? {
-    timeSpent: '',
-    timeUnit: 'hours',
-    materialCost: '',
-    shippingCost: '100',
-    packagingCost: '10',
-    gstPercent: String(product.gstPercent ?? 5),
-    targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
-  };
 
 const formatRupees = (amount: number) =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.ceil(amount))}`;

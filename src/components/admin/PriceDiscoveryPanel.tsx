@@ -14,7 +14,7 @@ import {
 } from './priceDiscovery';
 
 interface Props {
-  product: ManagedProduct;
+  product: Pick<ManagedProduct, 'name' | 'category' | 'description' | 'materials' | 'includedItems'>;
   defaults: PriceDiscoveryDefaults;
   inputs: PriceDiscoveryInputs;
   onInputsChange: (inputs: PriceDiscoveryInputs) => void;
@@ -25,6 +25,7 @@ interface Props {
     minimumOrderQuantity: number | null,
   ) => void;
   onSaveInputs: (inputs: PriceDiscoveryInputs) => Promise<void>;
+  isNewProduct?: boolean;
 }
 
 const formatRupees = (amount: number) =>
@@ -37,6 +38,7 @@ export default function PriceDiscoveryPanel({
   onInputsChange,
   onApplyPrice,
   onSaveInputs,
+  isNewProduct = false,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [roundingIncrement, setRoundingIncrement] = useState(5);
@@ -80,7 +82,9 @@ export default function PriceDiscoveryPanel({
     setSaveInputsMessage(null);
     try {
       await onSaveInputs(inputs);
-      setSaveInputsMessage('Price discovery values saved for this product.');
+      setSaveInputsMessage(isNewProduct
+        ? 'Price discovery values saved in this draft. They will be stored with the product when published.'
+        : 'Price discovery values saved for this product.');
     } catch (error) {
       setSaveInputsError(
         error instanceof Error ? error.message : 'Unable to save price discovery values.',
@@ -371,7 +375,7 @@ export default function PriceDiscoveryPanel({
                   onClick={() => void saveInputs()}
                   className="min-h-10 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
                 >
-                  {isSavingInputs ? 'Saving values…' : 'Save values for this product'}
+                  {isSavingInputs ? 'Saving values…' : isNewProduct ? 'Save values in draft' : 'Save values for this product'}
                 </button>
                 {saveInputsMessage && <span role="status" className="text-sm text-green-800">{saveInputsMessage}</span>}
                 {saveInputsError && <span role="alert" className="text-sm text-red-700">{saveInputsError}</span>}
@@ -473,7 +477,7 @@ export default function PriceDiscoveryPanel({
                   onClick={() => void saveInputs()}
                   className="min-h-10 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
                 >
-                  {isSavingInputs ? 'Saving values…' : 'Save values for this product'}
+                  {isSavingInputs ? 'Saving values…' : isNewProduct ? 'Save values in draft' : 'Save values for this product'}
                 </button>
                 {saveInputsMessage && <span role="status" className="text-sm text-green-800">{saveInputsMessage}</span>}
                 {saveInputsError && <span role="alert" className="text-sm text-red-700">{saveInputsError}</span>}

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import ProductDetailsEditor from './ProductDetailsEditor';
+import PriceDiscoveryPanel from './PriceDiscoveryPanel';
+import {
+  calculatePriceAtSellingPrice, createDefaultPriceInputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+  estimateProductPrice,
+} from './priceDiscovery';
 import { publishProduct } from '../../services/products';
 import type { Category } from '../../types/product';
 import VariantDraftFields from './VariantDraftFields';
@@ -28,6 +33,7 @@ const DRAFT_SAVE_DELAY_MS = 400;
 
 export default function ProductUploadForm({ categories, onPublished }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [pricingDraftVersion, setPricingDraftVersion] = useState(0);
   const [draft, setDraft] = useState<ProductDraft>(EMPTY_DRAFT);
   const [variants, setVariants] = useState<VariantDraft[]>(() => [createEmptyVariant('Standard')]);
   const variantsRef = useRef(variants);
@@ -90,6 +96,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
   const discardDraft = () => {
     releaseVariantPreviews(variants);
     setDraft(EMPTY_DRAFT);
+    setPricingDraftVersion(current => current + 1);
     setVariants([createEmptyVariant('Standard')]);
     setRestoredDraftAt(null);
     setErrorMessage(null);
@@ -124,6 +131,13 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       );
       return;
     }
+    if (draft.priceDiscoveryInputs && !estimateProductPrice(draft.priceDiscoveryInputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS)) {
+      setErrorMessage('Complete the price discovery cost and time fields before publishing.');
+      return;
+    }
+    const pricingOutcome = draft.priceDiscoveryInputs && price !== null
+      ? calculatePriceAtSellingPrice(draft.priceDiscoveryInputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS, String(price))
+      : null;
 
     setIsPublishing(true);
     setErrorMessage(null);
@@ -133,6 +147,8 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         ...draft,
         category,
         price,
+        profitMarginPercent: pricingOutcome?.profitMarginPercent ?? undefined,
+        gstPercent: draft.priceDiscoveryInputs ? Number(draft.priceDiscoveryInputs.gstPercent) : undefined,
         variants: variants.map((variant, index) => ({
           name: variant.name.trim(),
           color: variant.color,
@@ -146,6 +162,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       await onPublished();
       releaseVariantPreviews(variants);
       setDraft(EMPTY_DRAFT);
+      setPricingDraftVersion(current => current + 1);
       setVariants([createEmptyVariant('Standard')]);
       setRestoredDraftAt(null);
       void clearProductDraft();
@@ -335,6 +352,32 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             Feature this product at the top of the catalogue
           </label>
         </div>
+        <fieldset disabled={isAnalyzing || isPublishing}>
+          <PriceDiscoveryPanel
+            key={pricingDraftVersion}
+            product={{ ...draft, name: draft.name.trim() || 'New product', category: selectedCategory }}
+            isNewProduct
+            defaults={DEFAULT_PRICE_DISCOVERY_DEFAULTS}
+            inputs={draft.priceDiscoveryInputs ?? createDefaultPriceInputs()}
+            onInputsChange={inputs => setDraft(current => ({ ...current, priceDiscoveryInputs: inputs }))}
+            onSaveInputs={async inputs => {
+              const nextDraft = { ...draft, priceDiscoveryInputs: inputs };
+              setDraft(nextDraft);
+              await saveProductDraft(nextDraft, variants, true);
+            }}
+            onApplyPrice={(price, _margin, _gst, minimumOrderQuantity) => setDraft(current => ({
+              ...current, price: String(price), showPrice: true,
+              minimumOrderQuantity: minimumOrderQuantity ?? current.minimumOrderQuantity ?? 1,
+            }))}
+          />
+          <label className="mt-4 block text-sm font-semibold text-cocoa">
+            Minimum order quantity (pieces)
+            <input type="number" min={1} max={99} step={1}
+              value={draft.minimumOrderQuantity ?? 1}
+              onChange={event => setDraft(current => ({ ...current, minimumOrderQuantity: Number(event.target.value) }))}
+              className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2" />
+          </label>
+        </fieldset>
         <div className="mt-5">
           <ProductDetailsEditor
             value={draft}

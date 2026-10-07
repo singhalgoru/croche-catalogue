@@ -10,6 +10,9 @@ import {
 } from '../../services/products';
 import type { ManagedProduct } from '../../services/products';
 import { suggestProductGstRate } from '../../services/productAnalysis';
+import { loadProductDraft, saveProductDraft, EMPTY_PRODUCT_DRAFT } from './productDraftStore';
+import { createDefaultPriceInputs } from './priceDiscovery';
+import { createEmptyVariant } from './variantDraft';
 
 vi.mock('../../services/products', () => ({
   fetchManagedProducts: vi.fn(), publishProduct: vi.fn(), updateProduct: vi.fn(),
@@ -43,6 +46,8 @@ const product: ManagedProduct = {
 };
 
 beforeEach(() => {
+  vi.mocked(loadProductDraft).mockResolvedValue(null);
+  vi.mocked(saveProductDraft).mockResolvedValue(undefined);
   vi.mocked(fetchManagedProducts).mockResolvedValue([product]);
   vi.mocked(publishProduct).mockResolvedValue(product);
   vi.mocked(updateProduct).mockResolvedValue(product);
@@ -54,6 +59,64 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('discovers a GST-inclusive price for a new product and publishes saved costs, overrides and minimum quantity', async () => {
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn().mockResolvedValue(undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Coaster' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A handmade coaster.' } });
+    fireEvent.click(screen.getByRole('button', { name: /Price discovery/ }));
+    expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '5');
+    fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest price' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use in product editor' }));
+    expect(Number((screen.getByLabelText('Price (₹)') as HTMLInputElement).value)).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('Price (₹)'), { target: { value: '400' } });
+    fireEvent.change(screen.getByLabelText('Minimum order quantity (pieces)'), { target: { value: '3' } });
+    const form = screen.getByRole('button', { name: 'Publish product with 1 variant' }).closest('form');
+    if (!form) throw new Error('Missing product upload form');
+    fireEvent.submit(form);
+    await waitFor(() => expect(publishProduct).toHaveBeenCalled());
+    expect(vi.mocked(publishProduct).mock.calls[0][0]).toMatchObject({
+      price: 400, showPrice: true, minimumOrderQuantity: 3, gstPercent: 5,
+      profitMarginPercent: expect.closeTo(29.272, 2),
+      priceDiscoveryInputs: { timeSpent: '1', timeUnit: 'hours', materialCost: '50',
+        shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '45' },
+    });
+    expect(saveProductPriceDiscoveryInputs).not.toHaveBeenCalled();
+  });
+
+  it('keeps incomplete pricing in the draft and prevents publishing until it is completed', async () => {
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
+    fireEvent.click(screen.getByRole('button', { name: /Price discovery/ }));
+    fireEvent.change(screen.getByLabelText('New product time spent'), { target: { value: '2' } });
+    const form = screen.getByRole('button', { name: 'Publish product with 1 variant' }).closest('form');
+    if (!form) throw new Error('Missing product upload form');
+    fireEvent.submit(form);
+    expect(await screen.findByText('Complete the price discovery cost and time fields before publishing.')).toBeTruthy();
+    expect(publishProduct).not.toHaveBeenCalled();
+  });
+
+  it('restores draft pricing and surfaces explicit draft-save failures', async () => {
+    vi.mocked(loadProductDraft).mockResolvedValue({
+      draft: { ...EMPTY_PRODUCT_DRAFT, name: 'Coaster', minimumOrderQuantity: 3,
+        priceDiscoveryInputs: { ...createDefaultPriceInputs(), timeSpent: '2', materialCost: '80' } },
+      variants: [createEmptyVariant('Standard')], savedAt: Date.now(),
+    });
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    await waitFor(() => expect(screen.getByLabelText('Product name')).toHaveProperty('value', 'Coaster'));
+    fireEvent.click(screen.getByRole('button', { name: /Price discovery/ }));
+    expect(screen.getByLabelText('Coaster time spent')).toHaveProperty('value', '2');
+    expect(screen.getByLabelText('Minimum order quantity (pieces)')).toHaveProperty('value', '3');
+    vi.mocked(saveProductDraft).mockRejectedValueOnce(new Error('Draft storage full'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save values in draft' }));
+    expect(await screen.findByText('Draft storage full')).toBeTruthy();
+    expect(publishProduct).not.toHaveBeenCalled();
+  });
+
   it('includes optional details when publishing a new product', async () => {
     render(<ProductUploadForm categories={['Home']} onPublished={vi.fn().mockResolvedValue(undefined)} />);
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));

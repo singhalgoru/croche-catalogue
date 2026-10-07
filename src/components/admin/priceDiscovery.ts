@@ -40,6 +40,20 @@ export const DEFAULT_PRICE_DISCOVERY_DEFAULTS: PriceDiscoveryDefaults = {
 
 export const DEFAULT_TARGET_MARGIN_PERCENT = 45;
 
+export const createDefaultPriceInputs = (product: {
+  priceDiscoveryInputs?: PriceDiscoveryInputs | null;
+  gstPercent?: number | null;
+  profitMarginPercent?: number | null;
+} = {}): PriceDiscoveryInputs => product.priceDiscoveryInputs ?? {
+  timeSpent: '',
+  timeUnit: 'hours',
+  materialCost: '',
+  shippingCost: '100',
+  packagingCost: '10',
+  gstPercent: String(product.gstPercent ?? 5),
+  targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
+};
+
 const parseNonNegative = (value: string): number | null => {
   if (!value.trim()) return null;
   const parsed = Number(value);

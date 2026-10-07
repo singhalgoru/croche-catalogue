@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyVariant } from './variantDraft';
+import { createDefaultPriceInputs } from './priceDiscovery';
 import {
   DRAFT_MAX_AGE_MS,
   EMPTY_PRODUCT_DRAFT,
@@ -52,6 +53,15 @@ describe('isProductDraftEmpty', () => {
 });
 
 describe('stored product drafts', () => {
+  it('retains pricing-only drafts and restores their cost inputs and minimum quantities', () => {
+    const draft = { ...EMPTY_PRODUCT_DRAFT, minimumOrderQuantity: 4,
+      priceDiscoveryInputs: { ...createDefaultPriceInputs(), timeSpent: '120', timeUnit: 'minutes' as const } };
+    expect(isProductDraftEmpty(draft, [createEmptyVariant('Standard')])).toBe(false);
+    expect(isProductDraftEmpty({ ...draft, minimumOrderQuantity: 1 }, [createEmptyVariant('Standard')])).toBe(false);
+    const stored = toStoredProductDraft(draft, [createEmptyVariant('Standard')]);
+    expect(fromStoredProductDraft(stored).draft).toEqual(draft);
+  });
+
   it('restores old drafts with blank optional specifications', () => {
     const stored = toStoredProductDraft(EMPTY_PRODUCT_DRAFT, [createEmptyVariant('Standard')], 1000);
     const { seoDescription: _seo, materials: _materials, dimensions: _dimensions, includedItems: _included, careInstructions: _care, ...legacy } = stored.draft;

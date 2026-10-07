@@ -48,6 +48,14 @@ npm run build
 
 ## Product images
 
+The admin Add product form includes Price discovery in Step 2, before the
+optional product specifications. Enter time and costs, suggest a GST-inclusive
+price, and use it in the product editor. The estimated GST rate defaults to 5%
+and remains editable; the recommended minimum quantity can also be overridden.
+Pricing inputs survive draft restoration and are saved privately when the
+product is published. The profit margin is recalculated from the final Price
+field, including any override made after applying the suggestion.
+
 Product photos are stored on Cloudflare R2 and served from
 `images.luviacreations.com`. Admin uploads (JPG, PNG or WebP) are resized to at
 most 1600 pixels on the longest side, encoded as WebP, and uploaded with 160,

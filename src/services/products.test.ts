@@ -96,6 +96,46 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('persists new-product cost inputs privately and the minimum quantity publicly', async () => {
+    const inputs = { timeSpent: '1', timeUnit: 'hours' as const, materialCost: '50',
+      shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '45' };
+    queueQuery([]);
+    const insert = queueQuery({ id: row.id });
+    const pricing = queueQuery(null);
+    queueQuery({ id: 'variant-1' });
+    queueQuery(row);
+    await publishProduct({ ...draft, priceDiscoveryInputs: inputs, profitMarginPercent: 29.272,
+      gstPercent: 5, minimumOrderQuantity: 4 });
+    expect(insert.insert).toHaveBeenCalledWith(expect.objectContaining({ minimum_order_quantity: 4 }));
+    expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('material_cost');
+    expect(pricing.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      product_id: row.id, time_spent: 1, time_unit: 'hours', material_cost: 50,
+      shipping_cost: 100, packaging_cost: 10, gst_percent: 5, target_margin_percent: 45,
+      profit_margin_percent: 29.272,
+    }), { onConflict: 'product_id' });
+  });
+
+  it('rolls back a new product if its pricing values cannot be saved', async () => {
+    queueQuery([]);
+    queueQuery({ id: row.id });
+    queueQuery(null, { message: 'Pricing write denied' });
+    const rollback = queueQuery(null);
+    await expect(publishProduct({ ...draft, gstPercent: 5 })).rejects.toThrow('The product was not published');
+    expect(rollback.delete).toHaveBeenCalledOnce();
+    expect(rollback.eq).toHaveBeenCalledWith('id', row.id);
+  });
+
+  it('rejects invalid new-product pricing and minimum quantities before uploading', async () => {
+    await expect(publishProduct({ ...draft, minimumOrderQuantity: 0 })).rejects.toThrow('Minimum order');
+    await expect(publishProduct({ ...draft, gstPercent: 101 })).rejects.toThrow('GST rate');
+    await expect(publishProduct({ ...draft, priceDiscoveryInputs: {
+      timeSpent: '', timeUnit: 'hours', materialCost: '50', shippingCost: '100',
+      packagingCost: '10', gstPercent: '5', targetMarginPercent: '45',
+    } })).rejects.toThrow('Complete the price discovery');
+    expect(upload).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+  });
+
   it('reads the public HTML snapshot without consuming live prefetch data', () => {
     const script = document.createElement('script');
     script.id = 'catalogue-bootstrap';

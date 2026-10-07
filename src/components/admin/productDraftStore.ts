@@ -1,6 +1,7 @@
 import type { Category } from '../../types/product';
 import type { VariantDraft } from './variantDraft';
 import type { DetailDraft } from './ProductDetailsEditor';
+import { createDefaultPriceInputs, type PriceDiscoveryInputs } from './priceDiscovery';
 
 // Persists the in-progress "Add product" form so it survives the browser
 // discarding a backgrounded tab (common on Android) or the admin navigating
@@ -14,6 +15,8 @@ export interface ProductDraft extends DetailDraft {
   featured: boolean;
   price: string;
   showPrice: boolean;
+  minimumOrderQuantity?: number;
+  priceDiscoveryInputs?: PriceDiscoveryInputs;
 }
 
 export const EMPTY_PRODUCT_DRAFT: ProductDraft = {
@@ -55,6 +58,9 @@ export const isProductDraftEmpty = (draft: ProductDraft, variants: VariantDraft[
   draft.careInstructions.trim() === '' &&
   !draft.featured &&
   !draft.showPrice &&
+  (draft.minimumOrderQuantity ?? 1) === 1 &&
+  (!draft.priceDiscoveryInputs || Object.entries(createDefaultPriceInputs())
+    .every(([key, value]) => draft.priceDiscoveryInputs?.[key as keyof PriceDiscoveryInputs] === value)) &&
   variants.every(
     (variant) =>
       variant.imageFile === null &&
@@ -142,12 +148,16 @@ export const loadProductDraft = async (): Promise<StoredProductDraft | null> => 
 export const saveProductDraft = async (
   draft: ProductDraft,
   variants: VariantDraft[],
+  requirePersistence = false,
 ): Promise<void> => {
   try {
     await withStore('readwrite', (store) =>
       store.put(toStoredProductDraft(draft, variants), DRAFT_KEY),
     );
-  } catch {
+  } catch (error) {
+    if (requirePersistence) {
+      throw new Error(`Unable to save the draft: ${error instanceof Error ? error.message : 'Storage unavailable.'}`);
+    }
     // Draft saving is best-effort; the form keeps working without it.
   }
 };

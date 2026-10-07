@@ -105,6 +105,10 @@ export interface NewProduct extends ProductDetails {
   featured: boolean;
   price: number | null;
   showPrice: boolean;
+  minimumOrderQuantity?: number;
+  profitMarginPercent?: number;
+  gstPercent?: number;
+  priceDiscoveryInputs?: ProductPricingInputs;
   variants: NewVariant[];
 }
 
@@ -433,6 +437,20 @@ export async function fetchManagedProducts(): Promise<ManagedProduct[]> {
 export async function publishProduct(product: NewProduct): Promise<Product> {
   if (product.variants.length === 0) throw new Error('Add at least one product variant.');
   const details = productDetailColumns(product);
+  const minimumOrderQuantity = product.minimumOrderQuantity ?? 1;
+  if (!Number.isInteger(minimumOrderQuantity) || minimumOrderQuantity < 1 || minimumOrderQuantity > 99) {
+    throw new Error('Minimum order quantity must be a whole number from 1 to 99.');
+  }
+  const pricingInputs = product.priceDiscoveryInputs === undefined
+    ? undefined : priceDiscoveryColumns(product.priceDiscoveryInputs);
+  if (product.profitMarginPercent !== undefined &&
+      (!Number.isFinite(product.profitMarginPercent) || product.profitMarginPercent > 100)) {
+    throw new Error('Enter a valid profit margin no greater than 100%.');
+  }
+  if (product.gstPercent !== undefined &&
+      (!Number.isFinite(product.gstPercent) || product.gstPercent < 0 || product.gstPercent > 100)) {
+    throw new Error('Enter a valid GST rate from 0 to 100%.');
+  }
   const { client, user } = await getCurrentUser();
   const { data: firstProduct, error: orderError } = await client
     .from('products')
@@ -463,6 +481,7 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
         ...details,
         featured: product.featured,
         price: product.price,
+        minimum_order_quantity: minimumOrderQuantity,
         show_price: product.showPrice,
         color: primary.color,
         in_stock: product.variants.some((variant) => variant.inStock),
@@ -477,6 +496,25 @@ export async function publishProduct(product: NewProduct): Promise<Product> {
     if (productError) throw new Error(`Unable to publish the product: ${productError.message}`);
 
     const productId = (data as { id: string }).id;
+
+    if (pricingInputs !== undefined || product.profitMarginPercent !== undefined || product.gstPercent !== undefined) {
+      const { error: pricingError } = await client.from('product_profit_margins').upsert({
+        product_id: productId,
+        ...pricingInputs,
+        ...(product.profitMarginPercent === undefined ? {} : { profit_margin_percent: product.profitMarginPercent }),
+        ...(product.gstPercent === undefined ? {} : { gst_percent: product.gstPercent }),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'product_id' });
+      if (pricingError) {
+        const { error: rollbackError } = await client.from('products').delete().eq('id', productId);
+        if (rollbackError) {
+          // Keep uploaded images intact if the product could not be removed.
+          uploads.length = 0;
+          throw new Error(`Unable to save price discovery: ${pricingError.message}. Unable to remove the incomplete product: ${rollbackError.message}. Review it in Manage products before retrying.`);
+        }
+        throw new Error(`Unable to save price discovery: ${pricingError.message}. The product was not published.`);
+      }
+    }
 
     for (const [index, variant] of product.variants.entries()) {
       const { data: variantData, error: variantError } = await client
