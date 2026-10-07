@@ -5,6 +5,7 @@ import { getCustomisationWhatsAppLink, getProductWhatsAppLink } from '../utils/w
 import { formatINR } from '../utils/currency';
 import { productImageProtection } from '../utils/imageProtection';
 import ImageZoomViewer from './ImageZoomViewer';
+import RedditShareOptions from './RedditShareOptions';
 import {
   CopyIcon,
   FacebookIcon,
@@ -91,6 +92,7 @@ export default function ProductModal({
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isRedditShareOpen, setIsRedditShareOpen] = useState(false);
   const [hasChosenImage, setHasChosenImage] = useState(Boolean(initialVariantId));
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const hasCarousel = !isPage && totalProducts > 1;
@@ -774,23 +776,23 @@ export default function ProductModal({
                   >
                     <SnapchatIcon />
                   </button>
-                  <a
-                    href={shareDetails.redditUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() =>
+                  <button
+                    type="button"
+                    aria-expanded={isRedditShareOpen}
+                    onClick={() => {
+                      setIsRedditShareOpen(current => !current);
                       trackEvent('share_product', {
                         method: 'reddit',
                         product_id: product.id,
                         variant_id: selectedVariant?.id,
-                      })
-                    }
+                      });
+                    }}
                     aria-label="Share on Reddit"
                     title="Reddit"
                     className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4500] text-white"
                   >
                     <RedditIcon />
-                  </a>
+                  </button>
                   <button
                     type="button"
                     onClick={() => void copyShareLink()}
@@ -801,6 +803,9 @@ export default function ProductModal({
                     <CopyIcon />
                   </button>
                 </div>
+                {isRedditShareOpen && <RedditShareOptions key={`${activeImage}-${shareDetails.title}`}
+                  image={getProductImageUrl(activeImage, 1080)} title={shareDetails.title}
+                  url={shareDetails.url} redditUrl={shareDetails.redditUrl} />}
                 <p className="mt-2 text-xs text-cocoa/60">
                   Instagram and Snapchat open your device share menu with the product photo
                   attached where supported. Those apps often drop the link text, so it's

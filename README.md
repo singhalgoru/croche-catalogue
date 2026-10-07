@@ -48,6 +48,15 @@ npm run build
 
 ## Product images
 
+For Reddit image posts, open a product's Share menu and choose Reddit. The
+photo-post helper prepares the selected photo (converting WebP to JPEG for
+compatibility), offers native file sharing or
+a download, and lets you copy the title and product link separately. Reddit
+may discard Web Share titles/captions, so paste the copied title into its title
+field and attach the downloaded photo if needed. The separate link-post option
+prefills a title but cannot guarantee a Reddit image preview. No post is
+published automatically.
+
 The admin Add product form includes Price discovery in Step 2, before the
 optional product specifications. Enter time and costs, suggest a GST-inclusive
 price, and use it in the product editor. The estimated GST rate defaults to 5%
