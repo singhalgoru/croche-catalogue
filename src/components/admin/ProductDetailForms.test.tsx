@@ -130,11 +130,25 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use in product editor' }));
     expect(screen.getByLabelText('Price (₹)')).toHaveProperty('value', '1100');
     expect(updateProduct).not.toHaveBeenCalled();
-    vi.mocked(updateProduct).mockResolvedValueOnce({ ...product, profitMarginPercent: 58.4 });
+    fireEvent.change(screen.getByLabelText('Price (₹)'), { target: { value: '1200' } });
+    expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
+      .toContain('₹58 GST is included');
+    expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
+      .toContain('gateway fee: ₹29');
+    expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
+      .toContain('61.6%');
+    vi.mocked(updateProduct).mockResolvedValueOnce({
+      ...product,
+      price: 1200,
+      profitMarginPercent: 61.647,
+      gstPercent: 5,
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalled());
-    expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(58.386, 2);
-    expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('58.4%');
+    expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(61.647, 2);
+    expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].gstPercent).toBe(5);
+    expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('61.6%');
+    expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('GST 5% (₹58 included)');
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
       materials: 'Cotton yarn', includedItems: '',

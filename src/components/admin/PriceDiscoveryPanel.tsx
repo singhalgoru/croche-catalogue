@@ -17,7 +17,7 @@ interface Props {
   defaults: PriceDiscoveryDefaults;
   inputs: PriceDiscoveryInputs;
   onInputsChange: (inputs: PriceDiscoveryInputs) => void;
-  onApplyPrice: (price: number, profitMarginPercent: number) => void;
+  onApplyPrice: (price: number, profitMarginPercent: number, gstPercent: number) => void;
 }
 
 const formatRupees = (amount: number) =>
@@ -348,6 +348,10 @@ export default function PriceDiscoveryPanel({
                   <p className="text-xs text-cocoa/70">
                     Suggested customer price: {formatRupees(suggestedPrice)} including GST
                   </p>
+                  <p className="text-xs text-cocoa/60">
+                    Changing this total updates the GST amount and profit margin at the selected
+                    GST rate; the product&apos;s tax rate itself does not change.
+                  </p>
                   <button
                     type="button"
                     onClick={() => setSellingPrice(String(suggestedPrice))}
@@ -386,7 +390,11 @@ export default function PriceDiscoveryPanel({
                   type="button"
                   onClick={() => {
                     if (priceOutcome?.profitMarginPercent !== null && priceOutcome?.profitMarginPercent !== undefined) {
-                      onApplyPrice(Number(sellingPrice), priceOutcome.profitMarginPercent);
+                      onApplyPrice(
+                        Number(sellingPrice),
+                        priceOutcome.profitMarginPercent,
+                        Number(inputs.gstPercent),
+                      );
                     }
                   }}
                   disabled={!priceOutcome || priceOutcome.profitMarginPercent === null}

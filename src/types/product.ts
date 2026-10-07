@@ -46,6 +46,8 @@ export interface Product extends ProductDetails {
   price: number | null;
   /** Last profit margin calculated when the admin applied a price recommendation. */
   profitMarginPercent?: number | null;
+  /** GST rate used for the saved price and profit-margin estimate. */
+  gstPercent?: number | null;
   /** Controls whether the price is shown to customers in the catalogue. */
   showPrice?: boolean;
   description: string;

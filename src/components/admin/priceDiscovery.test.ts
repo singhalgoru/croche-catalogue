@@ -92,6 +92,23 @@ describe('price discovery calculations', () => {
     expect(outcome?.profitMarginPercent).toBeCloseTo(49.795);
   });
 
+  it('calculates a custom price even when the requested target margin cannot produce a suggestion', () => {
+    const inputs: PriceDiscoveryInputs = {
+      timeSpent: '1',
+      timeUnit: 'hours',
+      materialCost: '100',
+      shippingCost: '100',
+      packagingCost: '10',
+      gstPercent: '5',
+      targetMarginPercent: '99.9',
+    };
+
+    expect(estimateProductPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBeNull();
+    expect(
+      calculatePriceAtSellingPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS, '1000'),
+    ).toMatchObject({ customerTotal: 1000, gstAmount: 1000 * 5 / 105 });
+  });
+
   it.each(['', '0', '-1', 'not-a-price'])('rejects invalid custom selling prices (%s)', (price) => {
     expect(calculatePriceAtSellingPrice({
       timeSpent: '1', timeUnit: 'hours', materialCost: '50', shippingCost: '100',

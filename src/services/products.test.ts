@@ -132,23 +132,23 @@ describe('product detail loading', () => {
     const published = queueQuery([{ ...detailedRow, product_profit_margins: [] }]);
     const managed = queueQuery([{
       ...detailedRow,
-      product_profit_margins: { profit_margin_percent: 46.2 },
+      product_profit_margins: { profit_margin_percent: 46.2, gst_percent: 5 },
     }]);
     const loadedProducts = [await fetchPublishedProducts(), await fetchManagedProducts()];
     expect(loadedProducts[0][0]).toMatchObject({
       materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
-      price: 300, profitMarginPercent: null, inStock: true,
+      price: 300, profitMarginPercent: null, gstPercent: null, inStock: true,
       seoDescription: 'Handmade lavender crochet bunny.',
     });
     expect(loadedProducts[1][0]).toMatchObject({
       materials: 'Cotton', dimensions: '10 cm', includedItems: '1 keychain', careInstructions: 'Spot clean',
-      price: 300, profitMarginPercent: 46.2, inStock: true,
+      price: 300, profitMarginPercent: 46.2, gstPercent: 5, inStock: true,
       seoDescription: 'Handmade lavender crochet bunny.',
     });
     expect(published.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(managed.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(PRODUCT_COLUMNS).toContain('included_items, care_instructions');
-    expect(PRODUCT_COLUMNS).toContain('product_profit_margins(profit_margin_percent)');
+    expect(PRODUCT_COLUMNS).toContain('product_profit_margins(profit_margin_percent, gst_percent)');
     expect(PRODUCT_COLUMNS).toContain('public_slug');
     expect(loadedProducts[0][0].publicSlug).toBe('bunny');
     expect(loadedProducts[1][0].publicSlug).toBe('bunny');
@@ -225,13 +225,22 @@ describe('product detail persistence', () => {
     const [product] = await fetchManagedProducts();
     const write = queueQuery(null);
     const marginWrite = queueQuery(null);
-    queueQuery({ ...row, product_profit_margins: { profit_margin_percent: 45.125 } });
+    queueQuery({
+      ...row,
+      product_profit_margins: { profit_margin_percent: 45.125, gst_percent: 5 },
+    });
 
-    const saved = await updateProduct(product, { ...update, profitMarginPercent: 45.125 });
+    const saved = await updateProduct(product, {
+      ...update,
+      profitMarginPercent: 45.125,
+      gstPercent: 5,
+    });
 
     expect(write.update.mock.calls[0][0]).not.toHaveProperty('profit_margin_percent');
     expect(marginWrite.upsert.mock.calls[0][0]).toMatchObject({ profit_margin_percent: 45.125 });
+    expect(marginWrite.upsert.mock.calls[0][0]).toMatchObject({ gst_percent: 5 });
     expect(saved.profitMarginPercent).toBe(45.125);
+    expect(saved.gstPercent).toBe(5);
   });
 
   it('rejects invalid calculated margins before writing', async () => {

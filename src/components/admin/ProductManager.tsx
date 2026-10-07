@@ -15,6 +15,7 @@ import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
+  calculatePriceAtSellingPrice,
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
   DEFAULT_TARGET_MARGIN_PERCENT,
   type PriceDiscoveryDefaults,
@@ -35,6 +36,7 @@ interface EditDraft extends DetailDraft {
   featured: boolean;
   price: string;
   profitMarginPercent: number | null;
+  gstPercent: number | null;
   showPrice: boolean;
 }
 
@@ -47,6 +49,7 @@ const createDraft = (product: ManagedProduct): EditDraft => ({
   featured: product.featured === true,
   price: product.price === null ? '' : String(product.price),
   profitMarginPercent: product.profitMarginPercent ?? null,
+  gstPercent: product.gstPercent ?? null,
   showPrice: product.showPrice === true,
   materials: product.materials ?? '',
   dimensions: product.dimensions ?? '',
@@ -61,6 +64,19 @@ const parsePrice = (value: string): number | null | undefined => {
   const amount = Number(trimmed);
   return Number.isInteger(amount) && amount >= 0 ? amount : undefined;
 };
+
+const createDefaultPriceInputs = (product: ManagedProduct): PriceDiscoveryInputs => ({
+  timeSpent: '',
+  timeUnit: 'hours',
+  materialCost: '',
+  shippingCost: '100',
+  packagingCost: '10',
+  gstPercent: String(product.gstPercent ?? 5),
+  targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
+});
+
+const formatRupees = (amount: number) =>
+  `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.ceil(amount))}`;
 
 export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -128,6 +144,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
     product: ManagedProduct,
     suggestedPrice?: number,
     profitMarginPercent?: number,
+    gstPercent?: number,
   ) => {
     if (isAnalyzing) return;
     setEditingId(product.id);
@@ -136,6 +153,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
       ...createDraft(product),
       ...(suggestedPrice === undefined ? {} : { price: String(suggestedPrice) }),
       ...(profitMarginPercent === undefined ? {} : { profitMarginPercent }),
+      ...(gstPercent === undefined ? {} : { gstPercent }),
     });
     setMessage(null);
     setError(null);
@@ -404,6 +422,10 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             const isEditing = editingId === product.id && draft;
             const isDeleting = deleteId === product.id;
             const isBusy = busyId === product.id;
+            const inputsForProduct = priceInputs[product.id] ?? createDefaultPriceInputs(product);
+            const editorPriceOutcome = isEditing
+              ? calculatePriceAtSellingPrice(inputsForProduct, priceDefaults, draft.price)
+              : null;
 
             return (
               <article
@@ -430,6 +452,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             className="mt-1 text-sm font-semibold text-cocoa"
                           >
                             Saved profit margin: {product.profitMarginPercent.toFixed(1)}%
+                            {product.gstPercent !== null
+                              && product.gstPercent !== undefined
+                              && product.price !== null && (
+                              <> · GST {product.gstPercent}% ({formatRupees(
+                                product.price * product.gstPercent / (100 + product.gstPercent),
+                              )} included)</>
+                            )}
                           </p>
                         )}
                         <p className="mt-1 text-xs font-semibold text-cocoa/55">
@@ -518,22 +547,12 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                 <PriceDiscoveryPanel
                   product={product}
                   defaults={priceDefaults}
-                  inputs={priceInputs[product.id] ?? {
-                    timeSpent: '',
-                    timeUnit: 'hours',
-                    materialCost: '',
-                    shippingCost: '100',
-                    packagingCost: '10',
-                    gstPercent: '5',
-                    targetMarginPercent: String(
-                      product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT,
-                    ),
-                  }}
+                  inputs={inputsForProduct}
                   onInputsChange={(inputs) =>
                     setPriceInputs((current) => ({ ...current, [product.id]: inputs }))
                   }
-                  onApplyPrice={(price, profitMarginPercent) => {
-                    startEditing(product, price, profitMarginPercent);
+                  onApplyPrice={(price, profitMarginPercent, gstPercent) => {
+                    startEditing(product, price, profitMarginPercent, gstPercent);
                     setMessage(`Suggested price for “${product.name}” is ready to review. Save changes to publish it.`);
                   }}
                 />
@@ -626,21 +645,39 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         min={0}
                         step={1}
                         value={draft.price}
-                        onChange={(event) =>
-                          setDraft((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  price: event.target.value,
-                                  profitMarginPercent: null,
-                                }
-                              : current,
-                          )
-                        }
+                        onChange={(event) => {
+                          const price = event.target.value;
+                          const outcome = calculatePriceAtSellingPrice(
+                            inputsForProduct,
+                            priceDefaults,
+                            price,
+                          );
+                          setDraft((current) => current
+                            ? {
+                                ...current,
+                                price,
+                                profitMarginPercent: outcome?.profitMarginPercent ?? null,
+                                gstPercent: outcome ? Number(inputsForProduct.gstPercent) : null,
+                              }
+                            : current);
+                        }}
                         placeholder="e.g. 349"
                         className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
                       />
                     </label>
+                    {editorPriceOutcome && (
+                      <p
+                        aria-live="polite"
+                        aria-label={`${product.name} price override GST and margin`}
+                        className="rounded-lg bg-cream p-3 text-sm text-cocoa sm:col-span-2"
+                      >
+                        At the selected {inputsForProduct.gstPercent}% GST rate,
+                        {' '}{formatRupees(editorPriceOutcome.gstAmount)} GST is included in this price.
+                        {' '}Estimated gateway fee: {formatRupees(editorPriceOutcome.gatewayFee)}.
+                        {' '}Estimated profit margin: {editorPriceOutcome.profitMarginPercent?.toFixed(1)}%.
+                        {' '}GST amount and fee update automatically with the price; the GST rate stays unchanged.
+                      </p>
+                    )}
                     <div className="sm:col-span-2">
                       <ProductDetailsEditor
                         key={product.id}

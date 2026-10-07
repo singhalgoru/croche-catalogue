@@ -54,8 +54,8 @@ interface ProductRow {
   featured: boolean;
   price: number | null;
   product_profit_margins?:
-    | { profit_margin_percent: number | null }
-    | { profit_margin_percent: number | null }[]
+    | { profit_margin_percent: number | null; gst_percent: number | null }
+    | { profit_margin_percent: number | null; gst_percent: number | null }[]
     | null;
   show_price: boolean;
   color: string;
@@ -104,6 +104,7 @@ export interface ProductUpdate extends ProductDetails {
   featured: boolean;
   price: number | null;
   profitMarginPercent?: number | null;
+  gstPercent?: number | null;
   showPrice: boolean;
 }
 
@@ -176,6 +177,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     category: row.category,
     price: row.price,
     profitMarginPercent: marginRow?.profit_margin_percent ?? null,
+    gstPercent: marginRow?.gst_percent ?? null,
     showPrice: row.show_price,
     description: row.description,
     seoDescription: row.seo_description?.trim() || undefined,
@@ -492,6 +494,13 @@ export async function updateProduct(
   ) {
     throw new Error('Product profit margin must be a finite percentage no greater than 100.');
   }
+  if (
+    update.gstPercent !== undefined
+    && update.gstPercent !== null
+    && (!Number.isFinite(update.gstPercent) || update.gstPercent < 0 || update.gstPercent > 100)
+  ) {
+    throw new Error('Product GST rate must be a finite percentage between 0 and 100.');
+  }
   const details = productDetailColumns(update);
   const { client } = await getCurrentUser();
   const { error } = await client
@@ -516,7 +525,8 @@ export async function updateProduct(
       : await marginQuery.upsert({
           product_id: product.id,
           profit_margin_percent: update.profitMarginPercent,
-          updated_at: new Date().toISOString(),
+        gst_percent: update.gstPercent ?? null,
+        updated_at: new Date().toISOString(),
         }, { onConflict: 'product_id' });
     if (marginResult.error) {
       throw new Error(`Unable to save ${product.name}'s profit margin: ${marginResult.error.message}`);

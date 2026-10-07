@@ -43,39 +43,51 @@ const parseNonNegative = (value: string): number | null => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
-export const estimateProductPrice = (
+const calculateCostBasis = (
   inputs: PriceDiscoveryInputs,
   defaults: PriceDiscoveryDefaults,
-): PriceDiscoveryEstimate | null => {
+) => {
   const timeSpent = parseNonNegative(inputs.timeSpent);
   const materialCost = parseNonNegative(inputs.materialCost);
   const shippingCost = parseNonNegative(inputs.shippingCost);
   const packagingCost = parseNonNegative(inputs.packagingCost);
   const gstPercent = parseNonNegative(inputs.gstPercent);
-  const targetMarginPercent = parseNonNegative(inputs.targetMarginPercent);
   if (
     timeSpent === null || materialCost === null || shippingCost === null
     || packagingCost === null || gstPercent === null || gstPercent > 100
-    || targetMarginPercent === null || targetMarginPercent >= 100
   ) return null;
 
   const hours = inputs.timeUnit === 'minutes' ? timeSpent / 60 : timeSpent;
   const labourCost = hours * defaults.labourRate;
-  const totalCost = labourCost + materialCost + shippingCost + packagingCost;
+  return {
+    labourCost,
+    totalCost: labourCost + materialCost + shippingCost + packagingCost,
+    gstPercent,
+  };
+};
+
+export const estimateProductPrice = (
+  inputs: PriceDiscoveryInputs,
+  defaults: PriceDiscoveryDefaults,
+): PriceDiscoveryEstimate | null => {
+  const costBasis = calculateCostBasis(inputs, defaults);
+  const targetMarginPercent = parseNonNegative(inputs.targetMarginPercent);
+  if (!costBasis || targetMarginPercent === null || targetMarginPercent >= 100) return null;
+
   const gatewayFeeRate =
     (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
-  const gstRate = gstPercent / 100;
+  const gstRate = costBasis.gstPercent / 100;
   const denominator = 1 - gatewayFeeRate * (1 + gstRate) - targetMarginPercent / 100;
   if (!Number.isFinite(denominator) || denominator <= 0) return null;
 
-  const saleValueExcludingGst = totalCost / denominator;
+  const saleValueExcludingGst = costBasis.totalCost / denominator;
   const customerTotal = saleValueExcludingGst * (1 + gstRate);
   const gatewayFee = customerTotal * gatewayFeeRate;
-  const gstAmount = customerTotal * gstPercent / (100 + gstPercent);
+  const gstAmount = customerTotal * costBasis.gstPercent / (100 + costBasis.gstPercent);
 
   return {
-    labourCost,
-    totalCost,
+    labourCost: costBasis.labourCost,
+    totalCost: costBasis.totalCost,
     suggestedCustomerPrice: customerTotal,
     gstAmount,
     customerTotal,
@@ -90,21 +102,20 @@ export const calculatePriceAtSellingPrice = (
   sellingPriceIncludingGst: string,
 ): PriceAtSellingPrice | null => {
   const price = parseNonNegative(sellingPriceIncludingGst);
-  const estimate = estimateProductPrice(inputs, defaults);
-  if (price === null || price <= 0 || !estimate) return null;
+  const costBasis = calculateCostBasis(inputs, defaults);
+  if (price === null || price <= 0 || !costBasis) return null;
 
-  const gstPercent = Number(inputs.gstPercent);
   const gatewayFeeRate =
     (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
-  const gstAmount = price * gstPercent / (100 + gstPercent);
+  const gstAmount = price * costBasis.gstPercent / (100 + costBasis.gstPercent);
   const saleValueExcludingGst = price - gstAmount;
   const customerTotal = price;
   const gatewayFee = customerTotal * gatewayFeeRate;
   const expectedNet = customerTotal - gstAmount - gatewayFee;
-  const profit = expectedNet - estimate.totalCost;
+  const profit = expectedNet - costBasis.totalCost;
 
   return {
-    ...estimate,
+    ...costBasis,
     suggestedCustomerPrice: price,
     gstAmount,
     customerTotal,
