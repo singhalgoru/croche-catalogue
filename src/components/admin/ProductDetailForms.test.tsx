@@ -70,6 +70,14 @@ describe('Product detail admin integration', () => {
     expect(screen.getByLabelText('Materials')).toHaveProperty('required', true);
     expect(screen.getByLabelText("What's included")).toHaveProperty('required', true);
     expect(screen.getByLabelText('Dimensions')).toHaveProperty('required', false);
+    for (const label of ['Product name', 'Category', 'Description', 'Materials', "What's included",
+      'Minimum order quantity (pieces)']) {
+      expect(screen.getByLabelText(label).closest('label')?.querySelector('.text-red-600')).toBeTruthy();
+    }
+    const priceInput = screen.getByLabelText('Price (₹)');
+    expect(priceInput.closest('label')?.querySelector('.text-red-600')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Show this price in the catalogue'));
+    expect(priceInput.closest('label')?.querySelector('.text-red-600')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close Add product' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));

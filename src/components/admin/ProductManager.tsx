@@ -16,6 +16,7 @@ import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import AdminDialog from './AdminDialog';
+import RequiredMark from './RequiredMark';
 import {
   calculatePriceAtSellingPrice,
   calculateMinimumOrderQuantity,
@@ -642,7 +643,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                     onSubmit={(event) => void saveProduct(event, product)}
                   >
                     <label className="text-sm font-semibold text-cocoa">
-                      Product name
+                      Product name <RequiredMark />
                       <input
                         value={draft.name}
                         onChange={(event) =>
@@ -657,8 +658,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       />
                     </label>
                     <label className="text-sm font-semibold text-cocoa">
-                      Category
+                      Category <RequiredMark />
                       <select
+                        required
                         value={draft.category}
                         onChange={(event) =>
                           setDraft((current) =>
@@ -675,7 +677,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       </select>
                     </label>
                     <label className="text-sm font-semibold text-cocoa sm:col-span-2">
-                      Description
+                      Description <RequiredMark />
                       <textarea
                         value={draft.description}
                         onChange={(event) =>
@@ -691,11 +693,12 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       />
                     </label>
                     <label className="text-sm font-semibold text-cocoa">
-                      Price (₹)
+                      Price (₹) {draft.showPrice && <RequiredMark />}
                       <input
                         type="number"
                         inputMode="numeric"
                         min={0}
+                        required={draft.showPrice}
                         step={1}
                         value={draft.price}
                         onChange={(event) => {
@@ -732,12 +735,13 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       </p>
                     )}
                     <label className="text-sm font-semibold text-cocoa">
-                      Minimum pieces per order
+                      Minimum pieces per order <RequiredMark />
                       <input
                         type="number"
                         inputMode="numeric"
                         min={1}
                         max={99}
+                        required
                         step={1}
                         value={draft.minimumOrderQuantity}
                         onChange={(event) =>

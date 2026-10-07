@@ -41,6 +41,9 @@ test('keeps admin tasks separate and product entry focused without losing the dr
   await dialog.getByLabel('Product name', { exact: true }).fill('Draft Rose');
   await expect(dialog.getByLabel('Materials', { exact: true })).toHaveAttribute('required', '');
   await expect(dialog.getByLabel("What's included", { exact: true })).toHaveAttribute('required', '');
+  const nameMarker = dialog.getByLabel('Product name', { exact: true }).locator('..').locator('span[aria-hidden="true"]');
+  await expect(nameMarker).toHaveCSS('color', 'oklch(0.577 0.245 27.325)');
+  expect(await nameMarker.evaluate(element => getComputedStyle(element, '::after').content)).toBe('"*"');
   await dialog.getByRole('button', { name: /Price discovery/ }).click();
   await dialog.getByLabel('Draft Rose time spent').fill('1');
   await dialog.getByLabel('Draft Rose materials cost').fill('50');

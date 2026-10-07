@@ -69,6 +69,8 @@ positive whole-rupee amount; price-on-request remains supported. Dimensions,
 care instructions and SEO summaries remain optional. Publication validation
 also runs in the product service, not just the browser form. Already published
 legacy products can still be edited without filling newly required facts.
+Required product and variant fields are marked with a red asterisk; the price
+marker appears only when Show price is enabled.
 
 Product photos are stored on Cloudflare R2 and served from
 `images.luviacreations.com`. Admin uploads (JPG, PNG or WebP) are resized to at

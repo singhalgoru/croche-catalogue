@@ -197,7 +197,7 @@ export default function VariantDraftFields({
             <div className="grid min-w-0 gap-3 sm:grid-cols-2">
               <div className="min-w-0">
               <label className="block min-w-0 text-sm font-semibold text-cocoa">
-                Variant name
+                Variant name <RequiredMark />
                 <input
                   value={variant.name}
                   onChange={(event) => {
@@ -230,10 +230,11 @@ export default function VariantDraftFields({
                 file={variant.imageFile}
                 onChange={(event) => selectImage(event, variant)}
                 required={!variant.imageFile}
+                showRequiredMark
                 disabled={disabled}
               />
               <label className="min-w-0 text-sm font-semibold text-cocoa">
-                Colour
+                Colour <RequiredMark />
                 <div className="mt-1 flex gap-2">
                   <input
                     value={variant.color}
@@ -439,3 +440,4 @@ export default function VariantDraftFields({
     </div>
   );
 }
+import RequiredMark from './RequiredMark';

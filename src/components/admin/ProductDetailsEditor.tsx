@@ -4,6 +4,7 @@ import type { Category } from '../../types/product';
 import ProductDetails from '../ProductDetails';
 import { PRODUCT_DETAIL_FIELDS } from '../../utils/productDetails';
 import { getProductImageUrl } from '../../utils/productImageUrl';
+import RequiredMark from './RequiredMark';
 
 export interface DetailDraft {
   seoDescription?: string;
@@ -138,6 +139,7 @@ export default function ProductDetailsEditor({
         {PRODUCT_DETAIL_FIELDS.map(({ key, label }) => (
           <label key={key} className="text-sm font-semibold text-cocoa">
             {label}
+            {requirePublishDetails && (key === 'materials' || key === 'includedItems') && <RequiredMark />}
             <textarea
               value={value[key]}
               onChange={(event) => onChange({ [key]: event.target.value })}

@@ -1,4 +1,5 @@
 import type { ChangeEventHandler } from 'react';
+import RequiredMark from './RequiredMark';
 
 interface Props {
   label: string;
@@ -6,6 +7,7 @@ interface Props {
   onChange: ChangeEventHandler<HTMLInputElement>;
   required?: boolean;
   disabled?: boolean;
+  showRequiredMark?: boolean;
 }
 
 export default function ImageFilePicker({
@@ -14,10 +16,11 @@ export default function ImageFilePicker({
   onChange,
   required = false,
   disabled = false,
+  showRequiredMark = required,
 }: Props) {
   return (
     <div className="min-w-0">
-      <span className="text-sm font-semibold text-cocoa">{label}</span>
+      <span className="text-sm font-semibold text-cocoa">{label}{showRequiredMark && <RequiredMark />}</span>
       <label
         className={`mt-1 flex min-h-16 min-w-0 max-w-full cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-3 py-2 transition-colors ${
           file

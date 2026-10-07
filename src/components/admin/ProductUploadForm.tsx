@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import ProductDetailsEditor from './ProductDetailsEditor';
 import AdminDialog from './AdminDialog';
+import RequiredMark from './RequiredMark';
 import { getProductPublishError } from '../../utils/productPublishValidation';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
@@ -217,7 +218,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           className="space-y-4 border-t border-mustard/30 p-3 sm:space-y-6 sm:p-5"
           onSubmit={submitProduct}
         >
-      <p className="text-sm text-cocoa/70">Required: name, category, description, materials, what&apos;s included, and a photo for each named variant. Price is required only when shown in the catalogue. Closing keeps your draft.</p>
+      <p className="text-sm text-cocoa/70"><RequiredMark /> Required fields. Price is required only when shown in the catalogue. Closing keeps your draft.</p>
       {restoredDraftAt !== null && (
         <div
           role="status"
@@ -279,7 +280,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="text-sm font-semibold text-cocoa">
-            Product name
+            Product name <RequiredMark />
             <input
               value={draft.name}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
@@ -290,7 +291,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             />
           </label>
           <label className="text-sm font-semibold text-cocoa">
-            Category
+            Category <RequiredMark />
             <select
               value={selectedCategory}
               required
@@ -305,7 +306,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             </select>
           </label>
           <label className="text-sm font-semibold text-cocoa md:col-span-2">
-            Description
+            Description <RequiredMark />
             <textarea
               value={draft.description}
               onChange={(event) =>
@@ -319,7 +320,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             />
           </label>
           <label className="text-sm font-semibold text-cocoa">
-            Price (₹)
+            Price (₹) {draft.showPrice && <RequiredMark />}
             <input
               type="number"
               inputMode="numeric"
@@ -379,8 +380,8 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             }))}
           />
           <label className="mt-4 block text-sm font-semibold text-cocoa">
-            Minimum order quantity (pieces)
-            <input type="number" min={1} max={99} step={1}
+            Minimum order quantity (pieces) <RequiredMark />
+            <input type="number" min={1} max={99} step={1} required
               value={draft.minimumOrderQuantity ?? 1}
               onChange={event => setDraft(current => ({ ...current, minimumOrderQuantity: Number(event.target.value) }))}
               className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2" />
