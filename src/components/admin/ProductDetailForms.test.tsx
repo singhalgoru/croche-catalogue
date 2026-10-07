@@ -108,7 +108,7 @@ describe('Product detail admin integration', () => {
         needsReview: true,
       }],
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Find HSN & GST' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get GST rate & HSN' }));
     expect(await screen.findByText('HSN 580810 — Hand-made braids in the piece')).toBeTruthy();
     expect(screen.getByText(/Match confidence 84%/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Use 5% rate in estimate' }));

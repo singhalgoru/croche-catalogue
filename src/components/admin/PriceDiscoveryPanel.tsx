@@ -191,7 +191,7 @@ export default function PriceDiscoveryPanel({
                   disabled={isSuggestingGst}
                   className="min-h-11 self-start rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
                 >
-                  {isSuggestingGst ? 'Searching HSN & GST…' : 'Find HSN & GST'}
+                  {isSuggestingGst ? 'Getting GST rate & HSN…' : 'Get GST rate & HSN'}
                 </button>
               </div>
               <p className="mt-1 text-xs text-cocoa/60">
