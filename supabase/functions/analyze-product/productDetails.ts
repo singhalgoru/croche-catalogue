@@ -45,6 +45,7 @@ const CLASSIFICATION_FAMILY_TERMS = [
   'crochet', 'crocheted', 'knit', 'knitted', 'textile', 'yarn', 'wool', 'fabric',
   'toy', 'toys', 'doll', 'dolls', 'stuffed', 'plush', 'apparel', 'garment',
 ];
+const CLEARLY_UNRELATED_HSN_TERMS = ['paper', 'paperboard', 'instrument', 'instruments', 'musical'];
 
 const tokenizeClassificationText = (value: string) =>
   value.toLowerCase().match(/[a-z0-9]+/g) ?? [];
@@ -68,6 +69,7 @@ export function selectRelevantGstCandidates(
   );
   const relevantCandidates = suggestion.candidates.filter((candidate) => {
     const description = candidate.hsnDescription.toLowerCase();
+    if (CLEARLY_UNRELATED_HSN_TERMS.some((term) => description.includes(term))) return false;
     const descriptionTerms = new Set(tokenizeClassificationText(description));
     return CLASSIFICATION_FAMILY_TERMS.some((term) => descriptionTerms.has(term)) ||
       [...productTerms].some((term) => descriptionTerms.has(term));
@@ -80,18 +82,24 @@ export function selectRelevantGstCandidates(
     if (!existing || candidate.confidence > existing.confidence) distinctMatches.set(key, candidate);
   }
 
+  if (distinctMatches.size === 0 && suggestion.candidates.length > 0) {
+    const firstReviewableCandidate = suggestion.candidates.find((candidate) =>
+      !CLEARLY_UNRELATED_HSN_TERMS.some((term) => candidate.hsnDescription.toLowerCase().includes(term)),
+    );
+    if (firstReviewableCandidate) {
+      return {
+        source: suggestion.source,
+        candidates: [{ ...firstReviewableCandidate, needsReview: true }],
+        message: 'The provider match did not closely match the product wording. Review the HSN description manually before using its rate.',
+      };
+    }
+  }
+
   if (distinctMatches.size === 0) {
     return {
       source: suggestion.source,
       candidates: [],
       message: 'No returned HSN description matched the product use or crochet textile details. No rate was suggested; verify the classification manually.',
-    };
-  }
-  if (distinctMatches.size > 1) {
-    return {
-      source: suggestion.source,
-      candidates: [],
-      message: 'Several distinct HSN/rate matches still fit the supplied product details. No rate was suggested; verify the correct product classification manually.',
     };
   }
 

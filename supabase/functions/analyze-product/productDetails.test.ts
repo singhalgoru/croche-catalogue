@@ -143,7 +143,7 @@ describe('GST rate suggestion validation', () => {
     expect(result.message).toContain('No returned HSN description matched');
   });
 
-  it('returns a single relevant HSN/rate candidate, but refuses distinct plausible matches', () => {
+  it('returns relevant HSN/rate candidates for the user to review', () => {
     const context = {
       name: 'Crochet bag charm',
       category: 'Charms & Keychains',
@@ -165,8 +165,28 @@ describe('GST rate suggestion validation', () => {
         { ...relevant, hsnCode: '950300', hsnDescription: 'Crocheted stuffed toys', gstRate: 12 },
       ],
     }, context);
-    expect(ambiguous.candidates).toEqual([]);
-    expect(ambiguous.message).toContain('Several distinct HSN/rate matches');
+    expect(ambiguous.candidates).toEqual([
+      relevant,
+      { ...relevant, hsnCode: '950300', hsnDescription: 'Crocheted stuffed toys', gstRate: 12 },
+    ]);
+    expect(ambiguous.message).toBeUndefined();
+  });
+
+  it('keeps the provider top match for manual review when description wording differs', () => {
+    const candidate = {
+      ...candidateFromMatch(match),
+      hsnDescription: 'Other finished goods',
+    };
+    const result = selectRelevantGstCandidates({
+      source,
+      candidates: [candidate],
+    }, {
+      name: 'Panda Charm',
+      category: 'Charms & Keychains',
+      description: 'A soft accessory for bags.',
+    });
+    expect(result.candidates).toEqual([{ ...candidate, needsReview: true }]);
+    expect(result.message).toContain('did not closely match');
   });
 
   it('returns a manual-review message when the provider has no HSN matches', () => {

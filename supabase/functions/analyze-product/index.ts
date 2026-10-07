@@ -160,6 +160,7 @@ Deno.serve(async (request) => {
           description,
           branded: false,
           supply_type: 'intrastate',
+          top_k: 3,
         }),
         signal: AbortSignal.timeout(15_000),
       });

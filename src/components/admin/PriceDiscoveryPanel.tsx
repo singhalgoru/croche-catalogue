@@ -218,11 +218,12 @@ export default function PriceDiscoveryPanel({
                   <p className="text-xs text-cocoa/70">
                     {gstSuggestion.source}. Check the HSN description, product use and conditions before applying.
                   </p>
-                  {gstSuggestion.message ? (
+                  {gstSuggestion.message && (
                     <p role="status" className="mt-2 text-sm font-semibold text-cocoa">
                       {gstSuggestion.message}
                     </p>
-                  ) : (
+                  )}
+                  {gstSuggestion.candidates.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {gstSuggestion.candidates.map((candidate) => (
                         <article

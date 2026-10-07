@@ -108,6 +108,7 @@ describe('analyze-product endpoint', () => {
           description: 'Crochet charm Small handmade crochet bag charm. product category: Accessories materials: Cotton yarn Crocheted textile finished product.',
           branded: false,
           supply_type: 'intrastate',
+          top_k: 3,
         }),
       }),
     );
