@@ -15,29 +15,87 @@ const CONTEXT_LIMITS = {
 export type AnalysisContext = Partial<Record<keyof typeof CONTEXT_LIMITS, string>>;
 
 export interface GstRateSuggestion {
-  suggestedRate: number | null;
-  confidence: 'low' | 'medium' | 'high';
-  rationale: string;
+  source: string;
+  candidates: Array<{
+    hsnCode: string;
+    hsnDescription: string;
+    igstRate: number;
+    cgstRate: number;
+    sgstRate: number;
+    cessRate: number;
+    confidence: number;
+    notificationRef: string | null;
+    conditionApplied: string | null;
+    conditionWarning: string | null;
+    needsReview: boolean;
+  }>;
 }
 
-export function validateGstRateSuggestion(value: Record<string, unknown>): GstRateSuggestion {
-  const suggestedRate = value.suggestedRate;
-  const confidence = value.confidence;
-  const rationale = value.rationale;
-  if (
-    (suggestedRate !== null &&
-      (typeof suggestedRate !== 'number' || !Number.isFinite(suggestedRate) ||
-        suggestedRate < 0 || suggestedRate > 100)) ||
-    (confidence !== 'low' && confidence !== 'medium' && confidence !== 'high') ||
-    typeof rationale !== 'string' || !rationale.trim() || rationale.length > 500 ||
-    (suggestedRate === null && confidence !== 'low')
-  ) {
-    throw new Error('Gemini returned an invalid GST rate suggestion.');
+export function validateGstRateSuggestion(
+  value: unknown,
+  responseSource: string,
+): GstRateSuggestion {
+  if (value === null || (typeof value !== 'object' && !Array.isArray(value))) {
+    throw new Error('GST Accelerator returned an invalid HSN lookup.');
   }
+  const matches = Array.isArray(value) ? value : [value];
+  if (matches.length === 0 || matches.length > 5) {
+    throw new Error('GST Accelerator returned no usable HSN matches.');
+  }
+
+  const candidates = matches.map((match: unknown) => {
+    if (!match || typeof match !== 'object') {
+      throw new Error('The HSN provider returned an invalid match.');
+    }
+    const item = match as Record<string, unknown>;
+    const rates = item.tax_rates;
+    if (!rates || typeof rates !== 'object') {
+      throw new Error('The HSN provider returned a match without tax rates.');
+    }
+    const taxRates = rates as Record<string, unknown>;
+    const rate = (field: string) => {
+      const amount = taxRates[field];
+      if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0 || amount > 100) {
+        throw new Error('The HSN provider returned an invalid tax rate.');
+      }
+      return amount;
+    };
+    const hsnCode = item.hsn_code;
+    const hsnDescription = item.description;
+    const confidence = item.confidence;
+    const notificationRef = item.notification_ref;
+    const conditionApplied = item.condition_applied;
+    const conditionWarning = item.condition_warning;
+    const needsReview = item.needs_review;
+    if (
+      typeof hsnCode !== 'string' || !/^\d{4}(?:\d{2}){0,2}$/.test(hsnCode) ||
+      typeof hsnDescription !== 'string' || !hsnDescription.trim() || hsnDescription.length > 500 ||
+      typeof confidence !== 'number' || !Number.isFinite(confidence) || confidence < 0 || confidence > 1 ||
+      (notificationRef !== null && typeof notificationRef !== 'string') ||
+      (conditionApplied !== null && typeof conditionApplied !== 'string') ||
+      (conditionWarning !== null && typeof conditionWarning !== 'string') ||
+      typeof needsReview !== 'boolean'
+    ) {
+      throw new Error('The HSN provider returned an invalid classification.');
+    }
+    return {
+      hsnCode,
+      hsnDescription: hsnDescription.trim(),
+      igstRate: rate('igst'),
+      cgstRate: rate('cgst'),
+      sgstRate: rate('sgst'),
+      cessRate: rate('cess'),
+      confidence,
+      notificationRef: typeof notificationRef === 'string' ? notificationRef.slice(0, 100) : null,
+      conditionApplied: typeof conditionApplied === 'string' ? conditionApplied.slice(0, 300) : null,
+      conditionWarning: typeof conditionWarning === 'string' ? conditionWarning.slice(0, 300) : null,
+      needsReview,
+    };
+  });
+
   return {
-    suggestedRate,
-    confidence,
-    rationale: rationale.trim(),
+    source: responseSource,
+    candidates,
   };
 }
 

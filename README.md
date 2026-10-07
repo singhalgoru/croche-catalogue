@@ -345,9 +345,22 @@ npx supabase db push --linked
 npx supabase functions deploy analyze-product --use-api
 ```
 
-The existing Gemini secret and admin authentication are reused; no API key is
-exposed to the browser. Product details also appear on generated product pages
-when supplied, without changing existing product routing.
+The existing Gemini secret and admin authentication are reused for Gemini
+workflows; no provider API key is exposed to the browser. Product details also
+appear on generated product pages when supplied, without changing existing
+product routing.
+
+The admin **Price discovery** panel can search GST Accelerator's HSN/GST
+dataset using the product name, category and confirmed details. Configure
+`GST_ACCELERATOR_API_KEY` in the Supabase project's Edge Function secrets before
+deploying `analyze-product`; never put the provider key in frontend environment
+variables, source control or browser code. The panel displays HSN candidates,
+tax components, confidence and any conditions for admin review. Applying a
+rate only changes the draft estimate and does not save the product.
+
+To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
+and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
+above. A frontend deployment does not deploy Edge Functions.
 
 ## AI variant names
 

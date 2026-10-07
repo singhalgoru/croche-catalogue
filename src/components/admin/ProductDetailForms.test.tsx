@@ -93,10 +93,25 @@ describe('Product detail admin integration', () => {
     fireEvent.change(screen.getByLabelText('Coaster time unit'), { target: { value: 'minutes' } });
     fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '100' } });
     vi.mocked(suggestProductGstRate).mockResolvedValue({
-      suggestedRate: 5, confidence: 'low', rationale: 'Verify exact HSN classification.',
+      source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
+      candidates: [{
+        hsnCode: '580810',
+        hsnDescription: 'Hand-made braids in the piece',
+        igstRate: 5,
+        cgstRate: 2.5,
+        sgstRate: 2.5,
+        cessRate: 0,
+        confidence: 0.84,
+        notificationRef: '09/2025-CT(Rate)',
+        conditionApplied: 'No additional conditions',
+        conditionWarning: null,
+        needsReview: true,
+      }],
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Suggest GST with Gemini' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Use suggested rate in estimate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Find HSN & GST' }));
+    expect(await screen.findByText('HSN 580810 — Hand-made braids in the piece')).toBeTruthy();
+    expect(screen.getByText(/Match confidence 84%/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Use 5% rate in estimate' }));
     expect(await screen.findByText('Suggested ₹975 before GST')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Use in product editor' }));
     expect(screen.getByLabelText('Price (₹)')).toHaveProperty('value', '975');

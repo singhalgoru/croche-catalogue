@@ -26,24 +26,43 @@ describe('analysis request context', () => {
 });
 
 describe('GST rate suggestion validation', () => {
-  it('accepts a bounded provisional rate and a low-confidence no-rate result', () => {
-    expect(validateGstRateSuggestion({
-      suggestedRate: 5, confidence: 'medium', rationale: 'Verify the applicable HSN.',
-    })).toEqual({
-      suggestedRate: 5, confidence: 'medium', rationale: 'Verify the applicable HSN.',
+  const source = 'GST Accelerator HSN lookup · CBIC-sourced rates';
+  const match = {
+    hsn_code: '580810',
+    description: 'Hand-made braids in the piece',
+    tax_rates: { igst: 5, cgst: 2.5, sgst: 2.5, cess: 0 },
+    condition_applied: null,
+    condition_warning: null,
+    confidence: 0.84,
+    notification_ref: '09/2025-CT(Rate)',
+    needs_review: true,
+  };
+  it('normalizes provider HSN candidates, rates, conditions, confidence and notification', () => {
+    expect(validateGstRateSuggestion([match], source)).toEqual({
+      source,
+      candidates: [{
+        hsnCode: '580810', hsnDescription: 'Hand-made braids in the piece',
+        igstRate: 5, cgstRate: 2.5, sgstRate: 2.5, cessRate: 0,
+        confidence: 0.84, notificationRef: '09/2025-CT(Rate)',
+        conditionApplied: null, conditionWarning: null, needsReview: true,
+      }],
     });
-    expect(validateGstRateSuggestion({
-      suggestedRate: null, confidence: 'low', rationale: 'The product details are insufficient.',
-    }).suggestedRate).toBeNull();
   });
   it.each([
-    { suggestedRate: 101, confidence: 'high', rationale: 'Invalid rate.' },
-    { suggestedRate: -1, confidence: 'medium', rationale: 'Invalid rate.' },
-    { suggestedRate: null, confidence: 'high', rationale: 'Uncertain.' },
-    { suggestedRate: 5, confidence: 'certain', rationale: 'Unsupported confidence.' },
-    { suggestedRate: 5, confidence: 'low', rationale: '' },
-  ])('rejects invalid suggestions', (suggestion) => {
-    expect(() => validateGstRateSuggestion(suggestion)).toThrow('invalid GST rate suggestion');
+    [{ ...match, hsn_code: '12345' }, 'invalid classification'],
+    [{ ...match, tax_rates: { ...match.tax_rates, igst: 101 } }, 'invalid tax rate'],
+    [{ ...match, confidence: 2 }, 'invalid classification'],
+    [{ ...match, needs_review: 'false' }, 'invalid classification'],
+    [{ ...match, notification_ref: 42 }, 'invalid classification'],
+    [null, 'invalid match'],
+  ])('rejects an invalid provider response', (candidate, expectedError) => {
+    expect(() => validateGstRateSuggestion([candidate], source)).toThrow(expectedError);
+  });
+
+  it('rejects empty and excessive candidate lists', () => {
+    expect(() => validateGstRateSuggestion([], source)).toThrow('no usable HSN matches');
+    expect(() => validateGstRateSuggestion([match, match, match, match, match, match], source))
+      .toThrow('no usable HSN matches');
   });
 });
 

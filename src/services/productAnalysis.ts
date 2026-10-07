@@ -17,9 +17,20 @@ export interface ProductAnalysisContext extends ProductDetails {
 }
 
 export interface ProductGstRateSuggestion {
-  suggestedRate: number | null;
-  confidence: 'low' | 'medium' | 'high';
-  rationale: string;
+  source: string;
+  candidates: Array<{
+    hsnCode: string;
+    hsnDescription: string;
+    igstRate: number;
+    cgstRate: number;
+    sgstRate: number;
+    cessRate: number;
+    confidence: number;
+    notificationRef: string | null;
+    conditionApplied: string | null;
+    conditionWarning: string | null;
+    needsReview: boolean;
+  }>;
 }
 
 const CONTEXT_LIMITS = {
@@ -157,25 +168,37 @@ export async function suggestProductGstRate(
     const message = await getFunctionErrorMessage(error);
     throw new Error(`Unable to suggest a GST rate: ${message}`);
   }
-  if (!data || typeof data !== 'object') {
-    throw new Error('Gemini returned an invalid GST rate suggestion.');
+  if (!data || typeof data !== 'object' || !('source' in data) ||
+    typeof data.source !== 'string' || !data.source.trim() ||
+    !('candidates' in data) || !Array.isArray(data.candidates) ||
+    data.candidates.length === 0 || data.candidates.length > 5) {
+    throw new Error('GST Accelerator returned an invalid HSN lookup.');
   }
 
-  const suggestion = data as Record<string, unknown>;
-  const rate = suggestion.suggestedRate;
-  const confidence = suggestion.confidence;
-  const rationale = suggestion.rationale;
-  if (
-    (rate !== null &&
-      (typeof rate !== 'number' || !Number.isFinite(rate) || rate < 0 || rate > 100)) ||
-    (confidence !== 'low' && confidence !== 'medium' && confidence !== 'high') ||
-    typeof rationale !== 'string' || !rationale.trim() || rationale.length > 500 ||
-    (rate === null && confidence !== 'low')
-  ) {
-    throw new Error('Gemini returned an invalid GST rate suggestion.');
-  }
+  const candidates = data.candidates.map((candidate: unknown) => {
+    if (!candidate || typeof candidate !== 'object') {
+      throw new Error('The HSN provider returned an invalid classification.');
+    }
+    const item = candidate as Record<string, unknown>;
+    const validRate = (rate: unknown) =>
+      typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 && rate <= 100;
+    if (
+      typeof item.hsnCode !== 'string' || !/^\d{4}(?:\d{2}){0,2}$/.test(item.hsnCode) ||
+      typeof item.hsnDescription !== 'string' || !item.hsnDescription.trim() ||
+      !validRate(item.igstRate) || !validRate(item.cgstRate) ||
+      !validRate(item.sgstRate) || !validRate(item.cessRate) ||
+      typeof item.confidence !== 'number' || item.confidence < 0 || item.confidence > 1 ||
+      (item.notificationRef !== null && typeof item.notificationRef !== 'string') ||
+      (item.conditionApplied !== null && typeof item.conditionApplied !== 'string') ||
+      (item.conditionWarning !== null && typeof item.conditionWarning !== 'string') ||
+      typeof item.needsReview !== 'boolean'
+    ) {
+      throw new Error('The HSN provider returned an invalid classification.');
+    }
+    return item as ProductGstRateSuggestion['candidates'][number];
+  });
 
-  return { suggestedRate: rate, confidence, rationale: rationale.trim() };
+  return { source: data.source, candidates };
 }
 
 /** Context is draft-only; notes are limited to 2,000 characters and details to 1,000 each. */

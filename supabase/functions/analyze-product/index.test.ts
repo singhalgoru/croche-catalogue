@@ -17,9 +17,24 @@ const metadata = {
   seoDescription: 'Handmade lavender crochet bunny keychain.',
   materials: '', dimensions: '', includedItems: '', careInstructions: '',
 };
-const geminiResponse = (value: unknown) => new Response(JSON.stringify({
+const geminiResponse = (
+  value: unknown,
+) => new Response(JSON.stringify({
   candidates: [{ content: { parts: [{ text: JSON.stringify(value) }] } }],
 }), { status: 200 });
+const gstAcceleratorResponse = (value: unknown, status = 200) =>
+  new Response(JSON.stringify(value), { status });
+let gstAcceleratorApiKey: string | undefined = 'test-provider-key';
+const gstMatch = {
+  hsn_code: '580810',
+  description: 'Hand-made braids in the piece',
+  tax_rates: { igst: 5, cgst: 2.5, sgst: 2.5, cess: 0 },
+  condition_applied: null,
+  condition_warning: null,
+  confidence: 0.84,
+  notification_ref: '09/2025-CT(Rate)',
+  needs_review: true,
+};
 
 beforeAll(async () => {
   vi.stubGlobal('Deno', {
@@ -27,7 +42,7 @@ beforeAll(async () => {
       SUPABASE_URL: 'https://example.supabase.co',
       SUPABASE_ANON_KEY: 'test-public-key',
       GEMINI_API_KEY: 'test-placeholder',
-    })[name] },
+    })[name] ?? (name === 'GST_ACCELERATOR_API_KEY' ? gstAcceleratorApiKey : undefined) },
     serve: (callback: typeof handler) => { handler = callback; },
   });
   await import('./index');
@@ -36,6 +51,7 @@ afterAll(() => vi.unstubAllGlobals());
 beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockReset();
+  gstAcceleratorApiKey = 'test-provider-key';
   vi.stubGlobal('fetch', fetchMock);
   rpc.mockResolvedValue({ data: true, error: null });
   const order = vi.fn();
@@ -53,12 +69,8 @@ describe('analyze-product endpoint', () => {
     expect(body.contents[0].parts[0].text).toContain('descriptions-only edit');
     expect(body.contents[0].parts[0].text).toContain('name and category unchanged');
   });
-  it('suggests GST from category and supplied product facts without requiring an image', async () => {
-    fetchMock.mockResolvedValue(geminiResponse({
-      suggestedRate: 5, confidence: 'low',
-      rationale: 'Category alone is broad; verify the exact HSN classification.',
-      hsnCode: 'invented',
-    }));
+  it('looks up HSN and current GST rates from the provider using product facts without an image', async () => {
+    fetchMock.mockResolvedValue(gstAcceleratorResponse([gstMatch]));
     const response = await handler(request({
       mode: 'gst-rate',
       imageBase64: undefined,
@@ -71,19 +83,35 @@ describe('analyze-product endpoint', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      suggestedRate: 5, confidence: 'low',
-      rationale: 'Category alone is broad; verify the exact HSN classification.',
+      source: 'GST Accelerator HSN lookup · CBIC-sourced rates',
+      candidates: [{
+        hsnCode: '580810',
+        hsnDescription: 'Hand-made braids in the piece',
+        igstRate: 5,
+        cgstRate: 2.5,
+        sgstRate: 2.5,
+        cessRate: 0,
+        confidence: 0.84,
+        notificationRef: '09/2025-CT(Rate)',
+        conditionApplied: null,
+        conditionWarning: null,
+        needsReview: true,
+      }],
     });
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.contents[0].parts).toHaveLength(1);
-    expect(body.contents[0].parts[0].text).toContain('Accessories');
-    expect(body.contents[0].parts[0].text).toContain('Cotton yarn');
-    expect(body.contents[0].parts[0].text).toContain('not legal, accounting, or tax advice');
-    expect(body.generationConfig.responseSchema.required).toEqual([
-      'suggestedRate', 'confidence', 'rationale',
-    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://gstaccelerator.in/api/v1/lookup',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'test-provider-key' },
+        body: JSON.stringify({
+          description: 'Handmade crochet handicraft; store category: Accessories; product: Crochet charm; product details: Small handmade crochet bag charm.; materials: Cotton yarn',
+          branded: false,
+          supply_type: 'intrastate',
+        }),
+      }),
+    );
   });
-  it('requires a current category and rejects invalid Gemini GST suggestions', async () => {
+  it('requires a current category and rejects invalid provider GST matches', async () => {
     const missingCategory = await handler(request({
       mode: 'gst-rate', imageBase64: undefined, mimeType: undefined, context: { name: 'Charm' },
     }));
@@ -94,17 +122,73 @@ describe('analyze-product endpoint', () => {
     order.mockReturnValueOnce({ order })
       .mockResolvedValueOnce({ data: [{ name: 'Accessories' }], error: null });
     from.mockReturnValue({ select: () => ({ order }) });
-    fetchMock.mockResolvedValue(geminiResponse({
-      suggestedRate: 180, confidence: 'high', rationale: 'Unsupported rate.',
-    }));
-    const invalidSuggestion = await handler(request({
+    fetchMock.mockResolvedValue(gstAcceleratorResponse([{
+      ...gstMatch, tax_rates: { ...gstMatch.tax_rates, igst: 180 },
+    }]));
+    const invalidMatch = await handler(request({
       mode: 'gst-rate', imageBase64: undefined, mimeType: undefined,
       context: { category: 'Accessories', name: 'Charm' },
     }));
-    expect(invalidSuggestion.status).toBe(502);
-    expect(await invalidSuggestion.json()).toEqual({
-      error: 'Gemini returned an invalid GST rate suggestion.',
+    expect(invalidMatch.status).toBe(502);
+    expect(await invalidMatch.json()).toHaveProperty('error', 'The HSN provider returned an invalid tax rate.');
+  });
+  it('surfaces provider authorization and quota errors without accepting ungrounded model guesses', async () => {
+    const order = vi.fn();
+    order.mockReturnValueOnce({ order })
+      .mockResolvedValueOnce({ data: [{ name: 'Accessories' }], error: null });
+    from.mockReturnValue({ select: () => ({ order }) });
+    fetchMock.mockResolvedValue(gstAcceleratorResponse({ error: 'Invalid API key.' }, 401));
+
+    const response = await handler(request({
+      mode: 'gst-rate', imageBase64: undefined, mimeType: undefined,
+      context: { category: 'Accessories', name: 'Crochet charm' },
+    }));
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: 'GST Accelerator lookup failed (401). Check the server-side API key and account quota.',
     });
+  });
+  it('returns actionable errors for missing provider credentials and malformed provider JSON', async () => {
+    gstAcceleratorApiKey = undefined;
+    const missingSecret = await handler(request({
+      mode: 'gst-rate', imageBase64: undefined, mimeType: undefined,
+      context: { category: 'Accessories', name: 'Crochet charm' },
+    }));
+    expect(missingSecret.status).toBe(500);
+    expect(await missingSecret.json()).toHaveProperty(
+      'error',
+      'GST_ACCELERATOR_API_KEY is not configured for the analyze-product function.',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    gstAcceleratorApiKey = 'test-provider-key';
+    const order = vi.fn();
+    order.mockReturnValueOnce({ order })
+      .mockResolvedValueOnce({ data: [{ name: 'Accessories' }], error: null });
+    from.mockReturnValue({ select: () => ({ order }) });
+    fetchMock.mockResolvedValue(new Response('not-json', { status: 200 }));
+    const malformedResponse = await handler(request({
+      mode: 'gst-rate', imageBase64: undefined, mimeType: undefined,
+      context: { category: 'Accessories', name: 'Crochet charm' },
+    }));
+    expect(malformedResponse.status).toBe(502);
+    expect(await malformedResponse.json()).toHaveProperty(
+      'error',
+      'GST Accelerator returned an invalid response.',
+    );
+  });
+  it('reports provider connection timeouts rather than returning a fallback classification', async () => {
+    fetchMock.mockRejectedValue(new Error('The operation was aborted.'));
+    const response = await handler(request({
+      mode: 'gst-rate', imageBase64: undefined, mimeType: undefined,
+      context: { category: 'Accessories', name: 'Crochet charm' },
+    }));
+    expect(response.status).toBe(502);
+    expect(await response.json()).toHaveProperty(
+      'error',
+      'Unable to reach GST Accelerator: The operation was aborted.',
+    );
   });
   it('keeps image-only analysis working with empty optional fields', async () => {
     fetchMock.mockResolvedValue(geminiResponse(metadata));

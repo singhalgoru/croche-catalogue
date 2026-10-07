@@ -95,9 +95,9 @@ export default function PriceDiscoveryPanel({
       {isExpanded && (
         <div id={panelId} className="space-y-4 border-t border-mustard/30 p-3">
           <p className="text-xs leading-relaxed text-cocoa/70">
-            Indicative only. Gemini provides an unverified suggestion based on the category and
-            available product details; verify current GST and HSN classification with an authoritative
-            source or tax professional. Nothing changes the live catalogue price until you apply and save it.
+            Search actual HSN and GST entries using the product details. Crochet alone does not decide
+            classification; review the provider match, rate conditions, and CBIC notification before use.
+            Nothing changes the live catalogue price until you apply and save it.
           </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -191,36 +191,63 @@ export default function PriceDiscoveryPanel({
                   disabled={isSuggestingGst}
                   className="min-h-11 self-start rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-60"
                 >
-                  {isSuggestingGst ? 'Asking Gemini…' : 'Suggest GST with Gemini'}
+                  {isSuggestingGst ? 'Searching HSN & GST…' : 'Find HSN & GST'}
                 </button>
               </div>
               <p className="mt-1 text-xs text-cocoa/60">
-                AI output is not a verified tax rate; confirm it before using it.
+                Search uses GST Accelerator’s CBIC-sourced HSN/GST dataset; confirm classification and
+                conditions before using it.
               </p>
               {gstSuggestionError && (
                 <p role="alert" className="mt-2 text-sm text-red-700">{gstSuggestionError}</p>
               )}
               {gstSuggestion && (
                 <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 p-3">
-                  <p className="text-sm font-semibold text-cocoa">
-                    Gemini suggestion:{' '}
-                    {gstSuggestion.suggestedRate === null
-                      ? 'No rate suggested'
-                      : `${gstSuggestion.suggestedRate}%`}
-                    {' '}· {gstSuggestion.confidence} confidence
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-cocoa/75">
-                    {gstSuggestion.rationale}
-                  </p>
-                  {gstSuggestion.suggestedRate !== null && (
-                    <button
-                      type="button"
-                      onClick={() => updateInput('gstPercent', String(gstSuggestion.suggestedRate))}
-                      className="mt-2 min-h-10 rounded-full bg-mustard px-4 py-2 text-sm font-semibold text-cocoa"
-                    >
-                      Use suggested rate in estimate
-                    </button>
-                  )}
+                  <p className="text-xs text-cocoa/70">{gstSuggestion.source}. Compare the candidates and verify the notification before applying.</p>
+                  <div className="mt-2 space-y-2">
+                    {gstSuggestion.candidates.map((candidate) => (
+                      <article
+                        key={`${candidate.hsnCode}:${candidate.hsnDescription}`}
+                        className="rounded-lg border border-cocoa/10 bg-white p-3"
+                      >
+                        <p className="text-sm font-bold text-cocoa">
+                          HSN {candidate.hsnCode} — {candidate.hsnDescription}
+                        </p>
+                        <p className="mt-1 text-sm text-cocoa">
+                          IGST {candidate.igstRate}% · CGST {candidate.cgstRate}% + SGST {candidate.sgstRate}%
+                          {candidate.cessRate > 0 ? ` · Cess ${candidate.cessRate}%` : ''}
+                        </p>
+                        <p className="mt-1 text-xs text-cocoa/70">
+                          Match confidence {Math.round(candidate.confidence * 100)}%
+                          {candidate.notificationRef ? ` · CBIC notification ${candidate.notificationRef}` : ''}
+                          {candidate.needsReview ? ' · Review required' : ''}
+                        </p>
+                        {candidate.conditionApplied && (
+                          <p className="mt-1 text-xs text-cocoa/75">Condition applied: {candidate.conditionApplied}</p>
+                        )}
+                        {candidate.conditionWarning && (
+                          <p role="alert" className="mt-1 text-xs font-semibold text-red-800">
+                            Rate condition: {candidate.conditionWarning}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => updateInput('gstPercent', String(candidate.igstRate))}
+                          className="mt-2 min-h-10 rounded-full bg-mustard px-4 py-2 text-sm font-semibold text-cocoa"
+                        >
+                          Use {candidate.igstRate}% rate in estimate
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                  <a
+                    href="https://www.gstaccelerator.in/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block text-xs text-cocoa underline underline-offset-2"
+                  >
+                    GST Accelerator API documentation
+                  </a>
                 </div>
               )}
             </div>
