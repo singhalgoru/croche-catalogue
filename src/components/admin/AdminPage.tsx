@@ -9,6 +9,7 @@ import CategoryManager from './CategoryManager';
 import CartManager from './CartManager';
 import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
+import SellerSalesDashboard from './SellerSalesDashboard';
 import TickerManager from './TickerManager';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
@@ -214,6 +215,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           </p>
         )}
 
+        <SellerSalesDashboard refreshKey={productRefreshKey} />
         <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
         <TickerManager />
         <CartManager />
