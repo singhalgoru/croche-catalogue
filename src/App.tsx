@@ -164,7 +164,8 @@ function App() {
   useEffect(() => {
     if (isAdminPage || pendingProductReference.current || pageReference) return;
     const { pathname, search } = window.location;
-    const hash = selectedProduct ? toProductHash(selectedProduct) : '';
+    const hash = selectedProduct ? toProductHash(selectedProduct)
+      : window.location.hash === '#collaborate' ? '#collaborate' : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
   }, [isAdminPage, selectedProduct, pageReference]);
 
@@ -220,6 +221,7 @@ function App() {
 
   useEffect(() => {
     const onPopState = () => {
+      if (window.location.hash === '#collaborate') return;
       const reference = readProductPageReference();
       setPageReference(reference);
       setActiveCategory(new URLSearchParams(window.location.search).get('category') || 'All');
