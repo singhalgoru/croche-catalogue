@@ -82,6 +82,33 @@ test('adds to an existing cart without a redundant reload', async ({ page }) => 
   await expect(page.getByRole('button', { name: 'Open cart with 2 items' }).first()).toBeVisible();
 });
 
+test('renders confirmed cart feedback before Google and Meta tracking runs', async ({ page }) => {
+  await page.evaluate(() => {
+    const events: Array<{ name: string; confirmed: boolean; feedback: boolean }> = [];
+    const record = (name: string) => events.push({
+      name,
+      confirmed: Boolean(document.querySelector('button[aria-label="Open cart with 1 item"]')),
+      feedback: Boolean(document.querySelector('[role="status"]')?.textContent?.includes('added to cart')),
+    });
+    window.gtag = (...args: unknown[]) => {
+      if (args[0] === 'event' && args[1] === 'add_to_cart') record('Google');
+    };
+    window.fbq = Object.assign(
+      (...args: unknown[]) => {
+        if (args[0] === 'track' && args[1] === 'AddToCart') record('Meta');
+      },
+      { queue: [] as unknown[][] },
+    );
+    window.dataLayer = events;
+  });
+  await page.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await expect.poll(() => page.evaluate(() => window.dataLayer)).toEqual([
+    { name: 'Google', confirmed: true, feedback: true },
+    { name: 'Meta', confirmed: true, feedback: true },
+  ]);
+  expect(catalogueState.carts[0].cart_items[0]).toMatchObject({ quantity: 1, unit_price: 349 });
+});
+
 test('persists an anonymous cart and sends the complete enquiry to WhatsApp', async ({ page }) => {
   const roseCard = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm' }),

@@ -82,7 +82,6 @@ export function useCart(enabled = true) {
     addItem: async (product: Product, variant: ProductVariant) => {
       const nextCart = await runCartAction(() => addProductToCart(product, variant));
       if (nextCart) {
-        trackAddToCart(product, variant);
         setAddFeedback(
           `${product.name}${
             product.variants.length > 1 ? ` — ${variant.name}` : ''
@@ -91,6 +90,10 @@ export function useCart(enabled = true) {
         setCartUpdateCount((count) => count + 1);
         if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
         feedbackTimer.current = setTimeout(() => setAddFeedback(null), 2400);
+        // Let the confirmed cart render before third-party analytics runs.
+        const track = () => window.setTimeout(() => trackAddToCart(product, variant), 0);
+        if (document.visibilityState === 'hidden') track();
+        else window.requestAnimationFrame(track);
       }
       return nextCart;
     },

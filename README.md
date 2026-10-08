@@ -28,6 +28,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Close image zoom by clicking/tapping outside the visible photo; image gestures and viewer controls remain active
 - WhatsApp enquiry links
 - Cart additions, quantity changes and removals return the server-validated cart from the refresh write, avoiding an extra sequential reload before updating the UI.
+- Successful cart additions paint their confirmed cart feedback before running third-party analytics, keeping tracking work off the mobile feedback path.
 - When Turnstile is configured, bot verification is prepared while browsing. A prepared token is consumed once within four minutes; missing/expired tokens still require the verification dialog before anonymous signup.
 - Product views, Google feed landing pages, About and FAQ explicitly disclose the catalogue/order-request model, GST-inclusive prices, additional shipping and payment confirmation. These transparency disclosures do not provide a complete online checkout or guarantee Merchant Center eligibility.
 - "Collaborate with us" in the hamburger menu and footer links to a maker/brand invitation above the footer, with a prefilled collaboration WhatsApp enquiry using the existing contact number
