@@ -805,6 +805,7 @@ export default function ProductModal({
                 </div>
                 {isRedditShareOpen && <RedditShareOptions key={`${activeImage}-${shareDetails.title}`}
                   image={getProductImageUrl(activeImage, 1080)} title={shareDetails.title}
+                  description={product.description}
                   url={shareDetails.url} redditUrl={shareDetails.redditUrl} />}
                 <p className="mt-2 text-xs text-cocoa/60">
                   Instagram and Snapchat open your device share menu with the product photo

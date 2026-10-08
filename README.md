@@ -51,7 +51,10 @@ npm run build
 For Reddit image posts, open a product's Share menu and choose Reddit. The
 photo-post helper prepares the selected photo (converting WebP to JPEG for
 compatibility), offers native file sharing or
-a download, and lets you copy the title and product link separately. Reddit
+a download, and lets you copy the title, product description and product link
+separately. Expand **Product description** to select the text manually if clipboard
+access fails. Paste the description into the Reddit body, caption or a comment;
+the link-post option does not prefill it. Reddit
 may discard Web Share titles/captions, so paste the copied title into its title
 field and attach the downloaded photo if needed. The separate link-post option
 prefills a title but cannot guarantee a Reddit image preview. No post is

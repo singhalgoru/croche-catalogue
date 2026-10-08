@@ -5,6 +5,7 @@ import RedditShareOptions from './RedditShareOptions';
 const prepare = vi.hoisted(() => vi.fn());
 vi.mock('../utils/redditShareImage', () => ({ getRedditShareImage: prepare }));
 const props = { image: '/rose.webp', title: 'Red rose', url: 'https://luviacreations.com/p/rose/',
+  description: 'Handmade cotton rose.\nIncludes one flower.',
   redditUrl: 'https://www.reddit.com/submit?title=Red%20rose' };
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
@@ -23,6 +24,24 @@ it('waits for the photo, shares image plus title and provides separate title/lin
   await waitFor(() => expect(writeText).toHaveBeenCalledWith(props.title));
   fireEvent.click(screen.getByRole('button', { name: 'Copy product link' }));
   await waitFor(() => expect(writeText).toHaveBeenCalledWith(props.url));
+  fireEvent.click(screen.getByRole('button', { name: 'Copy description' }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith(props.description));
+  expect(screen.getByText('Description copied. Paste it into the Reddit body, caption or a comment.')).toBeTruthy();
+});
+
+it('keeps the description selectable and reports clipboard failure', async () => {
+  vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard denied')) } });
+  prepare.mockResolvedValue(new File(['photo'], 'rose.jpg', { type: 'image/jpeg' }));
+  render(<RedditShareOptions {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Copy description' }));
+  expect(await screen.findByText('Clipboard denied')).toBeTruthy();
+  expect(screen.getByText(/Handmade cotton rose/).textContent).toBe(props.description);
+});
+
+it('does not offer copying an empty description', () => {
+  prepare.mockResolvedValue(new File(['photo'], 'rose.jpg', { type: 'image/jpeg' }));
+  render(<RedditShareOptions {...props} description=" " />);
+  expect(screen.queryByRole('button', { name: 'Copy description' })).toBeNull();
 });
 
 it('surfaces failed image preparation and supports retry without silently sharing only a link', async () => {

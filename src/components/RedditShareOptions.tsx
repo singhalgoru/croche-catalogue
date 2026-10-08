@@ -4,11 +4,12 @@ import { getRedditShareImage } from '../utils/redditShareImage';
 interface Props {
   image: string;
   title: string;
+  description: string;
   url: string;
   redditUrl: string;
 }
 
-export default function RedditShareOptions({ image, title, url, redditUrl }: Props) {
+export default function RedditShareOptions({ image, title, description, url, redditUrl }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -62,11 +63,16 @@ export default function RedditShareOptions({ image, title, url, redditUrl }: Pro
       If photo sharing is unavailable, download the photo and attach it to an image post.
     </p>
     <p className="select-text break-words text-sm font-semibold text-cocoa">{title}</p>
+    {description.trim() && <details className="text-xs text-cocoa/70">
+      <summary className="cursor-pointer font-semibold">Product description</summary>
+      <p className="mt-2 select-text whitespace-pre-wrap break-words">{description}</p>
+    </details>}
     <p className="select-text break-all text-xs text-cocoa/70">{url}</p>
     {!file && !error && <p role="status" className="text-xs">Preparing product photo…</p>}
     {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     <div className="flex flex-wrap gap-2">
       <button type="button" onClick={() => void copy(title, 'Title copied. Paste it into the Reddit title field.')} className={buttonClass}>Copy title</button>
+      {description.trim() && <button type="button" onClick={() => void copy(description, 'Description copied. Paste it into the Reddit body, caption or a comment.')} className={buttonClass}>Copy description</button>}
       <button type="button" onClick={() => void copy(url, 'Product link copied. Paste it into the caption or a comment.')} className={buttonClass}>Copy product link</button>
       {file && typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] }) && <button type="button" onClick={sharePhoto} className={buttonClass}>Share photo to apps</button>}
       <button type="button" onClick={download} disabled={!file} className={buttonClass}>Download product photo</button>
