@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SellerSalesDashboard from './SellerSalesDashboard';
+import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
 import type { SellerSale, SellerSaleInput } from '../../services/sellerSales';
 import type { ManagedProduct } from '../../services/products';
 import { createSellerSale, fetchSellerSales } from '../../services/sellerSales';
@@ -109,21 +110,19 @@ describe('SellerSalesDashboard', () => {
       { ...sale, saleDate: '2025-03-31', unitPrice: 100, gstPercent: 0 },
       { ...sale, id: 'second', saleDate: '2025-04-01', unitPrice: 200, gstPercent: 0 },
     ]);
-    render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh dashboard' })).toHaveProperty('disabled', false));
-    fireEvent.click(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' }));
+    render(<SalesSnapshotWorkspace refreshKey={1} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh snapshots' })).toHaveProperty('disabled', false));
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     const yearCard = () => within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }));
     expect(yearCard().getByText('₹300')).toBeTruthy();
     expect(within(screen.getByRole('article', { name: 'Q1 · Jan–Mar 2025' })).getByText('₹100')).toBeTruthy();
     expect(within(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2025' })).getByText('₹200')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-01' } });
+    expect(screen.queryByLabelText('Sales month')).toBeNull();
     expect(yearCard().getByText('₹300')).toBeTruthy();
     vi.mocked(fetchBusinessExpenses).mockResolvedValue([{
       id: 'expense', description: 'Ads', expenseDate: '2025-04-01', category: 'Advertising', amount: 10, notes: '',
     }]);
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh dashboard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh snapshots' }));
     await waitFor(() => expect(yearCard().getByText('₹10')).toBeTruthy());
   });
 

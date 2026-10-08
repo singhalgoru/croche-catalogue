@@ -1,15 +1,18 @@
 import { useId, useState, type ReactNode } from 'react';
 
-const sections = ['Products', 'Orders', 'Sales', 'Settings'] as const;
+const sections = ['Products', 'Orders', 'Sales', 'Snapshots', 'Settings'] as const;
 type Section = typeof sections[number];
 
-export default function AdminWorkspace({ children }: { children: Record<Section, ReactNode> }) {
+export default function AdminWorkspace({ children, onSectionChange }: {
+  children: Record<Section, ReactNode>;
+  onSectionChange?: (section: Section) => void;
+}) {
   const [active, setActive] = useState<Section>('Products');
   const id = useId();
   return <>
-    <nav aria-label="Admin workspace" className="mb-4 grid grid-cols-4 gap-2 rounded-2xl bg-white p-2 shadow-sm">
+    <nav aria-label="Admin workspace" className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-white p-2 shadow-sm sm:grid-cols-5">
       {sections.map(section => <button key={section} type="button" aria-pressed={active === section}
-        aria-controls={`${id}-${section}`} onClick={() => setActive(section)}
+        aria-controls={`${id}-${section}`} onClick={() => { setActive(section); onSectionChange?.(section); }}
         className={`min-h-11 rounded-xl px-2 text-sm font-semibold ${active === section ? 'bg-cocoa text-cream' : 'text-cocoa hover:bg-mustard/20'}`}>
         {section}
       </button>)}

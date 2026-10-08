@@ -9,10 +9,11 @@ interface Props {
   sales: SellerSale[];
   expenses: BusinessExpense[];
   available: boolean;
+  initiallyExpanded?: boolean;
 }
 
-export default function SalesPeriodSnapshot({ sales, expenses, available }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function SalesPeriodSnapshot({ sales, expenses, available, initiallyExpanded = false }: Props) {
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const [year, setYear] = useState(() => String(new Date().getFullYear()));
   const panelId = useId();
   const years = useMemo(() => [...new Set([
@@ -52,7 +53,7 @@ export default function SalesPeriodSnapshot({ sales, expenses, available }: Prop
         </label>
         {!available ? (
           <p role="status" className="mt-3 text-sm text-cocoa/65">
-            Snapshot unavailable or loading. Use Refresh dashboard to retry if loading failed.
+            Snapshot unavailable or loading. Refresh to retry if loading failed.
           </p>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">

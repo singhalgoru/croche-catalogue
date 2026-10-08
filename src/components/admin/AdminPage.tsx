@@ -12,6 +12,7 @@ import ProductUploadForm from './ProductUploadForm';
 import SellerSalesDashboard from './SellerSalesDashboard';
 import TickerManager from './TickerManager';
 import AdminWorkspace from './AdminWorkspace';
+import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function AdminPage({ onProductPublished }: Props) {
+  const [snapshotRefreshKey, setSnapshotRefreshKey] = useState(0);
   // The customer shop manifest is linked by default (see vite.config.ts) so
   // it can be installed as its own app. While the admin console is open,
   // swap that link to admin-manifest.webmanifest so installing from #admin
@@ -216,13 +218,16 @@ export default function AdminPage({ onProductPublished }: Props) {
           </p>
         )}
 
-        <AdminWorkspace>{{
+        <AdminWorkspace onSectionChange={section => {
+          if (section === 'Snapshots') setSnapshotRefreshKey(current => current + 1);
+        }}>{{
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
             <ProductManager categories={categories} refreshKey={productRefreshKey} onChanged={handleProductChanged} />
           </>,
           Orders: <CartManager />,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey} />,
+          Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Settings: <>
             <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
             <TickerManager />

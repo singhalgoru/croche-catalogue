@@ -472,7 +472,7 @@ dashboard** to retry, rather than treating unavailable expenses as zero.
 
 ### Quarterly and yearly snapshots
 
-In **Admin → Sales → Sales dashboard**, expand **Quarterly & yearly snapshot**.
+Open **Admin → Snapshots** for **Quarterly & yearly snapshot**, expanded by default.
 Select a calendar year to see its annual total and Q1 (Jan–Mar), Q2 (Apr–Jun),
 Q3 (Jul–Sep), and Q4 (Oct–Dec) cards. This is not an April–March financial-year
 report. Years with sales or expenses, plus the current year, are selectable.
@@ -484,7 +484,9 @@ Dates determine the period, not record creation timestamps. Margins are calculat
 from aggregate revenue before GST, not averaged from individual sale margins.
 Expense-only periods show losses and no margin. Current/future quarters show
 only recorded data, not forecasts. Snapshots update after sales/expense changes;
-Refresh dashboard loads changes made elsewhere. Sales and expenses are paginated
+The snapshot reloads when opening its tab; **Refresh snapshots** loads changes
+made elsewhere while viewing it. Monthly sales and expense entry remain in Sales.
+Sales and expenses are paginated
 to avoid truncating annual totals. Failed loads do not show a zero-valued snapshot.
 
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
