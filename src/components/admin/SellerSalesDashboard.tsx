@@ -680,7 +680,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
         <button
           type="button"
           onClick={() => void loadDashboard()}
-        disabled={isLoading || isImporting}
+          disabled={isLoading || isImporting || busy || expenseBusy}
           className="rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
         >
           {isLoading ? 'Loading…' : 'Refresh'}

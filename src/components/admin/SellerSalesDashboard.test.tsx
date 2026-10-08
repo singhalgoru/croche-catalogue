@@ -115,6 +115,8 @@ describe('SellerSalesDashboard', () => {
     fireEvent.change(screen.getByLabelText('Expense description'), { target: { value: 'Ads' } });
     fireEvent.change(screen.getByLabelText('Expense amount'), { target: { value: '20' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save expense' }));
+    expect(screen.getByRole('button', { name: 'Refresh dashboard' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /^Refresh$/ })).toHaveProperty('disabled', true);
     expect(await screen.findByText('Business expense saved.')).toBeTruthy();
     expect(saveBusinessExpense).toHaveBeenCalledWith(expect.objectContaining({ amount: 20, description: 'Ads' }), undefined);
     expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹87');
