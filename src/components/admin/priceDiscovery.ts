@@ -76,13 +76,16 @@ const calculateCostBasis = (
   ) return null;
 
   const hours = inputs.timeUnit === 'minutes' ? timeSpent / 60 : timeSpent;
-  const labourCost = hours * defaults.labourRate;
+  const labourCost = Math.round(hours * defaults.labourRate);
+  const roundedMaterialCost = Math.round(materialCost);
+  const roundedShippingCost = Math.round(shippingCost);
+  const roundedPackagingCost = Math.round(packagingCost);
   return {
     labourCost,
-    materialCost,
-    shippingCost,
-    packagingCost,
-    totalCost: labourCost + materialCost + shippingCost + packagingCost,
+    materialCost: roundedMaterialCost,
+    shippingCost: roundedShippingCost,
+    packagingCost: roundedPackagingCost,
+    totalCost: labourCost + roundedMaterialCost + roundedShippingCost + roundedPackagingCost,
     gstPercent,
   };
 };
@@ -102,7 +105,8 @@ export const estimateProductPrice = (
   if (!Number.isFinite(denominator) || denominator <= 0) return null;
 
   const saleValueExcludingGst = costBasis.totalCost / denominator;
-  const customerTotal = saleValueExcludingGst * (1 + gstRate);
+  // Round up so the whole-rupee price never falls below the target margin.
+  const customerTotal = Math.ceil(saleValueExcludingGst * (1 + gstRate) - 1e-9);
   const gatewayFee = customerTotal * gatewayFeeRate;
   const gstAmount = customerTotal * costBasis.gstPercent / (100 + costBasis.gstPercent);
 

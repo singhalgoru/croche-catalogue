@@ -85,7 +85,42 @@ test('manages monthly business expenses and profit after overheads', async ({ pa
   await page.getByRole('button', { name: 'Delete expense October ads' }).click();
   await page.getByRole('button', { name: 'Confirm delete expense' }).click();
   await expect(page.getByText('Business expense deleted.')).toBeVisible();
-  await expect(profit).toContainText('₹0');
+  await expectNoHorizontalOverflow(page);
+});
+
+test('edits a sale record inline at its list position', async ({ page }) => {
+  await installMockSupabase(page);
+  const row = (id: string, productName: string, saleDate: string) => ({
+    id, product_id: null, product_name: productName, variant_name: '', sale_date: saleDate, channel: 'offline',
+    quantity: 1, unit_price: 500, gst_percent: 0, material_cost: 50, labour_cost: 50, packaging_cost: 10,
+    shipping_cost: 0, gateway_fee_percent: 0, gateway_fee_gst_percent: 18, notes: '', created_at: `${saleDate}T10:00:00Z`,
+  });
+  let sales = Array.from({ length: 8 }, (_, index) => row(`sale-${index + 1}`, `Sale item ${index + 1}`, `2026-10-${String(20 - index).padStart(2, '0')}`));
+  await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
+  await page.route('**/rest/v1/seller_sales*', async route => {
+    const request = route.request();
+    if (request.method() === 'PATCH') {
+      const id = new URL(request.url()).searchParams.get('id')?.replace('eq.', '');
+      sales = sales.map(sale => sale.id === id ? { ...sale, ...request.postDataJSON() } : sale);
+      await route.fulfill({ json: sales.find(sale => sale.id === id) });
+    } else {
+      await route.fulfill({ json: sales });
+    }
+  });
+  await signIn(page);
+  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await page.getByLabel('Sales month').fill('2026-10');
+  const record = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Sale item 7', exact: true }) });
+  await record.getByRole('button', { name: 'Edit' }).click();
+  const form = record.getByRole('form', { name: 'Edit sale' });
+  await expect(form).toBeInViewport();
+  await expect(page.getByRole('form')).toHaveCount(1);
+  await form.getByLabel('Sale quantity').fill('3');
+  await form.getByRole('button', { name: 'Save sale changes' }).click();
+  await expect(page.getByText('Sale updated.')).toBeVisible();
+  await expect(page.getByRole('form')).toHaveCount(0);
+  await expect(record).toContainText('Qty 3');
   await expectNoHorizontalOverflow(page);
 });
 

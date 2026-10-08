@@ -30,7 +30,7 @@ interface Props {
 }
 
 const formatRupees = (amount: number) =>
-  `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.ceil(amount))}`;
+  `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(amount))}`;
 
 export default function PriceDiscoveryPanel({
   product,

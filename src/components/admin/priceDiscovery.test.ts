@@ -48,10 +48,11 @@ describe('price discovery calculations', () => {
     expect(estimate?.labourCost).toBe(200);
     expect(estimate?.totalCost).toBe(500);
     expect(estimate?.expectedNet).toBeGreaterThan(estimate!.totalCost);
+    expect(Number.isInteger(estimate!.customerTotal)).toBe(true);
     expect(
       (estimate!.expectedNet - estimate!.totalCost)
       / (estimate!.customerTotal - estimate!.gstAmount) * 100,
-    ).toBeCloseTo(45);
+    ).toBeGreaterThanOrEqual(45);
     expect(estimate?.customerTotal).toBe(estimate?.suggestedCustomerPrice);
     expect(estimate?.gstAmount).toBeCloseTo(estimate!.customerTotal * 5 / 105);
   });
@@ -76,6 +77,17 @@ describe('price discovery calculations', () => {
     expect(minutesEstimate?.labourCost).toBe(200);
     expect(minutesEstimate?.totalCost).toBe(hoursEstimate?.totalCost);
     expect(minutesEstimate?.suggestedCustomerPrice).toBe(hoursEstimate?.suggestedCustomerPrice);
+  });
+
+  it('rounds labour and other costs to whole rupees', () => {
+    const estimate = estimateProductPrice({
+      timeSpent: '25', timeUnit: 'minutes', materialCost: '20.6',
+      shippingCost: '99.5', packagingCost: '9.4', gstPercent: '5', targetMarginPercent: '45',
+    }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)!;
+    expect(estimate.labourCost).toBe(42);
+    expect([estimate.materialCost, estimate.shippingCost, estimate.packagingCost]).toEqual([21, 100, 9]);
+    expect(estimate.totalCost).toBe(172);
+    expect(Number.isInteger(estimate.suggestedCustomerPrice)).toBe(true);
   });
 
   it('requires every cost and a verified GST rate', () => {

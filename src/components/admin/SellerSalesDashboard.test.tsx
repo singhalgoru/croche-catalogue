@@ -4,7 +4,7 @@ import SellerSalesDashboard from './SellerSalesDashboard';
 import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
 import type { SellerSale, SellerSaleInput } from '../../services/sellerSales';
 import type { ManagedProduct } from '../../services/products';
-import { createSellerSale, fetchSellerSales } from '../../services/sellerSales';
+import { createSellerSale, fetchSellerSales, updateSellerSale } from '../../services/sellerSales';
 import { fetchManagedProducts } from '../../services/products';
 import { fetchBusinessExpenses, saveBusinessExpense, deleteBusinessExpense } from '../../services/businessExpenses';
 
@@ -306,5 +306,54 @@ describe('SellerSalesDashboard', () => {
       gatewayFeeGstPercent: 18,
     })));
     expect(await screen.findByText('Sale recorded.')).toBeTruthy();
+  });
+
+  it('prefills labour and other sale amounts as whole rupees', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{
+      ...product,
+      price: 249.6,
+      variants: [{ ...product.variants[0], price: 249.6 }],
+      priceDiscoveryInputs: {
+        ...product.priceDiscoveryInputs!, timeSpent: '25', materialCost: '20.6', packagingCost: '9.4', shippingCost: '99.5',
+      },
+    }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '42');
+    expect(screen.getByLabelText('Materials per piece (₹)')).toHaveProperty('value', '21');
+    expect(screen.getByLabelText('Packaging per piece (₹)')).toHaveProperty('value', '9');
+    expect(screen.getByLabelText('Shipping cost for this sale (₹)')).toHaveProperty('value', '100');
+    expect(Number.isInteger(Number((screen.getByLabelText('Unit selling price') as HTMLInputElement).value))).toBe(true);
+  });
+
+  it('opens sale edits inside the selected record and saves them there', async () => {
+    const secondSale = { ...sale, id: 'sale-2', productName: 'Crochet bag', variantName: '', saleDate: '2026-10-05' };
+    vi.mocked(fetchSellerSales).mockResolvedValue([sale, secondSale]);
+    vi.mocked(updateSellerSale).mockImplementation(async (id: string, input: SellerSaleInput) => ({
+      ...secondSale, ...input, id,
+    }));
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-10' } });
+    const secondRecord = await screen.findByTestId('sale-record-sale-2');
+    fireEvent.click(within(secondRecord).getByRole('button', { name: 'Edit' }));
+
+    const form = within(secondRecord).getByRole('form', { name: 'Edit sale' });
+    expect(within(screen.getByTestId('sale-record-sale-1')).queryByRole('form')).toBeNull();
+    expect(screen.getAllByRole('form')).toHaveLength(1);
+    expect(within(form).getByLabelText('Sale product name')).toHaveProperty('value', 'Crochet bag');
+    fireEvent.change(within(form).getByLabelText('Sale quantity'), { target: { value: '2' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Save sale changes' }));
+
+    await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith('sale-2', expect.objectContaining({ quantity: 2 })));
+    await waitFor(() => expect(screen.queryByRole('form')).toBeNull());
+    expect(within(screen.getByTestId('sale-record-sale-2')).getByText(/Qty 2/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    expect(screen.getByRole('form', { name: 'Record a sale' })).toBeTruthy();
+    expect(within(screen.getByTestId('sale-record-sale-2')).queryByRole('form')).toBeNull();
   });
 });

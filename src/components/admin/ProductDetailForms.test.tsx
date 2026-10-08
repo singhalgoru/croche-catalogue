@@ -334,9 +334,9 @@ describe('Product detail admin integration', () => {
     expect(updateProduct).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Price (₹)'), { target: { value: '1200' } });
     expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
-      .toContain('₹58 GST is included');
+      .toContain('₹57 GST is included');
     expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
-      .toContain('gateway fee: ₹29');
+      .toContain('gateway fee: ₹28');
     expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
       .toContain('61.6%');
     vi.mocked(updateProduct).mockResolvedValueOnce({
@@ -351,7 +351,7 @@ describe('Product detail admin integration', () => {
     expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].gstPercent).toBe(5);
     expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('61.6%');
     expect(screen.getByText(/Profit margin: 61.6%/).className).toContain('text-green-800');
-    expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('GST 5% (₹58 included)');
+    expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('GST 5% (₹57 included)');
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
       materials: 'Cotton yarn', includedItems: '',

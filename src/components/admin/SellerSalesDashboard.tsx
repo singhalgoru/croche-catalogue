@@ -129,6 +129,12 @@ const channelLabel = (channel: SaleChannel) => ({
 const formatMargin = (margin: number | null) =>
   margin === null ? '—' : `${margin.toFixed(1)}%`;
 
+const toWholeRupees = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined || value === '') return '';
+  const amount = Number(value);
+  return Number.isFinite(amount) ? String(Math.round(amount)) : '';
+};
+
 export default function SellerSalesDashboard({ refreshKey }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sales, setSales] = useState<SellerSale[]>([]);
@@ -146,6 +152,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const reportFileInput = useRef<HTMLInputElement>(null);
+  const saleFormRef = useRef<HTMLFormElement>(null);
 
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
@@ -176,6 +183,15 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
     () => sales.filter((sale) => sale.saleDate.startsWith(`${month}-`)),
     [month, sales],
   );
+  const editingSaleVisible = !isLoading && editingId !== null && monthSales.some((sale) => sale.id === editingId);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const form = saleFormRef.current;
+    if (!form) return;
+    form.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+    form.querySelector<HTMLElement>('select, input')?.focus({ preventScroll: true });
+  }, [editingId]);
   const summary = useMemo(() => summarizeSellerSales(monthSales), [monthSales]);
   const monthExpenses = useMemo(
     () => expenses.filter(expense => expense.expenseDate.startsWith(`${month}-`)),
@@ -223,16 +239,16 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       productId: selectedProduct.id,
       productName: selectedProduct.name,
       variantName: selectedVariant?.name ?? '',
-      unitPrice: selectedVariant
-        ? String(getPublicVariantPrice(selectedProduct, selectedVariant) ?? '')
-        : String(selectedProduct.price ?? ''),
+      unitPrice: toWholeRupees(selectedVariant
+        ? getPublicVariantPrice(selectedProduct, selectedVariant)
+        : selectedProduct.price),
       gstPercent: String(
         selectedProduct.gstPercent ?? priceInputs?.gstPercent ?? 5,
       ),
-      materialCost: priceInputs?.materialCost ?? '',
-      labourCost: priceInputs ? String(labourCost) : '',
-      packagingCost: priceInputs?.packagingCost ?? '',
-      shippingCost: priceInputs?.shippingCost ?? '',
+      materialCost: toWholeRupees(priceInputs?.materialCost),
+      labourCost: priceInputs ? toWholeRupees(labourCost) : '',
+      packagingCost: toWholeRupees(priceInputs?.packagingCost),
+      shippingCost: toWholeRupees(priceInputs?.shippingCost),
     });
   };
 
@@ -241,7 +257,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
     if (!variant) return;
     updateDraft({
       variantName: product.variants.length > 1 ? variant.name : '',
-      unitPrice: String(getPublicVariantPrice(product, variant) ?? ''),
+      unitPrice: toWholeRupees(getPublicVariantPrice(product, variant)),
     });
   };
 
@@ -277,6 +293,10 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       await deleteSellerSale(sale.id);
       setSales((current) => current.filter((item) => item.id !== sale.id));
       setDeleteId(null);
+      if (editingId === sale.id) {
+        setDraft(null);
+        setEditingId(null);
+      }
       setMessage('Sale deleted.');
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete this sale.');
@@ -341,6 +361,186 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       if (reportFileInput.current) reportFileInput.current.value = '';
     }
   };
+
+  const renderSaleForm = (draft: SaleDraft) => (
+      <form
+        ref={saleFormRef}
+        aria-label={editingId ? 'Edit sale' : 'Record a sale'}
+        onSubmit={(event) => void saveSale(event)}
+        className={`${editingId ? 'mt-4' : 'mt-5'} scroll-mt-24 rounded-2xl border border-mustard/40 bg-cream/35 p-4`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-heading text-xl font-bold text-cocoa">
+            {editingId ? 'Edit sale' : 'Record a sale'}
+          </h3>
+          <button
+            type="button"
+            onClick={() => { setDraft(null); setEditingId(null); }}
+            className="rounded-full border border-cocoa/20 px-3 py-1 text-sm font-semibold text-cocoa"
+          >
+            Cancel
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-cocoa/70">
+          <RequiredMark /> Required fields. Enter 0 for costs or fees that do not apply.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="text-sm font-semibold text-cocoa">
+            Product
+            <select
+              aria-label="Sale product"
+              value={draft.productId}
+              onChange={(event) => selectProduct(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            >
+              <option value="">Custom / unlisted item</option>
+              {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-cocoa">
+            Product name <RequiredMark />
+            <input
+              aria-label="Sale product name"
+              value={draft.productName}
+              onChange={(event) => updateDraft({ productName: event.target.value })}
+              maxLength={150}
+              required
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            />
+          </label>
+          {draft.productId && (products.find((product) => product.id === draft.productId)?.variants.length ?? 0) > 1 && (
+            <label className="text-sm font-semibold text-cocoa">
+              Variant
+              <select
+                aria-label="Sale variant"
+                value={products.find((product) => product.id === draft.productId)?.variants.find((variant) => variant.name === draft.variantName)?.id ?? ''}
+                onChange={(event) => {
+                  const product = products.find((item) => item.id === draft.productId);
+                  if (product) selectVariant(product, event.target.value);
+                }}
+                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+              >
+                {products.find((product) => product.id === draft.productId)?.variants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>{variant.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="text-sm font-semibold text-cocoa">
+            Sale date <RequiredMark />
+            <input
+              aria-label="Sale date"
+              type="date"
+              value={draft.saleDate}
+              onChange={(event) => updateDraft({ saleDate: event.target.value })}
+              required
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-semibold text-cocoa">
+            Sales channel <RequiredMark />
+            <select
+              aria-label="Sales channel"
+              value={draft.channel}
+              onChange={(event) => {
+                const channel = event.target.value as SaleChannel;
+                updateDraft({
+                  channel,
+                  gatewayFeePercent: channel === 'online' ? '2' : '0',
+                });
+              }}
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            >
+              {SALE_CHANNELS.map((channel) => <option key={channel} value={channel}>{channelLabel(channel)}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-cocoa">
+            Quantity <RequiredMark />
+            <input
+              aria-label="Sale quantity"
+              type="number"
+              min={1}
+              step={1}
+              value={draft.quantity}
+              onChange={(event) => updateDraft({ quantity: event.target.value })}
+              required
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-semibold text-cocoa">
+            Unit selling price (₹, incl. GST) <RequiredMark />
+            <input
+              aria-label="Unit selling price"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={draft.unitPrice}
+              onChange={(event) => updateDraft({ unitPrice: event.target.value })}
+              required
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-semibold text-cocoa">
+            GST (%) <RequiredMark />
+            <input
+              aria-label="Sale GST rate"
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={draft.gstPercent}
+              onChange={(event) => updateDraft({ gstPercent: event.target.value })}
+              required
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            />
+          </label>
+          {([
+            ['materialCost', 'Materials per piece (₹)'],
+            ['labourCost', 'Labour per piece (₹)'],
+            ['packagingCost', 'Packaging per piece (₹)'],
+            ['shippingCost', 'Shipping cost for this sale (₹)'],
+            ['gatewayFeePercent', 'Payment processing fee (%)'],
+            ['gatewayFeeGstPercent', 'GST on payment fee (%)'],
+          ] as const).map(([field, label]) => (
+            <label key={field} className="text-sm font-semibold text-cocoa">
+              {label} <RequiredMark />
+              <input
+                aria-label={label}
+                type="number"
+                min={0}
+                max={1000000}
+                step="0.01"
+                value={draft[field]}
+                onChange={(event) => updateDraft({ [field]: event.target.value })}
+                required
+                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+              />
+            </label>
+          ))}
+          <label className="text-sm font-semibold text-cocoa sm:col-span-2 lg:col-span-3">
+            Notes (optional)
+            <textarea
+              aria-label="Sale notes"
+              value={draft.notes}
+              onChange={(event) => updateDraft({ notes: event.target.value })}
+              maxLength={1000}
+              rows={2}
+              className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
+            />
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-cocoa/65">
+          Product price and saved GST/cost values are prefilled when available and can be changed for this sale. Material, labour and packaging are per piece; shipping is one cost for this sale. Labour defaults to the price calculator&apos;s ₹100/hour rate. Online payment fees default to 2%; all figures are editable.
+        </p>
+        <button
+          type="submit"
+          disabled={busy}
+          className="mt-4 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-60"
+        >
+          {busy ? 'Saving…' : editingId ? 'Save sale changes' : 'Save sale'}
+        </button>
+      </form>
+  );
 
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-4 shadow-sm sm:p-5">
@@ -498,180 +698,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
         ))}
       </div>
 
-      {draft && (
-        <form onSubmit={(event) => void saveSale(event)} className="mt-5 rounded-2xl border border-mustard/40 bg-cream/35 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-heading text-xl font-bold text-cocoa">
-              {editingId ? 'Edit sale' : 'Record a sale'}
-            </h3>
-            <button
-              type="button"
-              onClick={() => { setDraft(null); setEditingId(null); }}
-              className="rounded-full border border-cocoa/20 px-3 py-1 text-sm font-semibold text-cocoa"
-            >
-              Cancel
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-cocoa/70">
-            <RequiredMark /> Required fields. Enter 0 for costs or fees that do not apply.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="text-sm font-semibold text-cocoa">
-              Product
-              <select
-                aria-label="Sale product"
-                value={draft.productId}
-                onChange={(event) => selectProduct(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              >
-                <option value="">Custom / unlisted item</option>
-                {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-cocoa">
-              Product name <RequiredMark />
-              <input
-                aria-label="Sale product name"
-                value={draft.productName}
-                onChange={(event) => updateDraft({ productName: event.target.value })}
-                maxLength={150}
-                required
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              />
-            </label>
-            {draft.productId && (products.find((product) => product.id === draft.productId)?.variants.length ?? 0) > 1 && (
-              <label className="text-sm font-semibold text-cocoa">
-                Variant
-                <select
-                  aria-label="Sale variant"
-                  value={products.find((product) => product.id === draft.productId)?.variants.find((variant) => variant.name === draft.variantName)?.id ?? ''}
-                  onChange={(event) => {
-                    const product = products.find((item) => item.id === draft.productId);
-                    if (product) selectVariant(product, event.target.value);
-                  }}
-                  className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-                >
-                  {products.find((product) => product.id === draft.productId)?.variants.map((variant) => (
-                    <option key={variant.id} value={variant.id}>{variant.name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="text-sm font-semibold text-cocoa">
-              Sale date <RequiredMark />
-              <input
-                aria-label="Sale date"
-                type="date"
-                value={draft.saleDate}
-                onChange={(event) => updateDraft({ saleDate: event.target.value })}
-                required
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              />
-            </label>
-            <label className="text-sm font-semibold text-cocoa">
-              Sales channel <RequiredMark />
-              <select
-                aria-label="Sales channel"
-                value={draft.channel}
-                onChange={(event) => {
-                  const channel = event.target.value as SaleChannel;
-                  updateDraft({
-                    channel,
-                    gatewayFeePercent: channel === 'online' ? '2' : '0',
-                  });
-                }}
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              >
-                {SALE_CHANNELS.map((channel) => <option key={channel} value={channel}>{channelLabel(channel)}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-cocoa">
-              Quantity <RequiredMark />
-              <input
-                aria-label="Sale quantity"
-                type="number"
-                min={1}
-                step={1}
-                value={draft.quantity}
-                onChange={(event) => updateDraft({ quantity: event.target.value })}
-                required
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              />
-            </label>
-            <label className="text-sm font-semibold text-cocoa">
-              Unit selling price (₹, incl. GST) <RequiredMark />
-              <input
-                aria-label="Unit selling price"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={draft.unitPrice}
-                onChange={(event) => updateDraft({ unitPrice: event.target.value })}
-                required
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              />
-            </label>
-            <label className="text-sm font-semibold text-cocoa">
-              GST (%) <RequiredMark />
-              <input
-                aria-label="Sale GST rate"
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                value={draft.gstPercent}
-                onChange={(event) => updateDraft({ gstPercent: event.target.value })}
-                required
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              />
-            </label>
-            {([
-              ['materialCost', 'Materials per piece (₹)'],
-              ['labourCost', 'Labour per piece (₹)'],
-              ['packagingCost', 'Packaging per piece (₹)'],
-              ['shippingCost', 'Shipping cost for this sale (₹)'],
-              ['gatewayFeePercent', 'Payment processing fee (%)'],
-              ['gatewayFeeGstPercent', 'GST on payment fee (%)'],
-            ] as const).map(([field, label]) => (
-              <label key={field} className="text-sm font-semibold text-cocoa">
-                {label} <RequiredMark />
-                <input
-                  aria-label={label}
-                  type="number"
-                  min={0}
-                  max={1000000}
-                  step="0.01"
-                  value={draft[field]}
-                  onChange={(event) => updateDraft({ [field]: event.target.value })}
-                  required
-                  className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-                />
-              </label>
-            ))}
-            <label className="text-sm font-semibold text-cocoa sm:col-span-2 lg:col-span-3">
-              Notes (optional)
-              <textarea
-                aria-label="Sale notes"
-                value={draft.notes}
-                onChange={(event) => updateDraft({ notes: event.target.value })}
-                maxLength={1000}
-                rows={2}
-                className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
-              />
-            </label>
-          </div>
-          <p className="mt-3 text-xs text-cocoa/65">
-            Product price and saved GST/cost values are prefilled when available and can be changed for this sale. Material, labour and packaging are per piece; shipping is one cost for this sale. Labour defaults to the price calculator&apos;s ₹100/hour rate. Online payment fees default to 2%; all figures are editable.
-          </p>
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-4 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-60"
-          >
-            {busy ? 'Saving…' : editingId ? 'Save sale changes' : 'Save sale'}
-          </button>
-        </form>
-      )}
+      {draft && !editingSaleVisible && renderSaleForm(draft)}
 
       <div className="mt-5 flex items-center justify-between gap-3">
         <h3 className="font-heading text-xl font-bold text-cocoa">
@@ -697,10 +724,11 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           {monthSales.map((sale) => {
             const financials = calculateSaleFinancials(sale);
             const deleting = deleteId === sale.id;
+            const editing = editingSaleVisible && editingId === sale.id;
             return (
-              <article key={sale.id} className="rounded-xl border border-mustard/25 bg-white p-3 sm:p-4">
+              <article key={sale.id} data-testid={`sale-record-${sale.id}`} className="rounded-xl border border-mustard/25 bg-white p-3 sm:p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="font-semibold text-cocoa">
                       {sale.productName}{sale.variantName ? ` · ${sale.variantName}` : ''}
                     </h4>
@@ -713,14 +741,21 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
                     <button
                       type="button"
                       onClick={() => {
+                        if (editing) {
+                          setDraft(null);
+                          setEditingId(null);
+                          return;
+                        }
                         setDraft(saleToDraft(sale));
                         setEditingId(sale.id);
                         setDeleteId(null);
                         setError(null);
                       }}
-                      className="rounded-full border border-cocoa/25 px-3 py-1.5 text-xs font-semibold text-cocoa"
+                      disabled={busy}
+                      aria-expanded={editing}
+                      className="rounded-full border border-cocoa/25 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50"
                     >
-                      Edit
+                      {editing ? 'Close edit' : 'Edit'}
                     </button>
                     <button
                       type="button"
@@ -750,6 +785,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
                     </button>
                   </div>
                 )}
+                {editing && draft && renderSaleForm(draft)}
               </article>
             );
           })}
