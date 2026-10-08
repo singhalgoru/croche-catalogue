@@ -340,7 +340,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         <section aria-label="Products needing attention" className="mx-3 mb-4 rounded-xl border border-mustard/40 bg-cream/40 p-3 sm:mx-5">
           <h3 className="font-heading text-lg font-bold text-cocoa">Needs attention</h3>
           <p className="mt-1 text-xs text-cocoa/65">
-            Counts are products, including hidden products. Low stock: 1–{LOW_STOCK_QUANTITY} pieces per variant.
+            Counts are products, including hidden products. Low stock: fewer than {LOW_STOCK_QUANTITY} pieces per variant.
             {' '}Pricing checks use saved cost inputs; save changes to update them.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">

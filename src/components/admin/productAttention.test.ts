@@ -39,12 +39,27 @@ describe('product attention checks', () => {
   it('counts low and unavailable variants separately without double counting', () => {
     const result = getProductAttention({
       ...product,
-      variants: [variant(1), variant(3), variant(4), variant(0), variant(5, false)],
+      variants: [variant(1), variant(2), variant(3), variant(4), variant(0), variant(5, false)],
     }, DEFAULT_PRICE_DISCOVERY_DEFAULTS);
     expect(result.stock).toBe(true);
     expect(result.lowStockCount).toBe(2);
     expect(result.outOfStockCount).toBe(2);
     expect(getProductAttention({ ...product, variants: [variant(4)] }, DEFAULT_PRICE_DISCOVERY_DEFAULTS).stock).toBe(false);
     expect(check({ ...product, inStock: false }).stock).toBe(true);
+  });
+
+  it.each([
+    [0, true, 0, 1],
+    [1, true, 1, 0],
+    [2, true, 1, 0],
+    [3, false, 0, 0],
+    [4, false, 0, 0],
+  ])('flags quantity %s only when below three', (quantity, flagged, lowStockCount, outOfStockCount) => {
+    const result = getProductAttention({
+      ...product, variants: [variant(quantity)],
+    }, DEFAULT_PRICE_DISCOVERY_DEFAULTS);
+    expect(result.stock).toBe(flagged);
+    expect(result.lowStockCount).toBe(lowStockCount);
+    expect(result.outOfStockCount).toBe(outOfStockCount);
   });
 });

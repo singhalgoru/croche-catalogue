@@ -21,7 +21,7 @@ export function getProductAttention(
   const outOfStock = product.variants.filter(variant =>
     !variant.inStock || variant.availableQuantity <= 0);
   const lowStock = product.variants.filter(variant =>
-    variant.inStock && variant.availableQuantity > 0 && variant.availableQuantity <= LOW_STOCK_QUANTITY);
+    variant.inStock && variant.availableQuantity > 0 && variant.availableQuantity < LOW_STOCK_QUANTITY);
   return {
     margin: product.profitMarginPercent !== null
       && product.profitMarginPercent !== undefined

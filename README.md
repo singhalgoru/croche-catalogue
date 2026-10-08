@@ -440,7 +440,7 @@ than just the target margin.
 The Products workspace includes a **Needs attention** summary, visible even when
 Manage products is collapsed. Its clickable counts filter products with saved
 margins below 35%, missing/invalid saved pricing inputs, or low/out-of-stock
-variants (low stock means 1–3 available pieces). A product marked out of stock
+variants (low stock means fewer than 3 available pieces: 1–2 pieces; zero is out of stock). A product marked out of stock
 also appears in the stock filter. Counts include hidden products and count each
 product once per group; a product may appear in more than one group. Searches
 combine with the selected filter. **Show all products** clears the attention
