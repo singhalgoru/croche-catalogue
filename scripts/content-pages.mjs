@@ -101,6 +101,10 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     <p>Order enquiries: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a><br>General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p>
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
     <h2>Ordering across India</h2><p>${escapeHtml(storeContent.about[3])}</p>
+    <h2>${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
+    <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
+    <p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>
+    <p>${escapeHtml(storeContent.orderingDisclosure.payment)}</p>
     <p>Read the <a href="/faq/">ordering FAQ</a> and <a href="/return-policy/">return and refund policy</a>.</p></section>`,
     baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription)));
   const faqTitle = 'Ordering, delivery & care FAQ';

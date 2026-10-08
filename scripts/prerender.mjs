@@ -20,6 +20,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
+import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -376,6 +377,8 @@ const renderShell = (products) => {
     '<li>Send an order request: review your items and quantities, then send them to us using the cart\'s WhatsApp button. Adding items to your cart or sending a message does not confirm an order.</li>',
     '<li>Confirm details before paying: we\'ll confirm availability, the total including shipping, and the estimated dispatch time. Your order is confirmed only after we confirm it with you.</li></ol>',
     '<p>We ship across India. Shipping charges and delivery timing depend on your location and order. Please agree on the total and dispatch estimate with us before paying; we\'ll share payment instructions when we confirm your order.</p>',
+    `<p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>`,
+    `<p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>`,
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
     '</section>',
     '</main>',
@@ -504,6 +507,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
       <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
       <img class="hero" src="${escapeHtml(shareImage)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />
       <p class="price">${escapeHtml(priceLine)}</p>
+      ${product.price !== null ? '<p>Includes GST · shipping additional</p>' : ''}
       <p class="stock">${stockLabel(product)}. Message us to confirm delivery timing.</p>
       <p>${escapeHtml(product.description)}</p>
       ${details}
@@ -518,6 +522,13 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         <a class="cta" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Order on WhatsApp</a>
         <a class="cta alt" href="/#product=${encodeURIComponent(product.catalogueReference ?? toProductSlug(product))}">View in the catalogue</a>
       </p>
+      <section aria-labelledby="order-information-title">
+        <h2 id="order-information-title">${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
+        <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
+        <p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>
+        <p>${escapeHtml(storeContent.orderingDisclosure.payment)}</p>
+        <p><a href="/faq/">Shipping &amp; payment information</a> · <a href="/about/">About &amp; contact</a></p>
+      </section>
       <footer>
         <p><a href="/return-policy/">Return and refund policy</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
         <p>Luvia Creations makes handmade crochet accessories, gifts, toys and decor, shipped across India.

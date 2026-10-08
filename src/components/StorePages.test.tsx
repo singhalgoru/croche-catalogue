@@ -15,6 +15,14 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('shows the business phone, order model and policy links on the About page', () => {
+    window.history.replaceState(null, '', '/about/');
+    render(<StorePages {...initial} />);
+    expect(screen.getByText(/does not complete a purchase or take payment/)).toBeTruthy();
+    expect(screen.getByText(/Displayed product prices include GST/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: '+91 92059 07350' }).getAttribute('href')).toContain('https://wa.me/');
+    expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
+  });
   it('shows a compact photo-led hub with live product counts and no duplicate category section', () => {
     window.history.replaceState(null, '', '/collections/');
     const { rerender } = render(<StorePages {...initial} />);

@@ -211,10 +211,13 @@ describe('ProductModal touch controls', () => {
         dimensions: 'Approx. 10 cm', includedItems: 'One rose', careInstructions: 'Spot clean gently.' }}
         currentIndex={0} totalProducts={1} onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />,
     );
-    expect(container.querySelectorAll('details, summary')).toHaveLength(0);
+    expect(container.querySelectorAll('details')).toHaveLength(1);
+    expect(container.querySelector('summary')?.textContent).toBe('Before you order');
+    expect(screen.getByText(/does not complete a purchase or take payment/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Shipping & payment information' }).getAttribute('href')).toBe('/faq/');
     expect(screen.getByRole('heading', { name: 'Product details', level: 2 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Care instructions', level: 2 })).toBeTruthy();
-    expect(screen.getByText('Cotton yarn')).toBeTruthy();
+    expect(screen.getByText('Cotton yarn').closest('details')).toBeNull();
     expect(screen.getByText('Approx. 10 cm')).toBeTruthy();
     expect(screen.getByText('One rose')).toBeTruthy();
     expect(screen.getByText('Spot clean gently.')).toBeTruthy();

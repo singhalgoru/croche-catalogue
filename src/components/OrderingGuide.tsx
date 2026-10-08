@@ -1,5 +1,6 @@
 import { trackContactClick } from '../services/analytics';
 import { getGeneralWhatsAppLink } from '../utils/whatsapp';
+import storeContent from '../content/storeContent.json';
 
 export default function OrderingGuide() {
   return (
@@ -37,6 +38,8 @@ export default function OrderingGuide() {
         Please agree on the total and dispatch estimate with us before paying; we&apos;ll share payment
         instructions when we confirm your order.
       </p>
+      <p className="mt-3 text-sm text-cocoa/80">{storeContent.orderingDisclosure.request}</p>
+      <p className="mt-2 text-sm text-cocoa/80">{storeContent.orderingDisclosure.price}</p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
         <a href="/faq/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Read the ordering FAQ</a>
         <a

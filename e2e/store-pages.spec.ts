@@ -64,11 +64,15 @@ test('about and ordering FAQ retain accessible content and current category navi
   await installMockSupabase(page);
   await page.goto('/about/');
   await expect(page.getByRole('heading', { name: 'About Luvia & contact', exact: true })).toBeVisible();
+  await expect(page.getByText(/does not complete a purchase or take payment/)).toBeVisible();
+  await expect(page.getByText(/Displayed product prices include GST/)).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Read the ordering FAQ', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ordering, delivery & care FAQ', exact: true })).toBeVisible();
   await page.getByText('How do I place an order?', { exact: true }).click();
   await expect(page.getByText(/Adding items or sending a message does not confirm an order/)).toBeVisible();
+  await page.getByText('Does this website take payment or complete checkout?', { exact: true }).click();
+  await expect(page.getByText(/does not complete a purchase or take payment/)).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(overflow).toBe(false);
 });

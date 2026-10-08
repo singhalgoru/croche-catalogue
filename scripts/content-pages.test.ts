@@ -16,6 +16,15 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('discloses the actual catalogue payment model and additional shipping in crawlable pages', () => {
+    for (const pathname of ['/about/', '/faq/']) {
+      const text = documentFor(pathname).body.textContent;
+      expect(text).toContain('does not complete a purchase or take payment');
+      expect(text).toContain('Displayed product prices include GST');
+      expect(text).toContain('Shipping is additional');
+      expect(text).toContain('Never share your card PIN, OTP or passwords');
+    }
+  });
   it('creates only populated collections and the three information pages', () => {
     expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/collections/', '/about/', '/faq/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
@@ -85,7 +94,7 @@ describe('collection and information pages', () => {
     expect(about.querySelector('a[href="mailto:orders@luviacreations.com"]')).toBeTruthy();
     expect(about.querySelector('a[href^="https://wa.me/919205907350"]')).toBeTruthy();
     const faq = documentFor('/faq/');
-    expect(faq.querySelectorAll('details summary')).toHaveLength(8);
+    expect(faq.querySelectorAll('details summary')).toHaveLength(10);
     expect(faq.body.textContent).toContain('does not confirm an order');
     expect(faq.body.textContent).toContain('before you pay');
     expect(faq.querySelector('a[href="/return-policy/"]')).toBeTruthy();

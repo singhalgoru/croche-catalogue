@@ -26,6 +26,7 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { toProductPageUrl, toPublicVariantSlug } from '../utils/productLink';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
+import storeContent from '../content/storeContent.json';
 
 interface Props {
   product: Product;
@@ -586,6 +587,7 @@ export default function ProductModal({
           {displayedPrice !== null && (
             <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
               {formatINR(displayedPrice)}
+              <span className="mt-1 block font-sans text-xs font-normal">Includes GST · shipping additional</span>
             </p>
           )}
           {minimumOrderQuantity > 1 && (
@@ -595,6 +597,17 @@ export default function ProductModal({
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} collapsible={!isPage} />
+          <details className="mt-4 rounded-xl border border-mustard/40 p-3 text-sm text-cocoa">
+            <summary className="cursor-pointer font-semibold">{storeContent.orderingDisclosure.title}</summary>
+            <p className="mt-2">{storeContent.orderingDisclosure.request}</p>
+            <p className="mt-2">{storeContent.orderingDisclosure.price}</p>
+            <p className="mt-2">{storeContent.orderingDisclosure.payment}</p>
+            <div className="mt-2 flex flex-wrap gap-4">
+              <a href="/faq/" className="inline-block py-2 underline">Shipping &amp; payment information</a>
+              <a href="/return-policy/" className="inline-block py-2 underline">Return and refund policy</a>
+              <a href="/about/" className="inline-block py-2 underline">About &amp; contact</a>
+            </div>
+          </details>
           <div className="mt-4 rounded-xl border border-mustard/40 bg-mustard/15 p-3 text-sm">
             <a href={getCustomisationWhatsAppLink(product, selectedVariant)} target="_blank" rel="noopener noreferrer"
               onClick={() => {

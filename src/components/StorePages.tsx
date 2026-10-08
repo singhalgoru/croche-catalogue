@@ -7,7 +7,7 @@ import storeContent from '../content/storeContent.json';
 import { collectionPath } from '../utils/collectionLink.js';
 import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
-import { getGeneralWhatsAppLink } from '../utils/whatsapp';
+import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import type { CategorySettings, Product, ProductVariant } from '../types/product';
 
 interface Props {
@@ -107,11 +107,17 @@ export default function StorePages({
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
         <h2 className="font-heading text-xl font-bold">Contact Luvia</h2>
         <a href={getGeneralWhatsAppLink()} className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Ask us on WhatsApp</a>
+        <p>WhatsApp / mobile: <a href={getGeneralWhatsAppLink()} className="underline">{formatWhatsAppNumber()}</a></p>
         <p>Orders: <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a></p>
         <p>General enquiries: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a></p>
         <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-block underline">Follow Luvia on Instagram</a>
         <h2 className="font-heading text-xl font-bold">Ordering across India</h2><p>{storeContent.about[3]}</p>
+        <h2 className="font-heading text-xl font-bold">{storeContent.orderingDisclosure.title}</h2>
+        <p>{storeContent.orderingDisclosure.request}</p>
+        <p>{storeContent.orderingDisclosure.price}</p>
+        <p>{storeContent.orderingDisclosure.payment}</p>
         <a href="/faq/" className="inline-block underline">Read the ordering FAQ</a>
+        <a href="/return-policy/" className="ml-4 inline-block underline">Return and refund policy</a>
       </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
         <p>Answers about ordering, custom colours, shipping across India, care and returns.</p>
         {storeContent.questions.map(([question, answer]) => <details key={question} className="rounded-xl border border-mustard/40 bg-white p-4">

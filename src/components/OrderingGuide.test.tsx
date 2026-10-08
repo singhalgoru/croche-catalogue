@@ -19,6 +19,8 @@ describe('OrderingGuide', () => {
     expect(screen.getByText(/sending a message does not confirm an order/)).toBeTruthy();
     expect(screen.getByText(/Your order is confirmed only after we confirm it with you/)).toBeTruthy();
     expect(screen.getByText(/Please agree on the total and dispatch estimate with us before paying/)).toBeTruthy();
+    expect(screen.getByText(/does not complete a purchase or take payment/)).toBeTruthy();
+    expect(screen.getByText(/Displayed product prices include GST/)).toBeTruthy();
   });
 
   it('shows the return policy only once in the footer alongside the guide', () => {
