@@ -437,6 +437,16 @@ The compact note reads "GST included · Estimate for 1 piece". The Price discove
 summary also shows the estimated margin at its rounded suggested price, rather
 than just the target margin.
 
+The Products workspace includes a **Needs attention** summary, visible even when
+Manage products is collapsed. Its clickable counts filter products with saved
+margins below 35%, missing/invalid saved pricing inputs, or low/out-of-stock
+variants (low stock means 1–3 available pieces). A product marked out of stock
+also appears in the stock filter. Counts include hidden products and count each
+product once per group; a product may appear in more than one group. Searches
+combine with the selected filter. **Show all products** clears the attention
+filter; clear search too to restore product reordering. Pricing checks use saved
+inputs, not unsaved calculator drafts. Zero costs are valid, not missing.
+
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
 above. A frontend deployment does not deploy Edge Functions.

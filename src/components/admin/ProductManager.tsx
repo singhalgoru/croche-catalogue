@@ -18,6 +18,7 @@ import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import AdminDialog from './AdminDialog';
 import RequiredMark from './RequiredMark';
 import MarginLabel from './MarginLabel';
+import { ATTENTION_FILTERS, getProductAttention, LOW_STOCK_QUANTITY, type AttentionFilter } from './productAttention';
 import {
   calculatePriceAtSellingPrice,
   calculateMinimumOrderQuantity,
@@ -90,25 +91,31 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [attentionFilter, setAttentionFilter] = useState<AttentionFilter | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showPriceDefaults, setShowPriceDefaults] = useState(false);
   const [priceDefaults, setPriceDefaults] = useState<PriceDiscoveryDefaults>(
     DEFAULT_PRICE_DISCOVERY_DEFAULTS,
   );
   const [priceInputs, setPriceInputs] = useState<Record<string, PriceDiscoveryInputs>>({});
+  const attention = useMemo(() => new Map(products.map(product =>
+    [product.id, getProductAttention(product, priceDefaults)])), [products, priceDefaults]);
+  const attentionCounts = ATTENTION_FILTERS.map(filter => ({
+    ...filter,
+    count: products.filter(product => attention.get(product.id)?.[filter.id]).length,
+  }));
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
-    if (!query) return products;
     return products.filter((product) =>
-      [
+      (!attentionFilter || attention.get(product.id)?.[attentionFilter]) && (!query || [
         product.name,
         product.category,
         product.description,
         ...product.variants.map((variant) => variant.name),
-      ].some((value) => value.toLocaleLowerCase().includes(query)),
+      ].some((value) => value.toLocaleLowerCase().includes(query))),
     );
-  }, [products, searchQuery]);
+  }, [products, searchQuery, attentionFilter, attention]);
 
   const copyProductLink = async (product: ManagedProduct) => {
     const url = toProductUrl(product);
@@ -329,6 +336,47 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         )}
       </div>
 
+      {!isLoading && products.length > 0 && (
+        <section aria-label="Products needing attention" className="mx-3 mb-4 rounded-xl border border-mustard/40 bg-cream/40 p-3 sm:mx-5">
+          <h3 className="font-heading text-lg font-bold text-cocoa">Needs attention</h3>
+          <p className="mt-1 text-xs text-cocoa/65">
+            Counts are products, including hidden products. Low stock: 1–{LOW_STOCK_QUANTITY} pieces per variant.
+            {' '}Pricing checks use saved cost inputs; save changes to update them.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {attentionCounts.map(({ id, label, count }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={attentionFilter === id}
+                aria-controls="manage-products-panel"
+                disabled={isAnalyzing || busyId !== null || editingId !== null}
+                onClick={() => {
+                  setAttentionFilter(id);
+                  setSearchQuery('');
+                  setIsExpanded(true);
+                }}
+                className={`rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${
+                  attentionFilter === id ? 'border-cocoa bg-white text-cocoa' : 'border-mustard/30 bg-white text-cocoa'
+                }`}
+              >
+                <span className="mr-2 font-heading text-2xl font-bold">{count}</span>{' '}
+                {label}
+              </button>
+            ))}
+          </div>
+          {attentionFilter && (
+            <button
+              type="button"
+              disabled={isAnalyzing || busyId !== null || editingId !== null}
+              onClick={() => setAttentionFilter(null)}
+              className="mt-3 text-sm font-semibold text-cocoa underline underline-offset-2 disabled:opacity-60"
+            >
+              Show all products
+            </button>
+          )}
+        </section>
+      )}
       {error && !editingId && (
         <p className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">
           {error}
@@ -434,7 +482,8 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           <p className="mt-2 text-xs text-cocoa/55" aria-live="polite">
             Showing {filteredProducts.length} of {products.length} product
             {products.length === 1 ? '' : 's'}
-            {searchQuery.trim() && ' · Clear search to change display order'}
+            {attentionFilter && ` · ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label}`}
+            {(searchQuery.trim() || attentionFilter) && ' · Clear filters to change display order'}
           </p>
         </div>
       )}
@@ -445,7 +494,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         <p className="py-10 text-center text-cocoa/60">No products have been published yet.</p>
       ) : filteredProducts.length === 0 ? (
         <p className="py-10 text-center text-cocoa/60">
-          No products match “{searchQuery.trim()}”.
+          {attentionFilter
+            ? `No products need attention for ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
+            : `No products match “${searchQuery.trim()}”.`}
         </p>
       ) : (
         <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
@@ -544,6 +595,14 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         <p className="mt-1 text-xs font-semibold text-cocoa/55">
                           {product.variants.length} variant{product.variants.length === 1 ? '' : 's'}
                         </p>
+                        {attentionFilter === 'stock' && (
+                          <p className="mt-1 text-xs font-semibold text-red-800">
+                            {!product.inStock && 'Product marked out of stock. '}
+                            {attention.get(product.id)?.lowStockCount ?? 0} low-stock variant(s) ·
+                            {' '}{attention.get(product.id)?.outOfStockCount ?? 0} out-of-stock variant(s).
+                            {' '}Open Edit to review variant stock.
+                          </p>
+                        )}
                         {!product.published && (
                           <span className="mt-1 inline-block rounded-full bg-cocoa/10 px-2 py-0.5 text-xs font-semibold text-cocoa">
                             Hidden
@@ -575,6 +634,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             busyId !== null ||
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
+                            attentionFilter !== null ||
                             products.findIndex((item) => item.id === product.id) === 0
                           }
                           aria-label={`Move ${product.name} up`}
@@ -589,6 +649,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             busyId !== null ||
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
+                            attentionFilter !== null ||
                             products.findIndex((item) => item.id === product.id) ===
                               products.length - 1
                           }

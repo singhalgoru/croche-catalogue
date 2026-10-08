@@ -62,6 +62,36 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('filters attention groups from the collapsed manager and combines them with search', async () => {
+    const pricedProduct: ManagedProduct = {
+      ...product, profitMarginPercent: 34.99,
+      priceDiscoveryInputs: {
+        ...createDefaultPriceInputs(), timeSpent: '0', materialCost: '0',
+      },
+    };
+    vi.mocked(fetchManagedProducts).mockResolvedValue([
+      pricedProduct,
+      { ...product, id: 'bunny', name: 'Bunny', profitMarginPercent: 35, inStock: false },
+    ]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    const lowMargin = await screen.findByRole('button', { name: '1 Below 35% margin' });
+    expect(screen.getByRole('button', { name: /Manage products/ })).toHaveProperty('ariaExpanded', 'false');
+    fireEvent.click(lowMargin);
+    expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Bunny' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Move Coaster up' })).toHaveProperty('disabled', true);
+    fireEvent.change(screen.getByLabelText('Search products'), { target: { value: 'Bunny' } });
+    expect(screen.getByText(/No products need attention/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '1 Missing pricing costs' }));
+    expect(screen.getByLabelText('Search products')).toHaveProperty('value', '');
+    expect(screen.getByRole('heading', { name: 'Bunny' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '1 Low / out of stock' }));
+    expect(screen.getByText(/Product marked out of stock/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
+    expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Bunny' })).toBeTruthy();
+  });
+
   it('shows prominent profit margin and a 35 percent suggested price without changing the product', async () => {
     vi.mocked(fetchManagedProducts).mockResolvedValue([{
       ...product,

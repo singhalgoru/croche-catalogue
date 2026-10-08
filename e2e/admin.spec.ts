@@ -31,6 +31,27 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('opens attention filters from the collapsed product manager and restores all products', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products.find(product => product.id === 'product-2')!.in_stock = false;
+  await signIn(page);
+  const summary = page.getByRole('region', { name: 'Products needing attention' });
+  await expect(summary).toBeVisible();
+  await expect(page.getByRole('button', { name: /Manage products/ })).toHaveAttribute('aria-expanded', 'false');
+  await summary.getByRole('button', { name: /Low \/ out of stock/ }).click();
+  await expect(page.getByRole('button', { name: /Manage products/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('heading', { name: 'Flower Coaster', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Move Flower Coaster up' })).toBeDisabled();
+  await page.getByLabel('Search products').fill('does-not-exist');
+  await expect(page.getByText(/No products need attention/)).toBeVisible();
+  await summary.getByRole('button', { name: /Missing pricing costs/ }).click();
+  await expect(page.getByLabel('Search products')).toHaveValue('');
+  await summary.getByRole('button', { name: 'Show all products' }).click();
+  await expect(summary.getByRole('button', { name: /Missing pricing costs/ })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('heading', { name: 'Flower Coaster', exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('shows prominent minimum-margin price guidance without changing the catalogue price', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'manage');
