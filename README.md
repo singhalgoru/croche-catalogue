@@ -470,6 +470,23 @@ Expense records are not included in the existing **sales** CSV export/import.
 Load failures show an error and unavailable overhead totals, with **Refresh
 dashboard** to retry, rather than treating unavailable expenses as zero.
 
+### Quarterly and yearly snapshots
+
+In **Admin → Sales → Sales dashboard**, expand **Quarterly & yearly snapshot**.
+Select a calendar year to see its annual total and Q1 (Jan–Mar), Q2 (Apr–Jun),
+Q3 (Jul–Sep), and Q4 (Oct–Dec) cards. This is not an April–March financial-year
+report. Years with sales or expenses, plus the current year, are selectable.
+The snapshot is independent of the monthly filter and does not change the sales CSV.
+
+Each period shows GST-inclusive revenue, sales/pieces, GST collected, estimated
+sales profit, overheads, profit after expenses, and the margin after overheads.
+Dates determine the period, not record creation timestamps. Margins are calculated
+from aggregate revenue before GST, not averaged from individual sale margins.
+Expense-only periods show losses and no margin. Current/future quarters show
+only recorded data, not forecasts. Snapshots update after sales/expense changes;
+Refresh dashboard loads changes made elsewhere. Sales and expenses are paginated
+to avoid truncating annual totals. Failed loads do not show a zero-valued snapshot.
+
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
 above. A frontend deployment does not deploy Edge Functions.

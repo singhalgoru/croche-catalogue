@@ -135,13 +135,20 @@ const saleColumns = (sale: SellerSaleInput) => {
 
 export async function fetchSellerSales(): Promise<SellerSale[]> {
   const client = await requireSupabase();
-  const { data, error } = await client
-    .from('seller_sales')
-    .select(SALE_COLUMNS)
-    .order('sale_date', { ascending: false })
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(`Unable to load sales: ${error.message}`);
-  return (data as SellerSaleRow[]).map(mapSale);
+  const sales: SellerSale[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await client
+      .from('seller_sales')
+      .select(SALE_COLUMNS)
+      .order('sale_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(offset, offset + 499);
+    if (error) throw new Error(`Unable to load sales: ${error.message}`);
+    const rows = data as SellerSaleRow[];
+    sales.push(...rows.map(mapSale));
+    if (rows.length < 500) return sales;
+  }
 }
 
 export async function createSellerSale(sale: SellerSaleInput): Promise<SellerSale> {

@@ -63,6 +63,13 @@ test('manages monthly business expenses and profit after overheads', async ({ pa
   await expect(page.getByText('Business expense saved.')).toBeVisible();
   const profit = page.locator('article').filter({ has: page.getByText('Profit after business expenses', { exact: true }) });
   await expect(profit).toContainText('-₹251');
+  await page.getByRole('button', { name: 'Quarterly & yearly snapshot' }).click();
+  await page.getByLabel('Snapshot year').selectOption('2026');
+  await expect(page.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('-₹251');
+  await expect(page.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('-₹251');
+  await expect(page.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).not.toContainText('-₹251');
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Quarterly & yearly snapshot' }).click();
   await page.getByRole('button', { name: 'Edit expense October ads' }).click();
   await page.getByLabel('Expense amount').fill('100');
   await page.getByRole('button', { name: 'Save expense' }).click();

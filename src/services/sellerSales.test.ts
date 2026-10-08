@@ -72,8 +72,7 @@ describe('seller sales persistence', () => {
     const query = {
       select: vi.fn(),
       order: vi.fn(),
-      then: (resolve: (value: { data: typeof row[]; error: null }) => unknown) =>
-        Promise.resolve({ data: [row], error: null }).then(resolve),
+      range: vi.fn().mockResolvedValue({ data: [row], error: null }),
     };
     query.select.mockReturnValue(query);
     query.order.mockReturnValue(query);
@@ -88,6 +87,21 @@ describe('seller sales persistence', () => {
       channel: 'online',
     }]);
     expect(from).toHaveBeenCalledWith('seller_sales');
+  });
+
+  it('loads all sales pages so quarterly and yearly totals are not truncated', async () => {
+    const query = {
+      select: vi.fn(), order: vi.fn(),
+      range: vi.fn().mockResolvedValueOnce({ data: Array.from({ length: 500 }, () => row), error: null })
+        .mockResolvedValueOnce({ data: [row], error: null }),
+    };
+    query.select.mockReturnValue(query); query.order.mockReturnValue(query);
+    from.mockReturnValue(query);
+    expect(await fetchSellerSales()).toHaveLength(501);
+    expect(query.range).toHaveBeenNthCalledWith(1, 0, 499);
+    expect(query.range).toHaveBeenNthCalledWith(2, 500, 999);
+    query.range.mockResolvedValueOnce({ data: null, error: { message: 'network failed' } });
+    await expect(fetchSellerSales()).rejects.toThrow('network failed');
   });
 
   it('inserts a validated sale snapshot', async () => {

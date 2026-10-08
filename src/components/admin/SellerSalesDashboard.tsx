@@ -17,6 +17,7 @@ import { getPublicVariantPrice } from '../../utils/productPrice';
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
 import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
 import BusinessExpensesPanel from './BusinessExpensesPanel';
+import SalesPeriodSnapshot from './SalesPeriodSnapshot';
 import { fetchBusinessExpenses, type BusinessExpense } from '../../services/businessExpenses';
 
 interface Props {
@@ -491,6 +492,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
         }}
         onDeleted={id => setExpenses(current => current.filter(expense => expense.id !== id))}
       />
+      <SalesPeriodSnapshot sales={sales} expenses={expenses} available={financialsLoaded && !isImporting} />
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-cocoa/65">
         <span className="font-semibold">Sales by channel:</span>
         {salesByChannel.map(({ channel, count }) => (
