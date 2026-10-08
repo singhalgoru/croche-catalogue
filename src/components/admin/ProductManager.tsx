@@ -17,6 +17,7 @@ import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import AdminDialog from './AdminDialog';
 import RequiredMark from './RequiredMark';
+import MarginLabel from './MarginLabel';
 import {
   calculatePriceAtSellingPrice,
   calculateMinimumOrderQuantity,
@@ -503,7 +504,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             aria-label={`${product.name} saved profit margin`}
                             className="mt-1 text-sm font-semibold text-cocoa"
                           >
-                            Saved profit margin: {product.profitMarginPercent.toFixed(1)}%
+                            <MarginLabel margin={product.profitMarginPercent} className="inline-block">
+                              Saved profit margin: {product.profitMarginPercent.toFixed(1)}%
+                            </MarginLabel>
                             {product.gstPercent !== null
                               && product.gstPercent !== undefined
                               && product.price !== null && (
@@ -730,7 +733,9 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                         At the selected {inputsForProduct.gstPercent}% GST rate,
                         {' '}{formatRupees(editorPriceOutcome.gstAmount)} GST is included in this price.
                         {' '}Estimated gateway fee: {formatRupees(editorPriceOutcome.gatewayFee)}.
-                        {' '}Estimated profit margin: {editorPriceOutcome.profitMarginPercent?.toFixed(1)}%.
+                        {' '}<MarginLabel margin={editorPriceOutcome.profitMarginPercent} className="inline-block">
+                          Estimated profit margin: {editorPriceOutcome.profitMarginPercent?.toFixed(1)}%.
+                        </MarginLabel>
                         {' '}GST amount and fee update automatically with the price; the GST rate stays unchanged.
                       </p>
                     )}

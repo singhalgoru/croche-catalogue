@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import type { ManagedProduct } from '../../services/products';
+import MarginLabel from './MarginLabel';
 import {
   suggestProductGstRate,
   type ProductGstRateSuggestion,
@@ -340,10 +341,10 @@ export default function PriceDiscoveryPanel({
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.labourCost)}</span>
                 <span className="text-cocoa/70">Total cost basis</span>
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.totalCost)}</span>
-                <span className="text-cocoa/70">Target profit margin</span>
-                <span className="text-right font-medium text-cocoa">
-                  {Number(inputs.targetMarginPercent).toFixed(1)}%
-                </span>
+                <MarginLabel margin={Number(inputs.targetMarginPercent)} className="col-span-2 flex flex-wrap items-center gap-2">
+                  <span>Target profit margin</span>
+                  <span className="ml-auto font-medium">{Number(inputs.targetMarginPercent).toFixed(1)}%</span>
+                </MarginLabel>
               </div>
               <div className="mt-4 flex flex-col gap-3 border-t border-cocoa/10 pt-3 sm:flex-row sm:items-end sm:justify-between">
                 <label className="text-xs font-semibold text-cocoa">
@@ -438,10 +439,10 @@ export default function PriceDiscoveryPanel({
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.expectedNet)}</span>
                   <span className="font-semibold text-cocoa">Estimated profit after costs</span>
                   <span className="text-right font-semibold text-cocoa">{formatRupees(priceOutcome.profit)}</span>
-                  <span className="font-bold text-cocoa">Product profit margin</span>
-                  <span className="text-right font-bold text-cocoa">
-                    {priceOutcome.profitMarginPercent?.toFixed(1)}%
-                  </span>
+                  <MarginLabel margin={priceOutcome.profitMarginPercent} className="col-span-2 flex flex-wrap items-center gap-2 font-bold">
+                    <span>Product profit margin</span>
+                    <span className="ml-auto">{priceOutcome.profitMarginPercent?.toFixed(1)}%</span>
+                  </MarginLabel>
                 </div>
                 </>
               ) : (

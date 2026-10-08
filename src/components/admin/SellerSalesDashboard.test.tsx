@@ -93,6 +93,27 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it.each([
+    [65, 'text-green-800'],
+    [65.01, 'text-red-800'],
+  ])('colors monthly and individual sale margins with cost %s', async (materialCost, color) => {
+    vi.mocked(fetchSellerSales).mockResolvedValue([{
+      ...sale,
+      unitPrice: 100,
+      gstPercent: 0,
+      materialCost,
+      labourCost: 0,
+      packagingCost: 0,
+      shippingCost: 0,
+    }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    await waitFor(() => {
+      expect(screen.getByText('Profit margin').parentElement?.className).toContain(color);
+      expect(screen.getByText('Est. profit · margin').parentElement?.className).toContain(color);
+    });
+  });
+
   it('keeps a zero-GST sale separate from the product GST and subsequent sales', async () => {
     const originalProduct = structuredClone(product);
     render(<SellerSalesDashboard refreshKey={0} />);

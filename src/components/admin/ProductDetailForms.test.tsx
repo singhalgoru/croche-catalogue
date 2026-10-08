@@ -245,6 +245,10 @@ describe('Product detail admin integration', () => {
     fireEvent.change(sellingPrice, { target: { value: '1100' } });
     expect(screen.getByText('Product profit margin')).toBeTruthy();
     expect(screen.getByText('58.4%')).toBeTruthy();
+    expect(screen.getByText('Product profit margin').parentElement?.className).toContain('text-green-800');
+    fireEvent.change(sellingPrice, { target: { value: '400' } });
+    expect(screen.getByText('Product profit margin').parentElement?.className).toContain('text-red-800');
+    fireEvent.change(sellingPrice, { target: { value: '1100' } });
     expect(screen.getByText('₹612')).toBeTruthy();
     fireEvent.change(sellingPrice, { target: { value: '' } });
     expect(screen.getByLabelText('Coaster customer price including GST')).toBeTruthy();
@@ -271,6 +275,7 @@ describe('Product detail admin integration', () => {
     expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(61.647, 2);
     expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].gstPercent).toBe(5);
     expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('61.6%');
+    expect(screen.getByText(/Saved profit margin: 61.6%/).className).toContain('text-green-800');
     expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('GST 5% (₹58 included)');
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',

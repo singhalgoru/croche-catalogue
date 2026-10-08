@@ -419,6 +419,14 @@ and margin update as it changes. Margin is estimated profit after product costs,
 GST and payment fees divided by the selling price before GST. The default
 shipping and packaging inputs are ₹100 and ₹10 respectively.
 
+Admin margin labels are green (**Good**) at 35% or above. Below that threshold,
+they use a gradual red tint (**Below 35%**): very light near 35%, increasing
+as the margin drops to zero; negative margins retain the strongest tint.
+This applies to saved product margins, price
+discovery estimates and targets, editor estimates, and sales dashboard margins.
+Unavailable margins remain neutral. Colors use the unrounded margin, not its
+rounded display value; this is a visual guide and does not change pricing.
+
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
 above. A frontend deployment does not deploy Edge Functions.

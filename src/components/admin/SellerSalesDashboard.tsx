@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import RequiredMark from './RequiredMark';
+import MarginLabel from './MarginLabel';
 import {
   createSellerSale,
   deleteSellerSale,
@@ -420,8 +421,17 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           ['GST collected', formatINR(summary.gst), 'Calculated from recorded GST rate'],
         ].map(([label, value, description]) => (
           <article key={label} className="rounded-xl bg-cream/70 p-3">
+            {label === 'Profit margin' ? (
+              <MarginLabel margin={summary.marginPercent} className="block">
+                <span className="block text-xs font-semibold">{label}</span>
+                <span className="mt-1 block font-heading text-xl font-bold">{value}</span>
+              </MarginLabel>
+            ) : (
+              <>
             <p className="text-xs font-semibold text-cocoa/60">{label}</p>
             <p className="mt-1 font-heading text-xl font-bold text-cocoa">{value}</p>
+              </>
+            )}
             <p className="mt-1 text-xs text-cocoa/55">{description}</p>
           </article>
         ))}
@@ -670,7 +680,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
                   <p><span className="text-cocoa/60">Revenue</span><br /><strong>{formatINR(financials.revenue)}</strong></p>
                   <p><span className="text-cocoa/60">GST</span><br /><strong>{formatINR(financials.gst)}</strong></p>
                   <p><span className="text-cocoa/60">Costs + fees</span><br /><strong>{formatINR(financials.costs + financials.gatewayFee)}</strong></p>
-                  <p><span className="text-cocoa/60">Est. profit · margin</span><br /><strong>{formatINR(financials.profit)} · {formatMargin(financials.marginPercent)}</strong></p>
+                  <p><MarginLabel margin={financials.marginPercent} className="inline-block"><span>Est. profit · margin</span><br /><strong>{formatINR(financials.profit)} · {formatMargin(financials.marginPercent)}</strong></MarginLabel></p>
                 </div>
                 {deleting && (
                   <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">
