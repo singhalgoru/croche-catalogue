@@ -27,6 +27,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Zoom and 3D-style image viewing
 - Close image zoom by clicking/tapping outside the visible photo; image gestures and viewer controls remain active
 - WhatsApp enquiry links
+- "Collaborate with us" in the hamburger menu and footer links to a maker/brand invitation above the footer, with a prefilled collaboration WhatsApp enquiry using the existing contact number
 - Dedicated order and WhatsApp contact: +91 9205907350
 - Email contacts for orders and general enquiries
 - Installable app experience on supported browsers

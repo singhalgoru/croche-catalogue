@@ -1,4 +1,4 @@
-import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp';
+import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
 import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
 
@@ -7,6 +7,23 @@ const INSTAGRAM_URL =
 
 export default function Footer() {
   return (
+    <>
+    <section id="collaborate" aria-labelledby="collaboration-heading"
+      className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
+      <div className="rounded-2xl border border-mustard/40 bg-cream p-5 text-center text-cocoa sm:p-8">
+        <h2 id="collaboration-heading" className="font-heading text-2xl font-bold">Collaborate with Luvia</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base">
+          Are you a maker or brand interested in collaborating with Luvia or selling your handmade
+          products through us? We would love to hear from you. Contact us to explore opportunities.
+        </p>
+        <a href={getCollaborationWhatsAppLink()} target="_blank" rel="noopener noreferrer"
+          onClick={() => trackContactClick('whatsapp', 'collaboration')}
+          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-cocoa px-5 py-3 font-semibold text-cream hover:bg-cocoa/90">
+          <WhatsAppIcon />
+          Discuss a collaboration
+        </a>
+      </div>
+    </section>
     <footer className="bg-cocoa text-cream/90 mt-8 sm:mt-16">
       <div className="max-w-6xl mx-auto px-4 py-5 sm:py-8 text-center text-sm">
         <p className="font-heading text-lg text-mustard mb-1">Luvia Creations</p>
@@ -19,6 +36,7 @@ export default function Footer() {
           <a href="/collections/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Explore collections</a>
           <a href="/about/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">About &amp; contact</a>
           <a href="/faq/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Ordering FAQ</a>
+          <a href="#collaborate" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Collaborate with us</a>
           <a href="/return-policy/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">
             Return and refund policy
           </a>
@@ -82,5 +100,6 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+    </>
   );
 }

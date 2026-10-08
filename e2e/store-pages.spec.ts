@@ -1,6 +1,25 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('hamburger menu reaches collaboration contact on home and information pages', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const path of ['/', '/about/']) {
+    await page.goto(path);
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+    await page.getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Collaborate with us' }).click();
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toHaveCount(0);
+    const section = page.getByRole('region', { name: 'Collaborate with Luvia' });
+    await expect(section).toBeInViewport();
+    await expect(section).toContainText('selling your handmade products through us');
+    const link = section.getByRole('link', { name: 'Discuss a collaboration' });
+    const url = new URL(await link.getAttribute('href') ?? '');
+    expect(url.origin).toBe('https://wa.me');
+    expect(url.searchParams.get('text')).toContain('collaborating or selling my handmade products');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  }
+});
+
 test('store pages reflect added, renamed and removed admin categories without hardcoded links', async ({ page }) => {
   const state = await installMockSupabase(page);
   await page.goto('/collections/');

@@ -13,6 +13,20 @@ afterEach(() => {
 });
 
 describe('Footer', () => {
+  it('offers a collaboration section and a prefilled WhatsApp enquiry', () => {
+    render(<Footer />);
+    const section = screen.getByRole('region', { name: 'Collaborate with Luvia' });
+    expect(section.id).toBe('collaborate');
+    expect(screen.getByRole('link', { name: 'Collaborate with us' }).getAttribute('href')).toBe('#collaborate');
+    const contact = screen.getByRole('link', { name: 'Discuss a collaboration' });
+    const url = new URL(contact.getAttribute('href')!);
+    expect(url.origin).toBe('https://wa.me');
+    expect(url.searchParams.get('text')).toContain('selling my handmade products');
+    expect(url.searchParams.get('text')).toContain('My name / brand:');
+    contact.addEventListener('click', event => event.preventDefault());
+    fireEvent.click(contact);
+    expect(trackContactClick).toHaveBeenCalledWith('whatsapp', 'collaboration');
+  });
   it('groups policy and information links for mobile while keeping primary actions touch-friendly', () => {
     render(<Footer />);
     const nav = screen.getByRole('navigation', { name: 'Store information' });

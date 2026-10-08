@@ -36,6 +36,11 @@ describe('Header', () => {
       .toBe('/?category=Charms%20%26%20Keychains');
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
       .toBe('/return-policy/');
+    expect(screen.getByRole('link', { name: 'Collaborate with us' }).getAttribute('href'))
+      .toBe('#collaborate');
+    fireEvent.click(screen.getByRole('link', { name: 'Collaborate with us' }));
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+    fireEvent.click(button);
     fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
