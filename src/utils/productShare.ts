@@ -10,13 +10,19 @@ export const getProductShareDetails = (product: Product, variant?: ProductVarian
       ? `${product.name} — ${variant.name}`
       : product.name;
   const text = `See ${title} from Luvia`;
+  const redditProductUrl = new URL(url);
+  redditProductUrl.searchParams.set('utm_source', 'reddit');
+  redditProductUrl.searchParams.set('utm_medium', 'social');
+  redditProductUrl.searchParams.set('utm_campaign', 'product_share');
+  redditProductUrl.searchParams.set('utm_content', product.publicSlug ?? product.id);
 
   return {
     title,
     text,
     url,
+    redditProductUrl: redditProductUrl.href,
     whatsappUrl: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`,
     facebookUrl: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-    redditUrl: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`,
+    redditUrl: `https://www.reddit.com/submit?url=${encodeURIComponent(redditProductUrl.href)}&title=${encodeURIComponent(title)}`,
   };
 };

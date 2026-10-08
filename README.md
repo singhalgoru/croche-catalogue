@@ -60,6 +60,24 @@ field and attach the downloaded photo if needed. The separate link-post option
 prefills a title but cannot guarantee a Reddit image preview. No post is
 published automatically.
 
+Reddit helper links (Copy product link, native photo sharing and the link-post
+URL) carry `utm_source=reddit`, `utm_medium=social`,
+`utm_campaign=product_share` and a product identifier in `utm_content`.
+Other sharing channels retain their normal URLs. Use the helper's tagged link
+in the Reddit post body/caption/comment; a photo without a clickable product
+link cannot attribute a site visit. Existing untagged posts are not retroactively
+tagged.
+
+In GA4, open **Reports → Acquisition → Traffic acquisition** and filter
+**Session source / medium** to `reddit / social`. Sessions count visits; total
+users approximates visitors and is not the same as clicks or Reddit post views.
+Use campaign `product_share` and landing page or ecommerce item reports to
+inspect product traffic and events such as `view_item` and `add_to_cart`.
+Reporting depends on the configured GA measurement ID, browser tracking
+availability and GA filters; blockers/internal traffic can be excluded, and
+standard reports can take 24–48 hours to update. No separate admin traffic
+dashboard or Reddit impression counter is added.
+
 The admin Add product form includes Price discovery in Step 2, before the
 optional product specifications. Enter time and costs, suggest a GST-inclusive
 price, and use it in the product editor. The estimated GST rate defaults to 5%

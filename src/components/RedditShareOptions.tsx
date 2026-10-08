@@ -68,6 +68,7 @@ export default function RedditShareOptions({ image, title, description, url, red
       <p className="mt-2 select-text whitespace-pre-wrap break-words">{description}</p>
     </details>}
     <p className="select-text break-all text-xs text-cocoa/70">{url}</p>
+    <p className="text-xs text-cocoa/70">Use this product link in your Reddit post or comment to track visits from Reddit.</p>
     {!file && !error && <p role="status" className="text-xs">Preparing product photo…</p>}
     {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     <div className="flex flex-wrap gap-2">
