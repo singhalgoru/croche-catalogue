@@ -57,7 +57,7 @@ test('manages monthly business expenses and profit after overheads', async ({ pa
   await page.getByRole('button', { name: 'Business expenses', exact: true }).click();
   await page.getByRole('button', { name: 'Add expense' }).click();
   await page.getByLabel('Expense description').fill('October ads');
-  await page.getByLabel('Expense date').fill('2026-10-08');
+  await page.getByLabel('Expense date').fill('08/10/2026');
   await page.getByLabel('Expense amount').fill('250.50');
   await page.getByRole('button', { name: 'Save expense' }).click();
   await expect(page.getByText('Business expense saved.')).toBeVisible();
@@ -115,13 +115,20 @@ test('edits a sale record inline at its list position', async ({ page }) => {
   await record.getByRole('button', { name: 'Edit' }).click();
   const form = record.getByRole('form', { name: 'Edit sale' });
   await expect(form).toBeInViewport();
+  await expect(form.getByLabel('Sale date')).toHaveValue('14/10/2026');
+  await form.getByLabel('Sale date').fill('15/10/2026');
   await expect(page.getByRole('form')).toHaveCount(1);
   await form.getByLabel('Sale quantity').fill('3');
   await form.getByRole('button', { name: 'Save sale changes' }).click();
   await expect(page.getByText('Sale updated.')).toBeVisible();
   await expect(page.getByRole('form')).toHaveCount(0);
   await expect(record).toContainText('Qty 3');
+  await expect(record).toContainText('15/10/2026');
   await expectNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Record sale', exact: true }).click();
+  await page.getByLabel('Sale product', { exact: true }).selectOption('product-2');
+  await expect(page.getByLabel('Unit selling price', { exact: true })).toHaveValue('249');
+  await page.getByRole('form', { name: 'Record a sale' }).getByRole('button', { name: 'Cancel', exact: true }).click();
 });
 
 test('opens attention filters from the collapsed product manager and restores all products', async ({ page }) => {

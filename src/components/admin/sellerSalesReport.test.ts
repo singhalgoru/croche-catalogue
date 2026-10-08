@@ -29,6 +29,7 @@ describe('seller sales report CSV', () => {
       { ...sale, id: 'sale-2', saleDate: '2026-09-30' },
     ]);
     expect(csv).toContain('MONTH TOTAL');
+    expect(csv).toContain('06/10/2026');
     expect(csv).toContain('Crochet, ""Rose""');
     expect(csv).not.toContain('2026-09-30');
 
@@ -54,7 +55,7 @@ describe('seller sales report CSV', () => {
   });
 
   it('rejects malformed rows and records outside the selected month before saving any rows', () => {
-    const csv = buildSellerSalesCsv('2026-10', [sale]).replace('2026-10-06', '2026-09-30');
+    const csv = buildSellerSalesCsv('2026-10', [sale]).replace('06/10/2026', '30/09/2026');
     expect(() => parseSellerSalesCsv(csv, '2026-10', new Set(['product-1'])))
       .toThrow('Import cancelled; no rows were saved');
   });
@@ -63,6 +64,12 @@ describe('seller sales report CSV', () => {
     const csv = buildSellerSalesCsv('2026-10', [sale, { ...sale, id: 'sale-1' }]);
     expect(() => parseSellerSalesCsv(csv, '2026-10', new Set(['product-1'])))
       .toThrow('duplicate record ID');
+  });
+
+  it('continues to import older reports with ISO dates', () => {
+    const csv = buildSellerSalesCsv('2026-10', [sale]).replace('06/10/2026', '2026-10-06');
+    expect(parseSellerSalesCsv(csv, '2026-10', new Set(['product-1'])).sales[0].saleDate)
+      .toBe('2026-10-06');
   });
 
   it('neutralizes formula-like text when exporting for spreadsheet applications', () => {

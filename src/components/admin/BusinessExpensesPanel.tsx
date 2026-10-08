@@ -5,6 +5,8 @@ import {
 } from '../../services/businessExpenses';
 import { formatINR } from '../../utils/currency';
 import RequiredMark from './RequiredMark';
+import DateInput from './DateInput';
+import { formatDate } from '../../utils/date';
 
 interface Props {
   month: string;
@@ -100,8 +102,8 @@ export default function BusinessExpensesPanel({ month, expenses, loading, onSave
                 className="mt-1 w-full rounded-lg border border-mustard/50 px-3 py-2" />
             </label>
             <label className="text-sm font-semibold text-cocoa">Date <RequiredMark />
-              <input aria-label="Expense date" type="date" required disabled={busy} value={draft.expenseDate}
-                onChange={event => update({ expenseDate: event.target.value })}
+              <DateInput aria-label="Expense date" required disabled={busy} value={draft.expenseDate}
+                onChange={expenseDate => update({ expenseDate })}
                 className="mt-1 w-full min-w-0 rounded-lg border border-mustard/50 px-3 py-2" />
             </label>
             <label className="text-sm font-semibold text-cocoa">Category <RequiredMark />
@@ -144,7 +146,7 @@ export default function BusinessExpensesPanel({ month, expenses, loading, onSave
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0 break-words text-sm text-cocoa">
                       <strong>{expense.description} · {formatINR(expense.amount)}</strong>
-                      <p>{expense.expenseDate} · {expense.category}</p>
+                      <p>{formatDate(expense.expenseDate)} · {expense.category}</p>
                       {expense.notes && <p className="mt-1 whitespace-pre-wrap">{expense.notes}</p>}
                     </div>
                     <div className="flex gap-2">

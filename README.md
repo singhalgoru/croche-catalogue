@@ -473,6 +473,15 @@ in **Below 35% margin**. The same search, edit and clear-filter controls apply.
 
 ### Business expenses
 
+Sale and expense dates are entered and displayed as **DD/MM/YYYY**, independently
+of browser locale. Enter a complete valid calendar date (for example, `08/10/2026`).
+Sales CSV exports use the same format; imports accept both this format and older
+`YYYY-MM-DD` reports. Database dates remain `YYYY-MM-DD`.
+Existing entries keep the same calendar date; the old browser date picker could
+display `MM/DD/YYYY`, but it already saved ISO dates, so no data migration is needed.
+Admin sale entry prefills saved product/variant prices even when the product,
+category, or public price is hidden.
+
 Open **Admin → Sales → Sales dashboard → Business expenses** to add, edit or
 delete monthly overheads (advertising, tools/equipment, subscriptions, rent,
 utilities or travel). Date, description, category and amount paid are required;

@@ -13,7 +13,9 @@ import {
 } from '../../services/sellerSales';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import { formatINR } from '../../utils/currency';
-import { getPublicVariantPrice } from '../../utils/productPrice';
+import { getVariantPrice } from '../../utils/productPrice';
+import { formatDate } from '../../utils/date';
+import DateInput from './DateInput';
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
 import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
 import BusinessExpensesPanel from './BusinessExpensesPanel';
@@ -240,7 +242,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       productName: selectedProduct.name,
       variantName: selectedVariant?.name ?? '',
       unitPrice: toWholeRupees(selectedVariant
-        ? getPublicVariantPrice(selectedProduct, selectedVariant)
+        ? getVariantPrice(selectedProduct, selectedVariant)
         : selectedProduct.price),
       gstPercent: String(
         selectedProduct.gstPercent ?? priceInputs?.gstPercent ?? 5,
@@ -257,7 +259,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
     if (!variant) return;
     updateDraft({
       variantName: product.variants.length > 1 ? variant.name : '',
-      unitPrice: toWholeRupees(getPublicVariantPrice(product, variant)),
+      unitPrice: toWholeRupees(getVariantPrice(product, variant)),
     });
   };
 
@@ -428,11 +430,10 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           )}
           <label className="text-sm font-semibold text-cocoa">
             Sale date <RequiredMark />
-            <input
+            <DateInput
               aria-label="Sale date"
-              type="date"
               value={draft.saleDate}
-              onChange={(event) => updateDraft({ saleDate: event.target.value })}
+              onChange={(saleDate) => updateDraft({ saleDate })}
               required
               className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
             />
@@ -733,7 +734,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
                       {sale.productName}{sale.variantName ? ` · ${sale.variantName}` : ''}
                     </h4>
                     <p className="mt-1 text-xs text-cocoa/60">
-                      {sale.saleDate} · {channelLabel(sale.channel)} · Qty {sale.quantity} · {formatINR(sale.unitPrice)} each
+                      {formatDate(sale.saleDate)} · {channelLabel(sale.channel)} · Qty {sale.quantity} · {formatINR(sale.unitPrice)} each
                     </p>
                     {sale.notes && <p className="mt-1 text-sm text-cocoa/70">{sale.notes}</p>}
                   </div>

@@ -143,6 +143,7 @@ describe('SellerSalesDashboard', () => {
     expect(saveBusinessExpense).toHaveBeenCalledWith(expect.objectContaining({ amount: 20, description: 'Ads' }), undefined);
     expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹87');
     fireEvent.click(screen.getByRole('button', { name: 'Edit expense Ads' }));
+    expect(screen.getByLabelText('Expense date')).toHaveProperty('value', '01/10/2026');
     fireEvent.change(screen.getByLabelText('Expense amount'), { target: { value: '120' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save expense' }));
     await waitFor(() => expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹13'));
@@ -329,6 +330,24 @@ describe('SellerSalesDashboard', () => {
     expect(Number.isInteger(Number((screen.getByLabelText('Unit selling price') as HTMLInputElement).value))).toBe(true);
   });
 
+  it.each([null, 325])('prefills hidden product/category prices and variant overrides (%s)', async (variantPrice) => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{
+      ...product, showPrice: false, published: false,
+      variants: [
+        { ...product.variants[0], price: variantPrice },
+        { ...product.variants[0], id: 'variant-2', name: 'Blue', price: 400 },
+      ],
+    }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Record sale' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    expect(screen.getByLabelText('Unit selling price')).toHaveProperty('value', String(variantPrice ?? 250));
+    fireEvent.change(screen.getByLabelText('Sale variant'), { target: { value: 'variant-2' } });
+    expect(screen.getByLabelText('Unit selling price')).toHaveProperty('value', '400');
+  });
+
   it('opens sale edits inside the selected record and saves them there', async () => {
     const secondSale = { ...sale, id: 'sale-2', productName: 'Crochet bag', variantName: '', saleDate: '2026-10-05' };
     vi.mocked(fetchSellerSales).mockResolvedValue([sale, secondSale]);
@@ -339,16 +358,19 @@ describe('SellerSalesDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-10' } });
     const secondRecord = await screen.findByTestId('sale-record-sale-2');
+    expect(within(secondRecord).getByText(/05\/10\/2026/)).toBeTruthy();
     fireEvent.click(within(secondRecord).getByRole('button', { name: 'Edit' }));
 
     const form = within(secondRecord).getByRole('form', { name: 'Edit sale' });
     expect(within(screen.getByTestId('sale-record-sale-1')).queryByRole('form')).toBeNull();
     expect(screen.getAllByRole('form')).toHaveLength(1);
     expect(within(form).getByLabelText('Sale product name')).toHaveProperty('value', 'Crochet bag');
+    expect(within(form).getByLabelText('Sale date')).toHaveProperty('value', '05/10/2026');
+    fireEvent.change(within(form).getByLabelText('Sale date'), { target: { value: '08/10/2026' } });
     fireEvent.change(within(form).getByLabelText('Sale quantity'), { target: { value: '2' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Save sale changes' }));
 
-    await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith('sale-2', expect.objectContaining({ quantity: 2 })));
+    await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith('sale-2', expect.objectContaining({ quantity: 2, saleDate: '2026-10-08' })));
     await waitFor(() => expect(screen.queryByRole('form')).toBeNull());
     expect(within(screen.getByTestId('sale-record-sale-2')).getByText(/Qty 2/)).toBeTruthy();
 

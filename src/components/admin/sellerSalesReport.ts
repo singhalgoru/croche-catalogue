@@ -1,5 +1,6 @@
 import { SALE_CHANNELS, type SaleChannel, type SellerSale, type SellerSaleInput } from '../../services/sellerSales';
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
+import { formatDate, isValidDate, parseDateInput } from '../../utils/date';
 
 const REPORT_HEADERS = [
   'Record ID',
@@ -43,7 +44,7 @@ export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
       sale.productId ?? '',
       sale.productName,
       sale.variantName,
-      sale.saleDate,
+      formatDate(sale.saleDate),
       sale.channel,
       sale.quantity,
       sale.unitPrice,
@@ -136,15 +137,6 @@ const parseCsv = (text: string): string[][] => {
 
 const channelSet = new Set<string>(SALE_CHANNELS);
 
-const isValidDate = (value: string) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year
-    && date.getUTCMonth() === month - 1
-    && date.getUTCDate() === day;
-};
-
 export interface ParsedSalesImport {
   sales: SellerSaleInput[];
   existingIds: Array<string | null>;
@@ -172,10 +164,11 @@ export const parseSellerSalesCsv = (
   rows.slice(1).forEach((row, rowIndex) => {
     const lineNumber = rowIndex + 2;
     const values = headerIndexes.map((column) => row[column]?.trim() ?? '');
-    const [recordId, productId, productName, variantName, saleDate, channelValue,
+    const [recordId, productId, productName, variantName, dateValue, channelValue,
       quantityValue, unitPriceValue, gstValue, materialValue, labourValue, packagingValue,
       shippingValue, feeValue, feeGstValue, notes] = values;
     if (recordId.toLocaleUpperCase() === 'MONTH TOTAL') return;
+    const saleDate = parseDateInput(dateValue);
     const invalid: string[] = [];
     const channel = channelValue.toLocaleLowerCase();
     if (!productName || productName.length > 150) invalid.push('product name');
