@@ -535,8 +535,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                                 {formatRupees(goodMarginPrice)}
                               </span>
                               <span className="mt-1 block text-xs font-medium text-cocoa/70">
-                                GST included · one-piece order estimate using Price discovery costs and fees.
-                                {' '}Suggestion only; product price stays unchanged.
+                                GST included · Estimate for 1 piece
                               </span>
                             </>
                           )}

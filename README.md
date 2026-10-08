@@ -433,6 +433,9 @@ and uses the current Price discovery costs and fee defaults for a one-piece orde
 It does not change the saved price or the calculator's chosen target margin.
 Products without valid time, cost and GST inputs show a prompt to complete
 Price discovery instead of a guessed price.
+The compact note reads "GST included · Estimate for 1 piece". The Price discovery
+summary also shows the estimated margin at its rounded suggested price, rather
+than just the target margin.
 
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command

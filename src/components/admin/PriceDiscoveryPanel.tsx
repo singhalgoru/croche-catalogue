@@ -56,6 +56,9 @@ export default function PriceDiscoveryPanel({
   const suggestedPrice = estimate
     ? roundPriceUp(estimate.suggestedCustomerPrice, roundingIncrement)
     : null;
+  const suggestedPriceOutcome = suggestedPrice === null
+    ? null
+    : calculatePriceAtSellingPrice(inputs, defaults, String(suggestedPrice));
   const priceOutcome = hasSuggestedPrice
     ? calculatePriceAtSellingPrice(inputs, defaults, sellingPrice)
     : null;
@@ -130,7 +133,9 @@ export default function PriceDiscoveryPanel({
           <span className="block text-xs text-cocoa/60">
             {suggestedPrice === null
               ? 'Estimate costs and a selling price'
-              : `Suggested ${formatRupees(suggestedPrice)} including GST`}
+              : `Suggested ${formatRupees(suggestedPrice)} including GST${suggestedPriceOutcome?.profitMarginPercent == null
+                ? ''
+                : ` · ${suggestedPriceOutcome.profitMarginPercent.toFixed(1)}% estimated margin`}`}
           </span>
         </span>
         <span aria-hidden="true" className="text-lg font-bold text-cocoa">

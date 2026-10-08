@@ -78,7 +78,7 @@ describe('Product detail admin integration', () => {
     expect(margin.textContent).not.toContain('Saved');
     expect(screen.getByText('Profit margin: 20.0%').className).toContain('text-base');
     expect(screen.getByLabelText('Coaster suggested price for minimum 35% margin').textContent).toContain('₹437');
-    expect(screen.getByText(/one-piece order estimate/)).toBeTruthy();
+    expect(screen.getByText('GST included · Estimate for 1 piece')).toBeTruthy();
     expect(updateProduct).not.toHaveBeenCalled();
   });
 
