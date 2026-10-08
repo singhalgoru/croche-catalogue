@@ -5,6 +5,14 @@ import type { SellerSale, SellerSaleInput } from '../../services/sellerSales';
 import type { ManagedProduct } from '../../services/products';
 import { createSellerSale, fetchSellerSales } from '../../services/sellerSales';
 import { fetchManagedProducts } from '../../services/products';
+import { fetchBusinessExpenses, saveBusinessExpense, deleteBusinessExpense } from '../../services/businessExpenses';
+
+vi.mock('../../services/businessExpenses', () => ({
+  EXPENSE_CATEGORIES: ['Advertising', 'Tools & equipment', 'Subscriptions', 'Rent & utilities', 'Travel', 'Other'],
+  fetchBusinessExpenses: vi.fn(),
+  saveBusinessExpense: vi.fn(),
+  deleteBusinessExpense: vi.fn(),
+}));
 
 vi.mock('../../services/sellerSales', () => ({
   SALE_CHANNELS: ['online', 'offline', 'whatsapp', 'instagram', 'other'],
@@ -77,6 +85,9 @@ const sale: SellerSale = {
 };
 
 beforeEach(() => {
+  vi.mocked(fetchBusinessExpenses).mockResolvedValue([]);
+  vi.mocked(saveBusinessExpense).mockImplementation(async (input, id) => ({ ...input, id: id ?? 'expense-1' }));
+  vi.mocked(deleteBusinessExpense).mockResolvedValue(undefined);
   vi.mocked(fetchSellerSales).mockResolvedValue([]);
   vi.mocked(fetchManagedProducts).mockResolvedValue([product]);
   vi.mocked(createSellerSale).mockImplementation(async (input: SellerSaleInput) => ({
@@ -93,6 +104,74 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('adds, edits and deletes monthly overheads without changing sale costs', async () => {
+    vi.mocked(fetchSellerSales).mockResolvedValue([{ ...sale, gstPercent: 0 }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    await waitFor(() => expect(fetchBusinessExpenses).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Business expenses' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add expense' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
+    fireEvent.change(screen.getByLabelText('Expense description'), { target: { value: 'Ads' } });
+    fireEvent.change(screen.getByLabelText('Expense amount'), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save expense' }));
+    expect(await screen.findByText('Business expense saved.')).toBeTruthy();
+    expect(saveBusinessExpense).toHaveBeenCalledWith(expect.objectContaining({ amount: 20, description: 'Ads' }), undefined);
+    expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹87');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit expense Ads' }));
+    fireEvent.change(screen.getByLabelText('Expense amount'), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save expense' }));
+    await waitFor(() => expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹13'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete expense Ads' }));
+    expect(deleteBusinessExpense).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delete expense' }));
+    expect(await screen.findByText('Business expense deleted.')).toBeTruthy();
+    expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹107');
+    expect(product.gstPercent).toBe(5);
+    expect(createSellerSale).not.toHaveBeenCalled();
+  });
+
+  it('filters expenses by month and counts losses without sales, but no margin', async () => {
+    vi.mocked(fetchBusinessExpenses).mockResolvedValue([
+      { id: 'oct', description: 'Ads', expenseDate: '2026-10-01', amount: 100, category: 'Advertising', notes: '' },
+      { id: 'sep', description: 'Rent', expenseDate: '2026-09-01', amount: 50, category: 'Rent & utilities', notes: '' },
+    ]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    await waitFor(() => expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹100'));
+    expect(screen.getByText('Margin after business expenses').parentElement?.textContent).toContain('—');
+    fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-09' } });
+    expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹50');
+  });
+
+  it('does not show profit after overheads as zero when expense loading fails', async () => {
+    vi.mocked(fetchBusinessExpenses).mockRejectedValue(new Error('Expense loading failed'));
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Expense loading failed');
+    expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('—');
+    fireEvent.click(screen.getByRole('button', { name: 'Business expenses' }));
+    expect(screen.getByRole('button', { name: 'Add expense' })).toHaveProperty('disabled', true);
+    vi.mocked(fetchBusinessExpenses).mockResolvedValue([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh dashboard' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add expense' })).toHaveProperty('disabled', false));
+  });
+
+  it('preserves expense drafts and existing amounts when saving fails', async () => {
+    vi.mocked(saveBusinessExpense).mockRejectedValueOnce(new Error('Cannot save expense'));
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Business expenses' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add expense' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
+    fireEvent.change(screen.getByLabelText('Expense description'), { target: { value: 'Tools' } });
+    fireEvent.change(screen.getByLabelText('Expense amount'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save expense' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Cannot save expense');
+    expect(screen.getByLabelText('Expense amount')).toHaveProperty('value', '10');
+    expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹0');
+  });
+
   it.each([
     [65, 'text-green-800'],
     [65.01, 'text-red-800'],

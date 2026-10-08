@@ -447,6 +447,29 @@ combine with the selected filter. **Show all products** clears the attention
 filter; clear search too to restore product reordering. Pricing checks use saved
 inputs, not unsaved calculator drafts. Zero costs are valid, not missing.
 
+### Business expenses
+
+Open **Admin → Sales → Sales dashboard → Business expenses** to add, edit or
+delete monthly overheads (advertising, tools/equipment, subscriptions, rent,
+utilities or travel). Date, description, category and amount paid are required;
+notes are optional. Deletion requires confirmation. Expenses share the dashboard
+month selector, and saving an expense selects its month.
+
+**Estimated sales profit** remains revenue before GST minus recorded sale costs
+and fees. **Profit after business expenses** subtracts that month's overheads;
+its margin uses revenue before GST and is unavailable when no sales revenue
+exists. A month with expenses and no sales shows a loss, not zero profit.
+Enter totals paid including taxes. This is a management estimate: no GST input
+credit, depreciation or income-tax calculation is performed. Do not record costs
+already included in individual sales again as business expenses.
+
+Expenses are stored separately in the admin-only `business_expenses` table,
+not product pricing or sales snapshots. Apply migration
+`20261008024000_create_business_expenses.sql` before deploying this frontend.
+Expense records are not included in the existing **sales** CSV export/import.
+Load failures show an error and unavailable overhead totals, with **Refresh
+dashboard** to retry, rather than treating unavailable expenses as zero.
+
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
 above. A frontend deployment does not deploy Edge Functions.

@@ -31,6 +31,53 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('manages monthly business expenses and profit after overheads', async ({ page }) => {
+  await installMockSupabase(page);
+  let expenses: { id: string; description: string; expense_date: string; category: string; amount: number; notes: string }[] = [];
+  await page.route('**/rest/v1/seller_sales?*', route => route.fulfill({ json: [] }));
+  await page.route('**/rest/v1/business_expenses*', async route => {
+    const request = route.request();
+    const id = new URL(request.url()).searchParams.get('id')?.replace('eq.', '');
+    if (request.method() === 'POST') {
+      expenses.push({ ...request.postDataJSON(), id: 'expense-1' });
+      await route.fulfill({ status: 201, json: expenses[0] });
+    } else if (request.method() === 'PATCH') {
+      expenses = expenses.map(expense => expense.id === id ? { ...expense, ...request.postDataJSON() } : expense);
+      await route.fulfill({ json: expenses.find(expense => expense.id === id) });
+    } else if (request.method() === 'DELETE') {
+      expenses = expenses.filter(expense => expense.id !== id);
+      await route.fulfill({ json: [{ id }] });
+    } else {
+      await route.fulfill({ json: expenses });
+    }
+  });
+  await signIn(page);
+  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await page.getByRole('button', { name: 'Business expenses', exact: true }).click();
+  await page.getByRole('button', { name: 'Add expense' }).click();
+  await page.getByLabel('Expense description').fill('October ads');
+  await page.getByLabel('Expense date').fill('2026-10-08');
+  await page.getByLabel('Expense amount').fill('250.50');
+  await page.getByRole('button', { name: 'Save expense' }).click();
+  await expect(page.getByText('Business expense saved.')).toBeVisible();
+  const profit = page.locator('article').filter({ has: page.getByText('Profit after business expenses', { exact: true }) });
+  await expect(profit).toContainText('-₹251');
+  await page.getByRole('button', { name: 'Edit expense October ads' }).click();
+  await page.getByLabel('Expense amount').fill('100');
+  await page.getByRole('button', { name: 'Save expense' }).click();
+  await expect(profit).toContainText('-₹100');
+  await page.getByLabel('Sales month').fill('2026-09');
+  await expect(page.getByText('No business expenses recorded for this month.')).toBeVisible();
+  await expect(profit).toContainText('₹0');
+  await page.getByLabel('Sales month').fill('2026-10');
+  await page.getByRole('button', { name: 'Delete expense October ads' }).click();
+  await page.getByRole('button', { name: 'Confirm delete expense' }).click();
+  await expect(page.getByText('Business expense deleted.')).toBeVisible();
+  await expect(profit).toContainText('₹0');
+  await expectNoHorizontalOverflow(page);
+});
+
 test('opens attention filters from the collapsed product manager and restores all products', async ({ page }) => {
   const state = await installMockSupabase(page);
   state.products.find(product => product.id === 'product-2')!.in_stock = false;

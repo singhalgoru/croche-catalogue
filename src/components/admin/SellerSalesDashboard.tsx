@@ -16,6 +16,8 @@ import { formatINR } from '../../utils/currency';
 import { getPublicVariantPrice } from '../../utils/productPrice';
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
 import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
+import BusinessExpensesPanel from './BusinessExpensesPanel';
+import { fetchBusinessExpenses, type BusinessExpense } from '../../services/businessExpenses';
 
 interface Props {
   refreshKey: number;
@@ -130,6 +132,9 @@ const formatMargin = (margin: number | null) =>
 export default function SellerSalesDashboard({ refreshKey }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sales, setSales] = useState<SellerSale[]>([]);
+  const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
+  const [financialsLoaded, setFinancialsLoaded] = useState(false);
+  const [expenseBusy, setExpenseBusy] = useState(false);
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [month, setMonth] = useState(currentMonth);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
@@ -144,13 +149,17 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
 
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
+    setFinancialsLoaded(false);
     try {
-      const [loadedSales, loadedProducts] = await Promise.all([
+      const [loadedSales, loadedProducts, loadedExpenses] = await Promise.all([
         fetchSellerSales(),
         fetchManagedProducts(),
+        fetchBusinessExpenses(),
       ]);
       setSales(loadedSales);
       setProducts(loadedProducts);
+      setExpenses(loadedExpenses);
+      setFinancialsLoaded(true);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load the sales dashboard.');
@@ -168,6 +177,14 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
     [month, sales],
   );
   const summary = useMemo(() => summarizeSellerSales(monthSales), [monthSales]);
+  const monthExpenses = useMemo(
+    () => expenses.filter(expense => expense.expenseDate.startsWith(`${month}-`)),
+    [expenses, month],
+  );
+  const overheads = monthExpenses.reduce((total, expense) => total + expense.amount, 0);
+  const profitAfterOverheads = summary.profit - overheads;
+  const marginAfterOverheads = summary.taxableRevenue > 0
+    ? profitAfterOverheads / summary.taxableRevenue * 100 : null;
   const salesByChannel = useMemo(
     () => SALE_CHANNELS.map((channel) => ({
       channel,
@@ -367,6 +384,14 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           </label>
           <button
             type="button"
+            disabled={isLoading || busy || isImporting || expenseBusy}
+            onClick={() => void loadDashboard()}
+            className="rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
+          >
+            Refresh dashboard
+          </button>
+          <button
+            type="button"
             onClick={downloadReport}
             className="rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa"
           >
@@ -375,7 +400,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           <button
             type="button"
             onClick={() => reportFileInput.current?.click()}
-            disabled={isImporting || isLoading}
+            disabled={isImporting || isLoading || expenseBusy}
             className="rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50"
           >
             {isImporting ? 'Importing…' : 'Upload CSV'}
@@ -405,7 +430,8 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           </button>
         </div>
         <p className="mt-2 text-xs text-cocoa/55">
-          Download an Excel-compatible CSV for the selected month. You can edit it in Excel and upload it again; matching record IDs update existing sales.
+          Download an Excel-compatible sales CSV for the selected month. Business expenses are separate and are not included in this CSV.
+          You can edit it in Excel and upload it again; matching record IDs update existing sales.
         </p>
       </div>
 
@@ -415,7 +441,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
         {[
           ['Sales revenue', formatINR(summary.revenue), 'GST-inclusive'],
-          ['Estimated net profit', formatINR(summary.profit), 'After GST, fees and costs'],
+          ['Estimated sales profit', formatINR(summary.profit), 'After GST, fees and sale costs; before overheads'],
           ['Profit margin', formatMargin(summary.marginPercent), 'On revenue before GST'],
           ['Sales / pieces', `${summary.salesCount} / ${summary.piecesSold}`, 'Transactions / units'],
           ['GST collected', formatINR(summary.gst), 'Calculated from recorded GST rate'],
@@ -436,6 +462,35 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
           </article>
         ))}
       </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <article className="rounded-xl bg-cream/70 p-3">
+          <p className="text-xs font-semibold text-cocoa/60">Business expenses</p>
+          <p className="mt-1 font-heading text-xl font-bold text-cocoa">{financialsLoaded ? formatINR(overheads) : '—'}</p>
+          <p className="mt-1 text-xs text-cocoa/55">Overheads recorded for {month}</p>
+        </article>
+        <article className="rounded-xl bg-cream/70 p-3">
+          <p className="text-xs font-semibold text-cocoa/60">Profit after business expenses</p>
+          <p className={`mt-1 font-heading text-xl font-bold ${financialsLoaded && profitAfterOverheads < 0 ? 'text-red-800' : 'text-cocoa'}`}>
+            {financialsLoaded ? formatINR(profitAfterOverheads) : '—'}
+          </p>
+          <p className="mt-1 text-xs text-cocoa/55">Estimated sales profit minus monthly overheads</p>
+        </article>
+        <article className="rounded-xl bg-cream/70 p-3">
+          <MarginLabel margin={financialsLoaded ? marginAfterOverheads : null} className="block">
+            <span className="block text-xs font-semibold">Margin after business expenses</span>
+            <span className="mt-1 block font-heading text-xl font-bold">{financialsLoaded ? formatMargin(marginAfterOverheads) : '—'}</span>
+          </MarginLabel>
+          <p className="mt-1 text-xs text-cocoa/55">On revenue before GST; no margin without sales revenue</p>
+        </article>
+      </div>
+      <BusinessExpensesPanel month={month} expenses={monthExpenses} loading={!financialsLoaded || isImporting || busy}
+        onBusyChange={setExpenseBusy}
+        onSaved={expense => {
+          setExpenses(current => [...current.filter(item => item.id !== expense.id), expense]);
+          setMonth(expense.expenseDate.slice(0, 7));
+        }}
+        onDeleted={id => setExpenses(current => current.filter(expense => expense.id !== id))}
+      />
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-cocoa/65">
         <span className="font-semibold">Sales by channel:</span>
         {salesByChannel.map(({ channel, count }) => (
