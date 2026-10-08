@@ -39,6 +39,7 @@ export const DEFAULT_PRICE_DISCOVERY_DEFAULTS: PriceDiscoveryDefaults = {
 };
 
 export const DEFAULT_TARGET_MARGIN_PERCENT = 45;
+export const GOOD_MARGIN_PERCENT = 35;
 
 export const createDefaultPriceInputs = (product: {
   priceDiscoveryInputs?: PriceDiscoveryInputs | null;
@@ -177,3 +178,14 @@ export const calculateMinimumOrderQuantity = (
 
 export const roundPriceUp = (price: number, increment: number) =>
   Math.ceil(price / increment) * increment;
+
+export const suggestGoodMarginPrice = (
+  inputs: PriceDiscoveryInputs,
+  defaults: PriceDiscoveryDefaults,
+): number | null => {
+  const estimate = estimateProductPrice({
+    ...inputs, targetMarginPercent: String(GOOD_MARGIN_PERCENT),
+  }, defaults);
+  if (!estimate || !Number.isFinite(estimate.suggestedCustomerPrice)) return null;
+  return Math.max(1, roundPriceUp(estimate.suggestedCustomerPrice, 1));
+};

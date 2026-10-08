@@ -31,6 +31,23 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('shows prominent minimum-margin price guidance without changing the catalogue price', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page, 'manage');
+  const coaster = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
+  });
+  const suggestion = coaster.getByLabel('Flower Coaster suggested price for minimum 35% margin');
+  await expect(suggestion).toContainText('Complete valid time, cost and GST inputs');
+  await coaster.getByRole('button', { name: /Price discovery Estimate/ }).click();
+  await coaster.getByLabel('Flower Coaster time spent', { exact: true }).fill('1');
+  await coaster.getByLabel('Flower Coaster materials cost', { exact: true }).fill('50');
+  await expect(suggestion).toContainText('₹437');
+  await expect(suggestion).toContainText('GST included');
+  expect(state.products.find(product => product.id === 'product-2')?.price).toBe(249);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('keeps admin tasks separate and product entry focused without losing the draft', async ({ page }) => {
   await installMockSupabase(page);
   await signIn(page);

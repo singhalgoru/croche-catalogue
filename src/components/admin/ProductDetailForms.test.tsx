@@ -62,6 +62,33 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('shows prominent profit margin and a 35 percent suggested price without changing the product', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{
+      ...product,
+      profitMarginPercent: 20,
+      priceDiscoveryInputs: {
+        timeSpent: '1', timeUnit: 'hours', materialCost: '50',
+        shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '60',
+      },
+    }]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
+    const margin = await screen.findByLabelText('Coaster profit margin');
+    expect(margin.textContent).toContain('Profit margin: 20.0%');
+    expect(margin.textContent).not.toContain('Saved');
+    expect(screen.getByText('Profit margin: 20.0%').className).toContain('text-base');
+    expect(screen.getByLabelText('Coaster suggested price for minimum 35% margin').textContent).toContain('₹437');
+    expect(screen.getByText(/one-piece order estimate/)).toBeTruthy();
+    expect(updateProduct).not.toHaveBeenCalled();
+  });
+
+  it('explains missing cost data instead of guessing the minimum-margin price', async () => {
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
+    expect((await screen.findByLabelText('Coaster suggested price for minimum 35% margin')).textContent)
+      .toContain('Complete valid time, cost and GST inputs');
+  });
+
   it('opens product entry in a dialog and retains entered details when closed and reopened', async () => {
     render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
@@ -274,9 +301,9 @@ describe('Product detail admin integration', () => {
     await waitFor(() => expect(updateProduct).toHaveBeenCalled());
     expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(61.647, 2);
     expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].gstPercent).toBe(5);
-    expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('61.6%');
-    expect(screen.getByText(/Saved profit margin: 61.6%/).className).toContain('text-green-800');
-    expect((await screen.findByLabelText('Coaster saved profit margin')).textContent).toContain('GST 5% (₹58 included)');
+    expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('61.6%');
+    expect(screen.getByText(/Profit margin: 61.6%/).className).toContain('text-green-800');
+    expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('GST 5% (₹58 included)');
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
       materials: 'Cotton yarn', includedItems: '',

@@ -427,6 +427,13 @@ discovery estimates and targets, editor estimates, and sales dashboard margins.
 Unavailable margins remain neutral. Colors use the unrounded margin, not its
 rounded display value; this is a visual guide and does not change pricing.
 
+Product cards prominently show **Profit margin** and a **Suggested price for
+minimum 35% margin**. The suggestion is rounded up to whole rupees, includes GST,
+and uses the current Price discovery costs and fee defaults for a one-piece order.
+It does not change the saved price or the calculator's chosen target margin.
+Products without valid time, cost and GST inputs show a prompt to complete
+Price discovery instead of a guessed price.
+
 To configure the secret, use **Supabase Dashboard → Edge Functions → Secrets**
 and add `GST_ACCELERATOR_API_KEY`. Then deploy the function with the command
 above. A frontend deployment does not deploy Edge Functions.

@@ -5,10 +5,34 @@ import {
   calculateMinimumOrderQuantity,
   estimateProductPrice,
   roundPriceUp,
+  suggestGoodMarginPrice,
   type PriceDiscoveryInputs,
 } from './priceDiscovery';
 
 describe('price discovery calculations', () => {
+  it.each([0, 5, 18])('suggests a whole-rupee price achieving at least 35 percent at %s GST', gstPercent => {
+    const inputs: PriceDiscoveryInputs = {
+      timeSpent: '1', timeUnit: 'hours', materialCost: '50',
+      shippingCost: '100', packagingCost: '10',
+      gstPercent: String(gstPercent), targetMarginPercent: '60',
+    };
+    const price = suggestGoodMarginPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS)!;
+    expect(Number.isInteger(price)).toBe(true);
+    expect(calculatePriceAtSellingPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS, String(price))!.profitMarginPercent)
+      .toBeGreaterThanOrEqual(35);
+    expect(calculatePriceAtSellingPrice(inputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS, String(price - 1))!.profitMarginPercent)
+      .toBeLessThan(35);
+    expect(inputs.targetMarginPercent).toBe('60');
+    expect(suggestGoodMarginPrice({ ...inputs, materialCost: '' }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBeNull();
+  });
+
+  it('does not suggest a free price when all costs are zero', () => {
+    expect(suggestGoodMarginPrice({
+      timeSpent: '0', timeUnit: 'hours', materialCost: '0',
+      shippingCost: '0', packagingCost: '0', gstPercent: '5', targetMarginPercent: '45',
+    }, DEFAULT_PRICE_DISCOVERY_DEFAULTS)).toBe(1);
+  });
+
   it('includes labour, material, shipping and packaging costs and accounts for GST and gateway fees', () => {
     const estimate = estimateProductPrice({
       timeSpent: '2',

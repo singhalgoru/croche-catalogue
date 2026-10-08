@@ -23,6 +23,8 @@ import {
   calculateMinimumOrderQuantity,
   createDefaultPriceInputs,
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+  GOOD_MARGIN_PERCENT,
+  suggestGoodMarginPrice,
   type PriceDiscoveryDefaults,
   type PriceDiscoveryInputs,
 } from './priceDiscovery';
@@ -452,6 +454,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             const isDeleting = deleteId === product.id;
             const isBusy = busyId === product.id;
             const inputsForProduct = priceInputs[product.id] ?? createDefaultPriceInputs(product);
+            const goodMarginPrice = suggestGoodMarginPrice(inputsForProduct, priceDefaults);
             const editorPriceOutcome = isEditing
               ? calculatePriceAtSellingPrice(inputsForProduct, priceDefaults, draft.price)
               : null;
@@ -498,14 +501,15 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       <div>
                         <h3 className="font-heading text-lg font-bold text-cocoa">{product.name}</h3>
                         <p className="text-sm text-cocoa/60">{product.category}</p>
+                        <div className="mt-2 rounded-xl border-2 border-mustard/50 bg-white p-3 shadow-sm">
                         {product.profitMarginPercent !== null
                           && product.profitMarginPercent !== undefined && (
                           <p
-                            aria-label={`${product.name} saved profit margin`}
+                            aria-label={`${product.name} profit margin`}
                             className="mt-1 text-sm font-semibold text-cocoa"
                           >
-                            <MarginLabel margin={product.profitMarginPercent} className="inline-block">
-                              Saved profit margin: {product.profitMarginPercent.toFixed(1)}%
+                            <MarginLabel margin={product.profitMarginPercent} className="inline-block text-base font-bold sm:text-lg">
+                              Profit margin: {product.profitMarginPercent.toFixed(1)}%
                             </MarginLabel>
                             {product.gstPercent !== null
                               && product.gstPercent !== undefined
@@ -516,6 +520,28 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                             )}
                           </p>
                         )}
+                        <p
+                          aria-label={`${product.name} suggested price for minimum ${GOOD_MARGIN_PERCENT}% margin`}
+                          className="mt-2 text-sm font-bold text-cocoa"
+                        >
+                          Suggested price for minimum {GOOD_MARGIN_PERCENT}% margin:
+                          {goodMarginPrice === null ? (
+                            <span className="mt-1 block text-xs font-medium text-cocoa/70">
+                              Complete valid time, cost and GST inputs in Price discovery to calculate.
+                            </span>
+                          ) : (
+                            <>
+                              <span className="ml-2 inline-block rounded-lg bg-mustard/25 px-2 py-1 text-lg">
+                                {formatRupees(goodMarginPrice)}
+                              </span>
+                              <span className="mt-1 block text-xs font-medium text-cocoa/70">
+                                GST included · one-piece order estimate using Price discovery costs and fees.
+                                {' '}Suggestion only; product price stays unchanged.
+                              </span>
+                            </>
+                          )}
+                        </p>
+                        </div>
                         <p className="mt-1 text-xs font-semibold text-cocoa/55">
                           {product.variants.length} variant{product.variants.length === 1 ? '' : 's'}
                         </p>
