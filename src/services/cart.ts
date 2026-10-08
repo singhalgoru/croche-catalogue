@@ -206,10 +206,10 @@ const loadRemoteCart = async (): Promise<Cart> => {
   return mapCart(data as CartRow);
 };
 
-const touchRemoteCart = async (cartId: string) => {
+const touchRemoteCart = async (cartId: string): Promise<Cart> => {
   const supabase = await loadSupabase();
-  if (!supabase) return;
-  const { error } = await supabase
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { data, error } = await supabase
     .from('carts')
     .update({
       status: 'active',
@@ -217,8 +217,11 @@ const touchRemoteCart = async (cartId: string) => {
       expires_at: new Date(Date.now() + CART_LIFETIME_MS).toISOString(),
       whatsapp_started_at: null,
     })
-    .eq('id', cartId);
+    .eq('id', cartId)
+    .select(CART_COLUMNS)
+    .single();
   if (error) throw new Error(`Unable to refresh your cart: ${error.message}`);
+  return mapCart(data as CartRow);
 };
 
 export async function fetchCart(): Promise<Cart> {
@@ -285,8 +288,7 @@ export async function addProductToCart(
     .from('cart_items')
     .upsert(values, { onConflict: 'cart_id,product_id,variant_id' });
   if (error) throw new Error(`Unable to add this product to your cart: ${error.message}`);
-  await touchRemoteCart(cart.id);
-  return loadRemoteCart();
+  return touchRemoteCart(cart.id);
 }
 
 export async function updateCartItemQuantity(
@@ -313,8 +315,7 @@ export async function updateCartItemQuantity(
     .eq('id', itemId)
     .eq('cart_id', cart.id);
   if (error) throw new Error(`Unable to update the cart quantity: ${error.message}`);
-  await touchRemoteCart(cart.id);
-  return loadRemoteCart();
+  return touchRemoteCart(cart.id);
 }
 
 export async function removeCartItem(itemId: string): Promise<Cart> {
@@ -344,8 +345,7 @@ export async function removeCartItem(itemId: string): Promise<Cart> {
     .eq('id', itemId)
     .eq('cart_id', cart.id);
   if (error) throw new Error(`Unable to remove the cart item: ${error.message}`);
-  await touchRemoteCart(cart.id);
-  return loadRemoteCart();
+  return touchRemoteCart(cart.id);
 }
 
 export async function clearCart(): Promise<Cart> {

@@ -63,6 +63,25 @@ test('starts public catalogue requests before the main bundle finishes loading',
   expect(timings.categories!).toBeLessThan(timings.mainBundle!);
 });
 
+test('adds to an existing cart without a redundant reload', async ({ page }) => {
+  const card = page.getByRole('article', { name: 'Product: Rose Charm' });
+  await card.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await expect(page.getByRole('button', { name: 'Open cart with 1 item' }).first()).toBeVisible();
+  const requests: string[] = [];
+  page.on('request', request => {
+    if (['/rest/v1/carts', '/rest/v1/cart_items'].includes(new URL(request.url()).pathname)) {
+      requests.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
+  await expect(card.getByRole('button', { name: /^Add to cart — Rose Charm/ })).toBeEnabled();
+  await card.getByRole('button', { name: /^Add to cart — Rose Charm/ }).click();
+  await expect(page.getByRole('button', { name: 'Open cart with 2 items' }).first()).toBeVisible();
+  expect(requests).toEqual(['GET /rest/v1/carts', 'POST /rest/v1/cart_items', 'PATCH /rest/v1/carts']);
+  expect(catalogueState.carts[0].cart_items[0]).toMatchObject({ quantity: 2, unit_price: 349 });
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Open cart with 2 items' }).first()).toBeVisible();
+});
+
 test('persists an anonymous cart and sends the complete enquiry to WhatsApp', async ({ page }) => {
   const roseCard = page.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Rose Charm' }),
