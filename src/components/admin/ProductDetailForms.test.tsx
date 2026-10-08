@@ -62,6 +62,24 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('opens the negative-margin filter and excludes zero and positive margins', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([
+      { ...product, profitMarginPercent: -0.01 },
+      { ...product, id: 'zero', name: 'Zero', profitMarginPercent: 0 },
+      { ...product, id: 'positive', name: 'Positive', profitMarginPercent: 10 },
+    ]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1 Negative margin' }));
+    expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Zero' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Positive' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Move Coaster up' })).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByRole('button', { name: '3 Below 35% margin' }));
+    expect(screen.getByRole('heading', { name: 'Zero' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
+    expect(screen.getByRole('heading', { name: 'Positive' })).toBeTruthy();
+  });
+
   it('filters attention groups from the collapsed manager and combines them with search', async () => {
     const pricedProduct: ManagedProduct = {
       ...product, profitMarginPercent: 34.99,

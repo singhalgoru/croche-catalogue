@@ -467,6 +467,9 @@ product once per group; a product may appear in more than one group. Searches
 combine with the selected filter. **Show all products** clears the attention
 filter; clear search too to restore product reordering. Pricing checks use saved
 inputs, not unsaved calculator drafts. Zero costs are valid, not missing.
+The separate **Negative margin** filter shows only finite saved margins below
+0%, excluding zero and missing margins. These products also remain included
+in **Below 35% margin**. The same search, edit and clear-filter controls apply.
 
 ### Business expenses
 

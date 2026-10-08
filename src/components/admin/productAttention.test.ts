@@ -19,6 +19,12 @@ const variant = (availableQuantity: number, inStock = true): ManagedProduct['var
 });
 
 describe('product attention checks', () => {
+  it.each([
+    [-10, true], [-0.01, true], [0, false], [10, false],
+    [null, false], [undefined, false], [NaN, false], [-Infinity, false],
+  ])('flags a negative saved margin of %s only when finite and below zero', (profitMarginPercent, flagged) => {
+    expect(getProductAttention({ ...product, profitMarginPercent }, DEFAULT_PRICE_DISCOVERY_DEFAULTS).negativeMargin).toBe(flagged);
+  });
   it('uses the exact saved margin threshold, including negative margins', () => {
     expect(check().margin).toBe(false);
     for (const profitMarginPercent of [34.99, 0, -10]) {

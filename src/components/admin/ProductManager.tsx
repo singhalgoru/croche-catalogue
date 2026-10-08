@@ -343,7 +343,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
             Counts are products, including hidden products. Low stock: fewer than {LOW_STOCK_QUANTITY} pieces per variant.
             {' '}Pricing checks use saved cost inputs; save changes to update them.
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {attentionCounts.map(({ id, label, count }) => (
               <button
                 key={id}
