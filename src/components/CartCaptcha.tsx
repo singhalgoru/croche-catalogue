@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { cartCaptchaSiteKey, finishCartCaptcha, isCartCaptchaOpen, subscribeCartCaptcha } from '../services/cartCaptcha';
+import { cartCaptchaSiteKey, finishCartCaptcha, invalidatePreparedCartCaptcha, isCartCaptchaOpen, subscribeCartCaptcha } from '../services/cartCaptcha';
+import { loadSupabase } from '../lib/supabaseConfig';
 
 interface Turnstile {
   render: (container: HTMLElement, options: {
     sitekey: string;
     action: string;
     size: 'flexible';
+    appearance?: 'interaction-only';
     callback: (token: string) => void;
     'error-callback': () => void;
     'expired-callback': () => void;
@@ -82,7 +84,51 @@ function ChallengeDialog() {
   </dialog>;
 }
 
+function PreparedChallenge() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let widgetId: string | undefined;
+    let api: Turnstile | undefined;
+    const invalidate = () => { if (active) invalidatePreparedCartCaptcha(); };
+    const prepare = async () => {
+      const client = await loadSupabase();
+      if (client) {
+        const { data, error: sessionError } = await client.auth.getSession();
+        if (sessionError) throw new Error(`Unable to prepare cart verification: ${sessionError.message}`);
+        if (data.session) return null;
+      }
+      if (!active) return null;
+      return loadTurnstile();
+    };
+    void prepare().then(turnstile => {
+      if (!turnstile) return;
+      if (!active || !containerRef.current) return;
+      api = turnstile;
+      widgetId = api.render(containerRef.current, {
+        sitekey: cartCaptchaSiteKey, action: 'authentication', size: 'flexible',
+        appearance: 'interaction-only',
+        callback: token => { if (active) finishCartCaptcha(token); },
+        'expired-callback': invalidate,
+        'error-callback': () => {
+          invalidate();
+          if (active) setError('Bot verification will be retried when you add an item.');
+        },
+        'timeout-callback': invalidate,
+      });
+    }).catch((failure: unknown) => {
+      if (active) setError(failure instanceof Error ? failure.message : 'Bot verification could not load.');
+    });
+    return () => { active = false; if (widgetId && api) api.remove(widgetId); };
+  }, []);
+  return <div className="fixed bottom-4 right-4 z-[90] max-w-[calc(100vw-2rem)]">
+    <div ref={containerRef} aria-label="Background bot verification" />
+    {error && <p role="status" className="rounded-lg bg-cream p-2 text-xs text-cocoa">{error}</p>}
+  </div>;
+}
+
 export default function CartCaptcha() {
   const open = useSyncExternalStore(subscribeCartCaptcha, isCartCaptchaOpen);
-  return open ? <ChallengeDialog /> : null;
+  return open ? <ChallengeDialog /> : cartCaptchaSiteKey ? <PreparedChallenge /> : null;
 }

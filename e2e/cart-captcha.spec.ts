@@ -1,11 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-async function mockChallenge(page: Page) {
+async function mockChallenge(page: Page, prepareAutomatically = false) {
   await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `window.turnstile = {
       render(container, options) {
+        if (${prepareAutomatically} && options.appearance === 'interaction-only') {
+          setTimeout(() => {
+            options.callback('prepared-captcha-token');
+            container.dataset.prepared = 'true';
+          }, 200);
+          return 'prepared-widget';
+        }
         container.innerHTML = '';
         const pass = document.createElement('button');
         pass.textContent = 'Pass test challenge';
@@ -20,6 +27,22 @@ async function mockChallenge(page: Page) {
     };`,
   }));
 }
+
+test('prepares a single-use token before the first add without creating a cart early', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await mockChallenge(page, true);
+  await page.goto('/');
+  await expect(page.getByLabel('Background bot verification')).toHaveCount(1);
+  await expect(page.locator('[data-prepared="true"]')).toHaveCount(1);
+  expect(state.carts).toHaveLength(0);
+  const signup = page.waitForRequest(request => request.url().endsWith('/auth/v1/signup'));
+  await page.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  expect((await signup).postDataJSON()).toMatchObject({
+    gotrue_meta_security: { captcha_token: 'prepared-captcha-token' },
+  });
+  await expect(page.getByRole('button', { name: 'Open cart with 1 item' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Quick bot check' })).toHaveCount(0);
+});
 
 test('CAPTCHA gates anonymous cart creation, allows retry and skips restored sessions', async ({ page }) => {
   const state = await installMockSupabase(page);
@@ -65,5 +88,5 @@ test('CAPTCHA cancellation leaves no cart and admin login also forwards verifica
   await expect(page.getByRole('dialog', { name: 'Quick bot check' })).toBeVisible();
   await page.getByRole('button', { name: 'Pass test challenge' }).click();
   expect((await tokenRequest).postDataJSON()).toMatchObject({ gotrue_meta_security: { captcha_token: 'test-captcha-token' } });
-  await expect(page.getByRole('button', { name: /Anonymous cart activity/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Manage catalogue' })).toBeVisible();
 });

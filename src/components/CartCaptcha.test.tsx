@@ -76,3 +76,36 @@ it('surfaces script load failures instead of allowing an unverified signup', asy
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   await rejected;
 });
+
+it('prepares verification while browsing and consumes a token only once', async () => {
+  installWidget();
+  render(<CartCaptcha />);
+  await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledOnce());
+  expect(options.appearance).toBe('interaction-only');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  act(() => options.callback('prepared-token'));
+  expect(await requestCartCaptcha()).toBe('prepared-token');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  let next!: ReturnType<typeof requestCartCaptcha>;
+  act(() => { next = requestCartCaptcha(); });
+  expect(screen.getByRole('dialog', { name: 'Quick bot check' })).toBeTruthy();
+  const rejected = expect(next).rejects.toThrow('cancelled');
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  await rejected;
+});
+
+it('never uses an expired prepared token', async () => {
+  installWidget();
+  render(<CartCaptcha />);
+  await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledOnce());
+  act(() => options.callback('expired-prepared-token'));
+  const now = Date.now();
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 4 * 60 * 1000 + 1);
+  let pending!: ReturnType<typeof requestCartCaptcha>;
+  act(() => { pending = requestCartCaptcha(); });
+  clock.mockRestore();
+  expect(screen.getByRole('dialog', { name: 'Quick bot check' })).toBeTruthy();
+  const rejected = expect(pending).rejects.toThrow('cancelled');
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  await rejected;
+});
