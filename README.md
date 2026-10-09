@@ -31,6 +31,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Successful cart additions paint their confirmed cart feedback before running third-party analytics, keeping tracking work off the mobile feedback path.
 - Admin products show all-time pieces sold from saved sales linked by product ID, across variants, dates and channels. Creating, editing, deleting or importing sales refreshes the counts; unlinked manual sales are excluded and stock is unchanged.
 - Reddit variant links use dedicated static variant pages with matching preview images, titles and prices. Visitors open the selected variant in the interactive product view; existing query-based links remain supported. Reddit may retain cached previews on older posts.
+- Mobile store pages use equal-width collection links and aligned ordering-policy links; About ordering disclosures are grouped in a readable panel.
 - When Turnstile is configured, bot verification is prepared while browsing. A prepared token is consumed once within four minutes; missing/expired tokens still require the verification dialog before anonymous signup.
 - Product views, Google feed landing pages, About and FAQ explicitly disclose the catalogue/order-request model, GST-inclusive prices, additional shipping and payment confirmation. These transparency disclosures do not provide a complete online checkout or guarantee Merchant Center eligibility.
 - "Collaborate with us" in the hamburger menu and footer links to a maker/brand invitation above the footer, with a prefilled collaboration WhatsApp enquiry using the existing contact number

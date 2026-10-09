@@ -77,6 +77,34 @@ test('about and ordering FAQ retain accessible content and current category navi
   expect(overflow).toBe(false);
 });
 
+test('mobile About page aligns policy links and evenly sizes collection buttons', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].category = 'Charms & Keychains';
+  state.categories.push('Charms & Keychains');
+  state.categorySettings['Charms & Keychains'] = { priority: 1 };
+  for (const width of [320, 360, 414]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/about/');
+    const policies = page.getByRole('navigation', { name: 'Ordering policies' });
+    const faq = await policies.getByRole('link', { name: 'Read the ordering FAQ' }).boundingBox();
+    const returns = await policies.getByRole('link', { name: 'Return and refund policy' }).boundingBox();
+    expect(faq).not.toBeNull();
+    expect(returns).not.toBeNull();
+    expect(Math.abs(faq!.x - returns!.x)).toBeLessThan(1);
+    expect(returns!.y).toBeGreaterThanOrEqual(faq!.y + faq!.height);
+    expect(faq!.height).toBeGreaterThanOrEqual(44);
+    expect(returns!.height).toBeGreaterThanOrEqual(44);
+    const collections = page.getByRole('navigation', { name: 'Explore collections' });
+    const boxes = await collections.getByRole('link').evaluateAll(links =>
+      links.map(link => { const box = link.getBoundingClientRect(); return { width: box.width, height: box.height }; }));
+    expect(boxes.length).toBeGreaterThan(1);
+    expect(Math.max(...boxes.map(box => box.width)) - Math.min(...boxes.map(box => box.width))).toBeLessThan(1);
+    expect(boxes.every(box => box.height >= 44)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await expect(page.getByText(/Never share your card PIN/)).toBeVisible();
+  }
+});
+
 test('photo-led collections hub and homepage links lead directly to published collections', async ({ page }) => {
   const state = await installMockSupabase(page);
   await page.goto('/collections/');

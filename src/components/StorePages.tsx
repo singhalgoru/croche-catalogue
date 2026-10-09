@@ -86,9 +86,9 @@ export default function StorePages({
   }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, requestedPath, title]);
 
   const categoryLinks = (
-    <nav aria-label="Explore collections" className="flex flex-wrap gap-3">
+    <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
       {visibleCategories.map(item => <a key={item.name} href={collectionPath(item.name)}
-        className="rounded-full border border-mustard px-4 py-2 text-sm underline underline-offset-4">{item.name}</a>)}
+        className="flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-mustard px-3 py-2 text-center text-sm leading-snug underline underline-offset-4 sm:rounded-full sm:px-4">{item.name}</a>)}
     </nav>
   );
   return <div className="flex min-h-screen flex-col">
@@ -112,12 +112,16 @@ export default function StorePages({
         <p>General enquiries: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a></p>
         <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-block underline">Follow Luvia on Instagram</a>
         <h2 className="font-heading text-xl font-bold">Ordering across India</h2><p>{storeContent.about[3]}</p>
-        <h2 className="font-heading text-xl font-bold">{storeContent.orderingDisclosure.title}</h2>
-        <p>{storeContent.orderingDisclosure.request}</p>
-        <p>{storeContent.orderingDisclosure.price}</p>
-        <p>{storeContent.orderingDisclosure.payment}</p>
-        <a href="/faq/" className="inline-block underline">Read the ordering FAQ</a>
-        <a href="/return-policy/" className="ml-4 inline-block underline">Return and refund policy</a>
+        <section aria-labelledby="about-ordering-title" className="space-y-3 rounded-2xl border border-mustard/30 bg-white/70 p-4 text-sm leading-relaxed sm:p-5 sm:text-base">
+          <h2 id="about-ordering-title" className="font-heading text-xl font-bold">{storeContent.orderingDisclosure.title}</h2>
+          <p>{storeContent.orderingDisclosure.request}</p>
+          <p>{storeContent.orderingDisclosure.price}</p>
+          <p>{storeContent.orderingDisclosure.payment}</p>
+          <nav aria-label="Ordering policies" className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:gap-x-5">
+            <a href="/faq/" className="inline-flex min-h-11 items-center underline underline-offset-4">Read the ordering FAQ</a>
+            <a href="/return-policy/" className="inline-flex min-h-11 items-center underline underline-offset-4">Return and refund policy</a>
+          </nav>
+        </section>
       </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
         <p>Answers about ordering, custom colours, shipping across India, care and returns.</p>
         {storeContent.questions.map(([question, answer]) => <details key={question} className="rounded-xl border border-mustard/40 bg-white p-4">
