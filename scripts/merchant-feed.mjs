@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AwsClient } from 'aws4fetch';
 import sharp from 'sharp';
 import { loadEnv } from 'vite';
-import { escapeHtml, fetchProducts, renderProductPage, toProductReference, toProductSlug } from './prerender.mjs';
+import { escapeHtml, fetchProducts, renderProductPage, toProductReference, toProductSlug, toVariantSlug } from './prerender.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ORIGIN = 'https://luviacreations.com';
@@ -74,11 +74,6 @@ export const merchantItems = (products) => {
   }
   return items;
 };
-
-const toVariantSlug = (variant) => !variant ? 'standard' : variant.publicSlug || variant.name
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+$/g, '') || `variant-${String(variant.id).replace(/-/g, '').slice(0, 8)}`;
 
 export const renderMerchantFeed = (items) => {
   const field = (name, value) => `<g:${name}>${escapeHtml(value)}</g:${name}>`;

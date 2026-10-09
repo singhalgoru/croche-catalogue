@@ -13,6 +13,8 @@ import {
   fetchBootstrapCategories,
   priceRange,
   renderProductPage,
+  variantShareProduct,
+  toVariantSlug,
   renderLlms,
   renderShell,
   renderSitemap,
@@ -84,6 +86,25 @@ describe('fetchProducts', () => {
 });
 
 describe('parity with the app helpers', () => {
+  it('renders variant-specific crawler metadata instead of the standard image and price', () => {
+    const variant = { ...product.variants[1], image: 'https://images.luviacreations.com/pink.webp', price: 450 };
+    const shared = variantShareProduct(product, variant);
+    const url = `https://luviacreations.com/p/ivory-rose-gajra/variant/blush/`;
+    expect(shared.url).toBe(url);
+    expect(shared.image).toBe(variant.image);
+    expect(shared.price).toBe(450);
+    expect(shared.variants).toEqual([variant]);
+    const html = renderProductPage(shared, '919205907350', { url: `${url}og.jpg`, width: 800, height: 600 }, false);
+    expect(html).toContain(`<meta property="og:image" content="${url}og.jpg"`);
+    expect(html).toContain(`<meta name="twitter:image" content="${url}og.jpg"`);
+    expect(html).toContain(`<meta property="og:url" content="${url}"`);
+    expect(html).toContain(`<link rel="canonical" href="${url}"`);
+    expect(html).toContain('Ivory Rose Gajra — Blush');
+    expect(html).toContain('₹450');
+    expect(variantShareProduct({ ...product, price: null }, variant).price).toBeNull();
+    expect(toVariantSlug({ id: 'AA-BB-CC', name: '✨' })).toBe('variant-aabbcc');
+  });
+
   it('embeds public snapshots safely and carries them to product pages for instant home navigation', () => {
     const homepage = { title: 'Catalogue', description: 'Summary.', canonical: 'https://luviacreations.com/' };
     const rows = [{ ...row, description: '</script><script>alert(1)</script>' }];

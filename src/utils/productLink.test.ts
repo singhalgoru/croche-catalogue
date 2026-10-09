@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Product } from '../types/product';
-import { findProductByReference, readProductPageReference, toProductUrl, toProductPageUrl, toProductReference } from './productLink';
+import { findProductByReference, readProductPageReference, readProductVariantReference, toProductVariantPageUrl, toProductUrl, toProductPageUrl, toProductReference } from './productLink';
 
 afterEach(() => window.history.replaceState(null, '', '/'));
 
@@ -77,6 +77,16 @@ describe('toProductPageUrl', () => {
   });
 
   describe('hybrid product routes', () => {
+    it('reads static variant share paths and preserves legacy query selections', () => {
+      const variant = { id: 'v2', name: 'Renamed ivory', publicSlug: 'ivory' };
+      expect(toProductVariantPageUrl(products[0], variant)).toBe(`${toProductPageUrl(products[0])}variant/ivory/`);
+      window.history.replaceState(null, '', '/p/rose-charm/variant/ivory/?utm_source=reddit');
+      expect(readProductPageReference()).toBe('rose-charm');
+      expect(readProductVariantReference()).toBe('ivory');
+      window.history.replaceState(null, '', '/p/rose-charm/?variant=pink');
+      expect(readProductVariantReference()).toBe('pink');
+    });
+
     it('reads direct product paths and preserves the immutable reference', () => {
       window.history.replaceState(null, '', '/p/old-name--product-1/?variant=red');
       expect(readProductPageReference()).toBe('old-name--product-1');

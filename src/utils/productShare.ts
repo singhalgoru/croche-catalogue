@@ -1,5 +1,5 @@
 import type { Product, ProductVariant } from '../types/product';
-import { toProductPageUrl, toPublicVariantSlug } from './productLink';
+import { toProductPageUrl, toProductVariantPageUrl, toPublicVariantSlug } from './productLink';
 
 export const getProductShareDetails = (product: Product, variant?: ProductVariant) => {
   const productUrl = new URL(toProductPageUrl(product));
@@ -10,7 +10,7 @@ export const getProductShareDetails = (product: Product, variant?: ProductVarian
       ? `${product.name} — ${variant.name}`
       : product.name;
   const text = `See ${title} from Luvia`;
-  const redditProductUrl = new URL(url);
+  const redditProductUrl = new URL(variant ? toProductVariantPageUrl(product, variant) : url);
   redditProductUrl.searchParams.set('utm_source', 'reddit');
   redditProductUrl.searchParams.set('utm_medium', 'social');
   redditProductUrl.searchParams.set('utm_campaign', 'product_share');

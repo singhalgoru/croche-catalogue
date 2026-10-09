@@ -34,6 +34,22 @@ test('defers admin and product detail bundles until needed', async ({ page }) =>
   expect((await loadedChunks()).some((url) => url.includes('AdminPage-'))).toBe(false);
 });
 
+test('opens the exact variant from a Reddit share path and shares its dedicated preview URL', async ({ page }) => {
+  catalogueState.products[0].product_variants[1].image_url =
+    'http://supabase.test/storage/v1/object/public/product-images/seed/ivory.png';
+  await page.goto('/p/rose-charm/variant/ivory/?utm_source=reddit');
+  await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Rose Charm — Ivory', exact: true })).toHaveAttribute('src', /ivory/);
+  await expect(page).toHaveURL(/\/p\/rose-charm\/variant\/ivory\/\?utm_source=reddit/);
+  await page.getByRole('button', { name: 'Share this product' }).click();
+  await page.getByRole('button', { name: /Reddit/ }).click();
+  const href = await page.getByRole('link', { name: 'Reddit link post (prefilled title)' }).getAttribute('href');
+  expect(href).not.toBeNull();
+  const shared = new URL(new URL(href!).searchParams.get('url')!);
+  expect(shared.pathname).toBe('/p/rose-charm/variant/ivory/');
+  expect(shared.searchParams.get('utm_source')).toBe('reddit');
+});
+
 test('starts public catalogue requests before the main bundle finishes loading', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', (request) => {

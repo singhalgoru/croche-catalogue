@@ -20,7 +20,7 @@ const product: Product = {
 it('tags Reddit links without changing links shared to other channels or losing variants', () => {
   const details = getProductShareDetails(product, product.variants[0]);
   const tracked = new URL(details.redditProductUrl);
-  expect(tracked.searchParams.get('variant')).toBe('pink');
+  expect(tracked.pathname).toBe('/p/rose/variant/pink/');
   expect(tracked.searchParams.get('utm_source')).toBe('reddit');
   expect(tracked.searchParams.get('utm_medium')).toBe('social');
   expect(tracked.searchParams.get('utm_campaign')).toBe('product_share');

@@ -46,11 +46,24 @@ export const readProductReferenceFromHash = (): string | null => {
 export const readProductPageReference = (): string | null => {
   const base = new URL(import.meta.env.BASE_URL, window.location.origin).pathname;
   const path = window.location.pathname.slice(base.length);
-  const match = path.match(/^p\/([^/]+)\/?$/);
+  const match = path.match(/^p\/([^/]+)(?:\/variant\/[^/]+)?\/?$/);
   const reference = match?.[1] ?? new URLSearchParams(window.location.search).get('productPage');
   if (!reference) return null;
   try {
     return decodeURIComponent(reference).trim().toLowerCase() || null;
+  } catch {
+    return null;
+  }
+};
+
+export const readProductVariantReference = (): string | null => {
+  const query = new URLSearchParams(window.location.search).get('variant');
+  if (query) return query;
+  const base = new URL(import.meta.env.BASE_URL, window.location.origin).pathname;
+  const match = window.location.pathname.slice(base.length).match(/^p\/[^/]+\/variant\/([^/]+)\/?$/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]).trim().toLowerCase() || null;
   } catch {
     return null;
   }
@@ -90,3 +103,6 @@ export const toProductPageUrl = (product: LinkableProduct) => {
   const base = new URL(import.meta.env.BASE_URL, window.location.origin);
   return `${base.href}p/${encodeURIComponent(toPublicProductSlug(product))}/`;
 };
+
+export const toProductVariantPageUrl = (product: LinkableProduct, variant: LinkableVariant) =>
+  `${toProductPageUrl(product)}variant/${encodeURIComponent(toPublicVariantSlug(variant))}/`;

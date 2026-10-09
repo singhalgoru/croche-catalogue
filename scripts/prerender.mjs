@@ -59,6 +59,22 @@ export const toProductReference = (product) => {
   return slug === id ? id : `${slug}--${id}`;
 };
 
+export const toVariantSlug = (variant) => !variant ? 'standard' : variant.publicSlug || variant.name
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '') || `variant-${String(variant.id).toLowerCase().replace(/-/g, '').slice(0, 8)}`;
+
+export const variantShareProduct = (product, variant) => ({
+  ...product,
+  name: product.variants.length > 1 ? `${product.name} — ${variant.name}` : product.name,
+  image: variant.image || product.image,
+  price: product.price === null ? null : variant.price ?? product.price,
+  inStock: variant.inStock,
+  variants: [variant],
+  catalogueReference: toProductSlug(product),
+  url: `${ORIGIN}/p/${toProductSlug(product)}/variant/${toVariantSlug(variant)}/`,
+});
+
 const PUBLIC_IMAGE_PATH = '/storage/v1/object/public/product-images/';
 const RENDER_IMAGE_PATH = '/storage/v1/render/image/public/product-images/';
 const LEGACY_CATALOGUE_IMAGE_PATH = '/croche-catalogue/images/';
@@ -713,6 +729,17 @@ const main = async () => {
       path.join(dir, 'index.html'),
       attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
     );
+    for (const variant of product.variants) {
+      const reference = `${slug}/variant/${toVariantSlug(variant)}`;
+      const variantDir = path.join(dir, 'variant', toVariantSlug(variant));
+      await mkdir(variantDir, { recursive: true });
+      const shareProduct = variantShareProduct(product, variant);
+      const variantImage = await writeSocialImage(shareProduct, variantDir, reference);
+      await writeFile(
+        path.join(variantDir, 'index.html'),
+        attachProductApp(renderProductPage(shareProduct, whatsappNumber, variantImage, false), template),
+      );
+    }
     const legacyDir = path.join(DIST, 'p', toProductReference(product));
     if (legacyDir !== dir) {
       await mkdir(legacyDir, { recursive: true });

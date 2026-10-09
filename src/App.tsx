@@ -29,6 +29,8 @@ import {
   findProductByReference,
   readProductReferenceFromHash,
   readProductPageReference,
+  readProductVariantReference,
+  toProductVariantPageUrl,
   toProductPageUrl,
   toProductReference,
   toProductHash,
@@ -81,7 +83,7 @@ function App() {
     : selectedProductSnapshot;
   const [pageReference, setPageReference] = useState(readProductPageReference);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() =>
-    new URLSearchParams(window.location.search).get('variant'));
+    readProductVariantReference());
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [categoryScrollRequest, setCategoryScrollRequest] = useState(0);
   const [areCatalogueToolsSticky, setAreCatalogueToolsSticky] = useState(false);
@@ -174,16 +176,21 @@ function App() {
     const url = new URL(toProductPageUrl(selectedProduct));
     const params = new URLSearchParams(window.location.search);
     params.delete('productPage');
-    const incomingVariant = params.get('variant');
+    const incomingVariant = readProductVariantReference();
     const resolvedVariant = incomingVariant
       ? findProductVariantByReference(selectedProduct, incomingVariant)
       : undefined;
-    if (resolvedVariant) params.set('variant', toPublicVariantSlug(resolvedVariant));
+    const isVariantPath = /\/variant\/[^/]+\/?$/.test(window.location.pathname);
+    if (resolvedVariant && isVariantPath) {
+      url.pathname = new URL(toProductVariantPageUrl(selectedProduct, resolvedVariant)).pathname;
+      params.delete('variant');
+    } else if (resolvedVariant) params.set('variant', toPublicVariantSlug(resolvedVariant));
     url.search = params.toString();
     window.history.replaceState(window.history.state, '', url);
     document.title = `${selectedProduct.name} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (canonical) canonical.href = toProductPageUrl(selectedProduct);
+    if (canonical) canonical.href = resolvedVariant && isVariantPath
+      ? toProductVariantPageUrl(selectedProduct, resolvedVariant) : toProductPageUrl(selectedProduct);
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     const summary = getProductMetaDescription(selectedProduct);
     if (description) description.content = summary;
@@ -227,7 +234,7 @@ function App() {
       setActiveCategory(new URLSearchParams(window.location.search).get('category') || 'All');
       setIsCartOpen(false);
       setReturnToCartOnProductClose(false);
-      setSelectedVariantId(new URLSearchParams(window.location.search).get('variant'));
+      setSelectedVariantId(readProductVariantReference());
       const requested = reference ?? readProductReferenceFromHash();
       setSelectedProduct(requested && !isLoading ? findProductByReference(products, requested) : null);
       pendingProductReference.current = requested && (isLoading || products.length === 0) ? requested : null;
@@ -551,7 +558,7 @@ function App() {
             </nav>
           )}
           {selectedProduct && (
-            <Suspense fallback={<ProductDetailPreview product={selectedProduct} />}>
+            <Suspense fallback={<ProductDetailPreview product={selectedProduct} variantReference={selectedVariantId ?? undefined} />}>
               <ProductModal
                 key={`page:${selectedProduct.id}:${selectedVariantId ?? ''}`}
                 presentation="page"

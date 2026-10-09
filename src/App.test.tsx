@@ -58,6 +58,19 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('opens the variant from a Reddit static path and preserves that share destination', async () => {
+    catalogueProducts = [{ ...product, variants: [
+      product.variants[0],
+      { ...product.variants[0], id: 'variant-white', name: 'White', publicSlug: 'white', image: '/white.webp' },
+    ] }];
+    window.history.replaceState(null, '', '/p/test-coaster/variant/white/?utm_source=reddit');
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(screen.getByRole('img', { name: 'Test Coaster' }).getAttribute('src')).toBe('/white.webp');
+    expect(window.location.pathname).toBe('/p/test-coaster/variant/white/');
+    expect(new URLSearchParams(window.location.search).get('utm_source')).toBe('reddit');
+  });
+
   it('adds from a collection card and opens the shared cart without leaving the collection', async () => {
     window.history.replaceState(null, '', '/collections/home/');
     render(<App />);
