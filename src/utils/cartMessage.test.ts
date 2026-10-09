@@ -30,7 +30,7 @@ describe('getCartTotals', () => {
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: 400, quantity: 1 })]),
     );
     expect(totals).toEqual({
-      subtotal: 1400, shipping: 0, total: 1400, hasCompletePricing: true,
+      subtotal: 1400, shipping: 0, total: 1400, hasCompletePricing: true, shippingSource: 'free',
     });
   });
 
@@ -39,7 +39,7 @@ describe('getCartTotals', () => {
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: null, quantity: 3 })]),
     );
     expect(totals).toEqual({
-      subtotal: 1000, shipping: 0, total: 1000, hasCompletePricing: false,
+      subtotal: 1000, shipping: 0, total: 1000, hasCompletePricing: false, shippingSource: 'free',
     });
   });
 
@@ -50,6 +50,18 @@ describe('getCartTotals', () => {
     expect(getCartTotals(buildCart([buildItem({ unitPrice: 250, quantity: 2 })]))).toMatchObject({
       subtotal: 500, shipping: 0, total: 500,
     });
+  });
+
+  it('uses a current Shiprocket estimate instead of the flat fee and labels it', () => {
+    const estimate = { provider: 'shiprocket' as const, currency: 'INR' as const, minCharge: 61, maxCharge: 90,
+      minDays: 3, maxDays: 5, weightGrams: 500, itemCount: 1, checkedAt: '2026-01-01T00:00:00.000Z' };
+    const cart = { ...buildCart([buildItem({ unitPrice: 300, quantity: 1 })]), deliveryPinCode: '110001', deliveryEstimate: estimate };
+    expect(getCartTotals(cart)).toMatchObject({ shipping: 70, total: 370, shippingSource: 'estimate' });
+    expect(buildWhatsAppCartMessage(cart)).toContain('Approx. shipping to 110001');
+    expect(buildEmailCartBody(cart)).toContain('APPROX. SHIPPING (110001)');
+    const changed = { ...cart, items: [buildItem({ unitPrice: 200, quantity: 2 })] };
+    expect(getCartTotals(changed)).toMatchObject({ shipping: 100, shippingSource: 'flat' });
+    expect(getCartTotals({ ...cart, deliveryPinCode: null })).toMatchObject({ shippingSource: 'flat' });
   });
 });
 

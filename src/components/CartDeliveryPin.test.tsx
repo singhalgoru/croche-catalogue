@@ -49,3 +49,20 @@ it('keeps saved PINs compact with change, cancel and expandable disclosure', () 
   fireEvent.click(screen.getByRole('button', { name: 'Change' }));
   expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('110001');
 });
+
+it('shows the Shiprocket estimate and offers a refresh after the cart changes', async () => {
+  const item = { id: 'i1', productId: 'p1', variantId: 'v1', productName: 'Bunny', variantName: '', image: '', unitPrice: 200, quantity: 1 };
+  const estimate = { provider: 'shiprocket' as const, currency: 'INR' as const, minCharge: 61, maxCharge: 90,
+    minDays: 3, maxDays: 5, weightGrams: 500, itemCount: 1, checkedAt: '' };
+  const estimated = { ...cart, items: [item], deliveryPinCode: '110001', deliveryEstimate: estimate };
+  const onSave = vi.fn(async () => estimated);
+  const { rerender } = render(<CartDeliveryPin cart={estimated} busy={false} onSave={onSave} />);
+  expect(screen.getByText(/Approx\. delivery charge: \u20B970/)).toBeTruthy();
+  expect(screen.getByText(/usually 3\u20135 days/)).toBeTruthy();
+  rerender(<CartDeliveryPin cart={{ ...estimated, items: [{ ...item, quantity: 3 }] }} busy={false} onSave={onSave} />);
+  expect(screen.queryByText(/Approx\. delivery charge/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Update estimate' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith('110001'));
+  rerender(<CartDeliveryPin cart={{ ...estimated, items: [{ ...item, unitPrice: 600 }] }} busy={false} onSave={onSave} />);
+  expect(screen.getByText(/Shipping is free for this order/)).toBeTruthy();
+});

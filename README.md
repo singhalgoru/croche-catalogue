@@ -343,6 +343,32 @@ The database rejects direct client writes of nonempty PIN/location fields, so
 clients cannot bypass verification or forge a checked postal area. Clearing all
 PIN metadata remains available without the upstream API.
 
+### Approximate delivery charges (Shiprocket)
+
+When Shiprocket is configured, saving a PIN also asks Shiprocket's courier
+serviceability API (`cod=0`, prepaid) for rates from the pickup PIN to the
+shopper's PIN. Only the PIN and an approximate parcel weight are sent. The cart
+shows "Approx. delivery charge" (cheapest courier, rounded up to ₹10) with the
+usual delivery days; below the ₹500 free-shipping threshold this replaces the
+flat indicative ₹100 in the cart, WhatsApp and email totals. The estimate is
+tied to the cart quantity; when the quantity changes the cart falls back to ₹100
+and offers "Update estimate". Admin carts show the min–max quote, weight and days.
+There are no per-product weights yet: the billed weight is
+`items × SHIPROCKET_ITEM_WEIGHT_GRAMS (150) + SHIPROCKET_PACKAGE_WEIGHT_GRAMS (100)`,
+at least 500 g and rounded up to 100 g. Quotes are cached per PIN/weight for a
+day, and the Shiprocket token is cached server-side. Shiprocket failures never
+block saving the PIN; the cart simply keeps the flat fee.
+
+Setup: in Shiprocket, go to Settings → API → Configure and create an API user
+(a separate email from the panel login). Then apply
+`20261008130000_add_cart_delivery_estimates.sql`, deploy `verify-delivery-pin`, and run:
+
+```
+npx supabase secrets set SHIPROCKET_EMAIL=<api-user-email> SHIPROCKET_PASSWORD=<api-user-password> SHIPROCKET_PICKUP_PINCODE=<pickup-pin>
+```
+
+Without these secrets the feature stays dormant.
+
 ## Product customisation enquiries
 
 Product quick views and full details offer a WhatsApp customisation enquiry.

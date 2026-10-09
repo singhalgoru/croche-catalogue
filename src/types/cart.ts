@@ -10,10 +10,24 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface DeliveryEstimate {
+  provider: 'shiprocket';
+  currency: 'INR';
+  minCharge: number;
+  maxCharge: number;
+  minDays: number | null;
+  maxDays: number | null;
+  weightGrams: number;
+  /** Total cart quantity the estimate was calculated for. */
+  itemCount: number;
+  checkedAt: string;
+}
+
 export interface Cart {
   deliveryPinCode?: string | null;
   deliveryPinLocation?: { districts: string[]; states: string[]; country: 'India' } | null;
   deliveryPinCheckedAt?: string | null;
+  deliveryEstimate?: DeliveryEstimate | null;
   id: string;
   reference: string;
   status: 'active' | 'whatsapp_started';

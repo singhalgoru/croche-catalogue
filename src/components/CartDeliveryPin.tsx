@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import type { Cart } from '../types/cart';
+import { getCartTotals } from '../utils/cartMessage';
+import { formatINR } from '../utils/currency';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
+import {
+  formatDeliveryDays,
+  getCurrentDeliveryEstimate,
+  getEstimatedShippingCharge,
+  isDeliveryEstimateOutdated,
+} from '../utils/deliveryEstimate';
 
 export default function CartDeliveryPin({ cart, busy, onSave }: {
   cart: Cart; busy: boolean; onSave: (value: string) => Promise<Cart | null>;
@@ -11,6 +19,8 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const showEditor = !cart.deliveryPinCode || editing;
+  const estimate = getCurrentDeliveryEstimate(cart);
+  const deliveryDays = estimate ? formatDeliveryDays(estimate) : null;
   const save = async (value: string) => {
     setError(null);
     setMessage(null);
@@ -53,9 +63,20 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
     </div>}
     {cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}</p>}
     {cart.deliveryPinCode && !cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">Pincode not checked yet. Change and save to verify.</p>}
+    {!showEditor && estimate && <p className="mt-1 font-semibold text-cocoa">
+      {getCartTotals(cart).shippingSource === 'free'
+        ? 'Shipping is free for this order'
+        : `Approx. delivery charge: ${formatINR(getEstimatedShippingCharge(estimate))}`}
+      {deliveryDays ? <span className="font-normal"> · usually {deliveryDays}</span> : null}
+    </p>}
+    {!showEditor && isDeliveryEstimateOutdated(cart) && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-cocoa/75">
+      Your cart changed since the delivery estimate.
+      <button type="button" disabled={busy || saving} onClick={() => void save(cart.deliveryPinCode ?? '')}
+        className="min-h-11 underline disabled:opacity-50">Update estimate</button>
+    </p>}
     <details className="mt-1 text-xs text-cocoa/75">
       <summary className="flex min-h-11 cursor-pointer items-center underline">How we use your pincode</summary>
-      <p id="cart-delivery-pin-help">Optional, for shipping enquiries. Only your pincode is sent to Postal PIN Code API to check its postal area, then shared with Luvia and stored with this cart for up to 30 days. This does not verify your address or confirm delivery charges.</p>
+      <p id="cart-delivery-pin-help">Optional, for shipping enquiries. Only your pincode is sent to Postal PIN Code API to check its postal area and to our courier partner Shiprocket for an approximate delivery charge, then shared with Luvia and stored with this cart for up to 30 days. This does not verify your address; Luvia confirms the final delivery charge.</p>
     </details>
     {showEditor && draft.trim() !== (cart.deliveryPinCode ?? '') && <p className="mt-1 text-xs">Unsaved pincode changes are not shared.</p>}
     {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}

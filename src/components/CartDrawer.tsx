@@ -9,7 +9,7 @@ import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } fr
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
-import { FREE_SHIPPING_THRESHOLD, getCartTotals } from '../utils/cartMessage';
+import { FREE_SHIPPING_THRESHOLD, getCartTotals, getShippingLabel } from '../utils/cartMessage';
 
 interface Props {
   onSaveDeliveryPin: (value: string) => Promise<Cart | null>;
@@ -287,7 +287,7 @@ export default function CartDrawer({
               <span>{formatINR(totals?.subtotal ?? 0)}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-sm text-cocoa/75">
-              <span>{totals?.shipping === 0 ? 'Shipping' : 'Indicative shipping'}</span>
+              <span>{totals && checkoutCart ? getShippingLabel(checkoutCart, totals) : 'Indicative shipping'}</span>
               <span>{totals?.shipping === 0 ? 'Free' : formatINR(totals?.shipping ?? 0)}</span>
             </div>
             <div className="mt-1 flex items-center justify-between font-bold text-cocoa">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { deleteAdminCart, fetchAdminCarts, fetchCartSessionBlocks, setCartSessionBlocked } from '../../services/cart';
 import type { AdminCart, CartSessionBlock } from '../../types/cart';
 import { formatINR } from '../../utils/currency';
+import { formatDeliveryDays } from '../../utils/deliveryEstimate';
 
 export default function CartManager() {
   const [carts, setCarts] = useState<AdminCart[]>([]);
@@ -136,6 +137,12 @@ export default function CartManager() {
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
                       {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.
+                    </p>}
+                    {cart.deliveryPinCode && cart.deliveryEstimate && <p className="mt-1 text-xs text-cocoa/65">
+                      Shiprocket estimate: {formatINR(cart.deliveryEstimate.minCharge)}
+                      {cart.deliveryEstimate.maxCharge !== cart.deliveryEstimate.minCharge ? `–${formatINR(cart.deliveryEstimate.maxCharge)}` : ''}
+                      {' '}prepaid for {cart.deliveryEstimate.weightGrams / 1000} kg ({cart.deliveryEstimate.itemCount} item{cart.deliveryEstimate.itemCount === 1 ? '' : 's'})
+                      {formatDeliveryDays(cart.deliveryEstimate) ? `, ${formatDeliveryDays(cart.deliveryEstimate)}` : ''}.
                     </p>}
                   </div>
                   <span

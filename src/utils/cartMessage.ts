@@ -1,5 +1,6 @@
 import type { Cart, CartItem } from '../types/cart';
 import { formatINR } from './currency';
+import { getCurrentDeliveryEstimate, getEstimatedShippingCharge } from './deliveryEstimate';
 import { toProductUrl } from './productLink';
 
 const PRICE_ON_ENQUIRY = 'Price on enquiry';
@@ -15,6 +16,8 @@ const lineTotal = (item: CartItem) =>
 export interface CartTotals {
   subtotal: number;
   shipping: number;
+  /** Where the shipping figure came from: free threshold, a Shiprocket estimate for the saved pincode, or the flat fallback. */
+  shippingSource: 'free' | 'estimate' | 'flat';
   total: number;
   hasCompletePricing: boolean;
 }
@@ -22,21 +25,36 @@ export interface CartTotals {
 export const getCartTotals = (cart: Cart): CartTotals => {
   const priced = cart.items.filter((item) => item.unitPrice !== null);
   const subtotal = priced.reduce((sum, item) => sum + (item.unitPrice ?? 0) * item.quantity, 0);
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : INDICATIVE_SHIPPING_CHARGE;
+  const estimate = getCurrentDeliveryEstimate(cart);
+  const shippingSource: CartTotals['shippingSource'] = subtotal >= FREE_SHIPPING_THRESHOLD
+    ? 'free'
+    : estimate ? 'estimate' : 'flat';
+  const shipping = shippingSource === 'free'
+    ? 0
+    : shippingSource === 'estimate' && estimate ? getEstimatedShippingCharge(estimate) : INDICATIVE_SHIPPING_CHARGE;
   return {
     subtotal,
     shipping,
+    shippingSource,
     total: subtotal + shipping,
     hasCompletePricing: priced.length === cart.items.length,
   };
 };
+
+export const getShippingLabel = (cart: Cart, totals: CartTotals) =>
+  totals.shippingSource === 'free'
+    ? 'Shipping'
+    : totals.shippingSource === 'estimate'
+      ? `Approx. shipping to ${cart.deliveryPinCode}`
+      : 'Indicative shipping';
 
 /**
  * WhatsApp renders *text* as bold. The first link in the message also gets a
  * preview card, so the leading product link doubles as a product photo.
  */
 export const buildWhatsAppCartMessage = (cart: Cart) => {
-  const { subtotal, shipping, total, hasCompletePricing } = getCartTotals(cart);
+  const totals = getCartTotals(cart);
+  const { subtotal, shipping, total, hasCompletePricing } = totals;
   const items = cart.items.flatMap((item, index) => {
     const line = lineTotal(item);
     const heading = item.variantName
@@ -59,7 +77,7 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
     `*Items subtotal: ${formatINR(subtotal)}*`,
     shipping === 0
       ? `*Shipping: Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)*`
-      : `*Indicative shipping: ${formatINR(shipping)}*`,
+      : `*${getShippingLabel(cart, totals)}: ${formatINR(shipping)}*`,
     hasCompletePricing
       ? shipping === 0
         ? `*Total: ${formatINR(total)}*`
@@ -120,7 +138,8 @@ export const buildEmailCartBody = (
   campaignReference?: string | null,
   style: 'detailed' | 'compact' = 'detailed',
 ) => {
-  const { subtotal, shipping, total, hasCompletePricing } = getCartTotals(cart);
+  const totals = getCartTotals(cart);
+  const { subtotal, shipping, total, hasCompletePricing } = totals;
   const formatItem = style === 'detailed' ? detailedItemLines : compactItemLines;
   const items = cart.items.flatMap(formatItem);
 
@@ -138,7 +157,9 @@ export const buildEmailCartBody = (
     `ITEMS SUBTOTAL : ${formatINR(subtotal)}`,
     shipping === 0
       ? `SHIPPING       : Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)`
-      : `INDICATIVE SHIPPING : ${formatINR(shipping)}`,
+      : totals.shippingSource === 'estimate'
+        ? `APPROX. SHIPPING (${cart.deliveryPinCode}) : ${formatINR(shipping)}`
+        : `INDICATIVE SHIPPING : ${formatINR(shipping)}`,
     hasCompletePricing
       ? `ESTIMATED TOTAL : ${formatINR(total)}${shipping === 0 ? '' : ' (shipping indicative)'}`
       : `ESTIMATED TOTAL : please confirm (some items are ${PRICE_ON_ENQUIRY.toLowerCase()})`,

@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { parsePostalResponse } from './postal.ts';
+import { billableWeightGrams, fetchRateQuote, readShiprocketConfig, type DeliveryEstimate, type RateQuote } from './shiprocket.ts';
+
+const RATE_CACHE_MS = 86400_000;
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +31,7 @@ Deno.serve(async request => {
     || !/^[0-9a-f-]{36}$/i.test(body.cartId) || typeof body.pin !== 'string' || !/^[1-9][0-9]{5}$/.test(body.pin)) {
     return json({ error: 'Enter a valid 6-digit Indian pincode or keep it empty.' }, 400);
   }
-  const { data: cart, error: cartError } = await client.from('carts').select('id,expires_at,cart_items(id)')
+  const { data: cart, error: cartError } = await client.from('carts').select('id,expires_at,cart_items(id,quantity)')
     .eq('id', body.cartId).eq('user_id', auth.user.id).maybeSingle();
   if (cartError) return json({ error: 'Unable to check your cart. Please retry.' }, 500);
   if (!cart || new Date(cart.expires_at).getTime() <= Date.now() || !cart.cart_items?.length) {
@@ -60,11 +63,44 @@ Deno.serve(async request => {
     const { error } = await admin.from('delivery_pin_cache').upsert({ pin: body.pin, location, checked_at: checkedAt });
     if (error) return json({ error: 'Unable to store PIN verification data. Please retry.' }, 500);
   }
+  let estimate: DeliveryEstimate | null = null;
+  const shiprocket = readShiprocketConfig((name) => Deno.env.get(name));
+  if (shiprocket) {
+    // Charges are a convenience: a Shiprocket outage must not block saving the PIN.
+    try {
+      const itemCount = cart.cart_items.reduce((sum: number, item: { quantity?: unknown }) =>
+        sum + (typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1), 0);
+      const weightGrams = billableWeightGrams(itemCount, shiprocket);
+      const { data: cachedRate, error: rateCacheError } = await admin.from('delivery_rate_cache')
+        .select('estimate,checked_at').eq('pin', body.pin).eq('weight_grams', weightGrams)
+        .gte('checked_at', new Date(Date.now() - RATE_CACHE_MS).toISOString()).maybeSingle();
+      if (rateCacheError) throw new Error(rateCacheError.message);
+      let quote = cachedRate?.estimate as RateQuote | null | undefined;
+      let quotedAt = cachedRate?.checked_at as string | undefined;
+      if (!cachedRate) {
+        quote = await fetchRateQuote(shiprocket, {
+          read: async () => {
+            const { data } = await admin.from('shiprocket_auth_tokens').select('token')
+              .eq('id', 1).gt('expires_at', new Date(Date.now() + 3600_000).toISOString()).maybeSingle();
+            return typeof data?.token === 'string' ? data.token : null;
+          },
+          write: async (token, expiresAt) => {
+            await admin.from('shiprocket_auth_tokens').upsert({ id: 1, token, expires_at: expiresAt });
+          },
+        }, body.pin, weightGrams);
+        quotedAt = new Date().toISOString();
+        await admin.from('delivery_rate_cache').upsert({ pin: body.pin, weight_grams: weightGrams, estimate: quote, checked_at: quotedAt });
+      }
+      if (quote && quotedAt) estimate = { ...quote, itemCount, checkedAt: quotedAt };
+    } catch (error) {
+      console.error('Shiprocket estimate failed:', error instanceof Error ? error.message : 'Unknown estimate error');
+    }
+  }
   const { data: saved, error: saveError } = await admin.from('carts').update({
-    delivery_pin_code: body.pin, delivery_pin_location: location, delivery_pin_checked_at: checkedAt,
+    delivery_pin_code: body.pin, delivery_pin_location: location, delivery_pin_checked_at: checkedAt, delivery_estimate: estimate,
     updated_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 86400_000).toISOString(),
   }).eq('id', cart.id).eq('user_id', auth.user.id).gt('expires_at', new Date().toISOString())
     .select('id').maybeSingle();
   if (saveError || !saved) return json({ error: 'Unable to save the verified PIN to your cart. Please retry.' }, 500);
-  return json({ location, checkedAt });
+  return json({ location, checkedAt, estimate });
 });
