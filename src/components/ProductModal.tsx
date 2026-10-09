@@ -87,9 +87,7 @@ export default function ProductModal({
     initialVariant?.id ?? '',
   );
   const [isZoomOpen, setIsZoomOpen] = useState(false);
-  const [activeImageId, setActiveImageId] = useState(
-    initialVariant?.gallery.length ? 'main' : `variant:${initialVariant?.id ?? ''}`,
-  );
+  const [activeImageId, setActiveImageId] = useState(`variant:${initialVariant?.id ?? ''}`);
   const [cartStatus, setCartStatus] =
     useState<'idle' | 'busy' | 'added' | 'error'>('idle');
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -103,38 +101,49 @@ export default function ProductModal({
   const selectedCartItem = selectedVariant
     ? getCartItem?.(product.id, selectedVariant.id)
     : undefined;
+  // Every variant's main photo followed by its angle photos, so swiping (and
+  // the zoom viewer) can reach all variants even when only some have angles.
   const galleryImages = useMemo((): GalleryImage[] => {
-    if (selectedVariant?.gallery.length) {
-      return [
-        { id: 'main', image: selectedVariant.image },
-        ...selectedVariant.gallery.map((item) => ({ id: item.id, image: item.image })),
-      ];
-    }
-
-    const variantImages = product.variants
-      .map((variant) => ({
-        id: `variant:${variant.id}`,
-        image: variant.image,
-        variantId: variant.id,
-      }))
+    const images = product.variants
+      .flatMap((variant): GalleryImage[] => [
+        { id: `variant:${variant.id}`, image: variant.image, variantId: variant.id },
+        ...variant.gallery.map((item) => ({
+          id: `angle:${variant.id}:${item.id}`,
+          image: item.image,
+          variantId: variant.id,
+        })),
+      ])
       .filter((item, index, items) =>
         item.image && items.findIndex((candidate) => candidate.image === item.image) === index,
       );
 
-    return variantImages.length > 1
-      ? variantImages
-      : [{ id: 'main', image: selectedVariant?.image ?? product.image }];
+    return images.length
+      ? images
+      : [{ id: `variant:${selectedVariant?.id ?? ''}`, image: selectedVariant?.image ?? product.image }];
   }, [product.image, product.variants, selectedVariant]);
-  const activeImageIndex = Math.max(
-    galleryImages.findIndex((item) => item.id === activeImageId),
-    0,
-  );
+  const activeImageIndex = (() => {
+    const byId = galleryImages.findIndex((item) => item.id === activeImageId);
+    if (byId >= 0) return byId;
+    // A photo shared by several variants is only listed once.
+    return Math.max(galleryImages.findIndex((item) => item.image === selectedVariant?.image), 0);
+  })();
   const activeImage =
     galleryImages[activeImageIndex]?.image ?? galleryImages[0].image;
   // The thumbnail strip is only meaningful when the selected variant has its
-  // own extra angle photos. Otherwise galleryImages falls back to one photo
-  // per variant, which would duplicate the "Choose a variant" picker below.
+  // own extra angle photos; one photo per variant would just duplicate the
+  // "Choose a variant" picker below.
   const hasAngleThumbnails = Boolean(selectedVariant?.gallery.length);
+  const angleThumbnails = useMemo((): GalleryImage[] => selectedVariant
+    ? [
+        { id: `variant:${selectedVariant.id}`, image: selectedVariant.image, variantId: selectedVariant.id },
+        ...selectedVariant.gallery.map((item) => ({
+          id: `angle:${selectedVariant.id}:${item.id}`,
+          image: item.image,
+          variantId: selectedVariant.id,
+        })),
+      ]
+    : [], [selectedVariant]);
+  const activeThumbnailId = galleryImages[activeImageIndex]?.id;
   const whatsappOrderLink = getProductWhatsAppLink(product, selectedVariant);
   const isNew = isProductNew(product);
   const openWhatsAppOrder = () => trackWhatsAppEnquiry(product, selectedVariant);
@@ -274,8 +283,7 @@ export default function ProductModal({
   const selectVariant = (variantId: string) => {
     setHasChosenImage(true);
     setSelectedVariantId(variantId);
-    const variant = product.variants.find((item) => item.id === variantId);
-    setActiveImageId(variant?.gallery.length ? 'main' : `variant:${variantId}`);
+    setActiveImageId(`variant:${variantId}`);
   };
 
   const selectGalleryImage = (image: GalleryImage) => {
@@ -482,21 +490,21 @@ export default function ProductModal({
             )}
           </div>
         </div>
-        {hasAngleThumbnails && galleryImages.length > 1 && (
+        {hasAngleThumbnails && angleThumbnails.length > 1 && (
           <div
             data-swipe-ignore
             className="flex gap-2 overflow-x-auto border-b border-mustard/20 bg-cream/40 p-3"
             aria-label="Product image angles"
           >
-            {galleryImages.map((item, index) => (
+            {angleThumbnails.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => selectGalleryImage(item)}
-                aria-pressed={item.id === activeImageId}
+                aria-pressed={item.id === activeThumbnailId}
                 aria-label={index === 0 ? 'Show main product image' : `Show product image ${index + 1}`}
                 className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
-                  item.id === activeImageId
+                  item.id === activeThumbnailId
                     ? 'border-cocoa'
                     : 'border-mustard/30 hover:border-mustard'
                 }`}

@@ -185,7 +185,7 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
     }),
   ).toBeVisible();
   await expect(productDialog.getByLabel('1 of Rose Charm — Rose Pink in cart')).toBeVisible();
-  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await productDialog.getByRole('button', { name: 'Close product details' }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
   const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
@@ -294,7 +294,7 @@ test('opens a product from its card and restores the browsing position', async (
   await roseCard.getByRole('heading', { name: 'Rose Charm' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Close product details' }).click();
   await expect
     .poll(() => page.evaluate(() => window.scrollY))
     .toBeGreaterThanOrEqual(originalScrollY - 2);
@@ -446,7 +446,7 @@ test('uses a selected variant price in the card, modal, and cart', async ({ page
   await productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' }).click();
   await expect(productDialog.getByText('₹499')).toBeVisible();
   await productDialog.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
-  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await productDialog.getByRole('button', { name: 'Close product details' }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
   const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
@@ -478,7 +478,7 @@ test('opens the exact cart product variant in the product modal', async ({ page 
   const ivoryVariant = productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' });
   await ivoryVariant.click();
   await productDialog.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
-  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await productDialog.getByRole('button', { name: 'Close product details' }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
   const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
@@ -490,8 +490,38 @@ test('opens the exact cart product variant in the product modal', async ({ page 
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(productDialog.getByRole('img', { name: 'Rose Charm — Ivory' })).toBeVisible();
   await expect(cartDialog).toHaveCount(0);
-  await productDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await productDialog.getByRole('button', { name: 'Close product details' }).click();
   await expect(page.getByRole('dialog', { name: 'Shopping cart' })).toBeVisible();
+});
+
+test('zoom navigation reaches every variant when only one has angle photos', async ({ page }) => {
+  const storage = 'http://supabase.test/storage/v1/object/public/product-images/seed';
+  const [rosePink, ivory] = catalogueState.products[0].product_variants;
+  rosePink.product_variant_images = [{
+    id: 'angle-1',
+    variant_id: rosePink.id,
+    image_path: 'seed/rose-angle.png',
+    image_url: `${storage}/rose-angle.png`,
+    sort_order: 0,
+  }];
+  ivory.image_url = `${storage}/ivory.png`;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await page.getByRole('dialog', { name: 'Rose Charm' })
+    .getByRole('button', { name: 'Zoom product image' }).click();
+
+  const next = page.getByRole('button', { name: 'Show next zoomed product image' });
+  const zoomedImage = (variant: string) =>
+    page.getByRole('dialog', { name: `Zoomed image of Rose Charm — ${variant}` }).locator('img');
+
+  await expect(zoomedImage('Rose Pink')).toHaveAttribute('src', /mock\.png/);
+  await next.click();
+  await expect(zoomedImage('Rose Pink')).toHaveAttribute('src', /rose-angle\.png/);
+  await next.click();
+  await expect(zoomedImage('Ivory')).toHaveAttribute('src', /ivory\.png/);
+  await next.click();
+  await expect(zoomedImage('Rose Pink')).toHaveAttribute('src', /mock\.png/);
 });
 
 test('shares a product through app icons and direct social links', async ({

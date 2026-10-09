@@ -552,6 +552,66 @@ describe('ProductModal touch controls', () => {
     expect(image?.getAttribute('src')).toBe('/rose-top.jpg');
   });
 
+  it('moves through every variant and its angles in the zoom viewer', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+    const zoomedSrc = () =>
+      screen.getByRole('dialog', { name: /^Zoomed image of Crochet Rose/ })
+        .querySelector('img')?.getAttribute('src');
+    const next = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Show next zoomed product image' }));
+    const previous = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Show previous zoomed product image' }));
+
+    expect(zoomedSrc()).toBe('/rose.jpg');
+    next();
+    expect(zoomedSrc()).toBe('/rose-top.jpg');
+    next();
+    expect(zoomedSrc()).toBe('/rose-side.jpg');
+    next();
+    expect(zoomedSrc()).toBe('/rose-ivory.jpg');
+    expect(screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Ivory' })).toBeTruthy();
+    next();
+    expect(zoomedSrc()).toBe('/rose.jpg');
+    previous();
+    expect(zoomedSrc()).toBe('/rose-ivory.jpg');
+    previous();
+    expect(zoomedSrc()).toBe('/rose-side.jpg');
+    expect(screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })).toBeTruthy();
+  });
+
+  it('reaches the angle variant when zoom starts on a variant without angles', () => {
+    render(
+      <ProductModal
+        product={product}
+        currentIndex={0}
+        totalProducts={1}
+        onClose={vi.fn()}
+        onPrevious={vi.fn()}
+        onNext={vi.fn()}
+        initialVariantId="variant-2"
+      />,
+    );
+
+    expect(screen.queryByLabelText('Product image angles')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom product image' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show next zoomed product image' }));
+    expect(
+      screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })
+        .querySelector('img')?.getAttribute('src'),
+    ).toBe('/rose.jpg');
+    fireEvent.click(screen.getByRole('button', { name: 'Show next zoomed product image' }));
+    expect(
+      screen.getByRole('dialog', { name: 'Zoomed image of Crochet Rose — Red' })
+        .querySelector('img')?.getAttribute('src'),
+    ).toBe('/rose-top.jpg');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: /Red/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Show product image 2' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('keeps the same zoomed image after a short drag', () => {
     renderModal();
 
