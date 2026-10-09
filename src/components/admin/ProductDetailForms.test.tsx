@@ -14,7 +14,9 @@ import { loadProductDraft, saveProductDraft, EMPTY_PRODUCT_DRAFT } from './produ
 import { createDefaultPriceInputs } from './priceDiscovery';
 import { createEmptyVariant } from './variantDraft';
 import { mockNativeDialog } from './dialogTestSupport';
+import { fetchSellerSales, type SellerSale } from '../../services/sellerSales';
 
+vi.mock('../../services/sellerSales', () => ({ fetchSellerSales: vi.fn() }));
 vi.mock('../../services/products', () => ({
   fetchManagedProducts: vi.fn(), publishProduct: vi.fn(), updateProduct: vi.fn(),
   saveProductPriceDiscoveryInputs: vi.fn(), deleteProduct: vi.fn(), reorderProducts: vi.fn(),
@@ -48,6 +50,7 @@ const product: ManagedProduct = {
 
 let restoreDialog: () => void;
 beforeEach(() => {
+  vi.mocked(fetchSellerSales).mockResolvedValue([]);
   restoreDialog = mockNativeDialog();
   vi.mocked(loadProductDraft).mockResolvedValue(null);
   vi.mocked(saveProductDraft).mockResolvedValue(undefined);
@@ -62,6 +65,46 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('shows all-time linked pieces sold, including hidden products, and refreshes without resetting edits', async () => {
+    const sale: SellerSale = {
+      id: 'sale-1', productId: product.id, productName: 'Old product name', variantName: 'Pink',
+      saleDate: '2025-01-01', channel: 'offline', quantity: 3, unitPrice: 100, gstPercent: 0,
+      materialCost: 0, labourCost: 0, packagingCost: 0, shippingCost: 0,
+      gatewayFeePercent: 0, gatewayFeeGstPercent: 18, notes: '', createdAt: '2025-01-01T00:00:00Z',
+    };
+    vi.mocked(fetchManagedProducts).mockResolvedValue([
+      { ...product, published: false }, { ...product, id: 'other', name: 'Other' },
+    ]);
+    vi.mocked(fetchSellerSales).mockResolvedValue([
+      sale, { ...sale, id: 'second', variantName: 'White', channel: 'online', quantity: 4, saleDate: '2026-10-09' },
+      { ...sale, id: 'manual', productId: null, productName: product.name, quantity: 99 },
+    ]);
+    const onChanged = vi.fn();
+    const view = render(<ProductManager categories={['Home']} refreshKey={0} salesRefreshKey={0} onChanged={onChanged} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    expect(await screen.findByLabelText('Coaster pieces sold')).toHaveProperty('textContent', 'Pieces sold (all time): 7');
+    expect(screen.getByLabelText('Other pieces sold')).toHaveProperty('textContent', 'Pieces sold (all time): 0');
+    fireEvent.click(screen.getAllByRole('button', { name: /^Edit$/ })[0]);
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Unsaved edit' } });
+    vi.mocked(fetchSellerSales).mockResolvedValue([{ ...sale, quantity: 2 }]);
+    view.rerender(<ProductManager categories={['Home']} refreshKey={0} salesRefreshKey={1} onChanged={onChanged} />);
+    await waitFor(() => expect(screen.getByLabelText('Coaster pieces sold').textContent).toBe('Pieces sold (all time): 2'));
+    expect(screen.getByLabelText('Product name')).toHaveProperty('value', 'Unsaved edit');
+    expect(fetchManagedProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports sold-count load failures rather than claiming zero sales', async () => {
+    vi.mocked(fetchSellerSales).mockRejectedValue(new Error('Unable to load sales: network failed'));
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    await waitFor(() => expect(screen.getByLabelText('Coaster pieces sold').textContent).toContain('Unavailable'));
+    expect(screen.getByRole('alert').textContent).toContain('network failed');
+    vi.mocked(fetchSellerSales).mockResolvedValue([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(screen.getByLabelText('Coaster pieces sold').textContent).toBe('Pieces sold (all time): 0'));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('opens the negative-margin filter and excludes zero and positive margins', async () => {
     vi.mocked(fetchManagedProducts).mockResolvedValue([
       { ...product, profitMarginPercent: -0.01 },

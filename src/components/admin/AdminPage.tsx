@@ -22,6 +22,7 @@ interface Props {
 
 export default function AdminPage({ onProductPublished }: Props) {
   const [snapshotRefreshKey, setSnapshotRefreshKey] = useState(0);
+  const [salesRefreshKey, setSalesRefreshKey] = useState(0);
   // The customer shop manifest is linked by default (see vite.config.ts) so
   // it can be installed as its own app. While the admin console is open,
   // swap that link to admin-manifest.webmanifest so installing from #admin
@@ -223,10 +224,10 @@ export default function AdminPage({ onProductPublished }: Props) {
         }}>{{
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
-            <ProductManager categories={categories} refreshKey={productRefreshKey} onChanged={handleProductChanged} />
+            <ProductManager categories={categories} refreshKey={productRefreshKey} salesRefreshKey={salesRefreshKey} onChanged={handleProductChanged} />
           </>,
           Orders: <CartManager />,
-          Sales: <SellerSalesDashboard refreshKey={productRefreshKey} />,
+          Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Settings: <>
             <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />

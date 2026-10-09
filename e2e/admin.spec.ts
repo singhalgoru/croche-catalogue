@@ -31,6 +31,69 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('updates all-time product pieces sold after recording, editing and deleting sales', async ({ page }) => {
+  await installMockSupabase(page);
+  const oldSale = {
+    id: 'old-sale', product_id: 'product-1', product_name: 'Old name', variant_name: 'White',
+    sale_date: '2025-01-01', channel: 'online', quantity: 4, unit_price: 349, gst_percent: 5,
+    material_cost: 0, labour_cost: 0, packaging_cost: 0, shipping_cost: 0,
+    gateway_fee_percent: 0, gateway_fee_gst_percent: 18, notes: '', created_at: '2025-01-01T00:00:00Z',
+  };
+  let sales = [oldSale];
+  await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
+  await page.route('**/rest/v1/seller_sales*', async route => {
+    const request = route.request();
+    const id = new URL(request.url()).searchParams.get('id')?.replace('eq.', '');
+    if (request.method() === 'POST') {
+      const saved = { ...oldSale, ...request.postDataJSON(), id: 'new-sale' };
+      sales.push(saved);
+      await route.fulfill({ status: 201, json: saved });
+    } else if (request.method() === 'PATCH') {
+      sales = sales.map(sale => sale.id === id ? { ...sale, ...request.postDataJSON() } : sale);
+      await route.fulfill({ json: sales.find(sale => sale.id === id) });
+    } else if (request.method() === 'DELETE') {
+      sales = sales.filter(sale => sale.id !== id);
+      await route.fulfill({ status: 204 });
+    } else {
+      await route.fulfill({ json: sales });
+    }
+  });
+  await signIn(page, 'manage');
+  const count = page.getByLabel('Rose Charm pieces sold', { exact: true });
+  await expect(count).toHaveText('Pieces sold (all time): 4');
+  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await page.getByLabel('Sales month').fill('2026-10');
+  await page.getByRole('button', { name: 'Record sale', exact: true }).click();
+  await page.getByLabel('Sale product', { exact: true }).selectOption('product-1');
+  await page.getByLabel('Sale date', { exact: true }).fill('09/10/2026');
+  await page.getByLabel('Sale quantity').fill('3');
+  for (const label of ['Materials per piece (₹)', 'Labour per piece (₹)', 'Packaging per piece (₹)', 'Shipping cost for this sale (₹)']) {
+    await page.getByLabel(label, { exact: true }).fill('0');
+  }
+  await page.getByRole('button', { name: 'Save sale', exact: true }).click();
+  await expect(page.getByText('Sale recorded.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Products', exact: true }).click();
+  await expect(count).toHaveText('Pieces sold (all time): 7');
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Sale quantity').fill('2');
+  await page.getByRole('button', { name: 'Save sale changes', exact: true }).click();
+  await expect(page.getByText('Sale updated.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Products', exact: true }).click();
+  await expect(count).toHaveText('Pieces sold (all time): 6');
+  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm delete', exact: true }).click();
+  await expect(page.getByText('Sale deleted.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Products', exact: true }).click();
+  await expect(count).toHaveText('Pieces sold (all time): 4');
+  await page.reload();
+  await page.getByRole('button', { name: /Manage products/ }).click();
+  await expect(count).toHaveText('Pieces sold (all time): 4');
+});
+
 test('manages monthly business expenses and profit after overheads', async ({ page }) => {
   await installMockSupabase(page);
   let expenses: { id: string; description: string; expense_date: string; category: string; amount: number; notes: string }[] = [];

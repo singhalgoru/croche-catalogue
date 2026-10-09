@@ -7,6 +7,7 @@ import type { ManagedProduct } from '../../services/products';
 import { createSellerSale, fetchSellerSales, updateSellerSale } from '../../services/sellerSales';
 import { fetchManagedProducts } from '../../services/products';
 import { fetchBusinessExpenses, saveBusinessExpense, deleteBusinessExpense } from '../../services/businessExpenses';
+import { buildSellerSalesCsv } from './sellerSalesReport';
 
 vi.mock('../../services/businessExpenses', () => ({
   EXPENSE_CATEGORIES: ['Advertising', 'Tools & equipment', 'Subscriptions', 'Rent & utilities', 'Travel', 'Other'],
@@ -105,6 +106,25 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it.each([false, true])('refreshes product sold counts after CSV imports, including partial success: %s', async partial => {
+    const onSalesChanged = vi.fn();
+    const { container } = render(<SellerSalesDashboard refreshKey={0} onSalesChanged={onSalesChanged} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-10' } });
+    const rows = [sale, { ...sale, id: 'second', quantity: 3 }];
+    const file = new File(['csv'], 'sales.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: async () => buildSellerSalesCsv('2026-10', rows) });
+    if (partial) {
+      vi.mocked(createSellerSale).mockResolvedValueOnce(sale).mockRejectedValueOnce(new Error('Second row failed'));
+    }
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error('Missing sales CSV input');
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(onSalesChanged).toHaveBeenCalledTimes(1));
+    expect(createSellerSale).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps the annual snapshot independent of month selection and refreshes recorded data', async () => {
     vi.mocked(fetchSellerSales).mockResolvedValue([
       { ...sale, saleDate: '2025-03-31', unitPrice: 100, gstPercent: 0 },

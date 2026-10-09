@@ -9,6 +9,7 @@ import {
   type ProductUpdate,
 } from '../../services/products';
 import type { Category } from '../../types/product';
+import { fetchSellerSales } from '../../services/sellerSales';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
@@ -33,6 +34,7 @@ import {
 interface Props {
   categories: Category[];
   refreshKey: number;
+  salesRefreshKey?: number;
   onChanged: () => Promise<void>;
 }
 
@@ -79,9 +81,12 @@ const parsePrice = (value: string): number | null | undefined => {
 const formatRupees = (amount: number) =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(amount))}`;
 
-export default function ProductManager({ categories, refreshKey, onChanged }: Props) {
+export default function ProductManager({ categories, refreshKey, salesRefreshKey = 0, onChanged }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [products, setProducts] = useState<ManagedProduct[]>([]);
+  const [soldQuantities, setSoldQuantities] = useState<Map<string, number> | null>(null);
+  const [salesError, setSalesError] = useState<string | null>(null);
+  const [salesReloadKey, setSalesReloadKey] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
@@ -146,6 +151,28 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
   useEffect(() => {
     queueMicrotask(() => void loadProducts());
   }, [loadProducts, refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setSoldQuantities(null);
+      setSalesError(null);
+      void fetchSellerSales().then(sales => {
+        if (!active) return;
+        const totals = new Map<string, number>();
+        for (const sale of sales) {
+          if (sale.productId) {
+            totals.set(sale.productId, (totals.get(sale.productId) ?? 0) + sale.quantity);
+          }
+        }
+        setSoldQuantities(totals);
+      }, (loadError: unknown) => {
+        if (active) setSalesError(loadError instanceof Error ? loadError.message : 'Unable to load pieces sold.');
+      });
+    });
+    return () => { active = false; };
+  }, [salesRefreshKey, salesReloadKey]);
 
   const startEditing = (
     product: ManagedProduct,
@@ -327,7 +354,10 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
         {isExpanded && (
           <button
             type="button"
-            onClick={() => void loadProducts()}
+            onClick={() => {
+              void loadProducts();
+              setSalesReloadKey(current => current + 1);
+            }}
             disabled={isLoading || busyId !== null || isAnalyzing}
             className="shrink-0 rounded-full border-2 border-mustard px-3 py-2 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
           >
@@ -382,6 +412,7 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
           {error}
         </p>
       )}
+      {salesError && <p role="alert" className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">{salesError}</p>}
       {isExpanded && (
         <div id="manage-products-panel" className="border-t border-mustard/30 p-3 sm:p-5">
       <BulkDescriptionEditor products={filteredProducts} categories={categories}
@@ -552,6 +583,11 @@ export default function ProductManager({ categories, refreshKey, onChanged }: Pr
                       <div>
                         <h3 className="font-heading text-lg font-bold text-cocoa">{product.name}</h3>
                         <p className="text-sm text-cocoa/60">{product.category}</p>
+                        <p aria-label={`${product.name} pieces sold`} className="mt-1 text-sm font-semibold text-cocoa">
+                          Pieces sold (all time): {soldQuantities === null
+                            ? salesError ? 'Unavailable' : 'Loading…'
+                            : (soldQuantities.get(product.id) ?? 0).toLocaleString('en-IN')}
+                        </p>
                         <div className="mt-2 rounded-xl border-2 border-mustard/50 bg-white p-3 shadow-sm">
                         {product.profitMarginPercent !== null
                           && product.profitMarginPercent !== undefined && (

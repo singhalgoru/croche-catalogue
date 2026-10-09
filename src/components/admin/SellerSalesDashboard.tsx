@@ -23,6 +23,7 @@ import { fetchBusinessExpenses, type BusinessExpense } from '../../services/busi
 
 interface Props {
   refreshKey: number;
+  onSalesChanged?: () => void;
 }
 
 interface SaleDraft {
@@ -137,7 +138,7 @@ const toWholeRupees = (value: number | string | null | undefined) => {
   return Number.isFinite(amount) ? String(Math.round(amount)) : '';
 };
 
-export default function SellerSalesDashboard({ refreshKey }: Props) {
+export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sales, setSales] = useState<SellerSale[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
@@ -281,6 +282,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       setDraft(null);
       setEditingId(null);
       setMessage(editingId ? 'Sale updated.' : 'Sale recorded.');
+      onSalesChanged?.();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save this sale.');
     } finally {
@@ -300,6 +302,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
         setEditingId(null);
       }
       setMessage('Sale deleted.');
+      onSalesChanged?.();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete this sale.');
     } finally {
@@ -359,6 +362,7 @@ export default function SellerSalesDashboard({ refreshKey }: Props) {
       );
       await loadDashboard();
     } finally {
+      if (savedCount > 0) onSalesChanged?.();
       setIsImporting(false);
       if (reportFileInput.current) reportFileInput.current.value = '';
     }
