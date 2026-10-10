@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Cart } from '../types/cart';
-import type { DeliveryDetails } from '../types/customer';
+import { formatINR } from '../utils/currency';
+import type { DeliveryDetails, SavedAddress } from '../types/customer';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails, deliveryAddressText } from '../utils/customer';
-import { fetchCustomerProfile } from '../services/customer';
+import { fetchCustomerAddresses, fetchCustomerProfile } from '../services/customer';
+
+const sameAddress = (a: DeliveryDetails, b: DeliveryDetails) =>
+  (['name', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'pincode'] as const).every(key => a[key] === b[key]);
 
 interface Props {
   cart: Cart;
@@ -21,6 +25,12 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [couponCode, setCouponCode] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  useEffect(() => {
+    let current = true;
+    void fetchCustomerAddresses().then(next => { if (current) setSavedAddresses(next); }, () => undefined);
+    return () => { current = false; };
+  }, []);
   const hadSavedAddress = useRef(Boolean(cart.deliveryDetails));
   useEffect(() => {
     if (!cart.deliveryDetails && hadSavedAddress.current) {
@@ -128,10 +138,31 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
         </div>
       </form>}
       {step === 'review' && <>
+        {savedAddresses.length > 1 && <label className="block">Deliver to saved address
+          <select className="mt-1 w-full rounded border bg-white p-2" disabled={busy || saving}
+            value={savedAddresses.find(address => sameAddress(address.details, reviewed))?.id ?? ''}
+            onChange={event => {
+              const chosen = savedAddresses.find(address => address.id === event.target.value);
+              if (!chosen) return;
+              setSaving(true); setError('');
+              void onSave(normalizeDeliveryDetails(chosen.details)).then(saved => {
+                if (!saved?.deliveryDetails) throw new Error('Delivery details were not saved. Please retry.');
+                setDetails(saved.deliveryDetails);
+              }).catch(error => setError(error instanceof Error ? error.message : 'Unable to use that address.'))
+                .finally(() => setSaving(false));
+            }}>
+            {!savedAddresses.some(address => sameAddress(address.details, reviewed)) && <option value="">Address entered for this order</option>}
+            {savedAddresses.map(address => <option key={address.id} value={address.id}>
+              {address.details.name} — {address.details.addressLine1}, {address.details.city} {address.details.pincode}{address.isDefault ? ' (default)' : ''}
+            </option>)}
+          </select>
+        </label>}
         <p className="break-words">{reviewed.name} · +91 {reviewed.phone}</p>
         {reviewed.email && <p className="break-words">{reviewed.email}</p>}
         <p className="break-words">{deliveryAddressText(reviewed)}</p>
-        {cart.welcomeCouponCode && <p className="break-words">Requested coupon: {cart.welcomeCouponCode} (subject to confirmation)</p>}
+        {cart.welcomeCouponCode && <p className="break-words">{cart.coupon
+          ? `Coupon ${cart.coupon.code} applied: ${cart.coupon.percent}% off (up to ${formatINR(cart.coupon.maxDiscountRupees)}) on items worth ${formatINR(cart.coupon.minimumSubtotalRupees)}+`
+          : `Requested coupon: ${cart.welcomeCouponCode} (subject to confirmation)`}</p>}
         <p className="text-xs">Review your cart items and estimated total, then send the order request using WhatsApp or email. The address is shopper-provided, not verified.</p>
         <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
         <form className="space-y-2" onSubmit={event => {

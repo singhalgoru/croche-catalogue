@@ -115,12 +115,26 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByText('Welcome, Customer Buyer!')).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
+  const book = accountDialog.getByRole('group', { name: 'Saved addresses' });
+  await expect(book.getByText(/12 Customer Street/)).toBeVisible();
+  await book.getByRole('button', { name: '+ Add new address' }).click();
+  const newAddress = book.getByRole('form', { name: 'Add address' });
+  await newAddress.getByLabel('House / building and street').fill('5 Office Park');
+  await newAddress.getByLabel('City', { exact: true }).fill('New Delhi');
+  await newAddress.getByLabel('State', { exact: true }).fill('Delhi');
+  await newAddress.getByLabel('Pincode', { exact: true }).fill('110001');
+  await newAddress.getByRole('button', { name: 'Save address' }).click();
+  await expect(book.getByRole('status')).toHaveText('Address added.');
+  await expect(book.getByRole('listitem')).toHaveCount(2);
   await accountDialog.getByRole('button', { name: 'Close account' }).click();
   await page.getByRole('button', { name: /^Open cart with 1 item/ }).click();
   // Signed-in customers' saved address is applied automatically as their default.
   await expect(page.getByText('3. Review order request', { exact: true })).toBeVisible();
   const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
   expect(decodeURIComponent(whatsapp!)).toContain('12 Customer Street');
+  await page.getByLabel('Deliver to saved address').selectOption({ label: 'Customer Buyer — 5 Office Park, New Delhi 110001' });
+  await expect(page.getByText('5 Office Park, New Delhi, Delhi, 110001, India', { exact: true })).toBeVisible();
+  expect(decodeURIComponent((await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href'))!)).toContain('5 Office Park');
   await page.getByRole('button', { name: 'Close cart' }).click();
   await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
 

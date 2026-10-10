@@ -2,14 +2,14 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerAccount from './CustomerAccount';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, fetchWelcomeOffer, fetchCustomerProfile,
-  signInCustomerWithPassword, setCustomerPassword, validateCustomerPassword } from '../services/customer';
+  signInCustomerWithPassword, setCustomerPassword, validateCustomerPassword, fetchCustomerAddresses } from '../services/customer';
 
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => null }));
 vi.mock('../services/customer', () => ({
   fetchCustomerAccount: vi.fn(), registerCustomerEmail: vi.fn(), confirmCustomerEmail: vi.fn(),
   sendCustomerPasswordReset: vi.fn(), fetchWelcomeOffer: vi.fn(), emailWelcomeCoupon: vi.fn(),
   signOutCustomer: vi.fn(), fetchCustomerProfile: vi.fn(), signInCustomerWithPassword: vi.fn(), setCustomerPassword: vi.fn(),
-  validateCustomerPassword: vi.fn(),
+  validateCustomerPassword: vi.fn(), fetchCustomerAddresses: vi.fn(), saveCustomerAddress: vi.fn(), deleteCustomerAddress: vi.fn(),
 }));
 beforeEach(() => {
   vi.resetAllMocks();
@@ -19,6 +19,7 @@ beforeEach(() => {
   vi.mocked(confirmCustomerEmail).mockResolvedValue(undefined);
   vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: false, percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500, validDays: 30 });
   vi.mocked(fetchCustomerProfile).mockResolvedValue(null);
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([]);
   vi.mocked(validateCustomerPassword).mockImplementation((value, confirmation = value) => value === confirmation ? null : 'Passwords do not match.');
   vi.mocked(signInCustomerWithPassword).mockResolvedValue(undefined);
   vi.mocked(setCustomerPassword).mockResolvedValue(undefined);

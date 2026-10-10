@@ -1,5 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { CampaignCoupon, DeliveryDetails, WelcomeCoupon, WelcomeOffer } from '../types/customer';
+import type { CampaignCoupon, DeliveryDetails, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { requestCartCaptcha } from './cartCaptcha';
 import { normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 
@@ -26,6 +26,32 @@ export async function fetchCustomerProfile(): Promise<DeliveryDetails | null> {
     .eq('user_id', session.session.user.id).maybeSingle();
   if (error) throw new Error(`Unable to load your saved details: ${error.message}`);
   return data?.details ?? null;
+}
+export async function fetchCustomerAddresses(): Promise<SavedAddress[]> {
+  const supabase = await client();
+  const { data: session, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(`Unable to restore addresses: ${sessionError.message}`);
+  if (!session.session) return [];
+  const { data, error } = await supabase.from('customer_addresses').select('id, details, is_default')
+    .eq('user_id', session.session.user.id).order('created_at');
+  if (error) throw new Error(`Unable to load your saved addresses: ${error.message}`);
+  return (data ?? []).map((row: { id: string; details: DeliveryDetails; is_default: boolean }) =>
+    ({ id: row.id, details: row.details, isDefault: row.is_default }));
+}
+export async function saveCustomerAddress(id: string | null, details: DeliveryDetails, makeDefault: boolean) {
+  const normalized = normalizeDeliveryDetails(details);
+  const validation = validateDeliveryDetails(normalized);
+  if (validation) throw new Error(validation);
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('save_customer_address',
+    { address_id: id, address: normalized, make_default: makeDefault });
+  if (error) throw new Error(`Unable to save address: ${error.message}`);
+  return data as string;
+}
+export async function deleteCustomerAddress(id: string) {
+  const supabase = await client();
+  const { error } = await supabase.rpc('delete_customer_address', { address_id: id });
+  if (error) throw new Error(`Unable to delete address: ${error.message}`);
 }
 export const PASSWORD_MIN_LENGTH = 8;
 export function validateCustomerPassword(password: string, confirmation = password) {

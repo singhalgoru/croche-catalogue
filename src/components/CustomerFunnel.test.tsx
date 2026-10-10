@@ -4,14 +4,17 @@ import CustomerFunnel from './CustomerFunnel';
 import type { Cart } from '../types/cart';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 import { buildWhatsAppCartMessage, buildEmailCartBody } from '../utils/cartMessage';
-import { fetchCustomerProfile } from '../services/customer';
-vi.mock('../services/customer', () => ({ fetchCustomerProfile: vi.fn() }));
+import { fetchCustomerAddresses, fetchCustomerProfile } from '../services/customer';
+vi.mock('../services/customer', () => ({ fetchCustomerProfile: vi.fn(), fetchCustomerAddresses: vi.fn() }));
 const cart: Cart = { id: 'cart', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '',
   whatsappStartedAt: null, items: [] };
 const details = { name: 'Test Buyer', phone: '9876543210', email: 'buyer@example.test',
   addressLine1: '12 Test Street', addressLine2: '', city: 'New Delhi', state: 'Delhi', pincode: '110001' };
 afterEach(cleanup);
-beforeEach(() => { vi.mocked(fetchCustomerProfile).mockReset().mockResolvedValue(null); });
+beforeEach(() => {
+  vi.mocked(fetchCustomerProfile).mockReset().mockResolvedValue(null);
+  vi.mocked(fetchCustomerAddresses).mockReset().mockResolvedValue([]);
+});
 async function enterAddress() {
   fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
   fireEvent.change(await screen.findByLabelText('Recipient name'), { target: { value: details.name } });
@@ -54,7 +57,7 @@ it('normalizes and validates required contact and address fields', () => {
   for (const invalid of [{ phone: '123' }, { email: 'invalid' }, { pincode: '000000' },
     { addressLine1: 'a' }, { city: '' }, { state: '' }]) expect(validateDeliveryDetails({ ...details, ...invalid })).not.toBeNull();
 });
-it('includes saved details and requested coupon in both enquiry channels without silently discounting totals', () => {
+it('includes saved details and requested coupon in both enquiry channels when its terms are unknown', () => {
   const order = { ...cart, deliveryDetails: details, deliveryPinCode: details.pincode, welcomeCouponCode: 'WELCOME-TEST' };
   for (const message of [buildWhatsAppCartMessage(order), buildEmailCartBody(order)]) {
     expect(message).toContain(details.name);
@@ -99,4 +102,16 @@ it('automatically applies a signed-in customer default address and opens review'
   expect(save).toHaveBeenCalledWith(profile);
   expect(screen.getByText(/Saved Buyer/)).toBeTruthy();
   expect(screen.getByText(/12 Test Street/)).toBeTruthy();
+});
+
+it('lets a signed-in customer switch the order to another saved address', async () => {
+  const office = { ...details, addressLine1: '5 Office Park', city: 'Pune', state: 'Maharashtra', pincode: '411001' };
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([
+    { id: 'home', isDefault: true, details }, { id: 'office', isDefault: false, details: office }]);
+  const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: office, deliveryPinCode: office.pincode });
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={save} onCoupon={vi.fn()} />);
+  const picker = await screen.findByLabelText('Deliver to saved address');
+  expect((picker as HTMLSelectElement).value).toBe('home');
+  fireEvent.change(picker, { target: { value: 'office' } });
+  await waitFor(() => expect(save).toHaveBeenCalledWith(office));
 });

@@ -8,6 +8,11 @@ export interface DeliveryDetails {
   state: string;
   pincode: string;
 }
+export interface SavedAddress {
+  id: string;
+  details: DeliveryDetails;
+  isDefault: boolean;
+}
 export interface WelcomeOffer {
   enabled: boolean;
   percent: number;

@@ -307,6 +307,8 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
   let customerPassword = '';
   let pendingSignupDetails: Record<string, unknown> | null = null;
   let customerProfile: Record<string, unknown> | null = null;
+  let customerAddresses: { id: string; details: Record<string, unknown>; is_default: boolean }[] = [];
+  let nextAddressId = 2;
   const sessionFor = (user: typeof adminUser, refreshToken: string) => ({
     access_token: createAccessToken(user), token_type: 'bearer', expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: refreshToken, user,
@@ -407,6 +409,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
           email_confirmed_at: new Date().toISOString(), confirmed_at: new Date().toISOString() };
         customerPassword = pendingCustomerPassword;
         customerProfile = pendingSignupDetails;
+        customerAddresses = customerProfile ? [{ id: 'address-1', details: customerProfile, is_default: true }] : [];
         pendingSignupDetails = null;
       }
       if (!customerUser) { await json(route, { msg: 'Customer not found.' }, 400); return; }
@@ -427,6 +430,37 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         return;
       }
       pendingSignupDetails = getRequestBody<{ signup_details: Record<string, unknown> }>(route).signup_details;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+
+    if (pathname === '/rest/v1/customer_addresses' && request.method() === 'GET') {
+      const isCustomer = customerUser && currentUser.id === customerUser.id;
+      await json(route, isCustomer ? customerAddresses : []);
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/save_customer_address') {
+      const body = getRequestBody<{ address_id: string | null; address: Record<string, unknown>; make_default: boolean }>(route);
+      const details = { ...body.address, email: customerUser?.email ?? '' };
+      let id = body.address_id;
+      if (id) customerAddresses = customerAddresses.map(address => address.id === id ? { ...address, details } : address);
+      else {
+        id = `address-${nextAddressId++}`;
+        customerAddresses.push({ id, details, is_default: customerAddresses.length === 0 });
+      }
+      if (body.make_default) customerAddresses = customerAddresses.map(address => ({ ...address, is_default: address.id === id }));
+      customerProfile = customerAddresses.find(address => address.is_default)?.details ?? customerProfile;
+      await json(route, id);
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/delete_customer_address') {
+      const { address_id: id } = getRequestBody<{ address_id: string }>(route);
+      const removed = customerAddresses.find(address => address.id === id);
+      customerAddresses = customerAddresses.filter(address => address.id !== id);
+      if (removed?.is_default && customerAddresses[0]) customerAddresses[0].is_default = true;
+      customerProfile = customerAddresses.find(address => address.is_default)?.details ?? customerProfile;
       await route.fulfill({ status: 204 });
       return;
     }

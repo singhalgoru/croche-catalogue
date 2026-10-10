@@ -4,7 +4,8 @@ import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, send
   fetchWelcomeOffer, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
   setCustomerPassword, validateCustomerPassword } from '../services/customer';
 import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
-import { emptyDeliveryDetails, deliveryAddressText } from '../utils/customer';
+import { emptyDeliveryDetails } from '../utils/customer';
+import AddressBook from './AddressBook';
 
 interface Props {
   initialEmail?: string;
@@ -68,8 +69,8 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
         {profile && <div className="mt-2 text-xs text-cocoa/70">
           <p>Welcome, {profile.name}!</p>
           <p>Mobile: {profile.phone}</p>
-          <p className="break-words">Saved address: {deliveryAddressText(profile)}</p>
         </div>}
+        <AddressBook accountEmail={account} onDefaultChange={setProfile} />
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
         {showPasswordForm ? <form className="mt-2 space-y-2" aria-label="Set account password" onSubmit={event => {
