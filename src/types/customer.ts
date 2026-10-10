@@ -39,7 +39,15 @@ export interface CampaignCoupon {
   enabled: boolean;
   expires_at: string;
 }
+export interface OrderFulfilment {
+  status: 'confirmed' | 'processing' | 'shipped' | 'delivered';
+  courierName: string;
+  trackingNumber: string;
+  trackingUrl: string;
+  updatedAt: string | null;
+}
 export interface CustomerOrder {
+  fulfilment?: OrderFulfilment | null;
   expiresAt?: string;
   id: string;
   reference: string;

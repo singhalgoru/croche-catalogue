@@ -1,5 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { AdminCustomerSummary, CampaignCoupon, CustomerOrder, DeliveryDetails, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
+import type { AdminCustomerSummary, CampaignCoupon, CustomerOrder, DeliveryDetails, OrderFulfilment, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { requestCartCaptcha } from './cartCaptcha';
 import { normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 
@@ -35,6 +35,21 @@ export async function hideCancelledLiveOrder(orderId: string): Promise<void> {
   const supabase = await client();
   const { error } = await supabase.rpc('hide_cancelled_live_order', { target_order_id: orderId });
   if (error) throw new Error(`Unable to remove unpaid order: ${error.message}`);
+}
+export async function updateOrderFulfilment(orderId: string, expectedStatus: OrderFulfilment['status'],
+  values: Pick<OrderFulfilment, 'status' | 'courierName' | 'trackingNumber' | 'trackingUrl'>): Promise<OrderFulfilment> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('update_order_fulfilment', {
+    target_order_id: orderId, expected_status: expectedStatus, new_status: values.status,
+    courier: values.courierName.trim(), tracking: values.trackingNumber.trim(), tracking_link: values.trackingUrl.trim(),
+  });
+  if (error) throw new Error(`Unable to update order status: ${error.message}`);
+  if (!data || !['confirmed','processing','shipped','delivered'].includes(data.status)
+    || typeof data.courierName !== 'string' || typeof data.trackingNumber !== 'string'
+    || typeof data.trackingUrl !== 'string' || typeof data.updatedAt !== 'string') {
+    throw new Error('Invalid order status response. Refresh orders to check the saved status.');
+  }
+  return data;
 }
 export async function fetchAdminCustomerSummary(offset = 0): Promise<AdminCustomerSummary> {
   const supabase = await client();

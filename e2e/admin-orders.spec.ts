@@ -10,12 +10,22 @@ test('admin collapses online orders and removes only confirmed cancelled entries
     customerName: 'Test Buyer', deliveryPincode: '110001',
     subtotal: 500, discount: 0, shipping: 0, total: 500,
     items: [{ id: 'item', productName: 'Rose Charm', variantName: 'Pink', quantity: 1, unitPrice: 500, lineTotal: 500 }],
+    fulfilment: { status: 'confirmed', courierName: '', trackingNumber: '', trackingUrl: '', updatedAt: null },
   };
   let orders: CustomerOrder[] = [paid,
     { ...paid, id: 'cancelled-order', reference: 'LUV-CANCELLED', status: 'cancelled', paidAt: null },
     { ...paid, id: 'expired-order', reference: 'LUV-EXPIRED', status: 'expired', paidAt: null }];
   let removals = 0;
   await page.route('**/rest/v1/rpc/get_admin_live_orders', route => route.fulfill({ json: orders }));
+  await page.route('**/rest/v1/rpc/update_order_fulfilment', async route => {
+    const body = route.request().postDataJSON();
+    expect(body.target_order_id).toBe('paid-order');
+    expect(body.expected_status).toBe('confirmed');
+    const fulfilment = { status: body.new_status, courierName: body.courier,
+      trackingNumber: body.tracking, trackingUrl: body.tracking_link, updatedAt: '2026-10-10T15:00:00Z' };
+    orders = orders.map(order => order.id === body.target_order_id ? { ...order, fulfilment } : order);
+    await route.fulfill({ json: fulfilment });
+  });
   await page.route('**/rest/v1/rpc/hide_cancelled_live_order', async route => {
     const { target_order_id } = route.request().postDataJSON();
     expect(['cancelled-order', 'expired-order']).toContain(target_order_id);
@@ -37,6 +47,14 @@ test('admin collapses online orders and removes only confirmed cancelled entries
   await expect(paidOrder.getByText('Recipient:', { exact: false })).not.toBeVisible();
   await paidOrder.getByRole('button', { name: 'Show details for LUV-PAID' }).click();
   await expect(paidOrder.getByText('Recipient:', { exact: false })).toBeVisible();
+  await paidOrder.getByLabel('Order status', { exact: true }).selectOption('shipped');
+  await paidOrder.getByLabel('Courier name (optional)').fill('Test courier');
+  await paidOrder.getByLabel('Tracking number (optional)').fill('TRACK123');
+  await paidOrder.getByLabel('Tracking link (optional, HTTPS)').fill('https://courier.example/track/123');
+  await paidOrder.getByRole('button', { name: 'Save order status' }).click();
+  await expect(paidOrder.getByText('Order: Shipped', { exact: true })).toBeVisible();
+  await expect(paidOrder.getByText('Payment received', { exact: true })).toBeVisible();
+  await expect(paidOrder.getByRole('link', { name: 'Track shipment' })).toHaveAttribute('href','https://courier.example/track/123');
   await expect(paidOrder.getByRole('button', { name: /Remove/ })).toHaveCount(0);
   await paidOrder.getByRole('button', { name: 'Hide details for LUV-PAID' }).click();
   await expect(paidOrder.getByText('Recipient:', { exact: false })).not.toBeVisible();

@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerOrders from './CustomerOrders';
-import { fetchCustomerOrders, hideCancelledLiveOrder } from '../services/customer';
+import { fetchCustomerOrders, hideCancelledLiveOrder, updateOrderFulfilment } from '../services/customer';
 import type { CustomerOrder } from '../types/customer';
 
-vi.mock('../services/customer', () => ({ fetchCustomerOrders: vi.fn(), hideCancelledLiveOrder: vi.fn() }));
+vi.mock('../services/customer', () => ({ fetchCustomerOrders: vi.fn(), hideCancelledLiveOrder: vi.fn(), updateOrderFulfilment: vi.fn() }));
 const order: CustomerOrder = {
   id: 'order-1', reference: 'LUV-ORDER1', status: 'paid', createdAt: '2026-10-10T12:00:00Z',
   paidAt: '2026-10-10T12:10:00Z', customerName: 'Buyer', deliveryPincode: '110001',
@@ -14,6 +14,47 @@ const order: CustomerOrder = {
 beforeEach(() => {
   vi.mocked(fetchCustomerOrders).mockReset().mockResolvedValue([]);
   vi.mocked(hideCancelledLiveOrder).mockReset().mockResolvedValue();
+  vi.mocked(updateOrderFulfilment).mockReset();
+});
+it('updates paid order fulfilment independently of payment status', async () => {
+  const fulfilment = { status: 'confirmed' as const, courierName: '', trackingNumber: '', trackingUrl: '', updatedAt: null };
+  const load = vi.fn().mockResolvedValue([{ ...order, fulfilment }]);
+  vi.mocked(updateOrderFulfilment).mockResolvedValue({ ...fulfilment, status: 'shipped',
+    courierName: 'Courier', trackingNumber: 'TRACK123', trackingUrl: 'https://courier.example/track/123', updatedAt: '2026-10-10T15:00:00Z' });
+  render(<CustomerOrders loadOrders={load} admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Online orders' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Show details for LUV-ORDER1' }));
+  fireEvent.change(screen.getByLabelText('Order status'), { target: { value: 'shipped' } });
+  fireEvent.change(screen.getByLabelText('Courier name (optional)'), { target: { value: 'Courier' } });
+  fireEvent.change(screen.getByLabelText('Tracking number (optional)'), { target: { value: 'TRACK123' } });
+  fireEvent.change(screen.getByLabelText('Tracking link (optional, HTTPS)'), { target: { value: 'https://courier.example/track/123' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save order status' }));
+  expect(await screen.findByText('Order: Shipped')).toBeTruthy();
+  expect(screen.getByText('Payment received')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Track shipment' }).getAttribute('href')).toBe('https://courier.example/track/123');
+  expect(updateOrderFulfilment).toHaveBeenCalledWith('order-1', 'confirmed', expect.objectContaining({ status: 'shipped', trackingNumber: 'TRACK123' }));
+});
+it('shows customer shipment progress without admin editing controls', async () => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, fulfilment: {
+    status: 'delivered', courierName: 'Courier', trackingNumber: '123', trackingUrl: 'https://courier.example/123', updatedAt: null,
+  } }]);
+  render(<CustomerOrders />);
+  expect(await screen.findByText('Order: Delivered')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Track shipment' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Save order status' })).toBeNull();
+});
+it('reports fulfilment save failures without changing the displayed status', async () => {
+  const load = vi.fn().mockResolvedValue([{ ...order, fulfilment: {
+    status: 'confirmed', courierName: '', trackingNumber: '', trackingUrl: '', updatedAt: null,
+  } }]);
+  vi.mocked(updateOrderFulfilment).mockRejectedValue(new Error('Order status changed. Refresh orders before saving.'));
+  render(<CustomerOrders loadOrders={load} admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Online orders' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Show details for LUV-ORDER1' }));
+  fireEvent.change(screen.getByLabelText('Order status'), { target: { value: 'processing' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save order status' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Refresh orders');
+  expect(screen.getByText('Order: Confirmed')).toBeTruthy();
 });
 afterEach(cleanup);
 it('shows the empty state without claiming an enquiry is an order', async () => {

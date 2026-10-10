@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { fetchCustomerOrders, hideCancelledLiveOrder } from '../services/customer';
 import type { CustomerOrder } from '../types/customer';
 import { formatINR } from '../utils/currency';
-import { deliveryAddressText } from '../utils/customer';
+import { deliveryAddressText, fulfilmentLabels } from '../utils/customer';
+import OrderFulfilmentForm from './admin/OrderFulfilmentForm';
 
 const statusLabels: Record<CustomerOrder['status'], string> = {
   creating_link: 'Preparing payment',
@@ -67,7 +68,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
       <div id={admin ? 'online-orders-content' : undefined} hidden={admin && !isExpanded}>
       <p className={admin ? 'mb-3 mt-4 text-sm text-cocoa/65' : 'mb-3 text-xs text-cocoa/70'}>{admin
         ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled or expired entry hides it from this list, not from payment records.'
-        : 'Recorded orders and their payment status. WhatsApp/email enquiries are not confirmed orders. Dispatch and delivery updates are shared by Luvia separately.'}</p>
+        : 'Recorded orders, payment status and saved fulfilment updates. WhatsApp/email enquiries are not confirmed orders. Refresh orders to check delivery progress.'}</p>
       {loading && <p role="status">Loading your orders...</p>}
       {!loading && !error && orders.length === 0 && <p>No orders yet.</p>}
       <div className="space-y-3">
@@ -80,6 +81,9 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'paid' ? 'bg-green-50 text-green-800' : 'bg-mustard/15 text-cocoa'}`}>
                 {statusLabels[order.status]}
               </span>
+              {order.status === 'paid' && order.fulfilment && <span className="rounded-full bg-mustard/20 px-3 py-1 text-xs font-semibold text-cocoa">
+                Order: {fulfilmentLabels[order.fulfilment.status]}
+              </span>}
               {admin && <button type="button" className="min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa"
                 aria-expanded={expanded.has(order.id)} aria-controls={`order-details-${order.id}`}
                 aria-label={`${expanded.has(order.id) ? 'Hide' : 'Show'} details for ${order.reference}`}
@@ -114,6 +118,15 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               <div className="flex justify-between"><dt>Shipping</dt><dd>{order.shipping ? formatINR(order.shipping) : 'Free'}</dd></div>
               <div className="flex justify-between font-bold"><dt>Total</dt><dd>{formatINR(order.total)}</dd></div>
             </dl>
+            {order.status === 'paid' && order.fulfilment && <div className="mt-3 break-words text-sm">
+              {order.fulfilment.courierName && <p>Courier: {order.fulfilment.courierName}</p>}
+              {order.fulfilment.trackingNumber && <p>Tracking number: {order.fulfilment.trackingNumber}</p>}
+              {order.fulfilment.trackingUrl.startsWith('https://') && <a href={order.fulfilment.trackingUrl}
+                target="_blank" rel="noopener noreferrer" className="inline-block min-h-11 py-2 underline">Track shipment</a>}
+              {admin && <OrderFulfilmentForm key={`${order.id}-${order.fulfilment.updatedAt}`} orderId={order.id}
+                reference={order.reference} fulfilment={order.fulfilment} onSaved={fulfilment =>
+                  setOrders(current => current.map(value => value.id === order.id ? { ...value, fulfilment } : value))} />}
+            </div>}
             </div>
             {admin && ['cancelled', 'expired'].includes(order.status) && !order.paidAt && (confirmRemoval === order.id
               ? <div className="mt-2 rounded-lg border border-cocoa/20 p-3">

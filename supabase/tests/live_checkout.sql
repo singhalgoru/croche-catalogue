@@ -241,4 +241,44 @@ begin
   end if;
 end;
 $$;
+do $$
+declare rejected boolean:=false; result jsonb; target_id uuid:=(select id from live_order);
+begin
+  result:=public.update_order_fulfilment(target_id,'confirmed','processing','','','');
+  if result->>'status'<>'processing' then raise exception 'FAIL: processing update failed.'; end if;
+  begin perform public.update_order_fulfilment(target_id,'confirmed','shipped','','','');
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: stale order update accepted.'; end if;
+  rejected:=false;
+  begin perform public.update_order_fulfilment(target_id,'processing','shipped','','','javascript:alert(1)');
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: unsafe tracking link accepted.'; end if;
+  perform public.update_order_fulfilment(target_id,'processing','shipped','Test courier','TRACK123','https://courier.example/track/123');
+  rejected:=false;
+  begin perform public.update_order_fulfilment(target_id,'shipped','processing','','','');
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: fulfilment moved backwards.'; end if;
+  rejected:=false;
+  begin perform public.update_order_fulfilment((select (record).id from hidden_order),'confirmed','processing','','','');
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: review order processed.'; end if;
+  if not exists(select 1 from jsonb_array_elements(public.get_customer_orders()) o
+    where o->>'id'=target_id::text and o->'fulfilment'->>'status'='shipped'
+    and o->>'status'='paid' and o->'fulfilment'->>'trackingNumber'='TRACK123') then
+    raise exception 'FAIL: customer shipment projection or payment status changed.';
+  end if;
+  perform public.update_order_fulfilment(target_id,'shipped','delivered','Test courier','TRACK123','https://courier.example/track/123');
+end;
+$$;
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select other_id from live_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$
+declare rejected boolean:=false;
+begin
+  begin perform public.update_order_fulfilment((select id from live_order),'delivered','delivered','','','');
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: customer updated fulfilment.'; end if;
+end;
+$$;
 rollback;

@@ -202,6 +202,12 @@ capture requiring review, makes the entry visible again.
 After verified payment, checkout displays a prominent order-success panel with
 payment confirmation, the order reference and separate email-delivery guidance.
 The panel does not claim that the email has reached the customer's inbox.
+For paid live orders, Admin → Orders → Show details includes fulfilment controls:
+Confirmed → Processing → Shipped → Delivered. Progress cannot move backwards.
+Courier name, tracking number and a public HTTPS tracking link are optional for
+shipped/delivered orders. Updates appear in the customer order dashboard after
+refresh; they do not modify payment status, send shipping notifications or
+perform refunds. Concurrent status changes require refreshing before saving.
 Order emails use Luvia's cream/cocoa/mustard theme with item images and product
 links from the saved purchase snapshot, a payment summary, delivery details and
 dispatch/support guidance. Email clients may require enabling remote images.

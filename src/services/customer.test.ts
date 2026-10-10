@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
-  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder } from './customer';
+  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment } from './customer';
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
@@ -11,6 +11,20 @@ vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: async () => 'fixture-captc
 const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
   addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' };
 const password = 'Crochet2026';
+it('saves fulfilment through the admin RPC and rejects failed or malformed results', async () => {
+  const values = { status: 'shipped' as const, courierName: ' Courier ', trackingNumber: ' 123 ', trackingUrl: ' https://courier.example/123 ' };
+  const saved = { ...values, updatedAt: '2026-10-10T15:00:00Z' };
+  rpc.mockResolvedValue({ data: saved, error: null });
+  await expect(updateOrderFulfilment('order', 'processing', values)).resolves.toEqual(saved);
+  expect(rpc).toHaveBeenCalledWith('update_order_fulfilment', {
+    target_order_id: 'order', expected_status: 'processing', new_status: 'shipped',
+    courier: 'Courier', tracking: '123', tracking_link: 'https://courier.example/123',
+  });
+  rpc.mockResolvedValue({ error: { message: 'Admin access required.' } });
+  await expect(updateOrderFulfilment('order', 'processing', values)).rejects.toThrow('Admin access required');
+  rpc.mockResolvedValue({ data: {} });
+  await expect(updateOrderFulfilment('order', 'processing', values)).rejects.toThrow('Invalid order status response');
+});
 it('hides cancelled orders through the admin RPC and reports rejected removals', async () => {
   await expect(hideCancelledLiveOrder('cancelled-order')).resolves.toBeUndefined();
   expect(rpc).toHaveBeenCalledWith('hide_cancelled_live_order', { target_order_id: 'cancelled-order' });

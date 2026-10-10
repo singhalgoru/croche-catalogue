@@ -1,4 +1,8 @@
-import type { DeliveryDetails } from '../types/customer';
+import type { DeliveryDetails, OrderFulfilment } from '../types/customer';
+
+export const fulfilmentLabels: Record<OrderFulfilment['status'], string> = {
+  confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered',
+};
 
 export const emptyDeliveryDetails = (): DeliveryDetails => ({
   name: '', phone: '', email: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
