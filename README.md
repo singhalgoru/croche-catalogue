@@ -283,7 +283,7 @@ not IP limits: a new anonymous identity can evade them.
 
 Admins can confirm **Block cart session** in Anonymous cart activity and later
 unblock it, even after deleting the cart. Blocks stop cart writes and PIN lookups
-but allow cart/item deletion. Luvia does not store raw IP addresses. This does not
+but allow cart/item deletion. Cart IP metadata is stored separately for admin viewing. This does not
 block messages sent directly to WhatsApp/email, nor prove that an enquiry is real.
 
 ### Activating CAPTCHA
@@ -335,7 +335,7 @@ shopper-provided; checked PINs also show district(s), state(s), country and the
 postal lookup date. This is not a verified shopper address or shipping quote.
 Existing PINs remain unverified until the shopper saves them again.
 They share the cart's 30-day lifetime and are cleared on cart deletion/renewal.
-No raw IP addresses or GPS coordinates are collected. Apply migration
+No GPS coordinates are collected. Network IP capture is separate from delivery lookups. Apply migration
 `20261006090500_add_cart_delivery_pin.sql` and
 `20261006092000_verify_cart_delivery_pins.sql`, then deploy
 `supabase functions deploy verify-delivery-pin` before deploying the frontend.
@@ -371,6 +371,23 @@ npx supabase secrets set SHIPROCKET_EMAIL=<api-user-email> SHIPROCKET_PASSWORD=<
 Without these secrets the feature stays dormant.
 
 ## Product customisation enquiries
+
+### Private cart network metadata
+
+Nonempty online carts record the gateway-reported network IP once through the
+authenticated `capture-cart-network` function without delaying cart actions.
+The endpoint checks cart ownership, expiry, items and admin session blocks;
+it accepts no client-supplied IP body field. Network metadata is not a verified
+location or identity, and is never used for access decisions. No IP-geolocation
+provider is called. Only admins can read `cart_network_details`; other shoppers
+cannot read or write it. Admin carts show the IP and capture date.
+Access expires 30 days after capture; an hourly pg_cron job purges expired
+metadata, and cart deletion cascades immediately. No new shopper-facing notice
+or popup was added. Apply `20261010032000_add_private_cart_network.sql` and deploy
+`capture-cart-network` before deploying the frontend.
+Run `npx supabase db query --linked --file supabase/tests/cart-network.sql`
+to verify admin-only reads, denied shopper writes, expiry and the cleanup job;
+all fixtures are rolled back.
 
 The homepage Bestsellers section ranks available published products by pieces
 recorded in the seller sales ledger over the last 90 calendar days, combining

@@ -134,6 +134,10 @@ export default function CartManager() {
                     <p className="mt-2 text-sm text-cocoa/75">
                       {cart.deliveryPinCode ? `Delivery pincode: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery pincode: not provided'}
                     </p>
+                    {cart.networkDetails && <p className="mt-1 break-all text-xs text-cocoa/65">
+                      Network IP: {cart.networkDetails.ipAddress} · captured {new Date(cart.networkDetails.capturedAt).toLocaleString()}.
+                      {' '}May reflect a mobile network, VPN or proxy; not a verified identity or location.
+                    </p>}
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
                       {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.

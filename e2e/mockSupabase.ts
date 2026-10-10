@@ -803,6 +803,11 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/functions/v1/capture-cart-network') {
+      await json(route, { recorded: true });
+      return;
+    }
+
     if (pathname === '/functions/v1/verify-delivery-pin') {
       const body = getRequestBody<{ cartId: string; pin: string }>(route);
       if (body.pin !== '110001') {

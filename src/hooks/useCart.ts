@@ -7,6 +7,7 @@ import {
   removeCartItem,
   updateCartItemQuantity,
   updateCartDeliveryPin,
+  captureCartNetwork,
 } from '../services/cart';
 import { trackAddToCart } from '../services/analytics';
 import type { Cart } from '../types/cart';
@@ -20,6 +21,13 @@ export function useCart(enabled = true) {
   const [addFeedback, setAddFeedback] = useState<string | null>(null);
   const [cartUpdateCount, setCartUpdateCount] = useState(0);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const capturedNetworkCartIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!enabled || !cart?.items.length || capturedNetworkCartIds.current.has(cart.id)) return;
+    capturedNetworkCartIds.current.add(cart.id);
+    void captureCartNetwork(cart.id).catch(error => console.error('Cart network capture failed:', error));
+  }, [cart, enabled]);
 
   useEffect(() => {
     if (!enabled) return;

@@ -40,6 +40,7 @@ export interface Cart {
 export interface AdminCart extends Cart {
   userId: string;
   createdAt: string;
+  networkDetails?: { ipAddress: string; capturedAt: string } | null;
 }
 
 export interface CartSessionBlock {

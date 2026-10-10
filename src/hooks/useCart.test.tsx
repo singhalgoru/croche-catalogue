@@ -4,13 +4,14 @@ import type { Cart } from '../types/cart';
 import type { Product, ProductVariant } from '../types/product';
 import { useCart } from './useCart';
 
-const { fetchCart, addProductToCart, trackAddToCart } = vi.hoisted(() => ({
+const { fetchCart, addProductToCart, trackAddToCart, captureCartNetwork } = vi.hoisted(() => ({
   fetchCart: vi.fn(),
   addProductToCart: vi.fn(),
   trackAddToCart: vi.fn(),
+  captureCartNetwork: vi.fn(),
 }));
 vi.mock('../services/cart', () => ({
-  fetchCart, addProductToCart,
+  fetchCart, addProductToCart, captureCartNetwork,
   clearCart: vi.fn(), markCartWhatsAppStarted: vi.fn(), removeCartItem: vi.fn(),
   updateCartItemQuantity: vi.fn(), updateCartDeliveryPin: vi.fn(),
 }));
@@ -34,6 +35,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   fetchCart.mockResolvedValue(null);
   addProductToCart.mockResolvedValue(cart);
+  captureCartNetwork.mockResolvedValue(undefined);
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
     frame = callback;
     return 1;
@@ -79,4 +81,27 @@ it('tracks successful background additions without waiting for a suspended anima
   expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   act(() => vi.advanceTimersByTime(0));
   expect(trackAddToCart).toHaveBeenCalledExactlyOnceWith(product, variant);
+});
+
+it('captures the nonempty cart once without delaying confirmed cart feedback', async () => {
+  const populated = { ...cart, items: [{
+    id: 'item', productId: product.id, variantId: variant.id, productName: product.name,
+    variantName: variant.name, image: variant.image, unitPrice: 200, quantity: 1,
+  }] };
+  addProductToCart.mockResolvedValue(populated);
+  captureCartNetwork.mockImplementation(() => new Promise(() => {}));
+  const { result } = renderHook(() => useCart());
+  await act(async () => { await result.current.addItem(product, variant); });
+  expect(result.current.isBusy).toBe(false);
+  expect(result.current.addFeedback).toBe('Rose added to cart');
+  expect(captureCartNetwork).toHaveBeenCalledExactlyOnceWith(cart.id);
+  await act(async () => { await result.current.addItem(product, variant); });
+  expect(captureCartNetwork).toHaveBeenCalledTimes(1);
+});
+
+it('does not capture empty carts', async () => {
+  fetchCart.mockResolvedValue(cart);
+  renderHook(() => useCart());
+  await act(async () => {});
+  expect(captureCartNetwork).not.toHaveBeenCalled();
 });

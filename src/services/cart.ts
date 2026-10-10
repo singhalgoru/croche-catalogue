@@ -25,6 +25,8 @@ interface CartItemRow {
 }
 
 interface CartRow {
+  cart_network_details?: { ip_address: string; captured_at: string }
+    | { ip_address: string; captured_at: string }[] | null;
   delivery_pin_code?: string | null;
   delivery_pin_location?: Cart['deliveryPinLocation'];
   delivery_pin_checked_at?: string | null;
@@ -429,17 +431,32 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
   if (!supabase) throw new Error('Supabase is not configured.');
   const { data, error } = await supabase
     .from('carts')
-    .select(CART_COLUMNS)
+    .select(`${CART_COLUMNS},cart_network_details(ip_address,captured_at)`)
     .gte('expires_at', new Date().toISOString())
     .order('updated_at', { ascending: false });
   if (error) throw new Error(`Unable to load customer carts: ${error.message}`);
   return (data as CartRow[])
     .filter((row) => (row.cart_items?.length ?? 0) > 0)
-    .map((row) => ({
-      ...mapCart(row),
-      userId: row.user_id,
-      createdAt: row.created_at,
-    }));
+    .map((row) => {
+      const network = Array.isArray(row.cart_network_details)
+        ? row.cart_network_details[0] : row.cart_network_details;
+      return {
+        ...mapCart(row),
+        userId: row.user_id,
+        createdAt: row.created_at,
+        networkDetails: network ? {
+          ipAddress: network.ip_address, capturedAt: network.captured_at,
+        } : null,
+      };
+    });
+}
+
+export async function captureCartNetwork(cartId: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const supabase = await loadSupabase();
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { error } = await supabase.functions.invoke('capture-cart-network', { body: { cartId } });
+  if (error) throw new Error(`Unable to record cart network information: ${error.message}`);
 }
 
 export async function deleteAdminCart(cartId: string): Promise<void> {
