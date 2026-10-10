@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteAdminCart, fetchAdminCarts, fetchCartSessionBlocks, setCartSessionBlocked } from '../../services/cart';
+import { deleteAdminCart, fetchAdminCarts, fetchCartSessionBlocks, setCartSessionBlocked, redeemAdminCartCoupon } from '../../services/cart';
 import type { AdminCart, CartSessionBlock } from '../../types/cart';
 import { formatINR } from '../../utils/currency';
 import { formatDeliveryDays } from '../../utils/deliveryEstimate';
+import { deliveryAddressText } from '../../utils/customer';
 
 export default function CartManager() {
   const [carts, setCarts] = useState<AdminCart[]>([]);
@@ -13,6 +14,7 @@ export default function CartManager() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<CartSessionBlock[]>([]);
   const [blockId, setBlockId] = useState<string | null>(null);
+  const [couponConfirmId, setCouponConfirmId] = useState<string | null>(null);
 
   const loadCarts = useCallback(async () => {
     setIsLoading(true);
@@ -76,7 +78,7 @@ export default function CartManager() {
         >
           <span>
             <span className="block font-heading text-2xl font-bold text-cocoa">
-              Anonymous cart activity
+              Customer cart activity
             </span>
             <span className="mt-1 block text-sm text-cocoa/65">
               {carts.length} active cart{carts.length === 1 ? '' : 's'} from the last 30 days
@@ -103,8 +105,8 @@ export default function CartManager() {
 
       <div id="cart-activity-content" hidden={!isExpanded}>
         <p className="mt-4 text-sm text-cocoa/65">
-          These are anonymous product interests, not completed orders. Customer contact details are
-          not collected here.
+          These are customer product interests, not completed orders. Saved contact and delivery
+          details are shopper-provided.
         </p>
         {error && (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -140,6 +142,27 @@ export default function CartManager() {
                           cart.networkDetails.location.country ?? cart.networkDetails.location.countryCode].filter(Boolean).join(', ')
                         : 'Unavailable'}
                     </p>}
+                    {cart.deliveryDetails && <div className="mt-2 break-words text-sm text-cocoa">
+                      <p>{cart.deliveryDetails.name} · +91 {cart.deliveryDetails.phone}</p>
+                      {cart.deliveryDetails.email && <p>{cart.deliveryDetails.email}</p>}
+                      <p>Delivery address (shopper-provided): {deliveryAddressText(cart.deliveryDetails)}</p>
+                    </div>}
+                    {cart.welcomeCouponCode && <div className="mt-2 text-xs">
+                      <p>Requested coupon: {cart.welcomeCouponCode}</p>
+                      {couponConfirmId === cart.id ? <div className="mt-2 rounded-lg border border-mustard/50 p-2">
+                        <p>Confirm that this offline order is paid and the coupon terms/minimum were checked. This records coupon use only; it does not charge money or update stock.</p>
+                        <div className="mt-2 flex gap-3">
+                          <button type="button" disabled={busyId !== null} className="font-semibold underline" onClick={() => {
+                            setBusyId(cart.id); setError(null);
+                            void redeemAdminCartCoupon(cart.id).then(async () => { setCouponConfirmId(null); await loadCarts(); })
+                              .catch(error => setError(error instanceof Error ? error.message : 'Unable to record coupon use.'))
+                              .finally(() => setBusyId(null));
+                          }}>Confirm paid-order coupon use</button>
+                          <button type="button" disabled={busyId !== null} className="underline" onClick={() => setCouponConfirmId(null)}>Cancel</button>
+                        </div>
+                      </div> : <button type="button" disabled={busyId !== null} className="mt-1 underline"
+                        onClick={() => setCouponConfirmId(cart.id)}>Mark coupon used for paid offline order</button>}
+                    </div>}
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
                       {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.

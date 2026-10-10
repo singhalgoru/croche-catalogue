@@ -92,8 +92,59 @@ it('returns a retryable error when the database does not yet know the link', asy
 });
 
 it('acknowledges unsupported but validly signed events without mutating payment state', async () => {
-  const response = await handler(await signedRequest({ event: 'payment.captured', payload: {} }));
+  const response = await handler(await signedRequest({ event: 'payment.authorized', payload: {} }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ received: true, ignored: true });
   expect(rpc).not.toHaveBeenCalled();
+});
+
+const checkout = {
+  event: 'payment.captured',
+  payload: { payment: { entity: {
+    id: 'pay_checkout', order_id: 'order_checkout', amount: 12500, currency: 'INR', status: 'captured',
+  } } },
+};
+
+it('reconciles captured Standard Checkout payments through the shared ledger', async () => {
+  rpc.mockResolvedValue({ data: { processed: true, status: 'test_verified', test_mode: true }, error: null });
+  const response = await handler(await signedRequest(checkout));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ status: 'test_verified', test_mode: true });
+  expect(rpc).toHaveBeenCalledWith('record_razorpay_checkout_event', {
+    p_event_id: 'evt_123', p_event_name: 'payment.captured', p_order_id: 'order_checkout',
+    p_payment_id: 'pay_checkout', p_amount_paise: 12500, p_currency: 'INR',
+  });
+});
+
+it('validates paid order details against the captured payment', async () => {
+  const event = { ...checkout, event: 'order.paid', payload: {
+    ...checkout.payload, order: { entity: { id: 'order_checkout', amount: 12500, currency: 'INR', status: 'paid' } },
+  } };
+  expect((await handler(await signedRequest(event))).status).toBe(200);
+  rpc.mockClear();
+  event.payload.order.entity.amount = 100;
+  expect((await handler(await signedRequest(event))).status).toBe(400);
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it('rejects uncaptured payments and malformed checkout events', async () => {
+  const event = structuredClone(checkout);
+  event.payload.payment.entity.status = 'authorized';
+  expect((await handler(await signedRequest(event))).status).toBe(400);
+  expect((await handler(await signedRequest({ event: 'payment.captured', payload: {} }))).status).toBe(400);
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it('returns retryable errors for unknown checkout orders and database failures', async () => {
+  rpc.mockResolvedValue({ data: { reason: 'unknown_checkout_order' }, error: null });
+  expect((await handler(await signedRequest(checkout))).status).toBe(500);
+  rpc.mockResolvedValue({ data: null, error: { message: 'Database unavailable' } });
+  expect((await handler(await signedRequest(checkout))).status).toBe(500);
+});
+
+it('acknowledges duplicate events after database validation', async () => {
+  rpc.mockResolvedValue({ data: { processed: false, duplicate: true }, error: null });
+  const response = await handler(await signedRequest(checkout));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ duplicate: true });
 });

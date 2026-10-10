@@ -451,6 +451,8 @@ function App() {
         void cart.markWhatsAppStarted();
       }}
       onSaveDeliveryPin={cart.saveDeliveryPin}
+      onSaveDeliveryDetails={cart.saveDeliveryDetails}
+      onSelectWelcomeCoupon={cart.selectWelcomeCoupon}
       onEmailStarted={() => {
         trackEvent('email_cart', {
           cart_reference: cart.cart?.reference ?? '',

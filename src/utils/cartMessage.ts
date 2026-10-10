@@ -2,6 +2,7 @@ import type { Cart, CartItem } from '../types/cart';
 import { formatINR } from './currency';
 import { getCurrentDeliveryEstimate, getEstimatedShippingCharge } from './deliveryEstimate';
 import { toProductUrl } from './productLink';
+import { deliveryAddressText } from './customer';
 
 const PRICE_ON_ENQUIRY = 'Price on enquiry';
 export const FREE_SHIPPING_THRESHOLD = 500;
@@ -86,6 +87,13 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
     '',
     'Please confirm availability and the final total so we can proceed.',
     ...(cart.deliveryPinCode ? [`Delivery pincode (shopper-provided): ${cart.deliveryPinCode}`] : []),
+    ...(cart.deliveryDetails ? [
+      `Recipient: ${cart.deliveryDetails.name}`,
+      `Mobile: +91${cart.deliveryDetails.phone}`,
+      ...(cart.deliveryDetails.email ? [`Email: ${cart.deliveryDetails.email}`] : []),
+      `Delivery address (shopper-provided): ${deliveryAddressText(cart.deliveryDetails)}`,
+    ] : []),
+    ...(cart.welcomeCouponCode ? [`Requested coupon: ${cart.welcomeCouponCode} (please confirm eligibility and discount)`] : []),
     `Cart reference: ${cart.reference}`,
   ].join('\n');
 };
@@ -169,10 +177,12 @@ export const buildEmailCartBody = (
     '',
     'DELIVERY DETAILS',
     DIVIDER,
-    'Name        :',
-    'Phone       :',
-    'Address     :',
+    `Name        :${cart.deliveryDetails ? ` ${cart.deliveryDetails.name}` : ''}`,
+    `Phone       :${cart.deliveryDetails ? ` +91${cart.deliveryDetails.phone}` : ''}`,
+    ...(cart.deliveryDetails?.email ? [`Email       : ${cart.deliveryDetails.email}`] : []),
+    `Address     :${cart.deliveryDetails ? ` ${deliveryAddressText(cart.deliveryDetails)}` : ''}`,
     `Pincode     :${cart.deliveryPinCode ? ` ${cart.deliveryPinCode} (shopper-provided)` : ''}`,
+    ...(cart.welcomeCouponCode ? [`Requested coupon: ${cart.welcomeCouponCode} (please confirm eligibility and discount)`] : []),
     '',
     'Please confirm availability and the final total so we can proceed.',
   ].join('\n');

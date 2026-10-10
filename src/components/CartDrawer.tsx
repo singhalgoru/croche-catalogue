@@ -9,10 +9,15 @@ import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } fr
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
 import RazorpayCheckout from './RazorpayCheckout';
+import CustomerFunnel from './CustomerFunnel';
+import CustomerAccount from './CustomerAccount';
+import type { DeliveryDetails } from '../types/customer';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
 import { FREE_SHIPPING_THRESHOLD, getCartTotals, getShippingLabel } from '../utils/cartMessage';
 
 interface Props {
+  onSaveDeliveryDetails?: (value: DeliveryDetails) => Promise<Cart | null>;
+  onSelectWelcomeCoupon?: (code: string) => Promise<Cart | null>;
   onSaveDeliveryPin: (value: string) => Promise<Cart | null>;
   cart: Cart | null;
   products: Product[];
@@ -42,6 +47,8 @@ export default function CartDrawer({
   onEmailStarted,
   onOpenProduct,
   onSaveDeliveryPin,
+  onSaveDeliveryDetails,
+  onSelectWelcomeCoupon,
 }: Props) {
   // Desktop browsers with no mail client registered silently ignore mailto:
   // links, so reveal webmail and copy fallbacks once Email has been tried.
@@ -162,10 +169,13 @@ export default function CartDrawer({
               <p className="mt-2 text-sm text-cocoa/60">
                 Add products and they will remain here for up to 30 days.
               </p>
+              <div className="mt-4 text-left"><CustomerAccount canSignUp={false} /></div>
             </div>
           ) : (
             <div className="space-y-3">
               <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
+              {onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}`}
+                cart={cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} />}
               {checkoutCart?.items.map((item) => {
                 const isUnavailable = unavailableItemIds.has(item.id);
                 const isBelowMinimum = belowMinimumItemIds.has(item.id);

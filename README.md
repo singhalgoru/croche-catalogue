@@ -41,6 +41,39 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ## Razorpay payments
 
+### Standard Checkout webhooks (test mode)
+
+The existing `razorpay-payment-webhook` function now accepts `payment.captured`
+and `order.paid` alongside its Payment Link events. It verifies HMAC-SHA256
+over the untouched request body with `RAZORPAY_WEBHOOK_SECRET`, validates captured
+payment/order details, and reconciles against the stored order amount/currency.
+Event IDs are deduplicated transactionally; callbacks and webhook retries can
+both verify the same payment safely. Unknown orders and database failures return
+retryable errors rather than losing the notification.
+
+Apply `20261010090000_add_checkout_webhook.sql`, set a unique backend-only
+`RAZORPAY_WEBHOOK_SECRET`, and deploy `razorpay-payment-webhook` with JWT
+verification disabled (Razorpay authenticates through the signature).
+The deployed test secret is saved locally as `RAZORPAY_WEBHOOK_SECRET` in the
+ignored `.env.razorpay.local`; copy it into the Test-mode dashboard secret
+field without committing it or exposing it to the frontend.
+In **Razorpay Dashboard → Test mode → Settings → Webhooks**, add:
+
+`https://bblsjcjypdxntzlszliy.supabase.co/functions/v1/razorpay-payment-webhook`
+
+Enter the same webhook secret and subscribe to **payment.captured** and
+**order.paid** for the current Standard Checkout test flow. Test a payment,
+check the stored `test_verified` status, and resend the event to confirm that
+it causes no duplicate side effects. Invalid signatures return 401.
+This is not a Live-mode webhook: test reconciliation does not reduce stock,
+redeem coupons, clear carts or record sales, and public checkout stays hidden.
+Live checkout and its inventory/coupon settlement still require a separate
+activation step. Payment Link subscriptions should remain on their existing
+link-specific events; do not subscribe an unrelated payment integration to
+this test-order endpoint.
+
+Reference: [Razorpay webhooks](https://razorpay.com/docs/webhooks/).
+
 The existing `payment-integration` backend foundation is reused: hosted payment
 links and Standard Checkout share `payment_orders` and `payment_order_items`.
 Admin payment links still require a confirmed customer and shipping charge.
@@ -92,6 +125,84 @@ The hosted-link foundation has its own `create-razorpay-payment-link` and
 `RAZORPAY_WEBHOOK_SECRET` and the `payment_link.paid`, `payment_link.expired`
 and `payment_link.cancelled` events. Do not enable hosted links without testing
 that complete admin-to-webhook flow.
+
+## Customer order funnel and welcome email coupon
+
+Customers can continue as guests: contact details → Indian delivery address →
+review → WhatsApp/email order request. Details are saved against the owned
+cart, restored on return and visible to catalogue admins. Saving checks the
+pincode through the existing postal/shipping service; changing the pincode
+invalidates the old address so destinations cannot silently diverge. Addresses
+are private, removed with their cart, and cleaned up after cart expiry.
+
+Email signup is optional. It upgrades the existing anonymous Supabase identity
+with `updateUser`, preserving cart ownership. A verification link (or
+email-change code) confirms the account. Returning customers use passwordless
+email sign-in from an empty cart. Signing into another account is blocked while
+the current cart has items; carts are not silently merged or discarded.
+
+Configure Supabase Auth's Site URL and allowed redirects for
+`https://luviacreations.com/` and local development. Set up production SMTP
+before promoting signup. The **Change Email Address** template can include
+`{{ .Token }}` for code entry alongside `{{ .ConfirmationURL }}`. Test link
+verification in the same browser and returning-account sign-in.
+
+The welcome offer is **disabled by default**. Admin → Settings contains
+configurable percentage, cap, minimum items subtotal and validity; the initial
+proposal is 10%, capped at ₹100, minimum ₹500, valid 30 days. Do not enable
+until the business approves those terms and account email verification is tested.
+Coupon email delivery is optional; direct code entry does not require Resend.
+
+For coupon emails, verify a sending domain with Resend and set backend-only
+Supabase secrets `RESEND_API_KEY` and `WELCOME_COUPON_FROM_EMAIL` (e.g.
+`Luvia Creations <welcome@your-verified-domain>`), then deploy `welcome-coupon`.
+No new email credentials belong in frontend environment variables. Customers
+explicitly request the coupon email; signup does not subscribe them to marketing.
+The UI never claims an email was sent if provider configuration or delivery fails.
+Provider acceptance is not a guarantee of inbox delivery.
+
+The first-order code is **ILOVELUVIA** (case-insensitive on entry). All customers
+see the same name, but separate private records enforce one redemption per
+verified, normalized email address, not per browser session. Claims and
+email retries are idempotent. Returning paid customers are excluded. Coupons
+are attached to the owned cart and shown as **requested**, not automatically
+subtracted from indicative customer totals. The admin-confirmed hosted payment
+link applies the snapshotted coupon rules server-side, reserves it against
+pending links and redeems it atomically only after a valid paid webhook.
+Expired/cancelled links release the reservation; test checkout never consumes
+coupons. Future live Standard Checkout must reuse this redemption logic.
+
+Coupon email delivery remains unavailable until the external email credentials
+are configured. Razorpay checkout remains hidden while the account is inactive.
+
+Admin → Settings also has **Generate discount coupons**. Random codes have
+immutable discount terms, an exact expiry date/time (entered in the admin's
+local timezone and stored in UTC), a total redemption limit, and optional
+first-order-only eligibility. Codes can be copied/shared manually and disabled
+for new orders. Customers enter them after saving delivery details.
+First-order-only codes require verified email; general codes support guests.
+The backend rechecks expiry, eligibility and available redemptions when an admin
+creates the confirmed payment link. Pending links count against the usage limit;
+expired/cancelled links release capacity. Already-issued links retain the agreed
+discount until their own link expiry. Only one coupon can be selected per cart.
+Admin codes do not depend on the welcome-email provider. Verified customers can
+also enter ILOVELUVIA directly while the offer is enabled; sending a coupon email
+is optional and is not needed to enforce the one-use-per-email limit.
+
+While Razorpay is inactive, admins can open the customer cart in **Orders** and
+select **Mark coupon used for paid offline order**. Explicit confirmation is
+required after checking the completed payment and coupon terms. This records
+an audited redemption without pretending to charge money or changing inventory.
+It shares the same email eligibility and random-code usage limits as payment
+links, preventing reuse on another cart. Pending payment links cannot be
+manually redeemed; their signed webhook remains authoritative.
+
+```powershell
+npm test -- CustomerFunnel customer.test welcome-coupon
+npx supabase db query --linked --file supabase\tests\customer_funnel.sql
+npx supabase db query --linked --file supabase\tests\campaign_coupons.sql
+npx playwright test customer-funnel.spec.ts
+```
 
 ## Local development
 

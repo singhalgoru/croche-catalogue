@@ -1,3 +1,5 @@
+import type { DeliveryDetails } from './customer';
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -24,6 +26,8 @@ export interface DeliveryEstimate {
 }
 
 export interface Cart {
+  deliveryDetails?: DeliveryDetails | null;
+  welcomeCouponCode?: string | null;
   deliveryPinCode?: string | null;
   deliveryPinLocation?: { districts: string[]; states: string[]; country: 'India' } | null;
   deliveryPinCheckedAt?: string | null;

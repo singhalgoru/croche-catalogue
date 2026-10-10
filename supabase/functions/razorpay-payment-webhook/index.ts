@@ -49,7 +49,8 @@ Deno.serve(async (request) => {
     event?: unknown;
     payload?: {
       payment_link?: { entity?: { id?: unknown; amount?: unknown } };
-      payment?: { entity?: { id?: unknown } };
+      payment?: { entity?: { id?: unknown; order_id?: unknown; amount?: unknown; currency?: unknown; status?: unknown } };
+      order?: { entity?: { id?: unknown; amount?: unknown; currency?: unknown; status?: unknown } };
     };
   };
   try {
@@ -58,9 +59,32 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Webhook body is invalid JSON.' }, 400);
   }
 
-  if (typeof payload.event !== 'string'
-    || !['payment_link.paid', 'payment_link.expired', 'payment_link.cancelled'].includes(payload.event)) {
+  if (!payload || typeof payload.event !== 'string'
+    || !['payment_link.paid', 'payment_link.expired', 'payment_link.cancelled', 'payment.captured', 'order.paid'].includes(payload.event)) {
     return jsonResponse({ received: true, ignored: true });
+  }
+
+  const client = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+  if (payload.event === 'payment.captured' || payload.event === 'order.paid') {
+    const payment = payload.payload?.payment?.entity;
+    const order = payload.payload?.order?.entity;
+    if (typeof payment?.id !== 'string' || !/^pay_[A-Za-z0-9]+$/.test(payment.id)
+      || typeof payment.order_id !== 'string' || !/^order_[A-Za-z0-9]+$/.test(payment.order_id)
+      || typeof payment.amount !== 'number' || !Number.isSafeInteger(payment.amount) || payment.amount < 100
+      || typeof payment.currency !== 'string' || payment.status !== 'captured'
+      || (payload.event === 'order.paid' && (order?.id !== payment.order_id
+        || order.amount !== payment.amount || order.currency !== payment.currency || order.status !== 'paid'))) {
+      return jsonResponse({ error: 'Captured checkout details are invalid.' }, 400);
+    }
+    const { data, error } = await client.rpc('record_razorpay_checkout_event', {
+      p_event_id: eventId, p_event_name: payload.event, p_order_id: payment.order_id,
+      p_payment_id: payment.id, p_amount_paise: payment.amount, p_currency: payment.currency,
+    });
+    if (error || !data || typeof data !== 'object' || data.reason === 'unknown_checkout_order') {
+      console.error('Unable to reconcile Razorpay checkout:', error?.message ?? data?.reason ?? 'Invalid database result');
+      return jsonResponse({ error: 'Unable to reconcile checkout. Retry this event.' }, 500);
+    }
+    return jsonResponse({ received: true, ...data });
   }
 
   const link = payload.payload?.payment_link?.entity;
@@ -73,7 +97,6 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Webhook payment details are invalid.' }, 400);
   }
 
-  const client = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
   const { data, error } = await client.rpc('record_razorpay_payment_event', {
     p_event_id: eventId,
     p_event_name: payload.event,

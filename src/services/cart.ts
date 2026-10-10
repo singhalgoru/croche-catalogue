@@ -3,6 +3,7 @@ import type { Product, ProductVariant } from '../types/product';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartItem, CartSessionBlock } from '../types/cart';
+import type { DeliveryDetails } from '../types/customer';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
 import { requestCartCaptcha } from './cartCaptcha';
 import {
@@ -30,6 +31,7 @@ interface CartNetworkRow {
   location?: NonNullable<AdminCart['networkDetails']>['location'];
 }
 interface CartRow {
+  cart_delivery_details?: DeliveryDetailsRow | DeliveryDetailsRow[] | null;
   cart_network_details?: CartNetworkRow | CartNetworkRow[] | null;
   delivery_pin_code?: string | null;
   delivery_pin_location?: Cart['deliveryPinLocation'];
@@ -45,9 +47,14 @@ interface CartRow {
   whatsapp_started_at: string | null;
   cart_items?: CartItemRow[];
 }
+interface DeliveryDetailsRow {
+  details: DeliveryDetails;
+  welcome_coupons?: { code: string } | { code: string }[] | null;
+  campaign_coupons?: { code: string } | { code: string }[] | null;
+}
 
 const CART_COLUMNS =
-  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, delivery_pin_location, delivery_pin_checked_at, delivery_estimate, cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
+  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, delivery_pin_location, delivery_pin_checked_at, delivery_estimate, cart_delivery_details(details,welcome_coupons(code),campaign_coupons(code)), cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
 const LOCAL_CART_KEY = 'luvia-cart';
 const CART_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -73,7 +80,13 @@ export const sortCartItemsByCreatedAt = (items: CartItemRow[]) =>
     return rightCreatedAt - leftCreatedAt;
   });
 
-const mapCart = (row: CartRow): Cart => ({
+const mapCart = (row: CartRow): Cart => {
+  const delivery = Array.isArray(row.cart_delivery_details) ? row.cart_delivery_details[0] : row.cart_delivery_details;
+  const coupon = Array.isArray(delivery?.welcome_coupons) ? delivery.welcome_coupons[0] : delivery?.welcome_coupons;
+  const campaign = Array.isArray(delivery?.campaign_coupons) ? delivery.campaign_coupons[0] : delivery?.campaign_coupons;
+  return {
+  deliveryDetails: delivery?.details ?? null,
+  welcomeCouponCode: coupon?.code ?? campaign?.code ?? null,
   deliveryPinCode: row.delivery_pin_code ?? null,
   deliveryPinLocation: row.delivery_pin_location ?? null,
   deliveryPinCheckedAt: row.delivery_pin_checked_at ?? null,
@@ -85,7 +98,8 @@ const mapCart = (row: CartRow): Cart => ({
   expiresAt: row.expires_at,
   whatsappStartedAt: row.whatsapp_started_at,
   items: sortCartItemsByCreatedAt(row.cart_items ?? []).map(mapItem),
-});
+  };
+};
 
 const createLocalCart = (): Cart => {
   const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase();
@@ -457,6 +471,34 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
         } : null,
       };
     });
+}
+
+export async function saveCartDeliveryDetails(details: DeliveryDetails): Promise<Cart> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Delivery details require an online cart.');
+  const cart = await loadRemoteCart();
+  if (cart.deliveryPinCode !== details.pincode || !cart.deliveryPinCheckedAt) {
+    await updateCartDeliveryPin(details.pincode);
+  }
+  const { error } = await client.rpc('save_cart_delivery_details', { target_cart_id: cart.id, delivery: details });
+  if (error) throw new Error(`Unable to save delivery details: ${error.message}`);
+  return loadRemoteCart();
+}
+
+export async function selectCartWelcomeCoupon(code: string): Promise<Cart> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Coupons require an online cart.');
+  const cart = await loadRemoteCart();
+  const { error } = await client.rpc('select_cart_coupon', { target_cart_id: cart.id, coupon_code: code });
+  if (error) throw new Error(`Unable to select coupon: ${error.message}`);
+  return loadRemoteCart();
+}
+
+export async function redeemAdminCartCoupon(cartId: string): Promise<void> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Coupon redemption requires an online admin session.');
+  const { error } = await client.rpc('redeem_cart_coupon_manually', { target_cart_id: cartId });
+  if (error) throw new Error(`Unable to record coupon use: ${error.message}`);
 }
 
 export async function captureCartNetwork(cartId: string): Promise<void> {

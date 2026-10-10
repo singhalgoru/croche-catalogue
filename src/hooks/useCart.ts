@@ -8,10 +8,14 @@ import {
   updateCartItemQuantity,
   updateCartDeliveryPin,
   captureCartNetwork,
+  saveCartDeliveryDetails,
+  selectCartWelcomeCoupon,
 } from '../services/cart';
+import type { DeliveryDetails } from '../types/customer';
 import { trackAddToCart } from '../services/analytics';
 import type { Cart } from '../types/cart';
 import type { Product, ProductVariant } from '../types/product';
+import { loadSupabase } from '../lib/supabaseConfig';
 
 export function useCart(enabled = true) {
   const [cart, setCart] = useState<Cart | null>(null);
@@ -22,6 +26,25 @@ export function useCart(enabled = true) {
   const [cartUpdateCount, setCartUpdateCount] = useState(0);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const capturedNetworkCartIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!enabled) return;
+    let current = true;
+    let unsubscribe: (() => void) | undefined;
+    void loadSupabase().then(client => {
+      if (!current || !client) return;
+      const { data } = client.auth.onAuthStateChange(event => {
+        if (event !== 'SIGNED_IN' && event !== 'USER_UPDATED' && event !== 'SIGNED_OUT') return;
+        window.setTimeout(() => {
+          if (!current) return;
+          void fetchCart().then(value => { if (current) setCart(value); },
+            error => { if (current) setError(error instanceof Error ? error.message : 'Unable to restore account cart.'); });
+        }, 0);
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    });
+    return () => { current = false; unsubscribe?.(); };
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled || !cart?.items.length || capturedNetworkCartIds.current.has(cart.id)) return;
@@ -110,6 +133,8 @@ export function useCart(enabled = true) {
     removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId)),
     clear: () => runCartAction(clearCart),
     saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value), true),
+    saveDeliveryDetails: (value: DeliveryDetails) => runCartAction(() => saveCartDeliveryDetails(value), true),
+    selectWelcomeCoupon: (code: string) => runCartAction(() => selectCartWelcomeCoupon(code), true),
     markWhatsAppStarted: () => runCartAction(markCartWhatsAppStarted),
   };
 }

@@ -13,6 +13,8 @@ import SellerSalesDashboard from './SellerSalesDashboard';
 import TickerManager from './TickerManager';
 import AdminWorkspace from './AdminWorkspace';
 import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
+import WelcomeOfferManager from './WelcomeOfferManager';
+import CouponGenerator from './CouponGenerator';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -230,6 +232,8 @@ export default function AdminPage({ onProductPublished }: Props) {
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Settings: <>
+            <WelcomeOfferManager />
+            <CouponGenerator />
             <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
             <TickerManager />
           </>,
