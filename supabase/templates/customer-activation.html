@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Welcome to Luvia Creations</title></head>
+<body style="margin:0;background:#fff9ef;font-family:Arial,sans-serif;color:#604439;">
+  <div style="display:none;max-height:0;overflow:hidden;">A little handmade happiness awaits. Activate your Luvia account.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff9ef;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #eddfcb;border-radius:20px;">
+        <tr><td style="padding:32px 32px 12px;text-align:center;">
+          <a href="{{ .SiteURL }}" style="color:#604439;font-size:26px;font-weight:bold;text-decoration:none;"><img src="https://luviacreations.com/images/luvia-logo.jpg" width="120" alt="Luvia Creations" style="display:block;border:0;margin:0 auto 12px;border-radius:60px;">Luvia Creations</a>
+          <p style="color:#8c776c;font-size:13px;">Handmade with love, just for you</p>
+        </td></tr>
+        <tr><td style="padding:8px 32px 32px;">
+          <h1 style="font-size:25px;line-height:1.3;">Welcome to our little world of handmade joy!</h1>
+          <p style="font-size:16px;line-height:1.7;">We're so happy you're here. From thoughtful gifts to cosy crochet favourites, every Luvia creation is made with care.</p>
+          <p style="font-size:16px;line-height:1.7;">Confirm your email to activate your account. Once activated, your signup details will be saved securely so we can make your next visit a little easier.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="background:#604439;border-radius:28px;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:16px 28px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;">Activate my Luvia account</a>
+          </td></tr></table>
+          <p style="font-size:14px;line-height:1.6;">Prefer to use a code? Enter this in the verification form:</p>
+          <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">{{ .Token }}</p>
+          <p style="font-size:13px;line-height:1.6;color:#8c776c;">If the button doesn't work, copy this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#604439;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+          <p style="font-size:14px;line-height:1.6;">With love,<br><strong>Team Luvia</strong></p>
+          <hr style="border:0;border-top:1px solid #eddfcb;margin:24px 0;">
+          <p style="font-size:12px;line-height:1.6;color:#8c776c;">This confirms the email requested for your Luvia account. If you didn't request this signup or email change, you can safely ignore this message. No order or payment is created by activating your account.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

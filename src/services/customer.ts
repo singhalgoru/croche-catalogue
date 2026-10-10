@@ -1,6 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { CampaignCoupon, WelcomeCoupon, WelcomeOffer } from '../types/customer';
+import type { CampaignCoupon, DeliveryDetails, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { requestCartCaptcha } from './cartCaptcha';
+import { normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 
 async function client() {
   const value = await loadSupabase();
@@ -16,22 +17,40 @@ export async function fetchCustomerAccount() {
   if (error) throw new Error(`Unable to restore your account: ${error.message}`);
   return data.user && !data.user.is_anonymous && data.user.email_confirmed_at ? data.user.email ?? null : null;
 }
-export async function registerCustomerEmail(email: string) {
+export async function fetchCustomerProfile(): Promise<DeliveryDetails | null> {
   const supabase = await client();
-  const { data: current, error: currentError } = await supabase.auth.getUser();
-  if (currentError) throw new Error(currentError.message);
-  if (!current.user) {
+  const { data: session, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(`Unable to restore profile: ${sessionError.message}`);
+  if (!session.session) return null;
+  const { data, error } = await supabase.from('customer_profiles').select('details')
+    .eq('user_id', session.session.user.id).maybeSingle();
+  if (error) throw new Error(`Unable to load your saved details: ${error.message}`);
+  return data?.details ?? null;
+}
+export async function registerCustomerEmail(details: DeliveryDetails) {
+  const cleaned = normalizeDeliveryDetails(details);
+  const validation = validateDeliveryDetails(cleaned);
+  if (validation || !cleaned.email) throw new Error(validation ?? 'Enter your account email.');
+  const supabase = await client();
+  const { data: session, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(`Unable to restore your signup session: ${sessionError.message}`);
+  if (!session.session) {
     const captchaToken = await requestCartCaptcha();
-    const { error: anonymousError } = await supabase.auth.signInAnonymously(
+    const { data, error: anonymousError } = await supabase.auth.signInAnonymously(
       captchaToken ? { options: { captchaToken } } : undefined,
     );
-    if (anonymousError) {
-      throw new Error(`Unable to prepare your signup session: ${anonymousError.message}`);
+    if (anonymousError || !data.user) {
+      throw new Error(`Unable to prepare your signup session: ${anonymousError?.message ?? 'No signup session returned.'}`);
     }
-  } else if (!current.user.is_anonymous) {
+  }
+  const { data: current, error: currentError } = await supabase.auth.getUser();
+  if (currentError) throw new Error(`Unable to check your signup session: ${currentError.message}`);
+  if (!current.user?.is_anonymous) {
     throw new Error('Your cart is already linked to an account. Do not change its email here.');
   }
-  const { error } = await supabase.auth.updateUser({ email: email.trim().toLowerCase() },
+  const { error: saveError } = await supabase.rpc('stage_customer_signup', { signup_details: cleaned });
+  if (saveError) throw new Error(`Unable to prepare your customer details: ${saveError.message}`);
+  const { error } = await supabase.auth.updateUser({ email: cleaned.email },
     { emailRedirectTo: `${window.location.origin}/` });
   if (error) throw new Error(`Unable to send your signup email: ${error.message}`);
 }

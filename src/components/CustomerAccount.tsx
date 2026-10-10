@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadSupabase } from '../lib/supabaseConfig';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn,
-  fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer } from '../services/customer';
-import type { WelcomeCoupon, WelcomeOffer } from '../types/customer';
+  fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer, fetchCustomerProfile } from '../services/customer';
+import type { DeliveryDetails, WelcomeCoupon, WelcomeOffer } from '../types/customer';
+import { emptyDeliveryDetails, deliveryAddressText } from '../utils/customer';
 
 interface Props {
   initialEmail?: string;
+  initialDetails?: DeliveryDetails;
   canSignUp: boolean;
   onCoupon?: (code: string) => Promise<unknown>;
 }
-export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, onCoupon }: Props) {
   const [email, setEmail] = useState(initialEmail);
+  const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
+  const [profile, setProfile] = useState<DeliveryDetails | null>(null);
   const [token, setToken] = useState('');
   const [account, setAccount] = useState<string | null>(null);
   const [offer, setOffer] = useState<WelcomeOffer | null>(null);
@@ -25,7 +29,12 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
     let current = true;
     let unsubscribe: (() => void) | undefined;
     const refresh = () => {
-      void fetchCustomerAccount().then(value => { if (current) setAccount(value); },
+      void fetchCustomerAccount().then(async value => {
+        if (!current) return;
+        setAccount(value);
+        const saved = value ? await fetchCustomerProfile() : null;
+        if (current) setProfile(saved);
+      }).catch(
         error => { if (current) setError(error instanceof Error ? error.message : 'Unable to restore account.'); });
     };
     refresh();
@@ -49,12 +58,23 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
       <h3 className="font-semibold">{account ? 'Your account' : 'Optional email account'}</h3>
       {account ? <>
         <p className="mt-1 break-words">Verified email: {account}</p>
+        {profile && <div className="mt-2 text-xs text-cocoa/70">
+          <p>Welcome, {profile.name}!</p>
+          <p>Mobile: {profile.phone}</p>
+          <p className="break-words">Saved address: {deliveryAddressText(profile)}</p>
+        </div>}
         <button type="button" disabled={busy} className="mt-2 underline" onClick={() => { void run(async () => {
-          await signOutCustomer(); setAccount(null); setCoupon(null); setSent(false);
+          await signOutCustomer(); setAccount(null); setProfile(null); setCoupon(null); setSent(false);
           setMessage('Signed out. Your account cart remains saved.');
         }); }}>Sign out</button>
       </> : <>
         <p className="mt-1 text-xs text-cocoa/70">Guest ordering is always available. Verify an email to keep this cart linked to your account.</p>
+        {offer?.enabled && canSignUp && <div className="mt-3 rounded-xl border border-mustard/40 bg-mustard/10 p-3">
+          <p className="font-semibold">Join Luvia and unlock a one-time welcome reward</p>
+          <p className="mt-1 text-xs">Sign up and activate your email to receive ILOVELUVIA:
+            {' '}{offer.percent}% off your first order, up to ₹{offer.maxDiscountRupees}, with a minimum items subtotal of ₹{offer.minimumSubtotalRupees}.
+            One use per verified email; shipping excluded. Your welcome email includes the code and expiry.</p>
+        </div>}
         {canSignUp ? <div className="mt-2 flex gap-3" aria-label="Account options">
           <button type="button" disabled={busy} aria-pressed={mode === 'signup'}
             className={`min-h-11 px-2 underline ${mode === 'signup' ? 'font-bold' : ''}`}
@@ -65,18 +85,38 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
         </div> : <h4 className="mt-3 font-semibold">Sign in to your saved cart</h4>}
         <p className="mt-1 text-xs text-cocoa/70">
           {mode === 'signin' ? 'Enter your registered email and select Send sign-in link. Open the emailed link in this browser to sign in.'
-            : 'Verify your email to create an account without losing the items in this cart.'}
+            : 'Tell us a little about yourself. We will email an activation link; your customer profile is saved only after you verify your email.'}
         </p>
         <form className="mt-2 space-y-2" onSubmit={event => {
           event.preventDefault();
           void run(async () => {
-            if (mode === 'signup') { await registerCustomerEmail(email); setSent(true); }
+            if (mode === 'signup') { await registerCustomerEmail({ ...details, email }); setSent(true); }
             else await sendCustomerSignIn(email);
             setMessage(mode === 'signin'
               ? 'Sign-in link requested. Check your inbox or spam and open it in this browser to restore your saved cart.'
               : 'Signup verification requested. Check your inbox or spam for the verification link.');
           });
         }}>
+          {mode === 'signup' && <>
+            {([
+              ['name', 'Full name', 'name', 80],
+              ['phone', 'Mobile number', 'tel-national', 10],
+              ['addressLine1', 'House / building and street', 'address-line1', 200],
+              ['addressLine2', 'Area / landmark (optional)', 'address-line2', 200],
+              ['city', 'City', 'address-level2', 80],
+              ['state', 'State', 'address-level1', 80],
+              ['pincode', 'Pincode', 'postal-code', 6],
+            ] as const).map(([key, label, autoComplete, maxLength]) => (
+              <label key={key} className="block">{label}
+                <input required={key !== 'addressLine2'} maxLength={maxLength} autoComplete={autoComplete}
+                  inputMode={key === 'phone' || key === 'pincode' ? 'numeric' : undefined}
+                  value={details[key]} disabled={busy || sent}
+                  onChange={event => setDetails(current => ({ ...current, [key]: event.target.value }))}
+                  className="mt-1 w-full rounded border p-2" />
+              </label>
+            ))}
+            <p className="text-xs text-cocoa/60">India only. Your address and mobile are private customer details, not verified identity or marketing consent.</p>
+          </>}
           <label className="block">Account email
             <input ref={emailInput} type="email" required maxLength={254} autoComplete="email" value={email} disabled={busy || sent}
               onChange={event => setEmail(event.target.value)} className="mt-1 w-full rounded border p-2" />
@@ -94,7 +134,10 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
               const verifiedEmail = await fetchCustomerAccount();
               if (!verifiedEmail) throw new Error('Email verification is not complete. Open the email link or retry your verification code.');
               setAccount(verifiedEmail);
-              setMessage('Your email is verified. Your cart has been preserved.');
+              const saved = await fetchCustomerProfile();
+              if (!saved) throw new Error('Your email is verified, but signup details are unavailable or expired. Contact Luvia to complete your profile.');
+              setProfile(saved);
+              setMessage('Welcome to Luvia! Your account is activated and your customer details are saved. Your cart has been preserved.');
             });
           }}>
             <label className="block">Email verification code

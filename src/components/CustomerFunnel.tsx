@@ -116,7 +116,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
                 .finally(() => setSaving(false));
             }}>Remove coupon</button>}
         </form>
-        <CustomerAccount initialEmail={reviewed.email} canSignUp onCoupon={onCoupon} />
+        <CustomerAccount initialEmail={reviewed.email} initialDetails={reviewed} canSignUp onCoupon={onCoupon} />
       </>}
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     </section>

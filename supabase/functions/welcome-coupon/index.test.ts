@@ -1,5 +1,8 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+vi.mock('../_shared/welcomeProducts.ts', () => ({ fetchWelcomeProducts: async () => [
+  { name: 'Crochet favourite', url: 'https://luviacreations.com/p/favourite/', image: 'https://luviacreations.com/images/product.jpg' },
+] }));
 const { getUser, rpc, update, fetchMock } = vi.hoisted(() => ({
   getUser: vi.fn(), rpc: vi.fn(), update: vi.fn(), fetchMock: vi.fn(),
 }));
@@ -40,6 +43,9 @@ it('uses the authenticated user and coupon email, never recipient details from t
   expect(payload.to).toEqual(['buyer@example.test']);
   expect(payload.text).toContain('WELCOME-TEST');
   expect(payload.text).toContain('₹500');
+  expect(payload.html).toContain('luvia-logo.jpg');
+  expect(payload.html).toContain('https://luviacreations.com/p/favourite/');
+  expect(payload.html).toContain('https://luviacreations.com/images/product.jpg');
   expect(fetchMock.mock.calls[0][1].headers['Idempotency-Key']).toBe('welcome-coupon-coupon');
   expect(update).toHaveBeenCalledWith({ email_sent_at: expect.any(String) });
 });

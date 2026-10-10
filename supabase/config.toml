@@ -2,6 +2,12 @@ project_id = "bblsjcjypdxntzlszliy"
 
 [auth]
 enable_anonymous_sign_ins = true
+site_url = "https://luviacreations.com/"
+additional_redirect_urls = ["https://luviacreations.com/"]
+
+[auth.email.template.email_change]
+subject = "Welcome to Luvia - activate your account"
+content_path = "./supabase/templates/customer-activation.html"
 
 [functions.analyze-product]
 verify_jwt = true
@@ -32,3 +38,6 @@ verify_jwt = false
 
 [functions.welcome-coupon]
 verify_jwt = true
+
+[functions.customer-welcome-worker]
+verify_jwt = false

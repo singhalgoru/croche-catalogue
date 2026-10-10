@@ -1,13 +1,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerAccount from './CustomerAccount';
-import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn } from '../services/customer';
+import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn, fetchWelcomeOffer, fetchCustomerProfile } from '../services/customer';
 
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => null }));
 vi.mock('../services/customer', () => ({
   fetchCustomerAccount: vi.fn(), registerCustomerEmail: vi.fn(), confirmCustomerEmail: vi.fn(),
-  sendCustomerSignIn: vi.fn(), fetchWelcomeOffer: async () => ({ enabled: false }),
-  emailWelcomeCoupon: vi.fn(), signOutCustomer: vi.fn(),
+  sendCustomerSignIn: vi.fn(), fetchWelcomeOffer: vi.fn(), emailWelcomeCoupon: vi.fn(),
+  signOutCustomer: vi.fn(), fetchCustomerProfile: vi.fn(),
 }));
 beforeEach(() => {
   vi.resetAllMocks();
@@ -15,6 +15,8 @@ beforeEach(() => {
   vi.mocked(sendCustomerSignIn).mockResolvedValue(undefined);
   vi.mocked(registerCustomerEmail).mockResolvedValue(undefined);
   vi.mocked(confirmCustomerEmail).mockResolvedValue(undefined);
+  vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: false, percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500, validDays: 30 });
+  vi.mocked(fetchCustomerProfile).mockResolvedValue(null);
 });
 afterEach(cleanup);
 
@@ -46,11 +48,27 @@ it('shows email-provider failures explicitly', async () => {
 });
 
 it('does not claim verification succeeded when the account is still unverified', async () => {
-  render(<CustomerAccount canSignUp initialEmail="buyer@example.test" />);
+  render(<CustomerAccount canSignUp initialEmail="buyer@example.test" initialDetails={{
+    name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
+    addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001',
+  }} />);
   fireEvent.click(screen.getByRole('button', { name: 'Send signup email' }));
   await screen.findByLabelText('Email verification code');
   fireEvent.change(screen.getByLabelText('Email verification code'), { target: { value: '123456' } });
   fireEvent.click(screen.getByRole('button', { name: 'Verify email' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('not complete'));
   expect(screen.queryByText(/Your email is verified/)).toBeNull();
+});
+
+it('motivates signup with the enabled reward and its real terms', async () => {
+  vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: true, percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500, validDays: 30 });
+  render(<CustomerAccount canSignUp />);
+  expect(await screen.findByText('Join Luvia and unlock a one-time welcome reward')).toBeTruthy();
+  expect(screen.getByText(/10% off your first order, up to ₹100, with a minimum items subtotal of ₹500/)).toBeTruthy();
+});
+
+it('does not promise a signup reward when the offer is disabled', async () => {
+  render(<CustomerAccount canSignUp />);
+  await screen.findByText('Optional email account');
+  expect(screen.queryByText('Join Luvia and unlock a one-time welcome reward')).toBeNull();
 });

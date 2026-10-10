@@ -1,4 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendWelcomeEmail } from '../_shared/welcomeEmail.ts';
+import { fetchWelcomeProducts } from '../_shared/welcomeProducts.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -28,32 +30,7 @@ Deno.serve(async request => {
   if (!coupon) return json({ error: 'Unable to prepare your welcome coupon.' }, 500);
   if (coupon.email_sent_at) return json({ coupon });
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', headers: {
-        Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json',
-        'Idempotency-Key': `welcome-coupon-${coupon.id}`,
-      },
-      signal: AbortSignal.timeout(12000),
-      body: JSON.stringify({
-        from: sender, to: [coupon.email], subject: 'Your Luvia first-order welcome coupon',
-        text: [
-          'Welcome to Luvia Creations!',
-          `Your personal coupon: ${coupon.code}`,
-          `${coupon.percent}% off your first order, up to ₹${coupon.max_discount_rupees}.`,
-          `Minimum items subtotal: ₹${coupon.minimum_subtotal_rupees}. Shipping is excluded.`,
-          `Valid until ${new Date(coupon.expires_at).toISOString().slice(0, 10)}.`,
-          'Use it from your verified account when sending your order request. Availability and final total require confirmation.',
-          'One coupon per verified email, one use only. Cannot be combined with other offers.',
-          'https://luviacreations.com/',
-        ].join('\n'),
-      }),
-    });
-    if (!response.ok) {
-      console.error('Welcome coupon email provider failed:', response.status);
-      return json({ error: 'Your coupon email could not be sent. Please retry later.' }, 502);
-    }
-    const accepted = await response.json();
-    if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('Invalid email provider confirmation.');
+    await sendWelcomeEmail(coupon, apiKey, sender, await fetchWelcomeProducts(admin));
     const sentAt = new Date().toISOString();
     const { error: saveError } = await admin.from('welcome_coupons').update({ email_sent_at: sentAt }).eq('id', coupon.id);
     if (saveError) throw new Error('Unable to record email delivery.');
