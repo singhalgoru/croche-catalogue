@@ -16,7 +16,7 @@ const addressFields = [
   ['city', 'City', 80, true], ['state', 'State', 80, true], ['pincode', 'Pincode', 6, true],
 ] as const;
 export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) {
-  const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>('cart');
+  const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>(() => cart.deliveryDetails ? 'review' : 'cart');
   const [details, setDetails] = useState<DeliveryDetails>(() => cart.deliveryDetails ?? { ...emptyDeliveryDetails(), pincode: cart.deliveryPinCode ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -32,6 +32,28 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
   }, [cart.deliveryDetails, cart.deliveryPinCode]);
   const set = (key: keyof DeliveryDetails, value: string) => setDetails(current => ({ ...current, [key]: value }));
   const reviewed = cart.deliveryDetails ?? details;
+  const triedDefaultAddress = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    if (cart.deliveryDetails || triedDefaultAddress.current) return;
+    triedDefaultAddress.current = true;
+    void (async () => {
+      const profile = await fetchCustomerProfile().catch(() => null);
+      if (!mounted.current || !profile) return;
+      // A signed-in customer's saved address is their default, unless the cart is already priced for another pincode.
+      if (cart.deliveryPinCode && cart.deliveryPinCode !== profile.pincode) {
+        setDetails(current => current.name ? current : { ...profile, pincode: cart.deliveryPinCode ?? profile.pincode });
+        return;
+      }
+      const normalized = normalizeDeliveryDetails(profile);
+      if (validateDeliveryDetails(normalized)) { setDetails(current => current.name ? current : profile); return; }
+      const saved = await onSave(normalized).catch(() => null);
+      if (!mounted.current || !saved?.deliveryDetails) return;
+      setDetails(saved.deliveryDetails);
+      setStep(current => current === 'cart' ? 'review' : current);
+    })();
+  }, [cart.deliveryDetails, cart.deliveryPinCode, onSave]);
   const startCheckout = async () => {
     if (cart.deliveryDetails) { setStep('review'); return; }
     if (!details.name) {

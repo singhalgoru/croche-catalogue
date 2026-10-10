@@ -43,7 +43,6 @@ it('keeps the address form open on persistence failure', async () => {
 });
 it('restores saved details and allows editing them', () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Review delivery details' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
   expect(screen.getByDisplayValue(details.name)).toBeTruthy();
 });
@@ -69,7 +68,6 @@ it('includes saved details and requested coupon in both enquiry channels without
 it('submits a typed coupon and surfaces server eligibility errors', async () => {
   const select = vi.fn().mockRejectedValue(new Error('Verify your email before using ILOVELUVIA.'));
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={vi.fn()} onCoupon={select} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Review delivery details' }));
   fireEvent.change(screen.getByLabelText('Coupon code'), { target: { value: 'iloveluvia' } });
   fireEvent.click(screen.getByRole('button', { name: 'Apply coupon to request' }));
   await waitFor(() => expect(select).toHaveBeenCalledWith('ILOVELUVIA'));
@@ -90,4 +88,15 @@ it('goes straight to delivery details with a guest reward note and prefills a si
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect(screen.getByRole('button', { name: 'Continue with delivery details' })).toBeTruthy();
+});
+
+it('automatically applies a signed-in customer default address and opens review', async () => {
+  const profile = { ...details, name: 'Saved Buyer' };
+  vi.mocked(fetchCustomerProfile).mockResolvedValue(profile);
+  const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: profile, deliveryPinCode: profile.pincode });
+  render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: profile.pincode }} busy={false} onSave={save} onCoupon={vi.fn()} />);
+  expect(await screen.findByText('3. Review order request')).toBeTruthy();
+  expect(save).toHaveBeenCalledWith(profile);
+  expect(screen.getByText(/Saved Buyer/)).toBeTruthy();
+  expect(screen.getByText(/12 Test Street/)).toBeTruthy();
 });

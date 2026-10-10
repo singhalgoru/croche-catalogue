@@ -64,7 +64,6 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await expect(page.getByRole('button', { name: 'Try Razorpay test checkout' })).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
-  await page.getByRole('button', { name: 'Review delivery details' }).click();
   await expect(page.getByText(/12 Guest Street/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Email my welcome coupon' })).toHaveCount(0);
 });
@@ -118,11 +117,7 @@ test('checkout signup with password activates the same cart owner, shows the nam
   expect(state.carts[0].user_id).toBe(originalOwner);
   await accountDialog.getByRole('button', { name: 'Close account' }).click();
   await page.getByRole('button', { name: /^Open cart with 1 item/ }).click();
-  await page.getByRole('button', { name: 'Continue with delivery details' }).click();
-  await expect(page.getByLabel('Recipient name')).toHaveValue('Customer Buyer');
-  await page.getByRole('button', { name: 'Continue to address' }).click();
-  await expect(page.getByLabel('House / building and street')).toHaveValue('12 Customer Street');
-  await page.getByRole('button', { name: 'Save and review' }).click();
+  // Signed-in customers' saved address is applied automatically as their default.
   await expect(page.getByText('3. Review order request', { exact: true })).toBeVisible();
   const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
   expect(decodeURIComponent(whatsapp!)).toContain('12 Customer Street');

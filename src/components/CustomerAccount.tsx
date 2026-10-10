@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadSupabase } from '../lib/supabaseConfig';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset,
-  fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
+  fetchWelcomeOffer, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
   setCustomerPassword, validateCustomerPassword } from '../services/customer';
-import type { DeliveryDetails, WelcomeCoupon, WelcomeOffer } from '../types/customer';
+import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
 import { emptyDeliveryDetails, deliveryAddressText } from '../utils/customer';
 
 interface Props {
@@ -11,18 +11,16 @@ interface Props {
   initialDetails?: DeliveryDetails;
   canSignUp: boolean;
   initialMode?: 'signup' | 'signin';
-  onCoupon?: (code: string) => Promise<unknown>;
   onGuest?: () => void;
   onContinue?: (profile: DeliveryDetails | null) => void;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onCoupon, onGuest, onContinue }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
   const [token, setToken] = useState('');
   const [account, setAccount] = useState<string | null>(null);
   const [offer, setOffer] = useState<WelcomeOffer | null>(null);
-  const [coupon, setCoupon] = useState<WelcomeCoupon | null>(null);
   const [sent, setSent] = useState(false);
   const [mode, setMode] = useState<'signup' | 'signin'>(canSignUp ? initialMode ?? 'signup' : 'signin');
   const [password, setPassword] = useState('');
@@ -97,7 +95,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
         </form> : <button type="button" disabled={busy} className="mt-2 mr-4 underline"
           onClick={() => { setShowPasswordForm(true); setError(''); setMessage(''); }}>Set or change password</button>}
         <button type="button" disabled={busy} className="mt-2 underline" onClick={() => { void run(async () => {
-          await signOutCustomer(); setAccount(null); setProfile(null); setCoupon(null); setSent(false);
+          await signOutCustomer(); setAccount(null); setProfile(null); setSent(false);
           setMessage('Signed out. Your account cart remains saved.');
         }); }}>Sign out</button>
       </> : <>
@@ -215,26 +213,6 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           </button>
         </>}
       </>}
-      {offer?.enabled && account && <>
-        <p className="mt-3 text-xs">
-          First-order code ILOVELUVIA: {offer.percent}% off items, up to ₹{offer.maxDiscountRupees},
-          minimum items subtotal ₹{offer.minimumSubtotalRupees}. Valid {offer.validDays} days.
-          One use per verified email address; shipping excluded. Final eligibility confirmed with your order.
-        </p>
-        <button type="button" disabled={busy} className="mt-2 rounded-full bg-cocoa px-3 py-2 text-white"
-          onClick={() => { void run(async () => {
-            const next = await emailWelcomeCoupon(); setCoupon(next);
-            setMessage('Your welcome coupon email was accepted for delivery. Check your inbox or spam.');
-          }); }}>Email my welcome coupon</button>
-      </>}
-      {coupon && <div className="mt-2">
-        <p className="break-words font-semibold">{coupon.code}</p>
-        <p className="text-xs">Expires {new Date(coupon.expires_at).toLocaleDateString()}.</p>
-        {onCoupon && <button type="button" disabled={busy} className="mt-1 underline"
-          onClick={() => { void run(async () => { await onCoupon(coupon.code); setMessage('Coupon added to your order request. Luvia will confirm the discount.'); }); }}>
-          Use coupon on this order request
-        </button>}
-      </div>}
       {message && <p role="status" className="mt-2 text-xs">{message}</p>}
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </section>
