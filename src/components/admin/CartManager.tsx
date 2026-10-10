@@ -134,20 +134,11 @@ export default function CartManager() {
                     <p className="mt-2 text-sm text-cocoa/75">
                       {cart.deliveryPinCode ? `Delivery pincode: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery pincode: not provided'}
                     </p>
-                    {cart.networkDetails && <p className="mt-1 break-all text-xs text-cocoa/65">
-                      Network IP: {cart.networkDetails.ipAddress} · captured {new Date(cart.networkDetails.capturedAt).toLocaleString()}.
-                      {' '}May reflect a mobile network, VPN or proxy; not a verified identity or location.
-                    </p>}
                     {cart.networkDetails && <p className="mt-1 text-xs text-cocoa/65">
-                      Approximate network location: {cart.networkDetails.location
+                      Approx. location: {cart.networkDetails.location
                         ? [cart.networkDetails.location.city, cart.networkDetails.location.region,
                           cart.networkDetails.location.country ?? cart.networkDetails.location.countryCode].filter(Boolean).join(', ')
-                        : 'Unavailable'}.
-                      {' '}Not a delivery address; mobile networks and VPNs may show another region.
-                    </p>}
-                    {cart.networkDetails?.location && <p className="mt-1 text-xs text-cocoa/55">
-                      This product includes GeoLite2 data created by MaxMind, available from{' '}
-                      <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer" className="underline">MaxMind</a>.
+                        : 'Unavailable'}
                     </p>}
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
@@ -255,6 +246,10 @@ export default function CartManager() {
             );
           })}
         </div>
+        {carts.some(cart => cart.networkDetails?.location) && <p className="mt-3 text-xs text-cocoa/55">
+          Includes GeoLite2 data created by <a href="https://www.maxmind.com" target="_blank"
+            rel="noopener noreferrer" className="underline">MaxMind</a>.
+        </p>}
         {blocks.length > 0 && <div className="mt-5 rounded-xl border border-red-200 p-3">
           <h3 className="font-semibold">Blocked cart sessions</h3>
           <p className="mt-1 text-xs text-cocoa/65">Blocks remain after cart deletion. Unblock here if a session was flagged by mistake.</p>

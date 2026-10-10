@@ -14,12 +14,13 @@ vi.mock('../../services/cart', () => ({
   deleteAdminCart: vi.fn(), setCartSessionBlocked: vi.fn(),
 }));
 afterEach(cleanup);
-it('shows the network address only in the expanded admin cart view with its limitations', async () => {
+it('shows a compact approximate location without the IP or lengthy explanation', async () => {
   render(<CartManager />);
   await screen.findByText('1 active cart from the last 30 days');
   fireEvent.click(screen.getByRole('button', { name: /Anonymous cart activity/ }));
-  expect(screen.getByText(/Network IP: 203.0.113.9/)).toBeTruthy();
-  expect(screen.getByText(/not a verified identity or location/)).toBeTruthy();
-  expect(screen.getByText(/Approximate network location: Meerut, Uttar Pradesh, India/)).toBeTruthy();
+  expect(screen.queryByText(/203.0.113.9/)).toBeNull();
+  expect(screen.queryByText(/not a verified identity or location/)).toBeNull();
+  expect(screen.queryByText(/mobile networks and VPNs/)).toBeNull();
+  expect(screen.getByText('Approx. location: Meerut, Uttar Pradesh, India')).toBeTruthy();
   expect(screen.getByRole('link', { name: 'MaxMind' }).getAttribute('href')).toBe('https://www.maxmind.com');
 });
