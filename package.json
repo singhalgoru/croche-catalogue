@@ -31,6 +31,7 @@
     "autoprefixer": "^10.6.1",
     "aws4fetch": "^1.0.20",
     "jsdom": "^29.1.1",
+    "mmdb-lib": "^3.0.3",
     "oxlint": "^1.81.0",
     "postcss": "^8.5.28",
     "sharp": "^0.35.5",

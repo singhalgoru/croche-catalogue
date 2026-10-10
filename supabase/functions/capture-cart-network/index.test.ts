@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 
-const { getUser, from, upsert } = vi.hoisted(() => ({
-  getUser: vi.fn(), from: vi.fn(), upsert: vi.fn(),
+const { getUser, from, upsert, lookupLocation, update } = vi.hoisted(() => ({
+  getUser: vi.fn(), from: vi.fn(), upsert: vi.fn(), lookupLocation: vi.fn(), update: vi.fn(),
 }));
+vi.mock('./geolocation.ts', () => ({ lookupLocation }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
   createClient: () => ({ auth: { getUser }, from }),
 }));
@@ -37,9 +38,11 @@ beforeEach(() => {
   queryError = null;
   getUser.mockResolvedValue({ data: { user: { id: 'owner' } }, error: null });
   upsert.mockResolvedValue({ error: null });
+  lookupLocation.mockResolvedValue(null);
   from.mockImplementation((table: string) => {
     const query = {
       select: () => query, eq: vi.fn(() => query), upsert,
+      update: (values: unknown) => { update(values); return { eq: () => ({ eq: async () => ({ error: null }) }) }; },
       maybeSingle: async () => ({
         data: table === 'carts' ? cart : table === 'cart_session_blocks' ? blocked : existing,
         error: queryError,
@@ -52,7 +55,7 @@ beforeEach(() => {
 it('captures only the header IP, never a body IP, and never returns it', async () => {
   const response = await handler(request('203.0.113.9, 192.0.2.1', { cartId, ip: '198.51.100.4' }));
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ recorded: true });
+  expect(await response.json()).toEqual({ recorded: true, locationStatus: 'not_found' });
   expect(upsert).toHaveBeenCalledWith({ cart_id: cartId, ip_address: '203.0.113.9' },
     { onConflict: 'cart_id', ignoreDuplicates: true });
   const ownedQuery = from.mock.results[0].value;
@@ -63,9 +66,27 @@ it('supports IPv6 addresses', async () => {
   expect(upsert.mock.calls[0][0].ip_address).toBe('2001:db8::1');
 });
 it('does not overwrite the initial address or extend its retention', async () => {
-  existing = { cart_id: cartId };
+  existing = { cart_id: cartId, location: { country: 'India' } };
   expect((await handler(request())).status).toBe(200);
   expect(upsert).not.toHaveBeenCalled();
+});
+
+it('enriches existing IPs without changing the original capture date', async () => {
+  existing = { cart_id: cartId, ip_address: '203.0.113.9', captured_at: new Date().toISOString(), location: null };
+  const location = { city: 'Meerut', region: 'Uttar Pradesh', country: 'India', countryCode: 'IN', provider: 'geolite2' };
+  lookupLocation.mockResolvedValue(location);
+  const response = await handler(request('198.51.100.1'));
+  expect(await response.json()).toEqual({ recorded: true, locationStatus: 'available' });
+  expect(lookupLocation).toHaveBeenCalledWith('203.0.113.9', expect.any(Function));
+  expect(update).toHaveBeenCalledWith({ location });
+  expect(upsert).not.toHaveBeenCalled();
+});
+it('preserves IP capture when the database is unavailable and logs the failure', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  lookupLocation.mockRejectedValue(new Error('Database unavailable'));
+  expect(await (await handler(request())).json()).toEqual({ recorded: true, locationStatus: 'unavailable' });
+  expect(log).toHaveBeenCalled();
+  log.mockRestore();
 });
 it('requires authentication and valid input', async () => {
   expect((await handler(request('', { cartId: 'bad' }))).status).toBe(400);

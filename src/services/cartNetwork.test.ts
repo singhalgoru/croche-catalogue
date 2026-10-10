@@ -19,7 +19,8 @@ it('sends only the cart ID to the capture endpoint and propagates failures', asy
 });
 
 it.each([false, true])('maps protected admin metadata for object and array relations (%s)', async asArray => {
-  const network = { ip_address: '203.0.113.9', captured_at: '2026-10-10T00:00:00Z' };
+  const network = { ip_address: '203.0.113.9', captured_at: '2026-10-10T00:00:00Z',
+    location: { city: 'Meerut', region: 'Uttar Pradesh', country: 'India', countryCode: 'IN', provider: 'geolite2' } };
   const row = {
     id: 'cart', user_id: 'owner', reference: 'CRT-TEST', status: 'active',
     updated_at: '', created_at: '', expires_at: '', whatsapp_started_at: null,
@@ -31,6 +32,6 @@ it.each([false, true])('maps protected admin metadata for object and array relat
   select.mockReturnValue(query);
   from.mockReturnValue(query);
   const carts = await fetchAdminCarts();
-  expect(select).toHaveBeenCalledWith(expect.stringContaining('cart_network_details(ip_address,captured_at)'));
-  expect(carts[0].networkDetails).toEqual({ ipAddress: network.ip_address, capturedAt: network.captured_at });
+  expect(select).toHaveBeenCalledWith(expect.stringContaining('cart_network_details(ip_address,captured_at,location)'));
+  expect(carts[0].networkDetails).toEqual({ ipAddress: network.ip_address, capturedAt: network.captured_at, location: network.location });
 });

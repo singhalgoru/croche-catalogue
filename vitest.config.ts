@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: { alias: { 'npm:mmdb-lib@3.0.3': 'mmdb-lib' } },
   plugins: [
     react(),
     {

@@ -138,6 +138,17 @@ export default function CartManager() {
                       Network IP: {cart.networkDetails.ipAddress} · captured {new Date(cart.networkDetails.capturedAt).toLocaleString()}.
                       {' '}May reflect a mobile network, VPN or proxy; not a verified identity or location.
                     </p>}
+                    {cart.networkDetails && <p className="mt-1 text-xs text-cocoa/65">
+                      Approximate network location: {cart.networkDetails.location
+                        ? [cart.networkDetails.location.city, cart.networkDetails.location.region,
+                          cart.networkDetails.location.country ?? cart.networkDetails.location.countryCode].filter(Boolean).join(', ')
+                        : 'Unavailable'}.
+                      {' '}Not a delivery address; mobile networks and VPNs may show another region.
+                    </p>}
+                    {cart.networkDetails?.location && <p className="mt-1 text-xs text-cocoa/55">
+                      This product includes GeoLite2 data created by MaxMind, available from{' '}
+                      <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer" className="underline">MaxMind</a>.
+                    </p>}
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
                       {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.

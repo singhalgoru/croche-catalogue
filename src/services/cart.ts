@@ -24,9 +24,13 @@ interface CartItemRow {
   created_at: string;
 }
 
+interface CartNetworkRow {
+  ip_address: string;
+  captured_at: string;
+  location?: NonNullable<AdminCart['networkDetails']>['location'];
+}
 interface CartRow {
-  cart_network_details?: { ip_address: string; captured_at: string }
-    | { ip_address: string; captured_at: string }[] | null;
+  cart_network_details?: CartNetworkRow | CartNetworkRow[] | null;
   delivery_pin_code?: string | null;
   delivery_pin_location?: Cart['deliveryPinLocation'];
   delivery_pin_checked_at?: string | null;
@@ -431,7 +435,7 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
   if (!supabase) throw new Error('Supabase is not configured.');
   const { data, error } = await supabase
     .from('carts')
-    .select(`${CART_COLUMNS},cart_network_details(ip_address,captured_at)`)
+    .select(`${CART_COLUMNS},cart_network_details(ip_address,captured_at,location)`)
     .gte('expires_at', new Date().toISOString())
     .order('updated_at', { ascending: false });
   if (error) throw new Error(`Unable to load customer carts: ${error.message}`);
@@ -446,6 +450,7 @@ export async function fetchAdminCarts(): Promise<AdminCart[]> {
         createdAt: row.created_at,
         networkDetails: network ? {
           ipAddress: network.ip_address, capturedAt: network.captured_at,
+          location: network.location ?? null,
         } : null,
       };
     });

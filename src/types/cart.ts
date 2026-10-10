@@ -40,7 +40,14 @@ export interface Cart {
 export interface AdminCart extends Cart {
   userId: string;
   createdAt: string;
-  networkDetails?: { ipAddress: string; capturedAt: string } | null;
+  networkDetails?: {
+    ipAddress: string;
+    capturedAt: string;
+    location?: {
+      city: string | null; region: string | null;
+      country: string | null; countryCode: string | null; provider: 'geolite2';
+    } | null;
+  } | null;
 }
 
 export interface CartSessionBlock {

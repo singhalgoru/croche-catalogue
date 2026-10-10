@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isIP } from 'node:net';
+import { lookupLocation } from './geolocation.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -41,16 +42,34 @@ Deno.serve(async request => {
   if (blockError) return json({ error: 'Unable to check cart session access.' }, 500);
   if (blocked) return json({ error: 'This cart session has been blocked.' }, 403);
   const { data: existing, error: readError } = await admin.from('cart_network_details')
-    .select('cart_id').eq('cart_id', cart.id).maybeSingle();
+    .select('cart_id,ip_address,location,captured_at').eq('cart_id', cart.id).maybeSingle();
   if (readError) return json({ error: 'Unable to read cart network metadata.' }, 500);
-  if (existing) return json({ recorded: true });
+  if (existing?.location || (existing && new Date(existing.captured_at).getTime() <= Date.now() - 30 * 86400_000)) {
+    return json({ recorded: true });
+  }
   // Gateway network metadata is not proof of shopper identity or location.
-  const ip = (request.headers.get('x-forwarded-for')?.split(',')[0]
+  const ip = existing?.ip_address ?? (request.headers.get('x-forwarded-for')?.split(',')[0]
     ?? request.headers.get('x-real-ip'))?.trim();
   if (!ip || !isIP(ip)) return json({ error: 'A valid network address was not provided by the gateway.' }, 503);
-  const { error } = await admin.from('cart_network_details').upsert({
-    cart_id: cart.id, ip_address: ip,
-  }, { onConflict: 'cart_id', ignoreDuplicates: true });
-  if (error) return json({ error: 'Unable to store cart network metadata.' }, 500);
-  return json({ recorded: true });
+  if (!existing) {
+    const { error } = await admin.from('cart_network_details').upsert({
+      cart_id: cart.id, ip_address: ip,
+    }, { onConflict: 'cart_id', ignoreDuplicates: true });
+    if (error) return json({ error: 'Unable to store cart network metadata.' }, 500);
+  }
+  try {
+    const location = await lookupLocation(ip, async () => {
+      const { data, error } = await admin.storage.from('geolocation-private').download('GeoLite2-City.mmdb');
+      if (error || !data) throw new Error('GeoLite2 City database is unavailable in private storage.');
+      return data;
+    });
+    if (!location) return json({ recorded: true, locationStatus: 'not_found' });
+    const { error } = await admin.from('cart_network_details').update({ location })
+      .eq('cart_id', cart.id).eq('ip_address', ip);
+    if (error) throw new Error('Unable to save approximate cart location.');
+    return json({ recorded: true, locationStatus: 'available' });
+  } catch (error) {
+    console.error('Cart geolocation failed:', error instanceof Error ? error.message : 'Unknown error');
+    return json({ recorded: true, locationStatus: 'unavailable' });
+  }
 });
