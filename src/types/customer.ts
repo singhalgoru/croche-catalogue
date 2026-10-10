@@ -39,3 +39,36 @@ export interface CampaignCoupon {
   enabled: boolean;
   expires_at: string;
 }
+export interface CustomerOrder {
+  id: string;
+  reference: string;
+  status: 'creating_link' | 'link_created' | 'link_failed' | 'paid' | 'expired' | 'cancelled' | 'review_required';
+  createdAt: string;
+  paidAt: string | null;
+  customerName: string;
+  deliveryPincode: string | null;
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  total: number;
+  items: { id: string; productName: string; variantName: string; quantity: number; unitPrice: number; lineTotal: number }[];
+}
+
+export interface AdminCustomerSummary {
+  total: number;
+  verified: number;
+  pendingActivation: number;
+  welcomeEmailsSent: number;
+  customers: {
+    id: string;
+    email: string;
+    name: string;
+    phone: string;
+    city: string;
+    pincode: string;
+    registeredAt: string;
+    lastSignInAt: string | null;
+    verified: boolean;
+    welcomeStatus: 'sent' | 'retrying' | 'pending' | 'not_queued';
+  }[];
+}

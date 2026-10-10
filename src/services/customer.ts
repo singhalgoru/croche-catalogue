@@ -1,5 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { CampaignCoupon, DeliveryDetails, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
+import type { AdminCustomerSummary, CampaignCoupon, CustomerOrder, DeliveryDetails, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { requestCartCaptcha } from './cartCaptcha';
 import { normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 
@@ -16,6 +16,20 @@ export async function fetchCustomerAccount() {
   const { data, error } = await supabase.auth.getUser();
   if (error) throw new Error(`Unable to restore your account: ${error.message}`);
   return data.user && !data.user.is_anonymous && data.user.email_confirmed_at ? data.user.email ?? null : null;
+}
+export async function fetchCustomerOrders(offset = 0): Promise<CustomerOrder[]> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('get_customer_orders', { page_offset: offset });
+  if (error) throw new Error(`Unable to load your orders: ${error.message}`);
+  if (!Array.isArray(data)) throw new Error('Unable to load your orders: invalid order history response.');
+  return data;
+}
+export async function fetchAdminCustomerSummary(offset = 0): Promise<AdminCustomerSummary> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('get_admin_customer_summary', { page_offset: offset });
+  if (error) throw new Error(`Unable to load registered customers: ${error.message}`);
+  if (!data || !Array.isArray(data.customers)) throw new Error('Unable to load registered customers: invalid summary response.');
+  return data;
 }
 export async function fetchCustomerProfile(): Promise<DeliveryDetails | null> {
   const supabase = await client();

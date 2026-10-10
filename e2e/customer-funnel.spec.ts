@@ -81,6 +81,34 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   expect(await original.evaluate(node => getComputedStyle(node).textDecorationLine)).toContain('line-through');
 });
 
+test('charges shipping when the coupon reduces the items subtotal below ₹500', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const product = state.products.find(product => product.name === 'Rose Charm');
+  if (!product) throw new Error('Missing Rose Charm fixture');
+  product.price = 500;
+  await page.goto('./');
+  await page.getByRole('article', { name: 'Product: Rose Charm' })
+    .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  const actions = page.getByLabel('Cart order actions');
+  await expect(actions.getByText('₹500', { exact: true })).toBeVisible();
+  await expect(actions.getByText(/Free shipping/)).toBeVisible();
+  for (const cart of state.carts) {
+    Object.assign(cart, { cart_delivery_details: { details: null, welcome_coupons: {
+      code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500,
+    } } });
+  }
+  await page.reload();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page.getByLabel('Discounted price ₹550')).toBeVisible();
+  await expect(actions.getByText(/Includes estimated shipping/)).toBeVisible();
+  await page.getByText('Price breakdown', { exact: true }).click();
+  await expect(page.getByText('₹100', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Free shipping on items worth ₹500 or more after coupon discounts/)).toBeVisible();
+  const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
+  expect(decodeURIComponent(whatsapp!)).toContain('Indicative shipping: ₹100');
+});
+
 test('checkout signup with password activates the same cart owner, shows the name in the header and signs back in', async ({ page }) => {
   const state = await installMockSupabase(page);
   await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
@@ -129,6 +157,24 @@ test('checkout signup with password activates the same cart owner, shows the nam
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
   const book = accountDialog.getByRole('group', { name: 'Saved addresses' });
+  await expect(accountDialog.getByRole('region', { name: 'Your orders' }).getByText('No orders yet.')).toBeVisible();
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width >= 640) {
+    const expectedWidth = Math.min(viewport.width - 48, viewport.width >= 1024 ? 896 : 768);
+    await expect.poll(async () => (await accountDialog.boundingBox())?.width).toBe(expectedWidth);
+  }
+  await page.route('**/rest/v1/rpc/get_customer_orders', route => route.fulfill({ json: [{
+    id: 'saved-order', reference: 'LUV-SAVED', status: 'paid', createdAt: '2026-10-10T12:00:00Z',
+    paidAt: '2026-10-10T12:10:00Z', customerName: 'Customer Buyer', deliveryPincode: '110001',
+    subtotal: 500, discount: 50, shipping: 100, total: 550,
+    items: [{ id: 'saved-item', productName: 'Rose Charm', variantName: 'Pink', quantity: 2, unitPrice: 250, lineTotal: 500 }],
+  }] }));
+  await accountDialog.getByRole('button', { name: 'Refresh orders' }).click();
+  const order = accountDialog.getByRole('article', { name: 'Order LUV-SAVED' });
+  await expect(order.getByText('Payment received')).toBeVisible();
+  await expect(order.getByText('Rose Charm (Pink)')).toBeVisible();
+  await expect(order.getByText('₹550', { exact: true })).toBeVisible();
+  await expect(order.getByText('-₹50', { exact: true })).toBeVisible();
   await expect(book.getByText(/12 Customer Street/)).toBeVisible();
   await book.getByRole('button', { name: '+ Add new address' }).click();
   const newAddress = book.getByRole('form', { name: 'Add address' });

@@ -130,6 +130,31 @@ describe('buildWhatsAppCartMessage', () => {
 
 describe('coupon discount', () => {
   const coupon = { code: 'ILOVELUVIA', percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500 };
+  it.each([
+    { subtotal: 500, discount: 50, shipping: 100, total: 550 },
+    { subtotal: 554, discount: 55, shipping: 100, total: 599 },
+    { subtotal: 555, discount: 55, shipping: 0, total: 500 },
+    { subtotal: 600, discount: 60, shipping: 0, total: 540 },
+  ])('checks shipping after discount for a ₹$subtotal subtotal', expected => {
+    const cart = { ...buildCart([buildItem({ unitPrice: expected.subtotal, quantity: 1 })]),
+      welcomeCouponCode: coupon.code, coupon };
+    expect(getCartTotals(cart)).toMatchObject(expected);
+    if (expected.shipping) {
+      expect(buildWhatsAppCartMessage(cart)).toContain('Indicative shipping: ₹100');
+      expect(buildEmailCartBody(cart)).toContain('INDICATIVE SHIPPING : ₹100');
+    } else {
+      expect(buildWhatsAppCartMessage(cart)).toContain('Free (orders ₹500+ after coupon discounts)');
+    }
+  });
+  it('uses the courier estimate when a coupon removes free-shipping eligibility', () => {
+    const cart = { ...buildCart([buildItem({ unitPrice: 500, quantity: 1 })]),
+      coupon, deliveryPinCode: '110001',
+      deliveryEstimate: { provider: 'shiprocket' as const, currency: 'INR' as const,
+        minCharge: 61, maxCharge: 90, minDays: 3, maxDays: 5, weightGrams: 500,
+        itemCount: 1, checkedAt: '2026-01-01T00:00:00.000Z' } };
+    expect(getCartTotals(cart)).toMatchObject({ discount: 50, shipping: 70, shippingSource: 'estimate', total: 520 });
+    expect(getCartTotals({ ...cart, coupon: null })).toMatchObject({ discount: 0, shipping: 0, total: 500 });
+  });
   it('applies the capped percentage once the minimum is met', () => {
     const cart = { ...buildCart([buildItem({ unitPrice: 800, quantity: 2 })]), welcomeCouponCode: 'ILOVELUVIA', coupon };
     const totals = getCartTotals(cart);

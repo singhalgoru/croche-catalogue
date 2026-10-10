@@ -74,7 +74,7 @@ it('submits a typed coupon and surfaces server eligibility errors', async () => 
   fireEvent.change(screen.getByLabelText('Coupon code'), { target: { value: 'iloveluvia' } });
   fireEvent.click(screen.getByRole('button', { name: 'Apply coupon to request' }));
   await waitFor(() => expect(select).toHaveBeenCalledWith('ILOVELUVIA'));
-  expect(screen.getByRole('alert').textContent).toContain('Verify your email');
+  expect((await screen.findByRole('alert')).textContent).toContain('Verify your email');
 });
 
 it('goes straight to delivery details with a guest reward note and prefills a signed-in profile', async () => {

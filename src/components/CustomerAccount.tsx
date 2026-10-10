@@ -6,6 +6,7 @@ import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, send
 import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
 import { emptyDeliveryDetails } from '../utils/customer';
 import AddressBook from './AddressBook';
+import CustomerOrders from './CustomerOrders';
 
 interface Props {
   initialEmail?: string;
@@ -15,8 +16,9 @@ interface Props {
   onGuest?: () => void;
   onContinue?: (profile: DeliveryDetails | null) => void;
   onModeChange?: (mode: 'signup' | 'signin') => void;
+  showOrderHistory?: boolean;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange, showOrderHistory = false }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
@@ -72,6 +74,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           <p>Mobile: {profile.phone}</p>
         </div>}
         <AddressBook accountEmail={account} onDefaultChange={setProfile} />
+        {showOrderHistory && <CustomerOrders key={account} />}
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
         {showPasswordForm ? <form className="mt-2 space-y-2" aria-label="Set account password" onSubmit={event => {

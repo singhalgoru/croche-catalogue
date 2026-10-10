@@ -137,6 +137,20 @@ that complete admin-to-webhook flow.
 
 ## Customer order funnel and welcome email coupon
 
+The header account dialog includes a paginated **Your orders** section for
+recorded, non-test payment orders. The customer-only `get_customer_orders` RPC
+matches the saved customer owner or the signed-in, verified email and returns saved order
+items, totals and payment status without exposing internal payment identifiers.
+WhatsApp/email enquiries are not treated as confirmed orders; dispatch/delivery
+tracking is not recorded yet. Customers can refresh the history for current status.
+Order ownership is retained even after the original cart expires or is deleted.
+
+Admin → **Customers** shows registered customer totals, verified accounts,
+active signups awaiting activation and welcome emails sent, plus a paginated
+customer list with contact details, registration/sign-in dates and welcome-email
+status. `get_admin_customer_summary` enforces catalogue-admin access in the
+database; anonymous guests and expired, unactivated signup drafts are excluded.
+
 Customers can continue as guests: contact details → Indian delivery address →
 review → WhatsApp/email order request. Details are saved against the owned
 cart, restored on return and visible to catalogue admins. Saving checks the
@@ -537,7 +551,10 @@ shopper's PIN. Only the PIN and an approximate parcel weight are sent. The cart
 shows "Approx. delivery charge" (cheapest courier, rounded up to ₹10) with the
 estimated courier transit days after dispatch (order preparation time is additional,
 and delivery dates are not guaranteed); below the ₹500 free-shipping threshold this replaces the
-flat indicative ₹100 in the cart, WhatsApp and email totals. The estimate is
+flat indicative ₹100 in the cart, WhatsApp and email totals. Shipping charges
+apply when the items subtotal after coupon discounts is below ₹500; at ₹500
+or more after discounts, shipping is free. Coupon minimum-spend eligibility
+still uses the items subtotal before discounts. The estimate is
 tied to the cart quantity; when the quantity changes the cart falls back to ₹100
 and offers "Update estimate". Admin carts show the min–max quote, weight and days.
 There are no per-product weights yet: the billed weight is

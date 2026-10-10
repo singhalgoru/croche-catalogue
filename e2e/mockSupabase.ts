@@ -439,6 +439,14 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       await json(route, isCustomer ? customerAddresses : []);
       return;
     }
+    if (pathname === '/rest/v1/rpc/get_customer_orders') {
+      await json(route, []);
+      return;
+    }
+    if (pathname === '/rest/v1/rpc/get_admin_customer_summary') {
+      await json(route, { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, customers: [] });
+      return;
+    }
 
     if (pathname === '/rest/v1/rpc/save_customer_address') {
       const body = getRequestBody<{ address_id: string | null; address: Record<string, unknown>; make_default: boolean }>(route);

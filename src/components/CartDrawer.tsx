@@ -309,9 +309,9 @@ export default function CartDrawer({
                     <span>{totals && checkoutCart ? getShippingLabel(checkoutCart, totals) : 'Indicative shipping'}</span>
                     <span>{totals?.shipping === 0 ? 'Free' : formatINR(totals?.shipping ?? 0)}</span>
                   </div>
-                  {totals && totals.subtotal < FREE_SHIPPING_THRESHOLD && (
+                  {totals && totals.subtotal - totals.discount < FREE_SHIPPING_THRESHOLD && (
                     <p className="text-xs text-cocoa/60">
-                      Add {formatINR(FREE_SHIPPING_THRESHOLD - totals.subtotal)} more in items for free shipping at {formatINR(FREE_SHIPPING_THRESHOLD)}.
+                      Free shipping on items worth {formatINR(FREE_SHIPPING_THRESHOLD)} or more after coupon discounts.
                     </p>
                   )}
                   <p className="text-xs text-cocoa/60">
@@ -341,7 +341,7 @@ export default function CartDrawer({
               ) : <span>{formatINR(total)}</span>}
             </div>
             <p className="text-xs text-cocoa/60">
-              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'} · Final amount confirmed by Luvia
+              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'}
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">

@@ -36,14 +36,14 @@ export const getCouponDiscount = (cart: Cart, subtotal: number) => {
 export const getCartTotals = (cart: Cart): CartTotals => {
   const priced = cart.items.filter((item) => item.unitPrice !== null);
   const subtotal = priced.reduce((sum, item) => sum + (item.unitPrice ?? 0) * item.quantity, 0);
+  const discount = getCouponDiscount(cart, subtotal);
   const estimate = getCurrentDeliveryEstimate(cart);
-  const shippingSource: CartTotals['shippingSource'] = subtotal >= FREE_SHIPPING_THRESHOLD
+  const shippingSource: CartTotals['shippingSource'] = subtotal - discount >= FREE_SHIPPING_THRESHOLD
     ? 'free'
     : estimate ? 'estimate' : 'flat';
   const shipping = shippingSource === 'free'
     ? 0
     : shippingSource === 'estimate' && estimate ? getEstimatedShippingCharge(estimate) : INDICATIVE_SHIPPING_CHARGE;
-  const discount = getCouponDiscount(cart, subtotal);
   return {
     subtotal,
     discount,
@@ -96,7 +96,7 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
     `*Items subtotal: ${formatINR(subtotal)}*`,
     ...(couponLine(cart, totals) ? [`*${couponLine(cart, totals)}*`] : []),
     shipping === 0
-      ? `*Shipping: Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)*`
+      ? `*Shipping: Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+${totals.discount ? ' after coupon discounts' : ''})*`
       : `*${getShippingLabel(cart, totals)}: ${formatINR(shipping)}*`,
     hasCompletePricing
       ? shipping === 0
@@ -183,7 +183,7 @@ export const buildEmailCartBody = (
     `ITEMS SUBTOTAL : ${formatINR(subtotal)}`,
     ...(couponLine(cart, totals) ? [couponLine(cart, totals) as string] : []),
     shipping === 0
-      ? `SHIPPING       : Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)`
+      ? `SHIPPING       : Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+${totals.discount ? ' after coupon discounts' : ''})`
       : totals.shippingSource === 'estimate'
         ? `APPROX. SHIPPING (${cart.deliveryPinCode}) : ${formatINR(shipping)}`
         : `INDICATIVE SHIPPING : ${formatINR(shipping)}`,

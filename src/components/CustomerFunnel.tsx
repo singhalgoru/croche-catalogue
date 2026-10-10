@@ -163,7 +163,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
         {cart.welcomeCouponCode && <p className="break-words">{cart.coupon
           ? `Coupon ${cart.coupon.code} applied: ${cart.coupon.percent}% off (up to ${formatINR(cart.coupon.maxDiscountRupees)}) on items worth ${formatINR(cart.coupon.minimumSubtotalRupees)}+`
           : `Requested coupon: ${cart.welcomeCouponCode} (subject to confirmation)`}</p>}
-        <p className="text-xs">Review your cart items and estimated total, then send the order request using WhatsApp or email. The address is shopper-provided, not verified.</p>
+        <p className="text-xs">Review your cart items and estimated total, then send the order request using WhatsApp or email.</p>
         <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
         <form className="space-y-2" onSubmit={event => {
           event.preventDefault(); setSaving(true); setError('');
