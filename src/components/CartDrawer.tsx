@@ -331,7 +331,14 @@ export default function CartDrawer({
           <div aria-label="Cart order actions" className="max-h-[40%] shrink-0 overflow-y-auto border-t border-mustard/30 bg-white px-4 py-3">
             <div className="flex items-center justify-between gap-3 font-bold text-cocoa">
               <span>{hasUnpricedItems ? 'Estimated total*' : 'Estimated total'}</span>
-              <span>{formatINR(total)}</span>
+              {totals?.discount ? (
+                <span className="flex items-baseline gap-2">
+                  <s className="text-sm font-normal text-cocoa/50" aria-label={`Original price ${formatINR(total + totals.discount)}`}>
+                    {formatINR(total + totals.discount)}
+                  </s>
+                  <span className="text-green-800" aria-label={`Discounted price ${formatINR(total)}`}>{formatINR(total)}</span>
+                </span>
+              ) : <span>{formatINR(total)}</span>}
             </div>
             <p className="text-xs text-cocoa/60">
               {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'} · Final amount confirmed by Luvia

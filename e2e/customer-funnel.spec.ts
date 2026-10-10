@@ -66,6 +66,19 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   await expect(page.getByText(/12 Guest Street/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Email my welcome coupon' })).toHaveCount(0);
+  for (const cart of state.carts) {
+    Object.assign(cart.cart_delivery_details as object, { welcome_coupons: {
+      code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100000, minimum_subtotal_rupees: 0 } });
+  }
+  await page.reload();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  const original = page.getByLabel(/^Original price ₹/);
+  const discounted = page.getByLabel(/^Discounted price ₹/);
+  await expect(original).toBeVisible();
+  await expect(discounted).toBeVisible();
+  const amount = async (locator: typeof original) => Number((await locator.textContent())!.replace(/[^\d]/g, ''));
+  expect(await amount(discounted)).toBeLessThan(await amount(original));
+  expect(await original.evaluate(node => getComputedStyle(node).textDecorationLine)).toContain('line-through');
 });
 
 test('checkout signup with password activates the same cart owner, shows the name in the header and signs back in', async ({ page }) => {
