@@ -1,20 +1,20 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerAccount from './CustomerAccount';
-import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn, fetchWelcomeOffer, fetchCustomerProfile,
+import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, fetchWelcomeOffer, fetchCustomerProfile,
   signInCustomerWithPassword, setCustomerPassword, validateCustomerPassword } from '../services/customer';
 
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => null }));
 vi.mock('../services/customer', () => ({
   fetchCustomerAccount: vi.fn(), registerCustomerEmail: vi.fn(), confirmCustomerEmail: vi.fn(),
-  sendCustomerSignIn: vi.fn(), fetchWelcomeOffer: vi.fn(), emailWelcomeCoupon: vi.fn(),
+  sendCustomerPasswordReset: vi.fn(), fetchWelcomeOffer: vi.fn(), emailWelcomeCoupon: vi.fn(),
   signOutCustomer: vi.fn(), fetchCustomerProfile: vi.fn(), signInCustomerWithPassword: vi.fn(), setCustomerPassword: vi.fn(),
   validateCustomerPassword: vi.fn(),
 }));
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchCustomerAccount).mockResolvedValue(null);
-  vi.mocked(sendCustomerSignIn).mockResolvedValue(undefined);
+  vi.mocked(sendCustomerPasswordReset).mockResolvedValue(undefined);
   vi.mocked(registerCustomerEmail).mockResolvedValue(undefined);
   vi.mocked(confirmCustomerEmail).mockResolvedValue(undefined);
   vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: false, percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500, validDays: 30 });
@@ -25,13 +25,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('can email a sign-in link when the customer has no password, with visible confirmation', async () => {
+it('emails a password reset link with visible confirmation', async () => {
   render(<CustomerAccount canSignUp={false} />);
   expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
   fireEvent.change(screen.getByLabelText('Account email'), { target: { value: 'buyer@example.test' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Forgot password? Email me a sign-in link' }));
-  expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('Sign-in link requested'));
-  expect(sendCustomerSignIn).toHaveBeenCalledWith('buyer@example.test');
+  fireEvent.click(screen.getByRole('button', { name: 'Forgot password?' }));
+  expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('password reset link is on its way'));
+  expect(sendCustomerPasswordReset).toHaveBeenCalledWith('buyer@example.test');
 });
 
 it('makes selecting sign-in visibly change the form and focus the email', () => {
@@ -45,10 +45,10 @@ it('makes selecting sign-in visibly change the form and focus the email', () => 
 });
 
 it('shows email-provider failures explicitly', async () => {
-  vi.mocked(sendCustomerSignIn).mockRejectedValue(new Error('Email provider is unavailable.'));
+  vi.mocked(sendCustomerPasswordReset).mockRejectedValue(new Error('Email provider is unavailable.'));
   render(<CustomerAccount canSignUp={false} />);
   fireEvent.change(screen.getByLabelText('Account email'), { target: { value: 'buyer@example.test' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Forgot password? Email me a sign-in link' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Forgot password?' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Email provider is unavailable.');
   expect(screen.queryByRole('status')).toBeNull();
 });
@@ -104,7 +104,7 @@ it('signs in with email and password', async () => {
   fireEvent.click(within(screen.getByRole('form', { name: 'Customer sign in' })).getByRole('button', { name: 'Sign in' }));
   expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('Signed in'));
   expect(signInCustomerWithPassword).toHaveBeenCalledWith('buyer@example.test', 'Crochet2026');
-  expect(sendCustomerSignIn).not.toHaveBeenCalled();
+  expect(sendCustomerPasswordReset).not.toHaveBeenCalled();
 });
 it('lets signed-in customers set a password and continue checkout with their saved profile', async () => {
   vi.mocked(fetchCustomerAccount).mockResolvedValue('buyer@example.test');

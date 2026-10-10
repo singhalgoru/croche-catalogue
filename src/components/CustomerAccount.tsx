@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadSupabase } from '../lib/supabaseConfig';
-import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn,
+import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset,
   fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
   setCustomerPassword, validateCustomerPassword } from '../services/customer';
 import type { DeliveryDetails, WelcomeCoupon, WelcomeOffer } from '../types/customer';
@@ -117,7 +117,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
             onClick={() => { setMode('signin'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Sign in</button>
         </div> : <h4 className="mt-3 font-semibold">Sign in to your saved cart</h4>}
         <p className="mt-1 text-xs text-cocoa/70">
-          {mode === 'signin' ? 'Sign in with your email and password, or get a one-time sign-in link by email.'
+          {mode === 'signin' ? 'Sign in with your email and password. Forgot it? We can email you a reset link.'
             : 'Tell us a little about yourself and choose a password. We will email an activation link; your profile is saved and your password works only after you verify your email.'}
         </p>
         <form className="mt-2 space-y-2" aria-label={mode === 'signup' ? 'Customer signup' : 'Customer sign in'} onSubmit={event => {
@@ -177,9 +177,9 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           </button>
         </form>
         {mode === 'signin' && <button type="button" disabled={busy} className="mt-2 underline" onClick={() => { void run(async () => {
-          await sendCustomerSignIn(email);
-          setMessage('Sign-in link requested. Check your inbox or spam and open it in this browser to restore your saved cart.');
-        }); }}>Forgot password? Email me a sign-in link</button>}
+          await sendCustomerPasswordReset(email);
+          setMessage('If an account exists for that email, a password reset link is on its way. Check your inbox or spam and open it in this browser.');
+        }); }}>Forgot password?</button>}
         {onGuest && <div className="mt-3 rounded-xl border border-cocoa/15 bg-cream/60 p-3">
           <p className="font-semibold">Prefer not to create an account?</p>
           <p className="mt-1 text-xs">Continue as a guest and add your delivery address when you send your order request.

@@ -143,7 +143,33 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await signIn.getByLabel('Password', { exact: true }).fill('wrong-password1');
   await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Email or password is incorrect');
+  await page.getByRole('dialog', { name: 'Sign in to Luvia' }).getByRole('button', { name: 'Forgot password?' }).click();
+  await expect(page.getByRole('dialog').getByRole('status')).toContainText('password reset link is on its way');
+  const recoveryToken = state.recoveryAccessToken;
+  expect(recoveryToken).toBeTruthy();
+  const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+  // Email links open as a fresh page load, not an in-page hash change.
+  await page.goto('about:blank');
+  await page.goto(`./#access_token=${recoveryToken}&expires_at=${expiresAt}&expires_in=3600`
+    + '&refresh_token=customer-refresh-token&token_type=bearer&type=recovery');
+  const reset = page.getByRole('dialog', { name: 'Set a new password' });
+  await reset.getByLabel('New password', { exact: true }).fill('Crochet2030');
+  await reset.getByLabel('Confirm new password').fill('Crochet2030');
+  await reset.getByRole('button', { name: 'Save new password' }).click();
+  await expect(reset.getByRole('status')).toContainText('password has been updated');
+  await reset.getByRole('button', { name: 'Continue shopping' }).click();
+  await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
+  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('status')).toContainText('Signed out');
+  await page.getByRole('dialog').getByRole('button', { name: 'Close account' }).click();
+
+  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  await signIn.getByLabel('Account email').fill('buyer@example.test');
   await signIn.getByLabel('Password', { exact: true }).fill('Crochet2026');
+  await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Email or password is incorrect');
+  await signIn.getByLabel('Password', { exact: true }).fill('Crochet2030');
   await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
 });

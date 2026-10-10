@@ -1,11 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn, signInCustomerWithPassword, setCustomerPassword,
+import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
   validateCustomerPassword } from './customer';
-const { getUser, updateUser, verifyOtp, signInWithOtp, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
-  getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
+const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
+  getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({
-  auth: { getUser, updateUser, verifyOtp, signInWithOtp, signInWithPassword, signInAnonymously, getSession }, from, rpc,
+  auth: { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession }, from, rpc,
 }) }));
 vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: async () => 'fixture-captcha' }));
 const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
@@ -17,6 +17,7 @@ beforeEach(() => {
   updateUser.mockResolvedValue({ error: null });
   verifyOtp.mockResolvedValue({ error: null });
   signInWithOtp.mockResolvedValue({ error: null });
+  resetPasswordForEmail.mockResolvedValue({ error: null });
   signInAnonymously.mockResolvedValue({ data: { user: { id: 'cart-owner', is_anonymous: true } }, error: null });
   getSession.mockResolvedValue({ data: { session: { user: { id: 'cart-owner' } } }, error: null });
   rpc.mockResolvedValue({ error: null });
@@ -60,26 +61,22 @@ it('validates full details before preparing a session', async () => {
   await expect(registerCustomerEmail({ ...details, phone: '' }, password)).rejects.toThrow('mobile');
   expect(signInAnonymously).not.toHaveBeenCalled();
 });
-it('uses CAPTCHA and does not create accounts on returning-customer login', async () => {
+it('sends a password reset email with CAPTCHA back to the store', async () => {
   getSession.mockResolvedValue({ data: { session: null }, error: null });
-  await sendCustomerSignIn('buyer@example.test');
-  expect(signInWithOtp).toHaveBeenCalledWith({ email: 'buyer@example.test', options: {
-    shouldCreateUser: false, emailRedirectTo: expect.any(String), captchaToken: 'fixture-captcha',
-  } });
+  await sendCustomerPasswordReset(' BUYER@EXAMPLE.TEST ');
+  expect(resetPasswordForEmail).toHaveBeenCalledWith('buyer@example.test',
+    { redirectTo: expect.stringMatching(/\/$/), captchaToken: 'fixture-captcha' });
+  await expect(sendCustomerPasswordReset('  ')).rejects.toThrow('Enter your account email');
+  resetPasswordForEmail.mockResolvedValue({ error: { message: 'Rate limited' } });
+  await expect(sendCustomerPasswordReset('buyer@example.test')).rejects.toThrow('Rate limited');
 });
-it('prevents signing into a different account while an active cart has items', async () => {
+it('prevents resetting into a different account while an active cart has items', async () => {
   getSession.mockResolvedValue({ data: { session: { user: { id: 'owner' } } }, error: null });
   const query = { select: () => query, eq: () => query, gt: async () => ({ data: [{ cart_items: [{ id: 'item' }] }], error: null }) };
   from.mockReturnValue(query);
-  await expect(sendCustomerSignIn('buyer@example.test')).rejects.toThrow('current cart has items');
-  expect(signInWithOtp).not.toHaveBeenCalled();
-});
-it('explains when a requested sign-in email does not yet have an account', async () => {
-  getSession.mockResolvedValue({ data: { session: null }, error: null });
-  signInWithOtp.mockResolvedValue({ error: { message: 'Signups not allowed for otp' } });
-  await expect(sendCustomerSignIn('buyer@example.test')).rejects.toThrow('Create account first');
-});
-it('rejects weak or mismatched passwords before preparing a signup session', async () => {
+  await expect(sendCustomerPasswordReset('buyer@example.test')).rejects.toThrow('current cart has items');
+  expect(resetPasswordForEmail).not.toHaveBeenCalled();
+});it('rejects weak or mismatched passwords before preparing a signup session', async () => {
   expect(validateCustomerPassword('short1')).toContain('at least 8');
   expect(validateCustomerPassword('allletters')).toContain('letter and one number');
   expect(validateCustomerPassword(password, 'Different1')).toBe('Passwords do not match.');
@@ -94,7 +91,7 @@ it('signs in with a password using CAPTCHA and friendly errors', async () => {
   await signInCustomerWithPassword(' BUYER@EXAMPLE.TEST ', password);
   expect(signInWithPassword).toHaveBeenCalledWith({ email: 'buyer@example.test', password, options: { captchaToken: 'fixture-captcha' } });
   signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
-  await expect(signInCustomerWithPassword('buyer@example.test', 'wrong')).rejects.toThrow('Email me a sign-in link');
+  await expect(signInCustomerWithPassword('buyer@example.test', 'wrong')).rejects.toThrow('Use Forgot password');
   signInWithPassword.mockResolvedValue({ error: { message: 'Email not confirmed' } });
   await expect(signInCustomerWithPassword('buyer@example.test', password)).rejects.toThrow('Activate your account');
 });

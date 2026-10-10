@@ -98,7 +98,7 @@ export async function signInCustomerWithPassword(email: string, password: string
   if (error) {
     const text = error.message.toLowerCase();
     if (text.includes('invalid login credentials')) {
-      throw new Error('Email or password is incorrect. If you have not set a password yet, use Email me a sign-in link.');
+      throw new Error('Email or password is incorrect. Use Forgot password to set a new one.');
     }
     if (text.includes('email not confirmed')) throw new Error('Activate your account from the email we sent before signing in.');
     throw new Error(`Unable to sign in: ${error.message}`);
@@ -111,18 +111,15 @@ export async function setCustomerPassword(password: string, confirmation: string
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw new Error(`Unable to save your password: ${error.message}`);
 }
-export async function sendCustomerSignIn(email: string) {
+export async function sendCustomerPasswordReset(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) throw new Error('Enter your account email first, then choose Forgot password.');
   const supabase = await client();
   await assertNoActiveCartItems(supabase);
   const captchaToken = await requestCartCaptcha();
-  const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(),
-    options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/`, ...(captchaToken ? { captchaToken } : {}) } });
-  if (error) {
-    if (error.message.toLowerCase().includes('signups not allowed for otp')) {
-      throw new Error('No saved account found for that email. Choose Create account first, then use the verification link.');
-    }
-    throw new Error(`Unable to send your sign-in link: ${error.message}`);
-  }
+  const { error } = await supabase.auth.resetPasswordForEmail(normalized,
+    { redirectTo: `${window.location.origin}/`, ...(captchaToken ? { captchaToken } : {}) });
+  if (error) throw new Error(`Unable to send your password reset email: ${error.message}`);
 }
 export async function fetchWelcomeOffer(): Promise<WelcomeOffer> {
   const supabase = await client();

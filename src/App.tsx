@@ -20,6 +20,7 @@ import CartCaptcha from './components/CartCaptcha';
 import BackToTopButton from './components/BackToTopButton';
 import { useCart } from './hooks/useCart';
 import { useCustomerName } from './hooks/useCustomerName';
+import { isPasswordRecoveryLink } from './utils/authLinks';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { useTickerMessages } from './hooks/useTickerMessages';
 import { trackEvent, trackProductSelected } from './services/analytics';
@@ -51,7 +52,8 @@ function App() {
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [accountMode, setAccountMode] = useState<'signin' | 'signup' | null>(null);
+  const [accountMode, setAccountMode] = useState<'signin' | 'signup' | 'reset' | null>(
+    () => (isPasswordRecoveryLink(window.location.hash) ? 'reset' : null));
   const openAccount = useCallback((mode: 'signin' | 'signup') => { setIsCartOpen(false); setAccountMode(mode); }, []);
   const closeAccount = useCallback(() => setAccountMode(null), []);
   const customerName = useCustomerName();

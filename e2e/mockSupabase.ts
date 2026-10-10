@@ -43,6 +43,8 @@ export interface GalleryImageRow {
 }
 
 export interface MockCatalogueState {
+  /** Access token a mocked password-reset email link would carry, set once a reset is requested. */
+  recoveryAccessToken?: string;
   categories: string[];
   categorySettings: Record<string, { priority: number }>;
   products: ProductRow[];
@@ -360,6 +362,10 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     }
 
     if (pathname === '/auth/v1/user') {
+      const recoveryToken = state.recoveryAccessToken;
+      if (customerUser && recoveryToken && request.headers().authorization === `Bearer ${recoveryToken}`) {
+        currentUser = customerUser;
+      }
       if (request.method() === 'PUT') {
         const body = getRequestBody<{ email?: string; password?: string }>(route);
         if (body.email) {
@@ -370,6 +376,14 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         }
       }
       await json(route, currentUser);
+      return;
+    }
+
+    if (pathname === '/auth/v1/recover') {
+      const body = getRequestBody<{ email: string }>(route);
+      // Like Supabase, always succeed so the response does not reveal which emails have accounts.
+      if (customerUser && body.email === customerUser.email) state.recoveryAccessToken = createAccessToken(customerUser);
+      await json(route, {});
       return;
     }
 
