@@ -44,6 +44,14 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ### Standard Checkout webhooks (test mode)
 
+With public checkout hidden, signed-in catalogue admins can use **Admin →
+Settings → Razorpay test payment**. Open the shop while still signed in, add
+priced available items, return to Settings, and select **Load my cart for test
+payment**. Enter the test buyer name/mobile and open the existing Razorpay
+test modal. Only the admin's own cart is used; other customer carts are not
+impersonated. This tool does not require enabling the public checkout flag.
+After a test payment, check Razorpay's webhook delivery logs for HTTP 200.
+
 The existing `razorpay-payment-webhook` function now accepts `payment.captured`
 and `order.paid` alongside its Payment Link events. It verifies HMAC-SHA256
 over the untouched request body with `RAZORPAY_WEBHOOK_SECRET`, validates captured

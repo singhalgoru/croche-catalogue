@@ -30,6 +30,9 @@ test('admin generates a first-order coupon with exact expiry and can disable it'
   await page.getByLabel('Password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Admin payment testing' })).toBeVisible();
+  await page.getByRole('button', { name: 'Load my cart for test payment' }).click();
+  await expect(page.getByRole('alert')).toContainText('Your cart is empty');
   await expect(page.getByText('First-order coupon — ILOVELUVIA', { exact: true })).toBeVisible();
   await page.getByLabel('First order only', { exact: true }).check();
   await page.getByLabel('Coupon expiry (your local time)').fill('2026-11-10T13:30');

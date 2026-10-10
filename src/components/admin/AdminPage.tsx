@@ -15,6 +15,7 @@ import AdminWorkspace from './AdminWorkspace';
 import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
 import WelcomeOfferManager from './WelcomeOfferManager';
 import CouponGenerator from './CouponGenerator';
+import AdminTestCheckout from './AdminTestCheckout';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -232,6 +233,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Settings: <>
+            <AdminTestCheckout />
             <WelcomeOfferManager />
             <CouponGenerator />
             <CategoryManager categories={categorySettings} onChanged={handleCategoryChanged} />
