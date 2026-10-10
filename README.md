@@ -181,8 +181,21 @@ the signed webhook records payment and the browser checks its owned order status
 Admin → Orders includes an **Online orders** list with payment status, saved
 delivery address, contact details, products and totals, including review-required
 attempts. Only paid orders should be fulfilled.
-Dispatch/delivery tracking and automatic confirmation emails are not enabled by
-this change.
+Confirmed live orders queue separate confirmation emails for the saved customer
+email and `orders@luviacreations.com`. Online checkout requires a contact email.
+The queue is transactionally created on settlement, including webhook recovery,
+and duplicate settlement does not create duplicate messages. The
+`order-confirmation-worker` runs every minute using the existing Resend sender,
+`RESEND_API_KEY`, `WELCOME_COUPON_FROM_EMAIL`, and the welcome worker's private
+`CUSTOMER_WELCOME_WORKER_SECRET` / Vault `customer_welcome_worker_secret`.
+No extra sender credentials are required. Delivery failures retry up to eight
+times at 15-minute intervals and remain recorded in `order_confirmation_emails`;
+operators should monitor `last_error` and exhausted attempts. `accepted_at`
+means Resend accepted the email, not proof of inbox delivery. Retries use a stable
+Resend idempotency key; its provider retention limits still apply.
+Dispatch/delivery tracking is not enabled. Automatic WhatsApp messages require
+an official Business API provider, approved templates and customer opt-in; no
+automated WhatsApp delivery is configured by this change.
 
 The header account dialog includes a paginated **Your orders** section for
 recorded, non-test payment orders. The customer-only `get_customer_orders` RPC

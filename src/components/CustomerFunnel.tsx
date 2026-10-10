@@ -91,7 +91,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
       <h3 className="font-heading text-lg font-bold">
         {step === 'contact' ? '1. Contact details' : step === 'address' ? '2. Delivery address' : onlineCheckout ? '3. Review order' : '3. Review order request'}
       </h3>
-      <p className="text-xs text-cocoa/65">{onlineCheckout ? 'Guest checkout available. Review your delivery details before paying securely.'
+      <p className="text-xs text-cocoa/65">{onlineCheckout ? 'Guest checkout available. Review your delivery details before paying securely. We will email your order confirmation to your contact email.'
         : 'Guest ordering available. Payment is not enabled; your order still needs confirmation.'}</p>
       {step !== 'review' && <form className="space-y-3" onSubmit={event => {
         event.preventDefault(); setError('');
@@ -120,8 +120,8 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
               value={details.phone} disabled={busy || saving} onChange={event => set('phone', event.target.value)}
               className="mt-1 w-full rounded border p-2" />
           </label>
-          <label className="block">Contact email (optional)
-            <input type="email" maxLength={254} autoComplete="email" value={details.email} disabled={busy || saving}
+          <label className="block">{onlineCheckout ? 'Contact email' : 'Contact email (optional)'}
+            <input type="email" required={onlineCheckout} maxLength={254} autoComplete="email" value={details.email} disabled={busy || saving}
               onChange={event => set('email', event.target.value)} className="mt-1 w-full rounded border p-2" />
           </label>
         </> : <>
@@ -171,6 +171,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
           : `Requested coupon: ${cart.welcomeCouponCode} (subject to confirmation)`}</p>}
         <p className="text-xs">{onlineCheckout ? 'Review your items, coupon, shipping and total, then pay securely with Razorpay.'
           : 'Review your cart items and estimated total, then send the order request using WhatsApp or email.'}</p>
+        {onlineCheckout && !reviewed.email?.trim() && <p role="alert" className="text-xs text-red-700">Edit details and add a contact email to receive your order confirmation before payment.</p>}
         <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
         <form className="space-y-2" onSubmit={event => {
           event.preventDefault(); setSaving(true); setError('');

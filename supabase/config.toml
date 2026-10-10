@@ -51,3 +51,6 @@ verify_jwt = true
 
 [functions.customer-welcome-worker]
 verify_jwt = false
+
+[functions.order-confirmation-worker]
+verify_jwt = false

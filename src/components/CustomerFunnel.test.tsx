@@ -36,6 +36,13 @@ it('supports guest contact → address → persisted review without requiring si
   expect(screen.queryByRole('form', { name: 'Customer signup' })).toBeNull();
   expect(screen.getByText(/12 Test Street/)).toBeTruthy();
 });
+it('requires a contact email for live checkout and flags older saved addresses without one', async () => {
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: { ...details, email: '' } }} busy={false}
+    onSave={vi.fn()} onCoupon={vi.fn()} onlineCheckout />);
+  expect(screen.getByRole('alert').textContent).toContain('add a contact email');
+  fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
+  expect((await screen.findByLabelText('Contact email') as HTMLInputElement).required).toBe(true);
+});
 it('keeps the address form open on persistence failure', async () => {
   const save = vi.fn().mockRejectedValue(new Error('Unable to save address.'));
   render(<CustomerFunnel cart={cart} busy={false} onSave={save} onCoupon={vi.fn()} />);

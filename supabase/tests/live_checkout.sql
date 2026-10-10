@@ -32,6 +32,11 @@ begin
   begin perform public.prepare_live_checkout(f.cart_id,f.owner_id,f.request_id); exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: live gate bypassed.'; end if;
   update public.checkout_settings set live_enabled=true;
+  update public.cart_delivery_details set details=jsonb_set(details,'{email}','""'::jsonb) where cart_id=f.other_cart_id;
+  rejected:=false;
+  begin perform public.prepare_live_checkout(f.other_cart_id,f.other_id,gen_random_uuid()); exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: checkout without confirmation email accepted.'; end if;
+  update public.cart_delivery_details set details=jsonb_set(details,'{email}',to_jsonb('live-'||f.other_id||'@example.invalid')) where cart_id=f.other_cart_id;
   update public.welcome_offer set enabled=true;
   coupon:=public.claim_welcome_coupon(f.owner_id);
   update public.welcome_coupons set percent=10,max_discount_rupees=100,minimum_subtotal_rupees=500 where id=coupon.id;
@@ -55,9 +60,11 @@ begin
   if settled->>'status'<>'paid' then raise exception 'FAIL: captured order not confirmed.'; end if;
   if (select available_quantity from public.product_variants where id=f.variant_id)<>0 then raise exception 'FAIL: stock not deducted.'; end if;
   if (select redeemed_order_id from public.welcome_coupons where id=coupon.id)<>o.id then raise exception 'FAIL: coupon not consumed.'; end if;
+  if (select count(*) from public.order_confirmation_emails where order_id=o.id)<>2 then raise exception 'FAIL: paid order did not queue customer/store emails.'; end if;
   if exists(select 1 from public.cart_items where cart_id=f.cart_id) then raise exception 'FAIL: paid unchanged cart not cleared.'; end if;
   perform public.settle_live_checkout(o.id,'pay_livefixture',55000,'INR');
   perform public.record_razorpay_checkout_event('live-event','payment.captured','order_livefixture','pay_livefixture',55000,'INR');
+  if (select count(*) from public.order_confirmation_emails where order_id=o.id)<>2 then raise exception 'FAIL: duplicate settlement duplicated emails.'; end if;
   if (select available_quantity from public.product_variants where id=f.variant_id)<>0 then raise exception 'FAIL: duplicate settlement changed stock.'; end if;
   update public.product_variants set available_quantity=3,in_stock=true where id=f.variant_id;
   insert into public.cart_items(cart_id,product_id,variant_id,product_name,variant_name,image_url,quantity,unit_price)
@@ -72,6 +79,7 @@ begin
   update public.payment_orders set razorpay_order_id='order_latefixture',status='link_created',expires_at=now()-interval '1 minute' where id=o.id;
   settled:=public.settle_live_checkout(o.id,'pay_latefixture',50000,'INR');
   if settled->>'status'<>'review_required' then raise exception 'FAIL: late capture confirmed without review.'; end if;
+  if exists(select 1 from public.order_confirmation_emails where order_id=o.id) then raise exception 'FAIL: review order queued confirmation.'; end if;
   if (select available_quantity from public.product_variants where id=f.variant_id)<>2 then raise exception 'FAIL: late capture deducted stock.'; end if;
   rejected:=false;
   begin perform public.settle_live_checkout(o.id,'pay_differentfixture',50000,'INR'); exception when others then rejected:=true; end;

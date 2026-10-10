@@ -356,7 +356,7 @@ export default function CartDrawer({
             </p>
             {checkoutError && <p role="alert" className="mt-2 text-xs text-red-700">{checkoutError}</p>}
             {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live
-              disabled={isBusy || !checkoutCart.deliveryDetails || hasUnpricedItems || unavailableItemIds.size > 0
+              disabled={isBusy || !checkoutCart.deliveryDetails || !checkoutCart.deliveryDetails.email?.trim() || hasUnpricedItems || unavailableItemIds.size > 0
                 || belowMinimumItemIds.size > 0 || Boolean(totals?.couponShortfall)} />}
             {!liveCheckout && <div className="mt-2 grid grid-cols-2 gap-2">
               <a

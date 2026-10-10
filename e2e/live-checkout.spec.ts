@@ -34,6 +34,7 @@ test('reviews address and pays online before showing a verified order confirmati
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
   await page.getByLabel('Recipient name').fill('Live Buyer');
   await page.getByLabel('Mobile number', { exact: true }).fill('9876543210');
+  await page.getByLabel('Contact email', { exact: true }).fill('buyer@example.test');
   await page.getByRole('button', { name: 'Continue to address' }).click();
   await page.getByLabel('House / building and street').fill('12 Live Street');
   await page.getByLabel('City', { exact: true }).fill('Delhi');
