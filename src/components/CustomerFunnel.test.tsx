@@ -1,24 +1,20 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerFunnel from './CustomerFunnel';
 import type { Cart } from '../types/cart';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 import { buildWhatsAppCartMessage, buildEmailCartBody } from '../utils/cartMessage';
-vi.mock('./CustomerAccount', () => ({ default: ({ onGuest, onContinue }: { onGuest?: () => void; onContinue?: (profile: unknown) => void }) => <div>
-  <p>Optional email signup</p>
-  {onGuest && <button type="button" onClick={onGuest}>Continue as guest</button>}
-  {onContinue && <button type="button" onClick={() => onContinue({ name: 'Saved Buyer', phone: '9123456780', email: 'saved@example.test',
-    addressLine1: '9 Saved Road', addressLine2: '', city: 'Pune', state: 'Maharashtra', pincode: '411001' })}>Continue to delivery details</button>}
-</div> }));
+import { fetchCustomerProfile } from '../services/customer';
+vi.mock('../services/customer', () => ({ fetchCustomerProfile: vi.fn() }));
 const cart: Cart = { id: 'cart', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '',
   whatsappStartedAt: null, items: [] };
 const details = { name: 'Test Buyer', phone: '9876543210', email: 'buyer@example.test',
   addressLine1: '12 Test Street', addressLine2: '', city: 'New Delhi', state: 'Delhi', pincode: '110001' };
 afterEach(cleanup);
+beforeEach(() => { vi.mocked(fetchCustomerProfile).mockReset().mockResolvedValue(null); });
 async function enterAddress() {
   fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue as guest' }));
-  fireEvent.change(screen.getByLabelText('Recipient name'), { target: { value: details.name } });
+  fireEvent.change(await screen.findByLabelText('Recipient name'), { target: { value: details.name } });
   fireEvent.change(screen.getByLabelText('Mobile number'), { target: { value: details.phone } });
   fireEvent.change(screen.getByLabelText('Contact email (optional)'), { target: { value: details.email } });
   fireEvent.click(screen.getByRole('button', { name: 'Continue to address' }));
@@ -34,7 +30,7 @@ it('supports guest contact → address → persisted review without requiring si
   fireEvent.click(screen.getByRole('button', { name: 'Save and review' }));
   await waitFor(() => expect(screen.getByText('3. Review order request')).toBeTruthy());
   expect(save).toHaveBeenCalledWith(details);
-  expect(screen.getByText('Optional email signup')).toBeTruthy();
+  expect(screen.queryByRole('form', { name: 'Customer signup' })).toBeNull();
   expect(screen.getByText(/12 Test Street/)).toBeTruthy();
 });
 it('keeps the address form open on persistence failure', async () => {
@@ -80,16 +76,18 @@ it('submits a typed coupon and surfaces server eligibility errors', async () => 
   expect(screen.getByRole('alert').textContent).toContain('Verify your email');
 });
 
-it('offers sign in, signup or guest before delivery details and prefills a signed-in profile', () => {
+it('goes straight to delivery details with a guest reward note and prefills a signed-in profile', async () => {
+  vi.mocked(fetchCustomerProfile).mockResolvedValue({ name: 'Saved Buyer', phone: '9123456780', email: 'saved@example.test',
+    addressLine1: '9 Saved Road', addressLine2: '', city: 'Pune', state: 'Maharashtra', pincode: '411001' });
   render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: '411002' }} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  expect(screen.getByText(/Guest orders do not receive the one-time welcome reward/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
-  expect(screen.getByText('Sign in, create an account, or continue as a guest')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to delivery details' }));
-  expect(screen.getByDisplayValue('Saved Buyer')).toBeTruthy();
+  expect(await screen.findByDisplayValue('Saved Buyer')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Continue to address' }));
   expect(screen.getByDisplayValue('9 Saved Road')).toBeTruthy();
   expect(screen.getByDisplayValue('411002')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  expect(screen.getByText('Sign in, create an account, or continue as a guest')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Continue with delivery details' })).toBeTruthy();
 });

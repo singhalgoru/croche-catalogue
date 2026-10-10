@@ -46,10 +46,9 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page.getByText(/Guest orders do not receive the one-time welcome reward/)).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('button', { name: 'Create account' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
-  const checkoutAccount = page.getByRole('region', { name: 'Checkout account' });
-  await expect(checkoutAccount.getByText(/Guest orders do not receive account-only welcome rewards/)).toBeVisible();
-  await checkoutAccount.getByRole('button', { name: 'Continue as guest' }).click();
   await page.getByLabel('Recipient name').fill('Guest Buyer');
   await page.getByLabel('Mobile number', { exact: true }).fill('9876543210');
   await page.getByRole('button', { name: 'Continue to address' }).click();
@@ -89,7 +88,10 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   const originalOwner = state.carts[0].user_id;
   const originalCart = state.carts[0].id;
-  await page.getByRole('button', { name: 'Continue with delivery details' }).click();
+  await page.getByRole('button', { name: 'Close cart' }).click();
+  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  const accountDialog = page.getByRole('dialog');
+  await accountDialog.getByRole('button', { name: 'Create account', exact: true }).first().click();
   const signup = page.getByRole('form', { name: 'Customer signup' });
   await signup.getByLabel('Full name').fill('Customer Buyer');
   await signup.getByLabel('Mobile number').fill('9876543210');
@@ -114,7 +116,9 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByText('Welcome, Customer Buyer!')).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
-  await page.getByRole('button', { name: 'Continue to delivery details' }).click();
+  await accountDialog.getByRole('button', { name: 'Close account' }).click();
+  await page.getByRole('button', { name: /^Open cart with 1 item/ }).click();
+  await page.getByRole('button', { name: 'Continue with delivery details' }).click();
   await expect(page.getByLabel('Recipient name')).toHaveValue('Customer Buyer');
   await page.getByRole('button', { name: 'Continue to address' }).click();
   await expect(page.getByLabel('House / building and street')).toHaveValue('12 Customer Street');

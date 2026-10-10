@@ -10,7 +10,6 @@ import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
 import RazorpayCheckout from './RazorpayCheckout';
 import CustomerFunnel from './CustomerFunnel';
-import CustomerAccount from './CustomerAccount';
 import type { DeliveryDetails } from '../types/customer';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
 import { FREE_SHIPPING_THRESHOLD, getCartTotals, getShippingLabel } from '../utils/cartMessage';
@@ -169,7 +168,6 @@ export default function CartDrawer({
               <p className="mt-2 text-sm text-cocoa/60">
                 Add products and they will remain here for up to 30 days.
               </p>
-              <div className="mt-4 text-left"><CustomerAccount canSignUp /></div>
             </div>
           ) : (
             <div className="space-y-3">
