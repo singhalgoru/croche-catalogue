@@ -9,6 +9,10 @@ additional_redirect_urls = ["https://luviacreations.com/"]
 subject = "Welcome to Luvia - activate your account"
 content_path = "./supabase/templates/customer-activation.html"
 
+[auth.email.template.magic_link]
+subject = "Your Luvia sign-in link"
+content_path = "./supabase/templates/customer-signin.html"
+
 [functions.analyze-product]
 verify_jwt = true
 
