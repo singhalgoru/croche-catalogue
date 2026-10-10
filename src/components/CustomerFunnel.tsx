@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Cart } from '../types/cart';
 import { formatINR } from '../utils/currency';
+import { getCartTotals } from '../utils/cartMessage';
 import type { DeliveryDetails, SavedAddress } from '../types/customer';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails, deliveryAddressText } from '../utils/customer';
 import { fetchCustomerAddresses, fetchCustomerProfile } from '../services/customer';
@@ -20,6 +21,7 @@ const addressFields = [
   ['city', 'City', 80, true], ['state', 'State', 80, true], ['pincode', 'Pincode', 6, true],
 ] as const;
 export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) {
+  const totals = getCartTotals(cart);
   const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>(() => cart.deliveryDetails ? 'review' : 'cart');
   const [details, setDetails] = useState<DeliveryDetails>(() => cart.deliveryDetails ?? { ...emptyDeliveryDetails(), pincode: cart.deliveryPinCode ?? '' });
   const [error, setError] = useState('');
@@ -161,7 +163,9 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
         {reviewed.email && <p className="break-words">{reviewed.email}</p>}
         <p className="break-words">{deliveryAddressText(reviewed)}</p>
         {cart.welcomeCouponCode && <p className="break-words">{cart.coupon
-          ? `Coupon ${cart.coupon.code} applied: ${cart.coupon.percent}% off (up to ${formatINR(cart.coupon.maxDiscountRupees)}) on items worth ${formatINR(cart.coupon.minimumSubtotalRupees)}+`
+          ? totals.couponShortfall > 0
+            ? `Coupon ${cart.coupon.code} not applied: minimum items value not met.`
+            : `Coupon ${cart.coupon.code} applied: ${cart.coupon.percent}% off (up to ${formatINR(cart.coupon.maxDiscountRupees)}) on items worth ${formatINR(cart.coupon.minimumSubtotalRupees)}+`
           : `Requested coupon: ${cart.welcomeCouponCode} (subject to confirmation)`}</p>}
         <p className="text-xs">Review your cart items and estimated total, then send the order request using WhatsApp or email.</p>
         <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
@@ -174,6 +178,9 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
             <input required maxLength={64} value={couponCode} disabled={busy || saving}
               onChange={event => setCouponCode(event.target.value.toUpperCase())} className="mt-1 w-full rounded border p-2" />
           </label>
+          {cart.coupon && totals.couponShortfall > 0 && <p role="alert" className="text-sm text-red-700">
+            Add {formatINR(totals.couponShortfall)} more in items to reach the minimum items value of {formatINR(cart.coupon.minimumSubtotalRupees)} before applying {cart.coupon.code}. Shipping does not count towards the minimum.
+          </p>}
           <button disabled={busy || saving} className="rounded-full border border-cocoa px-3 py-2">Apply coupon to request</button>
           {cart.welcomeCouponCode && <button type="button" disabled={busy || saving} className="ml-3 underline"
             onClick={() => {

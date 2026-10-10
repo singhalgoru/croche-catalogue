@@ -145,6 +145,11 @@ WhatsApp/email enquiries are not treated as confirmed orders; dispatch/delivery
 tracking is not recorded yet. Customers can refresh the history for current status.
 Order ownership is retained even after the original cart expires or is deleted.
 
+If a selected coupon's minimum items value is not met, checkout shows the
+additional items value required beside the coupon field and labels the coupon
+as not applied. Shipping is excluded from that minimum; the message updates as
+the cart value changes.
+
 Admin → **Customers** shows registered customer totals, verified accounts,
 active signups awaiting activation and welcome emails sent, plus a paginated
 customer list with contact details, registration/sign-in dates and welcome-email

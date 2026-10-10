@@ -77,6 +77,22 @@ it('submits a typed coupon and surfaces server eligibility errors', async () => 
   expect((await screen.findByRole('alert')).textContent).toContain('Verify your email');
 });
 
+it('shows the missing items value beside the coupon field and updates when the minimum is met', () => {
+  const order: Cart = { ...cart, deliveryDetails: details, welcomeCouponCode: 'ILOVELUVIA',
+    coupon: { code: 'ILOVELUVIA', percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500 },
+    items: [{ id: 'item', productId: 'product', variantId: 'variant', productName: 'Rose Charm',
+      variantName: 'Pink', image: '', quantity: 1, unitPrice: 350 }] };
+  const { rerender } = render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  expect(screen.getByRole('alert').textContent).toContain('Add ₹150 more in items');
+  expect(screen.getByRole('alert').textContent).toContain('minimum items value of ₹500');
+  expect(screen.getByRole('alert').textContent).toContain('Shipping does not count');
+  expect(screen.getByText('Coupon ILOVELUVIA not applied: minimum items value not met.')).toBeTruthy();
+  rerender(<CustomerFunnel cart={{ ...order, items: [{ ...order.items[0], unitPrice: 500 }] }}
+    busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByText(/Coupon ILOVELUVIA applied:/)).toBeTruthy();
+});
+
 it('goes straight to delivery details with a guest reward note and prefills a signed-in profile', async () => {
   vi.mocked(fetchCustomerProfile).mockResolvedValue({ name: 'Saved Buyer', phone: '9123456780', email: 'saved@example.test',
     addressLine1: '9 Saved Road', addressLine2: '', city: 'Pune', state: 'Maharashtra', pincode: '411001' });

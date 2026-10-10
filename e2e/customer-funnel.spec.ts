@@ -68,6 +68,15 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await expect(page.getByRole('button', { name: 'Email my welcome coupon' })).toHaveCount(0);
   for (const cart of state.carts) {
     Object.assign(cart.cart_delivery_details as object, { welcome_coupons: {
+      code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100000, minimum_subtotal_rupees: 500 } });
+  }
+  await page.reload();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Add ₹151 more in items');
+  await expect(page.getByRole('alert')).toContainText('minimum items value of ₹500');
+  await expect(page.getByText('Coupon ILOVELUVIA not applied: minimum items value not met.')).toBeVisible();
+  for (const cart of state.carts) {
+    Object.assign(cart.cart_delivery_details as object, { welcome_coupons: {
       code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100000, minimum_subtotal_rupees: 0 } });
   }
   await page.reload();
