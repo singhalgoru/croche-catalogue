@@ -349,7 +349,8 @@ When Shiprocket is configured, saving a PIN also asks Shiprocket's courier
 serviceability API (`cod=0`, prepaid) for rates from the pickup PIN to the
 shopper's PIN. Only the PIN and an approximate parcel weight are sent. The cart
 shows "Approx. delivery charge" (cheapest courier, rounded up to ₹10) with the
-usual delivery days; below the ₹500 free-shipping threshold this replaces the
+estimated courier transit days after dispatch (order preparation time is additional,
+and delivery dates are not guaranteed); below the ₹500 free-shipping threshold this replaces the
 flat indicative ₹100 in the cart, WhatsApp and email totals. The estimate is
 tied to the cart quantity; when the quantity changes the cart falls back to ₹100
 and offers "Update estimate". Admin carts show the min–max quote, weight and days.

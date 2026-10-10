@@ -25,6 +25,6 @@ export const formatDeliveryDays = (estimate: DeliveryEstimate) => {
   const { minDays, maxDays } = estimate;
   if (!minDays || !maxDays) return null;
   return minDays === maxDays
-    ? `about ${minDays} day${minDays === 1 ? '' : 's'}`
-    : `${minDays}–${maxDays} days`;
+    ? `about ${minDays} day${minDays === 1 ? '' : 's'} after dispatch`
+    : `${minDays}–${maxDays} days after dispatch`;
 };

@@ -58,9 +58,11 @@ it('shows the Shiprocket estimate and offers a refresh after the cart changes', 
   const onSave = vi.fn(async () => estimated);
   const { rerender } = render(<CartDeliveryPin cart={estimated} busy={false} onSave={onSave} />);
   expect(screen.getByText(/Approx\. delivery charge: \u20B970/)).toBeTruthy();
-  expect(screen.getByText(/usually 3\u20135 days/)).toBeTruthy();
+  expect(screen.getByText(/usually 3\u20135 days after dispatch/)).toBeTruthy();
+  expect(screen.getByText(/order preparation time is additional/)).toBeTruthy();
   rerender(<CartDeliveryPin cart={{ ...estimated, items: [{ ...item, quantity: 3 }] }} busy={false} onSave={onSave} />);
   expect(screen.queryByText(/Approx\. delivery charge/)).toBeNull();
+  expect(screen.queryByText(/order preparation time is additional/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Update estimate' }));
   await waitFor(() => expect(onSave).toHaveBeenCalledWith('110001'));
   rerender(<CartDeliveryPin cart={{ ...estimated, items: [{ ...item, unitPrice: 600 }] }} busy={false} onSave={onSave} />);

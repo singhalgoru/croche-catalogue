@@ -69,6 +69,9 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
         : `Approx. delivery charge: ${formatINR(getEstimatedShippingCharge(estimate))}`}
       {deliveryDays ? <span className="font-normal"> · usually {deliveryDays}</span> : null}
     </p>}
+    {!showEditor && deliveryDays && <p className="mt-1 text-xs text-cocoa/75">
+      Estimated courier transit time only; order preparation time is additional. Delivery dates are not guaranteed.
+    </p>}
     {!showEditor && isDeliveryEstimateOutdated(cart) && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-cocoa/75">
       Your cart changed since the delivery estimate.
       <button type="button" disabled={busy || saving} onClick={() => void save(cart.deliveryPinCode ?? '')}
