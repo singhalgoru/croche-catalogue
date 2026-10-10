@@ -33,6 +33,9 @@ test.beforeEach(async ({ page }) => {
       key_id: 'rzp_test_fixture', test_mode: true, reference: 'TEST-123' } });
   });
   await page.goto('./');
+  const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+  expect(csp).toContain('https://cdn.razorpay.com');
+  expect(csp).toContain('https://lumberjack.razorpay.com');
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
