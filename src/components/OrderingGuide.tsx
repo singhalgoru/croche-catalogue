@@ -19,24 +19,29 @@ export default function OrderingGuide() {
           </p>
         </li>
         <li>
-          <h3 className="font-semibold">2. Send an order request</h3>
+          <h3 className="font-semibold">2. Review your order</h3>
           <p className="mt-1 text-cocoa/80">
-            Review your items and quantities, then send them to us using the cart&apos;s WhatsApp button.
+            Save your delivery address, apply an eligible coupon, and review your items, shipping and total.
             Adding items to your cart or sending a message does not confirm an order.
           </p>
         </li>
         <li>
-          <h3 className="font-semibold">3. Confirm details before paying</h3>
+          <h3 className="font-semibold">3. Proceed to payment</h3>
           <p className="mt-1 text-cocoa/80">
-            We&apos;ll confirm availability, the total including shipping, and the estimated dispatch time.
-            Your order is confirmed only after we confirm it with you.
+            Pay securely through Razorpay when online checkout is available.
+            Your order is confirmed only after payment verification, and confirmation emails are queued
+            for you and Luvia. If checkout is unavailable, contact us to confirm your order and payment instructions.
           </p>
         </li>
       </ol>
       <p className="mt-4 text-sm text-cocoa/80">
-        We ship across India. Shipping charges and delivery timing depend on your location and order.
-        Please agree on the total and dispatch estimate with us before paying; we&apos;ll share payment
-        instructions when we confirm your order.
+        We ship across India. Orders are dispatched within 5 days of receiving the order, or earlier.
+        Delivery time after dispatch depends on your location.
+      </p>
+      <p className="mt-2 text-sm text-cocoa/80">
+        Shipping is free when the items subtotal after discounts is at least ₹500. Below ₹500,
+        the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 without a current estimate.
+        Review the shipping charge before paying.
       </p>
       <p className="mt-3 text-sm text-cocoa/80">{storeContent.orderingDisclosure.request}</p>
       <p className="mt-2 text-sm text-cocoa/80">{storeContent.orderingDisclosure.price}</p>

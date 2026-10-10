@@ -12,13 +12,17 @@ afterEach(() => {
 });
 
 describe('OrderingGuide', () => {
-  it('explains the order request, confirmation, payment and delivery steps without promising timelines', () => {
+  it('explains address review, verified payment, shipping and approved dispatch timing', () => {
     render(<OrderingGuide />);
     expect(screen.getByRole('region', { name: 'How ordering and delivery work' })).toBeTruthy();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     expect(screen.getByText(/sending a message does not confirm an order/)).toBeTruthy();
-    expect(screen.getByText(/Your order is confirmed only after we confirm it with you/)).toBeTruthy();
-    expect(screen.getByText(/Please agree on the total and dispatch estimate with us before paying/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '2. Review your order' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '3. Proceed to payment' })).toBeTruthy();
+    expect(screen.getByText(/Your order is confirmed only after payment verification/)).toBeTruthy();
+    expect(screen.getByText(/Orders are dispatched within 5 days/)).toBeTruthy();
+    expect(screen.getByText(/Delivery time after dispatch depends on your location/)).toBeTruthy();
+    expect(screen.getByText(/items subtotal after discounts is at least ₹500/)).toBeTruthy();
     expect(screen.getByText(/does not complete a purchase or take payment/)).toBeTruthy();
     expect(screen.getByText(/Displayed product prices include GST/)).toBeTruthy();
   });
