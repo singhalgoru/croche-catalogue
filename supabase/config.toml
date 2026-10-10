@@ -17,3 +17,15 @@ verify_jwt = true
 
 [functions.capture-cart-network]
 verify_jwt = true
+
+[functions.create-order]
+verify_jwt = true
+
+[functions.verify-payment]
+verify_jwt = true
+
+[functions.create-razorpay-payment-link]
+verify_jwt = true
+
+[functions.razorpay-payment-webhook]
+verify_jwt = false

@@ -39,6 +39,60 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Email contacts for orders and general enquiries
 - Installable app experience on supported browsers
 
+## Razorpay payments
+
+The existing `payment-integration` backend foundation is reused: hosted payment
+links and Standard Checkout share `payment_orders` and `payment_order_items`.
+Admin payment links still require a confirmed customer and shipping charge.
+Their signed webhook handles reservations and real inventory settlement.
+
+Standard Checkout is **test-only**, opt-in, and does not place a real order,
+reserve stock, clear the cart or create sales. The backend rejects live keys.
+Its amount comes from current published product/variant prices, minimum order
+quantities, available inventory and server-stored indicative shipping, never
+from browser-supplied amounts. Owner-only signature verification additionally
+checks Razorpay's captured payment, currency, order and amount. Verified tests
+are recorded separately as `test_verified`, not `paid`.
+
+Setup:
+
+1. Apply migrations with `npx supabase db push --include-all`.
+2. Put test credentials in ignored `.env.razorpay.local`:
+   `RAZORPAY_KEY_ID=rzp_test_...` and `RAZORPAY_KEY_SECRET=...`.
+   Rotate any secret previously pasted into chat. Never prefix the secret with
+   `VITE_` or store it in GitHub frontend build variables.
+3. Run `npx supabase secrets set --env-file .env.razorpay.local`.
+4. Deploy `create-order` and `verify-payment` with `npx supabase functions deploy`.
+   These are the Supabase equivalents of `/api/create-order` and
+   `/api/verify-payment`.
+5. Set `VITE_ENABLE_RAZORPAY_TEST_CHECKOUT=true` in local `.env.local`, or as a
+   GitHub repository variable for the Pages build, then rebuild.
+
+To test, add priced, available products to a cart, open the cart, enter a name
+and Indian mobile number, and select **Try Razorpay test checkout**. Use
+Razorpay's test payment methods only. Check cancellation, payment failure and
+success; success must say no money was charged and no order was placed.
+If verification fails, use **Retry payment verification**, not a new payment.
+Same-tab reloads retain pending verification in session storage. An ambiguous
+provider order-creation failure is held for review rather than automatically
+creating another chargeable order.
+
+Validation commands:
+
+```powershell
+npm test -- checkout.test.ts RazorpayCheckout.test.tsx
+npx supabase db query --linked --file supabase\tests\razorpay_checkout.sql
+```
+
+Before live checkout, complete Razorpay onboarding, implement confirmed shipping
+and delivery-address collection, stock reservations, webhook reconciliation,
+refunds and an admin fulfilment UI, then explicitly replace the test-only gate.
+The hosted-link foundation has its own `create-razorpay-payment-link` and
+`razorpay-payment-webhook` functions; its webhook uses the separate backend
+`RAZORPAY_WEBHOOK_SECRET` and the `payment_link.paid`, `payment_link.expired`
+and `payment_link.cancelled` events. Do not enable hosted links without testing
+that complete admin-to-webhook flow.
+
 ## Local development
 
 ```bash

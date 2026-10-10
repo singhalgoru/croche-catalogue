@@ -61,6 +61,7 @@ jobs:
           VITE_WHATSAPP_NUMBER: ${{ vars.VITE_WHATSAPP_NUMBER }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
           VITE_CSP_EXTRA_CONNECT_SRC: ""
+          VITE_ENABLE_RAZORPAY_TEST_CHECKOUT: ${{ vars.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT }}
 
       - name: Generate Merchant Center feed and clean images
         run: node scripts/merchant-feed.mjs

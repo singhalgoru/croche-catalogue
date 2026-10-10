@@ -8,6 +8,7 @@ import { getCartWhatsAppLink } from '../utils/whatsapp';
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
+import RazorpayCheckout from './RazorpayCheckout';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
 import { FREE_SHIPPING_THRESHOLD, getCartTotals, getShippingLabel } from '../utils/cartMessage';
 
@@ -391,6 +392,10 @@ export default function CartDrawer({
               </button>
               <span className="text-right text-cocoa/50">Cart saved for 30 days</span>
             </div>
+            {checkoutCart && import.meta.env.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT === 'true' && (
+              <RazorpayCheckout key={checkoutCart.id} cart={checkoutCart}
+                disabled={isBusy || hasUnpricedItems || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0} />
+            )}
           </div>
         )}
       </aside>
