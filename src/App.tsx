@@ -5,10 +5,11 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import OrderingGuide from './components/OrderingGuide';
 import RelatedProducts from './components/RelatedProducts';
+import Bestsellers from './components/Bestsellers';
+import CategoryTiles from './components/CategoryTiles';
 import ProductDetailPreview from './components/ProductDetailPreview';
 import StorePages from './components/StorePages';
 import { isStorePage } from './utils/storePageRoute';
-import { collectionPath } from './utils/collectionLink.js';
 import CategoryFilter from './components/CategoryFilter';
 import CartMenuButton from './components/CartMenuButton';
 import BrandMark from './components/BrandMark';
@@ -641,6 +642,7 @@ function App() {
             />
           </div>
         )}
+        {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} onSelect={selectProduct} />}
         <div className="text-center">
           <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa">
             Shop the Collection
@@ -675,10 +677,7 @@ function App() {
         </div>
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && <section className="space-y-3">
           <h2 className="font-heading text-xl font-bold text-cocoa">Explore collections</h2>
-          <nav aria-label="Explore collections" className="flex flex-wrap gap-3">
-            {categories.map(category => <a key={category} href={collectionPath(category)}
-              className="rounded-full border border-mustard bg-mustard/20 px-4 py-2 text-sm font-semibold text-cocoa underline-offset-4 hover:underline">{category}</a>)}
-          </nav>
+          <CategoryTiles categories={categories} products={products} />
         </section>}
         <OrderingGuide />
       </main>

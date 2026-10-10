@@ -19,6 +19,7 @@ import { isProductNew } from '../utils/productStatus';
 import CartIconButton from './CartIconButton';
 import ProductQuantityControl from './ProductQuantityControl';
 import ProductDetails from './ProductDetails';
+import ProductDeliveryInfo from './ProductDeliveryInfo';
 import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
@@ -605,6 +606,7 @@ export default function ProductModal({
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} collapsible={!isPage} />
+          <ProductDeliveryInfo />
           <details className="mt-4 rounded-xl border border-mustard/40 p-3 text-sm text-cocoa">
             <summary className="cursor-pointer font-semibold">{storeContent.orderingDisclosure.title}</summary>
             <p className="mt-2">{storeContent.orderingDisclosure.request}</p>

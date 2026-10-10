@@ -1,6 +1,7 @@
 import type { Product } from '../types/product';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import ProductDetails from './ProductDetails';
+import ProductDeliveryInfo from './ProductDeliveryInfo';
 import { findProductVariantByReference } from '../utils/productLink';
 
 export default function ProductDetailPreview({ product, variantReference }: { product: Product; variantReference?: string }) {
@@ -16,6 +17,7 @@ export default function ProductDetailPreview({ product, variantReference }: { pr
         <h1 className="font-heading text-2xl font-bold sm:text-3xl">{product.name}</h1>
         <p className="whitespace-pre-line">{product.description}</p>
         <ProductDetails product={product} />
+        <ProductDeliveryInfo />
         <p role="status" className="text-sm text-cocoa/70">Preparing interactive photo and shopping controls…</p>
       </div>
     </section>

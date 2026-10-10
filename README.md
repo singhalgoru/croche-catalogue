@@ -372,6 +372,28 @@ Without these secrets the feature stays dormant.
 
 ## Product customisation enquiries
 
+The homepage Bestsellers section ranks available published products by pieces
+recorded in the seller sales ledger over the last 90 calendar days, combining
+variants and breaking ties by all-time quantity. Future-dated sales are excluded.
+It shows at most four products and hides when fewer than two qualify, or while
+searching/filtering. Featured remains manually curated. The ledger records actual
+sales, not pending orders; remove or correct cancelled/returned sales in admin.
+Product detail pages and quick views show a visible delivery/returns summary,
+including preparation versus post-dispatch transit time, shipping thresholds,
+and links to the existing FAQ and return policy. Product pages label the existing
+same-category recommendations "You May Also Like"; stock priority, maximum four
+suggestions and native product links remain unchanged.
+Explore collections uses lazy-loaded visual tiles in category order, preferring
+an available product photo and falling back to the first product when sold out.
+Existing collection URLs and category filters are unchanged.
+The public `get_catalogue_bestsellers` RPC exposes ranked product IDs only, not
+quantities, customer data or financial details. Apply
+`20261010024000_add_public_bestsellers.sql` before deploying the frontend.
+Validate ranking, the 90-day cutoff, variant aggregation and anonymous access
+with `npx supabase db query --linked --file supabase/tests/bestsellers.sql`.
+This integration test requires six available products and rolls back all sales
+fixtures without changing the catalogue.
+
 Product quick views and full details offer a WhatsApp customisation enquiry.
 The message includes the product, selected variant and a prompt for the desired
 colour/change; availability, price and dispatch remain subject to confirmation.

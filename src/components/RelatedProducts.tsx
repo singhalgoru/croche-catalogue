@@ -26,8 +26,9 @@ export default function RelatedProducts({ product, products, onSelect }: Props) 
   return (
     <section aria-labelledby="related-products-heading" className="border-t border-mustard/30 pt-6">
       <h2 id="related-products-heading" className="mb-4 font-heading text-2xl font-bold text-cocoa">
-        More from this collection
+        You May Also Like
       </h2>
+      <p className="mb-4 text-sm text-cocoa/75">More from this collection</p>
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {related.map(candidate => {
           const variant = candidate.variants.find(item => item.inStock) ?? candidate.variants[0];

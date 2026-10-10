@@ -19,6 +19,7 @@ describe('RelatedProducts', () => {
   it('uses product-page links, two mobile columns and four desktop columns', () => {
     const onSelect = vi.fn();
     render(<RelatedProducts product={product} products={[product, related]} onSelect={onSelect} />);
+    expect(screen.getByRole('heading', { name: 'You May Also Like' })).toBeTruthy();
     const link = screen.getByRole('link', { name: /Flower Coaster/ });
     expect(link.getAttribute('href')).toContain('/p/flower-coaster/');
     expect(link.parentElement?.className).toContain('grid-cols-2');
