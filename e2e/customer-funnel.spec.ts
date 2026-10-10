@@ -66,3 +66,82 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await expect(page.getByText(/12 Guest Street/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Email my welcome coupon' })).toHaveCount(0);
 });
+
+test('customer signup verifies the same cart owner and reports sign-in delivery errors', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
+    id: true, enabled: false, percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500, valid_days: 30,
+  } }));
+  await page.route('**/rest/v1/rpc/save_cart_delivery_details', async route => {
+    const body = route.request().postDataJSON();
+    const cart = state.carts.find(cart => cart.id === body.target_cart_id);
+    if (!cart) throw new Error('Missing customer cart');
+    Object.assign(cart, { cart_delivery_details: { details: body.delivery, welcome_coupons: null } });
+    await route.fulfill({ json: body.delivery });
+  });
+  await page.goto('./');
+  await page.getByRole('article', { name: 'Product: Rose Charm' })
+    .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  const originalOwner = state.carts[0].user_id;
+  const originalCart = state.carts[0].id;
+  await page.getByRole('button', { name: 'Continue with delivery details' }).click();
+  await page.getByLabel('Recipient name').fill('Customer Buyer');
+  await page.getByLabel('Mobile number', { exact: true }).fill('9876543210');
+  await page.getByLabel('Contact email (optional)').fill('buyer@example.test');
+  await page.getByRole('button', { name: 'Continue to address' }).click();
+  await page.getByLabel('House / building and street').fill('12 Customer Street');
+  await page.getByLabel('City', { exact: true }).fill('New Delhi');
+  await page.getByLabel('State', { exact: true }).fill('Delhi');
+  await page.getByRole('region', { name: 'Order details' }).getByLabel('Pincode', { exact: true }).fill('110001');
+  await page.getByRole('button', { name: 'Save and review' }).click();
+  await page.getByRole('button', { name: 'Send signup email' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Signup verification requested' })).toBeVisible();
+  await page.getByLabel('Email verification code').fill('000000');
+  await page.getByRole('button', { name: 'Verify email', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('invalid verification code');
+  await page.getByLabel('Email verification code').fill('123456');
+  await page.getByRole('button', { name: 'Verify email', exact: true }).click();
+  await expect(page.getByText('Verified email: buyer@example.test')).toBeVisible();
+  expect(state.carts[0].id).toBe(originalCart);
+  expect(state.carts[0].user_id).toBe(originalOwner);
+  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('article', { name: /View Rose Charm/ })).toHaveCount(1);
+  await page.reload();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await page.getByRole('button', { name: 'Review delivery details' }).click();
+  await expect(page.getByText('Verified email: buyer@example.test')).toBeVisible();
+  const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
+  expect(decodeURIComponent(whatsapp!)).toContain('12 Customer Street');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByText('Your cart is empty', { exact: true })).toBeVisible();
+  const account = page.getByRole('region', { name: 'Customer account' });
+  await expect(account.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(0);
+  await account.getByLabel('Account email').fill('buyer@example.test');
+  await page.route('**/auth/v1/otp*', route => route.fulfill({
+    status: 503, json: { msg: 'Email delivery is unavailable.' },
+  }));
+  await account.getByRole('button', { name: 'Send sign-in link' }).click();
+  await expect(account.getByRole('alert')).toContainText('Email delivery is unavailable');
+  await page.unroute('**/auth/v1/otp*');
+  await account.getByRole('button', { name: 'Send sign-in link' }).click();
+  await expect(account.getByRole('status')).toContainText('Sign-in link requested');
+  // Simulate the auth provider's email-link exchange, without pretending to send real email.
+  const session = await page.evaluate(async () => {
+    const response = await fetch('http://supabase.test/auth/v1/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'buyer@example.test', token: '123456', type: 'email' }),
+    });
+    if (!response.ok) throw new Error('Mock email-link verification failed');
+    return response.json() as Promise<{ access_token: string; refresh_token: string }>;
+  });
+  await page.goto('./#' + new URLSearchParams({
+    access_token: session.access_token, refresh_token: session.refresh_token,
+    expires_in: '3600', token_type: 'bearer', type: 'magiclink',
+  }).toString());
+  await page.reload();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await page.getByRole('button', { name: 'Review delivery details' }).click();
+  await expect(page.getByText('Verified email: buyer@example.test')).toBeVisible();
+  expect(state.carts).toHaveLength(1);
+  expect(state.carts[0].id).toBe(originalCart);
+});

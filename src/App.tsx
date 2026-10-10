@@ -166,6 +166,9 @@ function App() {
 
   useEffect(() => {
     if (isAdminPage || pendingProductReference.current || pageReference) return;
+    // The lazy auth client must consume email-link credentials before route cleanup.
+    const authParams = new URLSearchParams(window.location.hash.slice(1));
+    if (authParams.has('access_token') || authParams.has('error_description')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)
       : window.location.hash === '#collaborate' ? '#collaborate' : '';

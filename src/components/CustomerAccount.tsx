@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadSupabase } from '../lib/supabaseConfig';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn,
   fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer } from '../services/customer';
@@ -20,6 +20,7 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const emailInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     let current = true;
     let unsubscribe: (() => void) | undefined;
@@ -54,22 +55,30 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
         }); }}>Sign out</button>
       </> : <>
         <p className="mt-1 text-xs text-cocoa/70">Guest ordering is always available. Verify an email to keep this cart linked to your account.</p>
-        <div className="mt-2 flex gap-3">
-          {canSignUp && <button type="button" disabled={busy} className="underline"
-            onClick={() => { setMode('signup'); setSent(false); setError(''); }}>Create account</button>}
-          <button type="button" disabled={busy} className="underline"
-            onClick={() => { setMode('signin'); setSent(false); setError(''); }}>Sign in</button>
-        </div>
+        {canSignUp ? <div className="mt-2 flex gap-3" aria-label="Account options">
+          <button type="button" disabled={busy} aria-pressed={mode === 'signup'}
+            className={`min-h-11 px-2 underline ${mode === 'signup' ? 'font-bold' : ''}`}
+            onClick={() => { setMode('signup'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Create account</button>
+          <button type="button" disabled={busy} aria-pressed={mode === 'signin'}
+            className={`min-h-11 px-2 underline ${mode === 'signin' ? 'font-bold' : ''}`}
+            onClick={() => { setMode('signin'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Sign in</button>
+        </div> : <h4 className="mt-3 font-semibold">Sign in to your saved cart</h4>}
+        <p className="mt-1 text-xs text-cocoa/70">
+          {mode === 'signin' ? 'Enter your registered email and select Send sign-in link. Open the emailed link in this browser to sign in.'
+            : 'Verify your email to create an account without losing the items in this cart.'}
+        </p>
         <form className="mt-2 space-y-2" onSubmit={event => {
           event.preventDefault();
           void run(async () => {
             if (mode === 'signup') { await registerCustomerEmail(email); setSent(true); }
             else await sendCustomerSignIn(email);
-            setMessage('Check your email for a verification link. Your email provider may put it in spam.');
+            setMessage(mode === 'signin'
+              ? 'Sign-in link requested. Check your inbox or spam and open it in this browser to restore your saved cart.'
+              : 'Signup verification requested. Check your inbox or spam for the verification link.');
           });
         }}>
           <label className="block">Account email
-            <input type="email" required maxLength={254} autoComplete="email" value={email} disabled={busy || sent}
+            <input ref={emailInput} type="email" required maxLength={254} autoComplete="email" value={email} disabled={busy || sent}
               onChange={event => setEmail(event.target.value)} className="mt-1 w-full rounded border p-2" />
           </label>
           <button disabled={busy || sent} className="rounded-full border border-cocoa px-3 py-2">
@@ -82,7 +91,9 @@ export default function CustomerAccount({ initialEmail = '', canSignUp, onCoupon
             event.preventDefault();
             void run(async () => {
               await confirmCustomerEmail(email, token);
-              setAccount(await fetchCustomerAccount());
+              const verifiedEmail = await fetchCustomerAccount();
+              if (!verifiedEmail) throw new Error('Email verification is not complete. Open the email link or retry your verification code.');
+              setAccount(verifiedEmail);
               setMessage('Your email is verified. Your cart has been preserved.');
             });
           }}>

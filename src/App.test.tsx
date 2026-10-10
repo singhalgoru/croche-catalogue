@@ -58,6 +58,12 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('preserves email-link credentials until the lazy authentication client consumes them', () => {
+    window.history.replaceState(null, '', '/#access_token=test-callback&refresh_token=test-refresh&type=magiclink');
+    render(<App />);
+    expect(new URLSearchParams(window.location.hash.slice(1)).get('access_token')).toBe('test-callback');
+  });
+
   it('opens the variant from a Reddit static path and preserves that share destination', async () => {
     catalogueProducts = [{ ...product, variants: [
       product.variants[0],

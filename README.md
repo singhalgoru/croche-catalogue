@@ -149,6 +149,12 @@ with `updateUser`, preserving cart ownership. A verification link (or
 email-change code) confirms the account. Returning customers use passwordless
 email sign-in from an empty cart. Signing into another account is blocked while
 the current cart has items; carts are not silently merged or discarded.
+On an empty cart, enter the registered email and select **Send sign-in link**;
+open the emailed link in the same browser to restore the saved account/cart.
+When signup and sign-in are both available, the selected account option is
+visibly marked. Delivery errors are reported inline rather than claiming success.
+Catalogue URL cleanup preserves auth callback credentials until the lazy
+Supabase client consumes them, preventing email links from losing the session.
 
 Configure Supabase Auth's Site URL and allowed redirects for
 `https://luviacreations.com/` and local development. Set up production SMTP

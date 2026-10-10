@@ -299,6 +299,8 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     ],
   };
   let currentUser = adminUser;
+  let customerUser: typeof adminUser | null = null;
+  let pendingCustomerEmail = '';
 
   await page.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, (route) => route.abort());
   await page.route('https://connect.facebook.net/**', (route) => route.abort());
@@ -337,7 +339,36 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     }
 
     if (pathname === '/auth/v1/user') {
+      if (request.method() === 'PUT') {
+        pendingCustomerEmail = getRequestBody<{ email: string }>(route).email;
+      }
       await json(route, currentUser);
+      return;
+    }
+
+    if (pathname === '/auth/v1/otp') {
+      const body = getRequestBody<{ email: string; create_user: boolean }>(route);
+      if (!customerUser || body.email !== customerUser.email || body.create_user !== false) {
+        await json(route, { msg: 'Registered customer required.' }, 400);
+      } else await json(route, {});
+      return;
+    }
+
+    if (pathname === '/auth/v1/verify') {
+      const body = getRequestBody<{ email: string; token: string; type: string }>(route);
+      if (body.token !== '123456' || (body.type === 'email_change'
+        ? body.email !== pendingCustomerEmail : body.email !== customerUser?.email)) {
+        await json(route, { msg: 'Expired or invalid verification code.' }, 403);
+        return;
+      }
+      if (body.type === 'email_change') {
+        customerUser = { ...currentUser, email: body.email, is_anonymous: false,
+          email_confirmed_at: new Date().toISOString(), confirmed_at: new Date().toISOString() };
+      }
+      if (!customerUser) { await json(route, { msg: 'Customer not found.' }, 400); return; }
+      currentUser = customerUser;
+      await json(route, { access_token: createAccessToken(currentUser), token_type: 'bearer',
+        expires_in: 3600, refresh_token: 'customer-refresh-token', user: currentUser });
       return;
     }
 

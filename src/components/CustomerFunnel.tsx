@@ -97,7 +97,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
         {reviewed.email && <p className="break-words">{reviewed.email}</p>}
         <p className="break-words">{deliveryAddressText(reviewed)}</p>
         {cart.welcomeCouponCode && <p className="break-words">Requested coupon: {cart.welcomeCouponCode} (subject to confirmation)</p>}
-        <p className="text-xs">Review your items and estimated total below, then send the order request using WhatsApp or email. The address is shopper-provided, not verified.</p>
+        <p className="text-xs">Review your cart items and estimated total, then send the order request using WhatsApp or email. The address is shopper-provided, not verified.</p>
         <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
         <form className="space-y-2" onSubmit={event => {
           event.preventDefault(); setSaving(true); setError('');
