@@ -317,6 +317,12 @@ fixtures and writes run in a transaction that is rolled back.
 
 ## Optional delivery pincodes
 
+Restoring an online cart is read-only: a missing or expired cart appears empty,
+and a remote cart is created or renewed only on the first product addition.
+The existing limits remain 10 new carts per session per hour and 60 writes per
+minute. Rate-limit errors distinguish creation from changes and report the
+remaining wait without extending the original counting window.
+
 The cart offers an optional delivery PIN code with explicit Save/Clear controls.
 The compact saved view shows the PIN and postal area with Change/Clear actions.
 The editor opens only when needed, and the full provider/storage disclosure is

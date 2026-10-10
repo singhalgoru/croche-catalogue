@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { addProductToCart, removeCartItem, updateCartItemQuantity } from './cart';
+import { addProductToCart, clearCart, fetchCart, removeCartItem, updateCartItemQuantity } from './cart';
 import type { Product } from '../types/product';
 
-const { from, getSession, upsert, update, remove, single, maybeSingle } = vi.hoisted(() => ({
+const { from, getSession, upsert, insert, update, remove, single, maybeSingle } = vi.hoisted(() => ({
   from: vi.fn(), getSession: vi.fn(), upsert: vi.fn(), update: vi.fn(),
   remove: vi.fn(), single: vi.fn(), maybeSingle: vi.fn(),
+  insert: vi.fn(),
 }));
 vi.mock('../lib/supabaseConfig', () => ({
   isSupabaseConfigured: true,
@@ -36,16 +37,46 @@ beforeEach(() => {
   const query = {
     select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
     maybeSingle, single,
-    upsert, update, delete: remove,
+    upsert, insert, update, delete: remove,
     then: (resolve: (value: { error: null }) => unknown) => Promise.resolve({ error: null }).then(resolve),
   };
   upsert.mockReturnValue(query);
+  insert.mockReturnValue(query);
   update.mockReturnValue(query);
   remove.mockReturnValue(query);
   from.mockReturnValue(query);
 });
 
 describe('remote cart mutation requests', () => {
+  it('does not create a remote cart when restoring a session without a cart', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    expect((await fetchCart()).items).toEqual([]);
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not renew or clear an expired cart just for browsing', async () => {
+    maybeSingle.mockResolvedValue({ data: { ...row, expires_at: '2020-01-01' }, error: null });
+    expect((await fetchCart()).items).toEqual([]);
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('creates the missing cart on the first product addition', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    await addProductToCart(product, product.variants[0]);
+    expect(insert).toHaveBeenCalledExactlyOnceWith({ user_id: 'user-1' });
+    expect(upsert).toHaveBeenCalled();
+  });
+
+  it('clearing a missing cart does not create or delete a remote cart', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    expect((await clearCart()).items).toEqual([]);
+    expect(insert).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
   it('adds using three requests and the authoritative saved cart, without a second GET', async () => {
     const cart = await addProductToCart(product, product.variants[0]);
     expect(from.mock.calls.map(([table]) => table)).toEqual(['carts', 'cart_items', 'carts']);

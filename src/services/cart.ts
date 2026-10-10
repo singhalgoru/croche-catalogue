@@ -155,7 +155,7 @@ const ensureCartSession = async () => {
   return data.user;
 };
 
-const loadRemoteCart = async (): Promise<Cart> => {
+const loadRemoteCart = async (createIfMissing = false): Promise<Cart> => {
   const supabase = await loadSupabase();
   if (!supabase) throw new Error('Supabase is not configured.');
   const user = await ensureCartSession();
@@ -171,6 +171,8 @@ const loadRemoteCart = async (): Promise<Cart> => {
   if (existing && new Date((existing as CartRow).expires_at).getTime() > Date.now()) {
     return mapCart(existing as CartRow);
   }
+
+  if (!createIfMissing) return createLocalCart();
 
   if (existing) {
     const { error: clearError } = await supabase
@@ -277,7 +279,7 @@ export async function addProductToCart(
     return writeLocalCart({ ...refreshLocalCart(current), items });
   }
 
-  const cart = await loadRemoteCart();
+  const cart = await loadRemoteCart(true);
   const existing = cart.items.find(
     (item) => item.productId === product.id && item.variantId === variant.id,
   );
@@ -365,6 +367,7 @@ export async function clearCart(): Promise<Cart> {
   }
 
   const cart = await loadRemoteCart();
+  if (!cart.items.length) return createLocalCart();
   const { error } = await supabase.from('carts').delete().eq('id', cart.id);
   if (error) throw new Error(`Unable to delete your cart: ${error.message}`);
   return createLocalCart();
