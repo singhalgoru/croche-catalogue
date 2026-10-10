@@ -141,7 +141,7 @@ export default function CartDrawer({
         className="ml-auto flex h-full w-full max-w-md flex-col bg-cream shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-mustard/30 bg-white p-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-mustard/30 bg-white px-4 py-2">
           <div>
             <h2 className="font-heading text-2xl font-bold text-cocoa">Your cart</h2>
           </div>
@@ -155,7 +155,7 @@ export default function CartDrawer({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {error && (
             <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
@@ -173,9 +173,6 @@ export default function CartDrawer({
             </div>
           ) : (
             <div className="space-y-3">
-              <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
-              {onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}`}
-                cart={cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} />}
               {checkoutCart?.items.map((item) => {
                 const isUnavailable = unavailableItemIds.has(item.id);
                 const isBelowMinimum = belowMinimumItemIds.has(item.id);
@@ -287,32 +284,51 @@ export default function CartDrawer({
                   </article>
                 );
               })}
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <button type="button" onClick={onClear} disabled={isBusy}
+                  className="min-h-11 shrink-0 font-semibold text-red-700 underline disabled:opacity-50">
+                  Clear cart
+                </button>
+                <span className="text-right text-cocoa/50">Cart saved for 30 days</span>
+              </div>
+              <details className="rounded-xl border border-mustard/30 bg-white px-3 text-sm text-cocoa">
+                <summary className="cursor-pointer py-3 font-semibold">Price breakdown</summary>
+                <div className="space-y-1 pb-3">
+                  <div className="flex items-center justify-between">
+                    <span>{hasUnpricedItems ? 'Priced items subtotal' : 'Items subtotal'}</span>
+                    <span>{formatINR(totals?.subtotal ?? 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-cocoa/75">
+                    <span>{totals && checkoutCart ? getShippingLabel(checkoutCart, totals) : 'Indicative shipping'}</span>
+                    <span>{totals?.shipping === 0 ? 'Free' : formatINR(totals?.shipping ?? 0)}</span>
+                  </div>
+                  {totals && totals.subtotal < FREE_SHIPPING_THRESHOLD && (
+                    <p className="text-xs text-cocoa/60">
+                      Add {formatINR(FREE_SHIPPING_THRESHOLD - totals.subtotal)} more in items for free shipping at {formatINR(FREE_SHIPPING_THRESHOLD)}.
+                    </p>
+                  )}
+                  <p className="text-xs text-cocoa/60">
+                    Shipping is indicative and the final delivery charge will be confirmed by Luvia.
+                    {hasUnpricedItems ? ' *Items with no listed price are not included in this estimate.' : ''}
+                  </p>
+                </div>
+              </details>
+              <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
+              {onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}`}
+                cart={cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} />}
             </div>
           )}
         </div>
 
         {cart && cart.items.length > 0 && (
-          <div className="border-t border-mustard/30 bg-white p-4">
-            <div className="flex items-center justify-between font-bold text-cocoa">
-              <span>{hasUnpricedItems ? 'Priced items subtotal' : 'Items subtotal'}</span>
-              <span>{formatINR(totals?.subtotal ?? 0)}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between text-sm text-cocoa/75">
-              <span>{totals && checkoutCart ? getShippingLabel(checkoutCart, totals) : 'Indicative shipping'}</span>
-              <span>{totals?.shipping === 0 ? 'Free' : formatINR(totals?.shipping ?? 0)}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between font-bold text-cocoa">
+          <div aria-label="Cart order actions" className="max-h-[40%] shrink-0 overflow-y-auto border-t border-mustard/30 bg-white px-4 py-3">
+            <div className="flex items-center justify-between gap-3 font-bold text-cocoa">
               <span>{hasUnpricedItems ? 'Estimated total*' : 'Estimated total'}</span>
               <span>{formatINR(total)}</span>
             </div>
-            {totals && totals.subtotal < FREE_SHIPPING_THRESHOLD && (
-              <p className="mt-1 text-right text-xs text-cocoa/60">
-                Add {formatINR(FREE_SHIPPING_THRESHOLD - totals.subtotal)} more in items for free shipping at {formatINR(FREE_SHIPPING_THRESHOLD)}.
-              </p>
-            )}
-            <p className="mt-3 text-center text-xs text-cocoa/60">
-              Shipping is indicative and the final delivery charge will be confirmed by Luvia.
-              {hasUnpricedItems ? ' *Items with no listed price are not included in this estimate.' : ''}
+            <p className="text-xs text-cocoa/60">
+              {totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'} · Final amount confirmed by Luvia
+              {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <a
@@ -328,7 +344,7 @@ export default function CartDrawer({
                 }}
                 aria-disabled={unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy}
                 aria-label="Send cart to Luvia on WhatsApp"
-                className={`flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold text-white ${
+                className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-white ${
                   unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy
                     ? 'cursor-not-allowed bg-gray-400'
                     : 'bg-[#25D366] hover:bg-[#1ebe5d]'
@@ -350,7 +366,7 @@ export default function CartDrawer({
                 }}
                 aria-disabled={unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy}
                 aria-label={`Email cart to Luvia at ${ORDERS_EMAIL}`}
-                className={`flex w-full items-center justify-center gap-2 rounded-full border-2 py-3 font-semibold ${
+                className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 py-2 text-sm font-semibold ${
                   unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0 || isBusy
                     ? 'cursor-not-allowed border-gray-300 text-gray-400'
                     : 'border-cocoa text-cocoa hover:bg-cocoa hover:text-white'
@@ -391,17 +407,6 @@ export default function CartDrawer({
                 )}
               </div>
             )}
-            <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-              <button
-                type="button"
-                onClick={onClear}
-                disabled={isBusy}
-                className="shrink-0 font-semibold text-red-700 underline disabled:opacity-50"
-              >
-                Clear cart
-              </button>
-              <span className="text-right text-cocoa/50">Cart saved for 30 days</span>
-            </div>
             {checkoutCart && import.meta.env.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT === 'true' && (
               <RazorpayCheckout key={checkoutCart.id} cart={checkoutCart}
                 disabled={isBusy || hasUnpricedItems || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0} />

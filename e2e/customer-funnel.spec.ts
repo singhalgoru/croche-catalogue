@@ -1,6 +1,35 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('cart prioritizes products and keeps order actions compact on short screens', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await installMockSupabase(page);
+  await page.goto('./');
+  await page.getByRole('article', { name: 'Product: Rose Charm' })
+    .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  const cart = page.getByRole('dialog', { name: 'Shopping cart' });
+  const item = cart.getByRole('article', { name: /View Rose Charm/ });
+  const actions = cart.locator('[aria-label="Cart order actions"]');
+  await expect(item).toBeInViewport({ ratio: 1 });
+  const itemBox = (await item.boundingBox())!;
+  const actionsBox = (await actions.boundingBox())!;
+  expect(actionsBox.height).toBeLessThanOrEqual(150);
+  expect(itemBox.y + itemBox.height).toBeLessThanOrEqual(actionsBox.y);
+  for (const name of ['Send cart to Luvia on WhatsApp', /Email cart to Luvia/]) {
+    const link = cart.getByRole('link', { name });
+    await expect(link).toBeInViewport({ ratio: 1 });
+    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+  await expect(cart.getByText('Items subtotal', { exact: true })).not.toBeVisible();
+  await cart.getByText('Price breakdown', { exact: true }).click();
+  await expect(cart.getByText('Items subtotal', { exact: true })).toBeVisible();
+  await expect(cart.getByText(/final delivery charge will be confirmed/)).toBeVisible();
+  await cart.getByText('Price breakdown', { exact: true }).click();
+  const pinBox = (await cart.getByLabel('Delivery pincode (optional)').boundingBox())!;
+  expect(pinBox.y).toBeGreaterThan(itemBox.y + itemBox.height);
+});
+
 test('guest address is saved, reviewed, shared and restored without showing payment', async ({ page }) => {
   const state = await installMockSupabase(page);
   await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {

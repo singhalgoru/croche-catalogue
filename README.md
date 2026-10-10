@@ -29,6 +29,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - WhatsApp enquiry links
 - Cart additions, quantity changes and removals return the server-validated cart from the refresh write, avoiding an extra sequential reload before updating the UI.
 - Successful cart additions paint their confirmed cart feedback before running third-party analytics, keeping tracking work off the mobile feedback path.
+- The cart shows products before pincode/address controls. A compact fixed footer keeps the estimated total and WhatsApp/email actions accessible; the expandable price breakdown and clear-cart action stay in the scrolling body.
 - Admin products show all-time pieces sold from saved sales linked by product ID, across variants, dates and channels. Creating, editing, deleting or importing sales refreshes the counts; unlinked manual sales are excluded and stock is unchanged.
 - Reddit variant links use dedicated static variant pages with matching preview images, titles and prices. Visitors open the selected variant in the interactive product view; existing query-based links remain supported. Reddit may retain cached previews on older posts.
 - Mobile store pages use equal-width collection links and aligned ordering-policy links; About ordering disclosures are grouped in a readable panel.
