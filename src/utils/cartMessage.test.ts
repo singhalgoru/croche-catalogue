@@ -121,10 +121,10 @@ describe('buildWhatsAppCartMessage', () => {
     expect(message).toContain('*Estimated total: please confirm*');
   });
 
-  it('carries the cart reference so the order can be matched later', () => {
-    expect(buildWhatsAppCartMessage(buildCart([buildItem()]))).toContain(
-      'Cart reference: LUV-1234',
-    );
+  it('does not expose internal cart identifiers in customer messages', () => {
+    const message = buildWhatsAppCartMessage(buildCart([buildItem()]));
+    expect(message).not.toContain('LUV-1234');
+    expect(message).not.toContain('Cart reference');
   });
 });
 

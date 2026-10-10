@@ -38,6 +38,12 @@ it('respects a configured WhatsApp number override', async () => {
   const { getGeneralWhatsAppLink } = await import('./whatsapp');
   expect(new URL(getGeneralWhatsAppLink()).pathname).toBe('/911234567890');
 });
+it('does not include a cart identifier in checkout support messages', async () => {
+  const { getCheckoutSupportWhatsAppLink } = await import('./whatsapp');
+  const text = new URL(getCheckoutSupportWhatsAppLink()).searchParams.get('text')!;
+  expect(text).toContain('help with online checkout');
+  expect(text).not.toMatch(/CRT-|Cart reference|cart id/i);
+});
 
 it('includes the selected variant even for a single-variant product and links to that variant', async () => {
   const { getProductWhatsAppLink } = await import('./whatsapp');

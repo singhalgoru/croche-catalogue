@@ -19,6 +19,9 @@ it.each(['customer','store'] as const)('sends %s confirmation with totals, addre
   expect(options.headers['Idempotency-Key']).toBe('order-confirmation-job-id');
   const body = JSON.parse(options.body);
   expect(body.to).toEqual([recipient]);
+  expect(body.subject).toContain('LUV-TEST');
+  expect(body.text).toContain('Order ID: LUV-TEST');
+  expect(body.text).not.toContain('Cart reference');
   expect(body.text).toContain('Total paid: INR 550.00');
   expect(body.text).toContain('12 Test Street, Delhi, Delhi, 110001');
   expect(body.html).toContain('&lt;Crochet&gt;');

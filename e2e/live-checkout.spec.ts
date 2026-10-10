@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-test('reviews address and pays online before showing a verified order confirmation', async ({ page }) => {
+for (const replace of [false, true]) {
+test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart change' : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
   const state = await installMockSupabase(page);
   await page.route('**/rest/v1/checkout_settings*', route => route.fulfill({ json: { id: true, live_enabled: true } }));
   await page.route('**/rest/v1/rpc/save_cart_delivery_details', async route => {
@@ -11,11 +12,17 @@ test('reviews address and pays online before showing a verified order confirmati
     Object.assign(cart, { cart_delivery_details: { details: body.delivery, welcome_coupons: null } });
     await route.fulfill({ json: body.delivery });
   });
-  await page.route('**/rest/v1/rpc/get_live_checkout_status', route => route.fulfill({ json: null }));
-  await page.route('**/functions/v1/create-live-order', route => route.fulfill({ json: {
-    order_id: 'order_livefixture', amount: 44900, currency: 'INR', key_id: 'rzp_live_fixture',
+  const requests: { requestKey: string; previousRequestKey?: string }[] = [];
+  await page.route('**/rest/v1/rpc/get_live_checkout_status', route => route.fulfill({
+    json: replace && requests.length ? { status: 'link_created', reference: 'LUV-LIVEFIXTURE' } : null,
+  }));
+  await page.route('**/functions/v1/create-live-order', route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ json: {
+    order_id: 'order_livefixture', amount: requests.length > 1 ? 69800 : 44900, currency: 'INR', key_id: 'rzp_live_fixture',
     test_mode: false, reference: 'LUV-LIVEFIXTURE',
-  } }));
+  } });
+  });
   await page.route('**/functions/v1/verify-live-payment', route => route.fulfill({ json: {
     success: true, test_mode: false, payment_id: 'pay_livefixture', reference: 'LUV-LIVEFIXTURE',
   } }));
@@ -23,7 +30,11 @@ test('reviews address and pays online before showing a verified order confirmati
     contentType: 'application/javascript', body: `window.Razorpay = class {
       constructor(options) { this.options = options; }
       on() {}
-      open() { this.options.handler({ razorpay_order_id: 'order_livefixture', razorpay_payment_id: 'pay_livefixture', razorpay_signature: 'fixture' }); }
+      open() {
+        window.checkoutOpens = (window.checkoutOpens || 0) + 1;
+        if (${replace} && window.checkoutOpens === 1) { this.options.modal.ondismiss(); return; }
+        this.options.handler({ razorpay_order_id: 'order_livefixture', razorpay_payment_id: 'pay_livefixture', razorpay_signature: 'fixture' });
+      }
     };`,
   }));
   await page.goto('./');
@@ -47,6 +58,17 @@ test('reviews address and pays online before showing a verified order confirmati
   await expect(page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Need help? Contact Luvia on WhatsApp' })).toBeVisible();
   await pay.click();
+  if (replace) {
+    await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Payment window closed');
+    await page.getByRole('button', { name: /Increase quantity of Rose Charm/ }).click();
+    await expect(page.getByRole('button', { name: /Increase quantity of Rose Charm/ })).toBeEnabled();
+    await expect(page.getByLabel('Cart order actions').getByText('₹698', { exact: true })).toBeVisible();
+    await pay.click();
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[1].previousRequestKey).toBe(requests[0].requestKey);
+    expect(requests[1].requestKey).not.toBe(requests[0].requestKey);
+  }
   await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Order confirmed — LUV-LIVEFIXTURE');
   await expect(pay).toHaveCount(0);
 });
+}

@@ -404,7 +404,7 @@ export default function CartDrawer({
                 Email
               </a>
             </div>}
-            {liveCheckout && checkoutCart && <a href={getCheckoutSupportWhatsAppLink(checkoutCart)} target="_blank" rel="noopener noreferrer"
+            {liveCheckout && checkoutCart && <a href={getCheckoutSupportWhatsAppLink()} target="_blank" rel="noopener noreferrer"
               className="mt-2 block text-center text-xs underline">Need help? Contact Luvia on WhatsApp</a>}
             {!liveCheckout && hasTriedEmail && unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 && (
               <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 px-3 py-2 text-xs text-cocoa">

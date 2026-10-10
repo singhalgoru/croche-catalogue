@@ -91,7 +91,7 @@ export async function fetchLiveCheckoutStatus(requestId: string): Promise<{ stat
   return data;
 }
 export async function createCheckoutOrder(body: {
-  cartId: string; requestKey: string; customerName: string; customerPhone: string;
+  cartId: string; requestKey: string; customerName: string; customerPhone: string; previousRequestKey?: string;
 }, live = false): Promise<CheckoutOrder> {
   const data = await invoke(live ? 'create-live-order' : 'create-order', body);
   if (!data || typeof data !== 'object' || !('order_id' in data) || typeof data.order_id !== 'string'
@@ -125,7 +125,7 @@ export async function verifyCheckoutPayment(payment: PaymentResponse, live = fal
 }
 
 export interface CheckoutRecovery {
-  request: { fingerprint: string; key: string } | null;
+  request: { fingerprint: string; key: string; previousRequestKey?: string } | null;
   pending: PaymentResponse | null;
   verified: boolean;
 }
@@ -143,6 +143,10 @@ export function readCheckoutRecovery(cartId: string, live = false): CheckoutReco
     if (!request || typeof request !== 'object' || !('fingerprint' in request) || typeof request.fingerprint !== 'string'
       || !('key' in request) || typeof request.key !== 'string') throw new Error('Invalid checkout request record.');
     parsedRequest = { fingerprint: request.fingerprint, key: request.key };
+    if ('previousRequestKey' in request) {
+      if (typeof request.previousRequestKey !== 'string') throw new Error('Invalid previous checkout request record.');
+      parsedRequest.previousRequestKey = request.previousRequestKey;
+    }
   }
   if (pending !== null) {
     if (!pending || typeof pending !== 'object' || !('razorpay_order_id' in pending) || typeof pending.razorpay_order_id !== 'string'

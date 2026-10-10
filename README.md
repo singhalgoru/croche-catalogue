@@ -175,12 +175,25 @@ idempotent settlement. Late captures or insufficient stock become
 before fulfilment. Ambiguous provider-creation failures stay held for review:
 do not clear their claim or create a new order until checking Razorpay.
 Unpaid/cancelled payment attempts do not consume coupons or deduct inventory.
+If cart details change after checkout starts, the backend can replace an earlier
+order only after Razorpay reports no attempts, no paid amount and no payments.
+The old local order is cancelled and its reservations released in the same
+transaction that prepares the replacement using current cart prices, address,
+coupon and shipping. Replacement retries retain their request key. Razorpay
+orders themselves cannot be revoked by this local cancellation: close older
+payment windows and use only the latest checkout. Any late capture for a
+superseded order goes to payment review, never automatic fulfilment. Orders with
+attempted payments or uncertain provider creation remain blocked for reconciliation.
 An unchanged cart is cleared on confirmed payment; concurrent cart edits are
 preserved. Refreshing or losing the browser callback does not lose settlement:
 the signed webhook records payment and the browser checks its owned order status.
 Admin → Orders includes an **Online orders** list with payment status, saved
 delivery address, contact details, products and totals, including review-required
 attempts. Only paid orders should be fulfilled.
+Customer communication uses the confirmed order's `LUV-...` order ID; internal
+cart UUIDs and cart references are not included in customer email, enquiry
+subjects/bodies or WhatsApp support messages. Cart identifiers remain internal
+for persistence, recovery and admin investigation.
 Confirmed live orders queue separate confirmation emails for the saved customer
 email and `orders@luviacreations.com`. Online checkout requires a contact email.
 The queue is transactionally created on settlement, including webhook recovery,

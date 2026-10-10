@@ -32,8 +32,29 @@ export async function handleLiveCheckout(request: Request, action: 'create' | 'v
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
     if (action === 'create') {
       if (!uuid(body.cartId) || !uuid(body.requestKey)) return json({ error: 'A cart and checkout request key are required.' }, 400);
-      const { data: order, error } = await admin.rpc('prepare_live_checkout', {
+      let previousProviderId: string | undefined;
+      if (body.previousRequestKey !== undefined) {
+        if (!uuid(body.previousRequestKey) || body.previousRequestKey === body.requestKey) return json({ error: 'Invalid previous checkout request.' }, 400);
+        const { data: previous, error: readError } = await admin.from('payment_orders')
+          .select('razorpay_order_id,status,razorpay_payment_id')
+          .eq('request_key', body.previousRequestKey).eq('cart_id', body.cartId)
+          .eq('customer_user_id', auth.user.id).eq('is_live_checkout', true).maybeSingle();
+        if (readError) throw new Error(`Unable to inspect previous checkout: ${readError.message}`);
+        if (!previous?.razorpay_order_id || !['link_created','cancelled'].includes(previous.status) || previous.razorpay_payment_id) {
+          return json({ error: 'Previous checkout needs verification. Contact Luvia; do not pay again.' }, 409);
+        }
+        const providerOrder = await sdk.orders.fetch(previous.razorpay_order_id);
+        const payments = await sdk.orders.fetchPayments(previous.razorpay_order_id);
+        if (providerOrder.id !== previous.razorpay_order_id || providerOrder.status !== 'created'
+          || Number(providerOrder.amount_paid) !== 0 || providerOrder.attempts !== 0
+          || payments.count !== 0 || !Array.isArray(payments.items) || payments.items.length !== 0) {
+          return json({ error: 'A payment was attempted on the earlier checkout. Verify it before another payment; contact Luvia.' }, 409);
+        }
+        previousProviderId = previous.razorpay_order_id;
+      }
+      const { data: order, error } = await admin.rpc(previousProviderId ? 'replace_unattempted_live_checkout' : 'prepare_live_checkout', {
         target_cart_id: body.cartId, owner_id: auth.user.id, request_id: body.requestKey,
+        ...(previousProviderId ? { previous_request_id: body.previousRequestKey, expected_provider_order_id: previousProviderId } : {}),
       });
       if (error) return json({ error: error.message }, 400);
       if (!order || !Number.isSafeInteger(order.total_paise) || order.total_paise < 100) throw new Error('Invalid prepared order amount.');
@@ -51,7 +72,7 @@ export async function handleLiveCheckout(request: Request, action: 'create' | 'v
           .select('id').maybeSingle();
         if (claimError) throw new Error(`Unable to claim checkout: ${claimError.message}`);
         if (!claimed) return json({ error: 'Checkout creation is already in progress. Wait before retrying.' }, 409);
-        const created = await sdk.orders.create({ amount: order.total_paise, currency: 'INR', receipt: order.id });
+        const created = await sdk.orders.create({ amount: order.total_paise, currency: 'INR', receipt: order.reference });
         if (!/^order_[A-Za-z0-9]+$/.test(created.id) || Number(created.amount) !== order.total_paise || created.currency !== 'INR') {
           throw new Error('Unexpected Razorpay order response.');
         }
@@ -90,6 +111,6 @@ export async function handleLiveCheckout(request: Request, action: 'create' | 'v
     console.error(`Live checkout ${action} failed:`, error instanceof Error ? error.message : 'Provider error');
     return json({ error: action === 'verify'
       ? 'Payment verification is unavailable. Retry verification; do not pay again.'
-      : 'Unable to create your payment order. Contact Luvia with the cart reference before trying another payment.' }, 503);
+      : 'Unable to create your payment order. Contact Luvia before trying another payment.' }, 503);
   }
 }

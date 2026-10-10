@@ -34,11 +34,11 @@ const decodeBody = (link: string) =>
   decodeURIComponent(link.split('&body=')[1] ?? '');
 
 describe('getCartEmailLink', () => {
-  it('addresses the orders inbox and includes the cart reference in the subject', () => {
+  it('addresses the orders inbox without exposing the cart reference in the subject', () => {
     const link = getCartEmailLink(buildCart([buildItem()]));
     expect(link.startsWith(`mailto:${ORDERS_EMAIL}?subject=`)).toBe(true);
     expect(decodeURIComponent(link.split('?subject=')[1].split('&body=')[0])).toBe(
-      'Order request — Luvia cart LUV-1234',
+      'Order request — Luvia',
     );
   });
 
@@ -87,7 +87,8 @@ describe('getCartEmailLink', () => {
     const body = decodeBody(getCartEmailLink(buildCart([buildItem()])));
     expect(body).toContain('DELIVERY DETAILS');
     expect(body).toContain('Pincode     :');
-    expect(body).toContain('Cart reference  : LUV-1234');
+    expect(body).not.toContain('LUV-1234');
+    expect(body).not.toContain('Cart reference');
   });
 
   it('stays within the mailto length clients truncate at for a typical cart', () => {
@@ -124,7 +125,7 @@ describe('getCartEmailLink', () => {
     const body = decodeBody(getCartEmailLink(buildCart(many)));
     // A client that cuts the body short should lose the blank form, not the order.
     expect(body.indexOf('ESTIMATED TOTAL')).toBeLessThan(body.indexOf('DELIVERY DETAILS'));
-    expect(body.indexOf('Cart reference  :')).toBeLessThan(body.indexOf('DELIVERY DETAILS'));
+    expect(body).not.toContain('Cart reference');
   });
 });
 
@@ -147,7 +148,8 @@ describe('getCartGmailLink', () => {
 describe('getCartEmailText', () => {
   it('pairs the subject with the order so it can be pasted anywhere', () => {
     const text = getCartEmailText(buildCart([buildItem()]));
-    expect(text).toContain('Order request — Luvia cart LUV-1234');
+    expect(text).toContain('Order request — Luvia');
+    expect(text).not.toContain('LUV-1234');
     expect(text).toContain('ORDER SUMMARY');
     expect(text).toContain('Cute Bunny');
   });

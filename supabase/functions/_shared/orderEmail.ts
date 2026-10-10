@@ -32,7 +32,7 @@ export async function sendOrderEmail(
   const text = [
     'Luvia Creations',
     job.audience === 'store' ? 'New paid order - ready for fulfilment' : `Thank you, ${order.customer_name}! Your order is confirmed.`,
-    `Order: ${order.reference}`, 'Payment received',
+    `Order ID: ${order.reference}`, 'Payment received',
     ...order.payment_order_items.map(item =>
       `${item.product_name}${item.variant_name ? ` (${item.variant_name})` : ''} x ${item.quantity}: ${money(item.line_total_paise)}`),
     `Items subtotal: ${money(order.subtotal_paise)}`, `Coupon discount: ${money(order.discount_paise)}`,

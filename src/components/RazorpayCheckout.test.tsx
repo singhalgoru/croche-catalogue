@@ -90,16 +90,33 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   expect(verify).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
-it('does not replace a pending checkout after cart details change', async () => {
+it('does not replace a checkout under review after cart details change', async () => {
   sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
     request: { fingerprint: 'old-cart', key: 'saved-request' }, pending: null, verified: false,
   }));
-  status.mockResolvedValue({ status: 'link_created', reference: 'LUV-PENDING' });
+  status.mockResolvedValue({ status: 'review_required', reference: 'LUV-PENDING' });
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
   fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Contact Luvia before another payment'));
   expect(createOrder).not.toHaveBeenCalled();
   expect(JSON.parse(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)!).request.key).toBe('saved-request');
+});
+it('requests a server-checked replacement with the updated cart and retains its key on failure', async () => {
+  sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
+    request: { fingerprint: 'old-cart', key: 'saved-request' }, pending: null, verified: false,
+  }));
+  status.mockResolvedValue({ status: 'link_created', reference: 'LUV-PENDING' });
+  createOrder.mockRejectedValueOnce(new Error('Provider unavailable.'));
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Provider unavailable'));
+  const first = createOrder.mock.calls[0][0];
+  expect(first.previousRequestKey).toBe('saved-request');
+  expect(first.requestKey).not.toBe('saved-request');
+  expect(JSON.parse(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)!).request.previousRequestKey).toBe('saved-request');
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  expect(createOrder.mock.calls[1][0]).toEqual(first);
 });
 it('verifies all response fields and never reports a real purchase', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);

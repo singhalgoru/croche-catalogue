@@ -34,7 +34,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
   const [verified, setVerified] = useState(recovery.verified);
   const locked = useRef(false);
   const paid = useRef(Boolean(recovery.pending || recovery.verified));
-  const request = useRef<{ fingerprint: string; key: string } | null>(recovery.request);
+  const request = useRef<{ fingerprint: string; key: string; previousRequestKey?: string } | null>(recovery.request);
   const [statusRequest, setStatusRequest] = useState(recovery.request?.key ?? null);
   useEffect(() => {
     if (!live || !statusRequest || verified) return;
@@ -88,7 +88,14 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
         cart.deliveryPinCode, cart.deliveryEstimate, cart.deliveryDetails, cart.welcomeCouponCode, name.trim(), phone]);
       if (live && request.current && request.current.fingerprint !== fingerprint) {
         const existing = await fetchLiveCheckoutStatus(request.current.key);
-        if (existing) throw new Error(`Cart details changed after checkout ${existing.reference} started. Contact Luvia before another payment.`);
+        if (existing && !['link_created','cancelled'].includes(existing.status)) {
+          throw new Error(`Checkout ${existing.reference} needs verification. Contact Luvia before another payment.`);
+        }
+        if (existing) {
+          request.current = { fingerprint, key: crypto.randomUUID(), previousRequestKey: request.current.key };
+        } else if (request.current.previousRequestKey) {
+          request.current = { ...request.current, fingerprint };
+        }
       }
       if (request.current?.fingerprint !== fingerprint) {
         request.current = { fingerprint, key: crypto.randomUUID() };
@@ -96,9 +103,14 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
       saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: false }, live);
       const body = {
         cartId: cart.id, requestKey: request.current.key, customerName: name.trim(), customerPhone: phone,
+        ...(request.current.previousRequestKey ? { previousRequestKey: request.current.previousRequestKey } : {}),
       };
       const order = live ? await createCheckoutOrder(body, true) : await createCheckoutOrder(body);
       if (live) setStatusRequest(request.current.key);
+      if (live && request.current.previousRequestKey) {
+        delete request.current.previousRequestKey;
+        saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: false }, true);
+      }
       setMessage(live ? `Pay ${formatINR(order.amount / 100)} securely with Razorpay.`
         : `Test checkout: ${formatINR(order.amount / 100)}. No real money will be charged.`);
       const checkout = new Constructor({
@@ -130,7 +142,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
   };
   return (
     <section className="mt-3 rounded-xl border border-cocoa/20 p-3" aria-label={live ? 'Secure online checkout' : 'Razorpay test checkout'}>
-      <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification.'
+      <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
         : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>
       {!verified && !pending && !recovery.error && (
         <form onSubmit={event => { event.preventDefault(); void start(); }} className="mt-2 grid gap-2">

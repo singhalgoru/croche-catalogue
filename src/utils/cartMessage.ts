@@ -112,14 +112,13 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
       ...(cart.deliveryDetails.email ? [`Email: ${cart.deliveryDetails.email}`] : []),
       `Delivery address (shopper-provided): ${deliveryAddressText(cart.deliveryDetails)}`,
     ] : []),
-    `Cart reference: ${cart.reference}`,
   ].join('\n');
 };
 
 const DIVIDER = '------------------------------';
 
-export const buildEmailCartSubject = (cart: Cart) =>
-  `Order request — Luvia cart ${cart.reference}`;
+export const buildEmailCartSubject = () =>
+  'Order request — Luvia';
 
 const detailedItemLines = (item: CartItem, index: number) => {
   const line = lineTotal(item);
@@ -190,7 +189,6 @@ export const buildEmailCartBody = (
     hasCompletePricing
       ? `ESTIMATED TOTAL : ${formatINR(total)}${shipping === 0 ? '' : ' (shipping indicative)'}`
       : `ESTIMATED TOTAL : please confirm (some items are ${PRICE_ON_ENQUIRY.toLowerCase()})`,
-    `Cart reference  : ${cart.reference}`,
     ...(campaignReference ? [`Ref             : ${campaignReference}`] : []),
     DIVIDER,
     '',

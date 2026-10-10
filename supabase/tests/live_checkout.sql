@@ -25,6 +25,34 @@ update public.product_variants set price=500,available_quantity=1,in_stock=true 
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 set local role service_role;
 do $$
+declare f record; previous public.payment_orders; replacement public.payment_orders; key uuid:=gen_random_uuid(); rejected boolean:=false; result jsonb;
+begin
+  select * into f from live_fixture;
+  update public.checkout_settings set live_enabled=true;
+  update public.product_variants set available_quantity=3 where id=f.variant_id;
+  previous:=public.prepare_live_checkout(f.other_cart_id,f.other_id,gen_random_uuid());
+  update public.payment_orders set status='link_created',razorpay_order_id='order_replacefixture' where id=previous.id;
+  update public.cart_items set quantity=2 where cart_id=f.other_cart_id;
+  begin
+    perform public.replace_unattempted_live_checkout(f.other_cart_id,f.owner_id,previous.request_key,key,'order_replacefixture');
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: another user replaced checkout.'; end if;
+  replacement:=public.replace_unattempted_live_checkout(f.other_cart_id,f.other_id,previous.request_key,key,'order_replacefixture');
+  if replacement.total_paise<>100000 then raise exception 'FAIL: replacement did not reprice updated cart.'; end if;
+  if (select status from public.payment_orders where id=previous.id)<>'cancelled' then raise exception 'FAIL: old reservation not released.'; end if;
+  if (public.replace_unattempted_live_checkout(f.other_cart_id,f.other_id,previous.request_key,key,'order_replacefixture')).id<>replacement.id then
+    raise exception 'FAIL: replacement retry duplicated order.';
+  end if;
+  result:=public.settle_live_checkout(previous.id,'pay_replacelate',50000,'INR');
+  if result->>'status'<>'review_required' then raise exception 'FAIL: superseded payment was fulfilled.'; end if;
+  if exists(select 1 from public.order_confirmation_emails where order_id=previous.id) then raise exception 'FAIL: superseded payment sent confirmation.'; end if;
+  if (select available_quantity from public.product_variants where id=f.variant_id)<>3 then raise exception 'FAIL: replacement changed stock before payment.'; end if;
+  delete from public.payment_orders where id in (previous.id,replacement.id);
+  update public.cart_items set quantity=1 where cart_id=f.other_cart_id;
+  update public.product_variants set available_quantity=1 where id=f.variant_id;
+end;
+$$;
+do $$
 declare f record; rejected boolean:=false; coupon public.welcome_coupons; o public.payment_orders; settled jsonb;
 begin
   select * into f from live_fixture;
