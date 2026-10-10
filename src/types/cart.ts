@@ -25,9 +25,18 @@ export interface DeliveryEstimate {
   checkedAt: string;
 }
 
+export interface CartCoupon {
+  code: string;
+  percent: number;
+  maxDiscountRupees: number;
+  minimumSubtotalRupees: number;
+}
+
 export interface Cart {
   deliveryDetails?: DeliveryDetails | null;
   welcomeCouponCode?: string | null;
+  /** Terms of the coupon selected for this cart; the same rule is enforced at payment. */
+  coupon?: CartCoupon | null;
   deliveryPinCode?: string | null;
   deliveryPinLocation?: { districts: string[]; states: string[]; country: 'India' } | null;
   deliveryPinCheckedAt?: string | null;

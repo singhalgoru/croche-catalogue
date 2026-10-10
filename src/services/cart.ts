@@ -2,7 +2,7 @@ import { isSupabaseConfigured, loadSupabase } from '../lib/supabaseConfig';
 import type { Product, ProductVariant } from '../types/product';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
-import type { AdminCart, Cart, CartItem, CartSessionBlock } from '../types/cart';
+import type { AdminCart, Cart, CartCoupon, CartItem, CartSessionBlock } from '../types/cart';
 import type { DeliveryDetails } from '../types/customer';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
 import { requestCartCaptcha } from './cartCaptcha';
@@ -47,14 +47,15 @@ interface CartRow {
   whatsapp_started_at: string | null;
   cart_items?: CartItemRow[];
 }
+interface CouponRow { code: string; percent?: number; max_discount_rupees?: number; minimum_subtotal_rupees?: number }
 interface DeliveryDetailsRow {
   details: DeliveryDetails;
-  welcome_coupons?: { code: string } | { code: string }[] | null;
-  campaign_coupons?: { code: string } | { code: string }[] | null;
+  welcome_coupons?: CouponRow | CouponRow[] | null;
+  campaign_coupons?: CouponRow | CouponRow[] | null;
 }
 
 const CART_COLUMNS =
-  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, delivery_pin_location, delivery_pin_checked_at, delivery_estimate, cart_delivery_details(details,welcome_coupons(code),campaign_coupons(code)), cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
+  'id, user_id, reference, status, created_at, updated_at, expires_at, whatsapp_started_at, delivery_pin_code, delivery_pin_location, delivery_pin_checked_at, delivery_estimate, cart_delivery_details(details,welcome_coupons(code,percent,max_discount_rupees,minimum_subtotal_rupees),campaign_coupons(code,percent,max_discount_rupees,minimum_subtotal_rupees)), cart_items(id, product_id, variant_id, product_name, product_public_slug, variant_name, image_url, unit_price, quantity, created_at)';
 const LOCAL_CART_KEY = 'luvia-cart';
 const CART_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -80,6 +81,11 @@ export const sortCartItemsByCreatedAt = (items: CartItemRow[]) =>
     return rightCreatedAt - leftCreatedAt;
   });
 
+const mapCoupon = (row?: CouponRow | null): CartCoupon | null =>
+  row && typeof row.percent === 'number' && typeof row.max_discount_rupees === 'number' && typeof row.minimum_subtotal_rupees === 'number'
+    ? { code: row.code, percent: row.percent, maxDiscountRupees: row.max_discount_rupees, minimumSubtotalRupees: row.minimum_subtotal_rupees }
+    : null;
+
 const mapCart = (row: CartRow): Cart => {
   const delivery = Array.isArray(row.cart_delivery_details) ? row.cart_delivery_details[0] : row.cart_delivery_details;
   const coupon = Array.isArray(delivery?.welcome_coupons) ? delivery.welcome_coupons[0] : delivery?.welcome_coupons;
@@ -87,6 +93,7 @@ const mapCart = (row: CartRow): Cart => {
   return {
   deliveryDetails: delivery?.details ?? null,
   welcomeCouponCode: coupon?.code ?? campaign?.code ?? null,
+  coupon: mapCoupon(coupon ?? campaign),
   deliveryPinCode: row.delivery_pin_code ?? null,
   deliveryPinLocation: row.delivery_pin_location ?? null,
   deliveryPinCheckedAt: row.delivery_pin_checked_at ?? null,

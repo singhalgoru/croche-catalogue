@@ -30,7 +30,7 @@ describe('getCartTotals', () => {
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: 400, quantity: 1 })]),
     );
     expect(totals).toEqual({
-      subtotal: 1400, shipping: 0, total: 1400, hasCompletePricing: true, shippingSource: 'free',
+      subtotal: 1400, discount: 0, couponShortfall: 0, shipping: 0, total: 1400, hasCompletePricing: true, shippingSource: 'free',
     });
   });
 
@@ -39,7 +39,7 @@ describe('getCartTotals', () => {
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: null, quantity: 3 })]),
     );
     expect(totals).toEqual({
-      subtotal: 1000, shipping: 0, total: 1000, hasCompletePricing: false, shippingSource: 'free',
+      subtotal: 1000, discount: 0, couponShortfall: 0, shipping: 0, total: 1000, hasCompletePricing: false, shippingSource: 'free',
     });
   });
 
@@ -125,5 +125,23 @@ describe('buildWhatsAppCartMessage', () => {
     expect(buildWhatsAppCartMessage(buildCart([buildItem()]))).toContain(
       'Cart reference: LUV-1234',
     );
+  });
+});
+
+describe('coupon discount', () => {
+  const coupon = { code: 'ILOVELUVIA', percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500 };
+  it('applies the capped percentage once the minimum is met', () => {
+    const cart = { ...buildCart([buildItem({ unitPrice: 800, quantity: 2 })]), welcomeCouponCode: 'ILOVELUVIA', coupon };
+    const totals = getCartTotals(cart);
+    expect(totals).toMatchObject({ subtotal: 1600, discount: 100, total: 1500 });
+    expect(buildWhatsAppCartMessage(cart)).toContain('Coupon ILOVELUVIA: -₹100');
+    expect(buildEmailCartBody(cart)).toContain('Coupon ILOVELUVIA: -₹100');
+  });
+  it('uses the percentage below the cap and skips carts under the minimum', () => {
+    const small = { ...buildCart([buildItem({ unitPrice: 300, quantity: 2 })]), coupon };
+    expect(getCartTotals(small)).toMatchObject({ discount: 60, couponShortfall: 0 });
+    const tiny = { ...buildCart([buildItem({ unitPrice: 200, quantity: 1 })]), welcomeCouponCode: 'ILOVELUVIA', coupon };
+    expect(getCartTotals(tiny)).toMatchObject({ discount: 0, couponShortfall: 300 });
+    expect(buildWhatsAppCartMessage(tiny)).toContain('not applied');
   });
 });

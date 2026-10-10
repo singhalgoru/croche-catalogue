@@ -16,12 +16,22 @@ const lineTotal = (item: CartItem) =>
 
 export interface CartTotals {
   subtotal: number;
+  /** Coupon discount on items, 0 when no coupon applies or the minimum isn't met. */
+  discount: number;
+  /** Amount still needed to reach the selected coupon's minimum, 0 when met or no coupon. */
+  couponShortfall: number;
   shipping: number;
   /** Where the shipping figure came from: free threshold, a Shiprocket estimate for the saved pincode, or the flat fallback. */
   shippingSource: 'free' | 'estimate' | 'flat';
   total: number;
   hasCompletePricing: boolean;
 }
+
+export const getCouponDiscount = (cart: Cart, subtotal: number) => {
+  const coupon = cart.coupon;
+  if (!coupon || subtotal < coupon.minimumSubtotalRupees) return 0;
+  return Math.min(Math.floor((subtotal * coupon.percent) / 100), coupon.maxDiscountRupees);
+};
 
 export const getCartTotals = (cart: Cart): CartTotals => {
   const priced = cart.items.filter((item) => item.unitPrice !== null);
@@ -33,14 +43,22 @@ export const getCartTotals = (cart: Cart): CartTotals => {
   const shipping = shippingSource === 'free'
     ? 0
     : shippingSource === 'estimate' && estimate ? getEstimatedShippingCharge(estimate) : INDICATIVE_SHIPPING_CHARGE;
+  const discount = getCouponDiscount(cart, subtotal);
   return {
     subtotal,
+    discount,
+    couponShortfall: cart.coupon ? Math.max(0, cart.coupon.minimumSubtotalRupees - subtotal) : 0,
     shipping,
     shippingSource,
-    total: subtotal + shipping,
+    total: subtotal - discount + shipping,
     hasCompletePricing: priced.length === cart.items.length,
   };
 };
+
+const couponLine = (cart: Cart, totals: CartTotals) => !cart.welcomeCouponCode ? null
+  : totals.discount > 0 ? `Coupon ${cart.welcomeCouponCode}: -${formatINR(totals.discount)}`
+    : cart.coupon ? `Coupon ${cart.welcomeCouponCode}: not applied (minimum items subtotal ${formatINR(cart.coupon.minimumSubtotalRupees)})`
+      : `Requested coupon: ${cart.welcomeCouponCode} (please confirm eligibility and discount)`;
 
 export const getShippingLabel = (cart: Cart, totals: CartTotals) =>
   totals.shippingSource === 'free'
@@ -76,6 +94,7 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
     '',
     ...items,
     `*Items subtotal: ${formatINR(subtotal)}*`,
+    ...(couponLine(cart, totals) ? [`*${couponLine(cart, totals)}*`] : []),
     shipping === 0
       ? `*Shipping: Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)*`
       : `*${getShippingLabel(cart, totals)}: ${formatINR(shipping)}*`,
@@ -93,7 +112,6 @@ export const buildWhatsAppCartMessage = (cart: Cart) => {
       ...(cart.deliveryDetails.email ? [`Email: ${cart.deliveryDetails.email}`] : []),
       `Delivery address (shopper-provided): ${deliveryAddressText(cart.deliveryDetails)}`,
     ] : []),
-    ...(cart.welcomeCouponCode ? [`Requested coupon: ${cart.welcomeCouponCode} (please confirm eligibility and discount)`] : []),
     `Cart reference: ${cart.reference}`,
   ].join('\n');
 };
@@ -163,6 +181,7 @@ export const buildEmailCartBody = (
     ...(style === 'compact' ? [''] : []),
     DIVIDER,
     `ITEMS SUBTOTAL : ${formatINR(subtotal)}`,
+    ...(couponLine(cart, totals) ? [couponLine(cart, totals) as string] : []),
     shipping === 0
       ? `SHIPPING       : Free (orders ${formatINR(FREE_SHIPPING_THRESHOLD)}+)`
       : totals.shippingSource === 'estimate'
@@ -182,7 +201,6 @@ export const buildEmailCartBody = (
     ...(cart.deliveryDetails?.email ? [`Email       : ${cart.deliveryDetails.email}`] : []),
     `Address     :${cart.deliveryDetails ? ` ${deliveryAddressText(cart.deliveryDetails)}` : ''}`,
     `Pincode     :${cart.deliveryPinCode ? ` ${cart.deliveryPinCode} (shopper-provided)` : ''}`,
-    ...(cart.welcomeCouponCode ? [`Requested coupon: ${cart.welcomeCouponCode} (please confirm eligibility and discount)`] : []),
     '',
     'Please confirm availability and the final total so we can proceed.',
   ].join('\n');

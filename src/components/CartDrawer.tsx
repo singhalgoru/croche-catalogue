@@ -296,7 +296,16 @@ export default function CartDrawer({
                     <span>{hasUnpricedItems ? 'Priced items subtotal' : 'Items subtotal'}</span>
                     <span>{formatINR(totals?.subtotal ?? 0)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-cocoa/75">
+                  {checkoutCart?.coupon && totals && (totals.discount > 0 ? (
+                    <div className="flex items-center justify-between text-green-800">
+                      <span>Coupon {checkoutCart.coupon.code} ({checkoutCart.coupon.percent}% off)</span>
+                      <span>-{formatINR(totals.discount)}</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-cocoa/60">
+                      Add {formatINR(totals.couponShortfall)} more in items to use coupon {checkoutCart.coupon.code}.
+                    </p>
+                  ))}                  <div className="flex items-center justify-between text-cocoa/75">
                     <span>{totals && checkoutCart ? getShippingLabel(checkoutCart, totals) : 'Indicative shipping'}</span>
                     <span>{totals?.shipping === 0 ? 'Free' : formatINR(totals?.shipping ?? 0)}</span>
                   </div>
@@ -325,7 +334,7 @@ export default function CartDrawer({
               <span>{formatINR(total)}</span>
             </div>
             <p className="text-xs text-cocoa/60">
-              {totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'} · Final amount confirmed by Luvia
+              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'} · Final amount confirmed by Luvia
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
