@@ -98,7 +98,8 @@ begin
   return query
   with due as (
     select w.user_id from public.customer_welcome_emails w
-    where w.sent_at is null and w.next_attempt_at<=now()
+    where w.sent_at is null and w.next_attempt_at<=now() and w.attempts<8
+      and exists(select 1 from public.welcome_offer o where o.id and o.enabled)
     order by w.next_attempt_at for update skip locked limit 5
   )
   update public.customer_welcome_emails w
@@ -113,7 +114,9 @@ returns void language plpgsql security definer set search_path = ''
 as $$
 declare worker_secret text;
 begin
-  if not exists(select 1 from public.customer_welcome_emails where sent_at is null and next_attempt_at<=now()) then return; end if;
+  -- Jobs wait (rather than fail) while the admin-controlled welcome offer is disabled.
+  if not exists(select 1 from public.customer_welcome_emails where sent_at is null and next_attempt_at<=now() and attempts<8)
+    or not exists(select 1 from public.welcome_offer where id and enabled) then return; end if;
   select decrypted_secret into worker_secret from vault.decrypted_secrets where name='customer_welcome_worker_secret';
   if worker_secret is null then
     raise log 'Customer welcome email worker secret is not configured; emails remain queued.';

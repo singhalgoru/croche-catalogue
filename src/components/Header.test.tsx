@@ -5,6 +5,31 @@ import Header from './Header';
 afterEach(cleanup);
 
 describe('Header', () => {
+  it('offers sign in and create account from the header and navigation menu when enabled', () => {
+    const onOpenAccount = vi.fn();
+    render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in or create account' }));
+    expect(onOpenAccount).toHaveBeenLastCalledWith('signin');
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(onOpenAccount).toHaveBeenLastCalledWith('signup');
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+  });
+  it('shows the signed-in customer name and an account entry instead of sign-in buttons', () => {
+    const onOpenAccount = vi.fn();
+    render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} accountName="Asha" />);
+    const account = screen.getByRole('button', { name: 'My account, signed in as Asha' });
+    expect(account.textContent).toContain('Hi, Asha');
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByText('Asha')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'My account' }));
+    expect(onOpenAccount).toHaveBeenCalledWith('signin');
+  });
+  it('keeps account controls opt-in', () => {
+    render(<Header showInstallPrompt={false} />);
+    expect(screen.queryByRole('button', { name: 'Sign in or create account' })).toBeNull();
+  });
   it('hands the mobile cart to the catalogue toolbar instead of floating over categories', () => {
     const { rerender } = render(<Header mobileCartInToolbar cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
     const button = screen.getByRole('button', { name: 'Open cart with 1 item' });

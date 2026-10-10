@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchCampaignCoupons, generateCampaignCoupon, setCampaignCouponEnabled } from '../../services/customer';
+import { deleteCampaignCoupon, fetchCampaignCoupons, generateCampaignCoupon, setCampaignCouponEnabled } from '../../services/customer';
 import type { CampaignCoupon } from '../../types/customer';
 
 const localDateTime = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -66,7 +66,7 @@ export default function CouponGenerator() {
           <p>{coupon.percent}% off, max ₹{coupon.max_discount_rupees}, minimum ₹{coupon.minimum_subtotal_rupees}.</p>
           <p>{coupon.first_order_only ? 'First order only' : 'Any customer'} · {coupon.max_redemptions} total use{coupon.max_redemptions === 1 ? '' : 's'}</p>
           <p>Expires {new Date(coupon.expires_at).toLocaleString()} · {new Date(coupon.expires_at).getTime() <= now ? 'Expired' : coupon.enabled ? 'Enabled' : 'Disabled'}</p>
-          <div className="mt-2 flex gap-4">
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
             <button type="button" disabled={busy} className="underline" onClick={() => { void run(async () => {
               await navigator.clipboard.writeText(coupon.code); setMessage('Coupon code copied.');
             }); }}>Copy code</button>
@@ -75,10 +75,19 @@ export default function CouponGenerator() {
               setCoupons(current => current.map(item => item.id === coupon.id ? { ...item, enabled: !item.enabled } : item));
               setMessage(coupon.enabled ? 'Coupon disabled for new orders.' : 'Coupon enabled; its original expiry still applies.');
             }); }}>{coupon.enabled ? 'Disable coupon' : 'Enable coupon'}</button>
+            <button type="button" disabled={busy} className="text-red-700 underline"
+              aria-label={`Delete coupon ${coupon.code}`} onClick={() => {
+                if (!window.confirm(`Delete coupon ${coupon.code}? Customers will no longer be able to use it.`)) return;
+                void run(async () => {
+                  await deleteCampaignCoupon(coupon.id);
+                  setCoupons(current => current.filter(item => item.id !== coupon.id));
+                  setMessage(`Coupon ${coupon.code} deleted.`);
+                });
+              }}>Delete coupon</button>
           </div>
         </li>)}
       </ul>
-      <p className="mt-2 text-xs text-cocoa/60">Latest 50 coupons. Already-issued payment links keep their agreed discount; disabling a code prevents new uses.</p>
+      <p className="mt-2 text-xs text-cocoa/60">Latest 50 coupons. Already-issued payment links keep their agreed discount; disabling a code prevents new uses. Only coupons never used on an order can be deleted.</p>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-test('admin generates a first-order coupon with exact expiry and can disable it', async ({ page }) => {
+test('admin generates a first-order coupon with exact expiry, disables it and deletes it', async ({ page }) => {
   await installMockSupabase(page);
   await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
     id: true, enabled: false, percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500, valid_days: 30,
@@ -42,4 +42,15 @@ test('admin generates a first-order coupon with exact expiry and can disable it'
   await page.getByRole('button', { name: 'Disable coupon', exact: true }).click();
   await expect(page.getByText('Coupon disabled for new orders.', { exact: true })).toBeVisible();
   expect(coupons[0].enabled).toBe(false);
+
+  await page.route('**/rest/v1/rpc/delete_campaign_coupon', async route => {
+    expect(route.request().postDataJSON()).toEqual({ coupon_id: 'campaign' });
+    coupons = coupons.filter(item => item.id !== 'campaign');
+    await route.fulfill({ status: 204 });
+  });
+  page.once('dialog', dialog => { expect(dialog.message()).toContain('Delete coupon LUVIA-0123456789ABCDEF'); void dialog.accept(); });
+  await page.getByRole('button', { name: 'Delete coupon LUVIA-0123456789ABCDEF' }).click();
+  await expect(page.getByText('Coupon LUVIA-0123456789ABCDEF deleted.', { exact: true })).toBeVisible();
+  await expect(page.getByText('LUVIA-0123456789ABCDEF', { exact: true })).toHaveCount(0);
+  expect(coupons).toHaveLength(0);
 });

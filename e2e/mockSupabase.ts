@@ -301,6 +301,14 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
   let currentUser = adminUser;
   let customerUser: typeof adminUser | null = null;
   let pendingCustomerEmail = '';
+  let pendingCustomerPassword = '';
+  let customerPassword = '';
+  let pendingSignupDetails: Record<string, unknown> | null = null;
+  let customerProfile: Record<string, unknown> | null = null;
+  const sessionFor = (user: typeof adminUser, refreshToken: string) => ({
+    access_token: createAccessToken(user), token_type: 'bearer', expires_in: 3600,
+    expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: refreshToken, user,
+  });
 
   await page.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, (route) => route.abort());
   await page.route('https://connect.facebook.net/**', (route) => route.abort());
@@ -311,6 +319,19 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
     const { pathname } = url;
 
     if (pathname === '/auth/v1/token') {
+      if (url.searchParams.get('grant_type') === 'password') {
+        const body = getRequestBody<{ email: string; password: string }>(route);
+        if (body.email !== adminUser.email) {
+          if (!customerUser || body.email !== customerUser.email || !customerPassword || body.password !== customerPassword) {
+            await json(route, { error: 'invalid_grant', error_description: 'Invalid login credentials',
+              code: 'invalid_credentials', msg: 'Invalid login credentials' }, 400);
+            return;
+          }
+          currentUser = customerUser;
+          await json(route, sessionFor(customerUser, 'customer-refresh-token'));
+          return;
+        }
+      }
       currentUser = adminUser;
       const session = {
         access_token: createAccessToken(adminUser),
@@ -340,7 +361,13 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
 
     if (pathname === '/auth/v1/user') {
       if (request.method() === 'PUT') {
-        pendingCustomerEmail = getRequestBody<{ email: string }>(route).email;
+        const body = getRequestBody<{ email?: string; password?: string }>(route);
+        if (body.email) {
+          pendingCustomerEmail = body.email;
+          pendingCustomerPassword = body.password ?? '';
+        } else if (body.password && customerUser && currentUser.id === customerUser.id) {
+          customerPassword = body.password;
+        }
       }
       await json(route, currentUser);
       return;
@@ -364,6 +391,9 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       if (body.type === 'email_change') {
         customerUser = { ...currentUser, email: body.email, is_anonymous: false,
           email_confirmed_at: new Date().toISOString(), confirmed_at: new Date().toISOString() };
+        customerPassword = pendingCustomerPassword;
+        customerProfile = pendingSignupDetails;
+        pendingSignupDetails = null;
       }
       if (!customerUser) { await json(route, { msg: 'Customer not found.' }, 400); return; }
       currentUser = customerUser;
@@ -374,6 +404,27 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
 
     if (pathname === '/auth/v1/logout') {
       await route.fulfill({ status: 204 });
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/stage_customer_signup') {
+      if (currentUser.is_anonymous !== true) {
+        await json(route, { message: 'Only guest sessions can start signup.' }, 400);
+        return;
+      }
+      pendingSignupDetails = getRequestBody<{ signup_details: Record<string, unknown> }>(route).signup_details;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+
+    if (pathname === '/rest/v1/customer_profiles' && request.method() === 'GET') {
+      const profile = customerUser && currentUser.id === customerUser.id && customerProfile
+        ? { details: customerProfile } : null;
+      const wantsObject = (request.headers().accept ?? '').includes('vnd.pgrst.object');
+      if (wantsObject) {
+        if (profile) await json(route, profile);
+        else await json(route, { code: 'PGRST116', message: 'No rows' }, 406);
+      } else await json(route, profile ? [profile] : []);
       return;
     }
 

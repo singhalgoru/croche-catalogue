@@ -20,6 +20,8 @@ interface Props {
   collectionPages?: boolean;
   mobileCartInToolbar?: boolean;
   hideMobileCart?: boolean;
+  onOpenAccount?: (mode: 'signin' | 'signup') => void;
+  accountName?: string | null;
 }
 
 export default function Header({
@@ -37,6 +39,8 @@ export default function Header({
   collectionPages = false,
   mobileCartInToolbar = false,
   hideMobileCart = false,
+  onOpenAccount,
+  accountName,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = useId();
@@ -111,6 +115,26 @@ export default function Header({
               {isMenuOpen ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
             </svg>
           </button>
+          {onOpenAccount && (
+            <button
+              type="button"
+              aria-label={accountName ? `My account, signed in as ${accountName}` : 'Sign in or create account'}
+              title={accountName ? `Signed in as ${accountName}` : 'Sign in or create account'}
+              onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
+              className={`absolute top-3 flex h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-white text-cocoa shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${
+                accountName ? 'sm:max-w-56 sm:px-4' : ''} ${onOpenCart ? 'right-36 sm:right-[10.5rem]' : 'right-20 sm:right-24'
+              }`}
+            >
+              {accountName ? <>
+                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cocoa font-bold uppercase text-white sm:h-7 sm:w-7 sm:text-sm">
+                  {accountName.charAt(0)}
+                </span>
+                <span aria-hidden="true" className="hidden truncate font-semibold sm:inline">Hi, {accountName}</span>
+              </> : <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+              </svg>}
+            </button>
+          )}
           {isMenuOpen && (
             <nav
               id={menuId}
@@ -124,6 +148,16 @@ export default function Header({
               className="absolute right-4 top-16 max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:right-6"
             >
               <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
+              {onOpenAccount && (accountName ? <div className="px-1 py-2">
+                <p className="truncate px-2 text-sm text-cocoa/70">Signed in as <span className="font-semibold text-cocoa">{accountName}</span></p>
+                <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
+                  className="mt-2 min-h-11 w-full rounded-full border border-cocoa px-3 font-semibold hover:bg-cream">My account</button>
+              </div> : <div className="grid grid-cols-2 gap-2 px-1 py-2">
+                <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
+                  className="min-h-11 rounded-full border border-cocoa px-3 font-semibold hover:bg-cream">Sign in</button>
+                <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signup'); }}
+                  className="min-h-11 rounded-full bg-cocoa px-3 font-semibold text-white">Create account</button>
+              </div>)}
               {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
               {categories.map((category) => (
                 <a key={category} href={collectionPages ? collectionPath(category) : `${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
@@ -162,11 +196,11 @@ export default function Header({
       <div
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
-            ? `flex-row gap-3 py-3 ${alignLogoLeft ? 'justify-start pr-36 text-left' : 'justify-center'}`
+            ? `flex-row gap-3 py-3 ${alignLogoLeft ? `justify-start ${accountName ? 'pr-52 sm:pr-96' : onOpenAccount ? 'pr-52' : 'pr-36'} text-left` : 'justify-center'}`
             : 'flex-col gap-3 py-3 sm:py-8'
         }`}
       >
-        <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-32 text-left sm:contents'}>
+        <div className={compact ? 'contents' : `flex w-full items-center gap-3 ${onOpenAccount ? 'pr-52' : 'pr-32'} text-left sm:contents`}>
           <a
             href={import.meta.env.BASE_URL}
             onClick={event => navigateCatalogue(event)}

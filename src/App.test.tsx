@@ -28,6 +28,7 @@ vi.mock('./hooks/useTickerMessages', () => ({ useTickerMessages: () => ['Shippin
 vi.mock('./hooks/useCart', () => ({
   useCart: () => ({ itemCount: 0, cartUpdateCount: 0, cart: null, isBusy: false, addItem }),
 }));
+vi.mock('./hooks/useCustomerName', () => ({ useCustomerName: () => null }));
 vi.mock('./services/analytics', () => ({
   trackEvent: vi.fn(), trackProductSelected: vi.fn(), trackProductViewed: vi.fn(),
   trackWhatsAppEnquiry: vi.fn(), trackContactClick: vi.fn(),

@@ -27,9 +27,17 @@ export async function fetchCustomerProfile(): Promise<DeliveryDetails | null> {
   if (error) throw new Error(`Unable to load your saved details: ${error.message}`);
   return data?.details ?? null;
 }
-export async function registerCustomerEmail(details: DeliveryDetails) {
+export const PASSWORD_MIN_LENGTH = 8;
+export function validateCustomerPassword(password: string, confirmation = password) {
+  if (password.length < PASSWORD_MIN_LENGTH) return `Use a password of at least ${PASSWORD_MIN_LENGTH} characters.`;
+  if (password.length > 72) return 'Use a password of at most 72 characters.';
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return 'Use at least one letter and one number in your password.';
+  if (password !== confirmation) return 'Passwords do not match.';
+  return null;
+}
+export async function registerCustomerEmail(details: DeliveryDetails, password: string) {
   const cleaned = normalizeDeliveryDetails(details);
-  const validation = validateDeliveryDetails(cleaned);
+  const validation = validateDeliveryDetails(cleaned) ?? validateCustomerPassword(password);
   if (validation || !cleaned.email) throw new Error(validation ?? 'Enter your account email.');
   const supabase = await client();
   const { data: session, error: sessionError } = await supabase.auth.getSession();
@@ -50,7 +58,9 @@ export async function registerCustomerEmail(details: DeliveryDetails) {
   }
   const { error: saveError } = await supabase.rpc('stage_customer_signup', { signup_details: cleaned });
   if (saveError) throw new Error(`Unable to prepare your customer details: ${saveError.message}`);
-  const { error } = await supabase.auth.updateUser({ email: cleaned.email },
+  // Supabase accepts a password for an anonymous user only together with the email it is upgrading to;
+  // the password works for sign-in once that email is verified.
+  const { error } = await supabase.auth.updateUser({ email: cleaned.email, password },
     { emailRedirectTo: `${window.location.origin}/` });
   if (error) throw new Error(`Unable to send your signup email: ${error.message}`);
 }
@@ -64,8 +74,8 @@ export async function signOutCustomer() {
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(`Unable to sign out: ${error.message}`);
 }
-export async function sendCustomerSignIn(email: string) {
-  const supabase = await client();
+type SupabaseClient = NonNullable<Awaited<ReturnType<typeof loadSupabase>>>;
+async function assertNoActiveCartItems(supabase: SupabaseClient) {
   const { data, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw new Error(sessionError.message);
   if (data.session) {
@@ -76,6 +86,34 @@ export async function sendCustomerSignIn(email: string) {
       throw new Error('Your current cart has items. Send its order request or clear it before signing into a different account.');
     }
   }
+}
+export async function signInCustomerWithPassword(email: string, password: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || !password) throw new Error('Enter your email and password.');
+  const supabase = await client();
+  await assertNoActiveCartItems(supabase);
+  const captchaToken = await requestCartCaptcha();
+  const { error } = await supabase.auth.signInWithPassword({ email: normalized, password,
+    ...(captchaToken ? { options: { captchaToken } } : {}) });
+  if (error) {
+    const text = error.message.toLowerCase();
+    if (text.includes('invalid login credentials')) {
+      throw new Error('Email or password is incorrect. If you have not set a password yet, use Email me a sign-in link.');
+    }
+    if (text.includes('email not confirmed')) throw new Error('Activate your account from the email we sent before signing in.');
+    throw new Error(`Unable to sign in: ${error.message}`);
+  }
+}
+export async function setCustomerPassword(password: string, confirmation: string) {
+  const validation = validateCustomerPassword(password, confirmation);
+  if (validation) throw new Error(validation);
+  const supabase = await client();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new Error(`Unable to save your password: ${error.message}`);
+}
+export async function sendCustomerSignIn(email: string) {
+  const supabase = await client();
+  await assertNoActiveCartItems(supabase);
   const captchaToken = await requestCartCaptcha();
   const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(),
     options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/`, ...(captchaToken ? { captchaToken } : {}) } });
@@ -143,4 +181,9 @@ export async function setCampaignCouponEnabled(id: string, enabled: boolean) {
   const supabase = await client();
   const { data, error } = await supabase.from('campaign_coupons').update({ enabled }).eq('id', id).select('id').single();
   if (error || !data) throw new Error(`Unable to update coupon: ${error?.message ?? 'No coupon updated.'}`);
+}
+export async function deleteCampaignCoupon(id: string) {
+  const supabase = await client();
+  const { error } = await supabase.rpc('delete_campaign_coupon', { coupon_id: id });
+  if (error) throw new Error(`Unable to delete coupon: ${error.message}`);
 }

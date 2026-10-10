@@ -16,7 +16,7 @@ const addressFields = [
   ['city', 'City', 80, true], ['state', 'State', 80, true], ['pincode', 'Pincode', 6, true],
 ] as const;
 export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) {
-  const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>('cart');
+  const [step, setStep] = useState<'cart' | 'account' | 'contact' | 'address' | 'review'>('cart');
   const [details, setDetails] = useState<DeliveryDetails>(() => cart.deliveryDetails ?? { ...emptyDeliveryDetails(), pincode: cart.deliveryPinCode ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -33,10 +33,22 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
   const set = (key: keyof DeliveryDetails, value: string) => setDetails(current => ({ ...current, [key]: value }));
   const reviewed = cart.deliveryDetails ?? details;
   if (step === 'cart') return (
-    <button type="button" disabled={busy} onClick={() => setStep(cart.deliveryDetails ? 'review' : 'contact')}
+    <button type="button" disabled={busy} onClick={() => setStep(cart.deliveryDetails ? 'review' : 'account')}
       className="w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white disabled:opacity-50">
       {cart.deliveryDetails ? 'Review delivery details' : 'Continue with delivery details'}
     </button>
+  );
+  if (step === 'account') return (
+    <section className="space-y-3 rounded-2xl border border-mustard/40 bg-white p-4 text-sm text-cocoa" aria-label="Checkout account">
+      <h3 className="font-heading text-lg font-bold">Sign in, create an account, or continue as a guest</h3>
+      <CustomerAccount canSignUp
+        onGuest={() => setStep('contact')}
+        onContinue={profile => {
+          if (profile) setDetails(current => ({ ...profile, pincode: cart.deliveryPinCode ?? profile.pincode, email: profile.email || current.email }));
+          setStep('contact');
+        }} />
+      <button type="button" disabled={busy} onClick={() => setStep('cart')} className="underline">Back to cart</button>
+    </section>
   );
   return (
     <section className="space-y-3 rounded-2xl border border-mustard/40 bg-white p-4 text-sm text-cocoa" aria-label="Order details">
@@ -86,7 +98,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
           <p className="text-xs">Delivery country: India. These details are saved with your cart for up to 30 days and visible to Luvia for order fulfilment.</p>
         </>}
         <div className="flex gap-3">
-          <button type="button" disabled={busy || saving} onClick={() => setStep(step === 'contact' ? 'cart' : 'contact')} className="underline">Back</button>
+          <button type="button" disabled={busy || saving} onClick={() => setStep(step === 'contact' ? 'account' : 'contact')} className="underline">Back</button>
           <button disabled={busy || saving} className="rounded-full bg-cocoa px-4 py-2 text-white">
             {saving ? 'Saving…' : step === 'contact' ? 'Continue to address' : 'Save and review'}
           </button>

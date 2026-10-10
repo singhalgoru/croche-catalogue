@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadSupabase } from '../lib/supabaseConfig';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerSignIn,
-  fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer, fetchCustomerProfile } from '../services/customer';
+  fetchWelcomeOffer, emailWelcomeCoupon, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
+  setCustomerPassword, validateCustomerPassword } from '../services/customer';
 import type { DeliveryDetails, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { emptyDeliveryDetails, deliveryAddressText } from '../utils/customer';
 
@@ -9,9 +10,12 @@ interface Props {
   initialEmail?: string;
   initialDetails?: DeliveryDetails;
   canSignUp: boolean;
+  initialMode?: 'signup' | 'signin';
   onCoupon?: (code: string) => Promise<unknown>;
+  onGuest?: () => void;
+  onContinue?: (profile: DeliveryDetails | null) => void;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, onCoupon }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onCoupon, onGuest, onContinue }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
@@ -20,7 +24,12 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
   const [offer, setOffer] = useState<WelcomeOffer | null>(null);
   const [coupon, setCoupon] = useState<WelcomeCoupon | null>(null);
   const [sent, setSent] = useState(false);
-  const [mode, setMode] = useState<'signup' | 'signin'>(canSignUp ? 'signup' : 'signin');
+  const [mode, setMode] = useState<'signup' | 'signin'>(canSignUp ? initialMode ?? 'signup' : 'signin');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -63,6 +72,30 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           <p>Mobile: {profile.phone}</p>
           <p className="break-words">Saved address: {deliveryAddressText(profile)}</p>
         </div>}
+        {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
+          onClick={() => onContinue(profile)}>Continue to delivery details</button>}
+        {showPasswordForm ? <form className="mt-2 space-y-2" aria-label="Set account password" onSubmit={event => {
+          event.preventDefault();
+          void run(async () => {
+            await setCustomerPassword(newPassword, confirmNewPassword);
+            setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false);
+            setMessage('Password saved. Next time, sign in with your email and this password.');
+          });
+        }}>
+          <label className="block">New password
+            <input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={newPassword} disabled={busy}
+              onChange={event => setNewPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
+          </label>
+          <label className="block">Confirm new password
+            <input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={confirmNewPassword} disabled={busy}
+              onChange={event => setConfirmNewPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
+          </label>
+          <div className="flex gap-3">
+            <button disabled={busy} className="rounded-full border border-cocoa px-3 py-2">Save password</button>
+            <button type="button" disabled={busy} className="underline" onClick={() => setShowPasswordForm(false)}>Cancel</button>
+          </div>
+        </form> : <button type="button" disabled={busy} className="mt-2 mr-4 underline"
+          onClick={() => { setShowPasswordForm(true); setError(''); setMessage(''); }}>Set or change password</button>}
         <button type="button" disabled={busy} className="mt-2 underline" onClick={() => { void run(async () => {
           await signOutCustomer(); setAccount(null); setProfile(null); setCoupon(null); setSent(false);
           setMessage('Signed out. Your account cart remains saved.');
@@ -84,17 +117,23 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
             onClick={() => { setMode('signin'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Sign in</button>
         </div> : <h4 className="mt-3 font-semibold">Sign in to your saved cart</h4>}
         <p className="mt-1 text-xs text-cocoa/70">
-          {mode === 'signin' ? 'Enter your registered email and select Send sign-in link. Open the emailed link in this browser to sign in.'
-            : 'Tell us a little about yourself. We will email an activation link; your customer profile is saved only after you verify your email.'}
+          {mode === 'signin' ? 'Sign in with your email and password, or get a one-time sign-in link by email.'
+            : 'Tell us a little about yourself and choose a password. We will email an activation link; your profile is saved and your password works only after you verify your email.'}
         </p>
-        <form className="mt-2 space-y-2" onSubmit={event => {
+        <form className="mt-2 space-y-2" aria-label={mode === 'signup' ? 'Customer signup' : 'Customer sign in'} onSubmit={event => {
           event.preventDefault();
           void run(async () => {
-            if (mode === 'signup') { await registerCustomerEmail({ ...details, email }); setSent(true); }
-            else await sendCustomerSignIn(email);
-            setMessage(mode === 'signin'
-              ? 'Sign-in link requested. Check your inbox or spam and open it in this browser to restore your saved cart.'
-              : 'Signup verification requested. Check your inbox or spam for the verification link.');
+            if (mode === 'signup') {
+              const validation = validateCustomerPassword(password, confirmPassword);
+              if (validation) throw new Error(validation);
+              await registerCustomerEmail({ ...details, email }, password);
+              setSent(true); setPassword(''); setConfirmPassword('');
+              setMessage('Signup verification requested. Check your inbox or spam for the activation link.');
+            } else {
+              await signInCustomerWithPassword(email, password);
+              setPassword('');
+              setMessage('Signed in. Your saved cart and details are restored.');
+            }
           });
         }}>
           {mode === 'signup' && <>
@@ -121,10 +160,35 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
             <input ref={emailInput} type="email" required maxLength={254} autoComplete="email" value={email} disabled={busy || sent}
               onChange={event => setEmail(event.target.value)} className="mt-1 w-full rounded border p-2" />
           </label>
+          <label className="block">Password
+            <input type="password" required minLength={mode === 'signup' ? 8 : undefined} maxLength={72}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} disabled={busy || sent}
+              onChange={event => setPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
+          </label>
+          {mode === 'signup' && <>
+            <label className="block">Confirm password
+              <input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={confirmPassword} disabled={busy || sent}
+                onChange={event => setConfirmPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
+            </label>
+            <p className="text-xs text-cocoa/60">At least 8 characters with a letter and a number.</p>
+          </>}
           <button disabled={busy || sent} className="rounded-full border border-cocoa px-3 py-2">
-            {busy ? 'Please wait…' : mode === 'signup' ? 'Send signup email' : 'Send sign-in link'}
+            {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
           </button>
         </form>
+        {mode === 'signin' && <button type="button" disabled={busy} className="mt-2 underline" onClick={() => { void run(async () => {
+          await sendCustomerSignIn(email);
+          setMessage('Sign-in link requested. Check your inbox or spam and open it in this browser to restore your saved cart.');
+        }); }}>Forgot password? Email me a sign-in link</button>}
+        {onGuest && <div className="mt-3 rounded-xl border border-cocoa/15 bg-cream/60 p-3">
+          <p className="font-semibold">Prefer not to create an account?</p>
+          <p className="mt-1 text-xs">Continue as a guest and add your delivery address when you send your order request.
+            {offer?.enabled ? ` Guest orders do not receive the one-time welcome reward (${offer.percent}% off your first order, code ILOVELUVIA), which needs an activated account.`
+              : ' Guest orders do not receive account-only welcome rewards.'}</p>
+          <button type="button" disabled={busy} className="mt-2 rounded-full border border-cocoa px-3 py-2" onClick={onGuest}>
+            Continue as guest
+          </button>
+        </div>}
         {sent && <>
           <p className="mt-2 text-xs">Open the link in this browser, or enter the verification code if your email includes one.</p>
           <form className="mt-2 space-y-2" onSubmit={event => {

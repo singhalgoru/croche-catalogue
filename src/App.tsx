@@ -19,6 +19,7 @@ import CartDrawer from './components/CartDrawer';
 import CartCaptcha from './components/CartCaptcha';
 import BackToTopButton from './components/BackToTopButton';
 import { useCart } from './hooks/useCart';
+import { useCustomerName } from './hooks/useCustomerName';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { useTickerMessages } from './hooks/useTickerMessages';
 import { trackEvent, trackProductSelected } from './services/analytics';
@@ -43,12 +44,17 @@ import { getProductMetaDescription } from './utils/productMetaDescription';
 
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
+const AccountDialog = lazy(() => import('./components/AccountDialog'));
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts, hasCatalogueSnapshot, homepageMetadata } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [accountMode, setAccountMode] = useState<'signin' | 'signup' | null>(null);
+  const openAccount = useCallback((mode: 'signin' | 'signup') => { setIsCartOpen(false); setAccountMode(mode); }, []);
+  const closeAccount = useCallback(() => setAccountMode(null), []);
+  const customerName = useCustomerName();
   const [returnToCartOnProductClose, setReturnToCartOnProductClose] = useState(false);
   const cart = useCart(!isAdminPage);
   const tickerMessages = useTickerMessages(!isAdminPage);
@@ -489,6 +495,12 @@ function App() {
     />
   );
 
+  const accountDialog = accountMode && (
+    <Suspense fallback={null}>
+      <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} />
+    </Suspense>
+  );
+
   if (isStorePage()) {
     return <>
       {cartNotifications}
@@ -498,8 +510,9 @@ function App() {
         isCartBusy={cart.isBusy} getCartQuantity={productId => cart.cart?.items
           .filter(item => item.productId === productId).reduce((total, item) => total + item.quantity, 0) ?? 0}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
-        onOpenCart={() => setIsCartOpen(true)} />
+        onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} accountName={customerName} />
       {cartDrawer}
+      {accountDialog}
     </>;
   }
 
@@ -519,6 +532,8 @@ function App() {
         tickerMessages={tickerMessages}
         categories={categories}
         onNavigateCatalogue={navigateCatalogue}
+        onOpenAccount={openAccount}
+        accountName={customerName}
       />
       {pageReference ? (
         <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 py-4 sm:py-8">
@@ -723,6 +738,7 @@ function App() {
         </Suspense>
       )}
       {cartDrawer}
+      {accountDialog}
     </div>
   );
 }

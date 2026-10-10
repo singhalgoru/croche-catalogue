@@ -4,7 +4,12 @@ import CustomerFunnel from './CustomerFunnel';
 import type { Cart } from '../types/cart';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
 import { buildWhatsAppCartMessage, buildEmailCartBody } from '../utils/cartMessage';
-vi.mock('./CustomerAccount', () => ({ default: () => <p>Optional email signup</p> }));
+vi.mock('./CustomerAccount', () => ({ default: ({ onGuest, onContinue }: { onGuest?: () => void; onContinue?: (profile: unknown) => void }) => <div>
+  <p>Optional email signup</p>
+  {onGuest && <button type="button" onClick={onGuest}>Continue as guest</button>}
+  {onContinue && <button type="button" onClick={() => onContinue({ name: 'Saved Buyer', phone: '9123456780', email: 'saved@example.test',
+    addressLine1: '9 Saved Road', addressLine2: '', city: 'Pune', state: 'Maharashtra', pincode: '411001' })}>Continue to delivery details</button>}
+</div> }));
 const cart: Cart = { id: 'cart', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '',
   whatsappStartedAt: null, items: [] };
 const details = { name: 'Test Buyer', phone: '9876543210', email: 'buyer@example.test',
@@ -12,6 +17,7 @@ const details = { name: 'Test Buyer', phone: '9876543210', email: 'buyer@example
 afterEach(cleanup);
 async function enterAddress() {
   fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue as guest' }));
   fireEvent.change(screen.getByLabelText('Recipient name'), { target: { value: details.name } });
   fireEvent.change(screen.getByLabelText('Mobile number'), { target: { value: details.phone } });
   fireEvent.change(screen.getByLabelText('Contact email (optional)'), { target: { value: details.email } });
@@ -72,4 +78,18 @@ it('submits a typed coupon and surfaces server eligibility errors', async () => 
   fireEvent.click(screen.getByRole('button', { name: 'Apply coupon to request' }));
   await waitFor(() => expect(select).toHaveBeenCalledWith('ILOVELUVIA'));
   expect(screen.getByRole('alert').textContent).toContain('Verify your email');
+});
+
+it('offers sign in, signup or guest before delivery details and prefills a signed-in profile', () => {
+  render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: '411002' }} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
+  expect(screen.getByText('Sign in, create an account, or continue as a guest')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to delivery details' }));
+  expect(screen.getByDisplayValue('Saved Buyer')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to address' }));
+  expect(screen.getByDisplayValue('9 Saved Road')).toBeTruthy();
+  expect(screen.getByDisplayValue('411002')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(screen.getByText('Sign in, create an account, or continue as a guest')).toBeTruthy();
 });
