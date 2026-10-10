@@ -26,7 +26,7 @@ export default function AdminTestCheckout() {
       <h2 className="font-heading text-xl font-bold">Razorpay test payment</h2>
       <p className="mt-2 text-sm text-cocoa/70">
         Admin only. Add priced, available products to your own shop cart, then load it here.
-        Test payments do not place orders, redeem coupons or change stock. Customer checkout remains hidden.
+        Test payments do not place orders, redeem coupons or change stock. Customer online checkout is configured separately.
       </p>
       <a href="#" className="mt-2 inline-block min-h-11 py-2 text-sm underline">Open shop to add test items</a>
       <button type="button" disabled={busy} onClick={() => { void loadCart(); }}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchCustomerOrders } from '../services/customer';
 import type { CustomerOrder } from '../types/customer';
 import { formatINR } from '../utils/currency';
+import { deliveryAddressText } from '../utils/customer';
 
 const statusLabels: Record<CustomerOrder['status'], string> = {
   creating_link: 'Preparing payment',
@@ -13,7 +14,10 @@ const statusLabels: Record<CustomerOrder['status'], string> = {
   review_required: 'Payment under review',
 };
 
-export default function CustomerOrders() {
+export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin = false }: {
+  loadOrders?: (offset: number) => Promise<CustomerOrder[]>;
+  admin?: boolean;
+}) {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,7 +25,7 @@ export default function CustomerOrders() {
   const [page, setPage] = useState({ offset: 0, refresh: 0 });
   useEffect(() => {
     let current = true;
-    void fetchCustomerOrders(page.offset).then(values => {
+    void loadOrders(page.offset).then(values => {
       if (!current) return;
       setOrders(previous => page.offset ? [...previous, ...values] : values);
       setHasMore(values.length === 20);
@@ -29,15 +33,17 @@ export default function CustomerOrders() {
       if (current) setError(failure instanceof Error ? failure.message : 'Unable to load your orders.');
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [page]);
+  }, [page, loadOrders]);
   return (
-    <section aria-label="Your orders" className="mt-4 border-t border-cocoa/20 pt-4">
+    <section aria-label={admin ? 'Online orders' : 'Your orders'} className="mt-4 border-t border-cocoa/20 pt-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold">Your orders</h3>
+        <h3 className="font-semibold">{admin ? 'Online orders' : 'Your orders'}</h3>
         <button type="button" disabled={loading} className="min-h-11 underline disabled:opacity-50"
           onClick={() => { setLoading(true); setError(''); setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 })); }}>Refresh orders</button>
       </div>
-      <p className="mb-3 text-xs text-cocoa/70">Recorded orders and their payment status. WhatsApp/email enquiries are not confirmed orders. Dispatch and delivery updates are shared by Luvia separately.</p>
+      <p className="mb-3 text-xs text-cocoa/70">{admin
+        ? 'Live online orders, including awaiting-payment and review-required attempts. Fulfil only Payment received orders; reconcile any under-review payments in Razorpay before taking action.'
+        : 'Recorded orders and their payment status. WhatsApp/email enquiries are not confirmed orders. Dispatch and delivery updates are shared by Luvia separately.'}</p>
       {loading && <p role="status">Loading your orders...</p>}
       {error && <p role="alert" className="text-red-700">{error}</p>}
       {!loading && !error && orders.length === 0 && <p>No orders yet.</p>}
@@ -55,6 +61,10 @@ export default function CustomerOrders() {
               {order.paidAt && ` · Paid ${new Date(order.paidAt).toLocaleDateString('en-IN')}`}
             </p>
             <p className="mt-2">Recipient: {order.customerName}{order.deliveryPincode ? ` · Pincode: ${order.deliveryPincode}` : ''}</p>
+            {order.deliveryDetails && <div className="mt-1 break-words text-xs">
+              <p>{deliveryAddressText(order.deliveryDetails)}</p>
+              <p>+91{order.deliveryDetails.phone}{order.deliveryDetails.email ? ` · ${order.deliveryDetails.email}` : ''}</p>
+            </div>}
             <ul className="my-3 space-y-2">
               {order.items.map(item => <li key={item.id} className="flex justify-between gap-3">
                 <span>{item.productName}{item.variantName ? ` (${item.variantName})` : ''}<span className="block text-xs text-cocoa/70">Qty {item.quantity} × {formatINR(item.unitPrice)}</span></span>

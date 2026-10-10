@@ -47,6 +47,7 @@ export interface CustomerOrder {
   paidAt: string | null;
   customerName: string;
   deliveryPincode: string | null;
+  deliveryDetails?: DeliveryDetails | null;
   subtotal: number;
   discount: number;
   shipping: number;

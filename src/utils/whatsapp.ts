@@ -42,6 +42,9 @@ export const getProductWhatsAppLink = (product: Product, variant?: ProductVarian
 export const getCartWhatsAppLink = (cart: Cart) =>
   whatsappLink(buildWhatsAppCartMessage(cart));
 
+export const getCheckoutSupportWhatsAppLink = (cart: Cart) =>
+  whatsappLink(`Hi Luvia, I need help with online checkout for cart ${cart.reference}.`);
+
 export const getCustomisationWhatsAppLink = (product: Product, variant?: ProductVariant) => {
   const url = new URL(toProductPageUrl(product));
   if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));

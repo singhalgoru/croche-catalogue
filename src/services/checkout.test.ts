@@ -24,6 +24,18 @@ it('requires explicit verification success for the exact test payment', async ()
   invoke.mockResolvedValue({ data: { success: true, test_mode: true, payment_id: 'pay_other' }, error: null });
   await expect(verifyCheckoutPayment(payment)).rejects.toThrow('do not pay again');
 });
+it('routes live orders separately and rejects test credentials in live responses', async () => {
+  const live = { ...valid, key_id: 'rzp_live_fixture', test_mode: false, reference: 'LUV-LIVE' };
+  invoke.mockResolvedValue({ data: live, error: null });
+  expect(await createCheckoutOrder(body, true)).toEqual(live);
+  expect(invoke).toHaveBeenCalledWith('create-live-order', { body });
+  invoke.mockResolvedValue({ data: valid, error: null });
+  await expect(createCheckoutOrder(body, true)).rejects.toThrow();
+  const payment = { razorpay_order_id: 'order_live', razorpay_payment_id: 'pay_live', razorpay_signature: 'fixture' };
+  invoke.mockResolvedValue({ data: { success: true, test_mode: false, payment_id: 'pay_live', reference: 'LUV-LIVE' }, error: null });
+  expect(await verifyCheckoutPayment(payment, true)).toBe('LUV-LIVE');
+  expect(invoke).toHaveBeenCalledWith('verify-live-payment', { body: payment });
+});
 it('surfaces the backend error message', async () => {
   invoke.mockResolvedValue({ data: null, error: { message: 'Function failed',
     context: new Response(JSON.stringify({ error: 'Cart item unavailable.' })) } });

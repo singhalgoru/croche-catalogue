@@ -14,13 +14,14 @@ interface Props {
   busy: boolean;
   onSave: (value: DeliveryDetails) => Promise<Cart | null>;
   onCoupon: (code: string) => Promise<Cart | null>;
+  onlineCheckout?: boolean;
 }
 const addressFields = [
   ['addressLine1', 'House / building and street', 200, true],
   ['addressLine2', 'Area / landmark (optional)', 200, false],
   ['city', 'City', 80, true], ['state', 'State', 80, true], ['pincode', 'Pincode', 6, true],
 ] as const;
-export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) {
+export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineCheckout = false }: Props) {
   const totals = getCartTotals(cart);
   const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>(() => cart.deliveryDetails ? 'review' : 'cart');
   const [details, setDetails] = useState<DeliveryDetails>(() => cart.deliveryDetails ?? { ...emptyDeliveryDetails(), pincode: cart.deliveryPinCode ?? '' });
@@ -90,7 +91,8 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
       <h3 className="font-heading text-lg font-bold">
         {step === 'contact' ? '1. Contact details' : step === 'address' ? '2. Delivery address' : '3. Review order request'}
       </h3>
-      <p className="text-xs text-cocoa/65">Guest ordering available. Payment is not enabled; your order still needs confirmation.</p>
+      <p className="text-xs text-cocoa/65">{onlineCheckout ? 'Guest checkout available. Review your delivery details before paying securely.'
+        : 'Guest ordering available. Payment is not enabled; your order still needs confirmation.'}</p>
       {step !== 'review' && <form className="space-y-3" onSubmit={event => {
         event.preventDefault(); setError('');
         const normalized = normalizeDeliveryDetails(details);
@@ -167,7 +169,8 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon }: Props) 
             ? `Coupon ${cart.coupon.code} not applied: minimum items value not met.`
             : `Coupon ${cart.coupon.code} applied: ${cart.coupon.percent}% off (up to ${formatINR(cart.coupon.maxDiscountRupees)}) on items worth ${formatINR(cart.coupon.minimumSubtotalRupees)}+`
           : `Requested coupon: ${cart.welcomeCouponCode} (subject to confirmation)`}</p>}
-        <p className="text-xs">Review your cart items and estimated total, then send the order request using WhatsApp or email.</p>
+        <p className="text-xs">{onlineCheckout ? 'Review your items, coupon, shipping and total, then pay securely with Razorpay.'
+          : 'Review your cart items and estimated total, then send the order request using WhatsApp or email.'}</p>
         <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
         <form className="space-y-2" onSubmit={event => {
           event.preventDefault(); setSaving(true); setError('');

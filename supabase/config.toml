@@ -34,6 +34,12 @@ verify_jwt = true
 [functions.verify-payment]
 verify_jwt = true
 
+[functions.create-live-order]
+verify_jwt = true
+
+[functions.verify-live-payment]
+verify_jwt = true
+
 [functions.create-razorpay-payment-link]
 verify_jwt = true
 

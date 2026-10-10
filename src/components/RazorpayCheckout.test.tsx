@@ -3,12 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import RazorpayCheckout from './RazorpayCheckout';
 import type { Cart } from '../types/cart';
 import type { CheckoutOptions } from '../services/checkout';
-const { createOrder, verify, load } = vi.hoisted(() => ({
-  createOrder: vi.fn(), verify: vi.fn(), load: vi.fn(),
+const { createOrder, verify, load, status } = vi.hoisted(() => ({
+  createOrder: vi.fn(), verify: vi.fn(), load: vi.fn(), status: vi.fn(),
 }));
 vi.mock('../services/checkout', async importOriginal => ({
   ...await importOriginal<typeof import('../services/checkout')>(),
   createCheckoutOrder: createOrder, verifyCheckoutPayment: verify, loadRazorpay: load,
+  fetchLiveCheckoutStatus: status,
 }));
 const cart: Cart = {
   id: 'cart-fixture', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '', whatsappStartedAt: null,
@@ -19,6 +20,7 @@ let failed: (value: { error: { description: string } }) => void;
 let open: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.clearAllMocks();
+  status.mockResolvedValue(null);
   sessionStorage.clear();
   open = vi.fn();
   load.mockResolvedValue(class {
@@ -45,6 +47,24 @@ it('opens the modal with the server order and labels it as test-only', async () 
   expect(screen.getByRole('status').textContent).toContain('No real money');
   expect(screen.getByRole('button', { name: 'Test checkout in progress…' }).hasAttribute('disabled')).toBe(true);
 });
+it('uses saved delivery details and confirms a real order only after backend verification', async () => {
+  createOrder.mockResolvedValue({ order_id: 'order_live', amount: 55000, currency: 'INR',
+    key_id: 'rzp_live_fixture', test_mode: false, reference: 'LUV-LIVE' });
+  verify.mockResolvedValue('LUV-LIVE');
+  render(<RazorpayCheckout cart={{ ...cart, deliveryDetails: { name: 'Buyer', phone: '9876543210',
+    email: 'buyer@example.test', addressLine1: '12 Test Street', addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' } }}
+    disabled={false} live />);
+  expect(screen.queryByLabelText('Name')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Pay securely with Razorpay' }));
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  expect(options.description).toBe('Order LUV-LIVE');
+  expect(options.prefill).toEqual({ name: 'Buyer', contact: '+919876543210' });
+  const response = { razorpay_order_id: 'order_live', razorpay_payment_id: 'pay_live', razorpay_signature: 'fixture' };
+  options.handler(response);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-LIVE'));
+  expect(verify).toHaveBeenCalledWith(response, true);
+  expect(screen.queryByRole('button', { name: 'Pay securely with Razorpay' })).toBeNull();
+});
 it('shows cancellation and payment failure messages and reuses the same request on retry', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);
   await start();
@@ -57,6 +77,29 @@ it('shows cancellation and payment failure messages and reuses the same request 
   fireEvent.click(screen.getByRole('button', { name: 'Try Razorpay test checkout' }));
   await waitFor(() => expect(createOrder).toHaveBeenCalledTimes(2));
   expect(createOrder.mock.calls[0][0].requestKey).toBe(createOrder.mock.calls[1][0].requestKey);
+});
+it('recovers webhook confirmation after losing the browser payment callback', async () => {
+  sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
+    request: { fingerprint: 'saved-cart', key: 'saved-request' }, pending: null, verified: false,
+  }));
+  status.mockResolvedValue({ status: 'paid', reference: 'LUV-RECOVERED' });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-RECOVERED'));
+  expect(status).toHaveBeenCalledWith('saved-request');
+  expect(createOrder).not.toHaveBeenCalled();
+  expect(verify).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Pay securely with Razorpay' })).toBeNull();
+});
+it('does not replace a pending checkout after cart details change', async () => {
+  sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
+    request: { fingerprint: 'old-cart', key: 'saved-request' }, pending: null, verified: false,
+  }));
+  status.mockResolvedValue({ status: 'link_created', reference: 'LUV-PENDING' });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  fireEvent.click(screen.getByRole('button', { name: 'Pay securely with Razorpay' }));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Contact Luvia before another payment'));
+  expect(createOrder).not.toHaveBeenCalled();
+  expect(JSON.parse(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)!).request.key).toBe('saved-request');
 });
 it('verifies all response fields and never reports a real purchase', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);

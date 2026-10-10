@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Cart } from '../types/cart';
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductImageUrl } from '../utils/productImageUrl';
-import { getCartWhatsAppLink } from '../utils/whatsapp';
+import { getCartWhatsAppLink, getCheckoutSupportWhatsAppLink } from '../utils/whatsapp';
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
 import RazorpayCheckout from './RazorpayCheckout';
+import { fetchLiveCheckoutEnabled } from '../services/checkout';
 import CustomerFunnel from './CustomerFunnel';
 import type { DeliveryDetails } from '../types/customer';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
@@ -52,6 +53,14 @@ export default function CartDrawer({
   // Desktop browsers with no mail client registered silently ignore mailto:
   // links, so reveal webmail and copy fallbacks once Email has been tried.
   const [hasTriedEmail, setHasTriedEmail] = useState(false);
+  const [liveCheckout, setLiveCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+  useEffect(() => {
+    let current = true;
+    void fetchLiveCheckoutEnabled().then(value => { if (current) setLiveCheckout(value); })
+      .catch(failure => { if (current) setCheckoutError(failure instanceof Error ? failure.message : 'Unable to check online payments.'); });
+    return () => { current = false; };
+  }, []);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const checkoutCart = useMemo(
     () =>
@@ -315,14 +324,15 @@ export default function CartDrawer({
                     </p>
                   )}
                   <p className="text-xs text-cocoa/60">
-                    Shipping is indicative and the final delivery charge will be confirmed by Luvia.
+                    {liveCheckout ? 'Shipping shown here is included in the online payment total.'
+                      : 'Shipping is indicative and the final delivery charge will be confirmed by Luvia.'}
                     {hasUnpricedItems ? ' *Items with no listed price are not included in this estimate.' : ''}
                   </p>
                 </div>
               </details>
               <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
               {onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}`}
-                cart={cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} />}
+                cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} onlineCheckout={liveCheckout} />}
             </div>
           )}
         </div>
@@ -330,7 +340,7 @@ export default function CartDrawer({
         {cart && cart.items.length > 0 && (
           <div aria-label="Cart order actions" className="max-h-[40%] shrink-0 overflow-y-auto border-t border-mustard/30 bg-white px-4 py-3">
             <div className="flex items-center justify-between gap-3 font-bold text-cocoa">
-              <span>{hasUnpricedItems ? 'Estimated total*' : 'Estimated total'}</span>
+              <span>{hasUnpricedItems ? 'Estimated total*' : liveCheckout ? 'Total' : 'Estimated total'}</span>
               {totals?.discount ? (
                 <span className="flex items-baseline gap-2">
                   <s className="text-sm font-normal text-cocoa/50" aria-label={`Original price ${formatINR(total + totals.discount)}`}>
@@ -341,10 +351,14 @@ export default function CartDrawer({
               ) : <span>{formatINR(total)}</span>}
             </div>
             <p className="text-xs text-cocoa/60">
-              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : 'Includes estimated shipping'}
+              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : liveCheckout ? 'Includes shipping' : 'Includes estimated shipping'}
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            {checkoutError && <p role="alert" className="mt-2 text-xs text-red-700">{checkoutError}</p>}
+            {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live
+              disabled={isBusy || !checkoutCart.deliveryDetails || hasUnpricedItems || unavailableItemIds.size > 0
+                || belowMinimumItemIds.size > 0 || Boolean(totals?.couponShortfall)} />}
+            {!liveCheckout && <div className="mt-2 grid grid-cols-2 gap-2">
               <a
                 href={unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 ? whatsappLink : undefined}
                 target="_blank"
@@ -389,8 +403,10 @@ export default function CartDrawer({
                 <MailIcon />
                 Email
               </a>
-            </div>
-            {hasTriedEmail && unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 && (
+            </div>}
+            {liveCheckout && checkoutCart && <a href={getCheckoutSupportWhatsAppLink(checkoutCart)} target="_blank" rel="noopener noreferrer"
+              className="mt-2 block text-center text-xs underline">Need help? Contact Luvia on WhatsApp</a>}
+            {!liveCheckout && hasTriedEmail && unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 && (
               <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 px-3 py-2 text-xs text-cocoa">
                 <p className="font-semibold">Mail app didn&apos;t open?</p>
                 <p className="mt-0.5 text-cocoa/70">
@@ -421,7 +437,7 @@ export default function CartDrawer({
                 )}
               </div>
             )}
-            {checkoutCart && import.meta.env.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT === 'true' && (
+            {!liveCheckout && checkoutCart && import.meta.env.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT === 'true' && (
               <RazorpayCheckout key={checkoutCart.id} cart={checkoutCart}
                 disabled={isBusy || hasUnpricedItems || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0} />
             )}

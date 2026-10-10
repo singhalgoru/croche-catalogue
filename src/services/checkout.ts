@@ -10,7 +10,7 @@ export interface CheckoutOrder {
   amount: number;
   currency: 'INR';
   key_id: string;
-  test_mode: true;
+  test_mode: boolean;
   reference: string;
 }
 export interface CheckoutOptions {
@@ -74,30 +74,52 @@ async function invoke(name: string, body: Record<string, string>): Promise<unkno
   }
   return data;
 }
+export async function fetchLiveCheckoutEnabled(): Promise<boolean> {
+  const client = await loadSupabase();
+  if (!client) return false;
+  const { data, error } = await client.from('checkout_settings').select('live_enabled').eq('id', true).single();
+  if (error) throw new Error(`Unable to check online payment availability: ${error.message}`);
+  return data.live_enabled === true;
+}
+export async function fetchLiveCheckoutStatus(requestId: string): Promise<{ status: string; reference: string } | null> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Order status requires an online connection.');
+  const { data, error } = await client.rpc('get_live_checkout_status', { request_id: requestId });
+  if (error) throw new Error(`Unable to confirm your order: ${error.message}`);
+  if (data === null) return null;
+  if (!data || typeof data.status !== 'string' || typeof data.reference !== 'string') throw new Error('Invalid order status response.');
+  return data;
+}
 export async function createCheckoutOrder(body: {
   cartId: string; requestKey: string; customerName: string; customerPhone: string;
-}): Promise<CheckoutOrder> {
-  const data = await invoke('create-order', body);
+}, live = false): Promise<CheckoutOrder> {
+  const data = await invoke(live ? 'create-live-order' : 'create-order', body);
   if (!data || typeof data !== 'object' || !('order_id' in data) || typeof data.order_id !== 'string'
     || !/^order_[A-Za-z0-9]+$/.test(data.order_id)
     || !('amount' in data) || typeof data.amount !== 'number' || !Number.isSafeInteger(data.amount) || data.amount < 100
     || !('currency' in data) || data.currency !== 'INR'
-    || !('key_id' in data) || typeof data.key_id !== 'string' || !data.key_id.startsWith('rzp_test_')
-    || !('test_mode' in data) || data.test_mode !== true
+    || !('key_id' in data) || typeof data.key_id !== 'string' || !data.key_id.startsWith(live ? 'rzp_live_' : 'rzp_test_')
+    || !('test_mode' in data) || data.test_mode !== !live
     || !('reference' in data) || typeof data.reference !== 'string') {
-    throw new Error('The payment service returned an invalid test order.');
+    throw new Error(live ? 'The payment service returned an invalid live order.' : 'The payment service returned an invalid test order.');
   }
   return {
     order_id: data.order_id, amount: data.amount, currency: data.currency,
     key_id: data.key_id, test_mode: data.test_mode, reference: data.reference,
   };
 }
-export async function verifyCheckoutPayment(payment: PaymentResponse): Promise<string> {
-  const data = await invoke('verify-payment', { ...payment });
+export async function verifyCheckoutPayment(payment: PaymentResponse, live = false): Promise<string> {
+  const data = await invoke(live ? 'verify-live-payment' : 'verify-payment', { ...payment });
   if (!data || typeof data !== 'object' || !('success' in data) || data.success !== true
-    || !('test_mode' in data) || data.test_mode !== true
+    || !('test_mode' in data) || data.test_mode !== !live
     || !('payment_id' in data) || data.payment_id !== payment.razorpay_payment_id) {
     throw new Error('Payment could not be verified. Retry verification; do not pay again.');
+  }
+  if (live) {
+    if (!('reference' in data) || typeof data.reference !== 'string' || !data.reference) {
+      throw new Error('Order confirmation is missing. Contact Luvia; do not pay again.');
+    }
+    return data.reference;
   }
   return payment.razorpay_payment_id;
 }
@@ -107,8 +129,8 @@ export interface CheckoutRecovery {
   pending: PaymentResponse | null;
   verified: boolean;
 }
-export function readCheckoutRecovery(cartId: string): CheckoutRecovery {
-  const stored = sessionStorage.getItem(`luvia-checkout-${cartId}`);
+export function readCheckoutRecovery(cartId: string, live = false): CheckoutRecovery {
+  const stored = sessionStorage.getItem(`luvia-checkout-${live ? 'live-' : ''}${cartId}`);
   if (!stored) return { request: null, pending: null, verified: false };
   const value: unknown = JSON.parse(stored);
   if (!value || typeof value !== 'object' || !('verified' in value) || typeof value.verified !== 'boolean'
@@ -133,6 +155,6 @@ export function readCheckoutRecovery(cartId: string): CheckoutRecovery {
   }
   return { request: parsedRequest, pending: parsedPending, verified: value.verified };
 }
-export function saveCheckoutRecovery(cartId: string, value: CheckoutRecovery) {
-  sessionStorage.setItem(`luvia-checkout-${cartId}`, JSON.stringify(value));
+export function saveCheckoutRecovery(cartId: string, value: CheckoutRecovery, live = false) {
+  sessionStorage.setItem(`luvia-checkout-${live ? 'live-' : ''}${cartId}`, JSON.stringify(value));
 }

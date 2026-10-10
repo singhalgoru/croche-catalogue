@@ -7,6 +7,8 @@ import type { CategorySettings } from '../../types/product';
 import AdminLogin from './AdminLogin';
 import CategoryManager from './CategoryManager';
 import CartManager from './CartManager';
+import CustomerOrders from '../CustomerOrders';
+import { fetchAdminLiveOrders } from '../../services/customer';
 import CustomerSummary from './CustomerSummary';
 import ProductManager from './ProductManager';
 import ProductUploadForm from './ProductUploadForm';
@@ -230,7 +232,7 @@ export default function AdminPage({ onProductPublished }: Props) {
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
             <ProductManager categories={categories} refreshKey={productRefreshKey} salesRefreshKey={salesRefreshKey} onChanged={handleProductChanged} />
           </>,
-          Orders: <CartManager />,
+          Orders: <><CustomerOrders loadOrders={fetchAdminLiveOrders} admin /><CartManager /></>,
           Customers: <CustomerSummary />,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,

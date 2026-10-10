@@ -126,9 +126,9 @@ npm test -- checkout.test.ts RazorpayCheckout.test.tsx
 npx supabase db query --linked --file supabase\tests\razorpay_checkout.sql
 ```
 
-Before live checkout, complete Razorpay onboarding, implement confirmed shipping
-and delivery-address collection, stock reservations, webhook reconciliation,
-refunds and an admin fulfilment UI, then explicitly replace the test-only gate.
+Before enabling live checkout, complete Razorpay onboarding and the production
+configuration and validation below. Live checkout is gated separately from test
+checkout; refunds and dispatch/delivery tracking remain manual.
 The hosted-link foundation has its own `create-razorpay-payment-link` and
 `razorpay-payment-webhook` functions; its webhook uses the separate backend
 `RAZORPAY_WEBHOOK_SECRET` and the `payment_link.paid`, `payment_link.expired`
@@ -136,6 +136,53 @@ and `payment_link.cancelled` events. Do not enable hosted links without testing
 that complete admin-to-webhook flow.
 
 ## Customer order funnel and welcome email coupon
+
+### Live Razorpay checkout (disabled until configured)
+
+Live checkout follows **cart → delivery address → coupon/shipping review →
+Razorpay → backend verification → order confirmation**. Guests can pay with their
+owned cart session; ILOVELUVIA still requires a verified registered account.
+The backend uses current published product prices, stock, saved delivery details
+and coupon eligibility. Shipping is free at an items subtotal of ₹500 after
+discounts; below this, the current saved courier estimate rounded up to ₹10
+applies, or ₹100 without an estimate. These are the amounts collected at checkout.
+
+`checkout_settings.live_enabled` is false by default. While disabled, the
+existing enquiry flow remains available and admin test checkout is unchanged.
+Enable only after the following production configuration and checks:
+
+1. Set Supabase Edge Function secrets `RAZORPAY_LIVE_KEY_ID` (starts with
+   `rzp_live_`) and its matching `RAZORPAY_LIVE_KEY_SECRET`. Keep the existing
+   `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` test pair separate. Never put secrets
+   in frontend variables or source control.
+2. In Razorpay **Live mode**, set automatic payment capture and configure
+   `https://bblsjcjypdxntzlszliy.supabase.co/functions/v1/razorpay-payment-webhook`
+   for `payment.captured` and `order.paid`, using the matching Supabase
+   `RAZORPAY_WEBHOOK_SECRET`. Confirm webhook delivery and retries.
+3. Deploy `create-live-order`, `verify-live-payment` and
+   `razorpay-payment-webhook`, apply the live-checkout migration, and run
+   `supabase/tests/live_checkout.sql` (transactional; fixture changes roll back).
+4. After the business approves the shipping rule and credentials/webhook are
+   verified, set `checkout_settings.live_enabled=true` via the service/admin
+   database console. Make a supervised real payment, check order history,
+   inventory and coupon use, and verify duplicate webhook delivery is harmless.
+
+Live orders reserve stock for 30 minutes. Only a captured payment verified by
+signature, provider order ID, amount and currency can settle stock and coupon
+use atomically. Browser verification and signed webhooks share the same
+idempotent settlement. Late captures or insufficient stock become
+`review_required`, not confirmed orders; an operator must reconcile/refund them
+before fulfilment. Ambiguous provider-creation failures stay held for review:
+do not clear their claim or create a new order until checking Razorpay.
+Unpaid/cancelled payment attempts do not consume coupons or deduct inventory.
+An unchanged cart is cleared on confirmed payment; concurrent cart edits are
+preserved. Refreshing or losing the browser callback does not lose settlement:
+the signed webhook records payment and the browser checks its owned order status.
+Admin → Orders includes an **Online orders** list with payment status, saved
+delivery address, contact details, products and totals, including review-required
+attempts. Only paid orders should be fulfilled.
+Dispatch/delivery tracking and automatic confirmation emails are not enabled by
+this change.
 
 The header account dialog includes a paginated **Your orders** section for
 recorded, non-test payment orders. The customer-only `get_customer_orders` RPC

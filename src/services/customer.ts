@@ -24,6 +24,13 @@ export async function fetchCustomerOrders(offset = 0): Promise<CustomerOrder[]> 
   if (!Array.isArray(data)) throw new Error('Unable to load your orders: invalid order history response.');
   return data;
 }
+export async function fetchAdminLiveOrders(offset = 0): Promise<CustomerOrder[]> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('get_admin_live_orders', { page_offset: offset });
+  if (error) throw new Error(`Unable to load online orders: ${error.message}`);
+  if (!Array.isArray(data)) throw new Error('Invalid online order history response.');
+  return data;
+}
 export async function fetchAdminCustomerSummary(offset = 0): Promise<AdminCustomerSummary> {
   const supabase = await client();
   const { data, error } = await supabase.rpc('get_admin_customer_summary', { page_offset: offset });

@@ -443,6 +443,14 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       await json(route, []);
       return;
     }
+    if (pathname === '/rest/v1/rpc/get_admin_live_orders') {
+      await json(route, []);
+      return;
+    }
+    if (pathname === '/rest/v1/checkout_settings') {
+      await json(route, { id: true, live_enabled: false });
+      return;
+    }
     if (pathname === '/rest/v1/rpc/get_admin_customer_summary') {
       await json(route, { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, customers: [] });
       return;
