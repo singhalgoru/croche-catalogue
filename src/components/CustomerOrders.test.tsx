@@ -57,6 +57,7 @@ it('collapses admin order details and allows confirming removal only for cancell
   const cancelled = { ...order, id: 'cancelled', reference: 'LUV-CANCELLED', status: 'cancelled' as const, paidAt: null };
   const load = vi.fn().mockResolvedValueOnce([order, cancelled]).mockResolvedValueOnce([order]);
   render(<CustomerOrders loadOrders={load} admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Online orders' }));
   const show = await screen.findByRole('button', { name: 'Show details for LUV-ORDER1' });
   expect(show.getAttribute('aria-expanded')).toBe('false');
   expect(screen.getByText('Rose Charm (Pink)', { selector: '#order-details-order-1 span' }).closest('div')?.hidden).toBe(true);
@@ -70,12 +71,23 @@ it('collapses admin order details and allows confirming removal only for cancell
   await waitFor(() => expect(screen.queryByRole('article', { name: 'Order LUV-CANCELLED' })).toBeNull());
   expect(load).toHaveBeenLastCalledWith(0);
 });
-it('shows removal failures without removing the entry', async () => {
-  const load = vi.fn().mockResolvedValue([{ ...order, status: 'cancelled', paidAt: null }]);
+it.each(['cancelled', 'expired'])('shows %s removal failures without removing the entry', async status => {
+  const load = vi.fn().mockResolvedValue([{ ...order, status, paidAt: null }]);
   vi.mocked(hideCancelledLiveOrder).mockRejectedValue(new Error('Removal unavailable.'));
   render(<CustomerOrders loadOrders={load} admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Online orders' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Remove LUV-ORDER1 from list' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm removal' }));
   expect((await screen.findByRole('alert')).textContent).toBe('Removal unavailable.');
   expect(screen.getByRole('article', { name: 'Order LUV-ORDER1' })).toBeTruthy();
+});
+it('removes expired entries only after confirmation', async () => {
+  const load = vi.fn().mockResolvedValueOnce([{ ...order, status: 'expired', paidAt: null }]).mockResolvedValueOnce([]);
+  render(<CustomerOrders loadOrders={load} admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Online orders' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove LUV-ORDER1 from list' }));
+  expect(hideCancelledLiveOrder).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm removal' }));
+  await waitFor(() => expect(hideCancelledLiveOrder).toHaveBeenCalledWith('order-1'));
+  expect(await screen.findByText('No orders yet.')).toBeTruthy();
 });

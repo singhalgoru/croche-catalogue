@@ -193,7 +193,7 @@ $$;
 reset role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 set local role service_role;
-update public.payment_orders set status='cancelled' where id=(select (record).id from hidden_order);
+update public.payment_orders set status='expired' where id=(select (record).id from hidden_order);
 reset role;
 select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from live_fixture),'role','authenticated')::text,true);
 set local role authenticated;
@@ -203,8 +203,19 @@ begin
   if exists(select 1 from jsonb_array_elements(public.get_admin_live_orders()) o where o->>'id'=(select (record).id::text from hidden_order)) then
     raise exception 'FAIL: removed order still visible.';
   end if;
+  if not exists(select 1 from jsonb_array_elements(public.get_customer_orders()) o where o->>'id'=(select (record).id::text from hidden_order)) then
+    raise exception 'FAIL: hiding expired entry removed customer history.';
+  end if;
 end;
 $$;
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+set local role service_role;
+update public.payment_orders set status='cancelled',admin_hidden_at=null where id=(select (record).id from hidden_order);
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from live_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+select public.hide_cancelled_live_order((select (record).id from hidden_order));
 reset role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 set local role service_role;

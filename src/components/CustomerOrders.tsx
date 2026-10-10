@@ -26,6 +26,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [confirmRemoval, setConfirmRemoval] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   useEffect(() => {
     let current = true;
     void loadOrders(page.offset).then(values => {
@@ -38,27 +39,48 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
     return () => { current = false; };
   }, [page, loadOrders]);
   return (
-    <section aria-label={admin ? 'Online orders' : 'Your orders'} className="mt-4 border-t border-cocoa/20 pt-4">
+    <section aria-label={admin ? 'Online orders' : 'Your orders'} className={admin
+      ? 'mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm'
+      : 'mt-4 border-t border-cocoa/20 pt-4'}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold">{admin ? 'Online orders' : 'Your orders'}</h3>
-        <button type="button" disabled={loading || removing} className="min-h-11 underline disabled:opacity-50"
-          onClick={() => { setLoading(true); setError(''); setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 })); }}>Refresh orders</button>
+        {admin ? <button type="button" aria-label="Online orders" aria-expanded={isExpanded}
+          aria-controls="online-orders-content" onClick={() => setIsExpanded(current => !current)}
+          className="flex min-w-0 flex-1 items-center justify-between gap-4 text-left">
+          <span>
+            <span className="block font-heading text-2xl font-bold text-cocoa">Online orders</span>
+            <span className="mt-1 block text-sm text-cocoa/65">
+              {loading ? 'Loading online orders...' : `${orders.length}${hasMore ? '+' : ''} online order${orders.length === 1 ? '' : 's'} loaded`}
+            </span>
+          </span>
+          <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mustard/20 text-xl text-cocoa transition-transform ${isExpanded ? 'rotate-180' : ''}`}>⌄</span>
+        </button> : <h3 className="font-semibold">Your orders</h3>}
+        <button type="button" disabled={loading || removing} aria-label="Refresh orders" className={admin
+          ? 'rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50'
+          : 'min-h-11 underline disabled:opacity-50'}
+          onClick={() => { setLoading(true); setError(''); setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 })); }}>
+          {admin ? loading ? 'Loading…' : 'Refresh' : 'Refresh orders'}
+        </button>
       </div>
-      <p className="mb-3 text-xs text-cocoa/70">{admin
-        ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled entry hides it from this list, not from payment records.'
+      {error && <p role="alert" className={admin
+        ? 'mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'
+        : 'text-red-700'}>{error}</p>}
+      <div id={admin ? 'online-orders-content' : undefined} hidden={admin && !isExpanded}>
+      <p className={admin ? 'mb-3 mt-4 text-sm text-cocoa/65' : 'mb-3 text-xs text-cocoa/70'}>{admin
+        ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled or expired entry hides it from this list, not from payment records.'
         : 'Recorded orders and their payment status. WhatsApp/email enquiries are not confirmed orders. Dispatch and delivery updates are shared by Luvia separately.'}</p>
       {loading && <p role="status">Loading your orders...</p>}
-      {error && <p role="alert" className="text-red-700">{error}</p>}
       {!loading && !error && orders.length === 0 && <p>No orders yet.</p>}
       <div className="space-y-3">
         {orders.map(order => (
-          <article key={order.id} aria-label={`Order ${order.reference}`} className="rounded-xl border border-cocoa/20 p-3 sm:p-4">
+          <article key={order.id} aria-label={`Order ${order.reference}`} className={admin
+            ? 'rounded-2xl border border-mustard/30 bg-cream/40 p-4'
+            : 'rounded-xl border border-cocoa/20 p-3 sm:p-4'}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-semibold">{order.reference}</h4>
+              <h4 className={admin ? 'font-heading text-lg font-bold text-cocoa' : 'font-semibold'}>{order.reference}</h4>
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'paid' ? 'bg-green-50 text-green-800' : 'bg-mustard/15 text-cocoa'}`}>
                 {statusLabels[order.status]}
               </span>
-              {admin && <button type="button" className="min-h-11 underline"
+              {admin && <button type="button" className="min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa"
                 aria-expanded={expanded.has(order.id)} aria-controls={`order-details-${order.id}`}
                 aria-label={`${expanded.has(order.id) ? 'Hide' : 'Show'} details for ${order.reference}`}
                 onClick={() => setExpanded(previous => {
@@ -93,16 +115,16 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               <div className="flex justify-between font-bold"><dt>Total</dt><dd>{formatINR(order.total)}</dd></div>
             </dl>
             </div>
-            {admin && order.status === 'cancelled' && (confirmRemoval === order.id
+            {admin && ['cancelled', 'expired'].includes(order.status) && !order.paidAt && (confirmRemoval === order.id
               ? <div className="mt-2 rounded-lg border border-cocoa/20 p-3">
-                <p className="text-xs">Remove this cancelled entry from the list? The payment record remains available for reconciliation.</p>
+                <p className="text-xs">Remove this {order.status} entry from the list? The payment record remains available for reconciliation.</p>
                 <button type="button" disabled={removing || loading} className="mr-4 min-h-11 text-red-700 underline"
                   onClick={() => {
                     setRemoving(true); setError('');
                     void hideCancelledLiveOrder(order.id).then(() => {
                       setConfirmRemoval(null); setLoading(true);
                       setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 }));
-                    }).catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to remove cancelled order.'))
+                    }).catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to remove unpaid order.'))
                       .finally(() => setRemoving(false));
                   }}>Confirm removal</button>
                 <button type="button" disabled={removing} className="min-h-11 underline"
@@ -118,6 +140,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
         onClick={() => { setLoading(true); setError(''); setPage(previous => ({ ...previous, offset: error ? previous.offset : orders.length })); }}>
         {error ? 'Retry loading orders' : 'Load more orders'}
       </button>}
+      </div>
     </section>
   );
 }
