@@ -55,7 +55,7 @@ it('uses saved delivery details and confirms a real order only after backend ver
     email: 'buyer@example.test', addressLine1: '12 Test Street', addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' } }}
     disabled={false} live />);
   expect(screen.queryByLabelText('Name')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Pay securely with Razorpay' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
   await waitFor(() => expect(open).toHaveBeenCalled());
   expect(options.description).toBe('Order LUV-LIVE');
   expect(options.prefill).toEqual({ name: 'Buyer', contact: '+919876543210' });
@@ -63,7 +63,7 @@ it('uses saved delivery details and confirms a real order only after backend ver
   options.handler(response);
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-LIVE'));
   expect(verify).toHaveBeenCalledWith(response, true);
-  expect(screen.queryByRole('button', { name: 'Pay securely with Razorpay' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
 it('shows cancellation and payment failure messages and reuses the same request on retry', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);
@@ -88,7 +88,7 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   expect(status).toHaveBeenCalledWith('saved-request');
   expect(createOrder).not.toHaveBeenCalled();
   expect(verify).not.toHaveBeenCalled();
-  expect(screen.queryByRole('button', { name: 'Pay securely with Razorpay' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
 it('does not replace a pending checkout after cart details change', async () => {
   sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
@@ -96,7 +96,7 @@ it('does not replace a pending checkout after cart details change', async () => 
   }));
   status.mockResolvedValue({ status: 'link_created', reference: 'LUV-PENDING' });
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Pay securely with Razorpay' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Contact Luvia before another payment'));
   expect(createOrder).not.toHaveBeenCalled();
   expect(JSON.parse(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)!).request.key).toBe('saved-request');

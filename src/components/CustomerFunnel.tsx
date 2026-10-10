@@ -89,7 +89,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
   return (
     <section className="space-y-3 rounded-2xl border border-mustard/40 bg-white p-4 text-sm text-cocoa" aria-label="Order details">
       <h3 className="font-heading text-lg font-bold">
-        {step === 'contact' ? '1. Contact details' : step === 'address' ? '2. Delivery address' : '3. Review order request'}
+        {step === 'contact' ? '1. Contact details' : step === 'address' ? '2. Delivery address' : onlineCheckout ? '3. Review order' : '3. Review order request'}
       </h3>
       <p className="text-xs text-cocoa/65">{onlineCheckout ? 'Guest checkout available. Review your delivery details before paying securely.'
         : 'Guest ordering available. Payment is not enabled; your order still needs confirmation.'}</p>
@@ -184,7 +184,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
           {cart.coupon && totals.couponShortfall > 0 && <p role="alert" className="text-sm text-red-700">
             Add {formatINR(totals.couponShortfall)} more in items to reach the minimum items value of {formatINR(cart.coupon.minimumSubtotalRupees)} before applying {cart.coupon.code}. Shipping does not count towards the minimum.
           </p>}
-          <button disabled={busy || saving} className="rounded-full border border-cocoa px-3 py-2">Apply coupon to request</button>
+          <button disabled={busy || saving} className="rounded-full border border-cocoa px-3 py-2">{onlineCheckout ? 'Apply coupon' : 'Apply coupon to request'}</button>
           {cart.welcomeCouponCode && <button type="button" disabled={busy || saving} className="ml-3 underline"
             onClick={() => {
               setSaving(true); setError('');

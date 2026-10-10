@@ -148,7 +148,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
           </label></>}
           <button type="submit" disabled={busy || disabled}
             className="rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {busy ? live ? 'Payment in progress…' : 'Test checkout in progress…' : live ? 'Pay securely with Razorpay' : 'Try Razorpay test checkout'}
+            {busy ? live ? 'Payment in progress…' : 'Test checkout in progress…' : live ? 'Proceed to payment' : 'Try Razorpay test checkout'}
           </button>
         </form>
       )}

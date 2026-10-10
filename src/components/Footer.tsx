@@ -27,6 +27,7 @@ export default function Footer() {
     <footer className="bg-cocoa text-cream/90 mt-8 sm:mt-16">
       <div className="max-w-6xl mx-auto px-4 py-5 sm:py-8 text-center text-sm">
         <p className="font-heading text-lg text-mustard mb-1">Luvia Creations</p>
+        <p className="mb-2">Gurgaon, Haryana, India</p>
         <p className="mx-auto mb-2 hidden max-w-2xl text-cream/75 sm:block">
           Premium handmade crochet accessories, toys, gifts and decor,
           thoughtfully crafted in India.

@@ -44,6 +44,7 @@ describe('Footer', () => {
 
   it('shows the WhatsApp mobile number as a direct WhatsApp link', () => {
     render(<Footer />);
+    expect(screen.getByText('Gurgaon, Haryana, India')).toBeTruthy();
     const mobile = screen.getByRole('link', { name: '+91 92059 07350' });
     expect(mobile.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919205907350\?text=/);
   });

@@ -91,6 +91,7 @@ describe('collection and information pages', () => {
 
   it('includes factual contact links and accessible FAQs without invented rich-result claims', () => {
     const about = documentFor('/about/');
+    expect(about.body.textContent).toContain('Gurgaon, Haryana, India');
     expect(about.querySelector('a[href="mailto:orders@luviacreations.com"]')).toBeTruthy();
     expect(about.querySelector('a[href^="https://wa.me/919205907350"]')).toBeTruthy();
     const faq = documentFor('/faq/');

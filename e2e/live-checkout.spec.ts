@@ -29,7 +29,7 @@ test('reviews address and pays online before showing a verified order confirmati
   await page.goto('./');
   await page.getByRole('article', { name: 'Product: Rose Charm' }).getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
-  const pay = page.getByRole('button', { name: 'Pay securely with Razorpay' });
+  const pay = page.getByRole('button', { name: 'Proceed to payment' });
   await expect(pay).toBeDisabled();
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
   await page.getByLabel('Recipient name').fill('Live Buyer');
@@ -40,6 +40,8 @@ test('reviews address and pays online before showing a verified order confirmati
   await page.getByLabel('State', { exact: true }).fill('Delhi');
   await page.getByRole('region', { name: 'Order details' }).getByLabel('Pincode', { exact: true }).fill('110001');
   await page.getByRole('button', { name: 'Save and review' }).click();
+  await expect(page.getByText('3. Review order', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply coupon', exact: true })).toBeVisible();
   await expect(pay).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Need help? Contact Luvia on WhatsApp' })).toBeVisible();

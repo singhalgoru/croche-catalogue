@@ -97,10 +97,11 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     <section class="intro"><h2>Handmade crochet, made with love</h2><p>${escapeHtml(storeContent.about[0])}</p>
     <p>${escapeHtml(storeContent.about[1])}</p>
     <h2>Personal touches, confirmed with you</h2><p>${escapeHtml(storeContent.about[2])}</p>
-    <h2>Contact Luvia</h2><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>
+    <h2>Contact Luvia</h2><p>Luvia Creations<br>Gurgaon, Haryana, India</p><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>
     <p>Order enquiries: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a><br>General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p>
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
     <h2>Ordering across India</h2><p>${escapeHtml(storeContent.about[3])}</p>
+    <p>Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch is when the parcel is handed to the courier. Delivery time after dispatch depends on the destination.</p>
     <h2>${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
     <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
     <p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>

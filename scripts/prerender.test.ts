@@ -235,8 +235,9 @@ describe('renderShell', () => {
   it('includes ordering and delivery guidance after the products for non-JavaScript visitors', () => {
     expect(shell).toContain('How ordering and delivery work');
     expect(shell).toContain('Adding items to your cart or sending a message does not confirm an order.');
-    expect(shell).toContain('Your order is confirmed only after we confirm it with you.');
-    expect(shell).toContain('Shipping charges and delivery timing depend on your location and order.');
+    expect(shell).toContain('Your online order is confirmed only after payment verification.');
+    expect(shell).toContain('Orders are dispatched within 5 days of receiving the order, or earlier.');
+    expect(shell).toContain('Delivery time after dispatch depends on the destination.');
     expect(shell).toContain('href="mailto:orders@luviacreations.com"');
     expect(shell).toContain('href="/return-policy/"');
     expect(shell.match(/href="\/return-policy\/"/g)).toHaveLength(1);
