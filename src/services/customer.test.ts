@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
-  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary } from './customer';
+  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder } from './customer';
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
@@ -11,6 +11,12 @@ vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: async () => 'fixture-captc
 const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
   addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' };
 const password = 'Crochet2026';
+it('hides cancelled orders through the admin RPC and reports rejected removals', async () => {
+  await expect(hideCancelledLiveOrder('cancelled-order')).resolves.toBeUndefined();
+  expect(rpc).toHaveBeenCalledWith('hide_cancelled_live_order', { target_order_id: 'cancelled-order' });
+  rpc.mockResolvedValue({ error: { message: 'Only cancelled, unpaid online orders can be removed from the list.' } });
+  await expect(hideCancelledLiveOrder('paid-order')).rejects.toThrow('Only cancelled, unpaid');
+});
 it('loads the admin-only registered customer summary and propagates denied access', async () => {
   const summary = { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, customers: [] };
   rpc.mockResolvedValue({ data: summary, error: null });

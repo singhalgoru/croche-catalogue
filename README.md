@@ -190,6 +190,15 @@ the signed webhook records payment and the browser checks its owned order status
 Admin → Orders includes an **Online orders** list with payment status, saved
 delivery address, contact details, products and totals, including review-required
 attempts. Only paid orders should be fulfilled.
+The admin Online orders panel and individual order details are collapsible.
+Awaiting payment starts when a provider checkout is created; unpaid live
+checkouts expire after 30 minutes (a scheduled worker persists expiry every
+minute). Expiry is not a paid-order cancellation or refund. Ambiguous provider
+creation remains held for reconciliation. Superseded unattempted checkouts are
+cancelled when the cart is repriced. Admins may confirm **Remove from list** for
+cancelled, unpaid live entries; this hides them without deleting the payment
+ledger or customer history. A subsequent status change, including a late
+capture requiring review, makes the entry visible again.
 Customer communication uses the confirmed order's `LUV-...` order ID; internal
 cart UUIDs and cart references are not included in customer email, enquiry
 subjects/bodies or WhatsApp support messages. Cart identifiers remain internal

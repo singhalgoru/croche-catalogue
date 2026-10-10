@@ -61,8 +61,8 @@ it('requires a live key and webhook setup before contacting the provider', async
   expect(create).not.toHaveBeenCalled();
 });
 const previousId = '22222222-2222-4222-8222-222222222222';
-it('replaces only provider-confirmed unattempted orders with trusted updated totals', async () => {
-  saved.status = 'link_created';
+it.each(['link_created', 'expired'])('replaces only provider-confirmed unattempted %s orders with trusted updated totals', async status => {
+  saved.status = status;
   rpc.mockResolvedValue({ data: { ...saved, status: 'creating_link', total_paise: 100000 }, error: null });
   create.mockResolvedValue({ id: 'order_updated', amount: 100000, currency: 'INR' });
   const response = await handleLiveCheckout(request({ cartId: id, requestKey: id, previousRequestKey: previousId }), 'create');

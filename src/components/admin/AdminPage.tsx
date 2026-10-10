@@ -232,7 +232,10 @@ export default function AdminPage({ onProductPublished }: Props) {
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
             <ProductManager categories={categories} refreshKey={productRefreshKey} salesRefreshKey={salesRefreshKey} onChanged={handleProductChanged} />
           </>,
-          Orders: <><CustomerOrders loadOrders={fetchAdminLiveOrders} admin /><CartManager /></>,
+          Orders: <><details className="mb-6 rounded-xl border border-cocoa/20 p-4">
+            <summary className="min-h-11 cursor-pointer font-semibold">Online orders</summary>
+            <CustomerOrders loadOrders={fetchAdminLiveOrders} admin />
+          </details><CartManager /></>,
           Customers: <CustomerSummary />,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,

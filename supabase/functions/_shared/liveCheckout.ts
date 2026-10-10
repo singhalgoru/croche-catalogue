@@ -40,7 +40,7 @@ export async function handleLiveCheckout(request: Request, action: 'create' | 'v
           .eq('request_key', body.previousRequestKey).eq('cart_id', body.cartId)
           .eq('customer_user_id', auth.user.id).eq('is_live_checkout', true).maybeSingle();
         if (readError) throw new Error(`Unable to inspect previous checkout: ${readError.message}`);
-        if (!previous?.razorpay_order_id || !['link_created','cancelled'].includes(previous.status) || previous.razorpay_payment_id) {
+        if (!previous?.razorpay_order_id || !['link_created','cancelled','expired'].includes(previous.status) || previous.razorpay_payment_id) {
           return json({ error: 'Previous checkout needs verification. Contact Luvia; do not pay again.' }, 409);
         }
         const providerOrder = await sdk.orders.fetch(previous.razorpay_order_id);

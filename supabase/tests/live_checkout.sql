@@ -31,7 +31,14 @@ begin
   update public.checkout_settings set live_enabled=true;
   update public.product_variants set available_quantity=3 where id=f.variant_id;
   previous:=public.prepare_live_checkout(f.other_cart_id,f.other_id,gen_random_uuid());
+  update public.payment_orders set expires_at=now()-interval '1 minute',provider_claimed_at=now() where id=previous.id;
+  perform public.expire_live_checkouts();
+  if (select status from public.payment_orders where id=previous.id)<>'creating_link' then raise exception 'FAIL: ambiguous provider creation was released.'; end if;
+  update public.payment_orders set provider_claimed_at=null where id=previous.id;
+  perform public.expire_live_checkouts();
+  if (select status from public.payment_orders where id=previous.id)<>'expired' then raise exception 'FAIL: unclaimed checkout did not expire.'; end if;
   update public.payment_orders set status='link_created',razorpay_order_id='order_replacefixture' where id=previous.id;
+  perform public.expire_live_checkouts();
   update public.cart_items set quantity=2 where cart_id=f.other_cart_id;
   begin
     perform public.replace_unattempted_live_checkout(f.other_cart_id,f.owner_id,previous.request_key,key,'order_replacefixture');
@@ -102,9 +109,14 @@ begin
   update public.payment_orders set razorpay_order_id='order_secondfixture',status='link_created' where id=o.id;
   update public.cart_items set quantity=2 where cart_id=f.cart_id;
   perform public.settle_live_checkout(o.id,'pay_secondfixture',50000,'INR');
+  update public.payment_orders set expires_at=now()-interval '1 minute' where id=o.id;
+  perform public.expire_live_checkouts();
+  if (select status from public.payment_orders where id=o.id)<>'paid' then raise exception 'FAIL: paid order expired.'; end if;
   if (select quantity from public.cart_items where cart_id=f.cart_id)<>2 then raise exception 'FAIL: concurrent cart edit was lost.'; end if;
   o:=public.prepare_live_checkout(f.other_cart_id,f.other_id,gen_random_uuid());
   update public.payment_orders set razorpay_order_id='order_latefixture',status='link_created',expires_at=now()-interval '1 minute' where id=o.id;
+  perform public.expire_live_checkouts();
+  if (select status from public.payment_orders where id=o.id)<>'expired' then raise exception 'FAIL: unpaid checkout did not expire.'; end if;
   settled:=public.settle_live_checkout(o.id,'pay_latefixture',50000,'INR');
   if settled->>'status'<>'review_required' then raise exception 'FAIL: late capture confirmed without review.'; end if;
   if exists(select 1 from public.order_confirmation_emails where order_id=o.id) then raise exception 'FAIL: review order queued confirmation.'; end if;
@@ -135,6 +147,9 @@ begin
   rejected:=false;
   begin perform public.get_admin_live_orders(); exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: non-admin can list live orders.'; end if;
+  rejected:=false;
+  begin perform public.hide_cancelled_live_order((select id from live_order)); exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: non-admin can hide an order.'; end if;
 end;
 $$;
 reset role;
@@ -153,4 +168,66 @@ do $$ begin
     raise exception 'FAIL: admin cannot fulfil saved live order.';
   end if;
 end $$;
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+set local role service_role;
+update public.product_variants set available_quantity=10 where id=(select variant_id from live_fixture);
+create temporary table hidden_order as
+select public.prepare_live_checkout(cart_id,owner_id,gen_random_uuid()) as record from live_fixture;
+grant select on hidden_order to authenticated;
+update public.payment_orders set status='link_created',razorpay_order_id='order_hiddenfixture'
+where id=(select (record).id from hidden_order);
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from live_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$
+declare rejected boolean:=false;
+begin
+  begin perform public.hide_cancelled_live_order((select id from live_order)); exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: paid order hidden.'; end if;
+  rejected:=false;
+  begin perform public.hide_cancelled_live_order((select (record).id from hidden_order)); exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: awaiting payment order hidden.'; end if;
+end;
+$$;
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+set local role service_role;
+update public.payment_orders set status='cancelled' where id=(select (record).id from hidden_order);
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from live_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$
+begin
+  perform public.hide_cancelled_live_order((select (record).id from hidden_order));
+  if exists(select 1 from jsonb_array_elements(public.get_admin_live_orders()) o where o->>'id'=(select (record).id::text from hidden_order)) then
+    raise exception 'FAIL: removed order still visible.';
+  end if;
+end;
+$$;
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+set local role service_role;
+do $$
+declare result jsonb; target_id uuid:=(select (record).id from hidden_order); amount bigint:=(select (record).total_paise from hidden_order);
+begin
+  if not exists(select 1 from public.payment_orders where payment_orders.id=target_id and admin_hidden_at is not null) then
+    raise exception 'FAIL: payment ledger deleted rather than hidden.';
+  end if;
+  result:=public.settle_live_checkout(target_id,'pay_hiddenfixture',amount,'INR');
+  if result->>'status'<>'review_required' or (select admin_hidden_at from public.payment_orders where payment_orders.id=target_id) is not null then
+    raise exception 'FAIL: late payment did not restore visibility for review.';
+  end if;
+end;
+$$;
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from live_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$
+begin
+  if not exists(select 1 from jsonb_array_elements(public.get_admin_live_orders()) o where o->>'id'=(select (record).id::text from hidden_order)) then
+    raise exception 'FAIL: late payment missing from admin projection.';
+  end if;
+end;
+$$;
 rollback;

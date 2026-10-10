@@ -40,6 +40,7 @@ export interface CampaignCoupon {
   expires_at: string;
 }
 export interface CustomerOrder {
+  expiresAt?: string;
   id: string;
   reference: string;
   status: 'creating_link' | 'link_created' | 'link_failed' | 'paid' | 'expired' | 'cancelled' | 'review_required';

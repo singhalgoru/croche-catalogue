@@ -118,6 +118,19 @@ it('requests a server-checked replacement with the updated cart and retains its 
   await waitFor(() => expect(open).toHaveBeenCalled());
   expect(createOrder.mock.calls[1][0]).toEqual(first);
 });
+it('renews an expired checkout even when cart details have not changed', async () => {
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+  const original = createOrder.mock.calls[0][0].requestKey;
+  options.modal.ondismiss();
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('closed'));
+  status.mockResolvedValue({ status: 'expired', reference: 'LUV-EXPIRED' });
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
+  expect(createOrder.mock.calls[1][0].previousRequestKey).toBe(original);
+  expect(createOrder.mock.calls[1][0].requestKey).not.toBe(original);
+});
 it('verifies all response fields and never reports a real purchase', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);
   await start();

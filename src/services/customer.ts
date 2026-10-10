@@ -31,6 +31,11 @@ export async function fetchAdminLiveOrders(offset = 0): Promise<CustomerOrder[]>
   if (!Array.isArray(data)) throw new Error('Invalid online order history response.');
   return data;
 }
+export async function hideCancelledLiveOrder(orderId: string): Promise<void> {
+  const supabase = await client();
+  const { error } = await supabase.rpc('hide_cancelled_live_order', { target_order_id: orderId });
+  if (error) throw new Error(`Unable to remove cancelled order: ${error.message}`);
+}
 export async function fetchAdminCustomerSummary(offset = 0): Promise<AdminCustomerSummary> {
   const supabase = await client();
   const { data, error } = await supabase.rpc('get_admin_customer_summary', { page_offset: offset });

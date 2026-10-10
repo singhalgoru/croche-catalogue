@@ -86,12 +86,13 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
       const Constructor = await loadRazorpay();
       const fingerprint = live ? fingerprintForCart() : JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
         cart.deliveryPinCode, cart.deliveryEstimate, cart.deliveryDetails, cart.welcomeCouponCode, name.trim(), phone]);
-      if (live && request.current && request.current.fingerprint !== fingerprint) {
+      if (live && request.current) {
         const existing = await fetchLiveCheckoutStatus(request.current.key);
-        if (existing && !['link_created','cancelled'].includes(existing.status)) {
+        const needsReplacement = request.current.fingerprint !== fingerprint || existing?.status === 'expired';
+        if (needsReplacement && existing && !['link_created','cancelled','expired'].includes(existing.status)) {
           throw new Error(`Checkout ${existing.reference} needs verification. Contact Luvia before another payment.`);
         }
-        if (existing) {
+        if (needsReplacement && existing) {
           request.current = { fingerprint, key: crypto.randomUUID(), previousRequestKey: request.current.key };
         } else if (request.current.previousRequestKey) {
           request.current = { ...request.current, fingerprint };

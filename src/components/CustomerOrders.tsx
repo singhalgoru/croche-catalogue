@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchCustomerOrders } from '../services/customer';
+import { fetchCustomerOrders, hideCancelledLiveOrder } from '../services/customer';
 import type { CustomerOrder } from '../types/customer';
 import { formatINR } from '../utils/currency';
 import { deliveryAddressText } from '../utils/customer';
@@ -23,6 +23,9 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState({ offset: 0, refresh: 0 });
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [confirmRemoval, setConfirmRemoval] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
   useEffect(() => {
     let current = true;
     void loadOrders(page.offset).then(values => {
@@ -38,11 +41,11 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
     <section aria-label={admin ? 'Online orders' : 'Your orders'} className="mt-4 border-t border-cocoa/20 pt-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">{admin ? 'Online orders' : 'Your orders'}</h3>
-        <button type="button" disabled={loading} className="min-h-11 underline disabled:opacity-50"
+        <button type="button" disabled={loading || removing} className="min-h-11 underline disabled:opacity-50"
           onClick={() => { setLoading(true); setError(''); setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 })); }}>Refresh orders</button>
       </div>
       <p className="mb-3 text-xs text-cocoa/70">{admin
-        ? 'Live online orders, including awaiting-payment and review-required attempts. Fulfil only Payment received orders; reconcile any under-review payments in Razorpay before taking action.'
+        ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled entry hides it from this list, not from payment records.'
         : 'Recorded orders and their payment status. WhatsApp/email enquiries are not confirmed orders. Dispatch and delivery updates are shared by Luvia separately.'}</p>
       {loading && <p role="status">Loading your orders...</p>}
       {error && <p role="alert" className="text-red-700">{error}</p>}
@@ -55,11 +58,23 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'paid' ? 'bg-green-50 text-green-800' : 'bg-mustard/15 text-cocoa'}`}>
                 {statusLabels[order.status]}
               </span>
+              {admin && <button type="button" className="min-h-11 underline"
+                aria-expanded={expanded.has(order.id)} aria-controls={`order-details-${order.id}`}
+                aria-label={`${expanded.has(order.id) ? 'Hide' : 'Show'} details for ${order.reference}`}
+                onClick={() => setExpanded(previous => {
+                  const next = new Set(previous);
+                  if (next.has(order.id)) next.delete(order.id); else next.add(order.id);
+                  return next;
+                })}>{expanded.has(order.id) ? 'Hide details' : 'Show details'}</button>}
             </div>
             <p className="mt-1 text-xs text-cocoa/70">
               Placed {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               {order.paidAt && ` · Paid ${new Date(order.paidAt).toLocaleDateString('en-IN')}`}
             </p>
+            {admin && order.status === 'link_created' && order.expiresAt && <p className="text-xs text-cocoa/70">
+              Payment window ends {new Date(order.expiresAt).toLocaleString('en-IN')}. Refresh orders to check the latest status.
+            </p>}
+            <div id={`order-details-${order.id}`} hidden={admin && !expanded.has(order.id)}>
             <p className="mt-2">Recipient: {order.customerName}{order.deliveryPincode ? ` · Pincode: ${order.deliveryPincode}` : ''}</p>
             {order.deliveryDetails && <div className="mt-1 break-words text-xs">
               <p>{deliveryAddressText(order.deliveryDetails)}</p>
@@ -77,10 +92,29 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               <div className="flex justify-between"><dt>Shipping</dt><dd>{order.shipping ? formatINR(order.shipping) : 'Free'}</dd></div>
               <div className="flex justify-between font-bold"><dt>Total</dt><dd>{formatINR(order.total)}</dd></div>
             </dl>
+            </div>
+            {admin && order.status === 'cancelled' && (confirmRemoval === order.id
+              ? <div className="mt-2 rounded-lg border border-cocoa/20 p-3">
+                <p className="text-xs">Remove this cancelled entry from the list? The payment record remains available for reconciliation.</p>
+                <button type="button" disabled={removing || loading} className="mr-4 min-h-11 text-red-700 underline"
+                  onClick={() => {
+                    setRemoving(true); setError('');
+                    void hideCancelledLiveOrder(order.id).then(() => {
+                      setConfirmRemoval(null); setLoading(true);
+                      setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 }));
+                    }).catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to remove cancelled order.'))
+                      .finally(() => setRemoving(false));
+                  }}>Confirm removal</button>
+                <button type="button" disabled={removing} className="min-h-11 underline"
+                  onClick={() => setConfirmRemoval(null)}>Keep entry</button>
+              </div>
+              : <button type="button" disabled={loading || removing} className="mt-2 min-h-11 text-red-700 underline"
+                aria-label={`Remove ${order.reference} from list`}
+                onClick={() => setConfirmRemoval(order.id)}>Remove from list</button>)}
           </article>
         ))}
       </div>
-      {hasMore && <button type="button" disabled={loading} className="mt-3 min-h-11 underline disabled:opacity-50"
+      {hasMore && <button type="button" disabled={loading || removing} className="mt-3 min-h-11 underline disabled:opacity-50"
         onClick={() => { setLoading(true); setError(''); setPage(previous => ({ ...previous, offset: error ? previous.offset : orders.length })); }}>
         {error ? 'Retry loading orders' : 'Load more orders'}
       </button>}
