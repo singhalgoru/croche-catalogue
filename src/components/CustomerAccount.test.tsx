@@ -68,17 +68,17 @@ it('does not claim verification succeeded when the account is still unverified',
   expect(screen.queryByText(/Your email is verified/)).toBeNull();
 });
 
-it('motivates signup with the enabled reward and its real terms', async () => {
+it('motivates signup with a short reward message', async () => {
   vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: true, percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500, validDays: 30 });
   render(<CustomerAccount canSignUp />);
-  expect(await screen.findByText('Join Luvia and unlock a one-time welcome reward')).toBeTruthy();
-  expect(screen.getByText(/10% off your first order, up to ₹100, with a minimum items subtotal of ₹500/)).toBeTruthy();
+  expect(await screen.findByText('Sign up and get an additional 10% discount on your first order.')).toBeTruthy();
+  expect(screen.queryByText(/minimum items subtotal/)).toBeNull();
 });
 
 it('does not promise a signup reward when the offer is disabled', async () => {
   render(<CustomerAccount canSignUp />);
   await screen.findByText('Optional email account');
-  expect(screen.queryByText('Join Luvia and unlock a one-time welcome reward')).toBeNull();
+  expect(screen.queryByText(/Sign up and get an additional/)).toBeNull();
 });
 
 const signupDetails = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',

@@ -100,12 +100,9 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
         }); }}>Sign out</button>
       </> : <>
         <p className="mt-1 text-xs text-cocoa/70">Guest ordering is always available. Verify an email to keep this cart linked to your account.</p>
-        {offer?.enabled && canSignUp && <div className="mt-3 rounded-xl border border-mustard/40 bg-mustard/10 p-3">
-          <p className="font-semibold">Join Luvia and unlock a one-time welcome reward</p>
-          <p className="mt-1 text-xs">Sign up and activate your email to receive ILOVELUVIA:
-            {' '}{offer.percent}% off your first order, up to ₹{offer.maxDiscountRupees}, with a minimum items subtotal of ₹{offer.minimumSubtotalRupees}.
-            One use per verified email; shipping excluded. Your welcome email includes the code and expiry.</p>
-        </div>}
+        {offer?.enabled && canSignUp && <p className="mt-3 rounded-xl border border-mustard/40 bg-mustard/10 p-3 font-semibold">
+          Sign up and get an additional {offer.percent}% discount on your first order.
+        </p>}
         {canSignUp ? <div className="mt-2 flex gap-3" aria-label="Account options">
           <button type="button" disabled={busy} aria-pressed={mode === 'signup'}
             className={`min-h-11 px-2 underline ${mode === 'signup' ? 'font-bold' : ''}`}
@@ -135,6 +132,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           });
         }}>
           {mode === 'signup' && <>
+            <div className="grid gap-2 sm:grid-cols-2">
             {([
               ['name', 'Full name', 'name', 80],
               ['phone', 'Mobile number', 'tel-national', 10],
@@ -144,7 +142,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
               ['state', 'State', 'address-level1', 80],
               ['pincode', 'Pincode', 'postal-code', 6],
             ] as const).map(([key, label, autoComplete, maxLength]) => (
-              <label key={key} className="block">{label}
+              <label key={key} className={`block ${key.startsWith('address') ? 'sm:col-span-2' : ''}`}>{label}
                 <input required={key !== 'addressLine2'} maxLength={maxLength} autoComplete={autoComplete}
                   inputMode={key === 'phone' || key === 'pincode' ? 'numeric' : undefined}
                   value={details[key]} disabled={busy || sent}
@@ -152,6 +150,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
                   className="mt-1 w-full rounded border p-2" />
               </label>
             ))}
+            </div>
             <p className="text-xs text-cocoa/60">India only. Your address and mobile are private customer details, not verified identity or marketing consent.</p>
           </>}
           <label className="block">Account email
