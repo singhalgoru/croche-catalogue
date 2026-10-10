@@ -28,7 +28,7 @@ Deno.serve(async request => {
   for (const job of jobs) {
     try {
       const { data: order, error: orderError } = await admin.from('payment_orders')
-        .select('reference,status,is_live_checkout,customer_name,customer_contact,customer_email,delivery_details,subtotal_paise,discount_paise,shipping_paise,total_paise,payment_order_items(product_name,variant_name,quantity,line_total_paise)')
+        .select('reference,status,is_live_checkout,customer_name,customer_contact,customer_email,delivery_details,subtotal_paise,discount_paise,shipping_paise,total_paise,payment_order_items(product_name,variant_name,product_public_slug,image_url,quantity,line_total_paise)')
         .eq('id', job.order_id).single();
       if (orderError || !order) throw new Error(orderError?.message ?? 'Order not found.');
       const providerId = await sendOrderEmail(job, order, apiKey, sender);

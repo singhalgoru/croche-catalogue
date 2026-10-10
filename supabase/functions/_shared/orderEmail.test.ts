@@ -1,13 +1,14 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
-import { sendOrderEmail } from './orderEmail';
+import { buildOrderEmail, sendOrderEmail } from './orderEmail';
 import type { EmailOrder } from './orderEmail';
 const order: EmailOrder = {
   reference: 'LUV-TEST', status: 'paid', is_live_checkout: true, customer_name: '<Buyer>',
   customer_contact: '+919876543210', customer_email: 'buyer@example.test',
   delivery_details: { addressLine1: '12 Test Street', city: 'Delhi', state: 'Delhi', pincode: '110001' },
   subtotal_paise: 50000, discount_paise: 5000, shipping_paise: 10000, total_paise: 55000,
-  payment_order_items: [{ product_name: '<Crochet>', variant_name: 'Red', quantity: 1, line_total_paise: 50000 }],
+  payment_order_items: [{ product_name: '<Crochet>', variant_name: 'Red', product_public_slug: 'crochet-flower',
+    image_url: 'https://images.luviacreations.com/products/flower.webp', quantity: 1, line_total_paise: 50000 }],
 };
 afterEach(() => vi.unstubAllGlobals());
 it.each(['customer','store'] as const)('sends %s confirmation with totals, address and a stable idempotency key', async audience => {
@@ -26,6 +27,40 @@ it.each(['customer','store'] as const)('sends %s confirmation with totals, addre
   expect(body.text).toContain('12 Test Street, Delhi, Delhi, 110001');
   expect(body.html).toContain('&lt;Crochet&gt;');
   expect(body.html).not.toContain('<Buyer>');
+  expect(body.html).toContain('src="https://images.luviacreations.com/products/flower.webp"');
+  expect(body.html).toContain('href="https://luviacreations.com/p/crochet-flower/"');
+  expect(body.text).toContain('View product: https://luviacreations.com/p/crochet-flower/');
+  expect(body.html).toContain('Delivery details');
+  expect(body.html).toContain('What happens next?');
+  expect(body.html).toContain('background:#fff9ef');
+  expect(body.html).toContain('border:1px dashed #bd9856');
+});
+it('renders every purchased item with its own snapshot and safe product link', () => {
+  const { html } = buildOrderEmail({ ...order, payment_order_items: [...order.payment_order_items, {
+    product_name: 'Second flower', variant_name: 'White & cream', product_public_slug: 'flower "special"',
+    image_url: 'https://images.luviacreations.com/second.jpg?a=1&b=2', quantity: 2, line_total_paise: 100000,
+  }] }, 'customer');
+  expect(html).toContain('White &amp; cream');
+  expect(html).toContain('Quantity: 2');
+  expect(html).toContain('second.jpg?a=1&amp;b=2');
+  expect(html).toContain('/p/flower%20%22special%22/');
+});
+it('keeps missing historical media readable without inventing a product link', () => {
+  const { html, text } = buildOrderEmail({ ...order, shipping_paise: 0, discount_paise: 0,
+    payment_order_items: [{ ...order.payment_order_items[0], image_url: '', product_public_slug: null }],
+  }, 'customer');
+  expect(html).toContain('&lt;Crochet&gt;');
+  expect(html).not.toContain('View product');
+  expect(html).not.toContain('Coupon discount');
+  expect(text).toContain('Shipping: Free');
+});
+it('rejects unsafe image URLs before contacting the email provider', async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal('fetch', fetch);
+  await expect(sendOrderEmail({ id: 'job', audience: 'customer', recipient: 'buyer@example.test' },
+    { ...order, payment_order_items: [{ ...order.payment_order_items[0], image_url: 'javascript:alert(1)' }] },
+    'fixture', 'sender')).rejects.toThrow('public HTTPS');
+  expect(fetch).not.toHaveBeenCalled();
 });
 it('does not notify unpaid, review-required or test orders', async () => {
   const fetch = vi.fn();

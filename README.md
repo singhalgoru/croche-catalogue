@@ -202,6 +202,9 @@ capture requiring review, makes the entry visible again.
 After verified payment, checkout displays a prominent order-success panel with
 payment confirmation, the order reference and separate email-delivery guidance.
 The panel does not claim that the email has reached the customer's inbox.
+Order emails use Luvia's cream/cocoa/mustard theme with item images and product
+links from the saved purchase snapshot, a payment summary, delivery details and
+dispatch/support guidance. Email clients may require enabling remote images.
 Customer communication uses the confirmed order's `LUV-...` order ID; internal
 cart UUIDs and cart references are not included in customer email, enquiry
 subjects/bodies or WhatsApp support messages. Cart identifiers remain internal
