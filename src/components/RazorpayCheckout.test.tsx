@@ -62,6 +62,9 @@ it('uses saved delivery details and confirms a real order only after backend ver
   const response = { razorpay_order_id: 'order_live', razorpay_payment_id: 'pay_live', razorpay_signature: 'fixture' };
   options.handler(response);
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-LIVE'));
+  expect(screen.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeTruthy();
+  expect(screen.getByText(/Please check your inbox and Spam folder/)).toBeTruthy();
+  expect(screen.queryByText(/Close any earlier payment windows/)).toBeNull();
   expect(verify).toHaveBeenCalledWith(response, true);
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
@@ -85,6 +88,7 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   status.mockResolvedValue({ status: 'paid', reference: 'LUV-RECOVERED' });
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-RECOVERED'));
+  expect(screen.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeTruthy();
   expect(status).toHaveBeenCalledWith('saved-request');
   expect(createOrder).not.toHaveBeenCalled();
   expect(verify).not.toHaveBeenCalled();

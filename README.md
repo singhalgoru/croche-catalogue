@@ -199,6 +199,9 @@ cancelled when the cart is repriced. Admins may confirm **Remove from list** for
 cancelled or expired, unpaid live entries; this hides them without deleting the payment
 ledger or customer history. A subsequent status change, including a late
 capture requiring review, makes the entry visible again.
+After verified payment, checkout displays a prominent order-success panel with
+payment confirmation, the order reference and separate email-delivery guidance.
+The panel does not claim that the email has reached the customer's inbox.
 Customer communication uses the confirmed order's `LUV-...` order ID; internal
 cart UUIDs and cart references are not included in customer email, enquiry
 subjects/bodies or WhatsApp support messages. Cart identifiers remain internal

@@ -142,9 +142,16 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
     }
   };
   return (
-    <section className="mt-3 rounded-xl border border-cocoa/20 p-3" aria-label={live ? 'Secure online checkout' : 'Razorpay test checkout'}>
-      <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
-        : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>
+    <section className={live && verified
+      ? 'mt-3 rounded-xl border border-green-200 bg-green-50 p-4'
+      : 'mt-3 rounded-xl border border-cocoa/20 p-3'} aria-label={live ? 'Secure online checkout' : 'Razorpay test checkout'}>
+      {live && verified && <div>
+        <h3 className="font-heading text-xl font-bold text-green-800">Thank you! Your order is confirmed.</h3>
+        <p className="mt-2 text-sm text-green-900">Payment received successfully. Do not pay again.</p>
+        <p className="mt-2 text-sm text-cocoa">Your order confirmation is sent separately by email. Please check your inbox and Spam folder. Contact orders@luviacreations.com if it does not arrive.</p>
+      </div>}
+      {!(live && verified) && <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
+        : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>}
       {!verified && !pending && !recovery.error && (
         <form onSubmit={event => { event.preventDefault(); void start(); }} className="mt-2 grid gap-2">
           {!live && <><label className="text-xs text-cocoa">
@@ -169,7 +176,9 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
         className="mt-2 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
         {busy ? 'Verifying…' : 'Retry payment verification'}
       </button>}
-      {message && <p role="status" className="mt-2 break-words text-xs text-cocoa">{message}</p>}
+      {message && <p role="status" className={live && verified
+        ? 'mt-3 break-words text-sm font-semibold text-green-900'
+        : 'mt-2 break-words text-xs text-cocoa'}>{message}</p>}
     </section>
   );
 }
