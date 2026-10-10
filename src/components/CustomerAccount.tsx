@@ -215,17 +215,17 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           </button>
         </>}
       </>}
-      {offer?.enabled && <>
+      {offer?.enabled && account && <>
         <p className="mt-3 text-xs">
           First-order code ILOVELUVIA: {offer.percent}% off items, up to ₹{offer.maxDiscountRupees},
           minimum items subtotal ₹{offer.minimumSubtotalRupees}. Valid {offer.validDays} days.
           One use per verified email address; shipping excluded. Final eligibility confirmed with your order.
         </p>
-        {account && <button type="button" disabled={busy} className="mt-2 rounded-full bg-cocoa px-3 py-2 text-white"
+        <button type="button" disabled={busy} className="mt-2 rounded-full bg-cocoa px-3 py-2 text-white"
           onClick={() => { void run(async () => {
             const next = await emailWelcomeCoupon(); setCoupon(next);
             setMessage('Your welcome coupon email was accepted for delivery. Check your inbox or spam.');
-          }); }}>Email my welcome coupon</button>}
+          }); }}>Email my welcome coupon</button>
       </>}
       {coupon && <div className="mt-2">
         <p className="break-words font-semibold">{coupon.code}</p>
