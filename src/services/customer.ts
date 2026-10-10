@@ -20,7 +20,17 @@ export async function registerCustomerEmail(email: string) {
   const supabase = await client();
   const { data: current, error: currentError } = await supabase.auth.getUser();
   if (currentError) throw new Error(currentError.message);
-  if (!current.user?.is_anonymous) throw new Error('Your cart is already linked to an account. Do not change its email here.');
+  if (!current.user) {
+    const captchaToken = await requestCartCaptcha();
+    const { error: anonymousError } = await supabase.auth.signInAnonymously(
+      captchaToken ? { options: { captchaToken } } : undefined,
+    );
+    if (anonymousError) {
+      throw new Error(`Unable to prepare your signup session: ${anonymousError.message}`);
+    }
+  } else if (!current.user.is_anonymous) {
+    throw new Error('Your cart is already linked to an account. Do not change its email here.');
+  }
   const { error } = await supabase.auth.updateUser({ email: email.trim().toLowerCase() },
     { emailRedirectTo: `${window.location.origin}/` });
   if (error) throw new Error(`Unable to send your signup email: ${error.message}`);
@@ -50,7 +60,12 @@ export async function sendCustomerSignIn(email: string) {
   const captchaToken = await requestCartCaptcha();
   const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(),
     options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/`, ...(captchaToken ? { captchaToken } : {}) } });
-  if (error) throw new Error(`Unable to send your sign-in link: ${error.message}`);
+  if (error) {
+    if (error.message.toLowerCase().includes('signups not allowed for otp')) {
+      throw new Error('No saved account found for that email. Choose Create account first, then use the verification link.');
+    }
+    throw new Error(`Unable to send your sign-in link: ${error.message}`);
+  }
 }
 export async function fetchWelcomeOffer(): Promise<WelcomeOffer> {
   const supabase = await client();

@@ -169,7 +169,7 @@ export default function CartDrawer({
               <p className="mt-2 text-sm text-cocoa/60">
                 Add products and they will remain here for up to 30 days.
               </p>
-              <div className="mt-4 text-left"><CustomerAccount canSignUp={false} /></div>
+              <div className="mt-4 text-left"><CustomerAccount canSignUp /></div>
             </div>
           ) : (
             <div className="space-y-3">
