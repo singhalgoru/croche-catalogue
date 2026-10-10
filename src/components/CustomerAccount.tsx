@@ -14,8 +14,9 @@ interface Props {
   initialMode?: 'signup' | 'signin';
   onGuest?: () => void;
   onContinue?: (profile: DeliveryDetails | null) => void;
+  onModeChange?: (mode: 'signup' | 'signin') => void;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
@@ -107,10 +108,10 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
         {canSignUp ? <div className="mt-2 flex gap-3" aria-label="Account options">
           <button type="button" disabled={busy} aria-pressed={mode === 'signup'}
             className={`min-h-11 px-2 underline ${mode === 'signup' ? 'font-bold' : ''}`}
-            onClick={() => { setMode('signup'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Create account</button>
+            onClick={() => { setMode('signup'); onModeChange?.('signup'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Create account</button>
           <button type="button" disabled={busy} aria-pressed={mode === 'signin'}
             className={`min-h-11 px-2 underline ${mode === 'signin' ? 'font-bold' : ''}`}
-            onClick={() => { setMode('signin'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Sign in</button>
+            onClick={() => { setMode('signin'); onModeChange?.('signin'); setSent(false); setError(''); setMessage(''); emailInput.current?.focus(); }}>Sign in</button>
         </div> : <h4 className="mt-3 font-semibold">Sign in to your saved cart</h4>}
         <p className="mt-1 text-xs text-cocoa/70">
           {mode === 'signin' ? 'Sign in with your email and password. Forgot it? We can email you a reset link.'

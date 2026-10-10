@@ -4,7 +4,11 @@ import AccountDialog from './AccountDialog';
 import { setCustomerPassword } from '../services/customer';
 
 vi.mock('./CustomerAccount', () => ({
-  default: ({ initialMode }: { initialMode?: string }) => <p>Account form: {initialMode}</p>,
+  default: ({ initialMode, onModeChange }: { initialMode?: string; onModeChange?: (mode: 'signup' | 'signin') => void }) => <>
+    <p>Account form: {initialMode}</p>
+    <button type="button" onClick={() => onModeChange?.('signin')}>Switch to sign in</button>
+    <button type="button" onClick={() => onModeChange?.('signup')}>Switch to create account</button>
+  </>,
 }));
 vi.mock('../services/customer', () => ({ setCustomerPassword: vi.fn() }));
 afterEach(cleanup);
@@ -17,6 +21,15 @@ it('opens the requested account mode as an accessible dialog and closes with Esc
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close account' }));
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(onClose).toHaveBeenCalled();
+});
+
+it('keeps the title in sync with the selected account tab', () => {
+  render(<AccountDialog mode="signin" onClose={vi.fn()} />);
+  expect(screen.getByRole('dialog', { name: 'Sign in to Luvia' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Switch to create account' }));
+  expect(screen.getByRole('dialog', { name: 'Create your Luvia account' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Switch to sign in' }));
+  expect(screen.getByRole('dialog', { name: 'Sign in to Luvia' })).toBeTruthy();
 });
 
 it('lets a customer from a reset link save a new password', async () => {

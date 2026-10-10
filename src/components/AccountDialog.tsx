@@ -9,6 +9,9 @@ interface Props {
 }
 export default function AccountDialog({ mode, accountName, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const [view, setView] = useState(mode);
+  const [openedMode, setOpenedMode] = useState(mode);
+  if (openedMode !== mode) { setOpenedMode(mode); setView(mode); }
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButton.current?.focus();
@@ -28,12 +31,12 @@ export default function AccountDialog({ mode, accountName, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-cream p-4 shadow-xl sm:max-w-xl sm:rounded-2xl sm:p-6 lg:max-w-2xl lg:p-8">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="account-dialog-title" className="font-heading text-xl font-bold text-cocoa">
-            {mode === 'reset' ? 'Set a new password' : accountName ? `Hi, ${accountName}` : mode === 'signup' ? 'Create your Luvia account' : 'Sign in to Luvia'}
+            {mode === 'reset' ? 'Set a new password' : accountName ? `Hi, ${accountName}` : view === 'signup' ? 'Create your Luvia account' : 'Sign in to Luvia'}
           </h2>
           <button ref={closeButton} type="button" onClick={onClose} aria-label="Close account"
             className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-2xl text-cocoa">×</button>
         </div>
-        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp initialMode={mode} />}
+        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp initialMode={mode} onModeChange={setView} />}
       </div>
     </div>
   );
