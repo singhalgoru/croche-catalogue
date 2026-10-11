@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { generateCategoryOverview, saveCategoryOverview, saveSeasonalCategory } from '../../services/categories';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import type { CategorySettings } from '../../types/product';
+import { countOverviewWords, limitCategoryOverview } from '../../utils/categoryOverview.js';
 
 export default function SeasonalCategoryEditor({ category, onChanged, onClose }: {
   category: CategorySettings; onChanged: () => Promise<void>; onClose: () => void;
@@ -9,7 +10,7 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [selected, setSelected] = useState(() => new Set(category.productIds ?? []));
   const [visible, setVisible] = useState(category.visible !== false);
-  const [overview, setOverview] = useState(category.overview ?? '');
+  const [overview, setOverview] = useState(() => limitCategoryOverview(category.overview ?? ''));
   const [featuredTicker, setFeaturedTicker] = useState(category.featuredTicker ?? false);
   const [message, setMessage] = useState('');
   const generate = async () => {
@@ -78,6 +79,8 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
       <textarea value={overview} maxLength={2000} rows={5} disabled={busy} onChange={event => setOverview(event.target.value)}
         className="mt-1 w-full rounded-xl border border-mustard/60 p-2" />
     </label>
+    <p className={`mt-1 text-xs ${countOverviewWords(overview) > 150 ? 'text-red-700' : 'text-cocoa/70'}`}>{countOverviewWords(overview)} / 150 words. Gemini drafts use 100-150 words; shorter manual overviews are allowed.</p>
+    {countOverviewWords(category.overview ?? '') > 150 && <p className="mt-1 text-xs text-cocoa/70">This older overview exceeds 150 words. The draft below has been shortened; the stored original stays unchanged until you save.</p>}
     <button type="button" disabled={busy || loading} onClick={() => { void generate(); }}
       className="mt-3 min-h-11 rounded-full border border-cocoa/30 px-4 py-2 font-semibold disabled:opacity-60">Generate overview with Gemini</button>
     <p className="mt-2 text-xs text-cocoa/70">Uses saved, published products only. Save product selection first, then generate. Review the draft before publishing; Gemini API charges may apply.</p>

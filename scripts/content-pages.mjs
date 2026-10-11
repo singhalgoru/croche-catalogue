@@ -1,6 +1,7 @@
 import { escapeHtml, getProductImageUrl, priceRange, renderSitemap, toProductSlug } from './prerender.mjs';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
+import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -54,8 +55,8 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     const pathname = collectionPath(category);
     if (pages.has(pathname)) throw new Error(`Duplicate collection path: ${category}`);
     const title = `Handmade ${category}`;
-    const description = categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
-      : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`);
+    const description = limitCategoryOverview(categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
+      : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`));
     const cards = items.map((product, index) => {
       const range = priceRange(product);
       const price = range ? `${range.low !== range.high ? 'From ' : ''}₹${range.low.toLocaleString('en-IN')}` : 'Price on request';

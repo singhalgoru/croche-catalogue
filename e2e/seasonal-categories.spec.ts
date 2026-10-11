@@ -1,6 +1,22 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('ordinary ticker messages move at 50 pixels per second too', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('./');
+  await page.mouse.move(0, 200);
+  const track = page.locator('.shipping-ticker-track');
+  await expect.poll(() => track.evaluate(node => node.scrollWidth / 2 / parseFloat(getComputedStyle(node).animationDuration))).toBeCloseTo(50, 1);
+  const velocity = await track.evaluate(async node => {
+    const animation = node.getAnimations()[0];
+    const startTime = Number(animation.currentTime);
+    const startX = new DOMMatrixReadOnly(getComputedStyle(node).transform).m41;
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return Math.abs(new DOMMatrixReadOnly(getComputedStyle(node).transform).m41 - startX) / ((Number(animation.currentTime) - startTime) / 1000);
+  });
+  expect(velocity).toBeCloseTo(50, 1);
+});
+
 test('admin creates a seasonal category, selects existing products and hides it without moving products', async ({ page }) => {
   const state = await installMockSupabase(page);
   type CategoryRow = { name: string; sort_order: number; is_seasonal: boolean; visible: boolean; overview?: string; featured_ticker?: boolean; seasonal_category_products: { product_id: string }[] };
@@ -62,7 +78,8 @@ test('admin creates a seasonal category, selects existing products and hides it 
   const announcement = page.getByRole('link', { name: 'Check out our Navaratri collection', exact: true });
   await expect(announcement).toHaveAttribute('href', '/collections/navaratri/');
   const track = page.locator('.shipping-ticker-featured');
-  await expect.poll(() => track.evaluate(node => getComputedStyle(node).animationName)).toBe('seasonal-ticker');
+  await expect.poll(() => track.evaluate(node => getComputedStyle(node).animationName)).toBe('shipping-ticker');
+  await expect.poll(() => track.evaluate(node => node.scrollWidth / 2 / parseFloat(getComputedStyle(node).animationDuration))).toBeCloseTo(50, 1);
   await expect.poll(() => announcement.evaluate(node => getComputedStyle(node).animationName)).toBe('seasonal-ticker-glow');
   const initialTransform = await track.evaluate(node => getComputedStyle(node).transform);
   await expect.poll(() => track.evaluate(node => getComputedStyle(node).transform)).not.toBe(initialTransform);
@@ -70,6 +87,9 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await expect.poll(() => track.evaluate(node => getComputedStyle(node).animationName)).toBe('none');
   await expect(announcement).toBeInViewport();
   await page.getByRole('button', { name: 'Open navigation' }).focus();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Navaratri', exact: true })).toHaveClass(/bg-mustard/);
+  await page.getByRole('button', { name: 'Close navigation' }).click();
   await page.getByLabel('Store announcements', { exact: true }).hover();
   await expect.poll(() => track.evaluate(node => getComputedStyle(node).animationPlayState)).toBe('paused');
   await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -17,6 +17,7 @@ const metadata = {
   seoDescription: 'Handmade lavender crochet bunny keychain.',
   materials: '', dimensions: '', includedItems: '', careInstructions: '',
 };
+const validOverview = Array(25).fill('Handmade rose crochet charms.').join(' ');
 const geminiResponse = (
   value: unknown,
 ) => new Response(JSON.stringify({
@@ -80,10 +81,10 @@ describe('analyze-product endpoint', () => {
   };
   it('generates category overviews from server-selected published products using Gemini 3.6 directly', async () => {
     const productsQuery = mockCategoryOverview();
-    fetchMock.mockResolvedValue(geminiResponse({ overview: 'Handmade rose charms for seasonal gifting.' }));
+    fetchMock.mockResolvedValue(geminiResponse({ overview: validOverview }));
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri', imageBase64: undefined, mimeType: undefined }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ overview: 'Handmade rose charms for seasonal gifting.' });
+    expect(await response.json()).toEqual({ overview: validOverview });
     expect(productsQuery.eq).toHaveBeenCalledWith('published', true);
     expect(productsQuery.in).toHaveBeenCalledWith('id', ['rose']);
     expect(fetchMock.mock.calls[0][0]).toContain('/gemini-3.6-flash:generateContent');
@@ -98,10 +99,10 @@ describe('analyze-product endpoint', () => {
   it('tries the next configured model when Gemini reports the overview model is unavailable', async () => {
     mockCategoryOverview();
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Model not found' } }), { status: 404 }))
-      .mockResolvedValueOnce(geminiResponse({ overview: 'Handmade rose charms.' }));
+      .mockResolvedValueOnce(geminiResponse({ overview: validOverview }));
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ overview: 'Handmade rose charms.' });
+    expect(await response.json()).toEqual({ overview: validOverview });
     expect(fetchMock.mock.calls[0][0]).toContain('/gemini-3.6-flash:generateContent');
     expect(fetchMock.mock.calls[1][0]).toContain('/gemini-3.7-flash:generateContent');
   });
@@ -118,6 +119,23 @@ describe('analyze-product endpoint', () => {
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
     expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each([99, 100, 150, 151])('enforces the exact generated overview word count of %s', async words => {
+    mockCategoryOverview();
+    fetchMock.mockImplementation(async () => geminiResponse({ overview: Array(words).fill('crochet').join(' ') }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(words >= 100 && words <= 150 ? 200 : 502);
+    expect(fetchMock).toHaveBeenCalledTimes(words >= 100 && words <= 150 ? 1 : 2);
+  });
+  it('accepts a corrected draft after one word-count retry', async () => {
+    mockCategoryOverview();
+    fetchMock.mockResolvedValueOnce(geminiResponse({ overview: Array(151).fill('crochet').join(' ') }))
+      .mockResolvedValueOnce(geminiResponse({ overview: validOverview }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ overview: validOverview });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).contents[0].parts[1].text).toContain('151 words');
   });
   it('reports malformed Gemini overviews without success-shaped fallback content', async () => {
     mockCategoryOverview();

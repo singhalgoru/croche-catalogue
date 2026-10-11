@@ -562,6 +562,7 @@ function App() {
       {cartNotifications}
       <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
         seasonalAnnouncement={seasonalAnnouncement}
+        seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} accountName={customerName} />
       <main className="w-full flex-1">{cartDrawer}</main>
@@ -600,6 +601,7 @@ function App() {
         hideMobileCart={!pageReference && areCatalogueToolsSticky}
         tickerMessages={tickerMessages}
         seasonalAnnouncement={seasonalAnnouncement}
+        seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
         categories={categories}
         onNavigateCatalogue={navigateCatalogue}
         onOpenAccount={openAccount}

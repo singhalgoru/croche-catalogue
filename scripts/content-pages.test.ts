@@ -16,6 +16,11 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('caps stored long overviews at 150 words in static pages too', () => {
+    const result = buildContentPages([toy], '919205907350', [{ name: 'Toys', priority: 10, overview: Array(200).fill('crochet').join(' ') }]);
+    const doc = new JSDOM(result.get('/collections/toys/')).window.document;
+    expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')?.split(/\s+/)).toHaveLength(150);
+  });
   it('shows seasonal products in both collections and omits hidden seasonal pages and links', () => {
     const categories = [{ name: 'Navaratri', priority: 999, isSeasonal: true, visible: true, productIds: ['p1', 'p2'], overview: 'Reviewed overview & handmade gifts.' }];
     const seasonal = buildContentPages([toy, hair], '919205907350', categories);

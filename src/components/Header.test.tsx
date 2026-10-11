@@ -1,12 +1,24 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Header from './Header';
 import { signOutCustomer } from '../services/customer';
 vi.mock('../services/customer', () => ({ signOutCustomer: vi.fn() }));
 
 afterEach(cleanup);
+beforeAll(() => vi.stubGlobal('ResizeObserver', class {
+  observe() {}
+  disconnect() {}
+}));
+afterAll(() => vi.unstubAllGlobals());
 
 describe('Header', () => {
+  it('uses mustard fill for every seasonal menu category, not just the featured ticker category', () => {
+    render(<Header showInstallPrompt={false} categories={['Navratri', 'Diwali', 'Toys']} seasonalCategories={['Navratri', 'Diwali']} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByRole('link', { name: 'Navratri' }).classList.contains('bg-mustard')).toBe(true);
+    expect(screen.getByRole('link', { name: 'Diwali' }).classList.contains('bg-mustard')).toBe(true);
+    expect(screen.getByRole('link', { name: 'Toys' }).classList.contains('bg-mustard')).toBe(false);
+  });
   it('links the featured seasonal announcement to the collection page', () => {
     render(<Header showInstallPrompt={false} seasonalAnnouncement={{ name: 'Navaratri', text: 'Check out our Navaratri collection' }} />);
     expect(screen.getByRole('link', { name: 'Check out our Navaratri collection' }).getAttribute('href')).toBe('/collections/navaratri/');

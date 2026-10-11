@@ -1,8 +1,13 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { generateCategoryOverview } from './categories';
+import { generateCategoryOverview, saveCategoryOverview, saveSeasonalCategory } from './categories';
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke } }) }));
 beforeEach(() => vi.clearAllMocks());
+it('rejects saving overviews longer than 150 words on either category path', async () => {
+  const overview = Array(151).fill('crochet').join(' ');
+  await expect(saveCategoryOverview('Toys', overview)).rejects.toThrow('150 words');
+  await expect(saveSeasonalCategory('Navratri', [], true, overview)).rejects.toThrow('150 words');
+});
 it('returns a validated overview draft', async () => {
   invoke.mockResolvedValue({ data: { overview: ' Reviewed draft. ' }, error: null });
   expect(await generateCategoryOverview('Navratri Specials')).toBe('Reviewed draft.');

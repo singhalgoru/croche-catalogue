@@ -17,6 +17,7 @@ interface Props {
   tickerMessages?: string[];
   seasonalAnnouncement?: { name: string; text: string };
   categories?: string[];
+  seasonalCategories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
   collectionPages?: boolean;
   mobileCartInToolbar?: boolean;
@@ -37,6 +38,7 @@ export default function Header({
   tickerMessages = DEFAULT_TICKER_MESSAGES,
   seasonalAnnouncement,
   categories = [],
+  seasonalCategories = [],
   onNavigateCatalogue,
   collectionPages = false,
   mobileCartInToolbar = false,
@@ -71,10 +73,23 @@ export default function Header({
   const [tickerIndex, setTickerIndex] = useState(0);
   const [tickerFocused, setTickerFocused] = useState(false);
   const [tickerHovered, setTickerHovered] = useState(false);
+  const tickerTrackRef = useRef<HTMLDivElement>(null);
+  const [tickerDuration, setTickerDuration] = useState(16);
   const baseMessages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
   const messages = seasonalAnnouncement ? [seasonalAnnouncement.text, ...baseMessages] : baseMessages;
   const tickerMessage = messages[tickerIndex % messages.length];
   const isSeasonalMessage = Boolean(seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text);
+  useEffect(() => {
+    const track = tickerTrackRef.current;
+    if (!track) return;
+    const measure = () => {
+      if (track.scrollWidth > 0) setTickerDuration(track.scrollWidth / 2 / 50);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    measure();
+    return () => observer.disconnect();
+  }, [tickerMessage, showShippingTicker]);
   const navigateCatalogue = (event: MouseEvent<HTMLAnchorElement>, category?: string) => {
     if (!onNavigateCatalogue || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
@@ -106,10 +121,10 @@ export default function Header({
     if (messages.length < 2 || tickerFocused || tickerHovered) return;
     const timer = window.setInterval(
       () => setTickerIndex((current) => (current + 1) % messages.length),
-      isSeasonalMessage ? 16000 : 6000,
+      tickerDuration * 1000,
     );
     return () => window.clearInterval(timer);
-  }, [messages.length, tickerFocused, tickerHovered, isSeasonalMessage]);
+  }, [messages.length, tickerFocused, tickerHovered, tickerDuration]);
 
   return (
     <header className="bg-cream border-b-4 border-mustard">
@@ -122,7 +137,8 @@ export default function Header({
           onMouseEnter={() => setTickerHovered(true)}
           onMouseLeave={() => setTickerHovered(false)}
         >
-          <div className={`shipping-ticker-track ${seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text ? 'shipping-ticker-featured' : ''}`} key={`${tickerIndex}-${tickerMessage}`}>
+          <div ref={tickerTrackRef} style={{ animationDuration: `${tickerDuration}s` }}
+            className={`shipping-ticker-track ${isSeasonalMessage ? 'shipping-ticker-featured' : ''}`} key={`${tickerIndex}-${tickerMessage}`}>
             {seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text
               ? <a href={collectionPath(seasonalAnnouncement.name)} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-cream">{tickerMessage}</a>
               : <span>{tickerMessage}</span>}
@@ -202,7 +218,7 @@ export default function Header({
               {categories.map((category) => (
                 <a key={category} href={collectionPages ? collectionPath(category) : `${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
                   onClick={event => navigateCatalogue(event, category)}
-                  className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
+                  className={`block rounded-lg px-3 py-3 focus-visible:outline-cocoa ${seasonalCategories.includes(category) ? 'bg-mustard text-cocoa font-semibold hover:bg-mustard/80' : 'hover:bg-cream'}`}>
                   {category}
                 </a>
               ))}

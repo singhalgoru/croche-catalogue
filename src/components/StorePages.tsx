@@ -10,6 +10,7 @@ import { compareCatalogueProducts } from '../utils/catalogueSort';
 import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import type { CategorySettings, Product, ProductVariant } from '../types/product';
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
+import { limitCategoryOverview } from '../utils/categoryOverview.js';
 
 interface Props {
   products: Product[];
@@ -47,8 +48,8 @@ export default function StorePages({
   const collectionProducts = useMemo(() => products.filter(product => category && matchesCategory(product, category, categories))
     .sort((a, b) => compareCatalogueProducts(a, b, { now: catalogueTime, categoryRanks: new Map() })), [category, categories, products, catalogueTime]);
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
-  const description = selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
-    : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : '');
+  const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
+    : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
   const title = pathname.startsWith('/about') ? 'About Luvia & contact'
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
@@ -97,6 +98,7 @@ export default function StorePages({
   return <div className="flex min-h-screen flex-col">
     <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []} collectionPages
       seasonalAnnouncement={getSeasonalAnnouncement(categories, products)}
+      seasonalCategories={categories.filter(item => item.isSeasonal).map(item => item.name)}
       cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} accountName={accountName} />
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
