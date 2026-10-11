@@ -44,9 +44,20 @@ describe('Footer', () => {
 
   it('shows the WhatsApp mobile number as a direct WhatsApp link', () => {
     render(<Footer />);
-    expect(screen.getByText('Gurgaon, Haryana, India')).toBeTruthy();
+    expect(screen.getByText('Gurugram, Haryana, India')).toBeTruthy();
     const mobile = screen.getByRole('link', { name: '+91 92059 07350' });
     expect(mobile.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919205907350\?text=/);
+  });
+  it('shows locally hosted card network logos with checkout availability guidance', () => {
+    render(<Footer />);
+    expect(screen.getByRole('region', { name: 'Payment methods' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Visa' }).getAttribute('src')).toBe('/images/payments/visa.svg');
+    expect(screen.getByRole('img', { name: 'Mastercard' }).getAttribute('src')).toBe('/images/payments/mastercard.svg');
+    expect(screen.getByRole('img', { name: 'UPI' }).getAttribute('src')).toBe('/images/payments/upi.svg');
+    expect(screen.getByRole('img', { name: 'RuPay' }).getAttribute('src')).toBe('/images/payments/rupay.svg');
+    expect(screen.getByText('We accept')).toBeTruthy();
+    expect(screen.getByText('Wallet')).toBeTruthy();
+    expect(screen.getByText(/Available payment methods are shown at checkout/)).toBeTruthy();
   });
 
   it('uses accessible dark text on the WhatsApp green button', () => {

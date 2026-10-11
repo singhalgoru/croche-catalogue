@@ -99,7 +99,7 @@ export function buildOrderEmail(order: EmailOrder, audience: 'customer' | 'store
       <p style="line-height:1.7;">Need help or wish to cancel before dispatch? Email <a href="mailto:orders@luviacreations.com" style="color:#604439;">orders@luviacreations.com</a> with your Order ID.</p>
       <p style="margin-top:24px;line-height:1.7;">With love,<br><strong>Team Luvia</strong></p>
     </td></tr><tr><td align="center" style="padding:20px;background:#fff9ef;border-radius:0 0 20px 20px;font-size:12px;color:#8c776c;line-height:1.8;">
-      Gurgaon, Haryana, India<br><a href="https://luviacreations.com/" style="color:#604439;">Visit Luvia Creations</a> &middot;
+      Gurugram, Haryana, India<br><a href="https://luviacreations.com/" style="color:#604439;">Visit Luvia Creations</a> &middot;
       <a href="https://luviacreations.com/return-policy/" style="color:#604439;">Returns and cancellation policy</a>
     </td></tr></table></td></tr></table></body></html>`;
   return { text, html };

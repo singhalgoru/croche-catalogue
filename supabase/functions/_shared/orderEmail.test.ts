@@ -34,6 +34,7 @@ it.each(['customer','store'] as const)('sends %s confirmation with totals, addre
   expect(body.html).toContain('What happens next?');
   expect(body.html).toContain('background:#fff9ef');
   expect(body.html).toContain('border:1px dashed #bd9856');
+  expect(body.html).toContain('Gurugram, Haryana, India');
 });
 it('renders every purchased item with its own snapshot and safe product link', () => {
   const { html } = buildOrderEmail({ ...order, payment_order_items: [...order.payment_order_items, {

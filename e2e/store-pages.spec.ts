@@ -1,6 +1,26 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('footer displays Gurugram and payment network logos without mobile overflow', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/');
+  const footer = page.getByRole('contentinfo');
+  await footer.scrollIntoViewIfNeeded();
+  await expect(footer.getByText('Gurugram, Haryana, India', { exact: true })).toBeVisible();
+  const payments = footer.getByRole('region', { name: 'Payment methods' });
+  for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
+    const image = payments.getByRole('img', { name, exact: true });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(node => {
+      const element = node as HTMLImageElement;
+      return element.complete && element.naturalWidth > 0;
+    })).toBe(true);
+  }
+  await expect(payments).toContainText('Available payment methods are shown at checkout.');
+  await expect(payments.getByText('Wallet', { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
 test('hamburger menu reaches collaboration contact on home and information pages', async ({ page }) => {
   await installMockSupabase(page);
   for (const path of ['/', '/about/']) {

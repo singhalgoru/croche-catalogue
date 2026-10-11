@@ -211,6 +211,17 @@ perform refunds. Concurrent status changes require refreshing before saving.
 Order emails use Luvia's cream/cocoa/mustard theme with item images and product
 links from the saved purchase snapshot, a payment summary, delivery details and
 dispatch/support guidance. Email clients may require enabling remote images.
+Public business-location copy uses Gurugram, Haryana, India; saved customer
+addresses are not rewritten. The footer shows locally hosted UPI, Visa, Mastercard and RuPay
+marks with Razorpay checkout-availability guidance, not a guarantee of every
+payment option. Visa artwork is from [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/visa.svg)
+(CC0); the Mastercard symbol is from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mastercard-logo.svg).
+These marks belong to their respective owners.
+UPI and RuPay artwork is from Wikimedia Commons ([UPI](https://commons.wikimedia.org/wiki/File:UPI_logo.svg),
+[RuPay](https://commons.wikimedia.org/wiki/File:RuPay.svg)).
+The live footer uses a compact, wrapping "We accept" logo strip, plus a generic
+Wallet icon (without implying support for a particular wallet provider), on the cocoa
+background rather than individual payment cards.
 Customer communication uses the confirmed order's `LUV-...` order ID; internal
 cart UUIDs and cart references are not included in customer email, enquiry
 subjects/bodies or WhatsApp support messages. Cart identifiers remain internal

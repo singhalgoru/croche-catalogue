@@ -108,6 +108,7 @@ export default function StorePages({
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
         <h2 className="font-heading text-xl font-bold">Contact Luvia</h2>
+        <p>Gurugram, Haryana, India</p>
         <a href={getGeneralWhatsAppLink()} className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Ask us on WhatsApp</a>
         <p>WhatsApp / mobile: <a href={getGeneralWhatsAppLink()} className="underline">{formatWhatsAppNumber()}</a></p>
         <p>Orders: <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a></p>
