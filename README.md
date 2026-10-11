@@ -70,13 +70,10 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ### Standard Checkout webhooks (test mode)
 
-With public checkout hidden, signed-in catalogue admins can use **Admin →
-Settings → Razorpay test payment**. Open the shop while still signed in, add
-priced available items, return to Settings, and select **Load my cart for test
-payment**. Enter the test buyer name/mobile and open the existing Razorpay
-test modal. Only the admin's own cart is used; other customer carts are not
-impersonated. This tool does not require enabling the public checkout flag.
-After a test payment, check Razorpay's webhook delivery logs for HTTP 200.
+The Razorpay test-payment tool has been removed from admin Settings.
+Live customer checkout and existing payment verification/webhook handling are
+unchanged. Sandbox infrastructure remains available for development testing;
+this removal does not delete historical test payments.
 
 The existing `razorpay-payment-webhook` function now accepts `payment.captured`
 and `order.paid` alongside its Payment Link events. It verifies HMAC-SHA256
@@ -174,7 +171,8 @@ discounts; below this, the current saved courier estimate rounded up to ₹10
 applies, or ₹100 without an estimate. These are the amounts collected at checkout.
 
 `checkout_settings.live_enabled` is false by default. While disabled, the
-existing enquiry flow remains available and admin test checkout is unchanged.
+existing enquiry flow remains available. Admin Settings does not expose a
+test-payment tool.
 Enable only after the following production configuration and checks:
 
 1. Set Supabase Edge Function secrets `RAZORPAY_LIVE_KEY_ID` (starts with

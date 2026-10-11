@@ -32,9 +32,9 @@ test('admin generates a first-order coupon with exact expiry, disables it and de
   await page.getByLabel('Password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Admin payment testing' })).toBeVisible();
-  await page.getByRole('button', { name: 'Load my cart for test payment' }).click();
-  await expect(page.getByRole('alert')).toContainText('Your cart is empty');
+  await expect(page.getByRole('region', { name: 'Admin payment testing' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Razorpay test payment' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Load my cart for test payment' })).toHaveCount(0);
   await expect(page.getByText('First-order coupon — ILOVELUVIA', { exact: true })).toBeVisible();
   const toggle = page.getByRole('button', { name: 'Generate discount coupons', exact: true });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
