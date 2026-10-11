@@ -32,34 +32,6 @@ export default function Footer() {
           Premium handmade crochet accessories, toys, gifts and decor,
           thoughtfully crafted in India.
         </p>
-        <section aria-label="Payment methods" className="my-4 border-t border-cream/25 pt-5">
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-          <p className="text-base text-cream">We accept</p>
-          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3" aria-label="Payment networks">
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy" className="brightness-0 invert" />
-            </li>
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy" className="brightness-0 invert" />
-            </li>
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy" />
-            </li>
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy" className="brightness-0 invert" />
-            </li>
-            <li className="flex h-10 items-center justify-center gap-2 text-base text-cream">
-              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8" />
-                <path d="M20 12h-5a2 2 0 0 0 0 4h5z" />
-              </svg>
-              Wallet
-            </li>
-          </ul>
-          </div>
-          <p className="mt-3 text-xs text-cream/75">Secure payments via Razorpay. Available payment methods are shown at checkout.</p>
-        </section>
-        <p>&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
         <nav aria-label="Store information" className="mt-2 grid grid-cols-2 gap-x-3 sm:mt-3 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-5">
           <a href="/collections/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Explore collections</a>
           <a href="/about/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">About &amp; contact</a>
@@ -126,6 +98,34 @@ export default function Footer() {
             </a>
           </p>
         </div>
+        <section aria-label="Payment methods" className="my-4 border-t border-cream/25 pt-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+          <p className="text-base text-cream">We accept</p>
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3" aria-label="Payment networks">
+            <li className="flex h-10 items-center justify-center">
+              <img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy" className="brightness-0 invert" />
+            </li>
+            <li className="flex h-10 items-center justify-center">
+              <img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy" className="brightness-0 invert" />
+            </li>
+            <li className="flex h-10 items-center justify-center">
+              <img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy" />
+            </li>
+            <li className="flex h-10 items-center justify-center">
+              <img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy" className="brightness-0 invert" />
+            </li>
+            <li className="flex h-10 items-center justify-center gap-2 text-base text-cream">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8" />
+                <path d="M20 12h-5a2 2 0 0 0 0 4h5z" />
+              </svg>
+              Wallet
+            </li>
+          </ul>
+          </div>
+          <p className="mt-3 text-xs text-cream/75">Secure payments via Razorpay. Available payment methods are shown at checkout.</p>
+        </section>
+        <p>&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
       </div>
     </footer>
     </>

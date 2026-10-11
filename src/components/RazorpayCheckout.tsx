@@ -4,19 +4,22 @@ import { createCheckoutOrder, loadRazorpay, verifyCheckoutPayment, readCheckoutR
 import type { PaymentResponse } from '../services/checkout';
 import { formatINR } from '../utils/currency';
 
-interface Props { cart: Cart; disabled: boolean; live?: boolean }
+interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string }
 
-export default function RazorpayCheckout({ cart, disabled, live = false }: Props) {
+export default function RazorpayCheckout({ cart, disabled, live = false, onConfirmed, confirmationOnly = false, confirmationRequest }: Props) {
   const fingerprintForCart = () => JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
     cart.deliveryPinCode, cart.deliveryEstimate, cart.deliveryDetails, cart.welcomeCouponCode,
     cart.deliveryDetails?.name.trim() ?? '', cart.deliveryDetails?.phone ?? '']);
   const [recovery] = useState(() => {
     try {
+      if (live && confirmationOnly && confirmationRequest) {
+        return { request: { fingerprint: '', key: confirmationRequest }, pending: null, verified: false, error: false };
+      }
       const saved = readCheckoutRecovery(cart.id, live);
-      if (live && saved.verified && saved.request?.fingerprint !== fingerprintForCart()) {
+      if (live && !confirmationOnly && saved.verified && saved.request?.fingerprint !== fingerprintForCart()) {
         return { request: null, pending: null, verified: false, error: false };
       }
-      return { ...saved, error: false };
+      return { ...saved, verified: confirmationOnly ? false : saved.verified, error: false };
     }
     catch (error) {
       console.error('Unable to restore checkout:', error);
@@ -29,22 +32,36 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
   const [message, setMessage] = useState(recovery.error
     ? 'Unable to restore checkout. Contact Luvia before paying again.'
     : recovery.verified ? live ? 'Your order is confirmed. View it in My Account. Do not pay again.' : 'Test payment already verified. No real order was placed.'
-    : recovery.pending ? 'Payment needs verification. Retry verification; do not pay again.' : '');
+    : recovery.pending ? 'Payment needs verification. Retry verification; do not pay again.'
+    : confirmationOnly ? recovery.request ? 'Checking your saved order. Do not pay again.'
+      : 'No saved payment was found in this browser. If you paid, contact Luvia or check My Account. Do not pay again.' : '');
   const [pending, setPending] = useState<PaymentResponse | null>(recovery.pending);
   const [verified, setVerified] = useState(recovery.verified);
+  const purchaseCart = useRef(cart);
+  const confirmedCallback = useRef(onConfirmed);
+  useEffect(() => { confirmedCallback.current = onConfirmed; }, [onConfirmed]);
   const locked = useRef(false);
   const paid = useRef(Boolean(recovery.pending || recovery.verified));
   const request = useRef<{ fingerprint: string; key: string; previousRequestKey?: string } | null>(recovery.request);
   const [statusRequest, setStatusRequest] = useState(recovery.request?.key ?? null);
+  useEffect(() => {
+    if (live && verified) confirmedCallback.current?.(statusRequest ?? undefined, purchaseCart.current);
+  }, [live, verified, statusRequest]);
   useEffect(() => {
     if (!live || !statusRequest || verified) return;
     let current = true;
     const check = async () => {
       try {
         const result = await fetchLiveCheckoutStatus(statusRequest);
-        if (!current || result?.status !== 'paid') return;
+        if (!current) return;
+        if (result?.status !== 'paid') {
+          if (confirmationOnly) setMessage(result
+            ? `Payment is not confirmed for ${result.reference}. If money was debited, contact Luvia. Do not pay again.`
+            : 'No accessible order was found for this checkout. Contact Luvia if you paid. Do not pay again.');
+          return;
+        }
         paid.current = true; locked.current = false;
-        saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: true }, true);
+        if (!confirmationRequest) saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: true }, true);
         setVerified(true); setPending(null); setBusy(false);
         setMessage(`Order confirmed — ${result.reference}. Payment received. Save this reference; signed-in customers can view it in My Account.`);
       } catch (failure) {
@@ -54,7 +71,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
     void check();
     const timer = window.setInterval(() => { void check(); }, 5000);
     return () => { current = false; window.clearInterval(timer); };
-  }, [live, statusRequest, verified, cart.id]);
+  }, [live, statusRequest, verified, cart.id, confirmationRequest, confirmationOnly]);
 
   const verify = async (payment: PaymentResponse) => {
     paid.current = true;
@@ -78,8 +95,9 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
     }
   };
   const start = async () => {
-    if (locked.current || disabled || paid.current || recovery.error) return;
+    if (locked.current || disabled || confirmationOnly || paid.current || recovery.error) return;
     locked.current = true;
+    purchaseCart.current = cart;
     setBusy(true);
     setMessage('');
     try {
@@ -152,7 +170,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false }: Props
       </div>}
       {!(live && verified) && <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
         : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>}
-      {!verified && !pending && !recovery.error && (
+      {!confirmationOnly && !verified && !pending && !recovery.error && (
         <form onSubmit={event => { event.preventDefault(); void start(); }} className="mt-2 grid gap-2">
           {!live && <><label className="text-xs text-cocoa">
             Name

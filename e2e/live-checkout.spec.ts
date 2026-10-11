@@ -13,8 +13,10 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
     await route.fulfill({ json: body.delivery });
   });
   const requests: { requestKey: string; previousRequestKey?: string }[] = [];
+  let paid = false;
   await page.route('**/rest/v1/rpc/get_live_checkout_status', route => route.fulfill({
-    json: replace && requests.length ? { status: 'link_created', reference: 'LUV-LIVEFIXTURE' } : null,
+    json: paid ? { status: 'paid', reference: 'LUV-LIVEFIXTURE' }
+      : replace && requests.length ? { status: 'link_created', reference: 'LUV-LIVEFIXTURE' } : null,
   }));
   await page.route('**/functions/v1/create-live-order', route => {
     requests.push(route.request().postDataJSON());
@@ -23,9 +25,12 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
     test_mode: false, reference: 'LUV-LIVEFIXTURE',
   } });
   });
-  await page.route('**/functions/v1/verify-live-payment', route => route.fulfill({ json: {
+  await page.route('**/functions/v1/verify-live-payment', route => {
+    paid = true;
+    return route.fulfill({ json: {
     success: true, test_mode: false, payment_id: 'pay_livefixture', reference: 'LUV-LIVEFIXTURE',
-  } }));
+    } });
+  });
   await page.route('https://checkout.razorpay.com/v1/checkout.js', route => route.fulfill({
     contentType: 'application/javascript', body: `window.Razorpay = class {
       constructor(options) { this.options = options; }
@@ -38,11 +43,25 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
     };`,
   }));
   await page.goto('./');
-  await page.getByRole('article', { name: 'Product: Rose Charm' }).getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
+  await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
+  await expect(page).toHaveURL(/\/p\/rose-charm\/$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   const pay = page.getByRole('button', { name: 'Proceed to payment' });
-  await expect(pay).toBeDisabled();
+  await expect(page.getByRole('navigation', { name: 'Checkout steps' })).toBeVisible();
+  await expect(pay).toHaveCount(0);
+  await page.getByRole('main').getByRole('button', { name: 'Rose Charm', exact: true }).click();
+  await expect(page).toHaveURL(/\/p\/rose-charm\/\?variant=rose-pink/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Back to cart' }).click();
+  await expect(page).toHaveURL(/checkout=cart/);
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
+  await expect(page).toHaveURL(/checkout=delivery/);
+  await page.goBack();
+  await expect(page).toHaveURL(/checkout=cart/);
+  await page.goForward();
+  await expect(page).toHaveURL(/checkout=delivery/);
   await page.getByLabel('Recipient name').fill('Live Buyer');
   await page.getByLabel('Mobile number', { exact: true }).fill('9876543210');
   await page.getByLabel('Contact email', { exact: true }).fill('buyer@example.test');
@@ -54,6 +73,13 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   await page.getByRole('button', { name: 'Save and review' }).click();
   await expect(page.getByText('3. Review order', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Apply coupon', exact: true })).toBeVisible();
+  await expect(pay).toBeEnabled();
+  await page.getByRole('button', { name: 'Edit details', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=delivery/);
+  await expect(pay).toHaveCount(0);
+  await expect(page.getByLabel('Recipient name')).toHaveValue('Live Buyer');
+  await page.getByRole('button', { name: 'Continue to address' }).click();
+  await page.getByRole('button', { name: 'Save and review' }).click();
   await expect(pay).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Need help? Contact Luvia on WhatsApp' })).toBeVisible();
@@ -69,6 +95,15 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
     expect(requests[1].requestKey).not.toBe(requests[0].requestKey);
   }
   await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Order confirmed — LUV-LIVEFIXTURE');
+  await expect(page).toHaveURL(/checkout=confirmation/);
   await expect(pay).toHaveCount(0);
+  const originalCartId = state.carts[0].id;
+  state.carts.splice(0);
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Order confirmed — LUV-LIVEFIXTURE');
+  await expect(pay).toHaveCount(0);
+  await expect(page.getByLabel('Cart order actions').getByText('₹0', { exact: true })).not.toBeVisible();
+  expect(state.carts.every(cart => cart.id !== originalCartId)).toBe(true);
+  expect(requests.length).toBe(replace ? 2 : 1);
 });
 }

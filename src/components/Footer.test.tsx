@@ -58,6 +58,10 @@ describe('Footer', () => {
     expect(screen.getByText('We accept')).toBeTruthy();
     expect(screen.getByText('Wallet')).toBeTruthy();
     expect(screen.getByText(/Available payment methods are shown at checkout/)).toBeTruthy();
+    const payments = screen.getByRole('region', { name: 'Payment methods' });
+    const footer = screen.getByRole('contentinfo');
+    expect(footer.lastElementChild?.lastElementChild?.textContent).toContain(`© ${new Date().getFullYear()} Luvia Creations.`);
+    expect(payments.nextElementSibling).toBe(footer.lastElementChild?.lastElementChild);
   });
 
   it('uses accessible dark text on the WhatsApp green button', () => {

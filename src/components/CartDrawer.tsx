@@ -16,6 +16,9 @@ import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
 import { FREE_SHIPPING_THRESHOLD, getCartTotals, getShippingLabel } from '../utils/cartMessage';
 
 interface Props {
+  pageStep?: 'cart' | 'delivery' | 'review' | 'confirmation';
+  onNavigateStep?: (step: 'cart' | 'delivery' | 'review' | 'confirmation', requestId?: string) => void;
+  confirmationRequest?: string;
   onSaveDeliveryDetails?: (value: DeliveryDetails) => Promise<Cart | null>;
   onSelectWelcomeCoupon?: (code: string) => Promise<Cart | null>;
   onSaveDeliveryPin: (value: string) => Promise<Cart | null>;
@@ -49,7 +52,12 @@ export default function CartDrawer({
   onSaveDeliveryPin,
   onSaveDeliveryDetails,
   onSelectWelcomeCoupon,
+  pageStep,
+  onNavigateStep,
+  confirmationRequest,
 }: Props) {
+  const isPage = Boolean(pageStep);
+  const [paidCart, setPaidCart] = useState<Cart | null>(null);
   // Desktop browsers with no mail client registered silently ignore mailto:
   // links, so reveal webmail and copy fallbacks once Email has been tried.
   const [hasTriedEmail, setHasTriedEmail] = useState(false);
@@ -64,7 +72,7 @@ export default function CartDrawer({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const checkoutCart = useMemo(
     () =>
-      cart
+      pageStep === 'confirmation' && paidCart ? paidCart : cart
         ? {
             ...cart,
             items: cart.items.map((item) => {
@@ -83,7 +91,7 @@ export default function CartDrawer({
             }),
           }
         : null,
-    [cart, products],
+    [cart, products, pageStep, paidCart],
   );
   const unavailableItemIds = useMemo(
     () =>
@@ -139,19 +147,21 @@ export default function CartDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-[80] bg-black/50"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Shopping cart"
-      onClick={onClose}
+      className={isPage ? 'w-full text-cocoa' : 'fixed inset-0 z-[80] bg-black/50'}
+      role={isPage ? undefined : 'dialog'}
+      aria-modal={isPage ? undefined : true}
+      aria-label={isPage ? undefined : 'Shopping cart'}
+      onClick={isPage ? undefined : onClose}
     >
       <aside
-        className="ml-auto flex h-full w-full max-w-md flex-col bg-cream shadow-2xl"
+        className={isPage ? 'mx-auto flex w-full max-w-6xl flex-col bg-cream px-4 py-6 sm:py-10'
+          : 'ml-auto flex h-full w-full max-w-md flex-col bg-cream shadow-2xl'}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-mustard/30 bg-white px-4 py-2">
           <div>
-            <h2 className="font-heading text-2xl font-bold text-cocoa">Your cart</h2>
+            <h2 className="font-heading text-2xl font-bold text-cocoa">{pageStep === 'delivery' ? 'Delivery details'
+              : pageStep === 'review' ? 'Review & payment' : pageStep === 'confirmation' ? 'Order confirmation' : 'Your cart'}</h2>
           </div>
           <button
             type="button"
@@ -159,17 +169,37 @@ export default function CartDrawer({
             className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-2xl text-cocoa"
             aria-label="Close cart"
           >
-            ×
+            {isPage ? '←' : '×'}
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {isPage && <nav aria-label="Checkout steps" className="my-5">
+          <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(['cart','delivery','review','confirmation'] as const).map((step, index) => <li key={step}>
+              <button type="button" aria-current={pageStep === step ? 'step' : undefined}
+                disabled={step === 'confirmation' || pageStep === 'confirmation' || isBusy
+                  || (step !== 'cart' && !cart?.items.length)
+                  || (step === 'review' && !cart?.deliveryDetails)}
+                onClick={() => onNavigateStep?.(step)}
+                className={`min-h-11 w-full rounded-full border px-3 py-2 text-sm font-semibold disabled:opacity-60 ${pageStep === step ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard/40 bg-white text-cocoa'}`}>
+                {index + 1}. {step === 'cart' ? 'Cart' : step === 'delivery' ? 'Delivery' : step === 'review' ? 'Review & pay' : 'Confirmation'}
+              </button>
+            </li>)}
+          </ol>
+        </nav>}
+        <div className={isPage ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]' : 'contents'}>
+        <div className={isPage ? 'min-w-0 rounded-2xl border border-mustard/30 bg-white p-4 sm:p-6' : 'min-h-0 flex-1 overflow-y-auto p-4'}>
           {error && (
             <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </p>
           )}
-          {isLoading ? (
+          {pageStep === 'confirmation' ? <div>
+            <h3 className="font-heading text-2xl font-bold">{paidCart ? 'Thank you for choosing Luvia!' : 'Payment confirmation'}</h3>
+            <p className="mt-3">{paidCart ? 'Your verified payment confirmation and Order ID are shown below. Your confirmation email is sent separately.'
+              : 'An order is confirmed only after payment verification. If you have paid, do not pay again. Keep this page open while we check the saved checkout.'}</p>
+            <button type="button" onClick={onClose} className="mt-4 min-h-11 rounded-full border border-cocoa px-5 py-2">Continue shopping</button>
+          </div> : isLoading ? (
             <p className="py-12 text-center text-cocoa/60">Restoring your cart…</p>
           ) : !cart || cart.items.length === 0 ? (
             <div className="py-12 text-center">
@@ -180,7 +210,7 @@ export default function CartDrawer({
             </div>
           ) : (
             <div className="space-y-3">
-              {checkoutCart?.items.map((item) => {
+              {(!isPage || pageStep === 'cart' || pageStep === 'review') && checkoutCart?.items.map((item) => {
                 const isUnavailable = unavailableItemIds.has(item.id);
                 const isBelowMinimum = belowMinimumItemIds.has(item.id);
                 const product = products.find((candidate) => candidate.id === item.productId);
@@ -291,14 +321,14 @@ export default function CartDrawer({
                   </article>
                 );
               })}
-              <div className="flex items-center justify-between gap-3 text-xs">
+              <div hidden={isPage && pageStep !== 'cart'} className="flex items-center justify-between gap-3 text-xs">
                 <button type="button" onClick={onClear} disabled={isBusy}
                   className="min-h-11 shrink-0 font-semibold text-red-700 underline disabled:opacity-50">
                   Clear cart
                 </button>
                 <span className="text-right text-cocoa/50">Cart saved for 30 days</span>
               </div>
-              <details className="rounded-xl border border-mustard/30 bg-white px-3 text-sm text-cocoa">
+              <details hidden={isPage && pageStep === 'delivery'} className="rounded-xl border border-mustard/30 bg-white px-3 text-sm text-cocoa">
                 <summary className="cursor-pointer py-3 font-semibold">Price breakdown</summary>
                 <div className="space-y-1 pb-3">
                   <div className="flex items-center justify-between">
@@ -330,16 +360,26 @@ export default function CartDrawer({
                   </p>
                 </div>
               </details>
-              <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />
-              {onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}`}
+              {(!isPage || pageStep === 'cart') && <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />}
+              {(!isPage || pageStep === 'delivery' || pageStep === 'review') && onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}-${pageStep ?? ''}`}
+                pageStep={pageStep === 'delivery' || pageStep === 'review' ? pageStep : undefined}
+                onReview={() => onNavigateStep?.('review')}
+                onEdit={isPage ? () => onNavigateStep?.('delivery') : undefined}
+                onBack={isPage ? () => onNavigateStep?.('cart') : undefined}
                 cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} onlineCheckout={liveCheckout} />}
+              {pageStep === 'cart' && <button type="button" disabled={isBusy || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0}
+                onClick={() => onNavigateStep?.('delivery')} className="min-h-11 w-full rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50">
+                Continue with delivery details
+              </button>}
+              {pageStep === 'cart' && <p className="text-center text-xs text-cocoa/65">Guest orders do not receive the one-time welcome reward. Sign in to use your account.</p>}
             </div>
           )}
         </div>
 
-        {cart && cart.items.length > 0 && (
-          <div aria-label="Cart order actions" className="max-h-[40%] shrink-0 overflow-y-auto border-t border-mustard/30 bg-white px-4 py-3">
-            <div className="flex items-center justify-between gap-3 font-bold text-cocoa">
+        {(cart && (cart.items.length > 0 || pageStep === 'confirmation') || paidCart) && (
+          <div aria-label="Cart order actions" className={isPage ? 'h-fit min-w-0 rounded-2xl border border-mustard/30 bg-white p-5 lg:sticky lg:top-6'
+            : 'max-h-[40%] shrink-0 overflow-y-auto border-t border-mustard/30 bg-white px-4 py-3'}>
+            <div hidden={pageStep === 'confirmation' && !paidCart} className="flex items-center justify-between gap-3 font-bold text-cocoa">
               <span>{hasUnpricedItems ? 'Estimated total*' : liveCheckout ? 'Total' : 'Estimated total'}</span>
               {totals?.discount ? (
                 <span className="flex items-baseline gap-2">
@@ -350,15 +390,21 @@ export default function CartDrawer({
                 </span>
               ) : <span>{formatINR(total)}</span>}
             </div>
-            <p className="text-xs text-cocoa/60">
+            <p hidden={pageStep === 'confirmation' && !paidCart} className="text-xs text-cocoa/60">
               {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : liveCheckout ? 'Includes shipping' : 'Includes estimated shipping'}
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
             {checkoutError && <p role="alert" className="mt-2 text-xs text-red-700">{checkoutError}</p>}
+            <div hidden={liveCheckout && isPage && pageStep !== 'review' && pageStep !== 'confirmation'}>
             {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live
-              disabled={isBusy || !checkoutCart.deliveryDetails || !checkoutCart.deliveryDetails.email?.trim() || hasUnpricedItems || unavailableItemIds.size > 0
+              confirmationOnly={pageStep === 'confirmation'}
+              confirmationRequest={confirmationRequest}
+              onConfirmed={(requestId, purchasedCart) => { if (isPage && pageStep !== 'confirmation') {
+                setPaidCart(purchasedCart.items.length ? purchasedCart : null); onNavigateStep?.('confirmation', requestId);
+              } }}
+              disabled={pageStep === 'confirmation' || isBusy || !checkoutCart.deliveryDetails || !checkoutCart.deliveryDetails.email?.trim() || hasUnpricedItems || unavailableItemIds.size > 0
                 || belowMinimumItemIds.size > 0 || Boolean(totals?.couponShortfall)} />}
-            {!liveCheckout && <div className="mt-2 grid grid-cols-2 gap-2">
+            {!liveCheckout && pageStep !== 'confirmation' && <div className="mt-2 grid grid-cols-2 gap-2">
               <a
                 href={unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 ? whatsappLink : undefined}
                 target="_blank"
@@ -441,8 +487,10 @@ export default function CartDrawer({
               <RazorpayCheckout key={checkoutCart.id} cart={checkoutCart}
                 disabled={isBusy || hasUnpricedItems || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0} />
             )}
+            </div>
           </div>
         )}
+        </div>
       </aside>
     </div>
   );

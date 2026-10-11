@@ -29,7 +29,8 @@ test('defers admin and product detail bundles until needed', async ({ page }) =>
   await expect(page.locator('link[rel="preconnect"][href="http://supabase.test"]')).toHaveCount(1);
 
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
-  await expect(page.getByRole('dialog', { name: 'Rose Charm' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect((await loadedChunks()).some((url) => url.includes('ProductModal-'))).toBe(true);
   expect((await loadedChunks()).some((url) => url.includes('AdminPage-'))).toBe(false);
 });
@@ -178,17 +179,17 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
     .toBe(true);
 
   await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
-  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const productDialog = page.getByRole('main');
   await expect(
     productDialog.getByRole('button', {
       name: 'Increase quantity of Rose Charm — Rose Pink',
     }),
   ).toBeVisible();
   await expect(productDialog.getByLabel('1 of Rose Charm — Rose Pink in cart')).toBeVisible();
-  await productDialog.getByRole('button', { name: 'Close product details' }).click();
+  await productDialog.getByRole('link', { name: 'Back to collection' }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
-  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  const cartDialog = page.getByRole('main');
   await expect(cartDialog.getByText('Rose Charm')).toBeVisible();
   await expect(cartDialog.getByText('Variant: Rose Pink')).toBeVisible();
   await cartDialog
@@ -197,7 +198,7 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
   await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
 
   const enquiry = cartDialog.getByRole('link', {
-    name: 'Enquire about cart on WhatsApp',
+    name: 'Send cart to Luvia on WhatsApp',
   });
   await expect(enquiry).toHaveAttribute('href', /Rose%20Charm/);
   await expect(enquiry).toHaveAttribute('href', /Quantity%3A%202/);
@@ -212,10 +213,11 @@ test('persists an anonymous cart and sends the complete enquiry to WhatsApp', as
   });
 
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Close cart' }).click();
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
   await page.getByRole('button', { name: 'Open cart with 2 items' }).click();
-  const restoredCart = page.getByRole('dialog', { name: 'Shopping cart' });
+  const restoredCart = page.getByRole('main');
   await expect(restoredCart.getByText('Rose Charm')).toBeVisible();
   await restoredCart.getByRole('button', { name: 'Clear cart' }).click();
   await expect(restoredCart.getByText('Your cart is empty')).toBeVisible();
@@ -255,20 +257,23 @@ test('shows compact cart icons with tooltips on cards and opened products', asyn
   await expect(roseCard.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
 
   await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
-  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const productDialog = page.getByRole('main');
   const modalCartButton = productDialog.getByRole('button', {
     name: 'Add to cart — Rose Charm',
   });
-  await expect(modalCartButton).toHaveText('');
+  await expect(modalCartButton).toContainText('Add to cart');
   const [modalImageBox, modalCartBox] = await Promise.all([
     productDialog.getByRole('img', { name: 'Rose Charm — Rose Pink' }).boundingBox(),
     modalCartButton.boundingBox(),
   ]);
   expect(modalImageBox).not.toBeNull();
   expect(modalCartBox).not.toBeNull();
-  expect(modalCartBox!.y).toBeGreaterThanOrEqual(modalImageBox!.y + modalImageBox!.height);
-  await modalCartButton.hover();
-  await expect(productDialog.getByRole('tooltip', { name: 'Add to cart' })).toBeVisible();
+  expect(modalCartBox!.height).toBeGreaterThanOrEqual(44);
+  if (test.info().project.name === 'mobile-chromium') {
+    expect(modalCartBox!.y).toBeGreaterThanOrEqual(modalImageBox!.y + modalImageBox!.height);
+  } else {
+    expect(modalCartBox!.x).toBeGreaterThanOrEqual(modalImageBox!.x + modalImageBox!.width);
+  }
   await modalCartButton.click();
   await expect(page.getByRole('status')).toContainText(
     'Rose Charm — Rose Pink added to cart',
@@ -292,9 +297,8 @@ test('opens a product from its card and restores the browsing position', async (
   await page.evaluate(() => window.scrollTo(0, 650));
   const originalScrollY = await page.evaluate(() => window.scrollY);
   await roseCard.getByRole('heading', { name: 'Rose Charm' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Close product details' }).click();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
+  await page.getByRole('link', { name: 'Back to collection' }).click();
   await expect
     .poll(() => page.evaluate(() => window.scrollY))
     .toBeGreaterThanOrEqual(originalScrollY - 2);
@@ -442,14 +446,14 @@ test('uses a selected variant price in the card, modal, and cart', async ({ page
   await expect(roseCard.getByText('₹499')).toBeVisible();
   await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
 
-  const productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const productDialog = page.getByRole('main');
   await productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' }).click();
   await expect(productDialog.getByText('₹499')).toBeVisible();
   await productDialog.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
-  await productDialog.getByRole('button', { name: 'Close product details' }).click();
+  await productDialog.getByRole('link', { name: 'Back to collection' }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
-  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  const cartDialog = page.getByRole('main');
   await expect(cartDialog.getByText('Variant: Ivory')).toBeVisible();
   await expect(
     cartDialog.getByRole('article', { name: 'View Rose Charm — Ivory' }).getByText('₹499'),
@@ -463,35 +467,36 @@ test('hides the Standard label for a single-variant product', async ({ page }) =
   await expect(page.getByRole('status')).not.toContainText('Standard');
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
-  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  const cartDialog = page.getByRole('main');
   await expect(cartDialog.getByRole('article', { name: 'View New Heart Charm' })).toBeVisible();
   await expect(cartDialog.getByText('Variant: Standard')).toHaveCount(0);
 });
 
-test('opens the exact cart product variant in the product modal', async ({ page }) => {
+test('opens the exact cart product variant in a full product page', async ({ page }) => {
   catalogueState.products[0].product_variants[1].in_stock = true;
   catalogueState.products[0].product_variants[1].available_quantity = 2;
   await page.reload({ waitUntil: 'domcontentloaded' });
 
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
-  let productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  let productDialog = page.getByRole('main');
   const ivoryVariant = productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' });
   await ivoryVariant.click();
   await productDialog.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
-  await productDialog.getByRole('button', { name: 'Close product details' }).click();
+  await productDialog.getByRole('link', { name: 'Back to collection' }).click();
 
   await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
-  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  const cartDialog = page.getByRole('main');
   await cartDialog.locator('article[aria-label="View Rose Charm — Ivory"]').click();
 
-  productDialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  productDialog = page.getByRole('main');
   await expect(
     productDialog.locator('button[aria-pressed]').filter({ hasText: 'Ivory' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(productDialog.getByRole('img', { name: 'Rose Charm — Ivory' })).toBeVisible();
-  await expect(cartDialog).toHaveCount(0);
-  await productDialog.getByRole('button', { name: 'Close product details' }).click();
-  await expect(page.getByRole('dialog', { name: 'Shopping cart' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Checkout steps' })).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await productDialog.getByRole('link', { name: 'Back to cart' }).click();
+  await expect(page.getByRole('navigation', { name: 'Checkout steps' })).toBeVisible();
 });
 
 test('zoom navigation reaches every variant when only one has angle photos', async ({ page }) => {
@@ -508,7 +513,7 @@ test('zoom navigation reaches every variant when only one has angle photos', asy
   await page.reload({ waitUntil: 'domcontentloaded' });
 
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
-  await page.getByRole('dialog', { name: 'Rose Charm' })
+  await page.getByRole('main')
     .getByRole('button', { name: 'Zoom product image' }).click();
 
   const next = page.getByRole('button', { name: 'Show next zoomed product image' });
@@ -537,21 +542,23 @@ test('shares a product through app icons and direct social links', async ({
   });
 
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const dialog = page.getByRole('main');
   await dialog.getByRole('button', { name: 'Share this product' }).click();
 
   await expect(dialog.getByRole('link', { name: 'Share on WhatsApp' })).toHaveAttribute(
     'href',
-    /wa\.me.*rose-charm--product-1/i,
+    /wa\.me.*%2Fp%2Frose-charm%2F/i,
   );
   await expect(dialog.getByRole('link', { name: 'Share on Facebook' })).toHaveAttribute(
     'href',
-    /facebook\.com\/sharer\/sharer\.php.*rose-charm--product-1/i,
+    /facebook\.com\/sharer\/sharer\.php.*%2Fp%2Frose-charm%2F/i,
   );
-  await expect(dialog.getByRole('link', { name: 'Share on Reddit' })).toHaveAttribute(
+  await dialog.getByRole('button', { name: 'Share on Reddit' }).click();
+  await expect(dialog.getByRole('link', { name: 'Reddit link post (prefilled title)' })).toHaveAttribute(
     'href',
-    /reddit\.com\/submit.*rose-charm--product-1/i,
+    /reddit\.com\/submit.*%2Fp%2Frose-charm%2F/i,
   );
+  await dialog.getByRole('button', { name: 'Share on Reddit' }).click();
   await expect(dialog.getByRole('button', { name: 'Share on Instagram' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Share on Snapchat' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Copy product link' })).toBeVisible();
@@ -568,7 +575,7 @@ test('shares a product through app icons and direct social links', async ({
     .toMatchObject({
       title: 'Rose Charm — Rose Pink',
       text: 'See Rose Charm — Rose Pink from Luvia',
-      url: expect.stringContaining('#product=rose-charm--product-1'),
+      url: expect.stringContaining('/p/rose-charm/'),
     });
 
   await dialog.getByRole('button', { name: 'Share on Instagram' }).click();
@@ -580,7 +587,7 @@ test('shares a product through app icons and direct social links', async ({
       ),
     )
     .toMatchObject({
-      url: expect.stringContaining('#product=rose-charm--product-1'),
+      url: expect.stringContaining('/p/rose-charm/?variant=rose-pink'),
     });
 });
 
@@ -625,7 +632,7 @@ test('positions the cart below the ticker and keeps it clear of sticky categorie
     expect(categoryBox!.width).toBeGreaterThan(page.viewportSize()!.width - 50);
     await categories.getByRole('button', { name: 'All', exact: true }).click();
     await floatingCart.click();
-    await expect(page.getByRole('dialog', { name: 'Shopping cart' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Checkout steps' })).toBeVisible();
   } else {
     expect(floatingBox!.y).toBeGreaterThanOrEqual(40);
     expect(floatingBox!.y).toBeLessThanOrEqual(60);
@@ -657,7 +664,7 @@ test('decreases and removes an individual variant from the cart', async ({ page 
   await expect(page.getByRole('button', { name: 'Open cart with 2 items' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Open cart with 2 items' }).click();
-  const cartDialog = page.getByRole('dialog', { name: 'Shopping cart' });
+  const cartDialog = page.getByRole('main');
   await expect(cartDialog.getByText('Variant: Rose Pink')).toBeVisible();
   await cartDialog
     .getByRole('button', { name: 'Decrease quantity of Rose Charm — Rose Pink' })
@@ -730,7 +737,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
       ),
     )
     .toBe(true);
-  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
+  const dialog = page.getByRole('main');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('region', { name: 'Product variants' })).toBeVisible();
   await dialog.getByRole('button', { name: /Ivory/ }).click();
@@ -764,9 +771,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
     /Ivory/,
   );
 
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('dialog', { name: 'New Heart Charm' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Back to collection' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await expect(page.getByRole('link', { name: 'Contact on WhatsApp' })).toHaveAttribute(
@@ -798,7 +803,7 @@ test('supports campaign deep links and carries attribution into WhatsApp', async
   await page.getByRole('button', { name: 'View Flower Coaster' }).click();
   await expect(
     page
-      .getByRole('dialog', { name: 'Flower Coaster' })
+      .getByRole('main')
       .getByRole('link', { name: 'Order / Enquire on WhatsApp' }),
   ).toHaveAttribute('href', /Ref%3A%20meta%2Fdiwali/);
 });
@@ -853,11 +858,11 @@ test('shows prices only for products opted into price display', async ({ page })
   await expect(coasterCard.getByText('₹')).toHaveCount(0);
 
   await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
-  await expect(page.getByRole('dialog', { name: 'Rose Charm' }).getByText('₹349')).toBeVisible();
+  await expect(page.getByRole('main').getByText('₹349Includes GST · shipping additional', { exact: true })).toBeVisible();
 });
 
 test('supports full-modal swipes and touch-only overlay controls', async ({ page }) => {
-  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await page.goto('./#product=rose-charm');
   const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
   const description = dialog.getByText('A detailed handmade rose charm for bags and keys.');
   const previous = dialog.getByRole('button', { name: 'Show previous product' });

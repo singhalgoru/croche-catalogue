@@ -1,26 +1,45 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-test('cart prioritizes products and keeps order actions compact on short screens', async ({ page }) => {
+test('home footer ends with themed payment methods and Luvia copyright', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('./');
+  const footer = page.getByRole('contentinfo');
+  const methods = footer.getByRole('region', { name: 'Payment methods' });
+  await methods.scrollIntoViewIfNeeded();
+  for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
+    const image = methods.getByRole('img', { name, exact: true });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
+  }
+  await expect(methods.getByText('Wallet', { exact: true })).toBeVisible();
+  await expect(footer.locator('> div > p').last()).toContainText(`© ${new Date().getFullYear()} Luvia Creations.`);
+  const methodsBox = (await methods.boundingBox())!;
+  const contactsBox = (await footer.getByRole('link', { name: 'hello@luviacreations.com' }).boundingBox())!;
+  expect(methodsBox.y).toBeGreaterThanOrEqual(contactsBox.y + contactsBox.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width);
+});
+
+test('cart uses a full-width page with products before the summary on short screens', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 600 });
   await installMockSupabase(page);
   await page.goto('./');
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
-  const cart = page.getByRole('dialog', { name: 'Shopping cart' });
+  const cart = page.getByRole('main');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   const item = cart.getByRole('article', { name: /View Rose Charm/ });
   const actions = cart.locator('[aria-label="Cart order actions"]');
-  await expect(item).toBeInViewport({ ratio: 1 });
+  await expect(item).toBeVisible();
   const itemBox = (await item.boundingBox())!;
   const actionsBox = (await actions.boundingBox())!;
   expect(actionsBox.height).toBeLessThanOrEqual(150);
   expect(itemBox.y + itemBox.height).toBeLessThanOrEqual(actionsBox.y);
-  for (const name of ['Send cart to Luvia on WhatsApp', /Email cart to Luvia/]) {
-    const link = cart.getByRole('link', { name });
-    await expect(link).toBeInViewport({ ratio: 1 });
-    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  }
+  expect((await cart.boundingBox())!.width).toBe(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await expect(cart.getByRole('button', { name: 'Continue with delivery details' })).toBeVisible();
+  await expect(cart.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toBeVisible();
   await expect(cart.getByText('Items subtotal', { exact: true })).not.toBeVisible();
   await cart.getByText('Price breakdown', { exact: true }).click();
   await expect(cart.getByText('Items subtotal', { exact: true })).toBeVisible();
@@ -47,7 +66,7 @@ test('guest address is saved, reviewed, shared and restored without showing paym
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   await expect(page.getByText(/Guest orders do not receive the one-time welcome reward/)).toBeVisible();
-  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('button', { name: 'Create account' })).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('button', { name: 'Create account' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
   await page.getByLabel('Recipient name').fill('Guest Buyer');
   await page.getByLabel('Mobile number', { exact: true }).fill('9876543210');
@@ -63,7 +82,7 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   expect(decodeURIComponent(whatsapp!)).toContain('12 Guest Street');
   await expect(page.getByRole('button', { name: 'Try Razorpay test checkout' })).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=review/);
   await expect(page.getByText(/12 Guest Street/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Email my welcome coupon' })).toHaveCount(0);
   for (const cart of state.carts) {
@@ -71,7 +90,7 @@ test('guest address is saved, reviewed, shared and restored without showing paym
       code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100000, minimum_subtotal_rupees: 500 } });
   }
   await page.reload();
-  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=review/);
   await expect(page.getByRole('alert')).toContainText('Add ₹151 more in items');
   await expect(page.getByRole('alert')).toContainText('minimum items value of ₹500');
   await expect(page.getByText('Coupon ILOVELUVIA not applied: minimum items value not met.')).toBeVisible();
@@ -80,7 +99,7 @@ test('guest address is saved, reviewed, shared and restored without showing paym
       code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100000, minimum_subtotal_rupees: 0 } });
   }
   await page.reload();
-  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=review/);
   const original = page.getByLabel(/^Original price ₹/);
   const discounted = page.getByLabel(/^Discounted price ₹/);
   await expect(original).toBeVisible();
@@ -108,7 +127,7 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
     } } });
   }
   await page.reload();
-  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=cart/);
   await expect(page.getByLabel('Discounted price ₹550')).toBeVisible();
   await expect(actions.getByText(/Includes estimated shipping/)).toBeVisible();
   await page.getByText('Price breakdown', { exact: true }).click();
@@ -197,6 +216,8 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await accountDialog.getByRole('button', { name: 'Close account' }).click();
   await page.getByRole('button', { name: /^Open cart with 1 item/ }).click();
   // Signed-in customers' saved address is applied automatically as their default.
+  await page.getByRole('button', { name: 'Continue with delivery details' }).click();
+  await page.getByRole('navigation', { name: 'Checkout steps' }).getByRole('button', { name: '3. Review & pay' }).click();
   await expect(page.getByText('3. Review order request', { exact: true })).toBeVisible();
   const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
   expect(decodeURIComponent(whatsapp!)).toContain('12 Customer Street');

@@ -19,13 +19,13 @@ test('optional cart PIN persists, is shared only after save, and can be cleared'
   expect(state.carts[0].delivery_pin_code).toBeUndefined();
   await input.fill('999999');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByText('Enter a valid pincode or keep it empty.')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Enter a valid pincode or keep it empty.')).toBeVisible();
   expect(state.carts[0].delivery_pin_code).toBeUndefined();
   await input.fill('110001');
   const enquiry = page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' });
   expect(new URL((await enquiry.getAttribute('href'))!).searchParams.get('text')).not.toContain('110001');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('status')).toContainText('Delivery pincode saved.');
+  await expect(page.getByRole('main').getByRole('status')).toContainText('Delivery pincode saved.');
   expect(state.carts[0].delivery_pin_code).toBe('110001');
   await expect(input).toHaveCount(0);
   const savedPanel = page.locator('form').filter({ has: page.getByRole('button', { name: 'Change', exact: true }) });
@@ -39,7 +39,7 @@ test('optional cart PIN persists, is shared only after save, and can be cleared'
   await expect(page.getByText(/Postal area: Central Delhi · Delhi · India/)).toBeVisible();
   expect(new URL((await enquiry.getAttribute('href'))!).searchParams.get('text')).toContain('Delivery pincode (shopper-provided): 110001');
   await page.reload();
-  await page.getByRole('button', { name: 'Open cart with 1 item' }).click();
+  await expect(page).toHaveURL(/checkout=cart/);
   await expect(page.getByText('Delivery pincode: 110001', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Change', exact: true }).click();
   await expect(input).toHaveValue('110001');
@@ -51,7 +51,7 @@ test('optional cart PIN persists, is shared only after save, and can be cleared'
   await page.getByText('How we use your pincode', { exact: true }).click();
   await expect(page.getByText(/Only your pincode is sent/)).toBeVisible();
   await page.getByRole('button', { name: 'Clear', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Shopping cart' }).getByRole('status')).toContainText('Delivery pincode cleared.');
+  await expect(page.getByRole('main').getByRole('status')).toContainText('Delivery pincode cleared.');
   expect(state.carts[0].delivery_pin_code).toBeNull();
   expect(state.carts[0].delivery_pin_location).toBeNull();
   await expect(input).toHaveValue('');
@@ -63,8 +63,7 @@ test('quick view and image zoom cover the hamburger and restore it after closing
   await page.goto('/');
   const menu = page.getByRole('button', { name: 'Open navigation' });
   const box = await menu.boundingBox();
-  const card = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Rose Charm', exact: true }) });
-  await card.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
+  await page.goto('/#product=rose-charm');
   await expect(page.getByRole('dialog', { name: 'Rose Charm', exact: true })).toBeVisible();
   const menuCovered = async () => page.evaluate(({ x, y }) => !document.elementFromPoint(x, y)?.closest('button[aria-label="Open navigation"]'),
     { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 });

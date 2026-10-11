@@ -46,15 +46,48 @@ import { getProductMetaDescription } from './utils/productMetaDescription';
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
 const AccountDialog = lazy(() => import('./components/AccountDialog'));
+const readCheckoutStep = () => {
+  const value = new URLSearchParams(window.location.search).get('checkout');
+  return (['cart','delivery','review','confirmation'] as const).find(step => step === value) ?? null;
+};
 
 function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts, hasCatalogueSnapshot, homepageMetadata } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState(readCheckoutStep);
+  const [isCartOpen, setCartOpen] = useState(() => Boolean(readCheckoutStep()));
+  const navigateCheckout = useCallback((step: 'cart' | 'delivery' | 'review' | 'confirmation', requestId?: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('checkout', step);
+    if (step === 'confirmation' && requestId) url.searchParams.set('checkoutRequest', requestId);
+    else url.searchParams.delete('checkoutRequest');
+    if (readCheckoutStep() !== step) {
+      const state = window.history.state;
+      window.history.pushState(typeof state?.catalogueDepth === 'number'
+        ? { ...state, catalogueDepth: state.catalogueDepth + 1 } : state, '', url);
+    }
+    setCheckoutStep(step); setCartOpen(true);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, []);
+  const setIsCartOpen = useCallback((open: boolean) => {
+    if (open) {
+      navigateCheckout('cart');
+    } else {
+      if (readCheckoutStep()) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('checkout');
+        url.searchParams.delete('checkoutRequest');
+        const state = window.history.state;
+        window.history.pushState(typeof state?.catalogueDepth === 'number'
+          ? { ...state, catalogueDepth: state.catalogueDepth + 1 } : state, '', url);
+      }
+      setCheckoutStep(null); setCartOpen(false);
+    }
+  }, [navigateCheckout]);
   const [accountMode, setAccountMode] = useState<'signin' | 'signup' | 'reset' | null>(
     () => (isPasswordRecoveryLink(window.location.hash) ? 'reset' : null));
-  const openAccount = useCallback((mode: 'signin' | 'signup') => { setIsCartOpen(false); setAccountMode(mode); }, []);
+  const openAccount = useCallback((mode: 'signin' | 'signup') => { setIsCartOpen(false); setAccountMode(mode); }, [setIsCartOpen]);
   const closeAccount = useCallback(() => setAccountMode(null), []);
   const customerName = useCustomerName();
   const [returnToCartOnProductClose, setReturnToCartOnProductClose] = useState(false);
@@ -173,7 +206,7 @@ function App() {
   }, [isLoading, products]);
 
   useEffect(() => {
-    if (isAdminPage || pendingProductReference.current || pageReference) return;
+    if (isAdminPage || isCartOpen || pendingProductReference.current || pageReference) return;
     // The lazy auth client must consume email-link credentials before route cleanup.
     const authParams = new URLSearchParams(window.location.hash.slice(1));
     if (authParams.has('access_token') || authParams.has('error_description')) return;
@@ -181,7 +214,7 @@ function App() {
     const hash = selectedProduct ? toProductHash(selectedProduct)
       : window.location.hash === '#collaborate' ? '#collaborate' : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
-  }, [isAdminPage, selectedProduct, pageReference]);
+  }, [isAdminPage, isCartOpen, selectedProduct, pageReference]);
 
   useEffect(() => {
     if (!pageReference || !selectedProduct) return;
@@ -230,7 +263,9 @@ function App() {
     setPageReference(null);
     setSelectedProduct(null);
     setSelectedVariantId(null);
-    setIsCartOpen(false);
+    const checkout = readCheckoutStep();
+    setCheckoutStep(checkout);
+    setCartOpen(Boolean(checkout));
     setReturnToCartOnProductClose(false);
     setActiveCategory(category ?? 'All');
     setQuery('');
@@ -244,7 +279,9 @@ function App() {
       const reference = readProductPageReference();
       setPageReference(reference);
       setActiveCategory(new URLSearchParams(window.location.search).get('category') || 'All');
-      setIsCartOpen(false);
+      const checkout = readCheckoutStep();
+      setCheckoutStep(checkout);
+      setCartOpen(Boolean(checkout));
       setReturnToCartOnProductClose(false);
       setSelectedVariantId(readProductVariantReference());
       const requested = reference ?? readProductReferenceFromHash();
@@ -302,7 +339,7 @@ function App() {
     const depth = window.history.state?.catalogueDepth;
     window.history.pushState(
       promotedFromCatalogue.current
-        ? { catalogueDepth: typeof depth === 'number' ? depth + 1 : 1 }
+        ? { ...window.history.state, catalogueDepth: typeof depth === 'number' ? depth + 1 : 1 }
         : null,
       '', url,
     );
@@ -319,6 +356,14 @@ function App() {
     setReturnToCartOnProductClose(false);
     setSelectedVariantId(null);
     setSelectedProduct(product);
+    const url = new URL(toProductPageUrl(product));
+    url.search = window.location.search;
+    url.searchParams.delete('variant');
+    url.searchParams.delete('productPage');
+    promotedFromCatalogue.current = true;
+    window.history.pushState({ catalogueDepth: 1 }, '', url);
+    setPageReference(toProductReference(product));
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const closeSelectedProduct = () => {
@@ -443,6 +488,9 @@ function App() {
 
   const cartDrawer = isCartOpen && (
     <CartDrawer
+      pageStep={checkoutStep ?? 'cart'}
+      confirmationRequest={checkoutStep === 'confirmation' ? new URLSearchParams(window.location.search).get('checkoutRequest') ?? undefined : undefined}
+      onNavigateStep={navigateCheckout}
       cart={cart.cart}
       products={products}
       isLoading={cart.isLoading}
@@ -482,17 +530,21 @@ function App() {
         }
         trackProductSelected(product);
         productReturnScrollY.current = null;
-        setReturnToCartOnProductClose(true);
+        setReturnToCartOnProductClose(false);
         setSelectedVariantId(variantId);
         setSelectedProduct(product);
-        if (pageReference) {
-          const url = new URL(toProductPageUrl(product));
-          const variant = product.variants.find((item) => item.id === variantId);
-          if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
-          window.history.replaceState(window.history.state, '', url);
-          setPageReference(toProductReference(product));
-        }
-        setIsCartOpen(false);
+        const url = new URL(toProductPageUrl(product));
+        url.search = window.location.search;
+        url.searchParams.delete('checkout');
+        url.searchParams.delete('checkoutRequest');
+        url.searchParams.delete('variant');
+        const variant = product.variants.find((item) => item.id === variantId);
+        if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
+        promotedFromCatalogue.current = true;
+        window.history.pushState({ catalogueDepth: 1, returnToCheckout: true }, '', url);
+        setPageReference(toProductReference(product));
+        setCheckoutStep(null); setCartOpen(false);
+        window.scrollTo({ top: 0, behavior: 'auto' });
       }}
     />
   );
@@ -502,6 +554,18 @@ function App() {
       <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} />
     </Suspense>
   );
+
+  if (isCartOpen) {
+    return <div className="flex min-h-screen flex-col bg-cream">
+      {cartNotifications}
+      <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
+        cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
+        onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} accountName={customerName} />
+      <main className="w-full flex-1">{cartDrawer}</main>
+      <Footer />
+      {accountDialog}
+    </div>;
+  }
 
   if (isStorePage()) {
     return <>
@@ -549,7 +613,7 @@ function App() {
             }}
             className="inline-block py-2 text-sm font-semibold text-cocoa underline underline-offset-4"
           >
-            Back to collection
+            {window.history.state?.returnToCheckout ? 'Back to cart' : 'Back to collection'}
           </a>
           {!selectedProduct && (
             isLoading

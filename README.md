@@ -19,7 +19,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Below-catalogue ordering guide explains cart-to-WhatsApp confirmation and delivery enquiries, also present in the crawler-readable HTML; the return-policy link appears once in the footer
 - Admin-controlled product order shared across the main catalogue and categories
 - Product detail view with image carousel
-- Hybrid product browsing: catalogue quick-view popups link to full product pages with the same gallery, variants, specifications and persistent cart
+- Catalogue and cart product links open full product pages with the shared gallery, variants, specifications and persistent cart; older homepage hash links retain their quick view.
 - Optional materials, dimensions, package contents and care instructions, edited in Add/Manage products and shown in collapsible customer sections only when filled
 - Gemini photo-and-notes suggestions use confirmed specifications, require selective review before applying, and never publish automatically or generate price, stock or dispatch promises
 - Variant and additional-angle image previews
@@ -29,7 +29,9 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - WhatsApp enquiry links
 - Cart additions, quantity changes and removals return the server-validated cart from the refresh write, avoiding an extra sequential reload before updating the UI.
 - Successful cart additions paint their confirmed cart feedback before running third-party analytics, keeping tracking work off the mobile feedback path.
-- The cart shows products before pincode/address controls. A compact fixed footer keeps the estimated total and WhatsApp/email actions accessible; the expandable price breakdown and clear-cart action stay in the scrolling body.
+- Full-width shopping journey: product → cart → delivery details → review & payment → verified order confirmation. Checkout steps use the `checkout` query parameter, support browser Back/Forward and survive refresh. Desktop uses a two-column summary; mobile stacks the panels without a cart overlay.
+- Editing delivery details hides payment until review. Razorpay's official secure payment popup remains unchanged. Confirmation refresh uses an ownership-checked request ID (`checkoutRequest`), even after the purchased cart is cleared; a confirmation URL alone never confirms a payment or offers another payment.
+- The shared cream/cocoa footer remains at the bottom of product and checkout pages, with UPI, Visa, Mastercard, RuPay and Wallet followed by the Luvia Creations copyright.
 - Admin products show all-time pieces sold from saved sales linked by product ID, across variants, dates and channels. Creating, editing, deleting or importing sales refreshes the counts; unlinked manual sales are excluded and stock is unchanged.
 - Reddit variant links use dedicated static variant pages with matching preview images, titles and prices. Visitors open the selected variant in the interactive product view; existing query-based links remain supported. Reddit may retain cached previews on older posts.
 - Mobile store pages use equal-width collection links and aligned ordering-policy links; About ordering disclosures are grouped in a readable panel.

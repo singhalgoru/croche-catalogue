@@ -17,10 +17,9 @@ test('bestsellers open product details with delivery policies and recommendation
   const collections = page.getByRole('navigation', { name: 'Explore collections' });
   await expect(collections.getByRole('link', { name: 'Charms', exact: true }).locator('img')).toBeVisible();
   await section.getByRole('link', { name: /Rose Charm/ }).click();
-  const dialog = page.getByRole('dialog', { name: 'Rose Charm' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('region', { name: 'Delivery and returns' })).toBeVisible();
-  await dialog.getByRole('link', { name: 'View full details' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/p\/rose-charm\/$/);
+  await expect(page.getByRole('region', { name: 'Delivery and returns' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'You May Also Like' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Delivery and returns' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Full return and refund policy' })).toHaveAttribute('href', '/return-policy/');

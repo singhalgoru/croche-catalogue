@@ -15,15 +15,20 @@ interface Props {
   onSave: (value: DeliveryDetails) => Promise<Cart | null>;
   onCoupon: (code: string) => Promise<Cart | null>;
   onlineCheckout?: boolean;
+  pageStep?: 'delivery' | 'review';
+  onReview?: () => void;
+  onEdit?: () => void;
+  onBack?: () => void;
 }
 const addressFields = [
   ['addressLine1', 'House / building and street', 200, true],
   ['addressLine2', 'Area / landmark (optional)', 200, false],
   ['city', 'City', 80, true], ['state', 'State', 80, true], ['pincode', 'Pincode', 6, true],
 ] as const;
-export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineCheckout = false }: Props) {
+export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineCheckout = false, pageStep, onReview, onEdit, onBack }: Props) {
   const totals = getCartTotals(cart);
-  const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>(() => cart.deliveryDetails ? 'review' : 'cart');
+  const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>(() =>
+    pageStep === 'delivery' ? 'contact' : cart.deliveryDetails ? 'review' : pageStep ? 'contact' : 'cart');
   const [details, setDetails] = useState<DeliveryDetails>(() => cart.deliveryDetails ?? { ...emptyDeliveryDetails(), pincode: cart.deliveryPinCode ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -106,7 +111,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         setSaving(true);
         void onSave(normalized).then(saved => {
           if (!saved?.deliveryDetails) throw new Error('Delivery details were not saved. Please retry.');
-          setDetails(saved.deliveryDetails); setStep('review');
+          setDetails(saved.deliveryDetails); setStep('review'); onReview?.();
         }).catch(error => setError(error instanceof Error ? error.message : 'Unable to save delivery details.'))
           .finally(() => setSaving(false));
       }}>
@@ -135,7 +140,10 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
           <p className="text-xs">Delivery country: India. These details are saved with your cart for up to 30 days and visible to Luvia for order fulfilment.</p>
         </>}
         <div className="flex gap-3">
-          <button type="button" disabled={busy || saving} onClick={() => setStep(step === 'contact' ? 'cart' : 'contact')} className="underline">Back</button>
+          <button type="button" disabled={busy || saving} onClick={() => {
+            if (step === 'contact' && onBack) onBack();
+            else setStep(step === 'contact' ? 'cart' : 'contact');
+          }} className="underline">Back</button>
           <button disabled={busy || saving} className="rounded-full bg-cocoa px-4 py-2 text-white">
             {saving ? 'Saving…' : step === 'contact' ? 'Continue to address' : 'Save and review'}
           </button>
@@ -172,7 +180,10 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         <p className="text-xs">{onlineCheckout ? 'Review your items, coupon, shipping and total, then pay securely with Razorpay.'
           : 'Review your cart items and estimated total, then send the order request using WhatsApp or email.'}</p>
         {onlineCheckout && !reviewed.email?.trim() && <p role="alert" className="text-xs text-red-700">Edit details and add a contact email to receive your order confirmation before payment.</p>}
-        <button type="button" disabled={busy} onClick={() => { setDetails(reviewed); setStep('contact'); }} className="underline">Edit details</button>
+        <button type="button" disabled={busy} onClick={() => {
+          if (onEdit) onEdit();
+          else { setDetails(reviewed); setStep('contact'); }
+        }} className="underline">Edit details</button>
         <form className="space-y-2" onSubmit={event => {
           event.preventDefault(); setSaving(true); setError('');
           void onCoupon(couponCode).catch(error => setError(error instanceof Error ? error.message : 'Unable to apply coupon.'))

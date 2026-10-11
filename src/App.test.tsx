@@ -84,7 +84,9 @@ describe('Hybrid product navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Test Coaster' }));
     await waitFor(() => expect(addItem).toHaveBeenCalledWith(product, product.variants[0]));
     fireEvent.click(screen.getAllByRole('button', { name: 'Open cart with 0 items' })[0]);
-    expect(await screen.findByRole('dialog', { name: 'Shopping cart' })).toBeTruthy();
+    expect(await screen.findByRole('navigation', { name: 'Checkout steps' })).toBeTruthy();
+    expect(window.location.search).toContain('checkout=cart');
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('Your cart is empty')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close cart' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -98,6 +100,27 @@ describe('Hybrid product navigation', () => {
     const grid = screen.getByLabelText('Filtered products');
     expect(grid.textContent).toBe('Test Coaster');
     expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it('restores product and checkout pages on Back/Forward and returns to the original collection', async () => {
+    window.history.replaceState(null, '', '/?utm_source=instagram');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open test product' }));
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(window.location.search).toContain('utm_source=instagram');
+    fireEvent.click(screen.getByRole('button', { name: 'Open cart with 0 items' }));
+    await screen.findByRole('navigation', { name: 'Checkout steps' });
+    window.history.back();
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(screen.queryByRole('navigation', { name: 'Checkout steps' })).toBeNull();
+    window.history.forward();
+    await screen.findByRole('navigation', { name: 'Checkout steps' });
+    fireEvent.click(screen.getByRole('button', { name: 'Close cart' }));
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(window.location.search).not.toContain('checkout=');
+    fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
+    await screen.findByRole('searchbox', { name: 'Search crochet items' });
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.search).toContain('utm_source=instagram');
   });
   it('shows snapshot product details immediately and replaces them with live copy without losing the page', async () => {
     catalogueSnapshot = true;
@@ -266,14 +289,13 @@ describe('Hybrid product navigation', () => {
     expect(window.location.search).toContain('variant=red');
   });
 
-  it('returns directly to the catalogue after following related products from a quick view', async () => {
+  it('returns directly to the catalogue after following related products from a full product page', async () => {
     catalogueProducts = [product, { ...product, id: 'related-product', name: 'Related Coaster' }];
     render(<App />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search crochet items' }), { target: { value: 'coaster' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open test product' }));
-    await screen.findByRole('dialog');
-    expect(screen.queryByRole('region', { name: 'More from this collection' })).toBeNull();
-    fireEvent.click(screen.getByRole('link', { name: 'View full details' }));
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(await screen.findByRole('link', { name: /Related Coaster/ }));
     await screen.findByRole('heading', { name: 'Related Coaster', level: 1 });
     fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
@@ -292,13 +314,12 @@ describe('Hybrid product navigation', () => {
     await waitFor(() => expect(addItem).toHaveBeenCalledWith(product, product.variants[0]));
   });
 
-  it('promotes a catalogue popup to a page and restores catalogue filters on Back', async () => {
+  it('opens a catalogue product as a page and restores catalogue filters on Back', async () => {
     render(<App />);
     const search = screen.getByRole('searchbox', { name: 'Search crochet items' });
     fireEvent.change(search, { target: { value: 'coaster' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open test product' }));
-    await screen.findByRole('dialog');
-    fireEvent.click(screen.getByRole('link', { name: 'View full details' }));
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Test Coaster');
     expect(window.location.pathname).toBe('/p/test-coaster/');

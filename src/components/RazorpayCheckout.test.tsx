@@ -94,6 +94,34 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   expect(verify).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
+it('rechecks a paid order on confirmation refresh even after the server clears the cart', async () => {
+  sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
+    request: { fingerprint: 'purchased-items', key: 'paid-request' }, pending: null, verified: true,
+  }));
+  status.mockResolvedValue({ status: 'paid', reference: 'LUV-REFRESHED' });
+  const confirmed = vi.fn();
+  render(<RazorpayCheckout cart={cart} disabled live confirmationOnly onConfirmed={confirmed} />);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-REFRESHED'));
+  expect(status).toHaveBeenCalledWith('paid-request');
+  expect(confirmed).toHaveBeenCalledTimes(1);
+  expect(createOrder).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
+});
+it('does not claim success or offer payment from a manually opened confirmation URL', () => {
+  render(<RazorpayCheckout cart={cart} disabled live confirmationOnly />);
+  expect(screen.getByRole('status').textContent).toContain('No saved payment was found');
+  expect(screen.queryByText('Thank you! Your order is confirmed.')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
+  expect(createOrder).not.toHaveBeenCalled();
+});
+it('uses the authorized confirmation request after the original cart has been removed', async () => {
+  status.mockResolvedValue({ status: 'paid', reference: 'LUV-ORIGINAL' });
+  render(<RazorpayCheckout cart={cart} disabled live confirmationOnly confirmationRequest="original-request" />);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-ORIGINAL'));
+  expect(status).toHaveBeenCalledWith('original-request');
+  expect(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)).toBeNull();
+  expect(createOrder).not.toHaveBeenCalled();
+});
 it('does not replace a checkout under review after cart details change', async () => {
   sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
     request: { fingerprint: 'old-cart', key: 'saved-request' }, pending: null, verified: false,
