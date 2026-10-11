@@ -667,7 +667,7 @@ export default function ProductModal({
               </button>
             </div>
             <div aria-label="Product purchase actions" className={`grid items-center gap-2 ${isPage ? 'fixed inset-x-0 bottom-0 z-40 mx-auto max-w-6xl border-t border-mustard/30 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg sm:px-6' : ''} ${
-              selectedCartItem && onUpdateCartItem && onRemoveCartItem
+              !isPage && selectedCartItem && onUpdateCartItem && onRemoveCartItem
                 ? 'grid-cols-1 justify-items-end sm:grid-cols-[minmax(0,1fr)_auto]'
                 : 'grid-cols-[minmax(0,1fr)_auto]'
             }`}>

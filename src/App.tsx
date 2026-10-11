@@ -587,7 +587,7 @@ function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${pageReference && selectedProduct ? 'pb-[calc(9rem+env(safe-area-inset-bottom))]' : ''}`}>
+    <div className={`min-h-screen flex flex-col ${pageReference && selectedProduct ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : ''}`}>
       {cartNotifications}
       <Header
         compact={Boolean(pageReference)}

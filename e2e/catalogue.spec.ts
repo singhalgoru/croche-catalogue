@@ -69,6 +69,14 @@ test('product purchase controls remain visible without scrolling and after scrol
   await expect(increase).toBeInViewport();
   await increase.click();
   await expect(page.getByLabel('2 of Rose Charm — Rose Pink in cart')).toBeVisible();
+  const whatsapp = page.getByRole('link', { name: 'Quick order on WhatsApp' });
+  const whatsappBox = await whatsapp.boundingBox();
+  const quantityBox = await increase.boundingBox();
+  expect(whatsappBox).not.toBeNull();
+  expect(quantityBox).not.toBeNull();
+  expect(Math.abs(whatsappBox!.y + whatsappBox!.height / 2 - quantityBox!.y - quantityBox!.height / 2)).toBeLessThan(2);
+  expect((await purchase.boundingBox())!.height).toBeLessThan(90);
+  expect(whatsappBox!.x + whatsappBox!.width).toBeLessThan(quantityBox!.x);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const footerBox = await page.locator('footer').boundingBox();
   const purchaseBox = await purchase.boundingBox();
@@ -77,6 +85,19 @@ test('product purchase controls remain visible without scrolling and after scrol
   expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(purchaseBox!.y);
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(increase).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeInViewport();
+});
+
+test('purchase bar keeps a single row on narrow phones with an item in cart', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
+  const increase = page.getByRole('button', { name: 'Increase quantity of Rose Charm — Rose Pink' });
+  await expect(increase).toBeInViewport();
+  const purchase = page.getByLabel('Product purchase actions', { exact: true });
+  const box = (await purchase.boundingBox())!;
+  expect(box.height).toBeLessThan(90);
+  expect(await purchase.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
   await expect(page.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeInViewport();
 });
 
