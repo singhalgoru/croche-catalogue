@@ -26,6 +26,11 @@ it.each([499, 500, 501])('uses the exact free-delivery threshold for items worth
   expect(screen.queryByLabelText('Delivery pincode (optional)')).toBeNull();
   expect(screen.queryByText(/^Delivery pincode:/)).toBeNull();
 });
+it('expands the cart price breakdown by default', () => {
+  renderCart(cart);
+  expect(screen.getByText('Price breakdown', { exact: true }).closest('details')?.open).toBe(true);
+  expect(screen.getByText('Items subtotal')).toBeTruthy();
+});
 it('excludes shipping fees and applies coupon discounts to the free-delivery prompt', () => {
   const close = vi.fn();
   renderCart({ ...cart, items: [{ ...cart.items[0], unitPrice: 500 }],

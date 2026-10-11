@@ -69,11 +69,10 @@ test('cart uses a full-width page with products before the summary on short scre
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   await expect(cart.getByRole('button', { name: 'Continue with delivery details' })).toBeVisible();
   await expect(cart.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toBeVisible();
-  await expect(cart.getByText('Items subtotal', { exact: true })).not.toBeVisible();
-  await cart.getByText('Price breakdown', { exact: true }).click();
   await expect(cart.getByText('Items subtotal', { exact: true })).toBeVisible();
   await expect(cart.getByText('Save or select your delivery address to calculate shipping. The current shipping amount is an estimate.', { exact: true })).toBeVisible();
   await cart.getByText('Price breakdown', { exact: true }).click();
+  await expect(cart.getByText('Items subtotal', { exact: true })).toBeHidden();
   await expect(cart.getByLabel('Delivery pincode (optional)')).toHaveCount(0);
   await expect(cart.getByText(/^Delivery pincode:/)).toHaveCount(0);
   await expect(cart.getByRole('region', { name: 'Free delivery' })).toContainText('Add ₹151 more in items for free delivery!');
@@ -162,7 +161,6 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
   await expect(page.getByLabel('Discounted price ₹550')).toBeVisible();
   await expect(actions.getByText(/Includes estimated shipping/)).toBeVisible();
   await expect(page.getByRole('region', { name: 'Free delivery' })).toContainText('Add ₹55 more in items for free delivery!');
-  await page.getByText('Price breakdown', { exact: true }).click();
   await expect(page.getByText('₹100', { exact: true })).toBeVisible();
   await expect(page.getByText(/Free shipping on items worth ₹500 or more after coupon discounts/)).toBeVisible();
   const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');

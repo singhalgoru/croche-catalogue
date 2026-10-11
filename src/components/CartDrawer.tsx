@@ -359,7 +359,7 @@ export default function CartDrawer({
                 </button>
                 <span className="text-right text-cocoa/50">Cart saved for 30 days</span>
               </div>
-              <details hidden={isPage && pageStep === 'delivery'} className="rounded-xl border border-mustard/30 bg-white px-3 text-sm text-cocoa">
+              <details open hidden={isPage && pageStep === 'delivery'} className="rounded-xl border border-mustard/30 bg-white px-3 text-sm text-cocoa">
                 <summary className="cursor-pointer py-3 font-semibold">Price breakdown</summary>
                 <div className="space-y-1 pb-3">
                   <div className="flex items-center justify-between">
