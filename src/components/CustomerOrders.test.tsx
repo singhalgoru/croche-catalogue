@@ -88,6 +88,7 @@ it('updates paid order fulfilment independently of payment status', async () => 
   expect(screen.getByText('Payment received')).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Track shipment' }).getAttribute('href')).toBe('https://courier.example/track/123');
   expect(updateOrderFulfilment).toHaveBeenCalledWith('order-1', 'confirmed', expect.objectContaining({ status: 'shipped', trackingNumber: 'TRACK123' }));
+  expect(screen.getByRole('status').textContent).toContain('Customer email queued');
 });
 it('shows customer shipment progress without admin editing controls', async () => {
   vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, fulfilment: {

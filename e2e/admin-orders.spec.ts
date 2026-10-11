@@ -20,7 +20,7 @@ test('admin collapses online orders and removes only confirmed cancelled entries
   await page.route('**/rest/v1/rpc/update_order_fulfilment', async route => {
     const body = route.request().postDataJSON();
     expect(body.target_order_id).toBe('paid-order');
-    expect(body.expected_status).toBe('confirmed');
+    expect(body.expected_status).toBe(orders.find(order => order.id === body.target_order_id)!.fulfilment!.status);
     const fulfilment = { status: body.new_status, courierName: body.courier,
       trackingNumber: body.tracking, trackingUrl: body.tracking_link, updatedAt: '2026-10-10T15:00:00Z' };
     orders = orders.map(order => order.id === body.target_order_id ? { ...order, fulfilment } : order);
@@ -53,8 +53,15 @@ test('admin collapses online orders and removes only confirmed cancelled entries
   await paidOrder.getByLabel('Tracking link (optional, HTTPS)').fill('https://courier.example/track/123');
   await paidOrder.getByRole('button', { name: 'Save order status' }).click();
   await expect(paidOrder.getByText('Order: Shipped', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('status')).toContainText('Customer email queued');
   await expect(paidOrder.getByText('Payment received', { exact: true })).toBeVisible();
   await expect(paidOrder.getByRole('link', { name: 'Track shipment' })).toHaveAttribute('href','https://courier.example/track/123');
+  await paidOrder.getByRole('button', { name: 'Save order status' }).click();
+  await expect(panel.getByRole('status')).toHaveText('LUV-PAID: Order status updated.');
+  await paidOrder.getByLabel('Order status', { exact: true }).selectOption('delivered');
+  await paidOrder.getByRole('button', { name: 'Save order status' }).click();
+  await expect(paidOrder.getByText('Order: Delivered', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('status')).toContainText('Customer email queued');
   await expect(paidOrder.getByRole('button', { name: /Remove/ })).toHaveCount(0);
   await paidOrder.getByRole('button', { name: 'Hide details for LUV-PAID' }).click();
   await expect(paidOrder.getByText('Recipient:', { exact: false })).not.toBeVisible();

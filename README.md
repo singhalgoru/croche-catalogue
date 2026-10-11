@@ -230,8 +230,10 @@ For paid live orders, Admin → Orders → Show details includes fulfilment cont
 Confirmed → Processing → Shipped → Delivered. Progress cannot move backwards.
 Courier name, tracking number and a public HTTPS tracking link are optional for
 shipped/delivered orders. Updates appear in the customer order dashboard after
-refresh; they do not modify payment status, send shipping notifications or
-perform refunds. Concurrent status changes require refreshing before saving.
+refresh; they do not modify payment status or perform refunds.
+Changing to Shipped or Delivered queues a branded customer email using the
+existing order email worker. Tracking-only edits and repeated status saves do
+not resend it. Concurrent status changes require refreshing before saving.
 Order emails use Luvia's cream/cocoa/mustard theme with item images and product
 links from the saved purchase snapshot, a payment summary, delivery details and
 dispatch/support guidance. Email clients may require enabling remote images.
@@ -262,7 +264,19 @@ times at 15-minute intervals and remain recorded in `order_confirmation_emails`;
 operators should monitor `last_error` and exhausted attempts. `accepted_at`
 means Resend accepted the email, not proof of inbox delivery. Retries use a stable
 Resend idempotency key; its provider retention limits still apply.
-Dispatch/delivery tracking is not enabled. Automatic WhatsApp messages require
+Migration `20261011180000_order_fulfilment_emails.sql` adds customer-only Shipped
+and Delivered events to the existing private `order_confirmation_emails` queue.
+Deploy the updated `order-confirmation-worker` before applying the migration.
+No new provider secrets or cron job are required. Events are unique per order,
+audience and kind; shipment details are snapshotted on the status transition so
+later tracking edits do not rewrite pending mail. Shipped emails include optional
+courier/tracking details and a safe HTTPS tracking button; Delivered emails explain
+that the order was marked delivered and offer help if the parcel has not arrived.
+Both reuse the cream/cocoa/mustard theme, product photos, order reference and
+support/policy links. Existing retries/acceptance monitoring apply to all kinds;
+admin confirms queueing, not inbox delivery. Only future status transitions queue
+these emails; historical shipped/delivered orders are not backfilled.
+Automatic courier-status synchronization is not enabled. Automatic WhatsApp messages require
 an official Business API provider, approved templates and customer opt-in; no
 automated WhatsApp delivery is configured by this change.
 

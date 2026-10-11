@@ -80,3 +80,51 @@ it('surfaces provider rejection and malformed acceptance', async () => {
   fetch.mockResolvedValue(new Response('{}'));
   await expect(sendOrderEmail(job, order, 'fixture', 'sender')).rejects.toThrow('Invalid order email');
 });
+
+const shipment = { courier_name: 'Courier & Co', tracking_number: '<TRACK123>',
+  tracking_url: 'https://courier.example/track?number=123&lang=en', updated_at: '2026-10-11T16:00:00Z' };
+it.each(['shipped','delivered'] as const)('sends branded %s email to the customer with a unique event id', async kind => {
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'status-email' })));
+  vi.stubGlobal('fetch', fetch);
+  await sendOrderEmail({ id: `${kind}-job`, audience: 'customer', recipient: 'buyer@example.test',
+    kind, fulfilment_details: shipment }, order, 'fixture', 'sender@example.test');
+  const options = fetch.mock.calls[0][1];
+  const body = JSON.parse(options.body);
+  expect(body.subject).toBe(`Order ${kind} - LUV-TEST - Luvia Creations`);
+  expect(body.to).toEqual(['buyer@example.test']);
+  expect(options.headers['Idempotency-Key']).toBe(`order-confirmation-${kind}-job`);
+  expect(body.html).toContain('background:#fff9ef');
+  expect(body.html).toContain('border:1px dashed #bd9856');
+  expect(body.html).toContain('luvia-logo.jpg');
+  expect(body.html).toContain('Courier &amp; Co');
+  expect(body.html).toContain('&lt;TRACK123&gt;');
+  expect(body.html).toContain('https://courier.example/track?number=123&amp;lang=en');
+  expect(body.text).toContain('Tracking number: <TRACK123>');
+  expect(body.text).toContain('Order ID: LUV-TEST');
+  expect(body.text).not.toContain('dispatch your order within 5 days');
+  expect(body.html).not.toContain('cancel before dispatch');
+  if (kind === 'delivered') {
+    expect(body.text).toContain('marked as delivered by our team');
+    expect(body.text).toContain('If your parcel has not arrived');
+  } else expect(body.text).toContain('Delivery after dispatch depends on your location');
+});
+it('keeps fulfilment emails readable when tracking is unavailable', () => {
+  const { text, html } = buildOrderEmail(order, 'customer', 'shipped',
+    { ...shipment, courier_name: '', tracking_number: '', tracking_url: '' });
+  expect(text).toContain('has been shipped');
+  expect(html).not.toContain('Track shipment');
+  expect(html).not.toContain('Shipment details');
+});
+it('rejects unsafe tracking and missing fulfilment snapshots before sending', async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal('fetch', fetch);
+  const job = { id: 'shipped-job', audience: 'customer' as const, recipient: 'buyer@example.test', kind: 'shipped' as const };
+  await expect(sendOrderEmail(job, order, 'fixture', 'sender')).rejects.toThrow('snapshot is required');
+  for (const tracking_url of ['javascript:alert(1)', 'https://user:password@courier.example/track']) {
+    await expect(sendOrderEmail({ ...job, fulfilment_details: { ...shipment, tracking_url } },
+      order, 'fixture', 'sender')).rejects.toThrow('public HTTPS');
+  }
+  await expect(sendOrderEmail({ ...job, audience: 'store', fulfilment_details: shipment }, order, 'fixture', 'sender'))
+    .rejects.toThrow('Customer fulfilment email');
+  expect(fetch).not.toHaveBeenCalled();
+});

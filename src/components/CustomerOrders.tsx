@@ -173,8 +173,10 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               {order.fulfilment.trackingUrl.startsWith('https://') && <a href={order.fulfilment.trackingUrl}
                 target="_blank" rel="noopener noreferrer" className="inline-block min-h-11 py-2 underline">Track shipment</a>}
               {admin && <OrderFulfilmentForm key={`${order.id}-${order.fulfilment.updatedAt}`} orderId={order.id}
-                reference={order.reference} fulfilment={order.fulfilment} onSaved={fulfilment =>
-                  setOrders(current => current.map(value => value.id === order.id ? { ...value, fulfilment } : value))} />}
+                reference={order.reference} fulfilment={order.fulfilment} onSaved={(fulfilment, message) => {
+                  setOrders(current => current.map(value => value.id === order.id ? { ...value, fulfilment } : value));
+                  setActionMessage(`${order.reference}: ${message}`);
+                }} />}
             </div>}
             </div>
             {admin && ['cancelled', 'expired'].includes(order.status) && !order.paidAt && (confirmRemoval === order.id

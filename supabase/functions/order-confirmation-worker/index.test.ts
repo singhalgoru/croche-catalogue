@@ -52,3 +52,11 @@ it('does not consume queued jobs when provider configuration is missing', async 
   expect((await handle(request())).status).toBe(503);
   expect(rpc).not.toHaveBeenCalled();
 });
+it('processes fulfilment events with their saved snapshot through the same retryable worker', async () => {
+  const job = { id: 'shipped-job', order_id: 'order-id', audience: 'customer', recipient: 'buyer@example.test',
+    kind: 'shipped', fulfilment_details: { courier_name: 'Courier', tracking_number: '123', tracking_url: '', updated_at: null } };
+  rpc.mockResolvedValue({ data: [job], error: null });
+  expect((await handle(request())).status).toBe(200);
+  expect(send).toHaveBeenCalledWith(job, { status: 'paid' }, 'fixture', 'sender@example.test');
+  expect(updates[0]).toMatchObject({ provider_id: 'provider-id', last_error: null });
+});

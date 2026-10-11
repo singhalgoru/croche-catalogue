@@ -246,6 +246,9 @@ declare rejected boolean:=false; result jsonb; target_id uuid:=(select id from l
 begin
   result:=public.update_order_fulfilment(target_id,'confirmed','processing','','','');
   if result->>'status'<>'processing' then raise exception 'FAIL: processing update failed.'; end if;
+  if exists(select 1 from public.order_confirmation_emails where order_id=target_id and kind<>'confirmed') then
+    raise exception 'FAIL: processing sent a fulfilment email.';
+  end if;
   begin perform public.update_order_fulfilment(target_id,'confirmed','shipped','','','');
   exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: stale order update accepted.'; end if;
@@ -254,6 +257,19 @@ begin
   exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: unsafe tracking link accepted.'; end if;
   perform public.update_order_fulfilment(target_id,'processing','shipped','Test courier','TRACK123','https://courier.example/track/123');
+  if (select count(*) from public.order_confirmation_emails where order_id=target_id and kind='shipped')<>1
+    or not exists(select 1 from public.order_confirmation_emails where order_id=target_id and kind='shipped'
+      and audience='customer' and recipient=(select customer_email from public.payment_orders where id=target_id)
+      and fulfilment_details->>'tracking_number'='TRACK123') then
+    raise exception 'FAIL: shipment customer email or tracking snapshot not queued.';
+  end if;
+  perform public.update_order_fulfilment(target_id,'shipped','shipped','Changed courier','TRACK456','https://courier.example/track/456');
+  if (select count(*) from public.order_confirmation_emails where order_id=target_id and kind='shipped')<>1
+    or not exists(select 1 from public.order_confirmation_emails where order_id=target_id and kind='shipped'
+      and fulfilment_details->>'tracking_number'='TRACK123') then
+    raise exception 'FAIL: tracking-only edit duplicated or mutated queued email.';
+  end if;
+  perform public.update_order_fulfilment(target_id,'shipped','shipped','Test courier','TRACK123','https://courier.example/track/123');
   rejected:=false;
   begin perform public.update_order_fulfilment(target_id,'shipped','processing','','','');
   exception when others then rejected:=true; end;
@@ -268,6 +284,11 @@ begin
     raise exception 'FAIL: customer shipment projection or payment status changed.';
   end if;
   perform public.update_order_fulfilment(target_id,'shipped','delivered','Test courier','TRACK123','https://courier.example/track/123');
+  perform public.update_order_fulfilment(target_id,'delivered','delivered','Test courier','TRACK123','https://courier.example/track/123');
+  if (select count(*) from public.order_confirmation_emails where order_id=target_id)<>4
+    or (select count(*) from public.order_confirmation_emails where order_id=target_id and kind='delivered' and audience='customer')<>1 then
+    raise exception 'FAIL: delivered email missing or duplicate status email.';
+  end if;
 end;
 $$;
 reset role;
