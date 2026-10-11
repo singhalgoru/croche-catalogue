@@ -17,9 +17,9 @@ export async function fetchCustomerAccount() {
   if (error) throw new Error(`Unable to restore your account: ${error.message}`);
   return data.user && !data.user.is_anonymous && data.user.email_confirmed_at ? data.user.email ?? null : null;
 }
-export async function fetchCustomerOrders(offset = 0): Promise<CustomerOrder[]> {
+export async function fetchCustomerOrders(offset = 0, hidden = false): Promise<CustomerOrder[]> {
   const supabase = await client();
-  const { data, error } = await supabase.rpc('get_customer_orders', { page_offset: offset });
+  const { data, error } = await supabase.rpc('get_customer_orders', { page_offset: offset, hidden_orders: hidden });
   if (error) throw new Error(`Unable to load your orders: ${error.message}`);
   if (!Array.isArray(data)) throw new Error('Unable to load your orders: invalid order history response.');
   return data;
@@ -35,6 +35,11 @@ export async function hideCancelledLiveOrder(orderId: string): Promise<void> {
   const supabase = await client();
   const { error } = await supabase.rpc('hide_cancelled_live_order', { target_order_id: orderId });
   if (error) throw new Error(`Unable to remove unpaid order: ${error.message}`);
+}
+export async function setCustomerOrderHidden(orderId: string, hidden: boolean): Promise<void> {
+  const supabase = await client();
+  const { error } = await supabase.rpc('set_customer_order_hidden', { target_order_id: orderId, hide_order: hidden });
+  if (error) throw new Error(`Unable to ${hidden ? 'hide' : 'restore'} order: ${error.message}`);
 }
 export async function updateOrderFulfilment(orderId: string, expectedStatus: OrderFulfilment['status'],
   values: Pick<OrderFulfilment, 'status' | 'courierName' | 'trackingNumber' | 'trackingUrl'>): Promise<OrderFulfilment> {

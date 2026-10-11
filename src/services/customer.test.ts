@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
-  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment } from './customer';
+  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden } from './customer';
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
@@ -11,6 +11,15 @@ vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: async () => 'fixture-captc
 const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
   addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' };
 const password = 'Crochet2026';
+it('persists customer hide/restore through its own RPC and surfaces ownership failures', async () => {
+  rpc.mockResolvedValue({ error: null });
+  await setCustomerOrderHidden('order', true);
+  expect(rpc).toHaveBeenCalledWith('set_customer_order_hidden', { target_order_id: 'order', hide_order: true });
+  await setCustomerOrderHidden('order', false);
+  expect(rpc).toHaveBeenLastCalledWith('set_customer_order_hidden', { target_order_id: 'order', hide_order: false });
+  rpc.mockResolvedValue({ error: { message: 'An owned customer order is required.' } });
+  await expect(setCustomerOrderHidden('other', true)).rejects.toThrow('owned customer order');
+});
 it('saves fulfilment through the admin RPC and rejects failed or malformed results', async () => {
   const values = { status: 'shipped' as const, courierName: ' Courier ', trackingNumber: ' 123 ', trackingUrl: ' https://courier.example/123 ' };
   const saved = { ...values, updatedAt: '2026-10-10T15:00:00Z' };
@@ -42,7 +51,7 @@ it('loads the admin-only registered customer summary and propagates denied acces
 it('fetches order history through the authenticated projection and reports errors', async () => {
   rpc.mockResolvedValue({ data: [], error: null });
   await expect(fetchCustomerOrders(20)).resolves.toEqual([]);
-  expect(rpc).toHaveBeenCalledWith('get_customer_orders', { page_offset: 20 });
+  expect(rpc).toHaveBeenCalledWith('get_customer_orders', { page_offset: 20, hidden_orders: false });
   rpc.mockResolvedValue({ error: { message: 'Sign in required.' } });
   await expect(fetchCustomerOrders()).rejects.toThrow('Sign in required.');
   rpc.mockResolvedValue({ data: null, error: null });

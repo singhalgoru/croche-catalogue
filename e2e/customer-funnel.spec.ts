@@ -289,6 +289,7 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await reset.getByRole('button', { name: 'Continue shopping' }).click();
   await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
   await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
+  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('Signed out');
   await page.getByRole('dialog').getByRole('button', { name: 'Close account' }).click();

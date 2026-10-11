@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerOrders from './CustomerOrders';
-import { fetchCustomerOrders, hideCancelledLiveOrder, updateOrderFulfilment } from '../services/customer';
+import { fetchCustomerOrders, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden } from '../services/customer';
 import type { CustomerOrder } from '../types/customer';
 
-vi.mock('../services/customer', () => ({ fetchCustomerOrders: vi.fn(), hideCancelledLiveOrder: vi.fn(), updateOrderFulfilment: vi.fn() }));
+vi.mock('../services/customer', () => ({ fetchCustomerOrders: vi.fn(), hideCancelledLiveOrder: vi.fn(), updateOrderFulfilment: vi.fn(), setCustomerOrderHidden: vi.fn() }));
 const order: CustomerOrder = {
   id: 'order-1', reference: 'LUV-ORDER1', status: 'paid', createdAt: '2026-10-10T12:00:00Z',
   paidAt: '2026-10-10T12:10:00Z', customerName: 'Buyer', deliveryPincode: '110001',
@@ -15,6 +15,61 @@ beforeEach(() => {
   vi.mocked(fetchCustomerOrders).mockReset().mockResolvedValue([]);
   vi.mocked(hideCancelledLiveOrder).mockReset().mockResolvedValue();
   vi.mocked(updateOrderFulfilment).mockReset();
+  vi.mocked(setCustomerOrderHidden).mockReset().mockResolvedValue();
+});
+it('puts current paid orders ahead of newer failed and delivered orders', async () => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([
+    { ...order, id: 'failed', reference: 'FAILED', status: 'link_failed', paidAt: null, createdAt: '2026-10-11T12:00:00Z' },
+    { ...order, id: 'delivered', reference: 'DELIVERED', fulfilment: { status: 'delivered', courierName: '', trackingNumber: '', trackingUrl: '', updatedAt: null } },
+    { ...order, reference: 'ACTIVE', createdAt: '2026-10-01T12:00:00Z' },
+  ]);
+  render(<CustomerOrders />);
+  await screen.findByRole('article', { name: 'Order ACTIVE' });
+  expect(screen.getAllByRole('article')[0].getAttribute('aria-label')).toBe('Order ACTIVE');
+});
+it.each(['paid', 'cancelled', 'expired', 'link_failed'] as const)('reorders %s orders and reports skipped products', async status => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, status }]);
+  const reorder = vi.fn().mockResolvedValue({ added: 1, skipped: [{ productName: 'Old product', variantName: 'Pink', reason: 'No longer available' }] });
+  const openCart = vi.fn();
+  render(<CustomerOrders onReorder={reorder} onOpenCart={openCart} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Reorder LUV-ORDER1' }));
+  expect(await screen.findByText(/1 order item added to your cart at current prices/)).toBeTruthy();
+  expect(screen.getByText(/Old product.*No longer available/)).toBeTruthy();
+  expect(reorder).toHaveBeenCalledWith(order.id);
+  fireEvent.click(screen.getByRole('button', { name: 'View cart' }));
+  expect(openCart).toHaveBeenCalledOnce();
+});
+it('reports reorder failure without claiming products were added', async () => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([order]);
+  render(<CustomerOrders onReorder={vi.fn().mockRejectedValue(new Error('Payment under review.'))} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Reorder LUV-ORDER1' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Payment under review.');
+  expect(screen.queryByText(/added to your cart at current prices/)).toBeNull();
+});
+it.each(['cancelled', 'expired'] as const)('hides and restores %s orders without deleting them', async status => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, status, paidAt: null }]);
+  render(<CustomerOrders />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Hide LUV-ORDER1' }));
+  await waitFor(() => expect(screen.queryByRole('article')).toBeNull());
+  expect(setCustomerOrderHidden).toHaveBeenCalledWith(order.id, true);
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, status, paidAt: null, hidden: true }]);
+  fireEvent.click(screen.getByRole('button', { name: 'Hidden orders' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Restore LUV-ORDER1' }));
+  await waitFor(() => expect(setCustomerOrderHidden).toHaveBeenLastCalledWith(order.id, false));
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, status, paidAt: null }]);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Current & past orders' }).hasAttribute('disabled')).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Current & past orders' }));
+  expect(await screen.findByRole('article')).toBeTruthy();
+});
+it('does not hide paid or failed-link orders and reports hide errors', async () => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([order, { ...order, id: 'bad', reference: 'BAD', status: 'expired', paidAt: null }]);
+  vi.mocked(setCustomerOrderHidden).mockRejectedValue(new Error('Unable to hide order.'));
+  render(<CustomerOrders />);
+  await screen.findByRole('article', { name: 'Order LUV-ORDER1' });
+  expect(screen.queryByRole('button', { name: 'Hide LUV-ORDER1' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Hide BAD' }));
+  await screen.findByRole('alert');
+  expect(screen.getByRole('article', { name: 'Order BAD' })).toBeTruthy();
 });
 it('updates paid order fulfilment independently of payment status', async () => {
   const fulfilment = { status: 'confirmed' as const, courierName: '', trackingNumber: '', trackingUrl: '', updatedAt: null };
@@ -92,7 +147,7 @@ it('loads the next page without removing previous orders', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Load more orders' }));
   expect(await screen.findByRole('article', { name: 'Order LUV-NEXT' })).toBeTruthy();
   expect(screen.getAllByRole('article')).toHaveLength(21);
-  expect(fetchCustomerOrders).toHaveBeenLastCalledWith(20);
+  expect(fetchCustomerOrders).toHaveBeenLastCalledWith(20, false);
 });
 it('collapses admin order details and allows confirming removal only for cancelled entries', async () => {
   const cancelled = { ...order, id: 'cancelled', reference: 'LUV-CANCELLED', status: 'cancelled' as const, paidAt: null };

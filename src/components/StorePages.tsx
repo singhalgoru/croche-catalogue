@@ -25,12 +25,14 @@ interface Props {
   cartUpdateCount: number;
   onOpenCart: () => void;
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
+  onOpenOrders?: () => void;
   accountName?: string | null;
 }
 
 export default function StorePages({
   products, categorySettings, isLoading, loadError, hasCatalogueSnapshot,
   onAddToCart, isCartBusy, getCartQuantity, cartItemCount, cartUpdateCount, onOpenCart, onOpenAccount, accountName,
+  onOpenOrders,
 }: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const pathname = window.location.pathname;
@@ -99,7 +101,7 @@ export default function StorePages({
     <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []}
       seasonalAnnouncement={getSeasonalAnnouncement(categories, products)}
       seasonalCategories={categories.filter(item => item.isSeasonal).map(item => item.name)}
-      cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} accountName={accountName} />
+      cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} onOpenOrders={onOpenOrders} accountName={accountName} />
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>

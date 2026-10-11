@@ -3,7 +3,7 @@ import type { Product, ProductVariant } from '../types/product';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartCoupon, CartItem, CartSessionBlock } from '../types/cart';
-import type { DeliveryDetails } from '../types/customer';
+import type { DeliveryDetails, ReorderResult } from '../types/customer';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
 import { isDeliveryEstimateOutdated } from '../utils/deliveryEstimate';
 import { requestCartCaptcha } from './cartCaptcha';
@@ -265,6 +265,23 @@ export async function fetchCart(): Promise<Cart> {
   if (error) throw new Error(`Unable to restore your cart session: ${error.message}`);
   if (!data.session) return createLocalCart();
   return loadRemoteCart();
+}
+export async function reorderCustomerOrder(orderId: string): Promise<ReorderResult & { cart: Cart }> {
+  const supabase = await loadSupabase();
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const cart = await loadRemoteCart(true);
+  const { data, error } = await supabase.rpc('reorder_customer_order', { target_order_id: orderId, target_cart_id: cart.id });
+  if (error) throw new Error(`Unable to reorder: ${error.message}`);
+  if (!data || !Number.isInteger(data.added) || data.added < 0 || !Array.isArray(data.skipped)
+    || !data.skipped.every((item: ReorderResult['skipped'][number]) => item && typeof item.productName === 'string'
+      && typeof item.variantName === 'string' && typeof item.reason === 'string')) {
+    throw new Error('Invalid reorder response. Check your cart before retrying.');
+  }
+  try {
+    return { ...data, cart: await fetchCart() };
+  } catch (failure) {
+    throw new Error(`Reorder was saved, but the cart could not refresh. Open your cart before retrying. ${failure instanceof Error ? failure.message : ''}`);
+  }
 }
 
 export async function addProductToCart(

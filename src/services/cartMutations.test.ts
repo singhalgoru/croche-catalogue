@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { addProductToCart, clearCart, fetchCart, removeCartItem, updateCartItemQuantity } from './cart';
+import { addProductToCart, clearCart, fetchCart, removeCartItem, updateCartItemQuantity, reorderCustomerOrder } from './cart';
 import type { Product } from '../types/product';
 
-const { from, getSession, upsert, insert, update, remove, single, maybeSingle } = vi.hoisted(() => ({
+const { from, getSession, upsert, insert, update, remove, single, maybeSingle, rpc } = vi.hoisted(() => ({
   from: vi.fn(), getSession: vi.fn(), upsert: vi.fn(), update: vi.fn(),
   remove: vi.fn(), single: vi.fn(), maybeSingle: vi.fn(),
   insert: vi.fn(),
+  rpc: vi.fn(),
 }));
 vi.mock('../lib/supabaseConfig', () => ({
   isSupabaseConfigured: true,
-  loadSupabase: async () => ({ auth: { getSession }, from }),
+  loadSupabase: async () => ({ auth: { getSession }, from, rpc }),
 }));
 
 const item = {
@@ -48,6 +49,27 @@ beforeEach(() => {
 });
 
 describe('remote cart mutation requests', () => {
+  it('reorders through the owned-order RPC and reloads the authoritative cart', async () => {
+    rpc.mockResolvedValue({ data: { added: 1, skipped: [] }, error: null });
+    const result = await reorderCustomerOrder('paid-order');
+    expect(rpc).toHaveBeenCalledWith('reorder_customer_order', { target_order_id: 'paid-order', target_cart_id: row.id });
+    expect(result).toMatchObject({ added: 1, skipped: [], cart: { id: row.id } });
+    expect(maybeSingle).toHaveBeenCalledTimes(2);
+  });
+  it('does not claim a reorder succeeded when the server rejects it', async () => {
+    rpc.mockResolvedValue({ error: { message: 'Payment under review.' } });
+    await expect(reorderCustomerOrder('pending')).rejects.toThrow('Payment under review.');
+    expect(maybeSingle).toHaveBeenCalledTimes(1);
+  });
+  it('warns against blindly repeating a saved reorder when cart refresh fails', async () => {
+    rpc.mockResolvedValue({ data: { added: 1, skipped: [] }, error: null });
+    maybeSingle.mockResolvedValueOnce({ data: row, error: null }).mockResolvedValueOnce({ error: { message: 'Network error' } });
+    await expect(reorderCustomerOrder('paid')).rejects.toThrow('Reorder was saved');
+  });
+  it.each([{ added: -1, skipped: [] }, { added: 1 }, { added: 0, skipped: [{}] }])('rejects malformed reorder response %j', async data => {
+    rpc.mockResolvedValue({ data, error: null });
+    await expect(reorderCustomerOrder('paid')).rejects.toThrow('Invalid reorder response');
+  });
   it('does not create a remote cart when restoring a session without a cart', async () => {
     maybeSingle.mockResolvedValue({ data: null, error: null });
     expect((await fetchCart()).items).toEqual([]);

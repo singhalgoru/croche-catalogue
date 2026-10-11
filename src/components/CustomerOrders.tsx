@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { fetchCustomerOrders, hideCancelledLiveOrder } from '../services/customer';
-import type { CustomerOrder } from '../types/customer';
+import { fetchCustomerOrders, hideCancelledLiveOrder, setCustomerOrderHidden } from '../services/customer';
+import type { CustomerOrder, ReorderResult } from '../types/customer';
 import { formatINR } from '../utils/currency';
 import { deliveryAddressText, fulfilmentLabels } from '../utils/customer';
 import OrderFulfilmentForm from './admin/OrderFulfilmentForm';
@@ -15,9 +15,11 @@ const statusLabels: Record<CustomerOrder['status'], string> = {
   review_required: 'Payment under review',
 };
 
-export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin = false }: {
-  loadOrders?: (offset: number) => Promise<CustomerOrder[]>;
+export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin = false, onReorder, onOpenCart }: {
+  loadOrders?: (offset: number, hidden?: boolean) => Promise<CustomerOrder[]>;
   admin?: boolean;
+  onReorder?: (orderId: string) => Promise<ReorderResult>;
+  onOpenCart?: () => void;
 }) {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,9 +30,17 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
   const [confirmRemoval, setConfirmRemoval] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+  const [actionOrder, setActionOrder] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<ReorderResult | null>(null);
+  const [actionMessage, setActionMessage] = useState('');
+  const rank = (order: CustomerOrder) => order.hidden ? 3 : order.status === 'paid' && order.fulfilment?.status !== 'delivered'
+    ? 0 : ['creating_link', 'link_created', 'review_required'].includes(order.status) ? 1 : 2;
+  const displayedOrders = admin ? orders : orders.filter(order => Boolean(order.hidden) === showHidden)
+    .sort((a, b) => rank(a) - rank(b) || Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id.localeCompare(a.id));
   useEffect(() => {
     let current = true;
-    void loadOrders(page.offset).then(values => {
+    void (admin ? loadOrders(page.offset) : loadOrders(page.offset, showHidden)).then(values => {
       if (!current) return;
       setOrders(previous => page.offset ? [...previous, ...values] : values);
       setHasMore(values.length === 20);
@@ -38,7 +48,12 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
       if (current) setError(failure instanceof Error ? failure.message : 'Unable to load your orders.');
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [page, loadOrders]);
+  }, [page, loadOrders, admin, showHidden]);
+  const changeVisibility = (hidden: boolean) => {
+    if (showHidden === hidden) return;
+    setShowHidden(hidden); setLoading(true); setError(''); setOrders([]);
+    setPage(previous => ({ offset: 0, refresh: previous.refresh + 1 }));
+  };
   return (
     <section aria-label={admin ? 'Online orders' : 'Your orders'} className={admin
       ? 'mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm'
@@ -66,13 +81,23 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
         ? 'mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'
         : 'text-red-700'}>{error}</p>}
       <div id={admin ? 'online-orders-content' : undefined} hidden={admin && !isExpanded}>
+      {!admin && <div className="my-3 flex gap-4">
+        <button type="button" disabled={actionOrder !== null} aria-pressed={!showHidden} className="min-h-11 underline" onClick={() => changeVisibility(false)}>Current & past orders</button>
+        <button type="button" disabled={actionOrder !== null} aria-pressed={showHidden} className="min-h-11 underline" onClick={() => changeVisibility(true)}>Hidden orders</button>
+      </div>}
+      {actionMessage && <p role="status" className="my-2 text-sm text-cocoa">{actionMessage}</p>}
+      {actionResult && <div className="my-3 rounded-xl border border-mustard/40 p-3 text-sm">
+        <p role="status">{actionResult.added ? `${actionResult.added} order item${actionResult.added === 1 ? '' : 's'} added to your cart at current prices.` : 'No items added to your cart.'} Existing cart items were kept. Quantities meet current minimum orders.</p>
+        {actionResult.skipped.length > 0 && <ul className="mt-2 list-inside list-disc">{actionResult.skipped.map((item, index) => <li key={index}>{item.productName}{item.variantName ? ` (${item.variantName})` : ''}: {item.reason}</li>)}</ul>}
+        {onOpenCart && actionResult.added > 0 && <button type="button" onClick={onOpenCart} className="mt-2 min-h-11 underline">View cart</button>}
+      </div>}
       <p className={admin ? 'mb-3 mt-4 text-sm text-cocoa/65' : 'mb-3 text-xs text-cocoa/70'}>{admin
         ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled or expired entry hides it from this list, not from payment records.'
         : 'Recorded orders, payment status and saved fulfilment updates. WhatsApp/email enquiries are not confirmed orders. Refresh orders to check delivery progress.'}</p>
       {loading && <p role="status">Loading your orders...</p>}
-      {!loading && !error && orders.length === 0 && <p>No orders yet.</p>}
+      {!loading && !error && displayedOrders.length === 0 && <p>{showHidden ? 'No hidden orders loaded.' : orders.length ? 'No visible orders loaded.' : 'No orders yet.'}</p>}
       <div className="space-y-3">
-        {orders.map(order => (
+        {displayedOrders.map(order => (
           <article key={order.id} aria-label={`Order ${order.reference}`} className={admin
             ? 'rounded-2xl border border-mustard/30 bg-cream/40 p-4'
             : 'rounded-xl border border-cocoa/20 p-3 sm:p-4'}>
@@ -93,6 +118,27 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
                   return next;
                 })}>{expanded.has(order.id) ? 'Hide details' : 'Show details'}</button>}
             </div>
+            {!admin && <div className="mt-3 flex flex-wrap gap-4">
+              {onReorder && <button type="button" disabled={loading || actionOrder !== null}
+                aria-label={`Reorder ${order.reference}`} className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-cream disabled:opacity-50"
+                onClick={() => {
+                  setActionOrder(order.id); setError(''); setActionResult(null); setActionMessage('');
+                  void onReorder(order.id).then(setActionResult)
+                    .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to reorder.'))
+                    .finally(() => setActionOrder(null));
+                }}>{actionOrder === order.id ? 'Updating...' : 'Reorder'}</button>}
+              {(order.hidden || (['cancelled', 'expired'].includes(order.status) && !order.paidAt)) && <button type="button"
+                disabled={loading || actionOrder !== null} className="min-h-11 underline disabled:opacity-50"
+                aria-label={`${order.hidden ? 'Restore' : 'Hide'} ${order.reference}`}
+                onClick={() => {
+                  setActionOrder(order.id); setError(''); setActionMessage('');
+                  void setCustomerOrderHidden(order.id, !order.hidden).then(() => {
+                    setOrders(current => current.map(value => value.id === order.id ? { ...value, hidden: !order.hidden } : value));
+                    setActionMessage(order.hidden ? 'Order restored.' : 'Order moved to Hidden orders. Payment records are unchanged.');
+                  }).catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to update order visibility.'))
+                    .finally(() => setActionOrder(null));
+                }}>{order.hidden ? 'Restore order' : 'Hide order'}</button>}
+            </div>}
             <p className="mt-1 text-xs text-cocoa/70">
               Placed {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               {order.paidAt && ` · Paid ${new Date(order.paidAt).toLocaleDateString('en-IN')}`}

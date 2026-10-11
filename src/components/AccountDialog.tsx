@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import CustomerAccount from './CustomerAccount';
 import { setCustomerPassword } from '../services/customer';
+import type { ReorderResult } from '../types/customer';
 
 interface Props {
   mode: 'signin' | 'signup' | 'reset';
   accountName?: string | null;
   onClose: () => void;
+  onReorder?: (orderId: string) => Promise<ReorderResult>;
+  onOpenCart?: () => void;
 }
-export default function AccountDialog({ mode, accountName, onClose }: Props) {
+export default function AccountDialog({ mode, accountName, onClose, onReorder, onOpenCart }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const [view, setView] = useState(mode);
   const [openedMode, setOpenedMode] = useState(mode);
@@ -36,7 +39,7 @@ export default function AccountDialog({ mode, accountName, onClose }: Props) {
           <button ref={closeButton} type="button" onClick={onClose} aria-label="Close account"
             className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-2xl text-cocoa">×</button>
         </div>
-        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp initialMode={mode} onModeChange={setView} showOrderHistory />}
+        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp initialMode={mode} onModeChange={setView} showOrderHistory onReorder={onReorder} onOpenCart={onOpenCart} />}
       </div>
     </div>
   );

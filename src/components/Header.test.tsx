@@ -12,6 +12,16 @@ beforeAll(() => vi.stubGlobal('ResizeObserver', class {
 afterAll(() => vi.unstubAllGlobals());
 
 describe('Header', () => {
+  it('opens a separate My orders entry from the signed-in name icon', () => {
+    const orders = vi.fn();
+    const account = vi.fn();
+    render(<Header showInstallPrompt={false} accountName="Asha" onOpenAccount={account} onOpenOrders={orders} />);
+    fireEvent.click(screen.getByRole('button', { name: 'My account, signed in as Asha' }));
+    expect(screen.getByRole('navigation', { name: 'Account navigation' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'My orders' }));
+    expect(orders).toHaveBeenCalledOnce();
+    expect(account).not.toHaveBeenCalled();
+  });
   it('uses mustard fill for every seasonal menu category, not just the featured ticker category', () => {
     render(<Header showInstallPrompt={false} categories={['Navratri', 'Diwali', 'Toys']} seasonalCategories={['Navratri', 'Diwali']} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));

@@ -3,7 +3,7 @@ import { loadSupabase } from '../lib/supabaseConfig';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset,
   fetchWelcomeOffer, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
   setCustomerPassword, validateCustomerPassword } from '../services/customer';
-import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
+import type { DeliveryDetails, WelcomeOffer, ReorderResult } from '../types/customer';
 import { emptyDeliveryDetails } from '../utils/customer';
 import AddressBook from './AddressBook';
 import CustomerOrders from './CustomerOrders';
@@ -17,8 +17,10 @@ interface Props {
   onContinue?: (profile: DeliveryDetails | null) => void;
   onModeChange?: (mode: 'signup' | 'signin') => void;
   showOrderHistory?: boolean;
+  onReorder?: (orderId: string) => Promise<ReorderResult>;
+  onOpenCart?: () => void;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange, showOrderHistory = false }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange, showOrderHistory = false, onReorder, onOpenCart }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
@@ -74,7 +76,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           <p>Mobile: {profile.phone}</p>
         </div>}
         <AddressBook accountEmail={account} onDefaultChange={setProfile} />
-        {showOrderHistory && <CustomerOrders key={account} />}
+        {showOrderHistory && <CustomerOrders key={account} onReorder={onReorder} onOpenCart={onOpenCart} />}
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
         {showPasswordForm ? <form className="mt-2 space-y-2" aria-label="Set account password" onSubmit={event => {

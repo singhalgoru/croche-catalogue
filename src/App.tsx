@@ -45,6 +45,7 @@ import { getProductMetaDescription } from './utils/productMetaDescription';
 
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
+const CustomerOrders = lazy(() => import('./components/CustomerOrders'));
 const AccountDialog = lazy(() => import('./components/AccountDialog'));
 const readCheckoutStep = () => {
   const value = new URLSearchParams(window.location.search).get('checkout');
@@ -89,6 +90,9 @@ function App() {
     () => (isPasswordRecoveryLink(window.location.hash) ? 'reset' : null));
   const openAccount = useCallback((mode: 'signin' | 'signup') => { setIsCartOpen(false); setAccountMode(mode); }, [setIsCartOpen]);
   const closeAccount = useCallback(() => setAccountMode(null), []);
+  const openOrders = useCallback(() => {
+    window.location.assign(`${import.meta.env.BASE_URL}?account=orders`);
+  }, []);
   const customerName = useCustomerName();
   const [returnToCartOnProductClose, setReturnToCartOnProductClose] = useState(false);
   const cart = useCart(!isAdminPage);
@@ -553,10 +557,32 @@ function App() {
 
   const accountDialog = accountMode && (
     <Suspense fallback={null}>
-      <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} />
+      <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} onReorder={cart.reorderOrder}
+        onOpenCart={() => { closeAccount(); setIsCartOpen(true); }} />
     </Suspense>
   );
 
+  if (new URLSearchParams(window.location.search).get('account') === 'orders' && !isCartOpen) {
+    return <div className="flex min-h-screen flex-col bg-cream">
+      {cartNotifications}
+      <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={categories}
+        seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+        cartItemCount={cart.itemCount} onOpenCart={() => setIsCartOpen(true)}
+        onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+        <a href={import.meta.env.BASE_URL} className="inline-block min-h-11 underline">Back to shop</a>
+        <h1 className="font-heading text-3xl font-bold text-cocoa">My orders</h1>
+        <p className="mt-2 text-sm text-cocoa/70">Confirmed, processing and shipped orders appear first. Reorder available items at current prices; payment is never taken automatically.</p>
+        {customerName ? <Suspense fallback={<p role="status">Loading orders...</p>}>
+          <CustomerOrders key={customerName} onReorder={cart.reorderOrder} onOpenCart={() => setIsCartOpen(true)} />
+        </Suspense> : <div className="mt-4">
+          <p>Sign in with your verified account to view your orders.</p>
+          <button type="button" onClick={() => openAccount('signin')} className="mt-3 min-h-11 rounded-full bg-cocoa px-4 py-2 text-cream">Sign in to view orders</button>
+        </div>}
+      </main>
+      <Footer />{accountDialog}
+    </div>;
+  }
   if (isCartOpen) {
     return <div className="flex min-h-screen flex-col bg-cream">
       {cartNotifications}
@@ -564,7 +590,7 @@ function App() {
         seasonalAnnouncement={seasonalAnnouncement}
         seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
-        onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} accountName={customerName} />
+        onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
       <main className="w-full flex-1">{cartDrawer}</main>
       <Footer />
       {accountDialog}
@@ -580,7 +606,7 @@ function App() {
         isCartBusy={cart.isBusy} getCartQuantity={productId => cart.cart?.items
           .filter(item => item.productId === productId).reduce((total, item) => total + item.quantity, 0) ?? 0}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
-        onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} accountName={customerName} />
+        onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
       {cartDrawer}
       {accountDialog}
     </>;
@@ -605,6 +631,7 @@ function App() {
         categories={categories}
         onNavigateCatalogue={navigateCatalogue}
         onOpenAccount={openAccount}
+        onOpenOrders={openOrders}
         accountName={customerName}
       />
       {pageReference ? (

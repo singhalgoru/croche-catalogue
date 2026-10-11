@@ -47,6 +47,7 @@ export interface OrderFulfilment {
   updatedAt: string | null;
 }
 export interface CustomerOrder {
+  hidden?: boolean;
   fulfilment?: OrderFulfilment | null;
   expiresAt?: string;
   id: string;
@@ -62,6 +63,10 @@ export interface CustomerOrder {
   shipping: number;
   total: number;
   items: { id: string; productName: string; variantName: string; quantity: number; unitPrice: number; lineTotal: number }[];
+}
+export interface ReorderResult {
+  added: number;
+  skipped: { productName: string; variantName: string; reason: string }[];
 }
 
 export interface AdminCustomerSummary {

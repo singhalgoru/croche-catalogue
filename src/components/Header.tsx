@@ -22,6 +22,7 @@ interface Props {
   mobileCartInToolbar?: boolean;
   hideMobileCart?: boolean;
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
+  onOpenOrders?: () => void;
   accountName?: string | null;
 }
 
@@ -42,9 +43,11 @@ export default function Header({
   mobileCartInToolbar = false,
   hideMobileCart = false,
   onOpenAccount,
+  onOpenOrders,
   accountName,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState('');
   const [signOutMessage, setSignOutMessage] = useState('');
@@ -52,6 +55,8 @@ export default function Header({
   const signOut = async () => {
     if (signOutPending.current) return;
     signOutPending.current = true;
+    setIsAccountMenuOpen(false);
+    setIsMenuOpen(true);
     menuButtonRef.current?.focus();
     setIsSigningOut(true); setSignOutError(''); setSignOutMessage('');
     try {
@@ -96,15 +101,17 @@ export default function Header({
   };
 
   useEffect(() => {
-    if (!isMenuOpen) return;
+    if (!isMenuOpen && !isAccountMenuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setIsMenuOpen(false);
+      setIsAccountMenuOpen(false);
       menuButtonRef.current?.focus();
     };
     const onPointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
         setIsMenuOpen(false);
+        setIsAccountMenuOpen(false);
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -113,7 +120,7 @@ export default function Header({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isAccountMenuOpen]);
 
   useEffect(() => {
     if (messages.length < 2 || tickerFocused || tickerHovered) return;
@@ -154,7 +161,7 @@ export default function Header({
             aria-label={isMenuOpen ? 'Close navigation' : 'Open navigation'}
             aria-expanded={isMenuOpen}
             aria-controls={menuId}
-            onClick={() => setIsMenuOpen((open) => !open)}
+            onClick={() => { setIsAccountMenuOpen(false); setIsMenuOpen(open => !open); }}
             className={`absolute top-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-cocoa shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${
               onOpenCart ? 'right-20 sm:right-24' : 'right-4 sm:right-6'
             }`}
@@ -168,7 +175,8 @@ export default function Header({
               type="button"
               aria-label={accountName ? `My account, signed in as ${accountName}` : 'Sign in or create account'}
               title={accountName ? `Signed in as ${accountName}` : 'Sign in or create account'}
-              onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
+              aria-expanded={accountName ? isAccountMenuOpen : undefined}
+              onClick={() => { setIsMenuOpen(false); if (accountName) setIsAccountMenuOpen(open => !open); else onOpenAccount('signin'); }}
               className={`absolute top-3 flex h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-white text-cocoa shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${
                 accountName ? 'sm:max-w-56 sm:px-4' : ''} ${onOpenCart ? 'right-36 sm:right-[10.5rem]' : 'right-20 sm:right-24'
               }`}
@@ -183,6 +191,15 @@ export default function Header({
               </svg>}
             </button>
           )}
+          {isAccountMenuOpen && accountName && onOpenAccount && <nav aria-label="Account navigation"
+            className="absolute right-4 top-16 w-64 rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:right-6">
+            <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left hover:bg-cream"
+              onClick={() => { setIsAccountMenuOpen(false); onOpenAccount('signin'); }}>My account</button>
+            {onOpenOrders && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left hover:bg-cream"
+              onClick={() => { setIsAccountMenuOpen(false); onOpenOrders(); }}>My orders</button>}
+            <button type="button" disabled={isSigningOut} className="block min-h-11 w-full rounded-lg px-3 text-left hover:bg-cream"
+              onClick={() => { setIsAccountMenuOpen(false); void signOut(); }}>Sign out</button>
+          </nav>}
           {isMenuOpen && (
             <nav
               id={menuId}
@@ -200,6 +217,8 @@ export default function Header({
                 <p className="truncate px-2 text-sm text-cocoa/70">Signed in as <span className="font-semibold text-cocoa">{accountName}</span></p>
                 <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
                   className="mt-2 min-h-11 w-full rounded-full border border-cocoa px-3 font-semibold hover:bg-cream">My account</button>
+                {onOpenOrders && <button type="button" onClick={() => { setIsMenuOpen(false); onOpenOrders(); }}
+                  className="mt-2 min-h-11 w-full rounded-full border border-cocoa px-3 font-semibold hover:bg-cream">My orders</button>}
                 <button type="button" disabled={isSigningOut} onClick={() => { void signOut(); }}
                   className="mt-2 min-h-11 w-full rounded-full border border-cocoa/30 px-3 font-semibold hover:bg-cream disabled:opacity-50">
                   {isSigningOut ? 'Signing out…' : 'Sign out'}

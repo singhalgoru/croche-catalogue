@@ -10,8 +10,9 @@ import {
   captureCartNetwork,
   saveCartDeliveryDetails,
   selectCartWelcomeCoupon,
+  reorderCustomerOrder,
 } from '../services/cart';
-import type { DeliveryDetails } from '../types/customer';
+import type { DeliveryDetails, ReorderResult } from '../types/customer';
 import { trackAddToCart } from '../services/analytics';
 import type { Cart } from '../types/cart';
 import type { Product, ProductVariant } from '../types/product';
@@ -110,6 +111,17 @@ export function useCart(enabled = true) {
     dismissError: () => setError(null),
     addFeedback,
     cartUpdateCount,
+    reorderOrder: async (orderId: string): Promise<ReorderResult> => {
+      let result: ReorderResult | undefined;
+      await runCartAction(async () => {
+        const value = await reorderCustomerOrder(orderId);
+        result = value;
+        return value.cart;
+      }, true);
+      if (!result) throw new Error('Unable to confirm reorder. Check your cart before retrying.');
+      if (result.added) setCartUpdateCount(count => count + 1);
+      return result;
+    },
     addItem: async (product: Product, variant: ProductVariant) => {
       const nextCart = await runCartAction(() => addProductToCart(product, variant));
       if (nextCart) {
