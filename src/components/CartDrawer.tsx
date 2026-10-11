@@ -441,7 +441,7 @@ export default function CartDrawer({
               {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : liveCheckout && cart?.deliveryDetails ? 'Includes shipping' : 'Includes estimated shipping'}
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
-            {isPage && pageStep !== 'confirmation' && totals?.hasCompletePricing && <section aria-label="Free delivery" className="mt-4 rounded-xl border border-mustard/40 bg-cream p-3 text-sm">
+            {pageStep !== 'confirmation' && totals?.hasCompletePricing && <section aria-label="Free delivery" className="mt-4 rounded-xl border border-mustard/40 bg-cream p-3 text-sm">
               {freeDeliveryShortfall > 0 ? <>
                 <p className="font-semibold">Add {formatINR(freeDeliveryShortfall)} more in items for free delivery!</p>
                 <p className="mt-1 text-xs text-cocoa/70">Free delivery on items worth {formatINR(FREE_SHIPPING_THRESHOLD)} or more after coupon discounts. Shipping fees do not count.</p>

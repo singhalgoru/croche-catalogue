@@ -623,6 +623,9 @@ export default function ProductModal({
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} collapsible={!isPage} />
           <ProductDeliveryInfo />
+          <p className="mt-3 text-sm font-semibold text-cocoa">
+            Free shipping on items worth ₹500 or more after coupon discounts.
+          </p>
           <details className="mt-4 rounded-xl border border-mustard/40 p-3 text-sm text-cocoa">
             <summary className="cursor-pointer font-semibold">{storeContent.orderingDisclosure.title}</summary>
             <p className="mt-2">{storeContent.orderingDisclosure.request}</p>
@@ -666,22 +669,8 @@ export default function ProductModal({
               {!isPage && shareButton}
             </div>
             <div aria-label="Product purchase actions" className={`grid items-center gap-2 ${isPage ? 'fixed inset-x-0 bottom-0 z-40 mx-auto max-w-6xl border-t border-mustard/30 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg sm:px-6' : ''} ${
-              !isPage && selectedCartItem && onUpdateCartItem && onRemoveCartItem
-                ? 'grid-cols-1 justify-items-end sm:grid-cols-[minmax(0,1fr)_auto]'
-                : isPage ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'
+              isPage ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'
             }`}>
-              <a
-                href={whatsappOrderLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={openWhatsAppOrder}
-                className="flex h-12 w-full min-w-0 items-center justify-center gap-1 rounded-full bg-[#25D366] px-2 text-white shadow-sm transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
-                aria-label="Quick order on WhatsApp"
-                title="Quick order on WhatsApp"
-              >
-                <WhatsAppIcon />
-                <span className={`${isPage ? 'sr-only min-[400px]:not-sr-only' : ''} text-xs font-semibold leading-tight`}>Order on WhatsApp</span>
-              </a>
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
                   productName={product.name}
@@ -722,8 +711,21 @@ export default function ProductModal({
                   quantity={getCartQuantity?.(product.id, selectedVariant.id) ?? 0}
                   overlay={false}
                   showLabel
+                  className="w-full min-w-0"
                 />
               ) : null}
+              <a
+                href={whatsappOrderLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={openWhatsAppOrder}
+                className="flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border border-cocoa/30 bg-white px-3 text-cocoa transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
+                aria-label="Ask on WhatsApp"
+                title="Ask on WhatsApp"
+              >
+                <WhatsAppIcon />
+                <span className={`${isPage ? 'sr-only sm:not-sr-only' : ''} text-xs font-semibold leading-tight`}>Ask on WhatsApp</span>
+              </a>
               {isPage && shareButton}
             </div>
           </div>

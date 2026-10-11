@@ -34,7 +34,7 @@ export default function CartIconButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`flex h-11 ${showLabel ? 'gap-2 px-3' : 'w-11'} items-center justify-center rounded-full border border-white/70 text-white shadow-lg backdrop-blur-md transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`flex h-11 ${showLabel ? 'w-full gap-2 px-3' : 'w-11'} items-center justify-center rounded-full border border-white/70 text-white shadow-lg backdrop-blur-md transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
           status === 'added'
             ? 'bg-green-600/95 hover:bg-green-700'
             : 'bg-cocoa/95 hover:bg-cocoa-dark'

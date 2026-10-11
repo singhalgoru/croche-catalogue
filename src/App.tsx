@@ -42,6 +42,7 @@ import {
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
 import { getProductMetaDescription } from './utils/productMetaDescription';
+import { collectionPath } from './utils/collectionLink.js';
 
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
@@ -663,7 +664,7 @@ function App() {
                 <li aria-hidden="true">/</li>
                 <li>
                   <a
-                    href={`${import.meta.env.BASE_URL}?category=${encodeURIComponent(selectedProduct.category)}`}
+                    href={collectionPath(selectedProduct.category)}
                     className="underline underline-offset-4"
                   >
                     {selectedProduct.category}
@@ -768,7 +769,7 @@ function App() {
             Shop the Collection
           </h2>
           <p className="mt-1 text-xs text-cocoa/80 sm:text-sm">
-            Add your favourites to the cart, then confirm your order on WhatsApp.
+            Add your favourites to the cart, review delivery and pay securely through Razorpay.
           </p>
         </div>
         {loadError && (

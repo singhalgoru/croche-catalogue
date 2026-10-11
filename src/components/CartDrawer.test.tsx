@@ -43,6 +43,14 @@ it('does not claim free-delivery eligibility for unpriced items', () => {
   renderCart({ ...cart, items: [{ ...cart.items[0], unitPrice: null }] });
   expect(screen.queryByRole('region', { name: 'Free delivery' })).toBeNull();
 });
+it('also shows the coupon-aware free-delivery message in the cart drawer', () => {
+  render(<CartDrawer cart={{ ...cart, items: [{ ...cart.items[0], unitPrice: 500 }],
+    coupon: { code: 'SAVE', percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500 } }}
+    products={[]} isLoading={false} isBusy={false} error={null} onClose={vi.fn()} onUpdateQuantity={vi.fn()}
+    onRemove={vi.fn()} onClear={vi.fn()} onWhatsAppStarted={vi.fn()} onEmailStarted={vi.fn()}
+    onOpenProduct={vi.fn()} onSaveDeliveryPin={vi.fn()} />);
+  expect(screen.getByRole('region', { name: 'Free delivery' }).textContent).toContain('Add ₹55 more in items');
+});
 it('shows the configured guest welcome discount and opens signup without closing checkout', async () => {
   vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: true, percent: 15, maxDiscountRupees: 80,
     minimumSubtotalRupees: 600, validDays: 7 });

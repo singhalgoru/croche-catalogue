@@ -35,20 +35,17 @@ export default function OrderingGuide() {
         <li>
           <h3 className="font-semibold">3. Proceed to payment</h3>
           <p className="mt-1 text-cocoa/80">
-            Pay securely through Razorpay when online checkout is available.
+            Pay securely through Razorpay.
             Your order is confirmed only after payment verification, and confirmation emails are queued
             for you and Luvia. If checkout is unavailable, contact us to confirm your order and payment instructions.
           </p>
         </li>
       </ol>
       <p className="mt-4 text-sm text-cocoa/80">
-        We ship across India. Orders are dispatched within 5 days of receiving the order, or earlier.
-        Delivery time after dispatch depends on your location.
+        {storeContent.dispatch}
       </p>
       <p className="mt-2 text-sm text-cocoa/80">
-        Shipping is free when the items subtotal after discounts is at least ₹500. Below ₹500,
-        the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 without a current estimate.
-        Review the shipping charge before paying.
+        {storeContent.shipping}
       </p>
       <p className="mt-3 text-sm text-cocoa/80">{storeContent.orderingDisclosure.request}</p>
       <p className="mt-2 text-sm text-cocoa/80">{storeContent.orderingDisclosure.price}</p>

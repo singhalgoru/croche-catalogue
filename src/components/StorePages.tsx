@@ -121,6 +121,7 @@ export default function StorePages({
         <p>General enquiries: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a></p>
         <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-block underline">Follow Luvia on Instagram</a>
         <h2 className="font-heading text-xl font-bold">Ordering across India</h2><p>{storeContent.about[3]}</p>
+        <p>{storeContent.dispatch}</p><p>{storeContent.shipping}</p>
         <section aria-labelledby="about-ordering-title" className="space-y-3 rounded-2xl border border-mustard/30 bg-white/70 p-4 text-sm leading-relaxed sm:p-5 sm:text-base">
           <h2 id="about-ordering-title" className="font-heading text-xl font-bold">{storeContent.orderingDisclosure.title}</h2>
           <p>{storeContent.orderingDisclosure.request}</p>

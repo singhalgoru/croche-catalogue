@@ -58,7 +58,7 @@ test('delivery and returns expands and collapses with pointer and keyboard', asy
   await summary.click();
   await expect(policy).toBeVisible();
   await expect(policy).toHaveAttribute('href', '/return-policy/');
-  await expect(section.getByText(/Courier delivery estimates start after dispatch/)).toBeVisible();
+  await expect(section.getByText(/Delivery time after dispatch depends on the destination/)).toBeVisible();
   await summary.click();
   await expect(policy).toBeHidden();
   await summary.focus();
@@ -85,6 +85,12 @@ test('product purchase controls remain visible without scrolling and after scrol
   await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
   const add = page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true });
   await expect(add).toBeInViewport();
+  await expect(add).toContainText('Add to cart');
+  const enquiry = page.getByRole('link', { name: 'Ask on WhatsApp' });
+  const addBox = (await add.boundingBox())!;
+  const enquiryBox = (await enquiry.boundingBox())!;
+  expect(addBox.width).toBeGreaterThan(enquiryBox.width);
+  expect(addBox.x + addBox.width).toBeLessThan(enquiryBox.x);
   const purchase = page.getByLabel('Product purchase actions', { exact: true });
   await expect(purchase).toHaveCSS('position', 'fixed');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -94,14 +100,14 @@ test('product purchase controls remain visible without scrolling and after scrol
   await expect(increase).toBeInViewport();
   await increase.click();
   await expect(page.getByLabel('2 of Rose Charm — Rose Pink in cart')).toBeVisible();
-  const whatsapp = page.getByRole('link', { name: 'Quick order on WhatsApp' });
+  const whatsapp = page.getByRole('link', { name: 'Ask on WhatsApp' });
   const whatsappBox = await whatsapp.boundingBox();
   const quantityBox = await increase.boundingBox();
   expect(whatsappBox).not.toBeNull();
   expect(quantityBox).not.toBeNull();
   expect(Math.abs(whatsappBox!.y + whatsappBox!.height / 2 - quantityBox!.y - quantityBox!.height / 2)).toBeLessThan(2);
   expect((await purchase.boundingBox())!.height).toBeLessThan(90);
-  expect(whatsappBox!.x + whatsappBox!.width).toBeLessThan(quantityBox!.x);
+  expect(quantityBox!.x + quantityBox!.width).toBeLessThan(whatsappBox!.x);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const footerBox = await page.locator('footer').boundingBox();
   const purchaseBox = await purchase.boundingBox();
@@ -110,7 +116,7 @@ test('product purchase controls remain visible without scrolling and after scrol
   expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(purchaseBox!.y);
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(increase).toBeInViewport();
-  await expect(page.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Ask on WhatsApp' })).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Share this product' })).toBeInViewport();
 });
 
@@ -124,7 +130,17 @@ test('purchase bar keeps a single row on narrow phones with an item in cart', as
   const box = (await purchase.boundingBox())!;
   expect(box.height).toBeLessThan(90);
   expect(await purchase.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-  await expect(page.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Ask on WhatsApp' })).toBeInViewport();
+});
+
+test('purchase page breadcrumbs open the crawlable collection without changing homepage filters', async ({ page }) => {
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  const category = page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Charms', exact: true });
+  await expect(category).toHaveAttribute('href', '/collections/charms/');
+  await category.click();
+  await expect(page).toHaveURL(/\/collections\/charms\/$/);
+  await expect(page.getByRole('heading', { name: 'Handmade Charms', exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
 });
 
 test('opens the exact variant from a Reddit share path and shares its dedicated preview URL', async ({ page }) => {
@@ -915,7 +931,7 @@ test('keeps the installed PWA source out of WhatsApp messages', async ({ page })
   await expect(enquiry).toHaveAttribute('href', /Rose%20Charm/);
   await expect(enquiry).not.toHaveAttribute('href', /Ref/);
 
-  const quickOrder = dialog.getByRole('link', { name: 'Quick order on WhatsApp' });
+  const quickOrder = dialog.getByRole('link', { name: 'Ask on WhatsApp' });
   await expect(quickOrder).not.toHaveAttribute('href', /Ref/);
 });
 

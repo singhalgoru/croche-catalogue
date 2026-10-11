@@ -181,7 +181,7 @@ describe('Hybrid product navigation', () => {
     const links = breadcrumb.getAllByRole('link');
     expect(links[0].textContent).toBe('Home');
     expect(links[0].getAttribute('href')).toBe('/');
-    expect(links[1].getAttribute('href')).toBe('/?category=Home');
+    expect(links[1].getAttribute('href')).toBe('/collections/home/');
     expect(breadcrumb.getByText('Test Coaster').getAttribute('aria-current')).toBe('page');
   });
 

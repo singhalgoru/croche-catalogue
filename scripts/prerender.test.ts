@@ -129,9 +129,9 @@ describe('parity with the app helpers', () => {
     }
     expect(sample.description).toBe(row.description);
   });
-  it('links static breadcrumbs and their schema to the actual category filter', () => {
+  it('links static breadcrumbs and their schema to the crawlable collection', () => {
     const html = renderProductPage(product);
-    const categoryUrl = `/?category=${encodeURIComponent(product.category)}`;
+    const categoryUrl = '/collections/hair-accessories/';
     expect(html).toContain(`href="${categoryUrl}"`);
     expect(html).toContain('aria-label="Breadcrumb"');
     expect(html).toContain(`<span aria-current="page">${product.name}</span>`);
@@ -235,9 +235,9 @@ describe('renderShell', () => {
   it('includes ordering and delivery guidance after the products for non-JavaScript visitors', () => {
     expect(shell).toContain('How ordering and delivery work');
     expect(shell).toContain('Adding items to your cart or sending a message does not confirm an order.');
-    expect(shell).toContain('Your online order is confirmed only after payment verification.');
+    expect(shell).toContain('Your online order is confirmed after payment verification.');
     expect(shell).toContain('Orders are dispatched within 5 days of receiving the order, or earlier.');
-    expect(shell).toContain('Delivery time after dispatch depends on the destination.');
+    expect(shell).toContain('Delivery time after dispatch depends on the destination');
     expect(shell).toContain('href="mailto:orders@luviacreations.com"');
     expect(shell).toContain('href="/return-policy/"');
     expect(shell.match(/href="\/return-policy\/"/g)).toHaveLength(1);
@@ -297,18 +297,19 @@ describe('injectShell', () => {
     expect(() => injectShell('<html></html>', [product])).toThrow(/shell/);
   });
 
-  it('updates all homepage descriptions from published categories', () => {
+  it('uses one complete homepage description across search, social and schema', () => {
     const source = readFileSync(path.resolve('index.html'), 'utf8');
     const result = injectShell(source, [product, { ...product, category: 'Brooches' }]);
     for (const key of ['name="description"', 'property="og:description"', 'name="twitter:description"']) {
       const description = result.match(new RegExp(`${key}\\s+content="([^"]+)"`))?.[1];
-      expect(description).toContain('hair accessories, brooches');
-      expect(description).toContain('Luvia&#39;s premium handmade crochet');
-      expect(description).not.toMatch(/bags|rakhi/i);
+      expect(description).toContain('Shop handmade crochet gajras, hair accessories');
+      expect(description).toContain('Secure online checkout.');
+      expect(description!.length).toBeLessThanOrEqual(160);
+      expect(description).not.toContain('…');
     }
     const scripts = [...result.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
     const store = JSON.parse(scripts[0][1])['@graph'][0];
-    expect(store.description).toContain('hair accessories, brooches');
+    expect(store.description).toContain('Shop handmade crochet gajras, hair accessories');
   });
 
   it('bootstraps the premium homepage title for hydrated metadata', async () => {
@@ -364,7 +365,7 @@ describe('renderLlms', () => {
 describe('renderProductPage', () => {
   const page = renderProductPage(product, '910000000000');
   it('discloses order requests, tax, shipping and payment on crawler-facing product pages', () => {
-    expect(page).toContain('does not complete a purchase or take payment');
+    expect(page).toContain('does not take payment or confirm an order');
     expect(page).toContain('Displayed product prices include GST');
     expect(page).toContain('Shipping is additional');
     expect(page).toContain('href="/faq/"');
@@ -446,7 +447,7 @@ describe('renderProductPage', () => {
 
   it('keeps sold-out wording consistent with structured availability', () => {
     const soldOut = renderProductPage({ ...product, inStock: false }, '91');
-    expect(soldOut).toContain('Sold out. Message us to confirm delivery timing.');
+    expect(soldOut).toContain('Sold out.');
     expect(soldOut).toContain('https://schema.org/OutOfStock');
     expect(soldOut).not.toMatch(/made to order|ready to ship/i);
     expect(renderShell([{ ...product, inStock: false }])).toContain('Sold out.');
@@ -485,6 +486,25 @@ describe('renderProductPage', () => {
 
   it('shows a single price when no variant overrides it', () => {
     expect(renderProductPage({ ...product, variants: [] }, '91')).toContain('₹400');
+  });
+
+  it('renders existing gallery photos, navigation and consistent purchase guidance without JavaScript', () => {
+    const html = renderProductPage({ ...product, variants: [
+      { ...product.variants[0], image: product.image, images: ['https://images.luviacreations.com/angle.webp', product.image] },
+    ] }, '91', { url: 'https://luviacreations.com/p/ivory-rose-gajra/og.jpg', width: 800, height: 800 }, false);
+    expect(html).toContain('href="#main">Skip to content');
+    expect(html).toContain('aria-label="Main navigation"');
+    expect(html).toContain('aria-label="Product photos"');
+    expect(html.match(/src="https:\/\/images.luviacreations.com\/angle.webp"/g)).toHaveLength(1);
+    expect(html).toContain('fetchpriority="high"');
+    expect(html).toContain('loading="lazy"');
+    expect(html).not.toContain('Available colours and variants');
+    expect(html).toContain('Shopping without JavaScript?');
+    expect(html).toContain('after coupon discounts');
+    expect(html).not.toContain('when online checkout is available');
+    expect(html).not.toContain('Admin Razorpay');
+    expect(html).toContain(`<title>${product.name} | Luvia Creations</title>`);
+    expect(html.indexOf('Choose options in the catalogue')).toBeLessThan(html.indexOf('Ask on WhatsApp'));
   });
 
   it('falls back gracefully when the price is hidden', () => {

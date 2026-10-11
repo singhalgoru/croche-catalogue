@@ -30,7 +30,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Cart additions, quantity changes and removals return the server-validated cart from the refresh write, avoiding an extra sequential reload before updating the UI.
 - Successful cart additions paint their confirmed cart feedback before running third-party analytics, keeping tracking work off the mobile feedback path.
 - Full-width shopping journey: product → cart → delivery details → review & payment → verified order confirmation. Checkout steps use the `checkout` query parameter, support browser Back/Forward and survive refresh. Desktop uses a two-column summary; mobile stacks the panels without a cart overlay.
-- Product details show Delivery and returns as a collapsed disclosure. Expand it with a click, tap or keyboard to read the unchanged shipping/return guidance and policy links.
+- Product details show Delivery and returns as a collapsed disclosure. Expand it with a click, tap or keyboard to read the shared dispatch/shipping guidance and unchanged return policy links.
 - Full product pages keep the share icon in the fixed bottom purchase bar so it remains available while scrolling; modal sharing retains its existing action-row placement. On narrow phones the WhatsApp action uses its recognizable icon and accessible label to keep the bar in one row.
 - Full product pages keep Add to cart (or the selected variant's quantity controls) and WhatsApp order side by side in a compact, single-row fixed bottom bar on desktop and mobile, including after adding an item. Page spacing keeps product content and the footer clear of the bar; phone safe-area padding is respected. Modal actions retain their existing scrollport-sticky layout.
 - Full-page checkout calculates shipping when a new or saved delivery address is saved, without a separate cart pincode panel. The summary encourages shoppers below ₹500 in items after coupon discounts to add more for free delivery, and shows when the threshold is reached. Shipping fees do not count; unpriced items do not imply eligibility.
@@ -58,7 +58,8 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Reddit variant links use dedicated static variant pages with matching preview images, titles and prices. Visitors open the selected variant in the interactive product view; existing query-based links remain supported. Reddit may retain cached previews on older posts.
 - Mobile store pages use equal-width collection links and aligned ordering-policy links; About ordering disclosures are grouped in a readable panel.
 - When Turnstile is configured, bot verification is prepared while browsing. A prepared token is consumed once within four minutes; missing/expired tokens still require the verification dialog before anonymous signup.
-- Product views, Google feed landing pages, About and FAQ explicitly disclose the catalogue/order-request model, GST-inclusive prices, additional shipping and payment confirmation. These transparency disclosures do not provide a complete online checkout or guarantee Merchant Center eligibility.
+- Homepage, product views, Google feed landing pages, About and FAQ describe the primary online journey: cart, delivery address, total review and secure Razorpay payment. Orders are confirmed after payment verification; paid online orders need no separate WhatsApp confirmation. WhatsApp is for help, customisation and assisted ordering when checkout is unavailable. Public copy does not describe the admin sandbox. Shared dispatch/shipping guidance lives in `src/content/storeContent.json`; shipping is free at ₹500 in items after coupon discounts, otherwise the saved estimate rounded up to ₹10 or ₹100 fallback applies. Merchant Center eligibility is not guaranteed.
+- Product purchase bars keep the labelled Add to cart action first and prominent, with a secondary Ask on WhatsApp action and the existing share button. Existing quantity controls, mobile sticky placement and variant-specific enquiry links are preserved. Free-shipping shortfall messages use the existing coupon-aware calculation in both checkout and the cart drawer, and never imply eligibility for unpriced items.
 - "Collaborate with us" in the hamburger menu and footer links to a maker/brand invitation above the footer, with a prefilled collaboration WhatsApp enquiry using the existing contact number
 - Dedicated order and WhatsApp contact: +91 9205907350
 - Email contacts for orders and general enquiries
@@ -1070,6 +1071,13 @@ Shared product links use these pages so link previews show the product photo
 (an 800px `og.jpg` written beside each page). These pages contain static product
 content and metadata for crawlers and visitors without JavaScript, then boot the
 interactive product view on the same URL without redirecting to the homepage.
+Static product content includes navigation, a skip link and up to six existing
+product/variant/gallery photos, with an eager WebP hero and lazy supplementary
+photos. JPEG `og.jpg` remains the social preview. The no-JavaScript fallback
+explicitly offers assisted ordering, not a non-functional Add to cart button.
+Search/social product titles match the concise interactive product title, and
+the homepage uses a complete, fixed description rather than a truncated list
+of categories.
 Product search and social descriptions prefer a saved admin SEO description
 (`seo_description` in the database). Leaving it blank or clearing it uses the
 automatic fallback; existing products need no bulk edits. This override applies
@@ -1090,8 +1098,12 @@ Legacy Merchant URLs are generated as canonical aliases and older variant links
 fall back through the Pages 404 bootstrap.
 The product page stacks photos and details on mobile and uses two columns on
 desktop. Product detail breadcrumbs link Home to the catalogue and the category
-to its `/?category=...` filter, with the product marked as the current page.
+to its crawlable `/collections/<category>/` page, with the product marked as the current page.
 Static pages and BreadcrumbList schema use the same category destination.
+Homepage category chips still filter in place. Legacy UUID URLs remain canonical
+aliases: GitHub Pages cannot configure custom HTTP 301 redirects. Converting
+them requires a separately authorised edge/domain redirect configuration; do
+not replace an HTTP redirect with JavaScript or remove working legacy links.
 The header navigation button opens Home, current collection filters and the
 return policy without replacing catalogue category chips. The disclosure closes
 on Escape, outside clicks, link selection or opening the cart.

@@ -104,7 +104,7 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     <p>Order enquiries: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a><br>General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p>
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
     <h2>Ordering across India</h2><p>${escapeHtml(storeContent.about[3])}</p>
-    <p>Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch is when the parcel is handed to the courier. Delivery time after dispatch depends on the destination.</p>
+    <p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p>
     <h2>${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
     <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
     <p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>
@@ -112,7 +112,7 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     <p>Read the <a href="/faq/">ordering FAQ</a> and <a href="/return-policy/">return and refund policy</a>.</p></section>`,
     baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription)));
   const faqTitle = 'Ordering, delivery & care FAQ';
-  const faqDescription = 'Answers to Luvia Creations ordering questions: WhatsApp confirmation, custom colours, payment, shipping across India, product care and returns.';
+  const faqDescription = 'Answers to Luvia Creations ordering questions: secure Razorpay checkout, custom colours, shipping across India, product care and returns.';
   const questions = storeContent.questions;
   const faqBody = questions.map(([question, answer]) => `<details><summary>${escapeHtml(question)}</summary><p>${escapeHtml(answer)}</p></details>`).join('');
   pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<p class="intro">${faqDescription}</p>${faqBody}

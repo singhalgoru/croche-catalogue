@@ -28,9 +28,9 @@ describe('OrderingGuide', () => {
     expect(screen.getByRole('heading', { name: '3. Proceed to payment' })).toBeTruthy();
     expect(screen.getByText(/Your order is confirmed only after payment verification/)).toBeTruthy();
     expect(screen.getByText(/Orders are dispatched within 5 days/)).toBeTruthy();
-    expect(screen.getByText(/Delivery time after dispatch depends on your location/)).toBeTruthy();
-    expect(screen.getByText(/items subtotal after discounts is at least ₹500/)).toBeTruthy();
-    expect(screen.getByText(/does not complete a purchase or take payment/)).toBeTruthy();
+    expect(screen.getByText(/Delivery time after dispatch depends on the destination/)).toBeTruthy();
+    expect(screen.getByText(/items subtotal after coupon discounts is at least ₹500/)).toBeTruthy();
+    expect(screen.getByText(/does not take payment or confirm an order/)).toBeTruthy();
     expect(screen.getByText(/Displayed product prices include GST/)).toBeTruthy();
   });
 

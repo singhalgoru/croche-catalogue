@@ -44,10 +44,13 @@ describe('collection and information pages', () => {
   it('discloses the actual catalogue payment model and additional shipping in crawlable pages', () => {
     for (const pathname of ['/about/', '/faq/']) {
       const text = documentFor(pathname).body.textContent;
-      expect(text).toContain('does not complete a purchase or take payment');
+      expect(text).toContain('does not take payment or confirm an order');
       expect(text).toContain('Displayed product prices include GST');
       expect(text).toContain('Shipping is additional');
       expect(text).toContain('Never share your card PIN, OTP or passwords');
+      expect(text).not.toContain('Admin Razorpay');
+      expect(text).not.toContain('sandbox demonstration');
+      expect(text).not.toContain('when online checkout is available');
     }
   });
   it('creates only populated collections and the three information pages', () => {

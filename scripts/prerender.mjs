@@ -21,6 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
+import { collectionPath } from '../src/utils/collectionLink.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -259,7 +260,7 @@ const productJsonLd = (product) => {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
-          { '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}/?category=${encodeURIComponent(product.category)}` },
+          { '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}${collectionPath(product.category)}` },
           { '@type': 'ListItem', position: 3, name: product.name, item: url },
         ],
       },
@@ -286,12 +287,8 @@ const groupByCategory = (products) => {
   return [...groups];
 };
 
-const catalogueDescription = (products) => {
-  const categories = groupByCategory(products).map(([category]) => category.toLowerCase());
-  return categories.length > 0
-    ? truncate(`Discover Luvia's premium handmade crochet ${categories.join(', ')}. Thoughtfully crafted in India and shipped nationwide.`, 160)
-    : 'Discover premium handmade crochet accessories, gifts, toys and decor from Luvia Creations. Thoughtfully crafted in India and shipped nationwide.';
-};
+const catalogueDescription = () =>
+  'Shop handmade crochet gajras, hair accessories, charms, toys and home decor by Luvia Creations. Crafted in India, shipped nationwide. Secure online checkout.';
 
 const stockLabel = (product) => product.inStock ? 'In stock' : 'Sold out';
 
@@ -368,7 +365,7 @@ const renderShell = (products) => {
             '<li>',
             `<article>${image}<h4><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h4>`,
             `<p>${escapeHtml(truncate(product.description, 150))}</p>`,
-            `<p>${escapeHtml(`${product.name} is a handmade crochet piece from the ${category} collection by Luvia Creations.${price} ${stock}`)}</p>`,
+            `<p>${escapeHtml(`${price.trim()} ${stock}`)}</p>`,
             '</article></li>',
           ].join('');
         })
@@ -384,15 +381,16 @@ const renderShell = (products) => {
     '</header>',
     '<main>',
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
-      `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Order directly through WhatsApp or Instagram.`,
+      `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
     )}</p>`,
     sections,
     '<section aria-labelledby="ordering-guide-title">',
     '<h2 id="ordering-guide-title">How ordering and delivery work</h2>',
     '<ol><li>Choose your items: select an available product and colour or variant, then add it to your cart.</li>',
     '<li>Review your order: save your delivery address and review items, coupons, shipping and the total. Adding items to your cart or sending a message does not confirm an order.</li>',
-    '<li>Proceed to payment: when online checkout is available, pay securely through Razorpay. Your online order is confirmed only after payment verification. Otherwise contact Luvia on WhatsApp or email to confirm your order and payment instructions.</li></ol>',
-    '<p>We ship across India. Orders are dispatched within 5 days of receiving the order, or earlier. Delivery time after dispatch depends on the destination.</p>',
+    '<li>Proceed to payment: pay securely through Razorpay. Your online order is confirmed after payment verification. Use WhatsApp for help or assisted ordering if checkout is unavailable.</li></ol>',
+    `<p>${escapeHtml(storeContent.dispatch)}</p>`,
+    `<p>${escapeHtml(storeContent.shipping)}</p>`,
     `<p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>`,
     `<p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>`,
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
@@ -423,11 +421,15 @@ a{color:#8a4f2d}
 .bar{padding:16px 20px;border-bottom:1px solid #ecd9c6}
 .bar a{display:inline-flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;color:#5f3825}
 .bar img{width:36px;height:36px;border-radius:50%}
+.bar nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:12px}
+.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:8px;background:white;padding:8px}
+a:focus-visible,summary:focus-visible{outline:3px solid #5f3825;outline-offset:4px}
 .wrap{max-width:860px;margin:0 auto;padding:28px 20px 56px}
 .crumb{font-size:.85rem;margin:0 0 18px}
 h1{font-size:1.7rem;margin:0 0 6px;color:#5f3825}
 .cat{margin:0 0 18px;font-size:.95rem;color:#8a6b57}
 .hero{width:100%;max-width:460px;height:auto;border-radius:16px;border:1px solid #ecd9c6;background:#fff}
+.gallery{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}.gallery img{width:160px;height:160px;object-fit:contain;border-radius:12px}
 .price{font-size:1.35rem;font-weight:700;margin:20px 0 4px;color:#5f3825}
 .stock{margin:0 0 18px;font-size:.95rem}
 .cta{display:inline-block;margin:6px 10px 6px 0;padding:11px 20px;border-radius:999px;background:#5f3825;color:#fff;text-decoration:none;font-weight:600}
@@ -449,15 +451,19 @@ const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).di
 
 const renderProductPage = (product, whatsappNumber, socialImage = null, redirectToApp = true) => {
   const url = productUrl(product);
-  const title = `${product.name} — Handmade Crochet ${product.category} | Luvia Creations`;
+  const title = `${product.name} | Luvia Creations`;
   const description = getProductMetaDescription(product);
   const image = product.image ? getProductImageUrl(product.image, 960) : `${ORIGIN}/images/luvia-logo.jpg`;
-  // og:image points at the JPEG copy written next to the page when there is
-  // one: WhatsApp skips WebP previews, and the same-origin file also keeps
-  // the page photo visible when a visitor's resolver can't reach the image host.
+  // Keep JPEG social previews for WhatsApp; use the sized image in the page.
   const shareImage = socialImage?.url ?? image;
   const redirect = appRedirectScript(toProductSlug(product));
   const variantNames = product.variants.map((variant) => variant.name).filter(Boolean);
+  const gallery = product.variants.flatMap(variant => [
+    { image: variant.image, alt: `${product.name} — ${variant.name}` },
+    ...(variant.images ?? []).map((image, index) => ({ image, alt: `${product.name} — ${variant.name}, photo ${index + 2}` })),
+  ]).filter((photo, index, photos) =>
+    photo.image && photo.image !== product.image && photos.findIndex(item => item.image === photo.image) === index,
+  ).slice(0, 5);
   const details = [
     ['Materials', product.materials],
     ['Dimensions', product.dimensions],
@@ -514,30 +520,38 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
     <style>${PAGE_STYLE}</style>
   </head>
   <body>
-    <div class="bar">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="bar">
       <a href="/"><img src="/images/favicon-96.png" width="36" height="36" alt="" />Luvia Creations</a>
-    </div>
-    <div class="wrap">
-      <nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/?category=${encodeURIComponent(product.category)}">${escapeHtml(product.category)}</a> › <span aria-current="page">${escapeHtml(product.name)}</span></nav>
+      <nav aria-label="Main navigation"><a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a></nav>
+    </header>
+    <main id="main" class="wrap">
+      <nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="${collectionPath(product.category)}">${escapeHtml(product.category)}</a> › <span aria-current="page">${escapeHtml(product.name)}</span></nav>
       <h1>${escapeHtml(product.name)}</h1>
       <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
-      <img class="hero" src="${escapeHtml(shareImage)}" alt="${escapeHtml(`${product.name} — handmade crochet from the ${product.category} collection by Luvia Creations`)}" width="460" height="460" />
+      <img class="hero" src="${escapeHtml(image)}" alt="${escapeHtml(product.name)}" width="460" height="460" fetchpriority="high" decoding="async" />
+      ${gallery.length ? `<div class="gallery" aria-label="Product photos">${gallery.map(photo =>
+        `<img src="${escapeHtml(getProductImageUrl(photo.image, 480))}" alt="${escapeHtml(photo.alt)}" width="160" height="160" loading="lazy" decoding="async" />`,
+      ).join('')}</div>` : ''}
       <p class="price">${escapeHtml(priceLine)}</p>
       ${product.price !== null ? '<p>Includes GST · shipping additional</p>' : ''}
-      <p class="stock">${stockLabel(product)}. Message us to confirm delivery timing.</p>
+      <p class="stock">${stockLabel(product)}.</p>
+      <p>Free shipping on items worth ₹500 or more after coupon discounts.</p>
       <p>${escapeHtml(product.description)}</p>
       ${details}
       ${
-        variantNames.length > 0
+        variantNames.length > 1
           ? `<h2>Available colours and variants</h2><ul class="variants">${variantNames
               .map((name) => `<li>${escapeHtml(name)}</li>`)
               .join('')}</ul>`
           : ''
       }
       <p>
-        <a class="cta" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Order on WhatsApp</a>
-        <a class="cta alt" href="/#product=${encodeURIComponent(product.catalogueReference ?? toProductSlug(product))}">View in the catalogue</a>
+        <a class="cta" href="/#product=${encodeURIComponent(product.catalogueReference ?? toProductSlug(product))}">Choose options in the catalogue</a>
+        <a class="cta alt" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Ask on WhatsApp</a>
       </p>
+      <p>Shopping without JavaScript? Contact Luvia for assisted ordering.</p>
+      <details><summary>Delivery and shipping</summary><p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p></details>
       <section aria-labelledby="order-information-title">
         <h2 id="order-information-title">${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
         <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
@@ -551,7 +565,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         <a href="/">Browse the full catalogue</a> or follow
         <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>
       </footer>
-    </div>
+    </main>
   </body>
 </html>
 `;

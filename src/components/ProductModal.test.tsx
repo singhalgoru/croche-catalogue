@@ -179,7 +179,7 @@ describe('ProductModal touch controls', () => {
     render(<ProductModal presentation={presentation} product={product}
       currentIndex={0} totalProducts={1} initialVariantId="variant-2"
       onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
-    const href = screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')!;
+    const href = screen.getByRole('link', { name: 'Ask on WhatsApp' }).getAttribute('href')!;
     const text = new URL(href).searchParams.get('text');
     expect(text).toContain("Hi Luvia, I'm interested in Crochet Rose — Ivory.");
     expect(text).not.toContain('Product:');
@@ -196,7 +196,7 @@ describe('ProductModal touch controls', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Close product details' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'View full details' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ask on WhatsApp' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Open zoomed product image' }).closest('.grid')?.className)
       .toContain('grid-cols-1');
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -216,7 +216,7 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByText('Approx. 10 cm')).toBeTruthy();
     expect(screen.getByText('One rose')).toBeTruthy();
     expect(screen.getByText('Spot clean gently.')).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: 'Quick order on WhatsApp' })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'Ask on WhatsApp' })).toHaveLength(1);
     expect(screen.getByText('Cotton yarn').closest('details')?.open).toBe(false);
   });
 
@@ -228,7 +228,7 @@ describe('ProductModal touch controls', () => {
     );
     expect(container.querySelectorAll('details')).toHaveLength(2);
     expect(Array.from(container.querySelectorAll('summary'), node => node.textContent)).toEqual(['Delivery and returns', 'Before you order']);
-    expect(screen.getByText(/does not complete a purchase or take payment/)).toBeTruthy();
+    expect(screen.getByText(/does not take payment or confirm an order/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Shipping & payment information' }).getAttribute('href')).toBe('/faq/');
     expect(screen.getByRole('heading', { name: 'Product details', level: 2 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Care instructions', level: 2 })).toBeTruthy();
@@ -249,7 +249,11 @@ describe('ProductModal touch controls', () => {
         onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()}
         onAddToCart={vi.fn().mockResolvedValue(true)} />,
     );
-    expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).textContent).toContain('Order on WhatsApp');
+    const enquiry = screen.getByRole('link', { name: 'Ask on WhatsApp' });
+    expect(enquiry.textContent).toContain('Ask on WhatsApp');
+    const actions = enquiry.parentElement!;
+    expect(actions.querySelector('button')?.textContent).toContain('Add to cart');
+    expect(screen.getByRole('button', { name: 'Add to cart — Crochet Rose' }).parentElement?.className).toContain('w-full');
     expect(screen.getByRole('button', { name: 'Add to cart — Crochet Rose' }).textContent).toContain('Add to cart');
     expect(screen.queryByRole('link', { name: 'Order / Enquire on WhatsApp' })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Close$/ })).toBeNull();
@@ -392,7 +396,7 @@ describe('ProductModal touch controls', () => {
       '/rose-ivory.jpg',
     );
     expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
-    expect(screen.getByRole('link', { name: 'Quick order on WhatsApp' }).getAttribute('href')).toContain(
+    expect(screen.getByRole('link', { name: 'Ask on WhatsApp' }).getAttribute('href')).toContain(
       '%E2%80%94%20Ivory',
     );
   });
