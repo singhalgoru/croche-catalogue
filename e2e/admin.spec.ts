@@ -31,6 +31,43 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('filters featured products, searches them and updates the tab after saved edits', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page, 'manage');
+  const views = page.getByRole('navigation', { name: 'Product views' });
+  const featured = views.getByRole('button', { name: /^Featured products/ });
+  const all = views.getByRole('button', { name: /^All products/ });
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  await expect(featured).toHaveText('Featured products (1)');
+  await featured.click();
+  await expect(featured).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Flower Coaster', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Move Rose Charm down' })).toBeDisabled();
+  await page.getByLabel('Search products').fill('does-not-exist');
+  await expect(page.getByText('No featured products match “does-not-exist”.')).toBeVisible();
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  const rose = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Rose Charm', exact: true }) });
+  await rose.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(all).toBeDisabled();
+  await rose.getByLabel('Featured product').uncheck();
+  await rose.getByRole('button', { name: 'Save changes' }).click();
+  await expect(featured).toHaveText('Featured products (0)');
+  await expect(page.getByText(/No featured products yet/)).toBeVisible();
+  expect(state.products.find(product => product.id === 'product-1')?.featured).toBe(false);
+  await all.click();
+  await expect(page.getByRole('heading', { name: 'Flower Coaster', exact: true })).toBeVisible();
+  await rose.getByRole('button', { name: 'Edit', exact: true }).click();
+  await rose.getByLabel('Featured product').check();
+  await rose.getByLabel('Visible in catalogue').uncheck();
+  await rose.getByRole('button', { name: 'Save changes' }).click();
+  await expect(featured).toHaveText('Featured products (1)');
+  await featured.click();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', exact: true })).toBeVisible();
+  await expect(page.getByText('Products marked Featured, including hidden products. Use Edit to change their featured status.')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('updates all-time product pieces sold after recording, editing and deleting sales', async ({ page }) => {
   await installMockSupabase(page);
   const oldSale = {

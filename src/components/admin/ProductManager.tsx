@@ -96,6 +96,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [productView, setProductView] = useState<'all' | 'featured'>('all');
   const [attentionFilter, setAttentionFilter] = useState<AttentionFilter | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showPriceDefaults, setShowPriceDefaults] = useState(false);
@@ -113,6 +114,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
     return products.filter((product) =>
+      (productView !== 'featured' || product.featured === true) &&
       (!attentionFilter || attention.get(product.id)?.[attentionFilter]) && (!query || [
         product.name,
         product.category,
@@ -120,7 +122,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         ...product.variants.map((variant) => variant.name),
       ].some((value) => value.toLocaleLowerCase().includes(query))),
     );
-  }, [products, searchQuery, attentionFilter, attention]);
+  }, [products, productView, searchQuery, attentionFilter, attention]);
 
   const copyProductLink = async (product: ManagedProduct) => {
     const url = toProductUrl(product);
@@ -383,6 +385,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                 disabled={isAnalyzing || busyId !== null || editingId !== null}
                 onClick={() => {
                   setAttentionFilter(id);
+                  setProductView('all');
                   setSearchQuery('');
                   setIsExpanded(true);
                 }}
@@ -399,7 +402,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             <button
               type="button"
               disabled={isAnalyzing || busyId !== null || editingId !== null}
-              onClick={() => setAttentionFilter(null)}
+              onClick={() => {
+                setAttentionFilter(null);
+                setProductView('all');
+              }}
               className="mt-3 text-sm font-semibold text-cocoa underline underline-offset-2 disabled:opacity-60"
             >
               Show all products
@@ -415,6 +421,27 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
       {salesError && <p role="alert" className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">{salesError}</p>}
       {isExpanded && (
         <div id="manage-products-panel" className="border-t border-mustard/30 p-3 sm:p-5">
+      <nav aria-label="Product views" className="mb-4 flex flex-wrap gap-2">
+        {([
+          ['all', 'All products', products.length],
+          ['featured', 'Featured products', products.filter(product => product.featured === true).length],
+        ] as const).map(([view, label, count]) => (
+          <button key={view} type="button" aria-pressed={productView === view}
+            disabled={isAnalyzing || busyId !== null || editingId !== null}
+            onClick={() => {
+              setProductView(view);
+              setAttentionFilter(null);
+            }}
+            className={`min-h-11 rounded-full border-2 px-4 py-2 text-sm font-semibold disabled:opacity-60 ${
+              productView === view ? 'border-cocoa bg-cocoa text-white' : 'border-mustard bg-white text-cocoa'
+            }`}>
+            {label} ({count})
+          </button>
+        ))}
+      </nav>
+      {productView === 'featured' && <p className="mb-4 text-sm text-cocoa/70">
+        Products marked Featured, including hidden products. Use Edit to change their featured status.
+      </p>}
       <BulkDescriptionEditor products={filteredProducts} categories={categories}
         disabled={busyId !== null || editingId !== null || isLoading}
         disabledReason={editingId !== null
@@ -513,8 +540,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
           <p className="mt-2 text-xs text-cocoa/55" aria-live="polite">
             Showing {filteredProducts.length} of {products.length} product
             {products.length === 1 ? '' : 's'}
+            {productView === 'featured' && ' · Featured products'}
             {attentionFilter && ` · ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label}`}
-            {(searchQuery.trim() || attentionFilter) && ' · Clear filters to change display order'}
+            {(searchQuery.trim() || attentionFilter || productView === 'featured') && ' · Show all products and clear filters to change display order'}
           </p>
         </div>
       )}
@@ -525,7 +553,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         <p className="py-10 text-center text-cocoa/60">No products have been published yet.</p>
       ) : filteredProducts.length === 0 ? (
         <p className="py-10 text-center text-cocoa/60">
-          {attentionFilter
+          {productView === 'featured'
+            ? searchQuery.trim() ? `No featured products match “${searchQuery.trim()}”.` : 'No featured products yet. Edit a product and mark it Featured to include it here.'
+            : attentionFilter
             ? `No products need attention for ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
             : `No products match “${searchQuery.trim()}”.`}
         </p>
@@ -671,6 +701,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
                             attentionFilter !== null ||
+                            productView === 'featured' ||
                             products.findIndex((item) => item.id === product.id) === 0
                           }
                           aria-label={`Move ${product.name} up`}
@@ -686,6 +717,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
                             attentionFilter !== null ||
+                            productView === 'featured' ||
                             products.findIndex((item) => item.id === product.id) ===
                               products.length - 1
                           }

@@ -18,6 +18,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Category filtering and search
 - Below-catalogue ordering guide explains cart-to-WhatsApp confirmation and delivery enquiries, also present in the crawler-readable HTML; the return-policy link appears once in the footer
 - Admin-controlled product order shared across the main catalogue and categories
+- Manage products has All products and Featured products tabs with counts. Featured uses the saved featured flag, includes hidden products, supports search and existing edits, and updates after a feature is added or removed. Attention filters return to All products; display-order controls remain disabled while filtering.
 - Product detail view with image carousel
 - Catalogue and cart product links open full product pages with the shared gallery, variants, specifications and persistent cart; older homepage hash links retain their quick view.
 - Optional materials, dimensions, package contents and care instructions, edited in Add/Manage products and shown in collapsible customer sections only when filled
