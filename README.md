@@ -716,6 +716,21 @@ Without these secrets the feature stays dormant.
 
 ## Product customisation enquiries
 
+### Generated coupon usage and archival
+
+Generated discount coupons in admin Settings show completed usage separately from
+unexpired payment reservations. The Used status appears when paid orders or
+confirmed offline redemptions reach the total usage limit; reusable coupons show
+partial usage while capacity remains. Test checkouts do not count. Paid payments
+awaiting manual order review also consume usage. Refresh coupons to load the latest
+counts. Current and Archived views each show the latest 50 codes.
+Archive disables new uses and hides the code from the current list without deleting
+order/redemption history or changing already-issued payment links. Restore returns
+the code to the current list but keeps it disabled; usage limits and expiry remain.
+Migration `20261011170000_campaign_coupon_archive.sql` must be applied before deploying
+this UI. Its admin-only RPCs expose no customer details. Welcome/signup coupons
+remain managed by the existing welcome-offer and customer workflows.
+
 ### Private cart network metadata
 
 Nonempty online carts record the gateway-reported network IP once through the

@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
-  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden } from './customer';
+  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden,
+  fetchCampaignCoupons, setCampaignCouponArchived } from './customer';
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
@@ -13,6 +14,28 @@ const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test
 const password = 'Crochet2026';
 const trackEvent = vi.hoisted(() => vi.fn());
 vi.mock('./analytics', () => ({ trackEvent }));
+it('fetches the admin coupon projection for current and archived views', async () => {
+  rpc.mockResolvedValue({ data: [], error: null });
+  await expect(fetchCampaignCoupons()).resolves.toEqual([]);
+  expect(rpc).toHaveBeenCalledWith('get_admin_campaign_coupons', { archived: false });
+  await fetchCampaignCoupons(true);
+  expect(rpc).toHaveBeenLastCalledWith('get_admin_campaign_coupons', { archived: true });
+  rpc.mockResolvedValue({ error: { message: 'Admin access required.' } });
+  await expect(fetchCampaignCoupons()).rejects.toThrow('Admin access required');
+  rpc.mockResolvedValue({ data: null });
+  await expect(fetchCampaignCoupons()).rejects.toThrow('Invalid coupon list');
+});
+it('persists coupon archive and restore through the admin RPC and rejects failures', async () => {
+  rpc.mockResolvedValue({ data: { id: 'coupon' }, error: null });
+  await setCampaignCouponArchived('coupon', true);
+  expect(rpc).toHaveBeenCalledWith('set_campaign_coupon_archived', { coupon_id: 'coupon', archive: true });
+  await setCampaignCouponArchived('coupon', false);
+  expect(rpc).toHaveBeenLastCalledWith('set_campaign_coupon_archived', { coupon_id: 'coupon', archive: false });
+  rpc.mockResolvedValue({ error: { message: 'Coupon not found.' } });
+  await expect(setCampaignCouponArchived('coupon', true)).rejects.toThrow('Coupon not found');
+  rpc.mockResolvedValue({ data: { id: 'wrong' } });
+  await expect(setCampaignCouponArchived('coupon', true)).rejects.toThrow('Invalid coupon response');
+});
 it('persists customer hide/restore through its own RPC and surfaces ownership failures', async () => {
   rpc.mockResolvedValue({ error: null });
   await setCustomerOrderHidden('order', true);

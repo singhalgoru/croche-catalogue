@@ -39,6 +39,7 @@ begin
   begin perform public.generate_campaign_coupon(10,100,500,now()-interval '1 minute',1,false);
   exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: past expiry accepted.'; end if;
+  perform public.set_campaign_coupon_archived(coupon.id,true);
 end $$;
 reset role;
 select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from campaign_fixture),'role','authenticated')::text,true);
@@ -50,6 +51,20 @@ do $$ declare rejected boolean:=false; begin
   begin perform public.generate_campaign_coupon(10,100,500,now()+interval '1 day',1,false);
   exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: customer can generate coupon.'; end if;
+  rejected:=false;
+  begin perform public.select_cart_coupon((select cart_id from campaign_fixture),(select code from generated_coupon));
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: archived unused coupon accepted.'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select admin_id from campaign_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+select public.set_campaign_coupon_archived((select id from generated_coupon),false);
+update public.campaign_coupons set enabled=true where id=(select id from generated_coupon);
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from campaign_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$ begin
   perform public.select_cart_coupon((select cart_id from campaign_fixture),(select code from generated_coupon));
   if not exists(select 1 from public.campaign_coupons where id=(select id from generated_coupon)) then
     raise exception 'FAIL: selected code not available to owner.';
@@ -63,6 +78,14 @@ do $$ declare result jsonb; begin
   if (result->>'total_paise')::bigint<>55000 or (result->>'discount_paise')::bigint<>5000 then
     raise exception 'FAIL: campaign discount.';
   end if;
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if (result->>'used_count')::integer<>0 or (result->>'reserved_count')::integer<>1 then
+    raise exception 'FAIL: pending payment reported as a completed use.';
+  end if;
+  perform public.set_campaign_coupon_archived((select id from generated_coupon),true);
+  perform public.set_campaign_coupon_archived((select id from generated_coupon),false);
+  update public.campaign_coupons set enabled=true where id=(select id from generated_coupon);
 end $$;
 reset role;
 select set_config('request.jwt.claims',json_build_object('sub',(select other_id from campaign_fixture),'role','authenticated')::text,true);
@@ -77,6 +100,40 @@ select set_config('request.jwt.claims',json_build_object('sub',(select admin_id 
 set local role service_role;
 update public.payment_orders set status='link_created',razorpay_link_id='plink_campaign_test',payment_url='https://rzp.io/i/test'
 where campaign_coupon_id=(select id from generated_coupon);
+update public.payment_orders set status='paid',paid_at=now(),razorpay_payment_id='pay_campaign_test'
+where campaign_coupon_id=(select id from generated_coupon);
+do $$ declare result jsonb; begin
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if (result->>'used_count')::integer<>1 or (result->>'reserved_count')::integer<>0 then
+    raise exception 'FAIL: paid campaign redemption count.';
+  end if;
+end $$;
+update public.payment_orders set is_test_checkout=true,status='test_verified',paid_at=null,
+  razorpay_link_id=null,payment_url=null,razorpay_order_id='order_campaign_test'
+where campaign_coupon_id=(select id from generated_coupon);
+do $$ declare result jsonb; begin
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if (result->>'used_count')::integer<>0 then raise exception 'FAIL: test payment counted as used.'; end if;
+end $$;
+update public.payment_orders set status='review_required',is_test_checkout=false,paid_at=null,
+  razorpay_link_id='plink_campaign_test',payment_url='https://rzp.io/i/test',razorpay_order_id=null
+where campaign_coupon_id=(select id from generated_coupon);
+do $$ declare result jsonb; begin
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if (result->>'used_count')::integer<>1 then raise exception 'FAIL: captured payment under review not counted.'; end if;
+end $$;
+update public.payment_orders set razorpay_payment_id=null where campaign_coupon_id=(select id from generated_coupon);
+do $$ declare result jsonb; begin
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if (result->>'used_count')::integer<>0 or (result->>'reserved_count')::integer<>1 then
+    raise exception 'FAIL: unconfirmed review reported as completed use.';
+  end if;
+end $$;
+update public.payment_orders set status='link_created' where campaign_coupon_id=(select id from generated_coupon);
 select public.record_razorpay_payment_event('evt_campaign_test','payment_link.expired','plink_campaign_test',null,55000);
 update public.campaign_coupons set first_order_only=true where id=(select id from generated_coupon);
 reset role;
@@ -129,6 +186,60 @@ do $$ declare rejected boolean:=false; begin
   exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: offline redemption did not consume usage capacity.'; end if;
   raise notice 'PASS: offline campaign redemption shares the usage limit.';
+end $$;
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select admin_id from campaign_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$ declare result jsonb; rejected boolean:=false; unused public.campaign_coupons; begin
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if (result->>'used_count')::integer<>1 or (result->>'reserved_count')::integer<>0 then
+    raise exception 'FAIL: offline redemption or expired reservation count.';
+  end if;
+  perform public.set_campaign_coupon_archived((select id from generated_coupon),true);
+  if exists(select 1 from jsonb_array_elements(public.get_admin_campaign_coupons()) item
+    where item->>'id'=(select id::text from generated_coupon)) then
+    raise exception 'FAIL: archived coupon remains in current view.';
+  end if;
+  result := (select item from jsonb_array_elements(public.get_admin_campaign_coupons(true)) item
+    where item->>'id'=(select id::text from generated_coupon));
+  if result is null or (result->>'enabled')::boolean or (result->>'used_count')::integer<>1 then
+    raise exception 'FAIL: archival loses usage or permits new uses.';
+  end if;
+  begin
+    update public.campaign_coupons set enabled=true where id=(select id from generated_coupon);
+  exception when check_violation then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: archived coupon re-enabled.'; end if;
+  perform public.set_campaign_coupon_archived((select id from generated_coupon),false);
+  if not exists(select 1 from public.campaign_coupons
+    where id=(select id from generated_coupon) and archived_at is null and not enabled) then
+    raise exception 'FAIL: restore unexpectedly enables coupon.';
+  end if;
+  if not exists(select 1 from public.manual_coupon_redemptions where campaign_coupon_id=(select id from generated_coupon))
+    or not exists(select 1 from public.payment_orders where campaign_coupon_id=(select id from generated_coupon)) then
+    raise exception 'FAIL: archive deleted history.';
+  end if;
+  rejected:=false;
+  begin perform public.delete_campaign_coupon((select id from generated_coupon));
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: used coupon history can be deleted.'; end if;
+  unused:=public.generate_campaign_coupon(10,100,500,now()+interval '1 day',1,false);
+  perform public.set_campaign_coupon_archived(unused.id,true);
+  perform public.delete_campaign_coupon(unused.id);
+  if exists(select 1 from public.campaign_coupons where id=unused.id) then
+    raise exception 'FAIL: unused archived coupon could not be deleted.';
+  end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',json_build_object('sub',(select owner_id from campaign_fixture),'role','authenticated')::text,true);
+set local role authenticated;
+do $$ declare rejected boolean:=false; begin
+  begin perform public.get_admin_campaign_coupons(); exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: customer can read admin coupon usage.'; end if;
+  rejected:=false;
+  begin perform public.set_campaign_coupon_archived((select id from generated_coupon),true);
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: customer can archive coupons.'; end if;
 end $$;
 reset role;
 rollback;

@@ -233,11 +233,10 @@ export async function emailWelcomeCoupon(): Promise<WelcomeCoupon> {
   return coupon;
 }
 
-export async function fetchCampaignCoupons(): Promise<CampaignCoupon[]> {
+export async function fetchCampaignCoupons(archived = false): Promise<CampaignCoupon[]> {
   const supabase = await client();
-  const { data, error } = await supabase.from('campaign_coupons').select('*')
-    .order('created_at', { ascending: false }).limit(50);
-  if (error || !data) throw new Error(`Unable to load coupons: ${error?.message ?? 'No response returned.'}`);
+  const { data, error } = await supabase.rpc('get_admin_campaign_coupons', { archived });
+  if (error || !Array.isArray(data)) throw new Error(`Unable to load coupons: ${error?.message ?? 'Invalid coupon list returned.'}`);
   return data;
 }
 export async function generateCampaignCoupon(input: {
@@ -249,7 +248,12 @@ export async function generateCampaignCoupon(input: {
     expiry: input.expiresAt, usage_limit: input.maxUses, first_order: input.firstOrder,
   });
   if (error || !data?.code) throw new Error(`Unable to generate coupon: ${error?.message ?? 'No coupon returned.'}`);
-  return data;
+  return { ...data, archived_at: data.archived_at ?? null, used_count: 0, reserved_count: 0 };
+}
+export async function setCampaignCouponArchived(id: string, archive: boolean): Promise<void> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('set_campaign_coupon_archived', { coupon_id: id, archive });
+  if (error || data?.id !== id) throw new Error(`Unable to ${archive ? 'archive' : 'restore'} coupon: ${error?.message ?? 'Invalid coupon response.'}`);
 }
 export async function setCampaignCouponEnabled(id: string, enabled: boolean) {
   const supabase = await client();

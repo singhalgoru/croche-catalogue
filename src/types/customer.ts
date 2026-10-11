@@ -38,6 +38,9 @@ export interface CampaignCoupon {
   first_order_only: boolean;
   enabled: boolean;
   expires_at: string;
+  archived_at: string | null;
+  used_count: number;
+  reserved_count: number;
 }
 export interface OrderFulfilment {
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered';
