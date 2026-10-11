@@ -715,8 +715,10 @@ Nonempty online carts record the gateway-reported network IP once through the
 authenticated `capture-cart-network` function without delaying cart actions.
 The endpoint checks cart ownership, expiry, items and admin session blocks;
 it accepts no client-supplied IP body field. Network metadata is not a verified
-location or identity, and is never used for access decisions. GeoLite2 lookups run
-locally on the server; no IP is sent to MaxMind or another geolocation provider.
+location or identity, and is never used for access decisions. GeoLite2 city lookup
+is disabled: the deployed function captures IP only and never downloads the
+location database. This prevents repeated large Supabase Storage transfers on
+function cold starts. No IP is sent to MaxMind or another geolocation provider.
 Only admins can read `cart_network_details`; other shoppers
 cannot read or write it. Admin carts show only a compact approximate location;
 the raw IP and capture date remain stored but are not displayed.
@@ -728,18 +730,12 @@ Run `npx supabase db query --linked --file supabase/tests/cart-network.sql`
 to verify admin-only reads, denied shopper writes, expiry and the cleanup job;
 all fixtures are rolled back.
 
-For approximate city/region/country, create a free MaxMind GeoLite2 account,
-accept its licence, download GeoLite2 City in MMDB format and extract
-`GeoLite2-City.mmdb`. Upload that file via Supabase Dashboard Storage to the
-private `geolocation-private` bucket under that exact name. Never make the
-bucket public or commit the database. Apply
-`20261010035000_add_cart_geolite_location.sql` and redeploy `capture-cart-network`.
-The database reader is cached for one hour per function instance. Replace the
-database regularly according to MaxMind's licence/update requirements.
-Existing unlocated carts are enriched on their next visit without refreshing
-their original IP capture date or retention. Missing database, lookup failures
-and unknown IPs show "Unavailable" in admin, never a guessed location.
-Admin displays GeoLite2/MaxMind attribution once below the cart list. No coordinates are retained.
+Existing approximate locations are retained until normal metadata expiry; new
+carts show "Unavailable" in admin. The private `geolocation-private` bucket and
+`GeoLite2-City.mmdb` are not deleted or made public. The location schema and
+reader remain for historical compatibility, but are not used by the deployed
+capture endpoint. Re-enabling lookup requires an explicit implementation change
+with a bandwidth-safe database source; uploading a file alone does not enable it.
 
 The homepage Bestsellers section ranks available published products by pieces
 recorded in the seller sales ledger over the last 90 calendar days, combining

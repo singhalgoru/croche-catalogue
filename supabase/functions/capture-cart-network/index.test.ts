@@ -55,7 +55,7 @@ beforeEach(() => {
 it('captures only the header IP, never a body IP, and never returns it', async () => {
   const response = await handler(request('203.0.113.9, 192.0.2.1', { cartId, ip: '198.51.100.4' }));
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ recorded: true, locationStatus: 'not_found' });
+  expect(await response.json()).toEqual({ recorded: true, locationStatus: 'disabled' });
   expect(upsert).toHaveBeenCalledWith({ cart_id: cartId, ip_address: '203.0.113.9' },
     { onConflict: 'cart_id', ignoreDuplicates: true });
   const ownedQuery = from.mock.results[0].value;
@@ -71,22 +71,22 @@ it('does not overwrite the initial address or extend its retention', async () =>
   expect(upsert).not.toHaveBeenCalled();
 });
 
-it('enriches existing IPs without changing the original capture date', async () => {
+it('does not enrich existing IPs or change the original capture date while city lookup is disabled', async () => {
   existing = { cart_id: cartId, ip_address: '203.0.113.9', captured_at: new Date().toISOString(), location: null };
   const location = { city: 'Meerut', region: 'Uttar Pradesh', country: 'India', countryCode: 'IN', provider: 'geolite2' };
   lookupLocation.mockResolvedValue(location);
   const response = await handler(request('198.51.100.1'));
-  expect(await response.json()).toEqual({ recorded: true, locationStatus: 'available' });
-  expect(lookupLocation).toHaveBeenCalledWith('203.0.113.9', expect.any(Function));
-  expect(update).toHaveBeenCalledWith({ location });
+  expect(await response.json()).toEqual({ recorded: true, locationStatus: 'disabled' });
+  expect(lookupLocation).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
   expect(upsert).not.toHaveBeenCalled();
 });
-it('preserves IP capture when the database is unavailable and logs the failure', async () => {
-  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+it('captures IP without invoking or downloading the GeoLite database', async () => {
   lookupLocation.mockRejectedValue(new Error('Database unavailable'));
-  expect(await (await handler(request())).json()).toEqual({ recorded: true, locationStatus: 'unavailable' });
-  expect(log).toHaveBeenCalled();
-  log.mockRestore();
+  expect(await (await handler(request())).json()).toEqual({ recorded: true, locationStatus: 'disabled' });
+  expect(upsert).toHaveBeenCalledTimes(1);
+  expect(lookupLocation).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
 });
 it('requires authentication and valid input', async () => {
   expect((await handler(request('', { cartId: 'bad' }))).status).toBe(400);
