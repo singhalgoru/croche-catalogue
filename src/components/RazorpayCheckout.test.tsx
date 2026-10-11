@@ -6,6 +6,8 @@ import type { CheckoutOptions } from '../services/checkout';
 const { createOrder, verify, load, status } = vi.hoisted(() => ({
   createOrder: vi.fn(), verify: vi.fn(), load: vi.fn(), status: vi.fn(),
 }));
+const purchase = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('../services/purchaseAnalytics', () => ({ trackVerifiedPurchase: purchase }));
 vi.mock('../services/checkout', async importOriginal => ({
   ...await importOriginal<typeof import('../services/checkout')>(),
   createCheckoutOrder: createOrder, verifyCheckoutPayment: verify, loadRazorpay: load,
@@ -46,6 +48,7 @@ it('opens the modal with the server order and labels it as test-only', async () 
   expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ cartId: 'cart-fixture', customerPhone: '9876543210' }));
   expect(screen.getByRole('status').textContent).toContain('No real money');
   expect(screen.getByRole('button', { name: 'Test checkout in progress…' }).hasAttribute('disabled')).toBe(true);
+  expect(purchase).not.toHaveBeenCalled();
 });
 it('uses saved delivery details and confirms a real order only after backend verification', async () => {
   createOrder.mockResolvedValue({ order_id: 'order_live', amount: 55000, currency: 'INR',
@@ -67,6 +70,7 @@ it('uses saved delivery details and confirms a real order only after backend ver
   expect(screen.queryByText(/Close any earlier payment windows/)).toBeNull();
   expect(verify).toHaveBeenCalledWith(response, true);
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
+  await waitFor(() => expect(purchase).toHaveBeenCalledWith(createOrder.mock.calls[0][0].requestKey));
 });
 it('shows cancellation and payment failure messages and reuses the same request on retry', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);
@@ -92,6 +96,7 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   expect(status).toHaveBeenCalledWith('saved-request');
   expect(createOrder).not.toHaveBeenCalled();
   expect(verify).not.toHaveBeenCalled();
+  expect(purchase).toHaveBeenCalledWith('saved-request');
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
 it('rechecks a paid order on confirmation refresh even after the server clears the cart', async () => {
@@ -105,11 +110,13 @@ it('rechecks a paid order on confirmation refresh even after the server clears t
   expect(status).toHaveBeenCalledWith('paid-request');
   expect(confirmed).toHaveBeenCalledTimes(1);
   expect(createOrder).not.toHaveBeenCalled();
+  expect(purchase).toHaveBeenCalledWith('paid-request');
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
 it('does not claim success or offer payment from a manually opened confirmation URL', () => {
   render(<RazorpayCheckout cart={cart} disabled live confirmationOnly />);
   expect(screen.getByRole('status').textContent).toContain('No saved payment was found');
+  expect(purchase).not.toHaveBeenCalled();
   expect(screen.queryByText('Thank you! Your order is confirmed.')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
   expect(createOrder).not.toHaveBeenCalled();

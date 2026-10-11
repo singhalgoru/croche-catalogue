@@ -4,18 +4,19 @@ import type { Cart } from '../types/cart';
 import type { Product, ProductVariant } from '../types/product';
 import { useCart } from './useCart';
 
-const { fetchCart, addProductToCart, trackAddToCart, captureCartNetwork } = vi.hoisted(() => ({
+const { fetchCart, addProductToCart, trackCartChanges, captureCartNetwork, updateQuantity, removeItem, clear } = vi.hoisted(() => ({
   fetchCart: vi.fn(),
   addProductToCart: vi.fn(),
-  trackAddToCart: vi.fn(),
+  trackCartChanges: vi.fn(),
   captureCartNetwork: vi.fn(),
+  updateQuantity: vi.fn(), removeItem: vi.fn(), clear: vi.fn(),
 }));
 vi.mock('../services/cart', () => ({
   fetchCart, addProductToCart, captureCartNetwork,
-  clearCart: vi.fn(), markCartWhatsAppStarted: vi.fn(), removeCartItem: vi.fn(),
-  updateCartItemQuantity: vi.fn(), updateCartDeliveryPin: vi.fn(),
+  clearCart: clear, markCartWhatsAppStarted: vi.fn(), removeCartItem: removeItem,
+  updateCartItemQuantity: updateQuantity, updateCartDeliveryPin: vi.fn(),
 }));
-vi.mock('../services/analytics', () => ({ trackAddToCart }));
+vi.mock('../services/analytics', () => ({ trackCartChanges, trackEvent: vi.fn() }));
 
 const variant: ProductVariant = {
   id: 'pink', name: 'Pink', color: 'pink', price: null, inStock: true,
@@ -56,11 +57,11 @@ it('publishes the confirmed cart and feedback before running analytics after pai
   expect(result.current.addFeedback).toBe('Rose added to cart');
   expect(result.current.isBusy).toBe(false);
   expect(result.current.cartUpdateCount).toBe(1);
-  expect(trackAddToCart).not.toHaveBeenCalled();
+  expect(trackCartChanges).not.toHaveBeenCalled();
   act(() => frame(0));
-  expect(trackAddToCart).not.toHaveBeenCalled();
+  expect(trackCartChanges).not.toHaveBeenCalled();
   act(() => vi.advanceTimersByTime(0));
-  expect(trackAddToCart).toHaveBeenCalledExactlyOnceWith(product, variant);
+  expect(trackCartChanges).toHaveBeenCalledExactlyOnceWith(null, cart);
 });
 
 it('does not publish success or track an unsuccessful cart addition', async () => {
@@ -71,7 +72,7 @@ it('does not publish success or track an unsuccessful cart addition', async () =
   expect(result.current.addFeedback).toBeNull();
   expect(result.current.cartUpdateCount).toBe(0);
   expect(window.requestAnimationFrame).not.toHaveBeenCalled();
-  expect(trackAddToCart).not.toHaveBeenCalled();
+  expect(trackCartChanges).not.toHaveBeenCalled();
 });
 
 it('tracks successful background additions without waiting for a suspended animation frame', async () => {
@@ -80,7 +81,7 @@ it('tracks successful background additions without waiting for a suspended anima
   await act(async () => { await result.current.addItem(product, variant); });
   expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   act(() => vi.advanceTimersByTime(0));
-  expect(trackAddToCart).toHaveBeenCalledExactlyOnceWith(product, variant);
+  expect(trackCartChanges).toHaveBeenCalledExactlyOnceWith(null, cart);
 });
 
 it('captures the nonempty cart once without delaying confirmed cart feedback', async () => {
@@ -97,6 +98,28 @@ it('captures the nonempty cart once without delaying confirmed cart feedback', a
   expect(captureCartNetwork).toHaveBeenCalledExactlyOnceWith(cart.id);
   await act(async () => { await result.current.addItem(product, variant); });
   expect(captureCartNetwork).toHaveBeenCalledTimes(1);
+});
+
+it('tracks quantity, removal and clear deltas only after confirmed mutations', async () => {
+  const populated = { ...cart, items: [{
+    id: 'item', productId: 'rose', variantId: 'pink', productName: 'Rose',
+    variantName: 'Pink', image: '/rose.webp', unitPrice: 200, quantity: 2,
+  }] };
+  fetchCart.mockResolvedValue(populated);
+  const { result } = renderHook(() => useCart());
+  await act(async () => {});
+  const updated = { ...populated, items: [{ ...populated.items[0], quantity: 3 }] };
+  updateQuantity.mockResolvedValue(updated);
+  await act(async () => { await result.current.updateQuantity('item', 3); });
+  act(() => { frame(0); vi.advanceTimersByTime(0); });
+  expect(trackCartChanges).toHaveBeenLastCalledWith(populated, updated);
+  removeItem.mockRejectedValue(new Error('Cannot remove'));
+  await act(async () => { await result.current.removeItem('item'); });
+  expect(trackCartChanges).toHaveBeenCalledTimes(1);
+  clear.mockResolvedValue(cart);
+  await act(async () => { await result.current.clear(); });
+  act(() => { frame(0); vi.advanceTimersByTime(0); });
+  expect(trackCartChanges).toHaveBeenLastCalledWith(updated, cart);
 });
 
 it('does not capture empty carts', async () => {

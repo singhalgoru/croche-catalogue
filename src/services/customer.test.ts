@@ -11,6 +11,8 @@ vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: async () => 'fixture-captc
 const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
   addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' };
 const password = 'Crochet2026';
+const trackEvent = vi.hoisted(() => vi.fn());
+vi.mock('./analytics', () => ({ trackEvent }));
 it('persists customer hide/restore through its own RPC and surfaces ownership failures', async () => {
   rpc.mockResolvedValue({ error: null });
   await setCustomerOrderHidden('order', true);
@@ -74,6 +76,7 @@ it('upgrades the existing anonymous identity instead of creating a different car
   expect(rpc).toHaveBeenCalledWith('stage_customer_signup', { signup_details: details });
   expect(updateUser).toHaveBeenCalledWith({ email: 'buyer@example.test', password }, { emailRedirectTo: expect.any(String) });
   expect(signInWithOtp).not.toHaveBeenCalled();
+  expect(trackEvent).toHaveBeenCalledExactlyOnceWith('signup_started', { method: 'email_password' });
 });
 it('never modifies an already registered or admin account email', async () => {
   getUser.mockResolvedValue({ data: { user: { id: 'member', is_anonymous: false } }, error: null });
@@ -92,15 +95,18 @@ it('creates an anonymous signup session before attaching the email when none exi
 });
 it('verifies email-change codes and reports failed verification', async () => {
   await confirmCustomerEmail('BUYER@EXAMPLE.TEST', ' 123456 ');
+  expect(trackEvent).toHaveBeenCalledExactlyOnceWith('sign_up', { method: 'email_password' });
   expect(verifyOtp).toHaveBeenCalledWith({ email: 'buyer@example.test', token: '123456', type: 'email_change' });
   verifyOtp.mockResolvedValue({ error: { message: 'Expired code' } });
   await expect(confirmCustomerEmail('buyer@example.test', '123456')).rejects.toThrow('Expired code');
+  expect(trackEvent).toHaveBeenCalledTimes(1);
 });
 
 it('does not send email if staging signup details fails', async () => {
   rpc.mockResolvedValue({ error: { message: 'Invalid signup' } });
   await expect(registerCustomerEmail(details, password)).rejects.toThrow('Invalid signup');
   expect(updateUser).not.toHaveBeenCalled();
+  expect(trackEvent).not.toHaveBeenCalled();
 });
 
 it('validates full details before preparing a session', async () => {
@@ -136,10 +142,12 @@ it('signs in with a password using CAPTCHA and friendly errors', async () => {
   signInWithPassword.mockResolvedValue({ error: null });
   await signInCustomerWithPassword(' BUYER@EXAMPLE.TEST ', password);
   expect(signInWithPassword).toHaveBeenCalledWith({ email: 'buyer@example.test', password, options: { captchaToken: 'fixture-captcha' } });
+  expect(trackEvent).toHaveBeenCalledExactlyOnceWith('login', { method: 'email_password' });
   signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
   await expect(signInCustomerWithPassword('buyer@example.test', 'wrong')).rejects.toThrow('Use Forgot password');
   signInWithPassword.mockResolvedValue({ error: { message: 'Email not confirmed' } });
   await expect(signInCustomerWithPassword('buyer@example.test', password)).rejects.toThrow('Activate your account');
+  expect(trackEvent).toHaveBeenCalledTimes(1);
 });
 it('blocks password sign-in into another account while the current cart has items', async () => {
   const query = { select: () => query, eq: () => query, gt: async () => ({ data: [{ cart_items: [{ id: 'item' }] }], error: null }) };

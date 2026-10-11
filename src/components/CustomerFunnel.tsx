@@ -5,6 +5,7 @@ import { getCartTotals } from '../utils/cartMessage';
 import type { DeliveryDetails, SavedAddress } from '../types/customer';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails, deliveryAddressText } from '../utils/customer';
 import { fetchCustomerAddresses, fetchCustomerProfile } from '../services/customer';
+import { trackCartStep } from '../services/analytics';
 
 const sameAddress = (a: DeliveryDetails, b: DeliveryDetails) =>
   (['name', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'pincode'] as const).every(key => a[key] === b[key]);
@@ -73,12 +74,14 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
       if (validateDeliveryDetails(normalized)) { setDetails(current => current.name ? current : profile); return; }
       const saved = await onSave(normalized).catch(() => null);
       if (!mounted.current || !saved?.deliveryDetails) return;
+      trackCartStep('add_shipping_info', saved);
       setDetails(saved.deliveryDetails);
       setStep(current => current === 'cart' ? 'review' : current);
     })();
   }, [cart.deliveryDetails, cart.deliveryPinCode, onSave]);
   const startCheckout = async () => {
-    if (cart.deliveryDetails) { setStep('review'); return; }
+    if (!pageStep) trackCartStep('begin_checkout', cart);
+    if (cart.deliveryDetails) { trackCartStep('add_shipping_info', cart); setStep('review'); return; }
     if (!details.name) {
       const profile = await fetchCustomerProfile().catch(() => null);
       if (profile) setDetails(current => ({ ...profile, pincode: cart.deliveryPinCode ?? profile.pincode, email: profile.email || current.email }));
@@ -121,6 +124,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
             setSaving(true);
             void onSave(normalized).then(saved => {
               if (!saved?.deliveryDetails) throw new Error('Delivery details were not saved. Please retry.');
+              trackCartStep('add_shipping_info', saved);
               setDetails(saved.deliveryDetails); setStep('review'); onReview?.();
             }).catch(error => setError(error instanceof Error ? error.message : 'Unable to use that address.'))
               .finally(() => setSaving(false));
@@ -145,6 +149,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         setSaving(true);
         void onSave(normalized).then(saved => {
           if (!saved?.deliveryDetails) throw new Error('Delivery details were not saved. Please retry.');
+          trackCartStep('add_shipping_info', saved);
           setDetails(saved.deliveryDetails); setStep('review'); onReview?.();
         }).catch(error => setError(error instanceof Error ? error.message : 'Unable to save delivery details.'))
           .finally(() => setSaving(false));

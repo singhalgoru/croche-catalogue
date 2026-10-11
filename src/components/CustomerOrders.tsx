@@ -4,6 +4,7 @@ import type { CustomerOrder, ReorderResult } from '../types/customer';
 import { formatINR } from '../utils/currency';
 import { deliveryAddressText, fulfilmentLabels } from '../utils/customer';
 import OrderFulfilmentForm from './admin/OrderFulfilmentForm';
+import { trackEvent } from '../services/analytics';
 
 const statusLabels: Record<CustomerOrder['status'], string> = {
   creating_link: 'Preparing payment',
@@ -44,6 +45,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
       if (!current) return;
       setOrders(previous => page.offset ? [...previous, ...values] : values);
       setHasMore(values.length === 20);
+      if (!admin && page.offset === 0) trackEvent('view_orders', { hidden_orders: showHidden, order_count: values.length });
     }).catch(failure => {
       if (current) setError(failure instanceof Error ? failure.message : 'Unable to load your orders.');
     }).finally(() => { if (current) setLoading(false); });
@@ -133,6 +135,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
                 onClick={() => {
                   setActionOrder(order.id); setError(''); setActionMessage('');
                   void setCustomerOrderHidden(order.id, !order.hidden).then(() => {
+                    trackEvent(order.hidden ? 'restore_order' : 'hide_order', { order_status: order.status });
                     setOrders(current => current.map(value => value.id === order.id ? { ...value, hidden: !order.hidden } : value));
                     setActionMessage(order.hidden ? 'Order restored.' : 'Order moved to Hidden orders. Payment records are unchanged.');
                   }).catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to update order visibility.'))

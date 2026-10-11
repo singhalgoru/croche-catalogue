@@ -1,4 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
+import { trackEvent } from './analytics';
 import type { AdminCustomerSummary, CampaignCoupon, CustomerOrder, DeliveryDetails, OrderFulfilment, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { requestCartCaptcha } from './cartCaptcha';
 import { normalizeDeliveryDetails, validateDeliveryDetails } from '../utils/customer';
@@ -135,16 +136,19 @@ export async function registerCustomerEmail(details: DeliveryDetails, password: 
   const { error } = await supabase.auth.updateUser({ email: cleaned.email, password },
     { emailRedirectTo: `${window.location.origin}/` });
   if (error) throw new Error(`Unable to send your signup email: ${error.message}`);
+  trackEvent('signup_started', { method: 'email_password' });
 }
 export async function confirmCustomerEmail(email: string, token: string) {
   const supabase = await client();
   const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: token.trim(), type: 'email_change' });
   if (error) throw new Error(`Unable to verify email: ${error.message}`);
+  trackEvent('sign_up', { method: 'email_password' });
 }
 export async function signOutCustomer() {
   const supabase = await client();
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(`Unable to sign out: ${error.message}`);
+  trackEvent('logout');
 }
 type SupabaseClient = NonNullable<Awaited<ReturnType<typeof loadSupabase>>>;
 async function assertNoActiveCartItems(supabase: SupabaseClient) {
@@ -175,6 +179,7 @@ export async function signInCustomerWithPassword(email: string, password: string
     if (text.includes('email not confirmed')) throw new Error('Activate your account from the email we sent before signing in.');
     throw new Error(`Unable to sign in: ${error.message}`);
   }
+  trackEvent('login', { method: 'email_password' });
 }
 export async function setCustomerPassword(password: string, confirmation: string) {
   const validation = validateCustomerPassword(password, confirmation);

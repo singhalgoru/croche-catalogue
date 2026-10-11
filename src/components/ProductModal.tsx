@@ -251,7 +251,10 @@ export default function ProductModal({
     }
   };
 
+  const viewedProduct = useRef<string | null>(null);
   useEffect(() => {
+    if (viewedProduct.current === product.id) return;
+    viewedProduct.current = product.id;
     trackProductViewed(product, selectedVariant);
   }, [product, selectedVariant]);
 

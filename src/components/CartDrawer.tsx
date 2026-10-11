@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { trackCartStep } from '../services/analytics';
 import type { Cart } from '../types/cart';
 import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
@@ -140,6 +141,20 @@ export default function CartDrawer({
   const freeDeliveryShortfall = checkoutCart ? getFreeDeliveryShortfall(checkoutCart) : 0;
   const hasUnpricedItems =
     checkoutCart?.items.some((item) => item.unitPrice === null) ?? false;
+  const viewedCart = useRef(false);
+  useEffect(() => {
+    if (pageStep && pageStep !== 'cart') { viewedCart.current = false; return; }
+    if (isLoading || !checkoutCart || viewedCart.current) return;
+    viewedCart.current = true;
+    trackCartStep('view_cart', checkoutCart);
+  }, [isLoading, checkoutCart, pageStep]);
+  const checkoutEntered = useRef(false);
+  useEffect(() => {
+    if (pageStep !== 'delivery' && pageStep !== 'review') { checkoutEntered.current = false; return; }
+    if (isLoading || !checkoutCart?.items.length || checkoutEntered.current) return;
+    checkoutEntered.current = true;
+    trackCartStep('begin_checkout', checkoutCart);
+  }, [pageStep, isLoading, checkoutCart]);
   const whatsappLink =
     checkoutCart && checkoutCart.items.length > 0
       ? getCartWhatsAppLink(checkoutCart)

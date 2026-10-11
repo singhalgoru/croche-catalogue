@@ -13,7 +13,7 @@ import {
   reorderCustomerOrder,
 } from '../services/cart';
 import type { DeliveryDetails, ReorderResult } from '../types/customer';
-import { trackAddToCart } from '../services/analytics';
+import { trackCartChanges, trackEvent } from '../services/analytics';
 import type { Cart } from '../types/cart';
 import type { Product, ProductVariant } from '../types/product';
 import { loadSupabase } from '../lib/supabaseConfig';
@@ -27,6 +27,8 @@ export function useCart(enabled = true) {
   const [cartUpdateCount, setCartUpdateCount] = useState(0);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const capturedNetworkCartIds = useRef(new Set<string>());
+  const latestCart = useRef(cart);
+  useEffect(() => { latestCart.current = cart; }, [cart]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -81,12 +83,19 @@ export function useCart(enabled = true) {
     [],
   );
 
-  const runCartAction = useCallback(async (action: () => Promise<Cart>, reportAtField = false) => {
+  const runCartAction = useCallback(async (action: () => Promise<Cart>, reportAtField = false, trackChanges = false) => {
+    const previous = latestCart.current;
     setIsBusy(true);
     setError(null);
     try {
       const nextCart = await action();
+      latestCart.current = nextCart;
       setCart(nextCart);
+      if (trackChanges) {
+        const track = () => window.setTimeout(() => trackCartChanges(previous, nextCart), 0);
+        if (document.visibilityState === 'hidden') track();
+        else window.requestAnimationFrame(track);
+      }
       return nextCart;
     } catch (actionError) {
       if (reportAtField) throw actionError;
@@ -117,13 +126,14 @@ export function useCart(enabled = true) {
         const value = await reorderCustomerOrder(orderId);
         result = value;
         return value.cart;
-      }, true);
+      }, true, true);
       if (!result) throw new Error('Unable to confirm reorder. Check your cart before retrying.');
       if (result.added) setCartUpdateCount(count => count + 1);
+      trackEvent('reorder', { added_variants: result.added, skipped_variants: result.skipped.length });
       return result;
     },
     addItem: async (product: Product, variant: ProductVariant) => {
-      const nextCart = await runCartAction(() => addProductToCart(product, variant));
+      const nextCart = await runCartAction(() => addProductToCart(product, variant), false, true);
       if (nextCart) {
         setAddFeedback(
           `${product.name}${
@@ -133,17 +143,13 @@ export function useCart(enabled = true) {
         setCartUpdateCount((count) => count + 1);
         if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
         feedbackTimer.current = setTimeout(() => setAddFeedback(null), 2400);
-        // Let the confirmed cart render before third-party analytics runs.
-        const track = () => window.setTimeout(() => trackAddToCart(product, variant), 0);
-        if (document.visibilityState === 'hidden') track();
-        else window.requestAnimationFrame(track);
       }
       return nextCart;
     },
     updateQuantity: (itemId: string, quantity: number, minimumQuantity = 1) =>
-      runCartAction(() => updateCartItemQuantity(itemId, quantity, minimumQuantity)),
-    removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId)),
-    clear: () => runCartAction(clearCart),
+      runCartAction(() => updateCartItemQuantity(itemId, quantity, minimumQuantity), false, true),
+    removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId), false, true),
+    clear: () => runCartAction(clearCart, false, true),
     saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value), true),
     saveDeliveryDetails: (value: DeliveryDetails) => runCartAction(() => saveCartDeliveryDetails(value), true),
     selectWelcomeCoupon: (code: string) => runCartAction(() => selectCartWelcomeCoupon(code), true),

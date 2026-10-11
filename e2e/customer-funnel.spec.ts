@@ -210,29 +210,17 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByRole('alert')).toContainText('invalid verification code');
   await page.getByLabel('Email verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify email', exact: true }).click();
-  await expect(page.getByText('Verified email: buyer@example.test')).toBeVisible();
-  await expect(page.getByText('Welcome, Customer Buyer!')).toBeVisible();
+  await expect(accountDialog.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
   const book = accountDialog.getByRole('group', { name: 'Saved addresses' });
-  await expect(accountDialog.getByRole('region', { name: 'Your orders' }).getByText('No orders yet.')).toBeVisible();
+  await expect(accountDialog.getByRole('region', { name: 'Your orders' })).toHaveCount(0);
+  await expect(accountDialog.getByRole('link', { name: 'My orders', exact: true })).toHaveAttribute('href', '/?account=orders');
   const viewport = page.viewportSize();
   if (viewport && viewport.width >= 640) {
     const expectedWidth = Math.min(viewport.width - 48, viewport.width >= 1024 ? 896 : 768);
     await expect.poll(async () => (await accountDialog.boundingBox())?.width).toBe(expectedWidth);
   }
-  await page.route('**/rest/v1/rpc/get_customer_orders', route => route.fulfill({ json: [{
-    id: 'saved-order', reference: 'LUV-SAVED', status: 'paid', createdAt: '2026-10-10T12:00:00Z',
-    paidAt: '2026-10-10T12:10:00Z', customerName: 'Customer Buyer', deliveryPincode: '110001',
-    subtotal: 500, discount: 50, shipping: 100, total: 550,
-    items: [{ id: 'saved-item', productName: 'Rose Charm', variantName: 'Pink', quantity: 2, unitPrice: 250, lineTotal: 500 }],
-  }] }));
-  await accountDialog.getByRole('button', { name: 'Refresh orders' }).click();
-  const order = accountDialog.getByRole('article', { name: 'Order LUV-SAVED' });
-  await expect(order.getByText('Payment received')).toBeVisible();
-  await expect(order.getByText('Rose Charm (Pink)')).toBeVisible();
-  await expect(order.getByText('₹550', { exact: true })).toBeVisible();
-  await expect(order.getByText('-₹50', { exact: true })).toBeVisible();
   await expect(book.getByText(/12 Customer Street/)).toBeVisible();
   await book.getByRole('button', { name: '+ Add new address' }).click();
   const newAddress = book.getByRole('form', { name: 'Add address' });
@@ -290,9 +278,11 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
   await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
   await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByRole('dialog').getByRole('status')).toContainText('Signed out');
   await page.getByRole('dialog').getByRole('button', { name: 'Close account' }).click();
+  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
+  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('status')).toContainText('Signed out');
+  await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Sign in or create account' }).click();
   await signIn.getByLabel('Account email').fill('buyer@example.test');

@@ -107,17 +107,18 @@ it('signs in with email and password', async () => {
   expect(signInCustomerWithPassword).toHaveBeenCalledWith('buyer@example.test', 'Crochet2026');
   expect(sendCustomerPasswordReset).not.toHaveBeenCalled();
 });
-it('lets signed-in customers set a password and continue checkout with their saved profile', async () => {
+it('shows address details and a My orders link without inline history or account controls', async () => {
   vi.mocked(fetchCustomerAccount).mockResolvedValue('buyer@example.test');
   vi.mocked(fetchCustomerProfile).mockResolvedValue(signupDetails);
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'address', details: signupDetails, isDefault: true }]);
   const onContinue = vi.fn();
   render(<CustomerAccount canSignUp onContinue={onContinue} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Set or change password' }));
-  fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'Crochet2026' } });
-  fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'Crochet2026' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
-  expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('Password saved'));
-  expect(setCustomerPassword).toHaveBeenCalledWith('Crochet2026', 'Crochet2026');
+  expect(await screen.findByText('12 Test Street, Delhi, Delhi, 110001, India')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'My orders' }).getAttribute('href')).toBe('/?account=orders');
+  expect(screen.queryByRole('region', { name: 'Your orders' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Set or change password' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
+  expect(screen.queryByText(/Verified email:/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Continue to delivery details' }));
   expect(onContinue).toHaveBeenCalledWith(signupDetails);
 });

@@ -3,6 +3,16 @@ import { installMockSupabase } from './mockSupabase';
 
 for (const replace of [false, true]) {
 test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart change' : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
+  const events: { channel: string; args: unknown[] }[] = [];
+  await page.exposeFunction('recordAnalytics', (channel: string, args: unknown[]) => { events.push({ channel, args }); });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'userAgent', { get: () => 'Analytics regression browser' });
+    Object.defineProperty(navigator, 'userAgentData', { get: () => undefined });
+    const target = window as Window & { recordAnalytics: (channel: string, args: unknown[]) => Promise<void> };
+    target.gtag = (...args: unknown[]) => { void target.recordAnalytics('ga', args); };
+    target.fbq = Object.assign((...args: unknown[]) => { void target.recordAnalytics('meta', args); }, { queue: [] as unknown[][] });
+  });
   const state = await installMockSupabase(page);
   await page.route('**/rest/v1/checkout_settings*', route => route.fulfill({ json: { id: true, live_enabled: true } }));
   await page.route('**/rest/v1/rpc/save_cart_delivery_details', async route => {
@@ -14,6 +24,16 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   });
   const requests: { requestKey: string; previousRequestKey?: string }[] = [];
   let paid = false;
+  let purchaseReads = 0;
+  await page.route('**/rest/v1/rpc/get_live_purchase_analytics', route => {
+    purchaseReads++;
+    return route.fulfill({ json: paid ? {
+      transaction_id: 'LUV-LIVEFIXTURE', currency: 'INR',
+      value: replace ? 698 : 349, shipping: replace ? 0 : 100, total: replace ? 698 : 449,
+      items: [{ item_id: 'rose-charm', item_name: 'Rose Charm', item_variant: 'Rose Pink',
+        variant_id: 'rose-pink', price: 349, quantity: replace ? 2 : 1 }],
+    } : null });
+  });
   await page.route('**/rest/v1/rpc/get_live_checkout_status', route => route.fulfill({
     json: paid ? { status: 'paid', reference: 'LUV-LIVEFIXTURE' }
       : replace && requests.length ? { status: 'link_created', reference: 'LUV-LIVEFIXTURE' } : null,
@@ -76,6 +96,7 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   await expect(page.getByText('3. Review order', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Apply coupon', exact: true })).toBeVisible();
   await expect(pay).toBeEnabled();
+  expect(events.filter(event => event.args[1] === 'purchase')).toHaveLength(0);
   await page.getByRole('button', { name: 'Edit details', exact: true }).click();
   await expect(page).toHaveURL(/checkout=delivery/);
   await expect(pay).toHaveCount(0);
@@ -98,11 +119,25 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   }
   await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Order confirmed — LUV-LIVEFIXTURE');
   await expect(page).toHaveURL(/checkout=confirmation/);
+  await expect.poll(() => events.filter(event => event.args[1] === 'purchase').length).toBe(1);
+  await expect.poll(() => events.filter(event => event.args[1] === 'Purchase').length).toBe(1);
+  const readsBeforeReload = purchaseReads;
   await expect(pay).toHaveCount(0);
   const originalCartId = state.carts[0].id;
   state.carts.splice(0);
   await page.reload();
   await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Order confirmed — LUV-LIVEFIXTURE');
+  await expect.poll(() => purchaseReads).toBeGreaterThan(readsBeforeReload);
+  expect(events.filter(event => event.args[1] === 'purchase')).toHaveLength(1);
+  expect(events.filter(event => event.args[1] === 'Purchase')).toHaveLength(1);
+  const names = events.filter(event => event.channel === 'ga').map(event => event.args[1]);
+  for (const name of ['view_item', 'add_to_cart', 'view_cart', 'begin_checkout', 'add_shipping_info', 'add_payment_info', 'purchase']) {
+    expect(names).toContain(name);
+  }
+  const serialized = JSON.stringify(events);
+  for (const privateValue of ['Live Buyer', 'buyer@example.test', '9876543210', '12 Live Street', 'razorpay_signature', 'checkoutRequest']) {
+    expect(serialized).not.toContain(privateValue);
+  }
   await expect(pay).toHaveCount(0);
   await expect(page.getByLabel('Cart order actions').getByText('₹0', { exact: true })).not.toBeVisible();
   expect(state.carts.every(cart => cart.id !== originalCartId)).toBe(true);

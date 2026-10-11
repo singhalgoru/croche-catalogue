@@ -3,8 +3,9 @@ import { afterPageLoad } from '../utils/afterPageLoad';
 import { isAutomatedVisit } from '../utils/automatedVisit';
 import { isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
+import { hasAnalyticsAuthTokens } from './analyticsPage';
 
-type MetaParameters = Record<string, unknown>;
+export type MetaParameters = Record<string, unknown>;
 
 interface MetaPixel {
   (...args: unknown[]): void;
@@ -29,7 +30,7 @@ const isAdminRoute = () => window.location.hash === '#admin';
 export const initializeMetaPixel = () => {
   // Meta has no equivalent of GA4's internal traffic filter, so our own visits
   // are never sent to the pixel at all.
-  if (!pixelId || isAdminRoute() || isInternalTraffic() || isAutomatedVisit() || window.fbq) {
+  if (!pixelId || isAdminRoute() || isInternalTraffic() || isAutomatedVisit() || hasAnalyticsAuthTokens() || window.fbq) {
     return;
   }
 
@@ -48,8 +49,8 @@ export const initializeMetaPixel = () => {
   window.fbq = pixel;
   window._fbq = window._fbq ?? pixel;
 
+  window.fbq('set', 'autoConfig', false, pixelId);
   window.fbq('init', pixelId);
-  window.fbq('track', 'PageView');
 
   afterPageLoad(() => {
     const script = document.createElement('script');
@@ -59,9 +60,14 @@ export const initializeMetaPixel = () => {
   });
 };
 
-export const trackMetaEvent = (name: string, parameters: MetaParameters = {}) => {
-  if (!pixelId || isAdminRoute() || isInternalTraffic() || !window.fbq) return;
-  window.fbq('track', name, parameters);
+export const canTrackMeta = () =>
+  Boolean(pixelId && !isAdminRoute() && !isInternalTraffic() && !isAutomatedVisit() && !hasAnalyticsAuthTokens() && window.fbq);
+
+export const trackMetaEvent = (name: string, parameters: MetaParameters = {}, eventId?: string) => {
+  if (!canTrackMeta()) return false;
+  if (eventId) window.fbq?.('track', name, parameters, { eventID: eventId });
+  else window.fbq?.('track', name, parameters);
+  return true;
 };
 
 export const metaProductParameters = (product: Product, variant?: ProductVariant) => {

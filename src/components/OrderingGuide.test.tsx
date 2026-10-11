@@ -12,8 +12,15 @@ afterEach(() => {
 });
 
 describe('OrderingGuide', () => {
+  it('is collapsed by default with a native disclosure', () => {
+    const { container } = render(<OrderingGuide />);
+    const details = container.querySelector('details');
+    expect(details?.open).toBe(false);
+    expect(details?.querySelector('summary')?.textContent).toContain('How ordering and delivery work');
+  });
   it('explains address review, verified payment, shipping and approved dispatch timing', () => {
-    render(<OrderingGuide />);
+    const { container } = render(<OrderingGuide />);
+    container.querySelector('details')!.open = true;
     expect(screen.getByRole('region', { name: 'How ordering and delivery work' })).toBeTruthy();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     expect(screen.getByText(/sending a message does not confirm an order/)).toBeTruthy();
@@ -36,7 +43,8 @@ describe('OrderingGuide', () => {
   });
 
   it('uses the dedicated contact links and tracks contact actions', () => {
-    render(<OrderingGuide />);
+    const { container } = render(<OrderingGuide />);
+    container.querySelector('details')!.open = true;
     const whatsapp = screen.getByRole('link', { name: 'Ask us on WhatsApp' });
     expect(whatsapp.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     expect(whatsapp.getAttribute('rel')).toBe('noopener noreferrer');
@@ -49,7 +57,8 @@ describe('OrderingGuide', () => {
   });
 
   it('connects ordering help and footer navigation to the static information pages', () => {
-    render(<><OrderingGuide /><Footer /></>);
+    const { container } = render(<><OrderingGuide /><Footer /></>);
+    container.querySelector('details')!.open = true;
     expect(screen.getByRole('link', { name: 'Read the ordering FAQ' }).getAttribute('href')).toBe('/faq/');
     expect(screen.getByRole('link', { name: 'Explore collections' }).getAttribute('href')).toBe('/collections/');
     expect(screen.getByRole('link', { name: 'About & contact' }).getAttribute('href')).toBe('/about/');

@@ -987,11 +987,65 @@ initial product image download.
 
 ## Analytics
 
+Signed-in My account shows saved address details and address management, plus a
+My orders link to the separate full-page history. Orders are not embedded in the
+account dialog. Sign out remains in the header account menu; password recovery
+remains available from the sign-in form.
+The homepage ordering and delivery guide is collapsed by default; its native
+disclosure supports tapping, Enter and Space without removing help content.
+
 GA4 and the Meta Pixel are loaded for the public catalogue only; the `#admin`
 console is never tracked.
 
 Internal visits can be excluded from the reports by opening the site once with
 `?traffic=internal` in each browser.
+
+The public customer journey tracks:
+
+- Initial and in-app `page_view` / Meta `PageView` without duplicate URL-only
+  replacements. GA page URLs exclude auth tokens, payment request IDs and unknown
+  query parameters. Disable **Page changes based on browser history events** in
+  the GA4 web stream's Enhanced Measurement page-view settings; the application
+  now sends those views itself. Leave initial automatic views disabled via the
+  application's `send_page_view: false` configuration.
+- One `view_item` / `ViewContent` per product opening, not per automatic gallery
+  rotation. Explicit variant selection, zoom, share and enquiry events remain.
+- Confirmed cart mutations: `add_to_cart` (including reorder/increases) and
+  `remove_from_cart` (including decreases/clear). Quantities are actual saved
+  deltas; GA and Meta values multiply unit prices by those quantities. Unknown
+  prices omit value rather than reporting zero.
+- `view_cart`, `begin_checkout`, `add_shipping_info` after saved address
+  submission/selection, and `add_payment_info` when live Razorpay checkout opens.
+  Meta receives `InitiateCheckout` and `AddPaymentInfo`. Payment failure and
+  window-close, opening-error and verification-pending events never imply a
+  purchase. WhatsApp/email cart handoffs remain enquiry events, not orders.
+- `signup_started` for accepted registration requests, `sign_up` after email
+  verification (code or activation link), password `login`, `logout`,
+  `view_orders`, successful `reorder`, `hide_order` and `restore_order`.
+
+Migration `20261011050000_purchase_analytics.sql` exposes only an owned, paid,
+live, non-test order's product/quantity/amount snapshot. `purchase` / Meta
+`Purchase` use this server snapshot, including on webhook recovery or confirmation
+refresh after cart deletion. GA value is merchandise revenue after discount,
+excluding shipping; Meta value is the actual paid total including shipping.
+Order-level discounts are allocated proportionally to item prices so GA item
+revenue agrees with the paid merchandise value.
+Purchase events use the stable order reference, with per-provider persistent
+browser deduplication and a stable Meta event ID. Analytics failures are logged
+without blocking payment confirmation; if storage is unavailable, reload
+deduplication cannot be guaranteed. Browser blockers, cleared storage or another
+device can still affect delivery/deduplication; this is not server-side CAPI.
+
+Customer names, emails, phone numbers, delivery addresses, payment signatures and
+auth identifiers are not included in the new event parameters. Admin and
+automated visits are suppressed; Meta also suppresses internal visits. GA internal
+traffic remains tagged for its existing internal-traffic filter. Dashboard setup
+should mark `purchase` as a GA4 key event and verify receipt in GA DebugView /
+Meta Test Events; unit/browser tests verify queued payloads, not dashboard receipt.
+Meta automatic event configuration is disabled, and the pixel waits until auth
+tokens are removed from activation/recovery URLs. Keep automatic advanced
+matching disabled in Meta and automatic form-interaction measurement disabled in
+GA4; customer contact fields are not marketing consent.
 
 ## Deployment
 

@@ -3,6 +3,8 @@ import type { Cart } from '../types/cart';
 import { createCheckoutOrder, loadRazorpay, verifyCheckoutPayment, readCheckoutRecovery, saveCheckoutRecovery, fetchLiveCheckoutStatus } from '../services/checkout';
 import type { PaymentResponse } from '../services/checkout';
 import { formatINR } from '../utils/currency';
+import { trackCartStep, trackEvent } from '../services/analytics';
+import { trackVerifiedPurchase } from '../services/purchaseAnalytics';
 
 interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string }
 
@@ -45,7 +47,10 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const request = useRef<{ fingerprint: string; key: string; previousRequestKey?: string } | null>(recovery.request);
   const [statusRequest, setStatusRequest] = useState(recovery.request?.key ?? null);
   useEffect(() => {
-    if (live && verified) confirmedCallback.current?.(statusRequest ?? undefined, purchaseCart.current);
+    if (live && verified) {
+      if (statusRequest) void trackVerifiedPurchase(statusRequest);
+      confirmedCallback.current?.(statusRequest ?? undefined, purchaseCart.current);
+    }
   }, [live, verified, statusRequest]);
   useEffect(() => {
     if (!live || !statusRequest || verified) return;
@@ -88,6 +93,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       setMessage(live ? `Order confirmed — ${id}. Payment received. Save this reference; signed-in customers can view the order in My Account.`
         : `Test payment verified (${id}). No real money was charged and no order was placed. Your cart is unchanged.`);
     } catch (error) {
+      if (live) trackEvent('payment_verification_pending', { payment_type: 'Razorpay' });
       setMessage(error instanceof Error ? error.message : 'Verification failed. Retry verification; do not pay again.');
     } finally {
       locked.current = false;
@@ -125,6 +131,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         ...(request.current.previousRequestKey ? { previousRequestKey: request.current.previousRequestKey } : {}),
       };
       const order = live ? await createCheckoutOrder(body, true) : await createCheckoutOrder(body);
+      if (live) trackCartStep('add_payment_info', cart);
       if (live) setStatusRequest(request.current.key);
       if (live && request.current.previousRequestKey) {
         delete request.current.previousRequestKey;
@@ -140,6 +147,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         modal: {
           ondismiss: () => {
             if (paid.current) return;
+            if (live) trackEvent('payment_window_closed', { payment_type: 'Razorpay' });
             locked.current = false;
             setBusy(false);
             setMessage(live ? 'Payment window closed. Your order is not confirmed yet. Resume the same checkout when ready.'
@@ -148,12 +156,14 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         },
       });
       checkout.on('payment.failed', response => {
+        if (live && !paid.current) trackEvent('payment_failed', { payment_type: 'Razorpay' });
         if (!paid.current) setMessage(response.error?.description || (live
           ? 'Payment failed. Your order is not confirmed. Resume the same checkout or contact Luvia.'
           : 'Test payment failed. Try another test payment method or close checkout.'));
       });
       checkout.open();
     } catch (error) {
+      if (live) trackEvent('checkout_error', { checkout_stage: 'opening_payment', payment_type: 'Razorpay' });
       locked.current = false;
       setBusy(false);
       setMessage(error instanceof Error ? error.message : live ? 'Unable to open checkout. Contact Luvia before another payment.' : 'Unable to open test checkout.');

@@ -513,6 +513,7 @@ function App() {
         void cart.clear();
       }}
       onWhatsAppStarted={() => {
+        trackEvent('whatsapp_cart', { item_count: cart.itemCount });
         void cart.markWhatsAppStarted();
       }}
       onSaveDeliveryPin={cart.saveDeliveryPin}
@@ -520,8 +521,7 @@ function App() {
       onSelectWelcomeCoupon={cart.selectWelcomeCoupon}
       onEmailStarted={() => {
         trackEvent('email_cart', {
-          cart_reference: cart.cart?.reference ?? '',
-          item_count: cart.cart?.items.length ?? 0,
+          item_count: cart.itemCount,
         });
       }}
       onOpenProduct={(productId, variantId) => {
@@ -557,8 +557,7 @@ function App() {
 
   const accountDialog = accountMode && (
     <Suspense fallback={null}>
-      <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} onReorder={cart.reorderOrder}
-        onOpenCart={() => { closeAccount(); setIsCartOpen(true); }} />
+      <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} />
     </Suspense>
   );
 

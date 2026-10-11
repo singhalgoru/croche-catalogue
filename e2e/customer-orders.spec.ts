@@ -21,7 +21,7 @@ test('My orders is a full page with active-first history, reorder and restorable
   await signup.getByRole('button', { name: 'Create account' }).click();
   await page.getByLabel('Email verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify email', exact: true }).click();
-  await expect(page.getByText('Verified email: buyer@example.test')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   await page.getByRole('button', { name: 'Close account' }).click();
 
   const base: CustomerOrder = {
@@ -52,6 +52,13 @@ test('My orders is a full page with active-first history, reorder and restorable
     cart.cart_items[0].quantity += 2;
     return route.fulfill({ json: { added: 1, skipped: [{ productName: 'Deleted product', variantName: '', reason: 'No longer available' }] } });
   });
+  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
+  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  const account = page.getByRole('dialog', { name: 'My account', exact: true });
+  await expect(account.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
+  await expect(account.getByRole('region', { name: 'Your orders' })).toHaveCount(0);
+  await account.getByRole('link', { name: 'My orders', exact: true }).click();
+  await expect(page).toHaveURL(/account=orders/);
   await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
   await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My orders' }).click();
   await expect(page).toHaveURL(/account=orders/);

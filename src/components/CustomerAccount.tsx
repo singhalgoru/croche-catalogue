@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadSupabase } from '../lib/supabaseConfig';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset,
-  fetchWelcomeOffer, signOutCustomer, fetchCustomerProfile, signInCustomerWithPassword,
-  setCustomerPassword, validateCustomerPassword } from '../services/customer';
-import type { DeliveryDetails, WelcomeOffer, ReorderResult } from '../types/customer';
+  fetchWelcomeOffer, fetchCustomerProfile, signInCustomerWithPassword,
+  validateCustomerPassword } from '../services/customer';
+import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
 import { emptyDeliveryDetails } from '../utils/customer';
 import AddressBook from './AddressBook';
-import CustomerOrders from './CustomerOrders';
 
 interface Props {
   initialEmail?: string;
@@ -16,11 +15,8 @@ interface Props {
   onGuest?: () => void;
   onContinue?: (profile: DeliveryDetails | null) => void;
   onModeChange?: (mode: 'signup' | 'signin') => void;
-  showOrderHistory?: boolean;
-  onReorder?: (orderId: string) => Promise<ReorderResult>;
-  onOpenCart?: () => void;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange, showOrderHistory = false, onReorder, onOpenCart }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
@@ -31,9 +27,6 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
   const [mode, setMode] = useState<'signup' | 'signin'>(canSignUp ? initialMode ?? 'signup' : 'signin');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -68,43 +61,15 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
   };
   return (
     <section className="rounded-xl border border-cocoa/20 bg-white p-3 text-sm text-cocoa" aria-label="Customer account">
-      <h3 className="font-semibold">{account ? 'Your account' : 'Optional email account'}</h3>
+      <h3 className="font-semibold">{account ? 'Your addresses' : 'Optional email account'}</h3>
       {account ? <>
-        <p className="mt-1 break-words">Verified email: {account}</p>
-        {profile && <div className="mt-2 text-xs text-cocoa/70">
-          <p>Welcome, {profile.name}!</p>
-          <p>Mobile: {profile.phone}</p>
-        </div>}
         <AddressBook accountEmail={account} onDefaultChange={setProfile} />
-        {showOrderHistory && <CustomerOrders key={account} onReorder={onReorder} onOpenCart={onOpenCart} />}
+        <a href={`${import.meta.env.BASE_URL}?account=orders`}
+          className="mt-3 inline-flex min-h-11 items-center rounded-full bg-cocoa px-5 py-2 font-semibold text-white">
+          My orders
+        </a>
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
-        {showPasswordForm ? <form className="mt-2 space-y-2" aria-label="Set account password" onSubmit={event => {
-          event.preventDefault();
-          void run(async () => {
-            await setCustomerPassword(newPassword, confirmNewPassword);
-            setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false);
-            setMessage('Password saved. Next time, sign in with your email and this password.');
-          });
-        }}>
-          <label className="block">New password
-            <input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={newPassword} disabled={busy}
-              onChange={event => setNewPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
-          </label>
-          <label className="block">Confirm new password
-            <input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={confirmNewPassword} disabled={busy}
-              onChange={event => setConfirmNewPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
-          </label>
-          <div className="flex gap-3">
-            <button disabled={busy} className="rounded-full border border-cocoa px-3 py-2">Save password</button>
-            <button type="button" disabled={busy} className="underline" onClick={() => setShowPasswordForm(false)}>Cancel</button>
-          </div>
-        </form> : <button type="button" disabled={busy} className="mt-2 mr-4 underline"
-          onClick={() => { setShowPasswordForm(true); setError(''); setMessage(''); }}>Set or change password</button>}
-        <button type="button" disabled={busy} className="mt-2 underline" onClick={() => { void run(async () => {
-          await signOutCustomer(); setAccount(null); setProfile(null); setSent(false);
-          setMessage('Signed out. Your account cart remains saved.');
-        }); }}>Sign out</button>
       </> : <>
         <p className="mt-1 text-xs text-cocoa/70">Guest ordering is always available. Verify an email to keep this cart linked to your account.</p>
         {offer?.enabled && canSignUp && <p className="mt-3 rounded-xl border border-mustard/40 bg-mustard/10 p-3 font-semibold">

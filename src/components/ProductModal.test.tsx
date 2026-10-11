@@ -4,6 +4,8 @@ import type { Product } from '../types/product';
 import ProductModal from './ProductModal';
 
 const getShareableImageFile = vi.hoisted(() => vi.fn());
+const trackProductViewed = vi.hoisted(() => vi.fn());
+vi.mock('../services/analytics', () => ({ trackProductViewed, trackEvent: vi.fn(), trackWhatsAppEnquiry: vi.fn() }));
 vi.mock('../utils/shareImage', async (importOriginal) => ({
   ...await importOriginal<typeof import('../utils/shareImage')>(),
   getShareableImageFile,
@@ -76,6 +78,19 @@ const variantImageProduct: Product = {
     },
   ],
 };
+
+it('counts one product view per open, not per rotated or selected image', () => {
+  vi.useFakeTimers();
+  trackProductViewed.mockClear();
+  const callbacks = { onClose: vi.fn(), onPrevious: vi.fn(), onNext: vi.fn() };
+  const view = render(<ProductModal product={variantImageProduct} currentIndex={0} totalProducts={2} {...callbacks} />);
+  act(() => { vi.advanceTimersByTime(10500); });
+  expect(trackProductViewed).toHaveBeenCalledTimes(1);
+  view.rerender(<ProductModal product={product} currentIndex={1} totalProducts={2} {...callbacks} />);
+  expect(trackProductViewed).toHaveBeenCalledTimes(2);
+  view.unmount();
+  vi.useRealTimers();
+});
 
 const renderModal = (modalProduct = product) => {
   const callbacks = {
