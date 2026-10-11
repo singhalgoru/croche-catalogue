@@ -54,6 +54,11 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await expect(page.getByRole('button', { name: 'Navaratri', exact: true })).toBeVisible();
   const buttons = page.getByLabel('Product categories', { exact: true }).getByRole('button');
   await expect(buttons.first()).toHaveText('Navaratri');
+  await expect(buttons.first()).toHaveClass(/badge-glow/);
+  await expect.poll(() => buttons.first().evaluate(node => getComputedStyle(node).animationName)).toBe('badge-glow');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(() => buttons.first().evaluate(node => getComputedStyle(node).animationName)).toBe('none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   const announcement = page.getByRole('link', { name: 'Check out our Navaratri collection', exact: true });
   await expect(announcement).toHaveAttribute('href', '/collections/navaratri/');
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();

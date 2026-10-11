@@ -357,7 +357,7 @@ Deno.serve(async (request) => {
           ? errorPayload.error.message
           : `Gemini request failed with status ${geminiResponse.status}.`;
 
-      if (geminiResponse.status !== 429 && geminiResponse.status < 500) {
+      if (geminiResponse.status !== 429 && !(isCategoryMode && geminiResponse.status === 404) && geminiResponse.status < 500) {
         break;
       }
     }

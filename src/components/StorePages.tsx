@@ -91,7 +91,7 @@ export default function StorePages({
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
       {visibleCategories.map(item => <a key={item.name} href={collectionPath(item.name)}
-        className="flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-mustard px-3 py-2 text-center text-sm leading-snug underline underline-offset-4 sm:rounded-full sm:px-4">{item.name}</a>)}
+        className={`flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-mustard px-3 py-2 text-center text-sm leading-snug underline underline-offset-4 sm:rounded-full sm:px-4 ${item.isSeasonal ? 'badge-glow bg-mustard/20' : ''}`}>{item.name}</a>)}
     </nav>
   );
   return <div className="flex min-h-screen flex-col">

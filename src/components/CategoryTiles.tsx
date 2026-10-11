@@ -19,7 +19,7 @@ export default function CategoryTiles({ categories, products, categorySettings =
           sizes="(min-width: 1024px) 180px, (min-width: 640px) 30vw, 45vw"
           alt="" width={480} height={480} loading="lazy"
           className="aspect-square w-full object-cover" {...productImageProtection} />
-        <span className="block break-words p-3 text-center text-sm font-semibold text-cocoa">{category}</span>
+        <span className={`block break-words p-3 text-center text-sm font-semibold text-cocoa ${categorySettings.find(item => item.name === category)?.isSeasonal ? 'badge-glow bg-mustard/20' : ''}`}>{category}</span>
       </a>;
     })}
   </nav>;

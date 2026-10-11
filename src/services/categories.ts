@@ -96,7 +96,23 @@ export async function generateCategoryOverview(name: string): Promise<string> {
   const { data, error } = await client.functions.invoke('analyze-product', {
     body: { mode: 'category-overview', categoryName: name },
   });
-  if (error) throw new Error(`Unable to generate category overview: ${error.message}`);
+  if (error) {
+    let message = error.message;
+    if ('context' in error && error.context instanceof Response) {
+      const text = await error.context.clone().text();
+      try {
+        const payload: unknown = JSON.parse(text);
+        if (payload && typeof payload === 'object') {
+          if ('error' in payload && typeof payload.error === 'string') message = payload.error;
+          else if ('message' in payload && typeof payload.message === 'string') message = payload.message;
+        }
+      } catch {
+        // Non-JSON gateway errors retain the SDK message and HTTP status.
+      }
+      message = `${message} (HTTP ${error.context.status})`;
+    }
+    throw new Error(`Unable to generate category overview: ${message}`);
+  }
   if (data?.error) throw new Error(String(data.error));
   if (typeof data?.overview !== 'string' || !data.overview.trim() || data.overview.length > 2000) {
     throw new Error('Gemini returned an invalid category overview.');

@@ -24,7 +24,7 @@ export default function CollectionGrid({ categories, products }: Props) {
               <img src={image ? getProductImageUrl(image, 480) : '/images/luvia-logo-320.webp'} alt="" width={480} height={480}
                 loading="lazy" decoding="async" className="relative h-full w-full object-contain" />
             </div>
-            <div className="p-3 sm:p-4">
+            <div className={`p-3 sm:p-4 ${category.isSeasonal ? 'badge-glow' : ''}`}>
               <h2 className="font-heading text-lg font-semibold leading-snug group-hover:underline">{category.name}</h2>
               <p className="mt-1 text-sm">{items.length} {items.length === 1 ? 'product' : 'products'}</p>
             </div>

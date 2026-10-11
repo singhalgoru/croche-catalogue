@@ -95,6 +95,24 @@ describe('analyze-product endpoint', () => {
     expect(response.status).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  it('tries the next configured model when Gemini reports the overview model is unavailable', async () => {
+    mockCategoryOverview();
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Model not found' } }), { status: 404 }))
+      .mockResolvedValueOnce(geminiResponse({ overview: 'Handmade rose charms.' }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ overview: 'Handmade rose charms.' });
+    expect(fetchMock.mock.calls[0][0]).toContain('/gemini-3.6-flash:generateContent');
+    expect(fetchMock.mock.calls[1][0]).toContain('/gemini-3.7-flash:generateContent');
+  });
+  it('does not retry overview API-key authorization failures', async () => {
+    mockCategoryOverview();
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: { message: 'API key not valid' } }), { status: 403 }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(502);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await response.json()).toEqual({ error: 'API key not valid' });
+  });
   it('rejects non-admin category overview generation', async () => {
     rpc.mockResolvedValue({ data: false, error: null });
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));

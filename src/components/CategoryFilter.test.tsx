@@ -7,6 +7,12 @@ afterEach(() => {
 });
 
 describe('CategoryFilter', () => {
+  it('highlights only seasonal categories with the existing reduced-motion-aware glow', () => {
+    render(<CategoryFilter categories={['Navratri Specials', 'Toys']} seasonalCategories={['Navratri Specials']} active="All" onSelect={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Navratri Specials' }).classList.contains('badge-glow')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Toys' }).classList.contains('badge-glow')).toBe(false);
+    expect(screen.getByRole('button', { name: 'All' }).classList.contains('badge-glow')).toBe(false);
+  });
   it('shows the New filter when there are new products', () => {
     render(
       <CategoryFilter
