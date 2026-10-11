@@ -37,6 +37,20 @@ describe('archiveImageOriginal', () => {
       .rejects.toThrow('The image was not published: Storage unavailable');
   });
 
+  it('shows the archive response error instead of the generic SDK status message', async () => {
+    const response = new Response(JSON.stringify({ error: 'Private R2 archive failed with status 403.' }), { status: 502 });
+    invoke.mockResolvedValue({ error: { message: 'Edge Function returned a non-2xx status code', context: response } });
+    await expect(archiveImageOriginal(new File(['x'], 'photo.png', { type: 'image/png' })))
+      .rejects.toThrow('The image was not published: Private R2 archive failed with status 403.');
+    expect(response.bodyUsed).toBe(false);
+  });
+
+  it.each(['not JSON', JSON.stringify({ error: 403 })])('keeps the SDK error if the response has no readable error (%s)', async body => {
+    invoke.mockResolvedValue({ error: { message: 'Storage unavailable', context: new Response(body, { status: 502 }) } });
+    await expect(archiveImageOriginal(new File(['x'], 'photo.png', { type: 'image/png' })))
+      .rejects.toThrow('The image was not published: Storage unavailable');
+  });
+
   it('rejects invalid and oversized originals before uploading', async () => {
     for (const file of [
       new File(['x'], 'x.gif', { type: 'image/gif' }),

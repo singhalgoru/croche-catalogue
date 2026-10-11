@@ -12,7 +12,7 @@ export interface StoredImage {
 
 export const isR2ImagePath = (imagePath: string) => imagePath.startsWith(R2_IMAGE_PATH_PREFIX);
 
-const getErrorMessage = async (error: { message: string; context?: unknown }) => {
+export const getImageStorageErrorMessage = async (error: { message: string; context?: unknown }) => {
   if (error.context instanceof Response) {
     try {
       const payload: unknown = await error.context.clone().json();
@@ -43,7 +43,7 @@ export async function uploadImageToR2(file: File, imageId?: string): Promise<Sto
 
   const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, { body: form });
   if (error) {
-    throw new Error(`Unable to upload the product image: ${await getErrorMessage(error)}`);
+    throw new Error(`Unable to upload the product image: ${await getImageStorageErrorMessage(error)}`);
   }
 
   if (
@@ -69,6 +69,6 @@ export async function deleteImagesFromR2(imagePaths: string[]): Promise<void> {
     body: { action: 'delete', paths },
   });
   if (error) {
-    throw new Error(`Unable to remove a product image: ${await getErrorMessage(error)}`);
+    throw new Error(`Unable to remove a product image: ${await getImageStorageErrorMessage(error)}`);
   }
 }

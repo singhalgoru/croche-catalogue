@@ -1,5 +1,6 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
+import { getImageStorageErrorMessage } from './r2ImageStorage';
 
 const ORIGINAL_EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -23,7 +24,7 @@ export async function archiveImageOriginal(file: File): Promise<string> {
   form.append('original', cleanImage, 'original.webp');
   const { data, error } = await client.functions.invoke('r2-images', { body: form });
   if (error) {
-    throw new Error(`Unable to save the private image original. The image was not published: ${error.message}`);
+    throw new Error(`Unable to save the private image original. The image was not published: ${await getImageStorageErrorMessage(error)}`);
   }
   if (data?.imageId !== imageId) throw new Error('Private original archive returned an invalid response.');
   return imageId;

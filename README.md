@@ -500,6 +500,11 @@ copy uses the same UUID on R2, linking it to
 `<admin-id>/<uuid>/original.webp`. Removing a public photo does not
 remove its archived original. Previously watermarked input cannot be unmarked:
 upload a clean original if one is available.
+Archive errors surface the Edge Function's error detail while keeping publication
+blocked. If private archival fails, verify that the server's `R2_ACCESS_KEY_ID`
+and `R2_SECRET_ACCESS_KEY` are a matching pair with access to both buckets.
+Rotate/update them together; changing only the key ID breaks signed R2 requests.
+Do not disable archival or make the originals bucket public to bypass a failure.
 
 Daily backups retain originals in `image-originals/` alongside public R2
 copies in `r2-images/` in the private backup repository. The originals backup
