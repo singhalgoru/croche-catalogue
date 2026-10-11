@@ -615,13 +615,15 @@ const fetchProducts = async (supabaseUrl, anonKey) =>
 
 export const fetchBootstrapCategories = async (supabaseUrl, anonKey) => {
   const endpoint = new URL('/rest/v1/categories', supabaseUrl);
-  endpoint.searchParams.set('select', 'name,sort_order');
+  endpoint.searchParams.set('select', 'name,sort_order,is_seasonal,visible,seasonal_category_products(product_id)');
   endpoint.searchParams.set('order', 'sort_order.asc,name.asc');
   const response = await fetch(endpoint, { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
   if (!response.ok) throw new Error(`Unable to load bootstrap categories: ${response.status} ${response.statusText}`);
   const rows = await response.json();
   if (!Array.isArray(rows)) throw new Error('Supabase returned invalid bootstrap categories');
-  return rows.map(row => ({ name: row.name, priority: row.sort_order }));
+  return rows.map(row => ({ name: row.name, priority: row.sort_order,
+    isSeasonal: row.is_seasonal ?? false, visible: row.visible ?? true,
+    productIds: row.seasonal_category_products?.map(item => item.product_id) ?? [] }));
 };
 
 export const injectCatalogueBootstrap = (html, rows, categories, homepage) =>

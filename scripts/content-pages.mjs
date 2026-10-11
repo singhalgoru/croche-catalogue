@@ -35,7 +35,9 @@ nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:7
 
 export const buildContentPages = (products, whatsappNumber, categories = []) => {
   const pages = new Map();
-  const groups = new Map(categories.map(category => [category.name, []]));
+  const groups = new Map(categories.filter(category => category.visible !== false).map(category => [
+    category.name, category.isSeasonal ? products.filter(product => category.productIds?.includes(product.id)) : [],
+  ]));
   for (const product of products) {
     const current = groups.get(product.category) ?? [];
     current.push(product);

@@ -1,10 +1,32 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Header from './Header';
+import { signOutCustomer } from '../services/customer';
+vi.mock('../services/customer', () => ({ signOutCustomer: vi.fn() }));
 
 afterEach(cleanup);
 
 describe('Header', () => {
+  it('signs out from the menu and shows explicit confirmation', async () => {
+    vi.mocked(signOutCustomer).mockReset().mockResolvedValue(undefined);
+    const view = render(<Header showInstallPrompt={false} onOpenAccount={vi.fn()} accountName="Asha" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await waitFor(() => expect(signOutCustomer).toHaveBeenCalledTimes(1));
+    expect((await screen.findByRole('status')).textContent).toContain('Signed out successfully.');
+    view.rerender(<Header showInstallPrompt={false} onOpenAccount={vi.fn()} accountName={null} />);
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy();
+  });
+  it('reports sign-out failure without removing account controls', async () => {
+    vi.mocked(signOutCustomer).mockReset().mockRejectedValue(new Error('Unable to sign out: offline'));
+    render(<Header showInstallPrompt={false} onOpenAccount={vi.fn()} accountName="Asha" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('offline');
+    expect(screen.getByRole('button', { name: 'My account' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign out' }).hasAttribute('disabled')).toBe(false);
+  });
   it('offers sign in and create account from the header and navigation menu when enabled', () => {
     const onOpenAccount = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} />);

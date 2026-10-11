@@ -44,7 +44,7 @@ export default function AdminPage({ onProductPublished }: Props) {
 
   const [productRefreshKey, setProductRefreshKey] = useState(0);
   const [categorySettings, setCategorySettings] = useState<CategorySettings[]>([]);
-  const categories = categorySettings.map((category) => category.name);
+  const categories = categorySettings.filter(category => !category.isSeasonal).map((category) => category.name);
   const [session, setSession] = useState<Session | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(isSupabaseConfigured);
   // Supabase re-emits SIGNED_IN / TOKEN_REFRESHED whenever the tab becomes

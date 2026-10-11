@@ -1,6 +1,28 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('guest checkout prominently offers signup without leaving the current checkout step', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
+    id: true, enabled: true, percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500, valid_days: 30,
+  } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  const banner = page.getByRole('region', { name: 'Welcome discount' });
+  await expect(banner).toContainText('additional 10% off your first order');
+  await expect(banner).toContainText('Up to ₹100 off on items worth ₹500');
+  await expect(banner).toContainText('Guest checkout remains available');
+  await banner.getByRole('button', { name: 'Create account & save', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Create your Luvia account' })).toBeVisible();
+  await expect(page).toHaveURL(/checkout=cart/);
+  await page.getByRole('button', { name: 'Close account', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue with delivery details' }).click();
+  await expect(banner).toBeVisible();
+  await expect(page).toHaveURL(/checkout=delivery/);
+  await expect(page.getByLabel('Recipient name')).toBeVisible();
+});
+
 test('home footer ends with themed payment methods and Luvia copyright', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('./');
@@ -29,12 +51,19 @@ test('cart uses a full-width page with products before the summary on short scre
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   const cart = page.getByRole('main');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  const back = cart.getByRole('button', { name: 'Close cart', exact: true });
+  const backBox = (await back.boundingBox())!;
+  const iconBox = (await back.locator('svg').boundingBox())!;
+  expect(Math.abs((backBox.x + backBox.width / 2) - (iconBox.x + iconBox.width / 2))).toBeLessThan(1);
+  expect(Math.abs((backBox.y + backBox.height / 2) - (iconBox.y + iconBox.height / 2))).toBeLessThan(1);
   const item = cart.getByRole('article', { name: /View Rose Charm/ });
   const actions = cart.locator('[aria-label="Cart order actions"]');
   await expect(item).toBeVisible();
   const itemBox = (await item.boundingBox())!;
   const actionsBox = (await actions.boundingBox())!;
-  expect(actionsBox.height).toBeLessThanOrEqual(150);
+  const bannerBox = (await cart.getByRole('region', { name: 'Free delivery' }).boundingBox())!;
+  expect(bannerBox.y).toBeGreaterThan(actionsBox.y);
+  expect(bannerBox.y + bannerBox.height).toBeLessThanOrEqual(actionsBox.y + actionsBox.height);
   expect(itemBox.y + itemBox.height).toBeLessThanOrEqual(actionsBox.y);
   expect((await cart.boundingBox())!.width).toBe(390);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
@@ -43,10 +72,11 @@ test('cart uses a full-width page with products before the summary on short scre
   await expect(cart.getByText('Items subtotal', { exact: true })).not.toBeVisible();
   await cart.getByText('Price breakdown', { exact: true }).click();
   await expect(cart.getByText('Items subtotal', { exact: true })).toBeVisible();
-  await expect(cart.getByText(/final delivery charge will be confirmed/)).toBeVisible();
+  await expect(cart.getByText('Save or select your delivery address to calculate shipping. The current shipping amount is an estimate.', { exact: true })).toBeVisible();
   await cart.getByText('Price breakdown', { exact: true }).click();
-  const pinBox = (await cart.getByLabel('Delivery pincode (optional)').boundingBox())!;
-  expect(pinBox.y).toBeGreaterThan(itemBox.y + itemBox.height);
+  await expect(cart.getByLabel('Delivery pincode (optional)')).toHaveCount(0);
+  await expect(cart.getByText(/^Delivery pincode:/)).toHaveCount(0);
+  await expect(cart.getByRole('region', { name: 'Free delivery' })).toContainText('Add ₹151 more in items for free delivery!');
 });
 
 test('guest address is saved, reviewed, shared and restored without showing payment', async ({ page }) => {
@@ -121,6 +151,7 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
   const actions = page.getByLabel('Cart order actions');
   await expect(actions.getByText('₹500', { exact: true })).toBeVisible();
   await expect(actions.getByText(/Free shipping/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Free delivery' })).toContainText("You've unlocked free delivery!");
   for (const cart of state.carts) {
     Object.assign(cart, { cart_delivery_details: { details: null, welcome_coupons: {
       code: 'ILOVELUVIA', percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500,
@@ -130,6 +161,7 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
   await expect(page).toHaveURL(/checkout=cart/);
   await expect(page.getByLabel('Discounted price ₹550')).toBeVisible();
   await expect(actions.getByText(/Includes estimated shipping/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Free delivery' })).toContainText('Add ₹55 more in items for free delivery!');
   await page.getByText('Price breakdown', { exact: true }).click();
   await expect(page.getByText('₹100', { exact: true })).toBeVisible();
   await expect(page.getByText(/Free shipping on items worth ₹500 or more after coupon discounts/)).toBeVisible();
@@ -217,22 +249,23 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await page.getByRole('button', { name: /^Open cart with 1 item/ }).click();
   // Signed-in customers' saved address is applied automatically as their default.
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
-  await page.getByRole('navigation', { name: 'Checkout steps' }).getByRole('button', { name: '3. Review & pay' }).click();
+  await expect(page.getByLabel('Deliver to saved address')).toBeVisible();
+  await page.getByLabel('Deliver to saved address').selectOption({ label: 'Customer Buyer — 5 Office Park, New Delhi 110001' });
+  await expect(page).toHaveURL(/checkout=review/);
   await expect(page.getByText('3. Review order request', { exact: true })).toBeVisible();
   const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
-  expect(decodeURIComponent(whatsapp!)).toContain('12 Customer Street');
-  await page.getByLabel('Deliver to saved address').selectOption({ label: 'Customer Buyer — 5 Office Park, New Delhi 110001' });
+  expect(decodeURIComponent(whatsapp!)).toContain('5 Office Park');
   await expect(page.getByText('5 Office Park, New Delhi, Delhi, 110001, India', { exact: true })).toBeVisible();
   expect(decodeURIComponent((await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href'))!)).toContain('5 Office Park');
   await page.getByRole('button', { name: 'Close cart' }).click();
   await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await expect(page.getByRole('dialog', { name: 'Hi, Customer' })).toBeVisible();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(dialog.getByRole('status')).toContainText('Signed out');
-  await dialog.getByRole('button', { name: 'Close account' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  const menu = page.getByRole('navigation', { name: 'Main navigation' });
+  await menu.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(menu.getByRole('status')).toContainText('Signed out successfully.');
+  await expect(menu.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close navigation' }).click();
   await expect(page.getByRole('button', { name: 'Sign in or create account' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Sign in or create account' }).click();

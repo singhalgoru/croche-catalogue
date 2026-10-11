@@ -11,11 +11,14 @@ import CartDeliveryPin from './CartDeliveryPin';
 import RazorpayCheckout from './RazorpayCheckout';
 import { fetchLiveCheckoutEnabled } from '../services/checkout';
 import CustomerFunnel from './CustomerFunnel';
-import type { DeliveryDetails } from '../types/customer';
+import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
+import { fetchWelcomeOffer } from '../services/customer';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
-import { FREE_SHIPPING_THRESHOLD, getCartTotals, getShippingLabel } from '../utils/cartMessage';
+import { FREE_SHIPPING_THRESHOLD, getCartTotals, getFreeDeliveryShortfall, getShippingLabel } from '../utils/cartMessage';
 
 interface Props {
+  accountName?: string | null;
+  onCreateAccount?: () => void;
   pageStep?: 'cart' | 'delivery' | 'review' | 'confirmation';
   onNavigateStep?: (step: 'cart' | 'delivery' | 'review' | 'confirmation', requestId?: string) => void;
   confirmationRequest?: string;
@@ -55,6 +58,8 @@ export default function CartDrawer({
   pageStep,
   onNavigateStep,
   confirmationRequest,
+  accountName,
+  onCreateAccount,
 }: Props) {
   const isPage = Boolean(pageStep);
   const [paidCart, setPaidCart] = useState<Cart | null>(null);
@@ -63,6 +68,16 @@ export default function CartDrawer({
   const [hasTriedEmail, setHasTriedEmail] = useState(false);
   const [liveCheckout, setLiveCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [welcomeOffer, setWelcomeOffer] = useState<WelcomeOffer | null>(null);
+  const [welcomeError, setWelcomeError] = useState('');
+  const canCreateAccount = Boolean(onCreateAccount);
+  useEffect(() => {
+    if (!isPage || !canCreateAccount || accountName) return;
+    let current = true;
+    void fetchWelcomeOffer().then(offer => { if (current) { setWelcomeOffer(offer); setWelcomeError(''); } })
+      .catch(failure => { if (current) { setWelcomeOffer(null); setWelcomeError(failure instanceof Error ? failure.message : 'Unable to load the welcome discount.'); } });
+    return () => { current = false; };
+  }, [isPage, canCreateAccount, accountName]);
   useEffect(() => {
     let current = true;
     void fetchLiveCheckoutEnabled().then(value => { if (current) setLiveCheckout(value); })
@@ -122,6 +137,7 @@ export default function CartDrawer({
   );
   const totals = checkoutCart ? getCartTotals(checkoutCart) : null;
   const total = totals?.total ?? 0;
+  const freeDeliveryShortfall = checkoutCart ? getFreeDeliveryShortfall(checkoutCart) : 0;
   const hasUnpricedItems =
     checkoutCart?.items.some((item) => item.unitPrice === null) ?? false;
   const whatsappLink =
@@ -166,10 +182,12 @@ export default function CartDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-2xl text-cocoa"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cocoa/30 bg-cream text-2xl text-cocoa transition-colors hover:bg-mustard/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
             aria-label="Close cart"
           >
-            {isPage ? '←' : '×'}
+            {isPage ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m14 6-6 6 6 6" />
+            </svg> : '×'}
           </button>
         </div>
 
@@ -187,6 +205,19 @@ export default function CartDrawer({
             </li>)}
           </ol>
         </nav>}
+        {isPage && pageStep !== 'confirmation' && !accountName && onCreateAccount && welcomeOffer?.enabled && <section
+          aria-label="Welcome discount" className="mb-6 rounded-2xl border-2 border-mustard bg-mustard/15 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-5">
+          <div>
+            <h3 className="font-heading text-xl font-bold text-cocoa">Sign up and get an additional {welcomeOffer.percent}% off your first order!</h3>
+            <p className="mt-1 text-sm text-cocoa">Up to {formatINR(welcomeOffer.maxDiscountRupees)} off on items worth {formatINR(welcomeOffer.minimumSubtotalRupees)} or more.</p>
+            <p className="mt-2 text-xs text-cocoa/70">Activate your account and apply ILOVELUVIA at review. One-time welcome reward; valid for {welcomeOffer.validDays} days. Guest checkout remains available.</p>
+          </div>
+          <button type="button" disabled={isBusy} onClick={onCreateAccount}
+            className="mt-3 min-h-11 shrink-0 rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50 sm:mt-0">
+            Create account &amp; save
+          </button>
+        </section>}
+        {isPage && pageStep !== 'confirmation' && !accountName && welcomeError && <p role="alert" className="mb-4 text-sm text-red-700">{welcomeError}</p>}
         <div className={isPage ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]' : 'contents'}>
         <div className={isPage ? 'min-w-0 rounded-2xl border border-mustard/30 bg-white p-4 sm:p-6' : 'min-h-0 flex-1 overflow-y-auto p-4'}>
           {error && (
@@ -354,13 +385,14 @@ export default function CartDrawer({
                     </p>
                   )}
                   <p className="text-xs text-cocoa/60">
-                    {liveCheckout ? 'Shipping shown here is included in the online payment total.'
+                    {isPage && !cart.deliveryDetails ? 'Save or select your delivery address to calculate shipping. The current shipping amount is an estimate.'
+                      : liveCheckout ? 'Shipping shown here is included in the online payment total.'
                       : 'Shipping is indicative and the final delivery charge will be confirmed by Luvia.'}
                     {hasUnpricedItems ? ' *Items with no listed price are not included in this estimate.' : ''}
                   </p>
                 </div>
               </details>
-              {(!isPage || pageStep === 'cart') && <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />}
+              {!isPage && <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />}
               {(!isPage || pageStep === 'delivery' || pageStep === 'review') && onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}-${pageStep ?? ''}`}
                 pageStep={pageStep === 'delivery' || pageStep === 'review' ? pageStep : undefined}
                 onReview={() => onNavigateStep?.('review')}
@@ -380,7 +412,7 @@ export default function CartDrawer({
           <div aria-label="Cart order actions" className={isPage ? 'h-fit min-w-0 rounded-2xl border border-mustard/30 bg-white p-5 lg:sticky lg:top-6'
             : 'max-h-[40%] shrink-0 overflow-y-auto border-t border-mustard/30 bg-white px-4 py-3'}>
             <div hidden={pageStep === 'confirmation' && !paidCart} className="flex items-center justify-between gap-3 font-bold text-cocoa">
-              <span>{hasUnpricedItems ? 'Estimated total*' : liveCheckout ? 'Total' : 'Estimated total'}</span>
+              <span>{hasUnpricedItems ? 'Estimated total*' : liveCheckout && cart?.deliveryDetails ? 'Total' : 'Estimated total'}</span>
               {totals?.discount ? (
                 <span className="flex items-baseline gap-2">
                   <s className="text-sm font-normal text-cocoa/50" aria-label={`Original price ${formatINR(total + totals.discount)}`}>
@@ -391,9 +423,20 @@ export default function CartDrawer({
               ) : <span>{formatINR(total)}</span>}
             </div>
             <p hidden={pageStep === 'confirmation' && !paidCart} className="text-xs text-cocoa/60">
-              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : liveCheckout ? 'Includes shipping' : 'Includes estimated shipping'}
+              {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : liveCheckout && cart?.deliveryDetails ? 'Includes shipping' : 'Includes estimated shipping'}
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
+            {isPage && pageStep !== 'confirmation' && totals?.hasCompletePricing && <section aria-label="Free delivery" className="mt-4 rounded-xl border border-mustard/40 bg-cream p-3 text-sm">
+              {freeDeliveryShortfall > 0 ? <>
+                <p className="font-semibold">Add {formatINR(freeDeliveryShortfall)} more in items for free delivery!</p>
+                <p className="mt-1 text-xs text-cocoa/70">Free delivery on items worth {formatINR(FREE_SHIPPING_THRESHOLD)} or more after coupon discounts. Shipping fees do not count.</p>
+                <button type="button" disabled={isBusy} onClick={onClose}
+                  className="mt-2 min-h-11 font-semibold underline underline-offset-2 disabled:opacity-50">Add more items</button>
+              </> : <p className="font-semibold text-green-800">You&apos;ve unlocked free delivery!</p>}
+            </section>}
+            {isPage && pageStep !== 'confirmation' && !cart?.deliveryDetails && <p className="mt-3 text-xs text-cocoa/70">
+              Save or select your delivery address in the next step to calculate shipping.
+            </p>}
             {checkoutError && <p role="alert" className="mt-2 text-xs text-red-700">{checkoutError}</p>}
             <div hidden={liveCheckout && isPage && pageStep !== 'review' && pageStep !== 'confirmation'}>
             {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live

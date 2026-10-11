@@ -57,6 +57,8 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   await page.getByRole('link', { name: 'Back to cart' }).click();
   await expect(page).toHaveURL(/checkout=cart/);
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
+  await expect(page.getByRole('navigation', { name: 'Checkout steps' }).getByRole('button', { name: '2. Delivery' })).toHaveAttribute('aria-current', 'step');
+  await expect(page.getByRole('heading', { name: 'Delivery details', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/checkout=delivery/);
   await page.goBack();
   await expect(page).toHaveURL(/checkout=cart/);

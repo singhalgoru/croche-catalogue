@@ -5,6 +5,7 @@ import { getPublicVariantPrice } from '../utils/productPrice';
 import type { AdminCart, Cart, CartCoupon, CartItem, CartSessionBlock } from '../types/cart';
 import type { DeliveryDetails } from '../types/customer';
 import { normalizeDeliveryPin } from '../utils/deliveryPin';
+import { isDeliveryEstimateOutdated } from '../utils/deliveryEstimate';
 import { requestCartCaptcha } from './cartCaptcha';
 import {
   clampCartQuantity,
@@ -484,7 +485,7 @@ export async function saveCartDeliveryDetails(details: DeliveryDetails): Promise
   const client = await loadSupabase();
   if (!client) throw new Error('Delivery details require an online cart.');
   const cart = await loadRemoteCart();
-  if (cart.deliveryPinCode !== details.pincode || !cart.deliveryPinCheckedAt) {
+  if (cart.deliveryPinCode !== details.pincode || !cart.deliveryPinCheckedAt || isDeliveryEstimateOutdated(cart)) {
     await updateCartDeliveryPin(details.pincode);
   }
   const { error } = await client.rpc('save_cart_delivery_details', { target_cart_id: cart.id, delivery: details });

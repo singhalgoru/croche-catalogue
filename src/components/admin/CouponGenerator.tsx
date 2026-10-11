@@ -4,6 +4,7 @@ import type { CampaignCoupon } from '../../types/customer';
 
 const localDateTime = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 export default function CouponGenerator() {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [coupons, setCoupons] = useState<CampaignCoupon[]>([]);
   const [percent, setPercent] = useState(10);
   const [cap, setCap] = useState(100);
@@ -30,7 +31,13 @@ export default function CouponGenerator() {
   };
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 text-cocoa shadow-sm">
-      <h2 className="font-heading text-2xl font-bold">Generate discount coupons</h2>
+      <button type="button" aria-expanded={isExpanded} aria-controls="discount-coupon-content"
+        onClick={() => setIsExpanded(current => !current)}
+        className="flex w-full items-center justify-between gap-4 text-left">
+        <span className="font-heading text-2xl font-bold">Generate discount coupons</span>
+        <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mustard/20 text-xl transition-transform ${isExpanded ? 'rotate-180' : ''}`}>⌄</span>
+      </button>
+      <div id="discount-coupon-content" hidden={!isExpanded}>
       <p className="mt-2 text-sm text-cocoa/70">Generate a random code to share with customers. Choose an exact expiry date/time and total usage limit. First-order-only codes require a verified email account.</p>
       <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={event => {
         event.preventDefault();
@@ -88,6 +95,7 @@ export default function CouponGenerator() {
         </li>)}
       </ul>
       <p className="mt-2 text-xs text-cocoa/60">Latest 50 coupons. Already-issued payment links keep their agreed discount; disabling a code prevents new uses. Only coupons never used on an order can be deleted.</p>
+      </div>
     </section>
   );
 }

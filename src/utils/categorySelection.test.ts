@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { orderCategoryOptions, resolveCategorySelection } from './categorySelection';
+import { matchesCategory, orderCategoryOptions, resolveCategorySelection } from './categorySelection';
+import { products } from '../data/products';
 
 const OPTIONS = ['All', 'New', 'Festive Decor', 'Anklets', 'Brooches', 'Toys'];
+it('keeps the primary category and allows multiple seasonal memberships without duplicating products', () => {
+  const product = products[0];
+  const settings = [
+    { name: 'Navaratri', priority: 1, isSeasonal: true, productIds: [product.id] },
+    { name: 'Diwali', priority: 2, isSeasonal: true, productIds: [product.id] },
+  ];
+  expect(matchesCategory(product, product.category, settings)).toBe(true);
+  expect(matchesCategory(product, 'Navaratri', settings)).toBe(true);
+  expect(matchesCategory(product, 'Diwali', settings)).toBe(true);
+  expect(matchesCategory(product, 'Navaratri', [{ ...settings[0], visible: false }])).toBe(false);
+  expect(matchesCategory(product, 'Navaratri', [{ ...settings[0], productIds: [] }])).toBe(false);
+});
 
 describe('orderCategoryOptions', () => {
   it('keeps the original order when nothing is filtered', () => {

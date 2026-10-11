@@ -4,6 +4,9 @@ import type { Category, CategorySettings } from '../types/product';
 interface CategoryRow {
   name: string;
   sort_order: number;
+  is_seasonal?: boolean;
+  visible?: boolean;
+  seasonal_category_products?: { product_id: string }[];
 }
 
 declare global {
@@ -32,7 +35,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     const client = await requireSupabase();
     const { data, error } = await client
       .from('categories')
-      .select('name, sort_order')
+      .select('name, sort_order, is_seasonal, visible, seasonal_category_products(product_id)')
       .order('sort_order')
       .order('name');
     if (error) throw new Error(`Unable to load categories: ${error.message}`);
@@ -42,18 +45,21 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
   return rows.map((category) => ({
     name: category.name,
     priority: category.sort_order,
+    isSeasonal: category.is_seasonal ?? false,
+    visible: category.visible ?? true,
+    productIds: category.seasonal_category_products?.map(item => item.product_id) ?? [],
   }));
 }
 
 export async function fetchCategories(): Promise<Category[]> {
   const settings = await fetchCategorySettings();
-  return settings.map((category) => category.name);
+  return settings.filter(category => !category.isSeasonal).map((category) => category.name);
 }
 
-export async function createCategory(name: string): Promise<void> {
+export async function createCategory(name: string, isSeasonal = false): Promise<void> {
   const client = await requireSupabase();
   const normalizedName = name.trim();
-  const { error } = await client.from('categories').insert({ name: normalizedName, sort_order: 100 });
+  const { error } = await client.from('categories').insert({ name: normalizedName, sort_order: 100, is_seasonal: isSeasonal });
 
   if (error) {
     throw new Error(
@@ -62,6 +68,15 @@ export async function createCategory(name: string): Promise<void> {
         : `Unable to create the category: ${error.message}`,
     );
   }
+
+}
+
+export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean): Promise<void> {
+  const client = await requireSupabase();
+  const { error } = await client.rpc('save_seasonal_category', {
+    category_name: name, selected_product_ids: productIds, show_category: visible,
+  });
+  if (error) throw new Error(`Unable to save seasonal category: ${error.message}`);
 }
 
 export async function renameCategory(currentName: string, replacementName: string): Promise<void> {

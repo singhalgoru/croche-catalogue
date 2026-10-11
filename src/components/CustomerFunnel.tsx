@@ -36,10 +36,12 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   useEffect(() => {
     let current = true;
-    void fetchCustomerAddresses().then(next => { if (current) setSavedAddresses(next); }, () => undefined);
+    void fetchCustomerAddresses().then(next => { if (current) setSavedAddresses(next); })
+      .catch(failure => { if (current) setError(failure instanceof Error ? failure.message : 'Unable to load saved addresses. Please enter your address or retry.'); });
     return () => { current = false; };
   }, []);
   const hadSavedAddress = useRef(Boolean(cart.deliveryDetails));
+  const addressEdited = useRef(false);
   useEffect(() => {
     if (!cart.deliveryDetails && hadSavedAddress.current) {
       setDetails(current => ({ ...current, pincode: cart.deliveryPinCode ?? '' }));
@@ -48,7 +50,10 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
     }
     hadSavedAddress.current = Boolean(cart.deliveryDetails);
   }, [cart.deliveryDetails, cart.deliveryPinCode]);
-  const set = (key: keyof DeliveryDetails, value: string) => setDetails(current => ({ ...current, [key]: value }));
+  const set = (key: keyof DeliveryDetails, value: string) => {
+    addressEdited.current = true;
+    setDetails(current => ({ ...current, [key]: value }));
+  };
   const reviewed = cart.deliveryDetails ?? details;
   const triedDefaultAddress = useRef(false);
   const mounted = useRef(true);
@@ -58,7 +63,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
     triedDefaultAddress.current = true;
     void (async () => {
       const profile = await fetchCustomerProfile().catch(() => null);
-      if (!mounted.current || !profile) return;
+      if (!mounted.current || !profile || addressEdited.current) return;
       // A signed-in customer's saved address is their default, unless the cart is already priced for another pincode.
       if (cart.deliveryPinCode && cart.deliveryPinCode !== profile.pincode) {
         setDetails(current => current.name ? current : { ...profile, pincode: cart.deliveryPinCode ?? profile.pincode });
@@ -98,6 +103,35 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
       </h3>
       <p className="text-xs text-cocoa/65">{onlineCheckout ? 'Guest checkout available. Review your delivery details before paying securely. We will email your order confirmation to your contact email.'
         : 'Guest ordering available. Payment is not enabled; your order still needs confirmation.'}</p>
+      {savedAddresses.length > 0 && <label className="block">Deliver to saved address
+        <select className="mt-1 w-full rounded border bg-white p-2" disabled={busy || saving}
+          value={savedAddresses.find(address => sameAddress(address.details, step === 'review' ? reviewed : details))?.id ?? ''}
+          onChange={event => {
+            const chosen = savedAddresses.find(address => address.id === event.target.value);
+            if (!chosen) return;
+            addressEdited.current = true;
+            const normalized = normalizeDeliveryDetails({ ...chosen.details, email: chosen.details.email || details.email });
+            setDetails(normalized); setError('');
+            const validation = validateDeliveryDetails(normalized);
+            if (validation || (onlineCheckout && !normalized.email)) {
+              setStep('contact');
+              setError(validation ?? 'Add a contact email before using this saved address.');
+              return;
+            }
+            setSaving(true);
+            void onSave(normalized).then(saved => {
+              if (!saved?.deliveryDetails) throw new Error('Delivery details were not saved. Please retry.');
+              setDetails(saved.deliveryDetails); setStep('review'); onReview?.();
+            }).catch(error => setError(error instanceof Error ? error.message : 'Unable to use that address.'))
+              .finally(() => setSaving(false));
+          }}>
+          {!savedAddresses.some(address => sameAddress(address.details, step === 'review' ? reviewed : details)) &&
+            <option value="">Choose a saved address or enter details below</option>}
+          {savedAddresses.map(address => <option key={address.id} value={address.id}>
+            {address.details.name} — {address.details.addressLine1}, {address.details.city} {address.details.pincode}{address.isDefault ? ' (default)' : ''}
+          </option>)}
+        </select>
+      </label>}
       {step !== 'review' && <form className="space-y-3" onSubmit={event => {
         event.preventDefault(); setError('');
         const normalized = normalizeDeliveryDetails(details);
@@ -150,25 +184,6 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         </div>
       </form>}
       {step === 'review' && <>
-        {savedAddresses.length > 1 && <label className="block">Deliver to saved address
-          <select className="mt-1 w-full rounded border bg-white p-2" disabled={busy || saving}
-            value={savedAddresses.find(address => sameAddress(address.details, reviewed))?.id ?? ''}
-            onChange={event => {
-              const chosen = savedAddresses.find(address => address.id === event.target.value);
-              if (!chosen) return;
-              setSaving(true); setError('');
-              void onSave(normalizeDeliveryDetails(chosen.details)).then(saved => {
-                if (!saved?.deliveryDetails) throw new Error('Delivery details were not saved. Please retry.');
-                setDetails(saved.deliveryDetails);
-              }).catch(error => setError(error instanceof Error ? error.message : 'Unable to use that address.'))
-                .finally(() => setSaving(false));
-            }}>
-            {!savedAddresses.some(address => sameAddress(address.details, reviewed)) && <option value="">Address entered for this order</option>}
-            {savedAddresses.map(address => <option key={address.id} value={address.id}>
-              {address.details.name} — {address.details.addressLine1}, {address.details.city} {address.details.pincode}{address.isDefault ? ' (default)' : ''}
-            </option>)}
-          </select>
-        </label>}
         <p className="break-words">{reviewed.name} · +91 {reviewed.phone}</p>
         {reviewed.email && <p className="break-words">{reviewed.email}</p>}
         <p className="break-words">{deliveryAddressText(reviewed)}</p>

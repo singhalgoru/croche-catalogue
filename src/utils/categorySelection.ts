@@ -1,4 +1,10 @@
-import type { CatalogueFilter } from '../types/product';
+import type { CatalogueFilter, CategorySettings, Product } from '../types/product';
+
+export const matchesCategory = (product: Product, name: string, settings: CategorySettings[] = []) => {
+  const category = settings.find(item => item.name === name);
+  if (category?.visible === false) return false;
+  return category?.isSeasonal ? Boolean(category.productIds?.includes(product.id)) : product.category === name;
+};
 
 /**
  * Tapping the active category again clears the filter. "All" is already the

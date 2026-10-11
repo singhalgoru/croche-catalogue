@@ -4,6 +4,9 @@ export type CatalogueFilter = Category | 'All' | 'New';
 export interface CategorySettings {
   name: Category;
   priority: number;
+  isSeasonal?: boolean;
+  visible?: boolean;
+  productIds?: string[];
 }
 
 export interface ProductVariantImage {

@@ -55,6 +55,22 @@ export const getCartTotals = (cart: Cart): CartTotals => {
   };
 };
 
+export const getFreeDeliveryShortfall = (cart: Cart): number => {
+  const { subtotal, discount } = getCartTotals(cart);
+  if (subtotal - discount >= FREE_SHIPPING_THRESHOLD) return 0;
+  if (subtotal < FREE_SHIPPING_THRESHOLD && getCouponDiscount(cart, FREE_SHIPPING_THRESHOLD) === 0) {
+    return FREE_SHIPPING_THRESHOLD - subtotal;
+  }
+  let minimum = Math.max(subtotal, FREE_SHIPPING_THRESHOLD);
+  let maximum = FREE_SHIPPING_THRESHOLD + (cart.coupon?.maxDiscountRupees ?? 0);
+  while (minimum < maximum) {
+    const candidate = Math.floor((minimum + maximum) / 2);
+    if (candidate - getCouponDiscount(cart, candidate) >= FREE_SHIPPING_THRESHOLD) maximum = candidate;
+    else minimum = candidate + 1;
+  }
+  return Math.max(0, minimum - subtotal);
+};
+
 const couponLine = (cart: Cart, totals: CartTotals) => !cart.welcomeCouponCode ? null
   : totals.discount > 0 ? `Coupon ${cart.welcomeCouponCode}: -${formatINR(totals.discount)}`
     : cart.coupon ? `Coupon ${cart.welcomeCouponCode}: not applied (minimum items subtotal ${formatINR(cart.coupon.minimumSubtotalRupees)})`

@@ -6,6 +6,7 @@ import {
   updateCategoryPresentation,
 } from '../../services/categories';
 import type { CategorySettings } from '../../types/product';
+import SeasonalCategoryEditor from './SeasonalCategoryEditor';
 
 interface Props {
   categories: CategorySettings[];
@@ -15,6 +16,8 @@ interface Props {
 export default function CategoryManager({ categories, onChanged }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newSeasonal, setNewSeasonal] = useState(false);
+  const [seasonalName, setSeasonalName] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [replacementName, setReplacementName] = useState('');
   const [deleteName, setDeleteName] = useState<string | null>(null);
@@ -22,6 +25,7 @@ export default function CategoryManager({ categories, onChanged }: Props) {
   const [priorities, setPriorities] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const seasonalCategory = categories.find(category => category.name === seasonalName);
 
   const addCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,8 +34,9 @@ export default function CategoryManager({ categories, onChanged }: Props) {
     setMessage(null);
     try {
       const name = newName.trim();
-      await createCategory(name);
+      await createCategory(name, newSeasonal);
       setNewName('');
+      setNewSeasonal(false);
       setMessage(`“${name}” was added.`);
       await onChanged();
     } catch (createError) {
@@ -141,7 +146,7 @@ export default function CategoryManager({ categories, onChanged }: Props) {
 
       <div id="category-management-content" hidden={!isExpanded}>
         <p className="mt-4 text-sm text-cocoa/65">
-          Use lower priority numbers to show categories earlier in the catalogue.
+          Use lower priority numbers to show categories earlier in the catalogue. Seasonal categories such as Navaratri group existing products without moving them from their original categories; hide them when the season ends.
         </p>
 
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
@@ -156,6 +161,10 @@ export default function CategoryManager({ categories, onChanged }: Props) {
             placeholder="e.g. Bags"
             className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
           />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-cocoa">
+          <input type="checkbox" checked={newSeasonal} disabled={busyName !== null} onChange={event => setNewSeasonal(event.target.checked)} />
+          Seasonal category
         </label>
         <button
           type="submit"
@@ -176,10 +185,18 @@ export default function CategoryManager({ categories, onChanged }: Props) {
             {message}
           </p>
         )}
+        {seasonalCategory && <SeasonalCategoryEditor
+          key={seasonalCategory.name} category={seasonalCategory}
+          onChanged={onChanged} onClose={() => setSeasonalName(null)} />}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {categories.map((category) => (
           <div key={category.name} className="rounded-xl border border-mustard/30 bg-cream/50 p-3">
+            {category.isSeasonal && <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-cocoa/70">Seasonal · {category.visible === false ? 'Hidden' : 'Visible'} · {category.productIds?.length ?? 0} products</p>
+              <button type="button" disabled={busyName !== null} onClick={() => setSeasonalName(category.name)}
+                className="min-h-11 rounded-full border border-cocoa/30 px-3 text-sm font-semibold">Manage products</button>
+            </div>}
             {editingName === category.name ? (
               <form onSubmit={(event) => void saveRename(event, category.name)}>
                 <label className="text-sm font-semibold text-cocoa">
@@ -214,7 +231,7 @@ export default function CategoryManager({ categories, onChanged }: Props) {
             ) : deleteName === category.name ? (
               <div>
                 <p className="text-sm font-semibold text-red-800">
-                  Delete “{category.name}”? This works only when no products use it.
+                  Delete “{category.name}”? {category.isSeasonal ? 'Products remain in their original categories.' : 'This works only when no products use it.'}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button

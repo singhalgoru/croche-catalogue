@@ -27,7 +27,7 @@ import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
 import { compareCatalogueProducts } from './utils/catalogueSort';
-import { resolveCategorySelection } from './utils/categorySelection';
+import { matchesCategory, resolveCategorySelection } from './utils/categorySelection';
 import {
   findProductByReference,
   readProductReferenceFromHash,
@@ -107,10 +107,9 @@ function App() {
   }, []);
 
   const categories = useMemo(() => {
-    const populatedCategories = new Set(products.map((product) => product.category));
     return categorySettings
+      .filter(category => category.visible !== false && products.some(product => matchesCategory(product, category.name, categorySettings)))
       .map((category) => category.name)
-      .filter((category) => populatedCategories.has(category));
   }, [categorySettings, products]);
 
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
@@ -405,13 +404,13 @@ function App() {
     );
     return products
       .filter((product) => {
-        const matchesCategory =
+        const matchesSelectedCategory =
           effectiveActiveCategory === 'All' ||
           (effectiveActiveCategory === 'New'
             ? isProductNew(product, catalogueTime)
-            : product.category === effectiveActiveCategory);
+            : matchesCategory(product, effectiveActiveCategory, categorySettings));
         const matchesQuery = matchesProductSearch(product, query);
-        return matchesCategory && matchesQuery;
+        return matchesSelectedCategory && matchesQuery;
       })
       .sort((left, right) =>
         compareCatalogueProducts(left, right, { now: catalogueTime, categoryRanks }),
@@ -488,6 +487,8 @@ function App() {
 
   const cartDrawer = isCartOpen && (
     <CartDrawer
+      accountName={customerName}
+      onCreateAccount={() => setAccountMode('signup')}
       pageStep={checkoutStep ?? 'cart'}
       confirmationRequest={checkoutStep === 'confirmation' ? new URLSearchParams(window.location.search).get('checkoutRequest') ?? undefined : undefined}
       onNavigateStep={navigateCheckout}
@@ -763,7 +764,7 @@ function App() {
         </div>
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && <section className="space-y-3">
           <h2 className="font-heading text-xl font-bold text-cocoa">Explore collections</h2>
-          <CategoryTiles categories={categories} products={products} />
+          <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />
         </section>}
         <OrderingGuide />
       </main>

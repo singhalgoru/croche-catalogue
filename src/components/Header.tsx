@@ -43,6 +43,26 @@ export default function Header({
   accountName,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
+  const [signOutMessage, setSignOutMessage] = useState('');
+  const signOutPending = useRef(false);
+  const signOut = async () => {
+    if (signOutPending.current) return;
+    signOutPending.current = true;
+    menuButtonRef.current?.focus();
+    setIsSigningOut(true); setSignOutError(''); setSignOutMessage('');
+    try {
+      const { signOutCustomer } = await import('../services/customer');
+      await signOutCustomer();
+      setSignOutMessage('Signed out successfully.');
+    } catch (failure) {
+      setSignOutError(failure instanceof Error ? failure.message : 'Unable to sign out. Please retry.');
+    } finally {
+      signOutPending.current = false;
+      setIsSigningOut(false);
+    }
+  };
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -152,12 +172,18 @@ export default function Header({
                 <p className="truncate px-2 text-sm text-cocoa/70">Signed in as <span className="font-semibold text-cocoa">{accountName}</span></p>
                 <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
                   className="mt-2 min-h-11 w-full rounded-full border border-cocoa px-3 font-semibold hover:bg-cream">My account</button>
+                <button type="button" disabled={isSigningOut} onClick={() => { void signOut(); }}
+                  className="mt-2 min-h-11 w-full rounded-full border border-cocoa/30 px-3 font-semibold hover:bg-cream disabled:opacity-50">
+                  {isSigningOut ? 'Signing out…' : 'Sign out'}
+                </button>
               </div> : <div className="grid grid-cols-2 gap-2 px-1 py-2">
                 <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
                   className="min-h-11 rounded-full border border-cocoa px-3 font-semibold hover:bg-cream">Sign in</button>
                 <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signup'); }}
                   className="min-h-11 rounded-full bg-cocoa px-3 font-semibold text-white">Create account</button>
               </div>)}
+              {signOutError && <p role="alert" className="px-3 py-2 text-sm text-red-700">{signOutError}</p>}
+              {signOutMessage && <p role="status" className="px-3 py-2 text-sm text-green-800">{signOutMessage}</p>}
               {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
               {categories.map((category) => (
                 <a key={category} href={collectionPages ? collectionPath(category) : `${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}

@@ -1,14 +1,15 @@
-import type { Product } from '../types/product';
+import type { CategorySettings, Product } from '../types/product';
+import { matchesCategory } from '../utils/categorySelection';
 import { collectionPath } from '../utils/collectionLink.js';
 import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
 import { productImageProtection } from '../utils/imageProtection';
 
-export default function CategoryTiles({ categories, products }: {
-  categories: string[]; products: Product[];
+export default function CategoryTiles({ categories, products, categorySettings = [] }: {
+  categories: string[]; products: Product[]; categorySettings?: CategorySettings[];
 }) {
   return <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
     {categories.map(category => {
-      const candidates = products.filter(product => product.category === category);
+      const candidates = products.filter(product => matchesCategory(product, category, categorySettings));
       const product = candidates.find(candidate => candidate.inStock) ?? candidates[0];
       if (!product) return null;
       const image = product.variants.find(variant => variant.inStock)?.image ?? product.image;

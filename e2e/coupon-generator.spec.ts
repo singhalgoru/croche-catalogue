@@ -34,6 +34,11 @@ test('admin generates a first-order coupon with exact expiry, disables it and de
   await page.getByRole('button', { name: 'Load my cart for test payment' }).click();
   await expect(page.getByRole('alert')).toContainText('Your cart is empty');
   await expect(page.getByText('First-order coupon — ILOVELUVIA', { exact: true })).toBeVisible();
+  const toggle = page.getByRole('button', { name: 'Generate discount coupons', exact: true });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Generate random coupon' })).toBeHidden();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await page.getByLabel('First order only', { exact: true }).check();
   await page.getByLabel('Coupon expiry (your local time)').fill('2026-11-10T13:30');
   await page.getByRole('button', { name: 'Generate random coupon' }).click();

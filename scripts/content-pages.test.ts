@@ -16,6 +16,19 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('shows seasonal products in both collections and omits hidden seasonal pages and links', () => {
+    const categories = [{ name: 'Navaratri', priority: 1, isSeasonal: true, visible: true, productIds: ['p1', 'p2'] }];
+    const seasonal = buildContentPages([toy, hair], '919205907350', categories);
+    const doc = new JSDOM(seasonal.get('/collections/navaratri/')).window.document;
+    expect(doc.querySelector('.grid')?.textContent).toContain('Bunny');
+    expect(doc.querySelector('.grid')?.textContent).toContain('Rose Clip');
+    expect(seasonal.get('/collections/toys/')).toContain('Bunny');
+    expect(seasonal.get('/collections/hair-accessories/')).toContain('Rose Clip');
+    const hidden = buildContentPages([toy, hair], '919205907350', [{ ...categories[0], visible: false }]);
+    expect(hidden.has('/collections/navaratri/')).toBe(false);
+    expect(hidden.get('/collections/')).not.toContain('Navaratri');
+    expect(hidden.get('/collections/toys/')).toContain('Bunny');
+  });
   it('discloses the actual catalogue payment model and additional shipping in crawlable pages', () => {
     for (const pathname of ['/about/', '/faq/']) {
       const text = documentFor(pathname).body.textContent;

@@ -36,6 +36,19 @@ it('supports guest contact → address → persisted review without requiring si
   expect(screen.queryByRole('form', { name: 'Customer signup' })).toBeNull();
   expect(screen.getByText(/12 Test Street/)).toBeTruthy();
 });
+it('does not overwrite a chosen saved address when the default profile arrives later', async () => {
+  let resolveProfile!: (value: typeof details) => void;
+  vi.mocked(fetchCustomerProfile).mockImplementation(() => new Promise(resolve => { resolveProfile = resolve; }));
+  const office = { ...details, addressLine1: '5 Office Street', pincode: '411001' };
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'office', isDefault: false, details: office }]);
+  const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: office });
+  render(<CustomerFunnel cart={cart} pageStep="delivery" busy={false} onSave={save} onCoupon={vi.fn()} />);
+  fireEvent.change(await screen.findByLabelText('Deliver to saved address'), { target: { value: 'office' } });
+  await waitFor(() => expect(save).toHaveBeenCalledWith(office));
+  resolveProfile(details);
+  await waitFor(() => expect(screen.getByText('5 Office Street, New Delhi, Delhi, 411001, India')).toBeTruthy());
+  expect(save).toHaveBeenCalledTimes(1);
+});
 it('requires a contact email for live checkout and flags older saved addresses without one', async () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: { ...details, email: '' } }} busy={false}
     onSave={vi.fn()} onCoupon={vi.fn()} onlineCheckout />);
@@ -137,4 +150,40 @@ it('lets a signed-in customer switch the order to another saved address', async 
   expect((picker as HTMLSelectElement).value).toBe('home');
   fireEvent.change(picker, { target: { value: 'office' } });
   await waitFor(() => expect(save).toHaveBeenCalledWith(office));
+});
+it('offers saved addresses during delivery and saves the selected pincode before review', async () => {
+  const office = { ...details, addressLine1: '5 Office Park', city: 'Pune', state: 'Maharashtra', pincode: '411001' };
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([
+    { id: 'home', isDefault: true, details }, { id: 'office', isDefault: false, details: office }]);
+  const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: office, deliveryPinCode: office.pincode });
+  const review = vi.fn();
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} pageStep="delivery"
+    onSave={save} onCoupon={vi.fn()} onReview={review} onlineCheckout />);
+  expect(screen.getByLabelText('Recipient name')).toBeTruthy();
+  fireEvent.change(await screen.findByLabelText('Deliver to saved address'), { target: { value: 'office' } });
+  await waitFor(() => expect(review).toHaveBeenCalledTimes(1));
+  expect(save).toHaveBeenCalledWith(office);
+});
+it('keeps delivery open and reports failures when a saved address cannot be applied', async () => {
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'home', isDefault: true, details }]);
+  const review = vi.fn();
+  render(<CustomerFunnel cart={cart} busy={false} pageStep="delivery"
+    onSave={vi.fn().mockRejectedValue(new Error('Unable to calculate shipping.'))} onCoupon={vi.fn()} onReview={review} />);
+  fireEvent.change(await screen.findByLabelText('Deliver to saved address'), { target: { value: 'home' } });
+  expect((await screen.findByRole('alert')).textContent).toContain('Unable to calculate shipping.');
+  expect(review).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Recipient name')).toBeTruthy();
+});
+it('requires an email for a saved live-checkout address and retains it when supplied', async () => {
+  vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'home', isDefault: true, details: { ...details, email: '' } }]);
+  const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: details });
+  render(<CustomerFunnel cart={cart} busy={false} pageStep="delivery" onlineCheckout
+    onSave={save} onCoupon={vi.fn()} />);
+  const picker = await screen.findByLabelText('Deliver to saved address');
+  fireEvent.change(picker, { target: { value: 'home' } });
+  expect(screen.getByRole('alert').textContent).toContain('Add a contact email');
+  expect(save).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Contact email'), { target: { value: details.email } });
+  fireEvent.change(picker, { target: { value: 'home' } });
+  await waitFor(() => expect(save).toHaveBeenCalledWith(details));
 });
