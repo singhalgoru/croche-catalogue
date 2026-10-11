@@ -15,10 +15,10 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
-  it('caps previously saved long overviews at 150 words', () => {
+  it('caps previously saved long overviews at 90 words', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} categorySettings={[{ name: 'Toys', priority: 10, overview: Array(200).fill('crochet').join(' ') }]} />);
-    expect(screen.getByText(Array(150).fill('crochet').join(' '))).toBeTruthy();
+    expect(screen.getByText(Array(90).fill('crochet').join(' '))).toBeTruthy();
     expect(screen.queryByText(Array(200).fill('crochet').join(' '))).toBeNull();
   });
   it('shows seasonal membership and the saved overview without moving the primary category', () => {

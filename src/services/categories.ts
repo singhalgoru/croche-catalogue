@@ -78,7 +78,7 @@ export async function createCategory(name: string, isSeasonal = false): Promise<
 }
 
 export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean, overview = '', featuredTicker = false): Promise<void> {
-  if (countOverviewWords(overview) > 150) throw new Error('Keep the category overview to 150 words or fewer.');
+  if (countOverviewWords(overview) > 90) throw new Error('Keep the category overview to 90 words or fewer.');
   const client = await requireSupabase();
   const { error } = await client.rpc('save_seasonal_category', {
     category_name: name, selected_product_ids: productIds, show_category: visible,
@@ -88,7 +88,7 @@ export async function saveSeasonalCategory(name: string, productIds: string[], v
 }
 
 export async function saveCategoryOverview(name: string, overview: string): Promise<void> {
-  if (countOverviewWords(overview) > 150) throw new Error('Keep the category overview to 150 words or fewer.');
+  if (countOverviewWords(overview) > 90) throw new Error('Keep the category overview to 90 words or fewer.');
   const client = await requireSupabase();
   const { error } = await client.from('categories').update({ overview }).eq('name', name);
   if (error) throw new Error(`Unable to save category overview: ${error.message}`);

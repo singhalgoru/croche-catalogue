@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { countOverviewWords, limitCategoryOverview } from './categoryOverview.js';
-it.each([0, 99, 100, 150, 151, 300])('caps an overview containing %s words at 150', count => {
+it.each([0, 59, 60, 90, 91, 300])('caps an overview containing %s words at 90', count => {
   const text = Array(count).fill('crochet').join(' \n ');
   expect(countOverviewWords(text)).toBe(count);
-  expect(countOverviewWords(limitCategoryOverview(text))).toBe(Math.min(count, 150));
+  expect(countOverviewWords(limitCategoryOverview(text))).toBe(Math.min(count, 90));
 });

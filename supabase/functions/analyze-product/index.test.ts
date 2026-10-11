@@ -17,7 +17,7 @@ const metadata = {
   seoDescription: 'Handmade lavender crochet bunny keychain.',
   materials: '', dimensions: '', includedItems: '', careInstructions: '',
 };
-const validOverview = Array(25).fill('Handmade rose crochet charms.').join(' ');
+const validOverview = Array(20).fill('Handmade rose crochet charms.').join(' ');
 const geminiResponse = (
   value: unknown,
 ) => new Response(JSON.stringify({
@@ -120,22 +120,27 @@ describe('analyze-product endpoint', () => {
     expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it.each([99, 100, 150, 151])('enforces the exact generated overview word count of %s', async words => {
+  it.each([59, 60, 90, 91])('enforces the exact generated overview word count of %s', async words => {
     mockCategoryOverview();
     fetchMock.mockImplementation(async () => geminiResponse({ overview: Array(words).fill('crochet').join(' ') }));
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
-    expect(response.status).toBe(words >= 100 && words <= 150 ? 200 : 502);
-    expect(fetchMock).toHaveBeenCalledTimes(words >= 100 && words <= 150 ? 1 : 2);
+    expect(response.status).toBe(words >= 60 && words <= 90 ? 200 : 502);
+    expect(fetchMock).toHaveBeenCalledTimes(words >= 60 && words <= 90 ? 1 : 2);
   });
   it('accepts a corrected draft after one word-count retry', async () => {
     mockCategoryOverview();
-    fetchMock.mockResolvedValueOnce(geminiResponse({ overview: Array(151).fill('crochet').join(' ') }))
+    fetchMock.mockResolvedValueOnce(geminiResponse({ overview: Array(91).fill('crochet').join(' ') }))
       .mockResolvedValueOnce(geminiResponse({ overview: validOverview }));
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ overview: validOverview });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).contents[0].parts[1].text).toContain('151 words');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).contents[0].parts[1].text).toContain('91 words');
+    const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text;
+    expect(prompt).toContain('60-90 words');
+    expect(prompt).toContain('category and product keywords');
+    expect(prompt).toContain('handmade crochet');
+    expect(prompt).toContain('invite shoppers to explore');
   });
   it('reports malformed Gemini overviews without success-shaped fallback content', async () => {
     mockCategoryOverview();
