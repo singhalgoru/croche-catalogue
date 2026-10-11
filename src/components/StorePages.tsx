@@ -139,7 +139,6 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
-          {category && <a href={`/?category=${encodeURIComponent(category)}`} className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop {category} with the cart</a>}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
           {showCatalogue && <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {collectionProducts.map((product, index) => <li key={product.id}>

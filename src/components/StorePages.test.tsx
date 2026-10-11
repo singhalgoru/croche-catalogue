@@ -15,6 +15,11 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('does not send collection shoppers back to homepage filters', () => {
+    window.history.replaceState(null, '', '/collections/toys/');
+    render(<StorePages {...initial} />);
+    expect(screen.queryByRole('link', { name: /with the cart/ })).toBeNull();
+  });
   it('caps previously saved long overviews at 90 words', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} categorySettings={[{ name: 'Toys', priority: 10, overview: Array(200).fill('crochet').join(' ') }]} />);

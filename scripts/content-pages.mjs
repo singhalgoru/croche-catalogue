@@ -75,7 +75,6 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     } };
     const collectionHtml = page(pathname, title, description, `<p class="intro">${escapeHtml(description)}</p>
       <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability; confirm shipping and dispatch before paying.</p>
-      <p><a class="button" href="/?category=${encodeURIComponent(category)}">Shop ${escapeHtml(category)} with the cart</a></p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
       <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema);
     pages.set(pathname, items.length ? collectionHtml

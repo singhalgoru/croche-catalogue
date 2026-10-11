@@ -16,6 +16,11 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('omits the redundant homepage shopping button on static collections', () => {
+    const result = buildContentPages([toy], '919205907350');
+    expect(result.get('/collections/toys/')).not.toContain('with the cart');
+    expect(result.get('/collections/toys/')).toContain('Choose options &amp; add to cart');
+  });
   it('caps stored long overviews at 90 words in static pages too', () => {
     const result = buildContentPages([toy], '919205907350', [{ name: 'Toys', priority: 10, overview: Array(200).fill('crochet').join(' ') }]);
     const doc = new JSDOM(result.get('/collections/toys/')).window.document;
@@ -75,7 +80,7 @@ describe('collection and information pages', () => {
     expect(doc.querySelector('.product-card .product-photo img[aria-hidden="true"]')).toBeTruthy();
     expect(doc.querySelector('.product-copy h2 a')?.textContent).toBe('Bunny');
     expect(doc.querySelector('a[href="/p/bunny/"]')).toBeTruthy();
-    expect(doc.querySelector('a[href="/?category=Toys"]')).toBeTruthy();
+    expect(doc.querySelector('a[href="/?category=Toys"]')).toBeNull();
     expect(doc.querySelector('.product-copy a.button[href="/p/bunny/"]')?.textContent).toContain('add to cart');
     expect(doc.querySelector('.product-copy a[aria-label="Share Bunny"]')?.getAttribute('href')).toContain(encodeURIComponent('https://luviacreations.com/p/bunny/'));
     const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
