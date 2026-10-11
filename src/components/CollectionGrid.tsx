@@ -1,6 +1,7 @@
 import type { CategorySettings, Product } from '../types/product';
 import { collectionPath } from '../utils/collectionLink.js';
 import { getProductImageUrl } from '../utils/productImageUrl';
+import { compareCategorySettings, matchesCategory } from '../utils/categorySelection';
 
 interface Props {
   categories: CategorySettings[];
@@ -8,17 +9,10 @@ interface Props {
 }
 
 export default function CollectionGrid({ categories, products }: Props) {
-  const groups = new Map<string, Product[]>();
-  for (const product of products) {
-    const items = groups.get(product.category) ?? [];
-    items.push(product);
-    groups.set(product.category, items);
-  }
-
   return <nav aria-label="Explore collections">
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      {categories.map(category => {
-        const items = groups.get(category.name) ?? [];
+      {[...categories].sort(compareCategorySettings).map(category => {
+        const items = products.filter(product => matchesCategory(product, category.name, categories));
         if (!items.length) return null;
         const image = items.find(product => product.image)?.image;
         return <li key={category.name}>

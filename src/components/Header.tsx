@@ -15,6 +15,7 @@ interface Props {
   cartUpdateCount?: number;
   onOpenCart?: () => void;
   tickerMessages?: string[];
+  seasonalAnnouncement?: { name: string; text: string };
   categories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
   collectionPages?: boolean;
@@ -34,6 +35,7 @@ export default function Header({
   cartUpdateCount = 0,
   onOpenCart,
   tickerMessages = DEFAULT_TICKER_MESSAGES,
+  seasonalAnnouncement,
   categories = [],
   onNavigateCatalogue,
   collectionPages = false,
@@ -67,7 +69,9 @@ export default function Header({
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [tickerIndex, setTickerIndex] = useState(0);
-  const messages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
+  const [tickerFocused, setTickerFocused] = useState(false);
+  const baseMessages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
+  const messages = seasonalAnnouncement ? [seasonalAnnouncement.text, ...baseMessages] : baseMessages;
   const tickerMessage = messages[tickerIndex % messages.length];
   const navigateCatalogue = (event: MouseEvent<HTMLAnchorElement>, category?: string) => {
     if (!onNavigateCatalogue || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
@@ -97,13 +101,13 @@ export default function Header({
   }, [isMenuOpen]);
 
   useEffect(() => {
-    if (messages.length < 2) return;
+    if (messages.length < 2 || tickerFocused) return;
     const timer = window.setInterval(
       () => setTickerIndex((current) => (current + 1) % messages.length),
       6000,
     );
     return () => window.clearInterval(timer);
-  }, [messages.length]);
+  }, [messages.length, tickerFocused]);
 
   return (
     <header className="bg-cream border-b-4 border-mustard">
@@ -111,10 +115,16 @@ export default function Header({
         <div
           className="shipping-ticker overflow-hidden bg-cocoa py-2 text-sm font-bold text-cream"
           aria-label="Store announcements"
+          onFocus={() => setTickerFocused(true)}
+          onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setTickerFocused(false); }}
         >
-          <div className="shipping-ticker-track" key={`${tickerIndex}-${tickerMessage}`}>
-            <span>{tickerMessage}</span>
-            <span aria-hidden="true">{tickerMessage}</span>
+          <div className={`shipping-ticker-track ${seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text ? 'shipping-ticker-featured' : ''}`} key={`${tickerIndex}-${tickerMessage}`}>
+            {seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text
+              ? <a href={collectionPath(seasonalAnnouncement.name)} className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-cream">{tickerMessage}</a>
+              : <span>{tickerMessage}</span>}
+            {seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text
+              ? <a href={collectionPath(seasonalAnnouncement.name)} aria-hidden="true" tabIndex={-1} className="underline underline-offset-4">{tickerMessage}</a>
+              : <span aria-hidden="true">{tickerMessage}</span>}
           </div>
         </div>
       )}

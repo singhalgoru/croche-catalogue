@@ -7,6 +7,8 @@ export interface CategorySettings {
   isSeasonal?: boolean;
   visible?: boolean;
   productIds?: string[];
+  overview?: string;
+  featuredTicker?: boolean;
 }
 
 export interface ProductVariantImage {

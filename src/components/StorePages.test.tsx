@@ -15,6 +15,15 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('shows seasonal membership and the saved overview without moving the primary category', () => {
+    window.history.replaceState(null, '', '/collections/navaratri/');
+    render(<StorePages {...initial} categorySettings={[...initial.categorySettings, {
+      name: 'Navaratri', priority: 999, isSeasonal: true, visible: true, productIds: ['p1'], overview: 'Our reviewed seasonal overview.',
+    }]} />);
+    expect(screen.getByText('Our reviewed seasonal overview.')).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    expect(screen.getByRole('banner').textContent).toBe('Navaratri, Toys');
+  });
   it('shows the business phone, order model and policy links on the About page', () => {
     window.history.replaceState(null, '', '/about/');
     render(<StorePages {...initial} />);

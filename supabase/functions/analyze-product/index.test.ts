@@ -66,6 +66,48 @@ beforeEach(() => {
 });
 
 describe('analyze-product endpoint', () => {
+  const mockCategoryOverview = (products: { name: string; description: string }[] = [{ name: 'Rose', description: 'Handmade rose charm.' }]) => {
+    const categoryQuery = { select: vi.fn(), eq: vi.fn(), single: vi.fn().mockResolvedValue({
+      data: { name: 'Navaratri', is_seasonal: true, seasonal_category_products: [{ product_id: 'rose' }] }, error: null,
+    }) };
+    categoryQuery.select.mockReturnValue(categoryQuery);
+    categoryQuery.eq.mockReturnValue(categoryQuery);
+    const productQuery = { select: vi.fn(), eq: vi.fn(), in: vi.fn(), order: vi.fn(), limit: vi.fn().mockResolvedValue({ data: products, error: null }) };
+    productQuery.select.mockReturnValue(productQuery); productQuery.eq.mockReturnValue(productQuery);
+    productQuery.in.mockReturnValue(productQuery); productQuery.order.mockReturnValue(productQuery);
+    from.mockImplementation(table => table === 'categories' ? categoryQuery : productQuery);
+    return productQuery;
+  };
+  it('generates category overviews from server-selected published products using Gemini 3.6 directly', async () => {
+    const productsQuery = mockCategoryOverview();
+    fetchMock.mockResolvedValue(geminiResponse({ overview: 'Handmade rose charms for seasonal gifting.' }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri', imageBase64: undefined, mimeType: undefined }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ overview: 'Handmade rose charms for seasonal gifting.' });
+    expect(productsQuery.eq).toHaveBeenCalledWith('published', true);
+    expect(productsQuery.in).toHaveBeenCalledWith('id', ['rose']);
+    expect(fetchMock.mock.calls[0][0]).toContain('/gemini-3.6-flash:generateContent');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text).toContain('Handmade rose charm.');
+  });
+  it('rejects empty collections without making a billable Gemini call', async () => {
+    mockCategoryOverview([]);
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('rejects non-admin category overview generation', async () => {
+    rpc.mockResolvedValue({ data: false, error: null });
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('reports malformed Gemini overviews without success-shaped fallback content', async () => {
+    mockCategoryOverview();
+    fetchMock.mockResolvedValue(geminiResponse({ overview: '' }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: 'Gemini returned an invalid category overview.' });
+  });
   it('keeps product identity when generating descriptions in bulk mode', async () => {
     fetchMock.mockResolvedValue(geminiResponse(metadata));
     const response = await handler(request({ mode: 'descriptions', context: { name: 'Bunny', category: 'Accessories' } }));

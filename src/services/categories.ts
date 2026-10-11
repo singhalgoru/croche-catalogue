@@ -1,5 +1,6 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import type { Category, CategorySettings } from '../types/product';
+import { compareCategorySettings } from '../utils/categorySelection';
 
 interface CategoryRow {
   name: string;
@@ -7,6 +8,8 @@ interface CategoryRow {
   is_seasonal?: boolean;
   visible?: boolean;
   seasonal_category_products?: { product_id: string }[];
+  overview?: string;
+  featured_ticker?: boolean;
 }
 
 declare global {
@@ -35,7 +38,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     const client = await requireSupabase();
     const { data, error } = await client
       .from('categories')
-      .select('name, sort_order, is_seasonal, visible, seasonal_category_products(product_id)')
+      .select('name, sort_order, is_seasonal, visible, overview, featured_ticker, seasonal_category_products(product_id)')
       .order('sort_order')
       .order('name');
     if (error) throw new Error(`Unable to load categories: ${error.message}`);
@@ -48,7 +51,9 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     isSeasonal: category.is_seasonal ?? false,
     visible: category.visible ?? true,
     productIds: category.seasonal_category_products?.map(item => item.product_id) ?? [],
-  }));
+    overview: category.overview ?? '',
+    featuredTicker: category.featured_ticker ?? false,
+  })).sort(compareCategorySettings);
 }
 
 export async function fetchCategories(): Promise<Category[]> {
@@ -71,12 +76,32 @@ export async function createCategory(name: string, isSeasonal = false): Promise<
 
 }
 
-export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean): Promise<void> {
+export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean, overview = '', featuredTicker = false): Promise<void> {
   const client = await requireSupabase();
   const { error } = await client.rpc('save_seasonal_category', {
     category_name: name, selected_product_ids: productIds, show_category: visible,
+    category_overview: overview, feature_in_ticker: featuredTicker,
   });
   if (error) throw new Error(`Unable to save seasonal category: ${error.message}`);
+}
+
+export async function saveCategoryOverview(name: string, overview: string): Promise<void> {
+  const client = await requireSupabase();
+  const { error } = await client.from('categories').update({ overview }).eq('name', name);
+  if (error) throw new Error(`Unable to save category overview: ${error.message}`);
+}
+
+export async function generateCategoryOverview(name: string): Promise<string> {
+  const client = await requireSupabase();
+  const { data, error } = await client.functions.invoke('analyze-product', {
+    body: { mode: 'category-overview', categoryName: name },
+  });
+  if (error) throw new Error(`Unable to generate category overview: ${error.message}`);
+  if (data?.error) throw new Error(String(data.error));
+  if (typeof data?.overview !== 'string' || !data.overview.trim() || data.overview.length > 2000) {
+    throw new Error('Gemini returned an invalid category overview.');
+  }
+  return data.overview.trim();
 }
 
 export async function renameCategory(currentName: string, replacementName: string): Promise<void> {

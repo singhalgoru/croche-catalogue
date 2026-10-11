@@ -35,7 +35,8 @@ nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:7
 
 export const buildContentPages = (products, whatsappNumber, categories = []) => {
   const pages = new Map();
-  const groups = new Map(categories.filter(category => category.visible !== false).map(category => [
+  const orderedCategories = [...categories].sort((a, b) => Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority);
+  const groups = new Map(orderedCategories.filter(category => category.visible !== false).map(category => [
     category.name, category.isSeasonal ? products.filter(product => category.productIds?.includes(product.id)) : [],
   ]));
   for (const product of products) {
@@ -53,8 +54,8 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     const pathname = collectionPath(category);
     if (pages.has(pathname)) throw new Error(`Duplicate collection path: ${category}`);
     const title = `Handmade ${category}`;
-    const description = Object.hasOwn(descriptions, category) ? descriptions[category]
-      : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`;
+    const description = categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
+      : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`);
     const cards = items.map((product, index) => {
       const range = priceRange(product);
       const price = range ? `${range.low !== range.high ? 'From ' : ''}₹${range.low.toLocaleString('en-IN')}` : 'Price on request';

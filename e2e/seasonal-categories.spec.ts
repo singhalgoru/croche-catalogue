@@ -3,7 +3,7 @@ import { installMockSupabase } from './mockSupabase';
 
 test('admin creates a seasonal category, selects existing products and hides it without moving products', async ({ page }) => {
   const state = await installMockSupabase(page);
-  type CategoryRow = { name: string; sort_order: number; is_seasonal: boolean; visible: boolean; seasonal_category_products: { product_id: string }[] };
+  type CategoryRow = { name: string; sort_order: number; is_seasonal: boolean; visible: boolean; overview?: string; featured_ticker?: boolean; seasonal_category_products: { product_id: string }[] };
   const categories: CategoryRow[] = state.categories.map(name => ({
     name, sort_order: 100, is_seasonal: false, visible: true, seasonal_category_products: [],
   }));
@@ -18,8 +18,14 @@ test('admin creates a seasonal category, selects existing products and hides it 
     const body = route.request().postDataJSON();
     const category = categories.find(item => item.name === body.category_name)!;
     category.visible = body.show_category;
+    category.overview = body.category_overview;
+    category.featured_ticker = body.feature_in_ticker;
     category.seasonal_category_products = body.selected_product_ids.map((product_id: string) => ({ product_id }));
     await route.fulfill({ status: 204 });
+  });
+  await page.route('**/functions/v1/analyze-product', route => {
+    expect(route.request().postDataJSON()).toEqual({ mode: 'category-overview', categoryName: 'Navaratri' });
+    return route.fulfill({ json: { overview: 'Explore handmade rose charms in our Navaratri collection.' } });
   });
   await page.goto('./#admin');
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
@@ -33,14 +39,31 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await page.getByRole('button', { name: 'Manage products', exact: true }).click();
   const editor = page.getByRole('region', { name: 'Products in Navaratri' });
   await editor.getByLabel('Rose Charm · Charms', { exact: true }).check();
+  await editor.getByLabel('Feature this category in the clickable store ticker').check();
   await editor.getByRole('button', { name: 'Save seasonal category' }).click();
   await expect(editor).toHaveCount(0);
   expect(state.products.find(product => product.name === 'Rose Charm')?.category).toBe('Charms');
+  await page.getByRole('button', { name: 'Manage products', exact: true }).click();
+  await editor.getByRole('button', { name: 'Generate overview with Gemini' }).click();
+  await expect(editor.getByLabel('Category overview')).toHaveValue('Explore handmade rose charms in our Navaratri collection.');
+  expect(categories.find(item => item.name === 'Navaratri')?.overview).toBe('');
+  await editor.getByLabel('Category overview').fill('Reviewed Navaratri collection overview.');
+  await editor.getByRole('button', { name: 'Save seasonal category' }).click();
+  await expect(editor).toHaveCount(0);
   await page.goto('./?category=Navaratri');
   await expect(page.getByRole('button', { name: 'Navaratri', exact: true })).toBeVisible();
+  const buttons = page.getByLabel('Product categories', { exact: true }).getByRole('button');
+  await expect(buttons.first()).toHaveText('Navaratri');
+  const announcement = page.getByRole('link', { name: 'Check out our Navaratri collection', exact: true });
+  await expect(announcement).toHaveAttribute('href', '/collections/navaratri/');
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Product: New Heart Charm' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Charms', exact: true }).click();
+  await expect(buttons.first()).toHaveText('Navaratri');
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
+  await page.getByRole('link', { name: 'Check out our Navaratri collection', exact: true }).click();
+  await expect(page).toHaveURL(/\/collections\/navaratri\/$/);
+  await expect(page.getByText('Reviewed Navaratri collection overview.', { exact: true })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
   await page.goto('./#admin');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

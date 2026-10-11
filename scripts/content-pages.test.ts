@@ -17,11 +17,13 @@ const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.
 
 describe('collection and information pages', () => {
   it('shows seasonal products in both collections and omits hidden seasonal pages and links', () => {
-    const categories = [{ name: 'Navaratri', priority: 1, isSeasonal: true, visible: true, productIds: ['p1', 'p2'] }];
+    const categories = [{ name: 'Navaratri', priority: 999, isSeasonal: true, visible: true, productIds: ['p1', 'p2'], overview: 'Reviewed overview & handmade gifts.' }];
     const seasonal = buildContentPages([toy, hair], '919205907350', categories);
     const doc = new JSDOM(seasonal.get('/collections/navaratri/')).window.document;
     expect(doc.querySelector('.grid')?.textContent).toContain('Bunny');
     expect(doc.querySelector('.grid')?.textContent).toContain('Rose Clip');
+    expect(doc.body.textContent).toContain('Reviewed overview & handmade gifts.');
+    expect([...seasonal.keys()][0]).toBe('/collections/navaratri/');
     expect(seasonal.get('/collections/toys/')).toContain('Bunny');
     expect(seasonal.get('/collections/hair-accessories/')).toContain('Rose Clip');
     const hidden = buildContentPages([toy, hair], '919205907350', [{ ...categories[0], visible: false }]);

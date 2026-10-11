@@ -27,7 +27,7 @@ import { trackEvent, trackProductSelected } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
 import { compareCatalogueProducts } from './utils/catalogueSort';
-import { matchesCategory, resolveCategorySelection } from './utils/categorySelection';
+import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory, resolveCategorySelection } from './utils/categorySelection';
 import {
   findProductByReference,
   readProductReferenceFromHash,
@@ -107,10 +107,11 @@ function App() {
   }, []);
 
   const categories = useMemo(() => {
-    return categorySettings
+    return [...categorySettings].sort(compareCategorySettings)
       .filter(category => category.visible !== false && products.some(product => matchesCategory(product, category.name, categorySettings)))
       .map((category) => category.name)
   }, [categorySettings, products]);
+  const seasonalAnnouncement = getSeasonalAnnouncement(categorySettings, products);
 
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
     new URLSearchParams(window.location.search).get('category') || 'All');
@@ -560,6 +561,7 @@ function App() {
     return <div className="flex min-h-screen flex-col bg-cream">
       {cartNotifications}
       <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
+        seasonalAnnouncement={seasonalAnnouncement}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} accountName={customerName} />
       <main className="w-full flex-1">{cartDrawer}</main>
@@ -597,6 +599,7 @@ function App() {
         mobileCartInToolbar={!pageReference}
         hideMobileCart={!pageReference && areCatalogueToolsSticky}
         tickerMessages={tickerMessages}
+        seasonalAnnouncement={seasonalAnnouncement}
         categories={categories}
         onNavigateCatalogue={navigateCatalogue}
         onOpenAccount={openAccount}
@@ -692,6 +695,7 @@ function App() {
             />
             <CategoryFilter
               categories={categories}
+              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
               active={effectiveActiveCategory}
               onSelect={selectCategory}
               showNew={hasNewProducts}
@@ -722,6 +726,7 @@ function App() {
             </div>
             <CategoryFilter
               categories={categories}
+              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
               active={effectiveActiveCategory}
               onSelect={selectCategory}
               showNew={hasNewProducts}

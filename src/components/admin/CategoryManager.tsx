@@ -197,6 +197,8 @@ export default function CategoryManager({ categories, onChanged }: Props) {
               <button type="button" disabled={busyName !== null} onClick={() => setSeasonalName(category.name)}
                 className="min-h-11 rounded-full border border-cocoa/30 px-3 text-sm font-semibold">Manage products</button>
             </div>}
+            {!category.isSeasonal && <button type="button" disabled={busyName !== null} onClick={() => setSeasonalName(category.name)}
+              className="mb-3 min-h-11 rounded-full border border-cocoa/30 px-3 text-sm font-semibold">Edit overview</button>}
             {editingName === category.name ? (
               <form onSubmit={(event) => void saveRename(event, category.name)}>
                 <label className="text-sm font-semibold text-cocoa">

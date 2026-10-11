@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { saveSeasonalCategory } from '../../services/categories';
+import { generateCategoryOverview, saveCategoryOverview, saveSeasonalCategory } from '../../services/categories';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import type { CategorySettings } from '../../types/product';
 
@@ -9,6 +9,17 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [selected, setSelected] = useState(() => new Set(category.productIds ?? []));
   const [visible, setVisible] = useState(category.visible !== false);
+  const [overview, setOverview] = useState(category.overview ?? '');
+  const [featuredTicker, setFeaturedTicker] = useState(category.featuredTicker ?? false);
+  const [message, setMessage] = useState('');
+  const generate = async () => {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      setOverview(await generateCategoryOverview(category.name));
+      setMessage('Gemini draft generated. Review and edit it, then save to publish.');
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to generate category overview.'); }
+    finally { setBusy(false); }
+  };
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -23,7 +34,8 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   const save = async () => {
     setBusy(true); setError('');
     try {
-      await saveSeasonalCategory(category.name, [...selected], visible);
+      if (category.isSeasonal) await saveSeasonalCategory(category.name, [...selected], visible, overview, featuredTicker);
+      else await saveCategoryOverview(category.name, overview);
       await onChanged();
       onClose();
     } catch (failure) {
@@ -32,11 +44,17 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   };
   return <section aria-label={`Products in ${category.name}`} className="mt-4 rounded-xl border border-mustard/40 bg-white p-4">
     <h3 className="font-heading text-xl font-bold">{category.name} products</h3>
+    {category.isSeasonal && <>
     <p className="mt-2 text-sm text-cocoa/70">Select existing products. Their original categories, prices and stock remain unchanged. A product can belong to several seasonal categories.</p>
     <label className="mt-3 flex items-center gap-2 text-sm font-semibold">
       <input type="checkbox" checked={visible} disabled={busy} onChange={event => setVisible(event.target.checked)} />
       Show this seasonal category in the shop
     </label>
+    <label className="mt-3 flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={featuredTicker} disabled={busy || !visible} onChange={event => setFeaturedTicker(event.target.checked)} />
+      Feature this category in the clickable store ticker
+    </label>
+    <p className="mt-1 text-xs text-cocoa/70">Selecting this replaces the previously featured seasonal category. Hidden or empty categories are not announced.</p>
     <label className="mt-3 block text-sm">Search products
       <input type="search" value={query} disabled={busy} onChange={event => setQuery(event.target.value)}
         className="mt-1 w-full rounded-xl border border-mustard/60 p-2" />
@@ -55,10 +73,19 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
       {products.length === 0 && !error && <p>No products available yet.</p>}
     </div>}
     <p className="mt-2 text-xs text-cocoa/70">{selected.size} selected. Only published products appear in the shop. Empty seasonal categories are not shown in the shop navigation.</p>
+    </>}
+    <label className="mt-4 block text-sm font-semibold">Category overview
+      <textarea value={overview} maxLength={2000} rows={5} disabled={busy} onChange={event => setOverview(event.target.value)}
+        className="mt-1 w-full rounded-xl border border-mustard/60 p-2" />
+    </label>
+    <button type="button" disabled={busy || loading} onClick={() => { void generate(); }}
+      className="mt-3 min-h-11 rounded-full border border-cocoa/30 px-4 py-2 font-semibold disabled:opacity-60">Generate overview with Gemini</button>
+    <p className="mt-2 text-xs text-cocoa/70">Uses saved, published products only. Save product selection first, then generate. Review the draft before publishing; Gemini API charges may apply.</p>
+    {message && <p role="status" className="mt-2 text-sm">{message}</p>}
     {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     <div className="mt-4 flex gap-3">
       <button type="button" disabled={busy || loading || products.length === 0} onClick={() => { void save(); }}
-        className="min-h-11 rounded-full bg-cocoa px-4 py-2 font-semibold text-cream disabled:opacity-60">{busy ? 'Saving…' : 'Save seasonal category'}</button>
+        className="min-h-11 rounded-full bg-cocoa px-4 py-2 font-semibold text-cream disabled:opacity-60">{busy ? 'Please wait…' : category.isSeasonal ? 'Save seasonal category' : 'Save category overview'}</button>
       <button type="button" disabled={busy} onClick={onClose} className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Cancel</button>
     </div>
   </section>;

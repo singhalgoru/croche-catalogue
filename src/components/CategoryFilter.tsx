@@ -4,6 +4,7 @@ import { orderCategoryOptions } from '../utils/categorySelection';
 
 interface Props {
   categories: Category[];
+  seasonalCategories?: Category[];
   active: CatalogueFilter;
   onSelect: (category: CatalogueFilter) => void;
   compactOnMobile?: boolean;
@@ -12,15 +13,20 @@ interface Props {
 
 export default function CategoryFilter({
   categories,
+  seasonalCategories = [],
   active,
   onSelect,
   compactOnMobile = false,
   showNew = true,
 }: Props) {
-  const allOptions = orderCategoryOptions(
+  const orderedOptions = orderCategoryOptions(
     ['All', ...(showNew ? (['New'] as const) : []), ...categories],
     active,
   );
+  const allOptions = [
+    ...categories.filter(category => seasonalCategories.includes(category)),
+    ...orderedOptions.filter(option => !seasonalCategories.includes(option)),
+  ];
   const rowRef = useRef<HTMLDivElement>(null);
 
   // On mobile the chips scroll sideways; bring the row back to the start so

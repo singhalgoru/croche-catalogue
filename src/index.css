@@ -42,8 +42,24 @@ body {
   animation: shipping-ticker 16s linear infinite;
 }
 
-.shipping-ticker-track span {
+.shipping-ticker-track > * {
   min-width: max-content;
+}
+
+.shipping-ticker-track.shipping-ticker-featured {
+  width: 100%;
+  justify-content: center;
+  animation: none;
+  padding-inline: 1rem;
+}
+
+.shipping-ticker-featured > a {
+  min-width: 0;
+  text-align: center;
+}
+
+.shipping-ticker-featured [aria-hidden='true'] {
+  display: none;
 }
 
 @keyframes shipping-ticker {
@@ -103,7 +119,7 @@ body {
     animation: none;
   }
 
-  .shipping-ticker-track span[aria-hidden='true'] {
+  .shipping-ticker-track [aria-hidden='true'] {
     display: none;
   }
 

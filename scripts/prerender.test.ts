@@ -55,7 +55,7 @@ describe('fetchProducts', () => {
       ok: true, json: async () => [{ name: 'Toys', sort_order: 10 }],
     }));
     expect(await fetchBootstrapCategories('https://example.supabase.co', 'public-key'))
-      .toEqual([{ name: 'Toys', priority: 10, isSeasonal: false, visible: true, productIds: [] }]);
+      .toEqual([{ name: 'Toys', priority: 10, isSeasonal: false, visible: true, productIds: [], overview: '', featuredTicker: false }]);
   });
 
   it('fails a build if the category snapshot cannot be fetched', async () => {

@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { matchesCategory, orderCategoryOptions, resolveCategorySelection } from './categorySelection';
+import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory, orderCategoryOptions, resolveCategorySelection } from './categorySelection';
 import { products } from '../data/products';
 
 const OPTIONS = ['All', 'New', 'Festive Decor', 'Anklets', 'Brooches', 'Toys'];
+it('always puts seasonal categories first and announces only the featured visible populated category', () => {
+  const settings = [
+    { name: 'Regular', priority: 1 },
+    { name: 'Navaratri', priority: 999, isSeasonal: true, visible: true, featuredTicker: true, productIds: [products[0].id] },
+  ];
+  expect([...settings].sort(compareCategorySettings).map(item => item.name)).toEqual(['Navaratri', 'Regular']);
+  expect(getSeasonalAnnouncement(settings, products)?.text).toBe('Check out our Navaratri collection');
+  expect(getSeasonalAnnouncement([{ ...settings[1], visible: false }], products)).toBeUndefined();
+  expect(getSeasonalAnnouncement(settings, [])).toBeUndefined();
+});
 it('keeps the primary category and allows multiple seasonal memberships without duplicating products', () => {
   const product = products[0];
   const settings = [

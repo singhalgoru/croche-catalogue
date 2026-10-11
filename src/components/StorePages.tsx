@@ -9,6 +9,7 @@ import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
 import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import type { CategorySettings, Product, ProductVariant } from '../types/product';
+import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
 
 interface Props {
   products: Product[];
@@ -37,17 +38,17 @@ export default function StorePages({
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
-  const categories = useMemo(() => [...categorySettings].sort((a, b) => a.priority - b.priority), [categorySettings]);
+  const categories = useMemo(() => [...categorySettings].sort(compareCategorySettings), [categorySettings]);
   const visibleCategories = useMemo(() => {
-    const populatedCategories = new Set(products.map(product => product.category));
-    return categories.filter(item => populatedCategories.has(item.name));
+    return categories.filter(item => item.visible !== false && products.some(product => matchesCategory(product, item.name, categories)));
   }, [categories, products]);
-  const category = categories.find(item => collectionPath(item.name) === requestedPath)?.name;
-  const collectionProducts = useMemo(() => products.filter(product => product.category === category)
-    .sort((a, b) => compareCatalogueProducts(a, b, { now: catalogueTime, categoryRanks: new Map() })), [category, products, catalogueTime]);
+  const selectedCategory = categories.find(item => item.visible !== false && collectionPath(item.name) === requestedPath);
+  const category = selectedCategory?.name;
+  const collectionProducts = useMemo(() => products.filter(product => category && matchesCategory(product, category, categories))
+    .sort((a, b) => compareCatalogueProducts(a, b, { now: catalogueTime, categoryRanks: new Map() })), [category, categories, products, catalogueTime]);
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
-  const description = category ? Object.hasOwn(descriptions, category) ? descriptions[category]
-    : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : '';
+  const description = selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
+    : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : '');
   const title = pathname.startsWith('/about') ? 'About Luvia & contact'
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
@@ -95,6 +96,7 @@ export default function StorePages({
   );
   return <div className="flex min-h-screen flex-col">
     <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []} collectionPages
+      seasonalAnnouncement={getSeasonalAnnouncement(categories, products)}
       cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} accountName={accountName} />
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>

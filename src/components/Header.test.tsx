@@ -7,6 +7,12 @@ vi.mock('../services/customer', () => ({ signOutCustomer: vi.fn() }));
 afterEach(cleanup);
 
 describe('Header', () => {
+  it('links the featured seasonal announcement to the collection page', () => {
+    render(<Header showInstallPrompt={false} seasonalAnnouncement={{ name: 'Navaratri', text: 'Check out our Navaratri collection' }} />);
+    expect(screen.getByRole('link', { name: 'Check out our Navaratri collection' }).getAttribute('href')).toBe('/collections/navaratri/');
+    const duplicate = screen.getByRole('link', { hidden: true, name: '' });
+    expect(duplicate.getAttribute('tabindex')).toBe('-1');
+  });
   it('signs out from the menu and shows explicit confirmation', async () => {
     vi.mocked(signOutCustomer).mockReset().mockResolvedValue(undefined);
     const view = render(<Header showInstallPrompt={false} onOpenAccount={vi.fn()} accountName="Asha" />);

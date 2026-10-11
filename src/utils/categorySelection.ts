@@ -1,5 +1,14 @@
 import type { CatalogueFilter, CategorySettings, Product } from '../types/product';
 
+export const compareCategorySettings = (a: CategorySettings, b: CategorySettings) =>
+  Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority || a.name.localeCompare(b.name);
+
+export const getSeasonalAnnouncement = (settings: CategorySettings[], products: Product[]) => {
+  const category = settings.find(item => item.isSeasonal && item.featuredTicker && item.visible !== false
+    && products.some(product => matchesCategory(product, item.name, settings)));
+  return category ? { name: category.name, text: `Check out our ${category.name} collection` } : undefined;
+};
+
 export const matchesCategory = (product: Product, name: string, settings: CategorySettings[] = []) => {
   const category = settings.find(item => item.name === name);
   if (category?.visible === false) return false;

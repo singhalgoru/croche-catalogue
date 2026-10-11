@@ -13,6 +13,20 @@ begin
   perform set_config('test.seasonal_product', product_id::text, true);
   insert into public.categories(name, is_seasonal) values (seasonal_name, true);
   perform public.save_seasonal_category(seasonal_name, array[product_id, product_id], true);
+  perform public.save_seasonal_category(seasonal_name, array[product_id], true, 'Reviewed overview.', true);
+  if not exists (select 1 from public.categories where name = seasonal_name and featured_ticker and overview = 'Reviewed overview.') then
+    raise exception 'Overview and ticker were not persisted.';
+  end if;
+  insert into public.categories(name, is_seasonal) values (seasonal_name || ' next', true);
+  perform public.save_seasonal_category(seasonal_name || ' next', array[product_id], true, '', true);
+  if (select count(*) from public.categories where featured_ticker) <> 1
+    or exists (select 1 from public.categories where name = seasonal_name and featured_ticker) then
+    raise exception 'Featured ticker selection was not exclusive.';
+  end if;
+  perform public.save_seasonal_category(seasonal_name || ' next', array[product_id], false, '', true);
+  if exists (select 1 from public.categories where name = seasonal_name || ' next' and featured_ticker) then
+    raise exception 'Hidden seasonal ticker was not removed.';
+  end if;
   if (select count(*) from public.seasonal_category_products s where s.category_name = seasonal_name) <> 1 then
     raise exception 'Duplicate memberships were not deduplicated.';
   end if;
