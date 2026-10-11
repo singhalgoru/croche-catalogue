@@ -251,6 +251,8 @@ describe('ProductModal touch controls', () => {
     );
     const enquiry = screen.getByRole('link', { name: 'Ask on WhatsApp' });
     expect(enquiry.textContent).toContain('Ask on WhatsApp');
+    expect(enquiry.className).toContain('bg-[#25D366]');
+    expect(enquiry.className).toContain('text-white');
     const actions = enquiry.parentElement!;
     expect(actions.querySelector('button')?.textContent).toContain('Add to cart');
     expect(screen.getByRole('button', { name: 'Add to cart — Crochet Rose' }).parentElement?.className).toContain('w-full');

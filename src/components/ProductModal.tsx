@@ -719,7 +719,7 @@ export default function ProductModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={openWhatsAppOrder}
-                className="flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border border-cocoa/30 bg-white px-3 text-cocoa transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa"
+                className="flex h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-[#25D366] px-3 text-white transition-colors hover:bg-[#1ebe5d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366]"
                 aria-label="Ask on WhatsApp"
                 title="Ask on WhatsApp"
               >
