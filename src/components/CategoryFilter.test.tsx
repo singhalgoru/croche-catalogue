@@ -10,8 +10,16 @@ describe('CategoryFilter', () => {
   it('highlights only seasonal categories with the existing reduced-motion-aware glow', () => {
     render(<CategoryFilter categories={['Navratri Specials', 'Toys']} seasonalCategories={['Navratri Specials']} active="All" onSelect={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Navratri Specials' }).classList.contains('badge-glow')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Navratri Specials' }).classList.contains('bg-mustard')).toBe(true);
     expect(screen.getByRole('button', { name: 'Toys' }).classList.contains('badge-glow')).toBe(false);
     expect(screen.getByRole('button', { name: 'All' }).classList.contains('badge-glow')).toBe(false);
+  });
+  it('keeps the selected seasonal category cocoa-filled and visibly selected', () => {
+    render(<CategoryFilter categories={['Navratri Specials', 'Toys']} seasonalCategories={['Navratri Specials']} active="Navratri Specials" onSelect={vi.fn()} />);
+    const button = screen.getByRole('button', { name: 'Navratri Specials' });
+    expect(button.classList.contains('bg-cocoa')).toBe(true);
+    expect(button.classList.contains('bg-mustard')).toBe(false);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
   });
   it('shows the New filter when there are new products', () => {
     render(

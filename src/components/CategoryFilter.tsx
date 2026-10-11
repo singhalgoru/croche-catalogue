@@ -59,6 +59,8 @@ export default function CategoryFilter({
           } ${
             active === option
               ? 'bg-cocoa text-cream border-cocoa'
+              : seasonalCategories.includes(option)
+              ? 'bg-mustard text-cocoa border-mustard hover:bg-mustard/80'
               : 'bg-white text-cocoa border-mustard hover:bg-mustard/20'
           }`}
         >

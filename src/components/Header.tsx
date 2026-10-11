@@ -70,9 +70,11 @@ export default function Header({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [tickerIndex, setTickerIndex] = useState(0);
   const [tickerFocused, setTickerFocused] = useState(false);
+  const [tickerHovered, setTickerHovered] = useState(false);
   const baseMessages = tickerMessages.length > 0 ? tickerMessages : DEFAULT_TICKER_MESSAGES;
   const messages = seasonalAnnouncement ? [seasonalAnnouncement.text, ...baseMessages] : baseMessages;
   const tickerMessage = messages[tickerIndex % messages.length];
+  const isSeasonalMessage = Boolean(seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text);
   const navigateCatalogue = (event: MouseEvent<HTMLAnchorElement>, category?: string) => {
     if (!onNavigateCatalogue || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
@@ -101,13 +103,13 @@ export default function Header({
   }, [isMenuOpen]);
 
   useEffect(() => {
-    if (messages.length < 2 || tickerFocused) return;
+    if (messages.length < 2 || tickerFocused || tickerHovered) return;
     const timer = window.setInterval(
       () => setTickerIndex((current) => (current + 1) % messages.length),
-      6000,
+      isSeasonalMessage ? 16000 : 6000,
     );
     return () => window.clearInterval(timer);
-  }, [messages.length, tickerFocused]);
+  }, [messages.length, tickerFocused, tickerHovered, isSeasonalMessage]);
 
   return (
     <header className="bg-cream border-b-4 border-mustard">
@@ -117,6 +119,8 @@ export default function Header({
           aria-label="Store announcements"
           onFocus={() => setTickerFocused(true)}
           onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setTickerFocused(false); }}
+          onMouseEnter={() => setTickerHovered(true)}
+          onMouseLeave={() => setTickerHovered(false)}
         >
           <div className={`shipping-ticker-track ${seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text ? 'shipping-ticker-featured' : ''}`} key={`${tickerIndex}-${tickerMessage}`}>
             {seasonalAnnouncement && tickerMessage === seasonalAnnouncement.text
