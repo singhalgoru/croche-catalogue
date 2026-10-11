@@ -218,6 +218,11 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByRole('heading', { name: 'Product details', level: 2 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Care instructions', level: 2 })).toBeTruthy();
     expect(screen.getByText('Cotton yarn').closest('details')).toBeNull();
+    const share = screen.getByRole('button', { name: 'Share this product' });
+    expect(share.parentElement?.getAttribute('aria-label')).toBe('Product purchase actions');
+    fireEvent.click(share);
+    expect(share.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Copy product link' })).toBeTruthy();
     expect(screen.getByText('Approx. 10 cm')).toBeTruthy();
     expect(screen.getByText('One rose')).toBeTruthy();
     expect(screen.getByText('Spot clean gently.')).toBeTruthy();

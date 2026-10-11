@@ -370,6 +370,19 @@ export default function ProductModal({
     else onPrevious();
   };
 
+  const shareButton = (
+    <button type="button" onClick={() => {
+      setIsShareOpen(current => !current);
+      setShareFeedback(null);
+    }} aria-label="Share this product" aria-expanded={isShareOpen}
+      aria-controls="product-share-options" title="Share this product"
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+        isShareOpen ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
+      }`}>
+      <ShareIcon />
+    </button>
+  );
+
   return (
     <div
       className={isPage ? 'w-full' : 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]'}
@@ -591,7 +604,7 @@ export default function ProductModal({
             )}
           </div>
           {isPage
-            ? <h1 className="font-heading text-2xl font-semibold text-cocoa mt-1 sm:text-3xl">{product.name}</h1>
+            ? <h1 className="mt-1 font-heading text-2xl font-semibold text-cocoa sm:text-3xl">{product.name}</h1>
             : <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>}
           {displayedPrice !== null && (
             <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
@@ -647,29 +660,12 @@ export default function ProductModal({
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
               {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
             </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsShareOpen((current) => !current);
-                  setShareFeedback(null);
-                }}
-                aria-label="Share this product"
-                aria-expanded={isShareOpen}
-                aria-controls="product-share-options"
-                title="Share this product"
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                  isShareOpen
-                    ? 'border-cocoa bg-cocoa text-cream'
-                    : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
-                }`}
-              >
-                <ShareIcon />
-              </button>
+              {!isPage && shareButton}
             </div>
             <div aria-label="Product purchase actions" className={`grid items-center gap-2 ${isPage ? 'fixed inset-x-0 bottom-0 z-40 mx-auto max-w-6xl border-t border-mustard/30 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg sm:px-6' : ''} ${
               !isPage && selectedCartItem && onUpdateCartItem && onRemoveCartItem
                 ? 'grid-cols-1 justify-items-end sm:grid-cols-[minmax(0,1fr)_auto]'
-                : 'grid-cols-[minmax(0,1fr)_auto]'
+                : isPage ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'
             }`}>
               <a
                 href={whatsappOrderLink}
@@ -681,7 +677,7 @@ export default function ProductModal({
                 title="Quick order on WhatsApp"
               >
                 <WhatsAppIcon />
-                <span className="text-xs font-semibold leading-tight">Order on WhatsApp</span>
+                <span className={`${isPage ? 'sr-only min-[400px]:not-sr-only' : ''} text-xs font-semibold leading-tight`}>Order on WhatsApp</span>
               </a>
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
@@ -725,6 +721,7 @@ export default function ProductModal({
                   showLabel
                 />
               ) : null}
+              {isPage && shareButton}
             </div>
           </div>
           {isShareOpen && (

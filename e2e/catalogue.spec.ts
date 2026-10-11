@@ -68,6 +68,18 @@ test('delivery and returns expands and collapses with pointer and keyboard', asy
   await expect(policy).toBeHidden();
 });
 
+test('full product page keeps one share icon in the fixed purchase bar', async ({ page }) => {
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  const share = page.getByRole('button', { name: 'Share this product' });
+  await expect(share).toHaveCount(1);
+  await expect(page.getByLabel('Product purchase actions', { exact: true }).getByRole('button', { name: 'Share this product' })).toBeInViewport();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(share).toBeInViewport();
+  await share.click();
+  await expect(share).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', { name: 'Copy product link' })).toBeVisible();
+});
+
 test('product purchase controls remain visible without scrolling and after scrolling', async ({ page }) => {
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
   await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
@@ -99,6 +111,7 @@ test('product purchase controls remain visible without scrolling and after scrol
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(increase).toBeInViewport();
   await expect(page.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Share this product' })).toBeInViewport();
 });
 
 test('purchase bar keeps a single row on narrow phones with an item in cart', async ({ page }) => {
