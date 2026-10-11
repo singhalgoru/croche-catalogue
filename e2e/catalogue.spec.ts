@@ -35,6 +35,51 @@ test('defers admin and product detail bundles until needed', async ({ page }) =>
   expect((await loadedChunks()).some((url) => url.includes('AdminPage-'))).toBe(false);
 });
 
+test('delivery and returns expands and collapses with pointer and keyboard', async ({ page }) => {
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
+  const section = page.getByRole('region', { name: 'Delivery and returns' });
+  const summary = section.locator('summary');
+  const policy = section.getByRole('link', { name: 'Full return and refund policy' });
+  await expect(policy).toBeHidden();
+  await summary.click();
+  await expect(policy).toBeVisible();
+  await expect(policy).toHaveAttribute('href', '/return-policy/');
+  await expect(section.getByText(/Courier delivery estimates start after dispatch/)).toBeVisible();
+  await summary.click();
+  await expect(policy).toBeHidden();
+  await summary.focus();
+  await page.keyboard.press('Enter');
+  await expect(policy).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(policy).toBeHidden();
+});
+
+test('product purchase controls remain visible without scrolling and after scrolling', async ({ page }) => {
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
+  const add = page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true });
+  await expect(add).toBeInViewport();
+  const purchase = page.getByLabel('Product purchase actions', { exact: true });
+  await expect(purchase).toHaveCSS('position', 'fixed');
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(add).toBeInViewport();
+  await add.click();
+  const increase = page.getByRole('button', { name: 'Increase quantity of Rose Charm — Rose Pink' });
+  await expect(increase).toBeInViewport();
+  await increase.click();
+  await expect(page.getByLabel('2 of Rose Charm — Rose Pink in cart')).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const footerBox = await page.locator('footer').boundingBox();
+  const purchaseBox = await purchase.boundingBox();
+  expect(footerBox).not.toBeNull();
+  expect(purchaseBox).not.toBeNull();
+  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(purchaseBox!.y);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(increase).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Quick order on WhatsApp' })).toBeInViewport();
+});
+
 test('opens the exact variant from a Reddit share path and shares its dedicated preview URL', async ({ page }) => {
   catalogueState.products[0].product_variants[1].image_url =
     'http://supabase.test/storage/v1/object/public/product-images/seed/ivory.png';

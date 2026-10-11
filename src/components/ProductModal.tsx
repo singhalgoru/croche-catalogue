@@ -642,11 +642,7 @@ export default function ProductModal({
               View full details
             </a>
           )}
-          {/* Pinned to the bottom of the modal's scrollport so the buy and
-              share actions stay reachable on short viewports, where the
-              image plus variant picker can otherwise push them below the
-              fold (phone browser URL bars make this worse). */}
-          <div className="sticky bottom-0 z-30 -mx-4 mt-4 flex flex-col gap-2 border-t border-mustard/25 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
+          <div className={`${isPage ? '' : 'sticky bottom-0 z-30 backdrop-blur-sm'} -mx-4 mt-4 flex flex-col gap-2 border-t border-mustard/25 bg-white/95 px-4 py-3 sm:-mx-6 sm:px-6`}>
             <div className="flex items-center justify-between gap-2">
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
               {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
@@ -670,7 +666,7 @@ export default function ProductModal({
                 <ShareIcon />
               </button>
             </div>
-            <div className={`grid items-center gap-2 ${
+            <div aria-label="Product purchase actions" className={`grid items-center gap-2 ${isPage ? 'fixed inset-x-0 bottom-0 z-40 mx-auto max-w-6xl border-t border-mustard/30 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg sm:px-6' : ''} ${
               selectedCartItem && onUpdateCartItem && onRemoveCartItem
                 ? 'grid-cols-1 justify-items-end sm:grid-cols-[minmax(0,1fr)_auto]'
                 : 'grid-cols-[minmax(0,1fr)_auto]'
