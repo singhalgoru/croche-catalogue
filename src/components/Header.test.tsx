@@ -77,7 +77,7 @@ describe('Header', () => {
     rerender(<Header mobileCartInToolbar hideMobileCart cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
     expect(button.parentElement?.className).toContain('hidden sm:block');
   });
-  it('uses in-app home and collection navigation while preserving modified-click links', () => {
+  it('uses in-app home navigation but leaves collection page links to the browser', () => {
     const onNavigateCatalogue = vi.fn();
     render(<Header showInstallPrompt={false} categories={['Toys']} onNavigateCatalogue={onNavigateCatalogue} />);
     fireEvent.click(screen.getByRole('link', { name: 'Luvia Creations — home' }));
@@ -86,8 +86,13 @@ describe('Header', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Luvia Creations — home' }), { ctrlKey: true });
     expect(onNavigateCatalogue).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const collection = screen.getByRole('link', { name: 'Toys' });
+    expect(collection.getAttribute('href')).toBe('/collections/toys/');
+    fireEvent.click(collection, { ctrlKey: true });
+    expect(onNavigateCatalogue).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     fireEvent.click(screen.getByRole('link', { name: 'Toys' }));
-    expect(onNavigateCatalogue).toHaveBeenCalledWith('Toys');
+    expect(onNavigateCatalogue).not.toHaveBeenCalled();
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
   it('opens navigation with real homepage, collection and policy links', () => {
@@ -98,7 +103,7 @@ describe('Header', () => {
     fireEvent.click(button);
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByRole('link', { name: 'Charms & Keychains' }).getAttribute('href'))
-      .toBe('/?category=Charms%20%26%20Keychains');
+      .toBe('/collections/charms-keychains/');
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
       .toBe('/return-policy/');
     expect(screen.getByRole('link', { name: 'Collaborate with us' }).getAttribute('href'))
@@ -171,7 +176,7 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();
   });
   it('keeps compact store-page branding left-aligned without a cart', () => {
-    render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} collectionPages />);
+    render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
     expect(row?.className).toContain('justify-start');

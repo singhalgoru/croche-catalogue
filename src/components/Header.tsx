@@ -19,7 +19,6 @@ interface Props {
   categories?: string[];
   seasonalCategories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
-  collectionPages?: boolean;
   mobileCartInToolbar?: boolean;
   hideMobileCart?: boolean;
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
@@ -40,7 +39,6 @@ export default function Header({
   categories = [],
   seasonalCategories = [],
   onNavigateCatalogue,
-  collectionPages = false,
   mobileCartInToolbar = false,
   hideMobileCart = false,
   onOpenAccount,
@@ -216,8 +214,7 @@ export default function Header({
               {signOutMessage && <p role="status" className="px-3 py-2 text-sm text-green-800">{signOutMessage}</p>}
               {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
               {categories.map((category) => (
-                <a key={category} href={collectionPages ? collectionPath(category) : `${import.meta.env.BASE_URL}?category=${encodeURIComponent(category)}`}
-                  onClick={event => navigateCatalogue(event, category)}
+                <a key={category} href={collectionPath(category)}
                   className={`block rounded-lg px-3 py-3 focus-visible:outline-cocoa ${seasonalCategories.includes(category) ? 'bg-mustard text-cocoa font-semibold hover:bg-mustard/80' : 'hover:bg-cream'}`}>
                   {category}
                 </a>

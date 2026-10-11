@@ -96,7 +96,7 @@ export default function StorePages({
     </nav>
   );
   return <div className="flex min-h-screen flex-col">
-    <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []} collectionPages
+    <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []}
       seasonalAnnouncement={getSeasonalAnnouncement(categories, products)}
       seasonalCategories={categories.filter(item => item.isSeasonal).map(item => item.name)}
       cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} accountName={accountName} />

@@ -35,6 +35,19 @@ test('defers admin and product detail bundles until needed', async ({ page }) =>
   expect((await loadedChunks()).some((url) => url.includes('AdminPage-'))).toBe(false);
 });
 
+test('hamburger collections open dedicated pages while homepage chips still filter', async ({ page }) => {
+  await page.getByRole('button', { name: 'Charms', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:4187/');
+  await expect(page.getByRole('button', { name: 'Charms', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  const link = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Charms', exact: true });
+  await expect(link).toHaveAttribute('href', '/collections/charms/');
+  await link.click();
+  await expect(page).toHaveURL(/\/collections\/charms\/$/);
+  await expect(page.getByRole('heading', { name: 'Handmade Charms', exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
+});
+
 test('delivery and returns expands and collapses with pointer and keyboard', async ({ page }) => {
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
   await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
