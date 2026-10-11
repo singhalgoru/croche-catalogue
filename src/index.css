@@ -57,11 +57,9 @@ body {
   min-width: 100vw;
   padding-inline: 1rem;
   text-align: center;
-  animation: seasonal-ticker-glow 2.4s ease-in-out infinite;
 }
 
-.shipping-ticker:hover .shipping-ticker-track,
-.shipping-ticker:hover .shipping-ticker-featured > a {
+.shipping-ticker:hover .shipping-ticker-track {
   animation-play-state: paused;
 }
 
@@ -79,11 +77,6 @@ body {
 
 .shipping-ticker:focus-within .shipping-ticker-featured [aria-hidden='true'] {
   display: none;
-}
-
-@keyframes seasonal-ticker-glow {
-  0%, 100% { text-shadow: none; }
-  50% { text-shadow: 0 0 8px var(--color-mustard); }
 }
 
 @keyframes shipping-ticker {

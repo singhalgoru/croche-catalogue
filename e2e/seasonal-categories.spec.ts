@@ -80,7 +80,8 @@ test('admin creates a seasonal category, selects existing products and hides it 
   const track = page.locator('.shipping-ticker-featured');
   await expect.poll(() => track.evaluate(node => getComputedStyle(node).animationName)).toBe('shipping-ticker');
   await expect.poll(() => track.evaluate(node => node.scrollWidth / 2 / parseFloat(getComputedStyle(node).animationDuration))).toBeCloseTo(50, 1);
-  await expect.poll(() => announcement.evaluate(node => getComputedStyle(node).animationName)).toBe('seasonal-ticker-glow');
+  await expect.poll(() => announcement.evaluate(node => getComputedStyle(node).animationName)).toBe('none');
+  await expect.poll(() => announcement.evaluate(node => getComputedStyle(node).textShadow)).toBe('none');
   const initialTransform = await track.evaluate(node => getComputedStyle(node).transform);
   await expect.poll(() => track.evaluate(node => getComputedStyle(node).transform)).not.toBe(initialTransform);
   await announcement.focus();
