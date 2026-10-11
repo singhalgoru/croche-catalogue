@@ -727,8 +727,10 @@ is disabled: the deployed function captures IP only and never downloads the
 location database. This prevents repeated large Supabase Storage transfers on
 function cold starts. No IP is sent to MaxMind or another geolocation provider.
 Only admins can read `cart_network_details`; other shoppers
-cannot read or write it. Admin carts show only a compact approximate location;
-the raw IP and capture date remain stored but are not displayed.
+cannot read or write it. Admin carts show the captured network IP and any
+historical approximate location. Missing metadata displays "Network IP: Not
+recorded"; IPv6 addresses wrap without horizontal overflow. Capture dates remain
+stored but are not displayed. The IP is not a verified identity or location.
 Access expires 30 days after capture; an hourly pg_cron job purges expired
 metadata, and cart deletion cascades immediately. No new shopper-facing notice
 or popup was added. Apply `20261010032000_add_private_cart_network.sql` and deploy

@@ -128,13 +128,16 @@ export default function CartManager() {
             return (
               <article key={cart.id} className="rounded-2xl border border-mustard/30 bg-cream/40 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-heading text-lg font-bold text-cocoa">{cart.reference}</h3>
                     <p className="text-xs text-cocoa/55">
                       Last activity {new Date(cart.updatedAt).toLocaleString()}
                     </p>
                     <p className="mt-2 text-sm text-cocoa/75">
                       {cart.deliveryPinCode ? `Delivery pincode: ${cart.deliveryPinCode} (shopper-provided, unverified)` : 'Delivery pincode: not provided'}
+                    </p>
+                    <p className="mt-1 break-all text-xs text-cocoa/65">
+                      Network IP: {cart.networkDetails?.ipAddress || 'Not recorded'}
                     </p>
                     {cart.networkDetails && <p className="mt-1 text-xs text-cocoa/65">
                       Approx. location: {cart.networkDetails.location
