@@ -974,6 +974,10 @@ sales profit, material cost, labour cost, shipping cost, overheads, profit after
 expenses, and the margin after overheads. Material/labour totals multiply saved
 per-piece costs by quantity; shipping is counted once per sale. These cost
 breakdowns are already included in profit deductions, not subtracted again.
+Sales profit and profit after business expenses lead each card in larger summary
+panels, with margins before and after business expenses beside the respective
+figures. Negative profit is highlighted as a loss. Revenue and cost details sit
+below in a compact responsive grid. Both margins use aggregate revenue before GST.
 Dates determine the period, not record creation timestamps. Margins are calculated
 from aggregate revenue before GST, not averaged from individual sale margins.
 Expense-only periods show losses and no margin. Current/future quarters show

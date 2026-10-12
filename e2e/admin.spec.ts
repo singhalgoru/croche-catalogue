@@ -152,6 +152,12 @@ test('shows material, labour and shipping costs in annual and quarterly snapshot
   }
   const empty = page.getByRole('article', { name: 'Q2 · Apr–Jun 2026', exact: true });
   await expect(empty.locator('dl > div').filter({ has: page.getByText('Shipping cost', { exact: true }) }).locator('dd')).toHaveText('₹0');
+  const annual = page.getByRole('article', { name: 'Year 2026 · Jan–Dec', exact: true });
+  await expect(annual.getByText('Margin before business expenses: 65.0%')).toBeVisible();
+  await expect(annual.getByText('Margin after business expenses: 65.0%')).toBeVisible();
+  const profits = annual.locator('dl').first();
+  await expect(profits.getByText('Estimated sales profit', { exact: true })).toBeVisible();
+  await expect(profits.getByText('Profit after business expenses', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 

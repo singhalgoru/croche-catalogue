@@ -39,7 +39,8 @@ describe('SalesPeriodSnapshot', () => {
     expect(within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' })).getByText('-₹25')).toBeTruthy();
     const quarter = within(screen.getByRole('article', { name: 'Q1 · Jan–Mar 2025' }));
     expect(quarter.getByText('-₹25')).toBeTruthy();
-    expect(quarter.getByText('Margin after overheads: —')).toBeTruthy();
+    expect(quarter.getByText('Margin before business expenses: —')).toBeTruthy();
+    expect(quarter.getByText('Margin after business expenses: —')).toBeTruthy();
     expect(within(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2025' })).queryByText('-₹25')).toBeNull();
   });
 
@@ -59,5 +60,23 @@ describe('SalesPeriodSnapshot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' }));
     expect(screen.getByRole('status').textContent).toContain('Snapshot unavailable');
     expect(screen.queryByRole('article')).toBeNull();
+  });
+
+  it('highlights profit before and after expenses with correctly weighted margins', () => {
+    const sale: SellerSale = {
+      id: 'sale', productId: null, productName: 'Rose', variantName: '', saleDate: '2025-03-31',
+      channel: 'offline', quantity: 2, unitPrice: 105, gstPercent: 5,
+      materialCost: 20, labourCost: 10, packagingCost: 5, shippingCost: 10,
+      gatewayFeePercent: 0, gatewayFeeGstPercent: 18, notes: '', createdAt: '',
+    };
+    render(<SalesPeriodSnapshot sales={[sale]} expenses={[{ ...expense, amount: 150 }]} available initiallyExpanded />);
+    fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
+    const annual = within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }));
+    expect(annual.getByText('Estimated sales profit').parentElement?.querySelector('dd')?.textContent).toBe('₹120');
+    const net = annual.getByText('Profit after business expenses').parentElement;
+    expect(net?.querySelector('dd')?.textContent).toBe('-₹30');
+    expect(net?.className).toContain('bg-red-50');
+    expect(annual.getByText('Margin before business expenses: 60.0%')).toBeTruthy();
+    expect(annual.getByText('Margin after business expenses: -15.0%')).toBeTruthy();
   });
 });

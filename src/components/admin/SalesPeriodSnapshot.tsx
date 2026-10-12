@@ -59,9 +59,30 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {periods.map(({ label, totals }, index) => (
               <article key={label} aria-label={label}
-                className={`min-w-0 rounded-xl border border-mustard/40 p-3 ${index === 0 ? 'bg-cream/70 sm:col-span-2' : 'bg-white'}`}>
+                className={`min-w-0 rounded-2xl border border-mustard/40 p-4 ${index === 0 ? 'bg-cream/70 sm:col-span-2' : 'bg-white'}`}>
                 <h4 className="font-heading text-lg font-bold text-cocoa">{label}</h4>
-                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-cocoa">
+                <dl className="mt-3 grid gap-3 lg:grid-cols-2">
+                  {([
+                    ['Estimated sales profit', 'Margin before business expenses', totals.profit, totals.marginPercent],
+                    ['Profit after business expenses', 'Margin after business expenses', totals.profitAfterOverheads, totals.marginAfterOverheads],
+                  ] as const).map(([name, marginLabel, profit, margin]) => (
+                    <div key={name} className={`min-w-0 rounded-xl border p-4 ${
+                      profit < 0 ? 'border-red-200 bg-red-50' : 'border-mustard/40 bg-white'
+                    }`}>
+                      <dt className="text-sm font-semibold text-cocoa">{name}</dt>
+                      <dd className={`mt-1 break-words font-heading text-3xl font-bold ${
+                        profit < 0 ? 'text-red-800' : 'text-cocoa'
+                      }`}>{formatINR(profit)}</dd>
+                      <dd className="mt-3">
+                        <MarginLabel margin={margin} className="inline-block max-w-full break-words text-xs font-semibold">
+                          {marginLabel}: {margin === null ? '—' : `${margin.toFixed(1)}%`}
+                        </MarginLabel>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <h5 className="mt-5 text-xs font-bold uppercase tracking-wide text-cocoa/65">Revenue &amp; cost breakdown</h5>
+                <dl className={`mt-2 grid grid-cols-2 gap-3 text-sm text-cocoa ${index === 0 ? 'lg:grid-cols-4' : ''}`}>
                   {[
                     ['Sales revenue', formatINR(totals.revenue)],
                     ['Sales / pieces', `${totals.salesCount} / ${totals.piecesSold}`],
@@ -69,9 +90,7 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     ['Material cost', formatINR(totals.materialCost)],
                     ['Labour cost', formatINR(totals.labourCost)],
                     ['Shipping cost', formatINR(totals.shippingCost)],
-                    ['Estimated sales profit', formatINR(totals.profit)],
                     ['Business expenses', formatINR(totals.overheads)],
-                    ['Profit after business expenses', formatINR(totals.profitAfterOverheads)],
                   ].map(([name, value]) => (
                     <div key={name} className="min-w-0">
                       <dt className="text-xs text-cocoa/65">{name}</dt>
@@ -79,9 +98,6 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     </div>
                   ))}
                 </dl>
-                <MarginLabel margin={totals.marginAfterOverheads} className="mt-3 inline-block text-sm font-bold">
-                  Margin after overheads: {totals.marginAfterOverheads === null ? '—' : `${totals.marginAfterOverheads.toFixed(1)}%`}
-                </MarginLabel>
               </article>
             ))}
           </div>
@@ -89,7 +105,8 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
         <p className="mt-3 text-xs text-cocoa/65">
           Revenue includes GST. Profit subtracts included GST, sale costs, fees and recorded overheads.
           Material and labour costs include all pieces sold; shipping cost is recorded once per sale.
-          Overall margin uses total revenue before GST, not an average of individual margins.
+          Both margins use total revenue before GST, not an average of individual margins.
+          Sales profit is before business expenses; the after-expenses figure deducts recorded overheads.
         </p>
         </>}
       </div>
