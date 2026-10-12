@@ -37,7 +37,7 @@ test('admin creates a seasonal category, selects existing products and hides it 
     category.overview = body.category_overview;
     category.featured_ticker = body.feature_in_ticker;
     category.seasonal_category_products = body.selected_product_ids.map((product_id: string) => ({ product_id }));
-    await route.fulfill({ status: 204 });
+    await route.fulfill({ json: '' });
   });
   await page.route('**/functions/v1/analyze-product', route => {
     expect(route.request().postDataJSON()).toEqual({ mode: 'category-overview', categoryName: 'Navaratri' });
@@ -67,8 +67,9 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await editor.getByRole('button', { name: 'Save seasonal category' }).click();
   await expect(editor).toHaveCount(0);
   await page.goto('./?category=Navaratri');
+  await page.getByText('Filter by category: Navaratri', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Navaratri', exact: true })).toBeVisible();
-  const buttons = page.getByLabel('Product categories', { exact: true }).getByRole('button');
+  const buttons = page.getByLabel('Category filters', { exact: true }).getByRole('button');
   await expect(buttons.first()).toHaveText('Navaratri');
   await expect(buttons.first()).toHaveClass(/badge-glow/);
   await expect.poll(() => buttons.first().evaluate(node => getComputedStyle(node).animationName)).toBe('badge-glow');
@@ -99,6 +100,7 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Product: New Heart Charm' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Charms', exact: true }).click();
+  await page.getByText('Filter by category: Charms', { exact: true }).click();
   await expect(buttons.first()).toHaveText('Navaratri');
   await expect(buttons.first()).toHaveClass(/bg-mustard/);
   await expect(buttons.first()).toHaveAttribute('aria-pressed', 'false');

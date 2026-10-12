@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import CategoryFilter from './CategoryFilter';
 
@@ -7,6 +7,20 @@ afterEach(() => {
 });
 
 describe('CategoryFilter', () => {
+  it('keeps All and New visible and reveals category filters through a disclosure', () => {
+    const select = vi.fn();
+    const { rerender } = render(<CategoryFilter categories={['Toys']} active="All" onSelect={select} collapseCategories />);
+    expect(screen.getByRole('button', { name: 'All' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'New' })).toBeTruthy();
+    expect(screen.getByText('Filter by category').closest('details')).toHaveProperty('open', false);
+    fireEvent.click(screen.getByText('Filter by category'));
+    fireEvent.click(screen.getByRole('button', { name: 'Toys' }));
+    expect(select).toHaveBeenCalledWith('Toys');
+    expect(screen.getByText('Filter by category').closest('details')).toHaveProperty('open', false);
+    rerender(<CategoryFilter categories={['Toys']} active="Toys" onSelect={select} collapseCategories />);
+    expect(screen.getByText('Filter by category: Toys')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Toys' }).getAttribute('aria-pressed')).toBe('true');
+  });
   it('highlights only seasonal categories with the existing reduced-motion-aware glow', () => {
     render(<CategoryFilter categories={['Navratri Specials', 'Toys']} seasonalCategories={['Navratri Specials']} active="All" onSelect={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Navratri Specials' }).classList.contains('badge-glow')).toBe(true);

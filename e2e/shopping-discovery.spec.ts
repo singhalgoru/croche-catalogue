@@ -1,6 +1,54 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('homepage collections auto-rotate in a compact carousel above bestsellers and the catalogue', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  for (const product of state.products.slice(0, 2)) {
+    product.product_variants[0].in_stock = true;
+    product.product_variants[0].available_quantity = 2;
+  }
+  const names = ['Festive', 'Gifts', 'Toys', 'Flowers', 'Bags', 'Accessories', 'Decor', 'Keepsakes'];
+  for (const name of names) {
+    state.categories.push(name);
+    state.categorySettings[name] = { priority: 1, isSeasonal: true, productIds: [state.products[0].id],
+      coverImage: 'https://images.luviacreations.com/products/admin/season.webp' };
+  }
+  await page.route('**/rest/v1/rpc/get_catalogue_bestsellers', route =>
+    route.fulfill({ json: [{ product_id: 'product-1' }, { product_id: 'product-2' }] }));
+  await page.goto('/');
+  const collections = page.getByRole('navigation', { name: 'Explore collections' });
+  await expect(collections).toHaveCount(1);
+  const bestsellers = page.getByRole('region', { name: 'Bestsellers' });
+  await expect(bestsellers).toBeVisible();
+  expect((await collections.boundingBox())!.y).toBeLessThan((await bestsellers.boundingBox())!.y);
+  const geometry = await collections.evaluate(element => ({
+    width: element.clientWidth, overflow: element.scrollWidth > element.clientWidth,
+    card: element.querySelector('a')!.getBoundingClientRect().width,
+    names: [...element.querySelectorAll('a')].map(link => link.textContent),
+  }));
+  expect(geometry.overflow).toBe(true);
+  expect(names).toContain(geometry.names[0]);
+  await expect.poll(() => collections.evaluate(element => element.scrollLeft), { timeout: 8000 }).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Pause collection rotation' }).click();
+  await expect(page.getByRole('button', { name: 'Resume collection rotation' })).toHaveAttribute('aria-pressed', 'true');
+  await collections.evaluate(element => element.scrollTo({ left: 0, behavior: 'instant' }));
+  await expect.poll(() => collections.evaluate(element => element.scrollLeft)).toBe(0);
+  if (page.viewportSize()!.width < 640) {
+    expect(geometry.width / geometry.card).toBeGreaterThan(2.4);
+    expect(geometry.width / geometry.card).toBeLessThan(2.8);
+    await expect(page.getByRole('button', { name: 'Next collections' })).toBeHidden();
+    await collections.evaluate(element => element.scrollBy({ left: element.clientWidth, behavior: 'instant' }));
+  } else {
+    await expect(page.getByRole('button', { name: 'Previous collections' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Next collections' }).click();
+  }
+  await expect.poll(() => collections.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+  await expect(collections.locator('img').first()).toHaveCSS('object-fit', 'contain');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  await page.getByRole('link', { name: 'View all', exact: true }).click();
+  await expect(page).toHaveURL(/\/collections\/$/);
+});
+
 test('bestsellers retain full portrait and landscape photos inside square cards', async ({ page }) => {
   const state = await installMockSupabase(page);
   const products = state.products.slice(0, 2);

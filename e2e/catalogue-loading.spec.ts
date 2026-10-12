@@ -23,7 +23,7 @@ test('renders the built snapshot while live data waits and navigates home withou
   await page.goto('./', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
   await expect(page.getByText('Loading the catalogue…')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Charms', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
   let documentRequests = 0;
   page.on('request', request => { if (request.isNavigationRequest()) documentRequests += 1; });
   await page.getByRole('link', { name: 'Luvia Creations — home' }).click();

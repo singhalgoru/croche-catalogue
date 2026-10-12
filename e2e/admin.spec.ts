@@ -556,6 +556,7 @@ test('saves one product order for the main catalogue and category views', async 
   await page.goto('./', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('article', { name: 'Product: New Heart Charm' })).toBeVisible();
   await expect(page.getByRole('article').nth(0)).toHaveAccessibleName('Product: New Heart Charm');
+  await page.getByText('Filter by category', { exact: true }).click();
   await page.getByRole('button', { name: 'Charms', exact: true }).click();
   await expect(page.getByRole('article').nth(0)).toHaveAccessibleName('Product: New Heart Charm');
   await expect(page.getByRole('article').nth(1)).toHaveAccessibleName('Product: Rose Charm');

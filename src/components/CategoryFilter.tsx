@@ -9,6 +9,7 @@ interface Props {
   onSelect: (category: CatalogueFilter) => void;
   compactOnMobile?: boolean;
   showNew?: boolean;
+  collapseCategories?: boolean;
 }
 
 export default function CategoryFilter({
@@ -18,6 +19,7 @@ export default function CategoryFilter({
   onSelect,
   compactOnMobile = false,
   showNew = true,
+  collapseCategories = false,
 }: Props) {
   const orderedOptions = orderCategoryOptions(
     ['All', ...(showNew ? (['New'] as const) : []), ...categories],
@@ -42,13 +44,13 @@ export default function CategoryFilter({
     <div
       ref={rowRef}
       className={`flex gap-2 sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0 ${
-        compactOnMobile
+        compactOnMobile && !collapseCategories
           ? 'snap-x overflow-x-auto pb-1'
           : 'flex-wrap justify-center overflow-visible'
       }`}
       aria-label="Product categories"
     >
-      {allOptions.map((option) => (
+      {(collapseCategories ? allOptions.filter(option => option === 'All' || option === 'New') : allOptions).map((option) => (
         <button
           key={option}
           type="button"
@@ -67,6 +69,23 @@ export default function CategoryFilter({
           {option}
         </button>
       ))}
+      {collapseCategories && categories.length > 0 && <details className="min-w-0">
+        <summary className={`min-h-11 cursor-pointer rounded-full border-2 px-4 py-2 text-sm font-semibold ${
+          active !== 'All' && active !== 'New' ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-white text-cocoa'
+        }`}>Filter by category{active !== 'All' && active !== 'New' ? `: ${active}` : ''}</summary>
+        <div className="mt-2 flex flex-wrap gap-2" aria-label="Category filters">
+          {allOptions.filter(option => option !== 'All' && option !== 'New').map(option => <button
+            key={option} type="button" onClick={event => {
+              event.currentTarget.closest('details')?.removeAttribute('open');
+              onSelect(option);
+            }} aria-pressed={active === option}
+            className={`${seasonalCategories.includes(option) ? 'badge-glow ' : ''}min-h-11 rounded-full border-2 px-4 py-1.5 text-sm font-semibold ${
+              active === option ? 'border-cocoa bg-cocoa text-cream'
+                : seasonalCategories.includes(option) ? 'border-mustard bg-mustard text-cocoa'
+                  : 'border-mustard bg-white text-cocoa hover:bg-mustard/20'
+            }`}>{option}</button>)}
+        </div>
+      </details>}
     </div>
   );
 }

@@ -36,8 +36,10 @@ test('defers admin and product detail bundles until needed', async ({ page }) =>
 });
 
 test('hamburger collections open dedicated pages while homepage chips still filter', async ({ page }) => {
+  await page.getByText('Filter by category', { exact: true }).click();
   await page.getByRole('button', { name: 'Charms', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:4187/');
+  await page.getByText('Filter by category: Charms', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Charms', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Open navigation' }).click();
   const link = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Charms', exact: true });
@@ -416,6 +418,7 @@ test('scrolls the first matching product below sticky controls after category se
   page,
 }) => {
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.getByText('Filter by category', { exact: true }).click();
   await page.getByRole('button', { name: 'Home Decor', exact: true }).click();
   const firstProduct = page.getByRole('article', { name: 'Product: Flower Coaster' });
   await expect(firstProduct).toBeVisible();
@@ -482,17 +485,20 @@ test('does not refocus category results when the catalogue clock updates', async
   ).toBe(0);
 });
 
-test('shows all category chips at the top and compacts them after scrolling', async ({ page }) => {
+test('keeps category filters collapsed in normal and sticky controls', async ({ page }) => {
   const categories = page.getByLabel('Product categories');
   await expect(categories).toHaveClass(/flex-wrap/);
   await expect(categories).not.toHaveClass(/overflow-x-auto/);
+  await expect(categories.getByRole('button', { name: 'Charms', exact: true })).toBeHidden();
+  await expect(categories.getByText('Filter by category', { exact: true })).toBeVisible();
 
   await page.evaluate(() => window.scrollTo(0, 700));
   if (test.info().project.name === 'mobile-chromium') {
     await expect(page.getByLabel('Product categories')).toHaveCount(1);
     const stickyCategories = page.getByLabel('Product categories');
-    await expect(stickyCategories).toHaveClass(/overflow-x-auto/);
-    await expect(stickyCategories).not.toHaveClass(/justify-center overflow-visible/);
+    await expect(stickyCategories).not.toHaveClass(/overflow-x-auto/);
+    await stickyCategories.getByText('Filter by category', { exact: true }).click();
+    await expect(stickyCategories.getByRole('button', { name: 'Charms', exact: true })).toBeVisible();
   } else {
     await expect(page.getByLabel('Product categories')).toHaveCount(1);
   }
@@ -822,6 +828,7 @@ test('filters, searches, opens products, and exposes customer contact links', as
   await expect(page.getByRole('button', { name: 'View Flower Coaster' })).toBeVisible();
 
   await page.getByRole('searchbox', { name: 'Search crochet items' }).clear();
+  await page.getByText('Filter by category', { exact: true }).click();
   await page.getByRole('button', { name: 'Charms', exact: true }).click();
   await expect(page.getByRole('button', { name: 'View Rose Charm' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'View Flower Coaster' })).toHaveCount(0);

@@ -102,13 +102,14 @@ describe('Hybrid product navigation', () => {
     expect(window.location.pathname).toBe('/collections/home/');
   });
 
-  it('offers direct collection links below products without changing product ordering', () => {
+  it('offers a single collection carousel above products without changing product ordering', () => {
     render(<App />);
     const nav = screen.getByRole('navigation', { name: 'Explore collections' });
     expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/collections/home/');
     const grid = screen.getByLabelText('Filtered products');
     expect(grid.textContent).toBe('Test Coaster');
-    expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(screen.getAllByRole('navigation', { name: 'Explore collections' })).toHaveLength(1);
   });
   it('restores product and checkout pages on Back/Forward and returns to the original collection', async () => {
     window.history.replaceState(null, '', '/?utm_source=instagram');
@@ -165,7 +166,9 @@ describe('Hybrid product navigation', () => {
     render(<App />);
     expect(screen.queryByText('Loading the catalogue…')).toBeNull();
     expect(screen.getByLabelText('Filtered products').textContent).toBe('Test Coaster');
-    expect(screen.getAllByRole('button', { name: 'Home' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('navigation', { name: 'Explore collections' }).textContent).toContain('Home');
+    fireEvent.click(screen.getByText('Filter by category'));
+    expect(screen.getByRole('button', { name: 'Home' })).toBeTruthy();
   });
 
   it('returns home from a direct product page without navigation reload and restores homepage metadata', async () => {

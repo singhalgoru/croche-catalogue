@@ -729,6 +729,8 @@ function App() {
         </main>
       ) : (
       <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
+        {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
+          <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
         <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
           <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
@@ -751,6 +753,7 @@ function App() {
               onSelect={selectCategory}
               showNew={hasNewProducts}
               compactOnMobile
+              collapseCategories
             />
           </div>
         )}
@@ -782,6 +785,7 @@ function App() {
               onSelect={selectCategory}
               showNew={hasNewProducts}
               compactOnMobile
+              collapseCategories
             />
           </div>
         )}
@@ -818,10 +822,6 @@ function App() {
             />
           )}
         </div>
-        {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && <section className="space-y-3">
-          <h2 className="font-heading text-xl font-bold text-cocoa">Explore collections</h2>
-          <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />
-        </section>}
         <OrderingGuide />
       </main>
       )}
