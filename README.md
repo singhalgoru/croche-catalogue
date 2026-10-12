@@ -455,6 +455,14 @@ The storefront greeting uses the latest saved account name (first name), then
 the delivery-profile name, then the email prefix. Name edits refresh the current
 greeting immediately; returning to another open shop tab refreshes it on focus.
 
+Customers can open **My account -> Change password** to enter their current
+password, a new password and confirmation. The new password must differ from
+the current one and meet the existing 8–72-character, letter-and-number rule.
+An isolated CAPTCHA-protected sign-in verifies the current password without
+replacing the active session or disrupting carts/addresses. Password fields
+are cleared after submission or cancellation; failures are shown inline.
+Each password field has its own Show password checkbox, hidden by default.
+
 **Password-change security emails** cover both admins and normal customers,
 including successful password resets. Migration
 `20261012050000_password_change_emails.sql` queues a private notification when a

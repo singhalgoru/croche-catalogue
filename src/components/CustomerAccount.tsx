@@ -6,6 +6,7 @@ import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, send
 import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
 import { emptyDeliveryDetails } from '../utils/customer';
 import AddressBook from './AddressBook';
+import ChangePassword from './ChangePassword';
 
 interface Props {
   initialEmail?: string;
@@ -68,6 +69,7 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           className="mt-3 inline-flex min-h-11 items-center rounded-full bg-cocoa px-5 py-2 font-semibold text-white">
           My orders
         </a>
+        <ChangePassword />
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
       </> : <>

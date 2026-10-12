@@ -1,4 +1,4 @@
-import { loadSupabase } from '../lib/supabaseConfig';
+import { loadPasswordVerifier, loadSupabase } from '../lib/supabaseConfig';
 import { trackEvent } from './analytics';
 import type { AdminCustomerSummary, CampaignCoupon, CustomerOrder, DeliveryDetails, OrderFulfilment, SavedAddress, WelcomeCoupon, WelcomeOffer } from '../types/customer';
 import { requestCartCaptcha } from './cartCaptcha';
@@ -193,6 +193,36 @@ export async function setCustomerPassword(password: string, confirmation: string
   const supabase = await client();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw new Error(`Unable to save your password: ${error.message}`);
+}
+export async function changeCustomerPassword(currentPassword: string, password: string, confirmation: string) {
+  const validation = validateCustomerPassword(password, confirmation);
+  if (validation) throw new Error(validation);
+  if (!currentPassword) throw new Error('Enter your current password.');
+  if (currentPassword === password) throw new Error('Choose a password different from your current password.');
+  const supabase = await client();
+  const { data, error } = await supabase.auth.getUser();
+  const user = data.user;
+  if (error) throw new Error(`Unable to verify your account: ${error.message}`);
+  if (!user || user.is_anonymous || !user.email_confirmed_at || !user.email) {
+    throw new Error('Sign in to your verified account before changing your password.');
+  }
+  const captchaToken = await requestCartCaptcha();
+  const verifier = await loadPasswordVerifier();
+  const { data: verified, error: verificationError } = await verifier.auth.signInWithPassword({
+    email: user.email, password: currentPassword, ...(captchaToken ? { options: { captchaToken } } : {}),
+  });
+  if (verificationError) {
+    throw new Error(/invalid login credentials/i.test(verificationError.message)
+      ? 'Your current password is incorrect.' : `Unable to verify your current password: ${verificationError.message}`);
+  }
+  const { error: signOutError } = await verifier.auth.signOut({ scope: 'local' });
+  if (signOutError) throw new Error(`Unable to close password verification: ${signOutError.message}`);
+  if (verified.user?.id !== user.id) throw new Error('Account verification failed. Sign in again before retrying.');
+  const { data: latest, error: latestError } = await supabase.auth.getUser();
+  if (latestError) throw new Error(`Unable to verify your current session: ${latestError.message}`);
+  if (latest.user?.id !== user.id) throw new Error('Your account changed. Sign in again before retrying.');
+  const { error: updateError } = await supabase.auth.updateUser({ password, current_password: currentPassword });
+  if (updateError) throw new Error(`Unable to change your password: ${updateError.message}`);
 }
 export async function sendCustomerPasswordReset(email: string) {
   const normalized = email.trim().toLowerCase();

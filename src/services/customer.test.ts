@@ -1,13 +1,44 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
   validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden,
-  fetchCampaignCoupons, setCampaignCouponArchived, fetchCustomerAccount, fetchCustomerIdentity } from './customer';
+  fetchCampaignCoupons, setCampaignCouponArchived, fetchCustomerAccount, fetchCustomerIdentity, changeCustomerPassword } from './customer';
+const { verifyPassword, closeVerifier } = vi.hoisted(() => ({ verifyPassword: vi.fn(), closeVerifier: vi.fn() }));
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
-vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({
+vi.mock('../lib/supabaseConfig', () => ({ loadPasswordVerifier: async () => ({ auth: { signInWithPassword: verifyPassword, signOut: closeVerifier } }), loadSupabase: async () => ({
   auth: { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession }, from, rpc,
 }) }));
+it('changes a verified customer password with isolated reauthentication and preserves the main session', async () => {
+  const user = { id: 'buyer', email: 'buyer@example.test', email_confirmed_at: '2026-01-01', is_anonymous: false };
+  getUser.mockResolvedValue({ data: { user }, error: null });
+  verifyPassword.mockResolvedValue({ data: { user }, error: null });
+  closeVerifier.mockResolvedValue({ error: null });
+  await changeCustomerPassword('OldPassword123', 'NewPassword123', 'NewPassword123');
+  expect(verifyPassword).toHaveBeenCalledWith({ email: user.email, password: 'OldPassword123', options: { captchaToken: 'fixture-captcha' } });
+  expect(closeVerifier).toHaveBeenCalledWith({ scope: 'local' });
+  expect(updateUser).toHaveBeenCalledWith({ password: 'NewPassword123', current_password: 'OldPassword123' });
+  expect(signInWithPassword).not.toHaveBeenCalled();
+  expect(from).not.toHaveBeenCalled();
+});
+it('rejects incorrect current passwords and account switches without updating credentials', async () => {
+  const user = { id: 'buyer', email: 'buyer@example.test', email_confirmed_at: '2026-01-01', is_anonymous: false };
+  getUser.mockResolvedValue({ data: { user }, error: null });
+  verifyPassword.mockResolvedValue({ data: {}, error: { message: 'Invalid login credentials' } });
+  await expect(changeCustomerPassword('wrong', 'NewPassword123', 'NewPassword123')).rejects.toThrow('current password is incorrect');
+  expect(updateUser).not.toHaveBeenCalled();
+  verifyPassword.mockResolvedValue({ data: { user }, error: null });
+  closeVerifier.mockResolvedValue({ error: null });
+  getUser.mockResolvedValueOnce({ data: { user }, error: null }).mockResolvedValueOnce({ data: { user: { ...user, id: 'another' } }, error: null });
+  await expect(changeCustomerPassword('OldPassword123', 'NewPassword123', 'NewPassword123')).rejects.toThrow('account changed');
+  expect(updateUser).not.toHaveBeenCalled();
+});
+it('rejects guest sessions, mismatched and reused passwords before changing anything', async () => {
+  await expect(changeCustomerPassword('old', 'NewPassword123', 'Mismatch123')).rejects.toThrow('do not match');
+  await expect(changeCustomerPassword('NewPassword123', 'NewPassword123', 'NewPassword123')).rejects.toThrow('different');
+  await expect(changeCustomerPassword('OldPassword123', 'NewPassword123', 'NewPassword123')).rejects.toThrow('verified account');
+  expect(updateUser).not.toHaveBeenCalled();
+});
 vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: async () => 'fixture-captcha' }));
 const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',
   addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' };

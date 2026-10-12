@@ -8,7 +8,7 @@ vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => null }));
 vi.mock('../services/customer', () => ({
   fetchCustomerAccount: vi.fn(), registerCustomerEmail: vi.fn(), confirmCustomerEmail: vi.fn(),
   sendCustomerPasswordReset: vi.fn(), fetchWelcomeOffer: vi.fn(), emailWelcomeCoupon: vi.fn(),
-  signOutCustomer: vi.fn(), fetchCustomerProfile: vi.fn(), signInCustomerWithPassword: vi.fn(), setCustomerPassword: vi.fn(),
+  signOutCustomer: vi.fn(), fetchCustomerProfile: vi.fn(), signInCustomerWithPassword: vi.fn(), setCustomerPassword: vi.fn(), changeCustomerPassword: vi.fn(),
   validateCustomerPassword: vi.fn(), fetchCustomerAddresses: vi.fn(), saveCustomerAddress: vi.fn(), deleteCustomerAddress: vi.fn(),
 }));
 beforeEach(() => {
@@ -107,7 +107,7 @@ it('signs in with email and password', async () => {
   expect(signInCustomerWithPassword).toHaveBeenCalledWith('buyer@example.test', 'Crochet2026');
   expect(sendCustomerPasswordReset).not.toHaveBeenCalled();
 });
-it('shows address details and a My orders link without inline history or account controls', async () => {
+it('shows address details, My orders and Change password without inline history', async () => {
   vi.mocked(fetchCustomerAccount).mockResolvedValue('buyer@example.test');
   vi.mocked(fetchCustomerProfile).mockResolvedValue(signupDetails);
   vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'address', details: signupDetails, isDefault: true }]);
@@ -117,6 +117,7 @@ it('shows address details and a My orders link without inline history or account
   expect(screen.getByRole('link', { name: 'My orders' }).getAttribute('href')).toBe('/?account=orders');
   expect(screen.queryByRole('region', { name: 'Your orders' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Set or change password' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Change password' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
   expect(screen.queryByText(/Verified email:/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Continue to delivery details' }));
