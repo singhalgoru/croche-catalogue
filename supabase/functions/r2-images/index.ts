@@ -123,6 +123,17 @@ Deno.serve(async (request) => {
       bases.push(match[1]);
     }
 
+    if (bases.length > 0) {
+      const { data: references, error: referenceError } = await authClient.from('categories')
+        .select('name').in('cover_image_url', bases.map(base => `${r2.publicUrl}/${base}.webp`));
+      if (referenceError) {
+        return jsonResponse({ error: `Unable to check seasonal cover references: ${referenceError.message}` }, 500);
+      }
+      if (references?.length) {
+        return jsonResponse({ error: 'An image is still used as a seasonal collection cover. Save its replacement or removal before deleting it.' }, 409);
+      }
+    }
+
     try {
       await deleteObjects(r2, bases.flatMap(objectKeys));
     } catch (error) {

@@ -2,6 +2,9 @@ import { loadSupabase } from '../lib/supabaseConfig';
 import type { Category, CategorySettings } from '../types/product';
 import { compareCategorySettings } from '../utils/categorySelection';
 import { countOverviewWords } from '../utils/categoryOverview.js';
+import { convertImageForUpload } from '../utils/imageUploadConversion';
+import { archiveImageOriginal } from './imageOriginals';
+import { deleteImagesFromR2, uploadImageToR2 } from './r2ImageStorage';
 
 interface CategoryRow {
   name: string;
@@ -11,6 +14,7 @@ interface CategoryRow {
   seasonal_category_products?: { product_id: string }[];
   overview?: string;
   featured_ticker?: boolean;
+  cover_image_url?: string;
 }
 
 declare global {
@@ -39,7 +43,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     const client = await requireSupabase();
     const { data, error } = await client
       .from('categories')
-      .select('name, sort_order, is_seasonal, visible, overview, featured_ticker, seasonal_category_products(product_id)')
+      .select('name, sort_order, is_seasonal, visible, overview, featured_ticker, cover_image_url, seasonal_category_products(product_id)')
       .order('sort_order')
       .order('name');
     if (error) throw new Error(`Unable to load categories: ${error.message}`);
@@ -54,6 +58,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     productIds: category.seasonal_category_products?.map(item => item.product_id) ?? [],
     overview: category.overview ?? '',
     featuredTicker: category.featured_ticker ?? false,
+    coverImage: category.cover_image_url ?? '',
   })).sort(compareCategorySettings);
 }
 
@@ -77,14 +82,37 @@ export async function createCategory(name: string, isSeasonal = false): Promise<
 
 }
 
-export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean, overview = '', featuredTicker = false): Promise<void> {
+export async function uploadSeasonalCategoryImage(file: File): Promise<string> {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size === 0 || file.size > 6 * 1024 * 1024) {
+    throw new Error('Choose a JPG, PNG or WebP cover image no larger than 6 MB.');
+  }
+  const prepared = await convertImageForUpload(file);
+  const imageId = await archiveImageOriginal(file);
+  const upload = await uploadImageToR2(prepared, imageId);
+  return upload.imageUrl;
+}
+
+export async function removeSeasonalCategoryImages(images: string[]): Promise<void> {
+  const paths = [...new Set(images.filter(Boolean))].map(image => {
+    if (!/^https:\/\/images\.luviacreations\.com\/products\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.webp$/.test(image)) {
+      throw new Error('Unable to remove an invalid seasonal cover image URL.');
+    }
+    return `r2:${new URL(image).pathname.slice(1, -5)}`;
+  });
+  await deleteImagesFromR2(paths);
+}
+
+export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean, overview = '', featuredTicker = false, coverImage?: string): Promise<string> {
   if (countOverviewWords(overview) > 90) throw new Error('Keep the category overview to 90 words or fewer.');
   const client = await requireSupabase();
-  const { error } = await client.rpc('save_seasonal_category', {
+  const { data, error } = await client.rpc('save_seasonal_category', {
     category_name: name, selected_product_ids: productIds, show_category: visible,
     category_overview: overview, feature_in_ticker: featuredTicker,
+    ...(coverImage !== undefined ? { category_cover_image: coverImage } : {}),
   });
   if (error) throw new Error(`Unable to save seasonal category: ${error.message}`);
+  if (typeof data !== 'string') throw new Error('Seasonal category storage returned an invalid save confirmation. Refresh the category before retrying.');
+  return data;
 }
 
 export async function saveCategoryOverview(name: string, overview: string): Promise<void> {

@@ -16,6 +16,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
 - A logo-only mobile brand row with a 64px logo and short header tagline keep browsing uncluttered; desktop retains the full introduction
 - Category filtering and search
+- Seasonal collections support custom cover images, with full-photo display and automatic cleanup of replaced public image renditions.
 - Bestseller cards show the full product image over a softly blurred backdrop, keeping embedded corner logos visible.
 - Verified admins share catalogue management, including products, variants and gallery images, with MFA and audit protections retained.
 - Admin product edits confirm the database update before reporting success and retain failed-save messages.

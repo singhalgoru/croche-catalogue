@@ -12,13 +12,14 @@ export default function CategoryTiles({ categories, products, categorySettings =
       const candidates = products.filter(product => matchesCategory(product, category, categorySettings));
       const product = candidates.find(candidate => candidate.inStock) ?? candidates[0];
       if (!product) return null;
-      const image = product.variants.find(variant => variant.inStock)?.image ?? product.image;
+      const settings = categorySettings.find(item => item.name === category);
+      const image = (settings?.isSeasonal && settings.coverImage) || (product.variants.find(variant => variant.inStock)?.image ?? product.image);
       return <a key={category} href={collectionPath(category)}
         className="min-w-0 overflow-hidden rounded-xl border border-mustard/30 bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-cocoa">
         <img src={getProductImageUrl(image, 480)} srcSet={getProductCardSrcSet(image)}
           sizes="(min-width: 1024px) 180px, (min-width: 640px) 30vw, 45vw"
           alt="" width={480} height={480} loading="lazy"
-          className="aspect-square w-full object-cover" {...productImageProtection} />
+          className={`aspect-square w-full ${settings?.coverImage ? 'object-contain' : 'object-cover'}`} {...productImageProtection} />
         <span className={`block break-words p-3 text-center text-sm font-semibold text-cocoa ${categorySettings.find(item => item.name === category)?.isSeasonal ? 'badge-glow bg-mustard/20' : ''}`}>{category}</span>
       </a>;
     })}

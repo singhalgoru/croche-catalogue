@@ -55,7 +55,17 @@ describe('fetchProducts', () => {
       ok: true, json: async () => [{ name: 'Toys', sort_order: 10 }],
     }));
     expect(await fetchBootstrapCategories('https://example.supabase.co', 'public-key'))
-      .toEqual([{ name: 'Toys', priority: 10, isSeasonal: false, visible: true, productIds: [], overview: '', featuredTicker: false }]);
+      .toEqual([{ name: 'Toys', priority: 10, isSeasonal: false, visible: true, productIds: [], overview: '', featuredTicker: false, coverImage: '' }]);
+  });
+  it('includes saved seasonal covers in the initial category snapshot', async () => {
+    const coverImage = 'https://images.luviacreations.com/products/admin/season.webp';
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [
+      { name: 'Festive', sort_order: 1, is_seasonal: true, cover_image_url: coverImage },
+    ] });
+    vi.stubGlobal('fetch', fetchMock);
+    const categories = await fetchBootstrapCategories('https://example.supabase.co', 'public-key');
+    expect(categories[0].coverImage).toBe(coverImage);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('select')).toContain('cover_image_url');
   });
 
   it('fails a build if the category snapshot cannot be fetched', async () => {

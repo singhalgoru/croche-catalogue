@@ -481,6 +481,65 @@ test('authenticates and manages the complete category lifecycle', async ({ page 
   expect(state.categories).not.toContain('Tote Bags');
 });
 
+test('uploads and replaces a seasonal cover, deletes the old R2 renditions and restores product fallback on removal', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const old = 'https://images.luviacreations.com/products/admin-user/old-cover.webp';
+  state.categories.push('Festive');
+  state.categorySettings.Festive = { priority: 1, isSeasonal: true, visible: true,
+    productIds: [state.products[0].id], coverImage: old };
+  const deleted: string[][] = [];
+  await page.route('**/functions/v1/r2-images', async route => {
+    if (!route.request().headers()['content-type']?.includes('application/json')) { await route.fallback(); return; }
+    const body = route.request().postDataJSON() as { action: string; paths: string[] };
+    expect(body.action).toBe('delete');
+    deleted.push(body.paths);
+    await route.fulfill({ json: { deleted: body.paths.length } });
+  });
+  await page.route('https://images.luviacreations.com/**', async route => {
+    await route.fulfill({ contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="600"><rect width="300" height="600" fill="#edc357"/></svg>' });
+  });
+  await signIn(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /Manage categories/ }).click();
+  const row = page.getByLabel('Priority for Festive').locator('..').locator('..').locator('..').locator('..');
+  await row.getByRole('button', { name: 'Manage products', exact: true }).click();
+  const editor = page.getByRole('region', { name: 'Products in Festive' });
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p1sAAAAASUVORK5CYII=', 'base64');
+  await editor.getByLabel('Seasonal collection cover image').setInputFiles({ name: 'festive.png', mimeType: 'image/png', buffer: png });
+  await expect(editor.getByAltText('Festive cover preview')).toHaveAttribute('src', /^blob:/);
+  expect(deleted).toEqual([]);
+  await editor.getByRole('button', { name: 'Save seasonal category' }).click();
+  await expect(editor).toHaveCount(0);
+  const cover = state.categorySettings.Festive.coverImage!;
+  expect(cover).not.toBe(old);
+  expect(deleted).toEqual([['r2:products/admin-user/old-cover']]);
+  await row.getByRole('button', { name: 'Manage products', exact: true }).click();
+  await expect(editor.getByAltText('Festive cover preview')).toHaveAttribute('src', cover);
+  await expectNoHorizontalOverflow(page);
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.goto('/collections/');
+  const card = page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Festive', exact: true });
+  await expect(card.locator('img:not([aria-hidden])')).toHaveAttribute('src', cover.replace('.webp', '-w480.webp'));
+  await card.click();
+  const hero = page.getByAltText('Festive collection');
+  await expect(hero).toBeVisible();
+  await expect(hero).toHaveCSS('object-fit', 'contain');
+  await expect.poll(() => hero.evaluate(node => (node as HTMLImageElement).naturalHeight)).toBe(600);
+  await expectNoHorizontalOverflow(page);
+  await page.goto('/#admin');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /Manage categories/ }).click();
+  await row.getByRole('button', { name: 'Manage products', exact: true }).click();
+  await editor.getByRole('button', { name: 'Remove cover image' }).click();
+  await editor.getByRole('button', { name: 'Save seasonal category' }).click();
+  await expect(editor).toHaveCount(0);
+  expect(state.categorySettings.Festive.coverImage).toBe('');
+  expect(deleted).toContainEqual([`r2:${new URL(cover).pathname.slice(1, -5)}`]);
+  await page.goto('/collections/');
+  await expect(card.locator('img:not([aria-hidden])')).not.toHaveAttribute('src', cover.replace('.webp', '-w480.webp'));
+});
+
 test('saves one product order for the main catalogue and category views', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'manage');

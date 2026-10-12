@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { generateCategoryOverview, saveCategoryOverview, saveSeasonalCategory } from '../../services/categories';
+import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryOverview, saveSeasonalCategory, uploadSeasonalCategoryImage } from '../../services/categories';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import type { CategorySettings } from '../../types/product';
 import { countOverviewWords, limitCategoryOverview } from '../../utils/categoryOverview.js';
+import ImageFilePicker from './ImageFilePicker';
 
 export default function SeasonalCategoryEditor({ category, onChanged, onClose }: {
   category: CategorySettings; onChanged: () => Promise<void>; onClose: () => void;
@@ -12,6 +13,14 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   const [visible, setVisible] = useState(category.visible !== false);
   const [overview, setOverview] = useState(() => limitCategoryOverview(category.overview ?? ''));
   const [featuredTicker, setFeaturedTicker] = useState(category.featuredTicker ?? false);
+  const [coverImage, setCoverImage] = useState(category.coverImage ?? '');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState('');
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [pendingCleanup, setPendingCleanup] = useState<string[]>([]);
+  useEffect(() => {
+    if (preview) return () => URL.revokeObjectURL(preview);
+  }, [preview]);
   const [message, setMessage] = useState('');
   const generate = async () => {
     setBusy(true); setError(''); setMessage('');
@@ -25,6 +34,26 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const finishCleanup = async () => {
+    setBusy(true); setError('');
+    try {
+      await removeSeasonalCategoryImages(pendingCleanup);
+      setPendingCleanup([]);
+      await onChanged();
+      onClose();
+    } catch (failure) {
+      setError(`Category saved, but old cover cleanup could not finish: ${failure instanceof Error ? failure.message : 'Image cleanup failed.'} Retry cleanup before closing.`);
+    } finally { setBusy(false); }
+  };
+  const cancel = async () => {
+    setBusy(true); setError('');
+    try {
+      await removeSeasonalCategoryImages([...uploadedImages, ...pendingCleanup]);
+      onClose();
+    } catch (failure) {
+      setError(`Unable to clean up unused cover images: ${failure instanceof Error ? failure.message : 'Image cleanup failed.'} Please retry.`);
+    } finally { setBusy(false); }
+  };
   useEffect(() => {
     let current = true;
     void fetchManagedProducts().then(value => { if (current) setProducts(value); })
@@ -34,13 +63,34 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   }, []);
   const save = async () => {
     setBusy(true); setError('');
+    let categorySaved = false;
     try {
-      if (category.isSeasonal) await saveSeasonalCategory(category.name, [...selected], visible, overview, featuredTicker);
+      if (category.isSeasonal) {
+        let image = coverImage;
+        let drafts = uploadedImages;
+        if (imageFile) {
+          image = await uploadSeasonalCategoryImage(imageFile);
+          setCoverImage(image);
+          setImageFile(null);
+          setPreview('');
+          drafts = [...drafts, image];
+          setUploadedImages(drafts);
+        }
+        const previous = await saveSeasonalCategory(category.name, [...selected], visible, overview, featuredTicker, image);
+        categorySaved = true;
+        setUploadedImages([]);
+        const obsolete = [...new Set([...drafts, previous].filter(url => url && url !== image))];
+        setPendingCleanup(obsolete);
+        setMessage('Seasonal category saved.');
+        await removeSeasonalCategoryImages(obsolete);
+        setPendingCleanup([]);
+      }
       else await saveCategoryOverview(category.name, overview);
       await onChanged();
       onClose();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Unable to save seasonal category.');
+      const detail = failure instanceof Error ? failure.message : 'Unable to save seasonal category.';
+      setError(categorySaved ? `Category saved, but cleanup or refresh could not finish: ${detail} Retry cleanup before closing.` : detail);
     } finally { setBusy(false); }
   };
   return <section aria-label={`Products in ${category.name}`} className="mt-4 rounded-xl border border-mustard/40 bg-white p-4">
@@ -56,6 +106,28 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
       Feature this category in the clickable store ticker
     </label>
     <p className="mt-1 text-xs text-cocoa/70">Selecting this replaces the previously featured seasonal category. Hidden or empty categories are not announced.</p>
+    <div className="mt-4 space-y-2">
+      <ImageFilePicker label="Seasonal collection cover image" file={imageFile} disabled={busy}
+        onChange={event => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = '';
+          if (!file) return;
+          if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || !file.size || file.size > 6 * 1024 * 1024) {
+            setError('Choose a JPG, PNG or WebP cover image no larger than 6 MB.');
+            return;
+          }
+          setError('');
+          setImageFile(file);
+          setPreview(URL.createObjectURL(file));
+        }} />
+      <p className="text-xs text-cocoa/70">Use your own seasonal artwork or photo. A square image works best. The full image is shown on collection cards and the collection page. Save to publish; without a cover, cards use a product photo.</p>
+      {(preview || coverImage) && <>
+        <img src={preview || coverImage} alt={`${category.name} cover preview`}
+          className="aspect-square w-48 rounded-xl bg-cream object-contain" />
+        <button type="button" disabled={busy} onClick={() => { setImageFile(null); setCoverImage(''); setPreview(''); }}
+          className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Remove cover image</button>
+      </>}
+    </div>
     <label className="mt-3 block text-sm">Search products
       <input type="search" value={query} disabled={busy} onChange={event => setQuery(event.target.value)}
         className="mt-1 w-full rounded-xl border border-mustard/60 p-2" />
@@ -86,10 +158,12 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
     <p className="mt-2 text-xs text-cocoa/70">Uses saved, published products only. Save product selection first, then generate. Review the draft before publishing; Gemini API charges may apply.</p>
     {message && <p role="status" className="mt-2 text-sm">{message}</p>}
     {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+    {pendingCleanup.length > 0 && <button type="button" disabled={busy} onClick={() => { void finishCleanup(); }}
+      className="mt-3 min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Retry old cover cleanup</button>}
     <div className="mt-4 flex gap-3">
-      <button type="button" disabled={busy || loading || products.length === 0} onClick={() => { void save(); }}
+      <button type="button" disabled={busy || loading || products.length === 0 || pendingCleanup.length > 0} onClick={() => { void save(); }}
         className="min-h-11 rounded-full bg-cocoa px-4 py-2 font-semibold text-cream disabled:opacity-60">{busy ? 'Please wait…' : category.isSeasonal ? 'Save seasonal category' : 'Save category overview'}</button>
-      <button type="button" disabled={busy} onClick={onClose} className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Cancel</button>
+      <button type="button" disabled={busy} onClick={() => { void cancel(); }} className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Cancel</button>
     </div>
   </section>;
 }

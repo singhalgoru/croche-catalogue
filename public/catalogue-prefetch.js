@@ -20,7 +20,7 @@ if (script && window.location.hash !== '#admin') {
   );
   window.categoriesPrefetch = fetchRows(
     'categories',
-    { select: 'name,sort_order,is_seasonal,visible,overview,featured_ticker,seasonal_category_products(product_id)', order: 'sort_order.asc,name.asc' },
+    { select: 'name,sort_order,is_seasonal,visible,overview,featured_ticker,cover_image_url,seasonal_category_products(product_id)', order: 'sort_order.asc,name.asc' },
     'categories',
   );
   window.cataloguePrefetch.then(preloadFirstCardImage).catch(() => {});

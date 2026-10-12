@@ -9,6 +9,7 @@ export interface CategorySettings {
   productIds?: string[];
   overview?: string;
   featuredTicker?: boolean;
+  coverImage?: string;
 }
 
 export interface ProductVariantImage {

@@ -46,7 +46,7 @@ export interface MockCatalogueState {
   /** Access token a mocked password-reset email link would carry, set once a reset is requested. */
   recoveryAccessToken?: string;
   categories: string[];
-  categorySettings: Record<string, { priority: number }>;
+  categorySettings: Record<string, { priority: number; isSeasonal?: boolean; visible?: boolean; productIds?: string[]; overview?: string; coverImage?: string; featuredTicker?: boolean }>;
   products: ProductRow[];
   carts: CartRow[];
   cartSessionBlocks: { user_id: string; created_at: string }[];
@@ -762,9 +762,25 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
         category_priority: number;
       }>(route);
       state.categorySettings[body.category_name] = {
+        ...state.categorySettings[body.category_name],
         priority: body.category_priority,
       };
       await route.fulfill({ status: 204 });
+      return;
+    }
+
+    if (pathname === '/rest/v1/rpc/save_seasonal_category') {
+      const body = getRequestBody<{ category_name: string; selected_product_ids: string[]; show_category: boolean;
+        category_overview: string; feature_in_ticker: boolean; category_cover_image?: string }>(route);
+      const current = state.categorySettings[body.category_name];
+      const previous = current.coverImage ?? '';
+      if (body.feature_in_ticker && body.show_category) {
+        for (const settings of Object.values(state.categorySettings)) settings.featuredTicker = false;
+      }
+      Object.assign(current, { productIds: body.selected_product_ids, visible: body.show_category,
+        overview: body.category_overview, featuredTicker: body.feature_in_ticker && body.show_category,
+        coverImage: body.category_cover_image ?? previous });
+      await json(route, previous);
       return;
     }
 
@@ -776,6 +792,12 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
             .map((name) => ({
               name,
               sort_order: state.categorySettings[name]?.priority ?? 100,
+              is_seasonal: state.categorySettings[name]?.isSeasonal ?? false,
+              visible: state.categorySettings[name]?.visible ?? true,
+              overview: state.categorySettings[name]?.overview ?? '',
+              cover_image_url: state.categorySettings[name]?.coverImage ?? '',
+              featured_ticker: state.categorySettings[name]?.featuredTicker ?? false,
+              seasonal_category_products: (state.categorySettings[name]?.productIds ?? []).map(product_id => ({ product_id })),
             }))
             .sort(
               (left, right) =>
@@ -787,9 +809,9 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       }
 
       if (request.method() === 'POST') {
-        const body = getRequestBody<{ name: string }>(route);
+        const body = getRequestBody<{ name: string; is_seasonal?: boolean }>(route);
         state.categories.push(body.name);
-        state.categorySettings[body.name] = { priority: 100 };
+        state.categorySettings[body.name] = { priority: 100, ...(body.is_seasonal ? { isSeasonal: true } : {}) };
         await route.fulfill({ status: 201 });
         return;
       }
@@ -968,7 +990,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       } else {
         await json(route, {
           imagePath: `r2:products/admin-user/${imageId}`,
-          imageUrl: `${image}?image=${imageId}`,
+          imageUrl: `https://images.luviacreations.com/products/admin-user/${imageId}.webp`,
         });
       }
       return;

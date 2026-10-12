@@ -11,6 +11,7 @@ import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp'
 import type { CategorySettings, Product, ProductVariant } from '../types/product';
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
 import { limitCategoryOverview } from '../utils/categoryOverview.js';
+import { getProductImageUrl } from '../utils/productImageUrl';
 
 interface Props {
   products: Product[];
@@ -142,6 +143,10 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
+          {selectedCategory?.isSeasonal && selectedCategory.coverImage && <img
+            src={getProductImageUrl(selectedCategory.coverImage, 960)} alt={`${category} collection`}
+            width={960} height={960} decoding="async"
+            className="max-h-96 w-full rounded-2xl bg-cream-dark object-contain" />}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
           {showCatalogue && <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {collectionProducts.map((product, index) => <li key={product.id}>

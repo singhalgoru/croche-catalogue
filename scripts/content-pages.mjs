@@ -55,6 +55,8 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     const pathname = collectionPath(category);
     if (pages.has(pathname)) throw new Error(`Duplicate collection path: ${category}`);
     const title = `Handmade ${category}`;
+    const settings = categories.find(item => item.name === category);
+    const coverImage = settings?.isSeasonal ? settings.coverImage : '';
     const description = limitCategoryOverview(categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
       : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`));
     const cards = items.map((product, index) => {
@@ -74,13 +76,14 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
       })),
     } };
     const collectionHtml = page(pathname, title, description, `<p class="intro">${escapeHtml(description)}</p>
+      ${coverImage ? `<img src="${escapeHtml(getProductImageUrl(coverImage, 960))}" alt="${escapeHtml(category)} collection" width="960" height="960" style="width:100%;max-height:384px;object-fit:contain;border-radius:16px" decoding="async">` : ''}
       <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability; confirm shipping and dispatch before paying.</p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
       <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema);
     pages.set(pathname, items.length ? collectionHtml
       : collectionHtml.replace('</head>', '<meta name="robots" content="noindex,follow"></head>'));
     if (items.length) {
-      const image = items.find(product => product.image)?.image;
+      const image = coverImage || items.find(product => product.image)?.image;
       const src = image ? getProductImageUrl(image, 480) : '/images/luvia-logo-320.webp';
       collectionLinks.push(`<li class="card product-card"><a class="collection-tile" href="${pathname}" aria-label="${escapeHtml(category)}">
         <span class="collection-photo">${image ? `<img class="photo-backdrop" src="${escapeHtml(src)}" alt="" aria-hidden="true" width="480" height="480" loading="lazy" decoding="async">` : ''}

@@ -42,6 +42,21 @@ describe('live store pages', () => {
     expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
     expect(screen.getByRole('banner').textContent).toBe('Navaratri, Toys');
   });
+  it('shows the custom cover on the hub and collection page, and restores the product fallback', () => {
+    const coverImage = 'https://images.luviacreations.com/products/admin/season.webp';
+    const settings = [...initial.categorySettings, { name: 'Festive', priority: 1, isSeasonal: true, productIds: ['p1'], coverImage }];
+    window.history.replaceState(null, '', '/collections/');
+    const { rerender, unmount } = render(<StorePages {...initial} categorySettings={settings} />);
+    const link = screen.getByRole('link', { name: 'Festive' });
+    expect(link.querySelector('img:not([aria-hidden])')?.getAttribute('src')).toContain('season-w480.webp');
+    rerender(<StorePages {...initial} categorySettings={[initial.categorySettings[0], { ...settings[1], coverImage: '' }]} />);
+    expect(link.querySelector('img:not([aria-hidden])')?.getAttribute('src')).toContain('bunny-w480.webp');
+    unmount();
+    window.history.replaceState(null, '', '/collections/festive/');
+    render(<StorePages {...initial} categorySettings={settings} />);
+    expect(screen.getByAltText('Festive collection').getAttribute('src')).toContain('season-w960.webp');
+    expect(screen.getByAltText('Festive collection').classList.contains('object-contain')).toBe(true);
+  });
   it('shows the business phone, order model and policy links on the About page', () => {
     window.history.replaceState(null, '', '/about/');
     render(<StorePages {...initial} />);
