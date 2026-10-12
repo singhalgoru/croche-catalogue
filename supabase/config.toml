@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.order-confirmation-worker]
 verify_jwt = false
+
+[functions.manage-admin-users]
+verify_jwt = true

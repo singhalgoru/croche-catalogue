@@ -444,6 +444,26 @@ mounted forms. Add product and Edit open focused, scrollable dialogs with a
 pinned header and Close control; Escape closes them unless an operation is
 running. Closing Add product retains the draft.
 
+**Settings -> Admin users** lets the owner invite new admins, grant access to
+existing verified email accounts, edit display names, change admin passwords
+and remove access without deleting accounts or historical records. Regular
+admins can only change their own password. Every change requires the caller's
+current password and the existing Turnstile verification. Login email is not
+edited in place: add the new verified account, then remove old access.
+The owner cannot be removed or transferred from this screen.
+
+Deploy migration `20261012040000_admin_user_management.sql` and Edge Function
+`manage-admin-users` before the frontend. The migration promotes the single
+existing admin to owner; ambiguous or empty admin lists abort instead of
+guessing ownership. Only the service-role backend can change membership or
+read the private audit trail. Passwords are not recorded in that trail.
+New-account invitations use Supabase Auth's configured invite template/SMTP,
+not the Resend order queue. Invitation links open the password-setting dialog;
+after setting a password, open `/#admin` to enter the console. Existing accounts
+retain their credentials and name. Pending invitations can be removed; an
+expired invitation can use the existing Forgot password flow to regain access.
+Provider acceptance is not a guarantee of inbox delivery.
+
 New products and previously unpublished products require a name (at least
 2 characters), category, description (at least 10 characters), materials,
 what's included, and named variants with photos. A displayed price must be a

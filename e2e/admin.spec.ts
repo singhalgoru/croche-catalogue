@@ -31,6 +31,53 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('owner manages admin names, passwords and access without mobile overflow', async ({ page }) => {
+  await installMockSupabase(page);
+  const owner = { id: 'admin-user', email: 'admin@luvia.test', name: 'Owner', isOwner: true, verified: true, createdAt: '' };
+  let users = [owner, { ...owner, id: 'member', email: 'member@luvia.test', name: 'Member', isOwner: false }];
+  const changes: Record<string, string>[] = [];
+  await page.route('**/functions/v1/manage-admin-users', async route => {
+    const body = route.request().postDataJSON();
+    if (body.action === 'list') {
+      await route.fulfill({ json: { currentUserId: owner.id, isOwner: true, users } });
+      return;
+    }
+    changes.push(body);
+    if (body.action === 'add') users.push({ ...owner, id: 'new', email: body.email, name: body.name, isOwner: false, verified: false });
+    if (body.action === 'edit') users = users.map(user => user.id === body.id ? { ...user, name: body.name } : user);
+    if (body.action === 'remove') users = users.filter(user => user.id !== body.id);
+    await route.fulfill({ json: { message: 'Admin operation saved.' } });
+  });
+  await signIn(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Admin users', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove access for admin@luvia.test' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add admin user', exact: true }).click();
+  await page.getByLabel('Admin email', { exact: true }).fill('new@luvia.test');
+  await page.getByLabel('Admin name', { exact: true }).fill('New Admin');
+  await page.getByLabel('Your current password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Save admin account' }).click();
+  await expect(page.getByText('Invitation pending activation')).toBeVisible();
+  await page.getByRole('button', { name: 'Edit new@luvia.test', exact: true }).click();
+  await page.getByLabel('Admin name', { exact: true }).fill('Updated Admin');
+  await page.getByLabel('Your current password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Save admin account' }).click();
+  await expect(page.getByText('Updated Admin', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Change password for new@luvia.test', exact: true }).click();
+  await page.getByLabel('New admin password', { exact: true }).fill('StrongPassword123');
+  await page.getByLabel('Confirm new admin password', { exact: true }).fill('StrongPassword123');
+  await page.getByLabel('Your current password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Save admin account' }).click();
+  await expect(page.getByRole('form', { name: 'Manage admin account' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Remove access for new@luvia.test', exact: true }).click();
+  await expect(page.getByText(/This does not delete the account/)).toBeVisible();
+  await page.getByLabel('Your current password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Confirm remove access' }).click();
+  await expect(page.getByText('new@luvia.test', { exact: true })).toHaveCount(0);
+  expect(changes.map(change => change.action)).toEqual(['add', 'edit', 'password', 'remove']);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('filters featured products, searches them and updates the tab after saved edits', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'manage');
