@@ -8,6 +8,11 @@ do $$ declare f record; rejected boolean:=false; result uuid; begin
   select * into f from feedback_fixture;
   result:=public.submit_store_feedback(f.first_id,'Please add more colours.','suggestion','','ignored@example.test',false);
   if result<>f.first_id then raise exception 'FAIL: invalid receipt.'; end if;
+  if public.store_feedback_delivery_status(f.first_id)<>'pending' then raise exception 'FAIL: persistence reported as sending.'; end if;
+  rejected:=false;
+  begin perform public.store_feedback_delivery_status(gen_random_uuid());
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: missing receipt accepted.'; end if;
   perform public.submit_store_feedback(f.first_id,'Please add more colours.','suggestion','','ignored@example.test',false);
   begin perform public.submit_store_feedback(gen_random_uuid(),'Please reply to this.','general','','',true);
   exception when others then rejected:=true; end;
@@ -24,6 +29,28 @@ do $$ declare f record; rejected boolean:=false; result uuid; begin
   if not rejected then raise exception 'FAIL: browser can read feedback.'; end if;
 end $$;
 reset role;
+update public.store_feedback set last_error='Test provider failure' where id=(select first_id from feedback_fixture);
+select set_config('request.jwt.claims',json_build_object('role','authenticated','sub',(select user_id from feedback_fixture))::text,true);
+set local role authenticated;
+do $$ begin
+  if public.store_feedback_delivery_status((select first_id from feedback_fixture))<>'failed' then raise exception 'FAIL: failed email reported as sent.'; end if;
+end $$;
+reset role;
+update public.store_feedback set accepted_at=now(),provider_id='fixture',last_error=null where id=(select first_id from feedback_fixture);
+set local role authenticated;
+do $$ begin
+  if public.store_feedback_delivery_status((select first_id from feedback_fixture))<>'sent' then raise exception 'FAIL: provider acceptance not confirmed.'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',json_build_object('role','authenticated','sub',gen_random_uuid())::text,true);
+set local role authenticated;
+do $$ declare rejected boolean:=false; begin
+  begin perform public.store_feedback_delivery_status((select first_id from feedback_fixture));
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: another session can read receipt status.'; end if;
+end $$;
+reset role;
+update public.store_feedback set accepted_at=null,provider_id=null where id=(select first_id from feedback_fixture);
 do $$ begin
   if (select count(*) from public.store_feedback where user_id=(select user_id from feedback_fixture))<>3 then raise exception 'FAIL: duplicate feedback.'; end if;
   if (select contact_email from public.store_feedback where id=(select first_id from feedback_fixture))<>'' then raise exception 'FAIL: email stored without reply request.'; end if;

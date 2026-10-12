@@ -20,7 +20,7 @@ export default function FeedbackForm() {
   return <section aria-label="Share feedback" className="rounded-2xl border border-mustard/40 bg-white p-4 text-left text-sm text-cocoa shadow-sm sm:p-6">
       <p className="mt-2">Help us improve Luvia. Only your feedback is required. Leave your email only if you would like a reply.</p>
       <p className="mt-2 text-xs">Used only to review your feedback and respond if requested. A session identifier is kept for abuse prevention; account contact details are not attached automatically. Website submissions are kept for up to 90 days; delivered emails remain in our feedback inbox. Please do not include passwords, payment details or sensitive personal information. For order/payment help, email <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a>.</p>
-      {saved && <p role="status" className="mt-3">Thank you! Your feedback has been saved and queued for feedback@luviacreations.com.</p>}
+      {saved && <p role="status" className="mt-3">Thank you! Your feedback has been sent to feedback@luviacreations.com.</p>}
       <form aria-label="Share feedback form" className="mt-3 grid gap-3" onSubmit={event => {
         event.preventDefault(); setBusy(true); setError(''); setSaved(false);
         const signature = JSON.stringify({ message, category, name, email: wantsReply ? email : '', wantsReply });

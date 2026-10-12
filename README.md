@@ -516,7 +516,15 @@ from `Luvia Creations <hello@luviacreations.com>`. Reply-To is the supplied emai
 only when a reply was requested, otherwise the feedback mailbox. No automated
 customer acknowledgement or marketing subscription is sent. The minute cron
 claims five jobs with eight attempts, 15-minute leases and stable idempotency.
-The UI confirms saved/queued, not inbox delivery. Monitor feedback mailbox
+Migration `20261012080000_feedback_delivery_confirmation.sql` dispatches new
+submissions immediately, keeps the minute cron as a fallback, and allows 90
+seconds for a five-email worker batch. The owner-only
+`store_feedback_delivery_status` RPC exposes only sent/pending/failed, never
+feedback content or provider errors. The form waits up to 20 checks before
+showing "sent to"; it requires recorded provider acceptance. Failed or delayed
+confirmation keeps the message and request ID for a deduplicated retry and
+explicitly explains that feedback was saved but sending is not confirmed.
+Provider acceptance does not prove inbox delivery. Monitor feedback mailbox
 forwarding and failed jobs; order/payment enquiries remain at
 `orders@luviacreations.com`.
 

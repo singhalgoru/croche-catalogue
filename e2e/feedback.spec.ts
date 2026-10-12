@@ -9,6 +9,8 @@ test('feedback supports anonymous messages and optional reply contact without ov
     submissions.push(body);
     await route.fulfill({json:body.request_id});
   });
+  let checks = 0;
+  await page.route('**/rest/v1/rpc/store_feedback_delivery_status', route => route.fulfill({ json: checks++ === 0 ? 'pending' : 'sent' }));
   await page.goto('./');
   const footer=page.getByRole('contentinfo');
   await expect(footer.getByRole('form',{name:'Share feedback form'})).toHaveCount(0);
@@ -27,7 +29,7 @@ test('feedback supports anonymous messages and optional reply contact without ov
   await expect(form.getByLabel('Reply email')).toHaveCount(0);
   await form.getByLabel('Your feedback').fill('Please add more colour options.');
   await form.getByRole('button',{name:'Send feedback'}).click();
-  await expect(main.getByRole('status')).toContainText('queued for feedback@luviacreations.com');
+  await expect(main.getByRole('status')).toContainText('sent to feedback@luviacreations.com');
   expect(submissions[0]).toMatchObject({contact_email:'',contact_name:'',wants_reply:false});
   await form.getByLabel("I'd like a reply").check();
   await expect(form.getByLabel('Reply email')).toHaveAttribute('required','');
@@ -43,4 +45,29 @@ test('feedback supports anonymous messages and optional reply contact without ov
   await expect(page).not.toHaveURL(/page=feedback/);
   await expect(page.getByRole('heading', {name:'Share feedback',level:1})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('feedback retains a saved message and receipt when sending fails', async ({ page }) => {
+  await installMockSupabase(page);
+  const receipts: string[] = [];
+  await page.route('**/rest/v1/rpc/submit_store_feedback', async route => {
+    const body = route.request().postDataJSON();
+    receipts.push(body.request_id);
+    await route.fulfill({ json: body.request_id });
+  });
+  let confirmed = false;
+  await page.route('**/rest/v1/rpc/store_feedback_delivery_status', route => route.fulfill({ json: confirmed ? 'sent' : 'failed' }));
+  await page.goto('./?page=feedback');
+  const form = page.getByRole('form', { name: 'Share feedback form' });
+  await form.getByLabel('Your feedback').fill('Please add more colour options.');
+  await form.getByRole('button', { name: 'Send feedback' }).click();
+  await expect(form.getByRole('alert')).toContainText('could not be sent yet');
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(form.getByLabel('Your feedback')).toHaveValue('Please add more colour options.');
+  confirmed = true;
+  await form.getByRole('button', { name: 'Send feedback' }).click();
+  await expect(page.getByRole('status')).toContainText('sent to feedback@luviacreations.com');
+  expect(receipts).toHaveLength(2);
+  expect(receipts[1]).toBe(receipts[0]);
+  await expect(form.getByLabel('Your feedback')).toHaveValue('');
 });

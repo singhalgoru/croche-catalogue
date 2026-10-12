@@ -19,13 +19,21 @@ it('collects only optional identity and requires an email for requested replies'
   fireEvent.click(screen.getByLabelText("I'd like a reply"));
   expect(screen.queryByLabelText('Reply email')).toBeNull();
 });
-it('saves feedback with accurate queued delivery confirmation and clears the form', async () => {
+it('shows sent confirmation after the service confirms sending and clears the form', async () => {
   open();
   fireEvent.change(screen.getByLabelText('Your feedback'), { target: { value: 'Please add colour options.' } });
   fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
-  expect((await screen.findByRole('status')).textContent).toContain('queued for feedback@luviacreations.com');
+  expect((await screen.findByRole('status')).textContent).toContain('sent to feedback@luviacreations.com');
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ name: '', email: '', wantsReply: false }));
   expect(screen.getByLabelText('Your feedback')).toHaveProperty('value', '');
+});
+it('retains feedback without a success message when sending is not confirmed', async () => {
+  open(); submit.mockRejectedValue(new Error('Your feedback was saved, but sending has not been confirmed yet.'));
+  fireEvent.change(screen.getByLabelText('Your feedback'), { target: { value: 'Please add colour options.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+  await screen.findByRole('alert');
+  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByLabelText('Your feedback')).toHaveProperty('value', 'Please add colour options.');
 });
 it('reuses a request ID when retrying the same failed submission', async () => {
   open(); submit.mockRejectedValue(new Error('Connection interrupted.'));

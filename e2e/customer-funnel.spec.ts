@@ -170,6 +170,7 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
 test('checkout signup with password activates the same cart owner, shows the name in the header and signs back in', async ({ page }) => {
   const state = await installMockSupabase(page);
   const feedbackSubmissions: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/store_feedback_delivery_status', route => route.fulfill({ json: 'sent' }));
   await page.route('**/rest/v1/rpc/submit_store_feedback', async route => {
     const body = route.request().postDataJSON();
     feedbackSubmissions.push(body);
@@ -230,7 +231,7 @@ test('checkout signup with password activates the same cart owner, shows the nam
   const feedbackForm = page.getByRole('main').getByRole('form', { name: 'Share feedback form' });
   await feedbackForm.getByLabel('Your feedback').fill('Please add more colour options to the catalogue.');
   await feedbackForm.getByRole('button', { name: 'Send feedback' }).click();
-  await expect(page.getByRole('main').getByRole('status')).toContainText('Your feedback has been saved');
+  await expect(page.getByRole('main').getByRole('status')).toContainText('Your feedback has been sent to feedback@luviacreations.com');
   expect(feedbackSubmissions[0]).toMatchObject({ contact_name: '', contact_email: '', wants_reply: false });
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
