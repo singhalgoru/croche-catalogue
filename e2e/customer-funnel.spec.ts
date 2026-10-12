@@ -79,6 +79,15 @@ test('cart uses a full-width page with products before the summary on short scre
 });
 
 test('guest address is saved, reviewed, shared and restored without showing payment', async ({ page }) => {
+  const analytics: unknown[][] = [];
+  await page.exposeFunction('capturePurchaseIntent', (args: unknown[]) => analytics.push(args));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'userAgent', { get: () => 'Analytics regression browser' });
+    Object.defineProperty(navigator, 'userAgentData', { get: () => undefined });
+    const target = window as Window & { capturePurchaseIntent: (args: unknown[]) => Promise<void> };
+    target.gtag = (...args: unknown[]) => { void target.capturePurchaseIntent(args); };
+  });
   const state = await installMockSupabase(page);
   await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
     id: true, enabled: false, percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500, valid_days: 30,
@@ -109,6 +118,15 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await expect(page.getByText(/12 Guest Street/)).toBeVisible();
   const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
   expect(decodeURIComponent(whatsapp!)).toContain('12 Guest Street');
+  const whatsappButton = page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' });
+  await whatsappButton.evaluate(node => node.addEventListener('click', event => event.preventDefault()));
+  await whatsappButton.click();
+  await expect.poll(() => analytics.filter(args => args[1] === 'generate_lead').length).toBe(1);
+  expect(analytics.find(args => args[1] === 'generate_lead')?.[2]).toMatchObject({ lead_source: 'whatsapp', contact_location: 'cart', currency: 'INR' });
+  expect(analytics.some(args => args[1] === 'add_to_cart')).toBe(true);
+  expect(analytics.some(args => args[1] === 'begin_checkout')).toBe(true);
+  expect(analytics.some(args => args[1] === 'purchase')).toBe(false);
+  for (const personal of ['Guest Buyer', '9876543210', '12 Guest Street']) expect(JSON.stringify(analytics)).not.toContain(personal);
   await expect(page.getByRole('button', { name: 'Try Razorpay test checkout' })).toHaveCount(0);
   await page.reload();
   await expect(page).toHaveURL(/checkout=review/);

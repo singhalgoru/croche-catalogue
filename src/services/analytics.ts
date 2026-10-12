@@ -202,6 +202,22 @@ export const trackWhatsAppEnquiry = (product: Product, variant?: ProductVariant)
     ...metaProductParameters(product, variant),
     contact_channel: 'whatsapp',
   });
+  const price = getPublicVariantPrice(product, variant);
+  trackEvent('generate_lead', {
+    lead_source: 'whatsapp', contact_location: 'product', currency: 'INR',
+    ...(price !== null ? { value: price } : {}),
+    items: [{ ...itemParameters(product, variant), ...(price !== null ? { price } : {}) }],
+  });
+  trackMetaEvent('Lead', { ...metaProductParameters(product, variant), lead_source: 'whatsapp' });
+};
+
+export const trackWhatsAppCart = (cart: Cart) => {
+  const itemCount = cart.items.reduce((count, item) => count + item.quantity, 0);
+  trackEvent('whatsapp_cart', { item_count: itemCount });
+  trackEvent('generate_lead', { ...cartParameters(cart), lead_source: 'whatsapp', contact_location: 'cart' });
+  const { items: _items, ...parameters } = cartParameters(cart);
+  trackMetaEvent('Lead', { ...parameters, lead_source: 'whatsapp',
+    content_ids: cart.items.map(item => item.productId), content_type: 'product', num_items: itemCount });
 };
 
 export const trackContactClick = (channel: string, location: string) => {

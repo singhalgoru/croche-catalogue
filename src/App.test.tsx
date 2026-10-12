@@ -31,7 +31,7 @@ vi.mock('./hooks/useCart', () => ({
 vi.mock('./hooks/useCustomerName', () => ({ useCustomerName: () => null }));
 vi.mock('./services/analytics', () => ({
   trackEvent: vi.fn(), trackProductSelected: vi.fn(), trackProductViewed: vi.fn(),
-  trackWhatsAppEnquiry: vi.fn(), trackContactClick: vi.fn(),
+  trackWhatsAppEnquiry: vi.fn(), trackWhatsAppCart: vi.fn(), trackContactClick: vi.fn(),
 }));
 vi.mock('./components/ProductGrid', () => ({
   default: ({ onSelect, products }: { onSelect: (product: Product) => void; products: Product[] }) =>

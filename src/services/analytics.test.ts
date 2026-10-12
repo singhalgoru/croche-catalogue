@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Cart } from '../types/cart';
+import type { Product } from '../types/product';
 
 const cart: Cart = {
   id: 'private-cart-id', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '', whatsappStartedAt: null,
@@ -103,4 +104,37 @@ it('does not initialize or emit Meta events while authentication tokens are in t
   delete window.fbq;
   initializeMetaPixel();
   expect(window.fbq).toBeUndefined();
+});
+it('records WhatsApp cart purchase intent as a lead, never as a purchase', async () => {
+  const { trackWhatsAppCart, trackContactClick } = await import('./analytics');
+  trackWhatsAppCart(cart);
+  expect(ga).toHaveBeenCalledWith('event', 'generate_lead', expect.objectContaining({
+    lead_source: 'whatsapp', contact_location: 'cart', currency: 'INR', value: 600,
+    items: [expect.objectContaining({ item_id: 'rose', quantity: 3 })],
+  }));
+  expect(meta).toHaveBeenCalledWith('track', 'Lead', expect.objectContaining({ lead_source: 'whatsapp', num_items: 3 }));
+  expect(ga.mock.calls.some(call => call[1] === 'purchase')).toBe(false);
+  const payload = JSON.stringify([ga.mock.calls, meta.mock.calls]);
+  for (const privateValue of ['Private Buyer', 'private@example.test', '9876543210', 'Private Street', 'private-cart-id']) {
+    expect(payload).not.toContain(privateValue);
+  }
+  ga.mockClear(); meta.mockClear();
+  trackContactClick('whatsapp', 'footer');
+  expect(ga.mock.calls.some(call => call[1] === 'generate_lead')).toBe(false);
+});
+it('records product WhatsApp intent with known prices only', async () => {
+  const { trackWhatsAppEnquiry } = await import('./analytics');
+  const product: Product = { id: 'rose', name: 'Rose', category: 'Flowers', price: 200, showPrice: true,
+    description: 'Handmade rose', color: 'pink', inStock: true, image: '/rose.jpg', variants: [] };
+  trackWhatsAppEnquiry(product);
+  expect(ga).toHaveBeenCalledWith('event', 'generate_lead', expect.objectContaining({
+    lead_source: 'whatsapp', contact_location: 'product', value: 200,
+    items: [expect.objectContaining({ item_id: 'rose', price: 200 })],
+  }));
+  expect(meta).toHaveBeenCalledWith('track', 'Lead', expect.objectContaining({ lead_source: 'whatsapp' }));
+  ga.mockClear();
+  trackWhatsAppEnquiry({ ...product, price: null });
+  const lead = ga.mock.calls.find(call => call[1] === 'generate_lead')!;
+  expect(lead[2]).not.toHaveProperty('value');
+  expect(lead[2].items[0]).not.toHaveProperty('price');
 });

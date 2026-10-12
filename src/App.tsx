@@ -23,7 +23,7 @@ import { useCustomerName } from './hooks/useCustomerName';
 import { isPasswordRecoveryLink } from './utils/authLinks';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
 import { useTickerMessages } from './hooks/useTickerMessages';
-import { trackEvent, trackProductSelected } from './services/analytics';
+import { trackEvent, trackProductSelected, trackWhatsAppCart } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
 import { compareCatalogueProducts } from './utils/catalogueSort';
@@ -515,7 +515,7 @@ function App() {
         void cart.clear();
       }}
       onWhatsAppStarted={() => {
-        trackEvent('whatsapp_cart', { item_count: cart.itemCount });
+        if (cart.cart) trackWhatsAppCart(cart.cart);
         void cart.markWhatsAppStarted();
       }}
       onSaveDeliveryPin={cart.saveDeliveryPin}
