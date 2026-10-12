@@ -19,6 +19,10 @@ Deno.serve(async request => {
   if (authError || !identity.user || !identity.user.email_confirmed_at || identity.user.is_anonymous) {
     return json({ error: 'A verified admin session is required.' }, 401);
   }
+  const { data: permitted, error: permissionError } = await client.rpc('is_catalogue_admin');
+  if (permissionError || permitted !== true) {
+    return json({ error: 'Recent admin authenticator verification is required. Return to admin sign in.' }, 403);
+  }
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
   const { data: directory, error: directoryError } = await admin.rpc('admin_user_directory', { actor: identity.user.id });
   if (directoryError || !directory) return json({ error: 'Catalogue admin access required.' }, 403);
@@ -68,6 +72,8 @@ Deno.serve(async request => {
   const { error: signOutError } = await verifier.auth.signOut({ scope: 'local' });
   if (signOutError) return json({ error: 'Unable to close the authorization session. Retry.' }, 500);
   try {
+    const { data: stillPermitted, error: latestPermissionError } = await client.rpc('is_catalogue_admin');
+    if (latestPermissionError || stillPermitted !== true) return json({ error: 'Admin verification expired or access was locked. Verify again before retrying.' }, 403);
     const { data: latest, error: accessError } = await admin.rpc('admin_user_directory', { actor: identity.user.id });
     if (accessError || !latest || (!customerAction && !latest.isOwner && !(action === 'password' && target?.id === identity.user.id))
       || (!customerAction && action !== 'add' && !latest.users.some((user: { id: string }) => user.id === target.id))) {

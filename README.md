@@ -494,6 +494,12 @@ email-only form. No current password is requested. The emailed recovery link
 then lets the recipient choose and confirm a new password; authenticated
 Change password and privileged admin changes still require authorization.
 
+**Admin authenticator protection:** Microsoft Authenticator or another TOTP app
+is required, with renewed verification every 15 minutes. Complete setup at
+admin sign-in using a trusted login. Product/ticker change history supports
+investigation. Deployment, emergency response and recovery procedures are
+maintained in the private operations repository.
+
 **Share feedback** is available in the footer and signed-in My account.
 The footer groups brand information, store links and contact details into
 responsive columns on desktop. Below 768px, Contact us and Share feedback remain

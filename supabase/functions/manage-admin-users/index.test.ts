@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-const { rpc, getUser, signIn, signOut, invite, getById, update, insert } = vi.hoisted(() => ({
-  rpc: vi.fn(), getUser: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), invite: vi.fn(),
+const { rpc, permission, getUser, signIn, signOut, invite, getById, update, insert } = vi.hoisted(() => ({
+  rpc: vi.fn(), permission: vi.fn(), getUser: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), invite: vi.fn(),
   getById: vi.fn(), update: vi.fn(), insert: vi.fn(),
 }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
-  createClient: () => ({ rpc, from: () => ({ insert }),
+  createClient: (_url: string, _key: string, options?: { global?: unknown }) => ({ rpc: options?.global ? permission : rpc, from: () => ({ insert }),
     auth: { getUser, signInWithPassword: signIn, signOut,
       admin: { inviteUserByEmail: invite, getUserById: getById, updateUserById: update } } }),
 }));
@@ -23,6 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   directory = { isOwner: true, currentUserId: 'owner', users: [{ ...member, id: 'owner', isOwner: true }, member] };
   getUser.mockResolvedValue({ data: { user: owner }, error: null });
+  permission.mockResolvedValue({ data: true, error: null });
   rpc.mockImplementation(async (name: string) => ({
     data: name === 'admin_user_directory' ? directory : name === 'find_admin_candidate' ? null : undefined, error: null,
   }));
@@ -45,6 +46,13 @@ it('requires a verified admin and rejects public/non-admin access', async () => 
 it('lists only the server-authorized directory without a password', async () => {
   expect(await (await handle(request({ action: 'list' }))).json()).toEqual(directory);
   expect(signIn).not.toHaveBeenCalled();
+});
+it.each([false,null])('blocks privileged service-role work without recent MFA: %s', async allowed => {
+  permission.mockResolvedValue({ data: allowed, error: null });
+  expect((await handle(request({ action: 'list' }))).status).toBe(403);
+  expect(rpc).not.toHaveBeenCalled();
+  expect(invite).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
 });
 it.each(['add','edit','remove','password'])('denies non-owner %s on another admin', async action => {
   directory.isOwner = false;

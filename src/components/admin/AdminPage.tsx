@@ -5,6 +5,7 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { fetchCategorySettings } from '../../services/categories';
 import type { CategorySettings } from '../../types/product';
 import AdminLogin from './AdminLogin';
+import AdminMfa from './AdminMfa';
 import CategoryManager from './CategoryManager';
 import CartManager from './CartManager';
 import CustomerOrders from '../CustomerOrders';
@@ -52,12 +53,14 @@ export default function AdminPage({ onProductPublished }: Props) {
   // session object) keeps the console mounted through those refreshes, so
   // half-filled forms aren't wiped when the admin switches apps and returns.
   const sessionUserId = session?.user.id ?? null;
-  const [adminCheck, setAdminCheck] = useState<{ userId: string; isAdmin: boolean } | null>(
+  const [adminCheck, setAdminCheck] = useState<{ userId: string; isAdmin: boolean; verified: boolean; locked: boolean } | null>(
     null,
   );
   const isAdmin =
     sessionUserId && adminCheck?.userId === sessionUserId ? adminCheck.isAdmin : null;
   const [authError, setAuthError] = useState<string | null>(null);
+  const [accessRefresh, setAccessRefresh] = useState(0);
+  const verified = adminCheck?.userId === sessionUserId && adminCheck?.verified === true;
 
   useEffect(() => {
     if (!supabase) return;
@@ -82,32 +85,36 @@ export default function AdminPage({ onProductPublished }: Props) {
   useEffect(() => {
     if (!supabase || !sessionUserId) return;
 
+    const client = supabase;
     let isCurrent = true;
-    void supabase.rpc('is_catalogue_admin').then(({ data, error }) => {
+    const check = () => void client.rpc('admin_access_status').then(({ data, error }) => {
       if (!isCurrent) return;
-      if (error) {
-        setAuthError(`Unable to verify catalogue access: ${error.message}`);
-        setAdminCheck({ userId: sessionUserId, isAdmin: false });
+      if (error || typeof data?.isAdmin !== 'boolean' || typeof data?.verified !== 'boolean' || typeof data?.locked !== 'boolean') {
+        setAuthError(`Unable to verify catalogue access: ${error?.message ?? 'Invalid access response.'}`);
+        setAdminCheck({ userId: sessionUserId, isAdmin: false, verified: false, locked: true });
         return;
       }
       setAuthError(null);
-      setAdminCheck({ userId: sessionUserId, isAdmin: data === true });
+      setAdminCheck({ userId: sessionUserId, isAdmin: data.isAdmin, verified: data.verified, locked: data.locked });
     });
+    check();
+    const timer = window.setInterval(check, 30000);
 
     return () => {
       isCurrent = false;
+      window.clearInterval(timer);
     };
-  }, [sessionUserId]);
+  }, [sessionUserId, session?.access_token, accessRefresh]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !verified) return;
 
     void fetchCategorySettings().then(
       (nextCategories) => setCategorySettings(nextCategories),
       (error: unknown) =>
         setAuthError(error instanceof Error ? error.message : 'Unable to load categories.'),
     );
-  }, [isAdmin]);
+  }, [isAdmin, verified]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -173,6 +180,18 @@ export default function AdminPage({ onProductPublished }: Props) {
       </main>
     );
   }
+
+  if (adminCheck?.locked) return <main className="min-h-screen bg-cream p-8 text-cocoa">
+    <h1 className="font-heading text-2xl font-bold">Admin access temporarily locked</h1>
+    <p className="mt-3">The project administrator has blocked admin operations for security. Customer shopping remains available.</p>
+    <button type="button" onClick={() => void signOut()} className="mt-4 min-h-11 underline">Sign out</button>
+  </main>;
+  if (!verified) return <AdminMfa onSignOut={signOut} onVerified={async () => {
+    if (!supabase) throw new Error('Admin verification requires an online connection.');
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    setSession(data.session); setAccessRefresh(value => value + 1);
+  }} />;
 
   const handleProductChanged = async () => {
     await onProductPublished();
