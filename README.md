@@ -16,6 +16,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
 - A logo-only mobile brand row with a 64px logo and short header tagline keep browsing uncluttered; desktop retains the full introduction
 - Category filtering and search
+- Browser favicons and installed-app icons preserve the original Luvia brand design.
 - GA4 records cart/checkout intent and verified online purchases. Product/cart
   WhatsApp actions record leads, not completed offline purchases.
 - Below-catalogue ordering guide explains cart-to-WhatsApp confirmation and delivery enquiries, also present in the crawler-readable HTML; the return-policy link appears once in the footer
