@@ -21,6 +21,8 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   const bestsellers = page.getByRole('region', { name: 'Bestsellers' });
   await expect(bestsellers).toBeVisible();
   expect((await collections.boundingBox())!.y).toBeLessThan((await bestsellers.boundingBox())!.y);
+  expect((await page.getByRole('searchbox').boundingBox())!.y).toBeGreaterThan(
+    (await bestsellers.boundingBox())!.y + (await bestsellers.boundingBox())!.height);
   const geometry = await collections.evaluate(element => ({
     width: element.clientWidth, overflow: element.scrollWidth > element.clientWidth,
     card: element.querySelector('a')!.getBoundingClientRect().width,
@@ -42,6 +44,9 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   }));
   expect(new Set(movement.map(position => Math.round(position))).size).toBeGreaterThan(15);
   expect(movement[movement.length - 1]).toBeGreaterThan(0);
+  const durationDistance = movement[movement.length - 1] - movement[0];
+  expect(durationDistance).toBeGreaterThan(80);
+  expect(durationDistance).toBeLessThan(140);
   await pause.focus();
   await pause.press('Enter');
   await expect(page.getByRole('button', { name: 'Resume collection rotation' })).toHaveAttribute('aria-pressed', 'true');
@@ -60,6 +65,8 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
     expect(arrow!.x + arrow!.width).toBeLessThanOrEqual(carousel!.x + carousel!.width);
     expect(arrow!.y).toBeGreaterThan(carousel!.y);
     expect(arrow!.y + arrow!.height).toBeLessThanOrEqual(carousel!.y + carousel!.height);
+    const photo = await collections.locator('a:not([aria-hidden]) img').first().boundingBox();
+    expect(Math.abs(arrow!.y + arrow!.height / 2 - (photo!.y + photo!.height / 2))).toBeLessThan(2);
     await page.getByRole('button', { name: 'Next collections' }).click();
   }
   await expect.poll(() => collections.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
@@ -67,6 +74,39 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   await page.getByRole('link', { name: 'View all', exact: true }).click();
   await expect(page).toHaveURL(/\/collections\/$/);
+});
+
+test('six bestsellers rotate smoothly with arrows inside their own carousel', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  while (state.products.length < 6) {
+    const index = state.products.length;
+    const copy = structuredClone(state.products[0]);
+    copy.id = `bestseller-${index}`;
+    copy.name = `Bestseller ${index}`;
+    copy.product_variants = copy.product_variants.map((variant, i) => ({ ...variant,
+      id: `bestseller-${index}-variant-${i}`, product_id: copy.id }));
+    state.products.push(copy);
+  }
+  for (const product of state.products) {
+    product.product_variants[0].in_stock = true;
+    product.product_variants[0].available_quantity = 2;
+  }
+  await page.route('**/rest/v1/rpc/get_catalogue_bestsellers', route =>
+    route.fulfill({ json: state.products.slice(0, 6).map(product => ({ product_id: product.id })) }));
+  await page.goto('/');
+  const section = page.getByRole('region', { name: 'Bestsellers' });
+  await section.scrollIntoViewIfNeeded();
+  const track = section.getByRole('group', { name: 'Bestsellers' });
+  await expect(track.getByRole('link')).toHaveCount(6);
+  await expect.poll(() => track.evaluate(element => element.scrollLeft), { timeout: 8000 }).toBeGreaterThan(0);
+  await expect(section.getByRole('button', { name: 'Pause bestseller rotation' })).toHaveClass(/sr-only/);
+  if (page.viewportSize()!.width >= 640) {
+    const arrow = await section.getByRole('button', { name: 'Next bestsellers' }).boundingBox();
+    const box = await track.boundingBox();
+    expect(arrow!.y).toBeGreaterThan(box!.y);
+    expect(arrow!.y + arrow!.height).toBeLessThanOrEqual(box!.y + box!.height);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
 
 test('bestsellers retain full portrait and landscape photos inside square cards', async ({ page }) => {

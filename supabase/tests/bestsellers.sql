@@ -7,12 +7,12 @@ where p.published and exists (
   select 1 from public.product_variants v
   where v.product_id = p.id and v.in_stock and v.available_quantity > 0
 )
-order by p.id limit 6;
+order by p.id limit 8;
 
 do $$
 begin
-  if (select count(*) from bestseller_candidates) < 6 then
-    raise exception 'This integration test requires six available published products.';
+  if (select count(*) from bestseller_candidates) < 8 then
+    raise exception 'This integration test requires eight available published products.';
   end if;
 end;
 $$;
@@ -20,8 +20,8 @@ $$;
 delete from public.seller_sales;
 insert into public.seller_sales (product_id, product_name, sale_date, channel, quantity, unit_price)
 select id, 'Bestseller test', current_date, 'offline',
-  case position when 1 then 10 when 2 then 10 when 3 then 8 when 4 then 7 else 1 end, 100
-from bestseller_candidates where position <= 4;
+  case position when 1 then 10 when 2 then 10 when 3 then 8 when 4 then 7 when 5 then 5 else 4 end, 100
+from bestseller_candidates where position <= 6;
 -- Same product, another variant: quantities must combine.
 insert into public.seller_sales (product_id, product_name, variant_name, sale_date, channel, quantity, unit_price)
 select id, 'Bestseller test', 'Second variant', current_date - 89, 'online', 2, 100
@@ -29,11 +29,11 @@ from bestseller_candidates where position = 3;
 -- Old sales break ties but do not qualify a product on their own.
 insert into public.seller_sales (product_id, product_name, sale_date, channel, quantity, unit_price)
 select id, 'Bestseller test', current_date - 90, 'offline', 100, 100
-from bestseller_candidates where position in (2, 5);
+from bestseller_candidates where position in (2, 7);
 -- Future sales must never count.
 insert into public.seller_sales (product_id, product_name, sale_date, channel, quantity, unit_price)
 select id, 'Bestseller test', current_date + 1, 'offline', 1000, 100
-from bestseller_candidates where position = 6;
+from bestseller_candidates where position = 8;
 -- Hidden or unavailable products must not enter the ranking.
 insert into public.seller_sales (product_id, product_name, sale_date, channel, quantity, unit_price)
 select p.id, 'Bestseller test', current_date, 'offline', 1000, 100
@@ -53,8 +53,8 @@ declare
   expected uuid[];
   actual uuid[];
 begin
-  select array_agg(id order by array_position(array[2, 1, 3, 4], position))
-    into expected from bestseller_candidates where position <= 4;
+  select array_agg(id order by array_position(array[2, 1, 3, 4, 5, 6], position))
+    into expected from bestseller_candidates where position <= 6;
   select array_agg(product_id order by position) into actual from bestseller_result;
   if actual is distinct from expected then
     raise exception 'Bestseller ranking, cutoff, variant aggregation or availability failed.';

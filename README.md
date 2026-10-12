@@ -20,6 +20,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Search, All and New remain visible; other homepage category filters sit in a compact Filter by category disclosure.
 - Seasonal collections support custom cover images, with full-photo display and automatic cleanup of replaced public image renditions.
 - Bestseller cards show the full product image over a softly blurred backdrop, keeping embedded corner logos visible.
+- Bestsellers uses the same smooth rotating carousel, with up to six sales-ranked available products, continuous ticker motion, image-centered inset arrows and no native scrollbar lines. Search and category filters follow the carousel.
 - Verified admins share catalogue management, including products, variants and gallery images, with MFA and audit protections retained.
 - Admin product edits confirm the database update before reporting success and retain failed-save messages.
 - FAQ explains AI-assisted lifestyle imagery and how to request actual product photographs before ordering.

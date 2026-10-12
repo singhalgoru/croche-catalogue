@@ -64,37 +64,43 @@ it('provides manual scrolling, edge controls, reduced-motion support and a view-
   expect(screen.getByRole('link', { name: 'View all' }).getAttribute('href')).toBe('/collections/');
 });
 
-it('rotates every five seconds, wraps and pauses on hover, focus, explicit pause and hidden tabs', () => {
+it('glides continuously at 18px per second, loops seamlessly and pauses safely', () => {
   vi.useFakeTimers();
-  render(<CategoryTiles categories={['Charms & Keychains']} products={[product]} />);
+  const categories = ['A', 'B', 'C', 'D', 'E', 'F'];
+  render(<CategoryTiles categories={categories} products={categories.map(category => ({ ...product, id: category, category }))} />);
   const nav = screen.getByRole('navigation', { name: 'Explore collections' });
   const section = screen.getByRole('region', { name: 'Explore collections' });
-  Object.defineProperties(nav, { clientWidth: { value: 500 }, scrollWidth: { value: 1000 },
+  Object.defineProperties(nav, { clientWidth: { value: 500 }, scrollWidth: { value: 2304 },
     scrollLeft: { value: 0, writable: true } });
   nav.style.columnGap = '12px';
   vi.spyOn(nav.querySelector('a')!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 180, 180));
-  act(() => vi.advanceTimersByTime(5500));
-  expect(nav.scrollLeft).toBeGreaterThan(70);
-  expect(nav.scrollLeft).toBeLessThan(120);
-  act(() => vi.advanceTimersByTime(600));
-  expect(nav.scrollLeft).toBe(192);
-  nav.scrollLeft = 500;
-  act(() => vi.advanceTimersByTime(5000));
-  expect(nav.scrollLeft).toBe(0);
+  fireEvent.scroll(nav);
+  expect(nav.querySelectorAll('a[aria-hidden="true"][tabindex="-1"]')).toHaveLength(6);
+  expect(within(nav).getAllByRole('link')).toHaveLength(6);
+  act(() => vi.advanceTimersByTime(2000));
+  expect(nav.scrollLeft).toBeCloseTo(36, 0);
+  const first = nav.scrollLeft;
+  act(() => vi.advanceTimersByTime(2000));
+  expect(nav.scrollLeft - first).toBeCloseTo(36, 0);
+  nav.scrollLeft = 1150;
+  act(() => vi.advanceTimersByTime(1000));
+  expect(nav.scrollLeft).toBeGreaterThan(10);
+  expect(nav.scrollLeft).toBeLessThan(20);
   fireEvent.mouseEnter(section);
+  const stopped = nav.scrollLeft;
   act(() => vi.advanceTimersByTime(5000));
-  expect(nav.scrollLeft).toBe(0);
+  expect(nav.scrollLeft).toBe(stopped);
   fireEvent.focus(nav.querySelector('a')!);
   fireEvent.mouseLeave(section);
   act(() => vi.advanceTimersByTime(5000));
-  expect(nav.scrollLeft).toBe(0);
+  expect(nav.scrollLeft).toBe(stopped);
   fireEvent.blur(nav.querySelector('a')!, { relatedTarget: null });
   fireEvent.click(screen.getByRole('button', { name: 'Pause collection rotation' }));
   act(() => vi.advanceTimersByTime(5000));
-  expect(nav.scrollLeft).toBe(0);
+  expect(nav.scrollLeft).toBe(stopped);
   fireEvent.click(screen.getByRole('button', { name: 'Resume collection rotation' }));
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
   act(() => vi.advanceTimersByTime(5000));
-  expect(nav.scrollLeft).toBe(0);
+  expect(nav.scrollLeft).toBe(stopped);
   vi.restoreAllMocks();
 });

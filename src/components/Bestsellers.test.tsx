@@ -15,8 +15,12 @@ const product = (id: string): Product => ({
     inStock: true, availableQuantity: 3, image: '/photo.webp', imagePath: '', gallery: [],
   }],
 });
-afterEach(cleanup);
-beforeEach(() => rpc.mockReset());
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  rpc.mockReset();
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+});
 
 it('preserves server ranking, links to products and supports selection', async () => {
   rpc.mockResolvedValue({ data: [{ product_id: 'b' }, { product_id: 'a' }], error: null });
@@ -47,6 +51,16 @@ it('hides when fewer than two available catalogue products qualify', async () =>
   render(<Bestsellers products={[product('a'), unavailable]} onSelect={vi.fn()} />);
   await waitFor(() => expect(rpc).toHaveBeenCalled());
   expect(screen.queryByRole('heading')).toBeNull();
+});
+it('shows exactly six distinct ranked products without inventing additional bestsellers', async () => {
+  const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(product);
+  rpc.mockResolvedValue({ data: ['b', 'b', 'a', 'f', 'c', 'd', 'e', 'g'].map(product_id => ({ product_id })), error: null });
+  render(<Bestsellers products={items} onSelect={vi.fn()} />);
+  await screen.findByRole('heading', { name: 'Bestsellers' });
+  expect(screen.getAllByRole('link').map(link => link.textContent?.split('₹')[0])).toEqual([
+    'Product b', 'Product a', 'Product f', 'Product c', 'Product d', 'Product e',
+  ]);
+  expect(screen.getByRole('button', { name: 'Next bestsellers' })).toBeTruthy();
 });
 
 it('logs API failures without displaying misleading bestsellers', async () => {

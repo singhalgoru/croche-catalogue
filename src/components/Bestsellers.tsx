@@ -6,6 +6,7 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { formatINR } from '../utils/currency';
 import { productImageProtection } from '../utils/imageProtection';
+import RotatingCarousel from './RotatingCarousel';
 
 export default function Bestsellers({ products, onSelect }: {
   products: Product[]; onSelect: (product: Product) => void;
@@ -23,7 +24,7 @@ export default function Bestsellers({ products, onSelect }: {
         !row || typeof row !== 'object' || typeof row.product_id !== 'string')) {
         throw new Error('Invalid bestsellers response.');
       }
-      if (current) setIds([...new Set(data.map(row => String(row.product_id)))].slice(0, 4));
+      if (current) setIds([...new Set(data.map(row => String(row.product_id)))].slice(0, 6));
     })().catch(error => console.error('Unable to load bestsellers:', error));
     return () => { current = false; };
   }, []);
@@ -32,10 +33,7 @@ export default function Bestsellers({ products, onSelect }: {
     return product && product.variants.some(variant => variant.inStock && variant.availableQuantity > 0) ? [product] : [];
   });
   if (ranked.length < 2) return null;
-  return <section aria-labelledby="bestsellers-heading" className="space-y-3">
-    <h2 id="bestsellers-heading" className="font-heading text-2xl font-bold text-cocoa">Bestsellers</h2>
-    <p className="text-sm text-cocoa/75">Popular over the last 90 days</p>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  return <RotatingCarousel title="Bestsellers" label="bestseller" itemCount={ranked.length} description="Popular over the last 90 days">
       {ranked.map(product => {
         const variant = product.variants.find(item => item.inStock && item.availableQuantity > 0);
         const price = getPublicVariantPrice(product, variant);
@@ -45,7 +43,7 @@ export default function Bestsellers({ products, onSelect }: {
             event.preventDefault();
             onSelect(product);
           }}
-          className="min-w-0 overflow-hidden rounded-xl border border-mustard/30 bg-white hover:shadow-md">
+          className="w-[42%] min-w-0 shrink-0 snap-start overflow-hidden rounded-xl border border-mustard/30 bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cocoa sm:w-[calc((100%-24px)/3)]">
           <div className="relative aspect-square overflow-hidden bg-cream-dark">
             <img src={getProductImageUrl(variant?.image ?? product.image, 480)} alt="" aria-hidden="true"
               width={480} height={480} loading="lazy" decoding="async"
@@ -60,6 +58,5 @@ export default function Bestsellers({ products, onSelect }: {
           </div>
         </a>;
       })}
-    </div>
-  </section>;
+  </RotatingCarousel>;
 }

@@ -731,6 +731,7 @@ function App() {
       <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
+        {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} onSelect={selectProduct} />}
         <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
           <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
@@ -789,7 +790,6 @@ function App() {
             />
           </div>
         )}
-        {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} onSelect={selectProduct} />}
         <div className="text-center">
           <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa">
             Shop the Collection
