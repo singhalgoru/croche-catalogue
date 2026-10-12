@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest';
 import SalesPeriodSnapshot from './SalesPeriodSnapshot';
 import type { BusinessExpense } from '../../services/businessExpenses';
+import type { SellerSale } from '../../services/sellerSales';
 
 afterEach(cleanup);
 const expense: BusinessExpense = {
@@ -10,6 +11,26 @@ const expense: BusinessExpense = {
 };
 
 describe('SalesPeriodSnapshot', () => {
+  it('shows recorded material, labour and shipping costs for the selected year and quarters', () => {
+    const sale: SellerSale = {
+      id: 'sale', productId: null, productName: 'Rose', variantName: '', saleDate: '2025-03-31',
+      channel: 'offline', quantity: 3, unitPrice: 200, gstPercent: 5,
+      materialCost: 20, labourCost: 15, packagingCost: 5, shippingCost: 80,
+      gatewayFeePercent: 0, gatewayFeeGstPercent: 18, notes: '', createdAt: '2026-01-01T00:00:00Z',
+    };
+    render(<SalesPeriodSnapshot sales={[sale]} expenses={[]} available initiallyExpanded />);
+    fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
+    for (const name of ['Year 2025 · Jan–Dec', 'Q1 · Jan–Mar 2025']) {
+      const article = within(screen.getByRole('article', { name }));
+      for (const [label, value] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Shipping cost', '₹80']]) {
+        expect(article.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe(value);
+      }
+    }
+    const empty = within(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2025' }));
+    for (const label of ['Material cost', 'Labour cost', 'Shipping cost']) {
+      expect(empty.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe('₹0');
+    }
+  });
   it('is collapsible and allows years with expenses alone', () => {
     render(<SalesPeriodSnapshot sales={[]} expenses={[expense]} available />);
     expect(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' })).toHaveProperty('ariaExpanded', 'false');

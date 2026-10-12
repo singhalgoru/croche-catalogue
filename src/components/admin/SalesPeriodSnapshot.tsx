@@ -66,6 +66,9 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     ['Sales revenue', formatINR(totals.revenue)],
                     ['Sales / pieces', `${totals.salesCount} / ${totals.piecesSold}`],
                     ['GST collected', formatINR(totals.gst)],
+                    ['Material cost', formatINR(totals.materialCost)],
+                    ['Labour cost', formatINR(totals.labourCost)],
+                    ['Shipping cost', formatINR(totals.shippingCost)],
                     ['Estimated sales profit', formatINR(totals.profit)],
                     ['Business expenses', formatINR(totals.overheads)],
                     ['Profit after business expenses', formatINR(totals.profitAfterOverheads)],
@@ -85,6 +88,7 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
         )}
         <p className="mt-3 text-xs text-cocoa/65">
           Revenue includes GST. Profit subtracts included GST, sale costs, fees and recorded overheads.
+          Material and labour costs include all pieces sold; shipping cost is recorded once per sale.
           Overall margin uses total revenue before GST, not an average of individual margins.
         </p>
         </>}

@@ -131,6 +131,30 @@ test('updates all-time product pieces sold after recording, editing and deleting
   await expect(count).toHaveText('Pieces sold (all time): 4');
 });
 
+test('shows material, labour and shipping costs in annual and quarterly snapshots', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.route('**/rest/v1/seller_sales?*', route => route.fulfill({ json: [{
+    id: 'snapshot-sale', product_id: null, product_name: 'Rose', variant_name: '',
+    sale_date: '2026-03-31', channel: 'offline', quantity: 3, unit_price: 200,
+    gst_percent: 5, material_cost: 20, labour_cost: 15, packaging_cost: 5,
+    shipping_cost: 80, gateway_fee_percent: 0, gateway_fee_gst_percent: 18,
+    notes: '', created_at: '2026-10-12T00:00:00Z',
+  }] }));
+  await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
+  await signIn(page);
+  await page.getByRole('button', { name: 'Snapshots', exact: true }).click();
+  await page.getByLabel('Snapshot year').selectOption('2026');
+  for (const name of ['Year 2026 · Jan–Dec', 'Q1 · Jan–Mar 2026']) {
+    const card = page.getByRole('article', { name, exact: true });
+    for (const [label, amount] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Shipping cost', '₹80']]) {
+      await expect(card.locator('dl > div').filter({ has: page.getByText(label, { exact: true }) }).locator('dd')).toHaveText(amount);
+    }
+  }
+  const empty = page.getByRole('article', { name: 'Q2 · Apr–Jun 2026', exact: true });
+  await expect(empty.locator('dl > div').filter({ has: page.getByText('Shipping cost', { exact: true }) }).locator('dd')).toHaveText('₹0');
+  await expectNoHorizontalOverflow(page);
+});
+
 test('manages monthly business expenses and profit after overheads', async ({ page }) => {
   await installMockSupabase(page);
   let expenses: { id: string; description: string; expense_date: string; category: string; amount: number; notes: string }[] = [];

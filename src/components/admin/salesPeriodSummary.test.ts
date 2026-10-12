@@ -29,9 +29,27 @@ describe('period sales snapshots', () => {
       expect(quarter.profitAfterOverheads).toBe(90);
       expect(quarter.marginAfterOverheads).toBe(45);
     }
-    for (const metric of ['revenue', 'profit', 'overheads', 'profitAfterOverheads', 'gst', 'piecesSold'] as const) {
+    for (const metric of ['revenue', 'profit', 'overheads', 'profitAfterOverheads', 'gst', 'piecesSold',
+      'materialCost', 'labourCost', 'shippingCost'] as const) {
       expect(quarters.reduce((sum, quarter) => sum + quarter[metric], 0)).toBeCloseTo(annual[metric]);
     }
+  });
+
+  it('multiplies material and labour per piece but counts shipping once per sale', () => {
+    const sales = [
+      { ...sale, quantity: 3, materialCost: 20, labourCost: 10, shippingCost: 75 },
+      { ...sale, saleDate: '2026-04-01', quantity: 2, materialCost: 15, labourCost: 12, shippingCost: 50 },
+      { ...sale, saleDate: '2025-01-01', quantity: 100 },
+    ];
+    expect(summarizeSalesPeriod(sales, [], '2026')).toMatchObject({
+      materialCost: 90, labourCost: 54, shippingCost: 125,
+    });
+    expect(summarizeSalesPeriod(sales, [], '2026', 1, 3)).toMatchObject({
+      materialCost: 60, labourCost: 30, shippingCost: 75,
+    });
+    expect(summarizeSalesPeriod(sales, [], '2026', 7, 9)).toMatchObject({
+      materialCost: 0, labourCost: 0, shippingCost: 0,
+    });
   });
 
   it('weights margins by aggregate revenue, not sale count', () => {

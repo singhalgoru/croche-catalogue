@@ -20,12 +20,19 @@ export function summarizeSalesPeriod(
     const month = Number(date.slice(5, 7));
     return date.startsWith(`${year}-`) && month >= startMonth && month <= endMonth;
   };
-  const summary = summarizeSellerSales(sales.filter(sale => inPeriod(sale.saleDate)));
+  const periodSales = sales.filter(sale => inPeriod(sale.saleDate));
+  const summary = summarizeSellerSales(periodSales);
+  const saleCosts = periodSales.reduce((totals, sale) => ({
+    materialCost: totals.materialCost + sale.materialCost * sale.quantity,
+    labourCost: totals.labourCost + sale.labourCost * sale.quantity,
+    shippingCost: totals.shippingCost + sale.shippingCost,
+  }), { materialCost: 0, labourCost: 0, shippingCost: 0 });
   const overheads = expenses.filter(expense => inPeriod(expense.expenseDate))
     .reduce((total, expense) => total + expense.amount, 0);
   const profitAfterOverheads = summary.profit - overheads;
   return {
     ...summary,
+    ...saleCosts,
     overheads,
     profitAfterOverheads,
     marginAfterOverheads: summary.taxableRevenue > 0
