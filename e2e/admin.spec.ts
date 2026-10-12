@@ -788,6 +788,40 @@ test('edits visibility and permanently removes products', async ({ page }) => {
   ).toHaveCount(0);
 });
 
+for (const blocked of [false, true]) {
+  test(`price change from 100 to 120 ${blocked ? 'reports a blocked save without losing the draft' : 'persists after reload'}`, async ({ page }) => {
+    const state = await installMockSupabase(page);
+    state.products[1].price = 100;
+    await signIn(page, 'manage');
+    if (blocked) {
+      await page.route('**/rest/v1/products*', async route => {
+        if (route.request().method() === 'PATCH') {
+          await route.fulfill({ json: { code: 'PGRST116', message: 'The result contains 0 rows', details: null, hint: null }, status: 406 });
+        } else await route.fallback();
+      });
+    }
+    const product = page.locator('article').filter({
+      has: page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
+    });
+    await product.getByRole('button', { name: 'Edit', exact: true }).click();
+    await product.getByLabel('Price (₹)', { exact: true }).fill('120');
+    await product.getByRole('button', { name: 'Save changes' }).click();
+    if (blocked) {
+      await expect(product.getByRole('alert')).toContainText('No update was confirmed');
+      await expect(product.getByLabel('Price (₹)', { exact: true })).toHaveValue('120');
+      await expect(page.getByText('Flower Coaster was updated.')).toHaveCount(0);
+      expect(state.products[1].price).toBe(100);
+    } else {
+      await expect(page.getByText('Flower Coaster was updated.')).toBeVisible();
+      expect(state.products[1].price).toBe(120);
+      await page.reload();
+      await page.getByRole('button', { name: /Manage products/ }).click();
+      await product.getByRole('button', { name: 'Edit', exact: true }).click();
+      await expect(product.getByLabel('Price (₹)', { exact: true })).toHaveValue('120');
+    }
+  });
+}
+
 test('controls product price visibility from the admin console', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'manage');
@@ -814,7 +848,9 @@ test('controls product price visibility from the admin console', async ({ page }
   await heart.getByRole('button', { name: 'Edit' }).click();
   await heart.getByLabel('Show price in catalogue').check();
   await heart.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByText('Add a price before showing it in the catalogue.')).toBeVisible();
+  await expect(heart.getByLabel('Price (₹)', { exact: true })).toHaveAttribute('required', '');
+  expect(await heart.getByLabel('Price (₹)', { exact: true }).evaluate(input =>
+    (input as HTMLInputElement).validity.valueMissing)).toBe(true);
   expect(state.products.find((product) => product.id === 'product-3')?.show_price).toBe(false);
 });
 

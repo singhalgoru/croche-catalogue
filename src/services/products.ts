@@ -650,7 +650,7 @@ export async function updateProduct(
     : priceDiscoveryColumns(update.priceDiscoveryInputs);
   const details = productDetailColumns(update);
   const { client } = await getCurrentUser();
-  const { error } = await client
+  const { data: updatedProduct, error } = await client
     .from('products')
     .update({
       name: update.name,
@@ -664,8 +664,15 @@ export async function updateProduct(
       show_price: update.showPrice,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', product.id);
-  if (error) throw new Error(`Unable to update ${product.name}: ${error.message}`);
+    .eq('id', product.id)
+    .select('id')
+    .single();
+  if (error) {
+    throw new Error(`Unable to update ${product.name}: ${error.message}. No update was confirmed. If your admin verification expired, verify with your authenticator and try saving again.`);
+  }
+  if (!updatedProduct || updatedProduct.id !== product.id) {
+    throw new Error(`Unable to update ${product.name}: no product was updated. Verify your admin access with your authenticator and try saving again.`);
+  }
   if (update.profitMarginPercent !== undefined || pricingInputs !== undefined) {
     const marginQuery = client.from('product_profit_margins');
     const marginResult = update.profitMarginPercent === null && pricingInputs === undefined

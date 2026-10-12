@@ -94,6 +94,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [productView, setProductView] = useState<'all' | 'featured'>('all');
@@ -142,9 +143,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
     setIsLoading(true);
     try {
       setProducts(await fetchManagedProducts());
-      setError(null);
+      setLoadError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load products.');
+      setLoadError(loadError instanceof Error ? loadError.message : 'Unable to load products.');
     } finally {
       setIsLoading(false);
     }
@@ -413,9 +414,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
           )}
         </section>
       )}
-      {error && !editingId && (
+      {(error || loadError) && !editingId && (
         <p className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">
-          {error}
+          {error || loadError}
         </p>
       )}
       {salesError && <p role="alert" className="mx-4 mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5">{salesError}</p>}
@@ -793,7 +794,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                     setDraft(null);
                   }}>
                   <div className="p-4">
-                  {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                  {(error || loadError) && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error || loadError}</p>}
                   <fieldset disabled={isBusy || isAnalyzing}>{priceDiscovery}</fieldset>
                   <form
                     className="mt-4 grid gap-4 border-t border-mustard/30 pt-4 sm:grid-cols-2"
@@ -858,6 +859,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                         required={draft.showPrice}
                         step={1}
                         value={draft.price}
+                        aria-describedby={`product-price-help-${product.id}`}
                         onChange={(event) => {
                           const price = event.target.value;
                           const outcome = calculatePriceAtSellingPrice(
@@ -878,6 +880,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                         className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
                       />
                     </label>
+                    <p id={`product-price-help-${product.id}`} className="text-xs text-cocoa/70">
+                      Click Save changes to publish this price. Saving price discovery inputs only saves costs.
+                      Variants with their own price keep that price; leave the variant price blank to use this product price.
+                    </p>
                     {editorPriceOutcome && (
                       <p
                         aria-live="polite"

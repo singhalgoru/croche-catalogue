@@ -65,6 +65,28 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('saves a changed product price and displays the confirmed value', async () => {
+    vi.mocked(updateProduct).mockResolvedValue({ ...product, price: 120 });
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+    fireEvent.change(screen.getByLabelText('Price (₹)'), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(product, expect.objectContaining({ price: 120 })));
+    expect(await screen.findByText('Coaster was updated.')).toBeTruthy();
+    expect(screen.getByText('₹120')).toBeTruthy();
+  });
+  it('keeps the price draft and shows an error when a save is not confirmed', async () => {
+    vi.mocked(updateProduct).mockRejectedValue(new Error('No product was updated. Verify your admin access.'));
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+    fireEvent.change(screen.getByLabelText('Price (₹)'), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('No product was updated');
+    expect(screen.getByLabelText('Price (₹)')).toHaveProperty('value', '120');
+    expect(screen.queryByText('Coaster was updated.')).toBeNull();
+  });
   it('shows all-time linked pieces sold, including hidden products, and refreshes without resetting edits', async () => {
     const sale: SellerSale = {
       id: 'sale-1', productId: product.id, productName: 'Old product name', variantName: 'Pink',

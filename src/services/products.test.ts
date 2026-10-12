@@ -235,11 +235,37 @@ describe('product detail loading', () => {
 });
 
 describe('product detail persistence', () => {
+  it('confirms a price change from 100 to 120 before reloading the product', async () => {
+    queueQuery([{ ...row, price: 100 }]);
+    const [product] = await fetchManagedProducts();
+    const write = queueQuery({ id: row.id });
+    queueQuery({ ...row, price: 120 });
+    const saved = await updateProduct(product, { ...update, price: 120 });
+    expect(write.update).toHaveBeenCalledWith(expect.objectContaining({ price: 120 }));
+    expect(write.select).toHaveBeenCalledWith('id');
+    expect(write.single).toHaveBeenCalled();
+    expect(saved.price).toBe(120);
+  });
+  it('rejects a no-row update instead of reporting the unchanged product as saved', async () => {
+    queueQuery([{ ...row, price: 100 }]);
+    const [product] = await fetchManagedProducts();
+    queueQuery(null);
+    await expect(updateProduct(product, { ...update, price: 120, profitMarginPercent: 35 }))
+      .rejects.toThrow('no product was updated');
+    expect(from).toHaveBeenCalledTimes(2);
+  });
+  it('surfaces a blocked save with guidance to verify admin access', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    queueQuery(null, { message: 'Cannot coerce the result to a single JSON object' });
+    await expect(updateProduct(product, { ...update, price: 120 }))
+      .rejects.toThrow('verify with your authenticator');
+  });
   it('saves and reloads SEO summaries at the exact 160-character limit', async () => {
     const seoDescription = `${'a'.repeat(159)}.`;
     queueQuery([row]);
     const [product] = await fetchManagedProducts();
-    const write = queueQuery(null);
+    const write = queueQuery({ id: row.id });
     queueQuery({ ...row, seo_description: seoDescription });
     const saved = await updateProduct(product, { ...update, seoDescription });
     expect(write.update.mock.calls[0][0].seo_description).toBe(seoDescription);
@@ -267,7 +293,7 @@ describe('product detail persistence', () => {
   it('allows edits to clear details without overwriting omitted fields', async () => {
     queueQuery([{ ...row, materials: 'Cotton', dimensions: '10 cm' }]);
     const [product] = await fetchManagedProducts();
-    const write = queueQuery(null);
+    const write = queueQuery({ id: row.id });
     queueQuery({ ...row, materials: null, dimensions: '10 cm', included_items: '1 keychain', care_instructions: 'Spot clean' });
     const edited = await updateProduct(product, {
       ...update, materials: ' ', includedItems: ' 1 keychain ', careInstructions: ' Spot clean ',
@@ -288,7 +314,7 @@ describe('product detail persistence', () => {
   it('persists the calculated product margin without affecting other product fields', async () => {
     queueQuery([row]);
     const [product] = await fetchManagedProducts();
-    const write = queueQuery(null);
+    const write = queueQuery({ id: row.id });
     const marginWrite = queueQuery(null);
     queueQuery({
       ...row,

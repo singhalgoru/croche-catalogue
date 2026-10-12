@@ -16,6 +16,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
 - A logo-only mobile brand row with a 64px logo and short header tagline keep browsing uncluttered; desktop retains the full introduction
 - Category filtering and search
+- Admin product edits confirm the database update before reporting success and retain failed-save messages.
 - FAQ explains AI-assisted lifestyle imagery and how to request actual product photographs before ordering.
 - Create with Luvia welcomes maker, creator and partner enquiries without advertising unconfirmed job openings.
 - Browser favicons and installed-app icons preserve the original Luvia brand design.
