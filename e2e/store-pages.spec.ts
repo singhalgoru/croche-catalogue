@@ -41,13 +41,17 @@ test('hamburger menu reaches collaboration contact on home and information pages
     await page.getByRole('navigation', { name: 'Main navigation' })
       .getByRole('link', { name: 'Collaborate with us' }).click();
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toHaveCount(0);
-    const section = page.getByRole('region', { name: 'Collaborate with Luvia' });
+    const section = page.getByRole('region', { name: 'Create with Luvia' });
     await expect(section).toBeInViewport();
-    await expect(section).toContainText('selling your handmade products through us');
-    const link = section.getByRole('link', { name: 'Discuss a collaboration' });
+    await expect(section).toContainText('not an announcement of open jobs');
+    for (const name of ['Makers', 'Creators', 'Partners']) {
+      await expect(section.getByRole('heading', { name, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole('link', { name: 'Work with Luvia', includeHidden: true })).toHaveAttribute('href', '#collaborate');
+    const link = section.getByRole('link', { name: 'Introduce yourself' });
     const url = new URL(await link.getAttribute('href') ?? '');
     expect(url.origin).toBe('https://wa.me');
-    expect(url.searchParams.get('text')).toContain('collaborating or selling my handmade products');
+    expect(url.searchParams.get('text')).toContain('maker, content creator or partner');
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   }
 });

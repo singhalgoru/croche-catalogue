@@ -14,16 +14,28 @@ export default function Footer() {
     <section id="collaborate" aria-labelledby="collaboration-heading"
       className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
       <div className="rounded-2xl border border-mustard/40 bg-cream p-5 text-center text-cocoa sm:p-8">
-        <h2 id="collaboration-heading" className="font-heading text-2xl font-bold">Collaborate with Luvia</h2>
+        <h2 id="collaboration-heading" className="font-heading text-2xl font-bold">Create with Luvia</h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base">
-          Are you a maker or brand interested in collaborating with Luvia or selling your handmade
-          products through us? We would love to hear from you. Contact us to explore opportunities.
+          Love handmade work? We welcome expressions of interest from crochet makers, content
+          creators and brands who would like to grow with Luvia.
+        </p>
+        <ul className="mx-auto mt-4 grid max-w-3xl gap-3 text-left text-sm sm:grid-cols-3">
+          <li className="rounded-xl bg-white/60 p-4"><h3 className="font-semibold">Makers</h3>
+            <p className="mt-1">Share your crochet work or handmade products for a possible collaboration.</p></li>
+          <li className="rounded-xl bg-white/60 p-4"><h3 className="font-semibold">Creators</h3>
+            <p className="mt-1">Explore storytelling, styling and content collaborations.</p></li>
+          <li className="rounded-xl bg-white/60 p-4"><h3 className="font-semibold">Partners</h3>
+            <p className="mt-1">Connect about pop-ups, retail partnerships or brand collaborations.</p></li>
+        </ul>
+        <p className="mx-auto mt-3 max-w-2xl text-xs">
+          This is an invitation to connect, not an announcement of open jobs. Any opportunity,
+          scope and terms will be discussed individually.
         </p>
         <a href={getCollaborationWhatsAppLink()} target="_blank" rel="noopener noreferrer"
           onClick={() => trackContactClick('whatsapp', 'collaboration')}
           className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-cocoa px-5 py-3 font-semibold text-cream hover:bg-cocoa/90">
           <WhatsAppIcon />
-          Discuss a collaboration
+          Introduce yourself
         </a>
       </div>
     </section>
@@ -53,7 +65,7 @@ export default function Footer() {
           <a href="/collections/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Explore collections</a>
           <a href="/about/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">About &amp; contact</a>
           <a href="/faq/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Ordering FAQ</a>
-          <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Collaborate with us</a>
+          <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Work with Luvia</a>
           <a href="/return-policy/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">
             Return and refund policy
           </a>

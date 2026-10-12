@@ -25,7 +25,7 @@ export const getGeneralWhatsAppLink = () =>
   whatsappLink('Hi Luvia, I would like to know more about your crochet catalogue.');
 
 export const getCollaborationWhatsAppLink = () =>
-  whatsappLink("Hi Luvia! I'm interested in collaborating or selling my handmade products through you.\n\nMy name / brand: \nProducts I make: \nProduct photos or portfolio link: ");
+  whatsappLink("Hi Luvia! I'd like to explore working with you as a maker, content creator or partner.\n\nMy name / brand: \nInterested in: \nAbout my work: \nPhotos or portfolio link: ");
 
 export const getProductWhatsAppLink = (product: Product, variant?: ProductVariant) => {
   const url = new URL(toProductPageUrl(product));

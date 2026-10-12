@@ -15,13 +15,17 @@ afterEach(() => {
 describe('Footer', () => {
   it('offers a collaboration section and a prefilled WhatsApp enquiry', () => {
     render(<Footer />);
-    const section = screen.getByRole('region', { name: 'Collaborate with Luvia' });
+    const section = screen.getByRole('region', { name: 'Create with Luvia' });
     expect(section.id).toBe('collaborate');
-    expect(screen.getByRole('link', { name: 'Collaborate with us' }).getAttribute('href')).toBe('#collaborate');
-    const contact = screen.getByRole('link', { name: 'Discuss a collaboration' });
+    expect(screen.getByRole('link', { name: 'Work with Luvia' }).getAttribute('href')).toBe('#collaborate');
+    for (const name of ['Makers', 'Creators', 'Partners']) {
+      expect(screen.getByRole('heading', { name })).toBeTruthy();
+    }
+    expect(screen.getByText(/not an announcement of open jobs/)).toBeTruthy();
+    const contact = screen.getByRole('link', { name: 'Introduce yourself' });
     const url = new URL(contact.getAttribute('href')!);
     expect(url.origin).toBe('https://wa.me');
-    expect(url.searchParams.get('text')).toContain('selling my handmade products');
+    expect(url.searchParams.get('text')).toContain('maker, content creator or partner');
     expect(url.searchParams.get('text')).toContain('My name / brand:');
     contact.addEventListener('click', event => event.preventDefault());
     fireEvent.click(contact);
