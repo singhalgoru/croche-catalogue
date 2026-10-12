@@ -86,7 +86,7 @@ export default function AdminUsers() {
         }}>
         <h3 className="font-semibold">{mode === 'add' ? 'Add admin user' : `${mode === 'edit' ? 'Edit name' : mode === 'password' ? 'Change password' : 'Remove admin access'}: ${target?.email}`}</h3>
         {mode === 'add' && <>
-          <p className="text-xs">New accounts receive a Supabase invitation to set their password. Existing accounts must already have a verified email; their login details are not changed.</p>
+          <p className="text-xs">You are granting admin access, not setting a password. A new account receives an email invitation to set its own password, then enrolls its authenticator. Existing verified accounts keep their current password and do not receive an invitation; they can sign in immediately.</p>
           <label>Admin email<input type="email" autoComplete="off" required maxLength={254} value={email} disabled={busy}
             onChange={event => setEmail(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
         </>}
@@ -105,13 +105,15 @@ export default function AdminUsers() {
             onChange={event => setVisible(value => ({ ...value, confirmation: event.target.checked }))} />Show admin password confirmation</label>
         </>}
         {mode === 'remove' && <p className="text-sm">Confirm removing admin access. This does not delete the account, orders, products or sales. The owner cannot be removed.</p>}
-        <p id="admin-password-authorization-help" className="text-xs">Enter the password you currently use to sign in. This field only authorizes the change; it is not the new password.{target && target.id !== directory?.currentUserId ? " Use your own password, not this admin's password." : ''}</p>
-        <label>Your current password<input type={visible.current ? 'text' : 'password'} autoComplete="current-password" aria-describedby="admin-password-authorization-help" required value={currentPassword} disabled={busy}
+        <p id="admin-password-authorization-help" className="text-xs">{mode === 'add'
+          ? 'Enter your own current login password to authorize granting admin access. This is not the invited admin password and is not sent to them.'
+          : <>Enter the password you currently use to sign in. This field only authorizes the change; it is not the new password.{target && target.id !== directory?.currentUserId ? " Use your own password, not this admin's password." : ''}</>}</p>
+        <label>{mode === 'add' ? 'Your password - authorize admin invitation' : 'Your current password'}<input type={visible.current ? 'text' : 'password'} autoComplete="current-password" aria-describedby="admin-password-authorization-help" required value={currentPassword} disabled={busy}
           onChange={event => setCurrentPassword(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
         <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={visible.current} disabled={busy}
           onChange={event => setVisible(value => ({ ...value, current: event.target.checked }))} />Show your current password</label>
         <div className="flex flex-wrap gap-4">
-          <button type="submit" disabled={busy || loading} className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-white disabled:opacity-50">{busy ? 'Saving...' : mode === 'remove' ? 'Confirm remove access' : 'Save admin account'}</button>
+          <button type="submit" disabled={busy || loading} className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-white disabled:opacity-50">{busy ? 'Saving...' : mode === 'add' ? 'Authorize admin access' : mode === 'remove' ? 'Confirm remove access' : 'Save admin account'}</button>
           <button type="button" disabled={busy} onClick={clear} className="min-h-11 underline">Cancel admin changes</button>
         </div>
       </form>}

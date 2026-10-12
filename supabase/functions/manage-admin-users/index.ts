@@ -109,7 +109,7 @@ Deno.serve(async request => {
       }
       const { error } = await admin.rpc('manage_admin_membership', { actor: identity.user.id, target: id, grant_access: true });
       if (error) throw new Error(`Account exists, but admin access was not granted: ${error.message}. Refresh before retrying.`);
-      return json({ message: existingId ? 'Existing verified account granted admin access. Its login details are unchanged.'
+      return json({ message: existingId ? 'Existing verified account granted admin access. No invitation email was sent. Sign in with the existing password and set up an authenticator if needed.'
         : 'Admin invitation sent. The recipient must open it and set a password. Email acceptance does not guarantee inbox delivery.' });
     }
     if (action === 'remove') {

@@ -91,8 +91,11 @@ test('owner manages admin names, passwords and access without mobile overflow', 
   await page.getByRole('button', { name: 'Add admin user', exact: true }).click();
   await page.getByLabel('Admin email', { exact: true }).fill('new@luvia.test');
   await page.getByLabel('Admin name', { exact: true }).fill('New Admin');
-  await page.getByLabel('Your current password', { exact: true }).fill('test-password');
-  await page.getByRole('button', { name: 'Save admin account' }).click();
+  await expect(page.getByText(/new account receives an email invitation to set its own password/)).toBeVisible();
+  await expect(page.getByText(/Existing verified accounts keep their current password and do not receive an invitation/)).toBeVisible();
+  await expect(page.getByLabel('New admin password', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Your password - authorize admin invitation', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Authorize admin access', exact: true }).click();
   await expect(page.getByText('Invitation pending activation')).toBeVisible();
   await page.getByRole('button', { name: 'Edit new@luvia.test', exact: true }).click();
   await page.getByLabel('Admin name', { exact: true }).fill('Updated Admin');
@@ -120,6 +123,8 @@ test('owner manages admin names, passwords and access without mobile overflow', 
   await page.getByRole('button', { name: 'Confirm remove access' }).click();
   await expect(page.getByText('new@luvia.test', { exact: true })).toHaveCount(0);
   expect(changes.map(change => change.action)).toEqual(['add', 'edit', 'password', 'remove']);
+  expect(changes[0].currentPassword).toBe('test-password');
+  expect(changes[0]).not.toHaveProperty('password');
   await expectNoHorizontalOverflow(page);
 });
 

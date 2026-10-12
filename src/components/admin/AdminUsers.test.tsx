@@ -23,10 +23,18 @@ it('loads on expansion, protects owner removal and requires password for adding 
   fireEvent.click(screen.getByRole('button', { name: 'Add admin user' }));
   fireEvent.change(screen.getByLabelText('Admin email'), { target: { value: 'new@example.test' } });
   fireEvent.change(screen.getByLabelText('Admin name'), { target: { value: 'New Admin' } });
-  fireEvent.change(screen.getByLabelText('Your current password'), { target: { value: 'current' } });
+  const authorization = screen.getByLabelText('Your password - authorize admin invitation');
+  expect(authorization).toHaveProperty('required', true);
+  expect(authorization.getAttribute('aria-describedby')).toBe('admin-password-authorization-help');
+  expect(screen.getByText(/new account receives an email invitation to set its own password/)).toBeTruthy();
+  expect(screen.getByText(/Existing verified accounts keep their current password and do not receive an invitation/)).toBeTruthy();
+  expect(screen.queryByLabelText('New admin password')).toBeNull();
+  fireEvent.click(screen.getByLabelText('Show your current password'));
+  expect(authorization.getAttribute('type')).toBe('text');
+  fireEvent.change(authorization, { target: { value: 'current' } });
   fireEvent.submit(screen.getByRole('form', { name: 'Manage admin account' }));
   await waitFor(() => expect(change).toHaveBeenCalledWith({ action: 'add', email: 'new@example.test', name: 'New Admin' }, 'current'));
-  await waitFor(() => expect(screen.queryByLabelText('Your current password')).toBeNull());
+  await waitFor(() => expect(screen.queryByLabelText('Your password - authorize admin invitation')).toBeNull());
 });
 it('allows regular admins only their own password change', async () => {
   list.mockResolvedValue({ currentUserId: 'member', isOwner: false, users: [member] });

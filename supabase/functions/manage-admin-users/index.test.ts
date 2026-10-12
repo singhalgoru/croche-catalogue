@@ -84,7 +84,9 @@ it('surfaces invite delivery failure without granting access', async () => {
 it('preserves existing verified account credentials when granting admin access', async () => {
   rpc.mockImplementation(async (name: string) => ({ data: name === 'admin_user_directory' ? directory
     : name === 'find_admin_candidate' ? 'existing' : null, error: null }));
-  expect((await handle(request({ action: 'add', email: 'existing@example.test', name: 'Admin', currentPassword: 'current' }))).status).toBe(200);
+  const response = await handle(request({ action: 'add', email: 'existing@example.test', name: 'Admin', currentPassword: 'current' }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ message: 'Existing verified account granted admin access. No invitation email was sent. Sign in with the existing password and set up an authenticator if needed.' });
   expect(invite).not.toHaveBeenCalled(); expect(update).not.toHaveBeenCalled();
 });
 it('rejects unverified existing accounts without granting access', async () => {
