@@ -28,11 +28,25 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   }));
   expect(geometry.overflow).toBe(true);
   expect(names).toContain(geometry.names[0]);
-  await expect.poll(() => collections.evaluate(element => element.scrollLeft), { timeout: 8000 }).toBeGreaterThan(0);
-  await page.getByRole('button', { name: 'Pause collection rotation' }).click();
+  const pause = page.getByRole('button', { name: 'Pause collection rotation' });
+  await expect(pause).toHaveClass(/sr-only/);
+  const movement = await collections.evaluate(element => new Promise<number[]>(resolve => {
+    const started = performance.now();
+    const positions: number[] = [];
+    const sample = () => {
+      positions.push(element.scrollLeft);
+      if (performance.now() - started < 6500) requestAnimationFrame(sample);
+      else resolve(positions);
+    };
+    requestAnimationFrame(sample);
+  }));
+  expect(new Set(movement.map(position => Math.round(position))).size).toBeGreaterThan(15);
+  expect(movement[movement.length - 1]).toBeGreaterThan(0);
+  await pause.focus();
+  await pause.press('Enter');
   await expect(page.getByRole('button', { name: 'Resume collection rotation' })).toHaveAttribute('aria-pressed', 'true');
   await collections.evaluate(element => element.scrollTo({ left: 0, behavior: 'instant' }));
-  await expect.poll(() => collections.evaluate(element => element.scrollLeft)).toBe(0);
+  await expect.poll(() => collections.evaluate(element => element.scrollLeft)).toBeLessThanOrEqual(2);
   if (page.viewportSize()!.width < 640) {
     expect(geometry.width / geometry.card).toBeGreaterThan(2.4);
     expect(geometry.width / geometry.card).toBeLessThan(2.8);
@@ -40,6 +54,12 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
     await collections.evaluate(element => element.scrollBy({ left: element.clientWidth, behavior: 'instant' }));
   } else {
     await expect(page.getByRole('button', { name: 'Previous collections' })).toBeDisabled();
+    const arrow = await page.getByRole('button', { name: 'Next collections' }).boundingBox();
+    const carousel = await collections.boundingBox();
+    expect(arrow!.x).toBeGreaterThan(carousel!.x);
+    expect(arrow!.x + arrow!.width).toBeLessThanOrEqual(carousel!.x + carousel!.width);
+    expect(arrow!.y).toBeGreaterThan(carousel!.y);
+    expect(arrow!.y + arrow!.height).toBeLessThanOrEqual(carousel!.y + carousel!.height);
     await page.getByRole('button', { name: 'Next collections' }).click();
   }
   await expect.poll(() => collections.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);

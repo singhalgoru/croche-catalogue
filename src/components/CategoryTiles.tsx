@@ -36,6 +36,14 @@ export default function CategoryTiles({ categories, products, categorySettings =
   }, [categories, products, categorySettings]);
   useEffect(() => {
     if (paused || hovered || focused || reducedMotion) return;
+    let animation: number | undefined;
+    let moving: HTMLElement | null = null;
+    const stop = () => {
+      if (animation !== undefined) window.cancelAnimationFrame(animation);
+      animation = undefined;
+      if (moving) moving.style.scrollSnapType = '';
+      moving = null;
+    };
     const timer = window.setInterval(() => {
       const element = track.current;
       if (!element || document.visibilityState !== 'visible' || element.scrollWidth <= element.clientWidth + 1) return;
@@ -43,9 +51,23 @@ export default function CategoryTiles({ categories, products, categorySettings =
       if (!card) return;
       const atEnd = element.scrollLeft + element.clientWidth >= element.scrollWidth - 1;
       const step = card.getBoundingClientRect().width + parseFloat(getComputedStyle(element).columnGap || '0');
-      element.scrollTo({ left: atEnd ? 0 : element.scrollLeft + step, behavior: 'smooth' });
+      stop();
+      const start = element.scrollLeft;
+      const target = atEnd ? 0 : Math.min(element.scrollWidth - element.clientWidth, start + step);
+      const started = performance.now();
+      moving = element;
+      element.style.scrollSnapType = 'none';
+      const glide = (now: number) => {
+        if (document.visibilityState !== 'visible') { stop(); return; }
+        const progress = Math.min(1, (now - started) / 1000);
+        const eased = progress * progress * (3 - 2 * progress);
+        element.scrollLeft = start + (target - start) * eased;
+        if (progress < 1) animation = window.requestAnimationFrame(glide);
+        else stop();
+      };
+      animation = window.requestAnimationFrame(glide);
     }, 5000);
-    return () => window.clearInterval(timer);
+    return () => { window.clearInterval(timer); stop(); };
   }, [paused, hovered, focused, reducedMotion]);
   const scroll = (direction: number) => {
     const element = track.current;
@@ -55,7 +77,7 @@ export default function CategoryTiles({ categories, products, categorySettings =
   const seasonal = new Set(categorySettings.filter(category => category.isSeasonal).map(category => category.name));
   const orderedCategories = [...categories.filter(category => seasonal.has(category)),
     ...categories.filter(category => !seasonal.has(category))];
-  return <section aria-labelledby="homepage-collections-heading" className="min-w-0 space-y-3"
+  return <section aria-labelledby="homepage-collections-heading" className="relative min-w-0 space-y-3"
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onFocusCapture={() => setFocused(true)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
@@ -65,17 +87,12 @@ export default function CategoryTiles({ categories, products, categorySettings =
         <a href="/collections/" className="text-sm font-semibold text-cocoa underline underline-offset-4">View all</a>
         <button type="button" aria-label={paused || reducedMotion ? 'Resume collection rotation' : 'Pause collection rotation'}
           disabled={reducedMotion} aria-pressed={paused || reducedMotion} onClick={() => setPaused(current => !current)}
-          className="min-h-11 min-w-11 rounded-full border border-cocoa/30 text-sm text-cocoa disabled:opacity-40">
+          className="sr-only rounded-full border border-cocoa/30 bg-cream text-sm text-cocoa focus:not-sr-only focus:absolute focus:right-0 focus:top-12 focus:z-10 focus:min-h-11 focus:min-w-11 disabled:opacity-40">
           {paused || reducedMotion ? 'Play' : 'Pause'}
         </button>
-        <button type="button" aria-label="Previous collections" aria-controls="homepage-collections-carousel"
-          disabled={edges.start} onClick={() => scroll(-1)}
-          className="hidden min-h-11 min-w-11 rounded-full border border-cocoa/30 text-cocoa disabled:opacity-40 sm:block">&#8592;</button>
-        <button type="button" aria-label="Next collections" aria-controls="homepage-collections-carousel"
-          disabled={edges.end} onClick={() => scroll(1)}
-          className="hidden min-h-11 min-w-11 rounded-full border border-cocoa/30 text-cocoa disabled:opacity-40 sm:block">&#8594;</button>
       </div>
     </div>
+    <div className="relative min-w-0">
     <nav ref={track} id="homepage-collections-carousel" aria-label="Explore collections"
       onScroll={measure} className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2">
     {orderedCategories.map(category => {
@@ -94,5 +111,12 @@ export default function CategoryTiles({ categories, products, categorySettings =
       </a>;
     })}
     </nav>
+    <button type="button" aria-label="Previous collections" aria-controls="homepage-collections-carousel"
+      disabled={edges.start} onClick={() => scroll(-1)}
+      className="absolute left-2 top-1/2 hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8592;</button>
+    <button type="button" aria-label="Next collections" aria-controls="homepage-collections-carousel"
+      disabled={edges.end} onClick={() => scroll(1)}
+      className="absolute right-2 top-1/2 hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8594;</button>
+    </div>
   </section>;
 }
