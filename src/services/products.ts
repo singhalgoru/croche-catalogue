@@ -16,7 +16,6 @@ import { getProductPublishError } from '../utils/productPublishValidation';
 import {
   deleteImagesFromR2,
   isR2ImagePath,
-  R2_IMAGE_PATH_PREFIX,
   uploadImageToR2,
 } from './r2ImageStorage';
 
@@ -333,14 +332,11 @@ const uploadProductImage = async (file: File) => {
   return uploadImageToR2(uploadFile, imageId);
 };
 
-const removeManagedImage = async (imagePath: string, userId: string) => {
+const removeManagedImage = async (imagePath: string) => {
   if (isR2ImagePath(imagePath)) {
-    if (imagePath.startsWith(`${R2_IMAGE_PATH_PREFIX}products/${userId}/`)) {
-      await deleteImagesFromR2([imagePath]);
-    }
+    await deleteImagesFromR2([imagePath]);
     return;
   }
-  if (!imagePath.startsWith(`${userId}/`)) return;
   const client = await requireSupabase();
   const { error } = await client.storage.from('product-images').remove([imagePath]);
   if (error) throw new Error(`Unable to remove a product image: ${error.message}`);
@@ -784,7 +780,7 @@ export async function deleteVariantGalleryImage(
   product: ManagedProduct,
   image: ProductVariantImage,
 ): Promise<ManagedProduct> {
-  const { client, user } = await getCurrentUser();
+  const { client } = await getCurrentUser();
   const { data, error } = await client
     .from('product_variant_images')
     .delete()
@@ -800,7 +796,7 @@ export async function deleteVariantGalleryImage(
       'Unable to remove the gallery image: it may have already been removed or you may not have permission.',
     );
   }
-  await removeManagedImage(image.imagePath, user.id);
+  await removeManagedImage(image.imagePath);
   return fetchProductById(product.id);
 }
 
@@ -809,7 +805,7 @@ export async function replaceVariantGalleryImage(
   image: ProductVariantImage,
   imageFile: File,
 ): Promise<ManagedProduct> {
-  const { client, user } = await getCurrentUser();
+  const { client } = await getCurrentUser();
   const upload = await uploadProductImage(imageFile);
   const { data, error } = await client
     .from('product_variant_images')
@@ -829,7 +825,7 @@ export async function replaceVariantGalleryImage(
       'Unable to update the gallery image: it may have already been removed or you may not have permission.',
     );
   }
-  await removeManagedImage(image.imagePath, user.id);
+  await removeManagedImage(image.imagePath);
   return fetchProductById(product.id);
 }
 
@@ -879,7 +875,7 @@ export async function updateProductVariant(
   variant: ProductVariant,
   update: VariantUpdate,
 ): Promise<ManagedProduct> {
-  const { client, user } = await getCurrentUser();
+  const { client } = await getCurrentUser();
   const upload = update.imageFile ? await uploadProductImage(update.imageFile) : null;
   const { error } = await client
     .from('product_variants')
@@ -898,7 +894,7 @@ export async function updateProductVariant(
     if (upload) await cleanupUploadedImages([upload.imagePath]);
     throw new Error(`Unable to update the variant: ${error.message}`);
   }
-  if (upload) await removeManagedImage(variant.imagePath, user.id);
+  if (upload) await removeManagedImage(variant.imagePath);
   await syncProductSummary(product.id);
   return fetchProductById(product.id);
 }
@@ -1005,25 +1001,25 @@ export async function deleteProductVariant(
   variant: ProductVariant,
 ): Promise<ManagedProduct> {
   if (product.variants.length <= 1) throw new Error('Every product must keep at least one variant.');
-  const { client, user } = await getCurrentUser();
+  const { client } = await getCurrentUser();
   const { error } = await client.from('product_variants').delete().eq('id', variant.id);
   if (error) throw new Error(`Unable to delete the variant: ${error.message}`);
-  await removeManagedImage(variant.imagePath, user.id);
+  await removeManagedImage(variant.imagePath);
   for (const image of variant.gallery) {
-    await removeManagedImage(image.imagePath, user.id);
+    await removeManagedImage(image.imagePath);
   }
   await syncProductSummary(product.id);
   return fetchProductById(product.id);
 }
 
 export async function deleteProduct(product: ManagedProduct): Promise<void> {
-  const { client, user } = await getCurrentUser();
+  const { client } = await getCurrentUser();
   const { error } = await client.from('products').delete().eq('id', product.id);
   if (error) throw new Error(`Unable to delete ${product.name}: ${error.message}`);
   for (const variant of product.variants) {
-    await removeManagedImage(variant.imagePath, user.id);
+    await removeManagedImage(variant.imagePath);
     for (const image of variant.gallery) {
-      await removeManagedImage(image.imagePath, user.id);
+      await removeManagedImage(image.imagePath);
     }
   }
 }

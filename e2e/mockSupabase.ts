@@ -953,6 +953,26 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
+    if (pathname === '/functions/v1/r2-images') {
+      if (request.headers()['content-type']?.includes('application/json')) {
+        const body = getRequestBody<{ action: string; paths: string[] }>(route);
+        if (body.action !== 'delete') throw new Error('Unsupported mock R2 action');
+        await json(route, { deleted: body.paths.length });
+        return;
+      }
+      const body = request.postDataBuffer()?.toString('utf8') ?? '';
+      const imageId = body.match(/name="imageId"\r\n\r\n([^\r\n]+)/)?.[1];
+      if (!imageId) throw new Error('Missing image ID in mock R2 upload');
+      if (body.includes('archive-original')) {
+        await json(route, { imageId });
+      } else {
+        await json(route, {
+          imagePath: `r2:products/admin-user/${imageId}`,
+          imageUrl: `${image}?image=${imageId}`,
+        });
+      }
+      return;
+    }
     if (pathname === '/functions/v1/capture-cart-network') {
       await json(route, { recorded: true });
       return;

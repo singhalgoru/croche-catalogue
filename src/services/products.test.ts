@@ -4,12 +4,13 @@ import {
   saveProductPriceDiscoveryInputs,
   bulkUpdateProductDescriptions,
   readCatalogueBootstrap,
+  deleteVariantGalleryImage,
   type NewProduct, type ProductUpdate,
 } from './products';
 import { PRODUCT_COLUMNS } from './productColumns';
 
-const { from, rpc, getUser, upload, archive, convert } = vi.hoisted(() => ({
-  from: vi.fn(), rpc: vi.fn(), getUser: vi.fn(), upload: vi.fn(), archive: vi.fn(), convert: vi.fn(),
+const { from, rpc, getUser, upload, archive, convert, deleteImages } = vi.hoisted(() => ({
+  from: vi.fn(), rpc: vi.fn(), getUser: vi.fn(), upload: vi.fn(), archive: vi.fn(), convert: vi.fn(), deleteImages: vi.fn(),
 }));
 vi.mock('../lib/supabaseConfig', () => ({
   loadSupabase: async () => ({ from, rpc, auth: { getUser } }),
@@ -17,7 +18,7 @@ vi.mock('../lib/supabaseConfig', () => ({
 vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: convert }));
 vi.mock('./imageOriginals', () => ({ archiveImageOriginal: archive }));
 vi.mock('./r2ImageStorage', () => ({
-  uploadImageToR2: upload, deleteImagesFromR2: vi.fn(), isR2ImagePath: () => true,
+  uploadImageToR2: upload, deleteImagesFromR2: deleteImages, isR2ImagePath: () => true,
   R2_IMAGE_PATH_PREFIX: 'r2:',
 }));
 
@@ -235,6 +236,15 @@ describe('product detail loading', () => {
 });
 
 describe('product detail persistence', () => {
+  it('cleans up another admin photo after deleting its shared gallery row', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    queueQuery([{ id: 'gallery-1' }]);
+    queueQuery(row);
+    const imagePath = 'r2:products/original-admin/gallery-photo';
+    await deleteVariantGalleryImage(product, { id: 'gallery-1', image: '/gallery.png', imagePath });
+    expect(deleteImages).toHaveBeenCalledWith([imagePath]);
+  });
   it('confirms a price change from 100 to 120 before reloading the product', async () => {
     queueQuery([{ ...row, price: 100 }]);
     const [product] = await fetchManagedProducts();
