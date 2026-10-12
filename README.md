@@ -451,6 +451,28 @@ admins can only change their own password. Every change requires the caller's
 current password and the existing Turnstile verification. Login email is not
 edited in place: add the new verified account, then remove old access.
 The owner cannot be removed or transferred from this screen.
+The storefront greeting uses the latest saved account name (first name), then
+the delivery-profile name, then the email prefix. Name edits refresh the current
+greeting immediately; returning to another open shop tab refreshes it on focus.
+
+**Password-change security emails** cover both admins and normal customers,
+including successful password resets. Migration
+`20261012050000_password_change_emails.sql` queues a private notification when a
+verified non-guest account's password changes; names, sign-ins, unchanged
+password fields and unverified signup drafts do not queue messages.
+Deploy `password-change-worker` before applying the migration. The minute cron
+uses the existing worker secret, Resend API key and sender. Failed messages
+retry up to eight attempts with 15-minute leases and a stable provider
+idempotency key. `accepted_at` means provider acceptance, not inbox delivery.
+
+The cream/cocoa/mustard template in
+`supabase/functions/_shared/passwordChangeEmail.ts` includes the Luvia logo,
+account email and change time, and tells recipients to reply immediately if
+they did not request the change. Reply-To is `orders@luviacreations.com`; monitor
+that mailbox. No password, hash or reset token is stored in the notification
+queue or included in the email. Supabase's native password-change notice stays
+disabled to avoid duplicate messages; this backend queue also covers admin-set
+passwords. Existing password changes are not backfilled.
 
 Deploy migration `20261012040000_admin_user_management.sql` and Edge Function
 `manage-admin-users` before the frontend. The migration promotes the single

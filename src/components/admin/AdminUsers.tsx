@@ -96,7 +96,8 @@ export default function AdminUsers() {
             onChange={event => setConfirmation(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
         </>}
         {mode === 'remove' && <p className="text-sm">Confirm removing admin access. This does not delete the account, orders, products or sales. The owner cannot be removed.</p>}
-        <label>Your current password<input type="password" autoComplete="current-password" required value={currentPassword} disabled={busy}
+        <p id="admin-password-authorization-help" className="text-xs">Enter the password you currently use to sign in. This field only authorizes the change; it is not the new password.{target && target.id !== directory?.currentUserId ? " Use your own password, not this admin's password." : ''}</p>
+        <label>Your current password<input type="password" autoComplete="current-password" aria-describedby="admin-password-authorization-help" required value={currentPassword} disabled={busy}
           onChange={event => setCurrentPassword(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
         <div className="flex flex-wrap gap-4">
           <button type="submit" disabled={busy || loading} className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-white disabled:opacity-50">{busy ? 'Saving...' : mode === 'remove' ? 'Confirm remove access' : 'Save admin account'}</button>

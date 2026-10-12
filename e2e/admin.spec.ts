@@ -31,6 +31,42 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('admin name edits refresh the shop greeting without signing in again', async ({ page }) => {
+  await installMockSupabase(page);
+  let name = '';
+  await page.route('**/auth/v1/user', async route => {
+    if (route.request().method() !== 'GET') { await route.fallback(); return; }
+    await route.fulfill({ json: {
+      id: 'admin-user', email: 'admin@luvia.test', aud: 'authenticated', role: 'authenticated',
+      email_confirmed_at: '2026-01-01T00:00:00Z', is_anonymous: false, user_metadata: { full_name: name },
+    } });
+  });
+  await page.route('**/functions/v1/manage-admin-users', async route => {
+    const body = route.request().postDataJSON();
+    if (body.action === 'list') {
+      await route.fulfill({ json: { currentUserId: 'admin-user', isOwner: true, users: [{
+        id: 'admin-user', email: 'admin@luvia.test', name, isOwner: true, verified: true, createdAt: '',
+      }] } });
+    } else {
+      expect(body.action).toBe('edit');
+      name = body.name;
+      await route.fulfill({ json: { message: 'Admin name updated.' } });
+    }
+  });
+  await signIn(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Admin users', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit admin@luvia.test', exact: true }).click();
+  await page.getByLabel('Admin name', { exact: true }).fill('Gourav S');
+  await page.getByLabel('Your current password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Save admin account' }).click();
+  await expect(page.getByText('Admin name updated.', { exact: true })).toBeVisible();
+  await page.goto('./', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('button', { name: 'My account, signed in as Gourav', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'My account, signed in as admin', exact: true })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('owner manages admin names, passwords and access without mobile overflow', async ({ page }) => {
   await installMockSupabase(page);
   const owner = { id: 'admin-user', email: 'admin@luvia.test', name: 'Owner', isOwner: true, verified: true, createdAt: '' };

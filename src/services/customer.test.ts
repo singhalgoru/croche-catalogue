@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
   validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden,
-  fetchCampaignCoupons, setCampaignCouponArchived } from './customer';
+  fetchCampaignCoupons, setCampaignCouponArchived, fetchCustomerAccount, fetchCustomerIdentity } from './customer';
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(), updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithOtp: vi.fn(), resetPasswordForEmail: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), getSession: vi.fn(), from: vi.fn(), rpc: vi.fn(),
 }));
@@ -14,6 +14,15 @@ const details = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test
 const password = 'Crochet2026';
 const trackEvent = vi.hoisted(() => vi.fn());
 vi.mock('./analytics', () => ({ trackEvent }));
+it('reads fresh verified account metadata while keeping the email-only account API', async () => {
+  getSession.mockResolvedValue({ data: { session: { user: { user_metadata: {} } } } });
+  getUser.mockResolvedValue({ data: { user: { email: 'owner@example.test', email_confirmed_at: '2026-01-01',
+    is_anonymous: false, user_metadata: { full_name: '  Updated Admin  ' } } } });
+  await expect(fetchCustomerIdentity()).resolves.toEqual({ email: 'owner@example.test', name: 'Updated Admin' });
+  await expect(fetchCustomerAccount()).resolves.toBe('owner@example.test');
+  getUser.mockResolvedValue({ data: { user: { email: 'guest@example.test', is_anonymous: true } } });
+  await expect(fetchCustomerIdentity()).resolves.toBeNull();
+});
 it('fetches the admin coupon projection for current and archived views', async () => {
   rpc.mockResolvedValue({ data: [], error: null });
   await expect(fetchCampaignCoupons()).resolves.toEqual([]);

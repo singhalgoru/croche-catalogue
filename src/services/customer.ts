@@ -9,14 +9,20 @@ async function client() {
   if (!value) throw new Error('Customer accounts require an online connection.');
   return value;
 }
-export async function fetchCustomerAccount() {
+export async function fetchCustomerIdentity(): Promise<{ email: string; name?: string } | null> {
   const supabase = await client();
   const { data: session, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw new Error(`Unable to restore account: ${sessionError.message}`);
   if (!session.session) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error) throw new Error(`Unable to restore your account: ${error.message}`);
-  return data.user && !data.user.is_anonymous && data.user.email_confirmed_at ? data.user.email ?? null : null;
+  const user = data.user;
+  if (!user || user.is_anonymous || !user.email_confirmed_at || !user.email) return null;
+  const name: unknown = user.user_metadata?.full_name;
+  return { email: user.email, ...(typeof name === 'string' && name.trim() ? { name: name.trim() } : {}) };
+}
+export async function fetchCustomerAccount() {
+  return (await fetchCustomerIdentity())?.email ?? null;
 }
 export async function fetchCustomerOrders(offset = 0, hidden = false): Promise<CustomerOrder[]> {
   const supabase = await client();

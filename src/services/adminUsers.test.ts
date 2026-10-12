@@ -21,3 +21,17 @@ it('surfaces the backend error instead of generic function non-2xx failure', asy
   invoke.mockResolvedValue({ data: null, error: { message: 'Non-2xx', context: new Response(JSON.stringify({ error: 'Incorrect current password.' })) } });
   await expect(changeAdminUser({ action: 'remove', id: 'member' }, 'wrong')).rejects.toThrow('Incorrect current password.');
 });
+it('notifies the greeting only after a successful name edit', async () => {
+  const listener = vi.fn();
+  window.addEventListener('admin-account-updated', listener);
+  try {
+    invoke.mockResolvedValue({ data: { message: 'Name updated.' }, error: null });
+    await changeAdminUser({ action: 'edit', id: 'owner', name: 'Updated Admin' }, 'current');
+    expect(listener).toHaveBeenCalledTimes(1);
+    invoke.mockResolvedValue({ error: { message: 'Update failed' } });
+    await expect(changeAdminUser({ action: 'edit', id: 'owner', name: 'Wrong' }, 'current')).rejects.toThrow('Update failed');
+    expect(listener).toHaveBeenCalledTimes(1);
+  } finally {
+    window.removeEventListener('admin-account-updated', listener);
+  }
+});

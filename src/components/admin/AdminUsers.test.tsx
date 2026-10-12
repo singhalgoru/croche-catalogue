@@ -44,6 +44,8 @@ it('requires explicit removal confirmation and preserves errors', async () => {
   await open();
   change.mockRejectedValue(new Error('Incorrect current password.'));
   fireEvent.click(screen.getByRole('button', { name: `Remove access for ${member.email}` }));
+  expect(screen.getByText(/Use your own password, not this admin's password/)).toBeTruthy();
+  expect(screen.getByLabelText('Your current password').getAttribute('aria-describedby')).toBe('admin-password-authorization-help');
   expect(change).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Your current password'), { target: { value: 'wrong' } });
   fireEvent.click(screen.getByRole('button', { name: 'Confirm remove access' }));

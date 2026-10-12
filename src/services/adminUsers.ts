@@ -54,5 +54,6 @@ export async function changeAdminUser(change: AdminUserChange, currentPassword: 
   if (!data || typeof data !== 'object' || !('message' in data) || typeof data.message !== 'string') {
     throw new Error('Invalid admin update response. Refresh accounts before retrying.');
   }
+  if (change.action === 'edit') window.dispatchEvent(new Event('admin-account-updated'));
   return data.message;
 }

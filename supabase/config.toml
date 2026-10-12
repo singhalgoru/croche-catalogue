@@ -13,6 +13,10 @@ content_path = "./supabase/templates/customer-activation.html"
 subject = "Reset your Luvia password"
 content_path = "./supabase/templates/customer-password-reset.html"
 
+# The private Resend queue covers both customer and admin-set passwords.
+[auth.email.notification.password_changed]
+enabled = false
+
 [functions.analyze-product]
 verify_jwt = true
 
@@ -57,3 +61,6 @@ verify_jwt = false
 
 [functions.manage-admin-users]
 verify_jwt = true
+
+[functions.password-change-worker]
+verify_jwt = false
