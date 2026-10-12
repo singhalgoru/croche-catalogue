@@ -41,6 +41,17 @@ describe('Footer', () => {
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
       .toBe('/return-policy/');
   });
+  it('keeps the feedback entry compact and links to a dedicated page', () => {
+    render(<Footer />);
+    expect(screen.getByRole('heading', { name: 'Explore & support' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: "Let's stay connected" })).toBeTruthy();
+    const feedback = screen.getByRole('region', { name: 'Share feedback' });
+    expect(feedback.className).not.toContain('bg-cream');
+    const trigger = screen.getByRole('link', { name: 'Share feedback' });
+    expect(trigger.getAttribute('href')).toBe('/?page=feedback');
+    expect(trigger.className).toContain('min-h-11');
+    expect(screen.queryByRole('form', { name: 'Share feedback form' })).toBeNull();
+  });
 
   it('shows the WhatsApp mobile number as a direct WhatsApp link', () => {
     render(<Footer />);

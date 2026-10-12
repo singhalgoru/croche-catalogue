@@ -48,6 +48,7 @@ const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
 const CustomerOrders = lazy(() => import('./components/CustomerOrders'));
 const AccountDialog = lazy(() => import('./components/AccountDialog'));
+const FeedbackForm = lazy(() => import('./components/FeedbackForm'));
 const readCheckoutStep = () => {
   const value = new URLSearchParams(window.location.search).get('checkout');
   return (['cart','delivery','review','confirmation'] as const).find(step => step === value) ?? null;
@@ -561,6 +562,27 @@ function App() {
       <AccountDialog mode={accountMode} accountName={customerName} onClose={closeAccount} />
     </Suspense>
   );
+
+  if (new URLSearchParams(window.location.search).get('page') === 'feedback' && !isCartOpen) {
+    return <div className="flex min-h-screen flex-col bg-cream">
+      {cartNotifications}
+      <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={categories}
+        seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+        cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount} onOpenCart={() => setIsCartOpen(true)}
+        onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
+      <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-6 sm:py-10">
+        <a href={import.meta.env.BASE_URL} className="inline-flex min-h-11 items-center text-sm text-cocoa underline underline-offset-4">Back to shop</a>
+        <div>
+          <p className="text-sm font-semibold text-cocoa/70">Made with love. Better with your ideas.</p>
+          <h1 className="mt-2 font-heading text-3xl font-bold text-cocoa">Share feedback</h1>
+        </div>
+        <Suspense fallback={<p role="status" className="text-cocoa">Loading feedback form...</p>}>
+          <FeedbackForm />
+        </Suspense>
+      </main>
+      <Footer />{accountDialog}
+    </div>;
+  }
 
   if (new URLSearchParams(window.location.search).get('account') === 'orders' && !isCartOpen) {
     return <div className="flex min-h-screen flex-col bg-cream">

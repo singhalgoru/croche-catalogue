@@ -491,6 +491,14 @@ then lets the recipient choose and confirm a new password; authenticated
 Change password and privileged admin changes still require authorization.
 
 **Share feedback** is available in the footer and signed-in My account.
+The footer groups brand information, store links and contact details into
+responsive columns. Its compact feedback link and the My account link open the
+dedicated `/?page=feedback` page, with a bounded form and a Back to shop link.
+No inline feedback panel expands inside the footer or account dialog.
+Customer My orders cards show one prominent order-status panel (Confirmed,
+Processing, Shipped or Delivered), without a separate Payment received badge or
+paid-date line. Unpaid/review states remain visible; admin payment labels are
+unchanged for reconciliation.
 Messages are required (10–3,000 characters); category/name are optional.
 Email is collected only when "I'd like a reply" is selected. Account contact
 details are never attached automatically. No phone/address is requested.

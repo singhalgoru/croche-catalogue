@@ -7,7 +7,6 @@ import type { DeliveryDetails, WelcomeOffer } from '../types/customer';
 import { emptyDeliveryDetails } from '../utils/customer';
 import AddressBook from './AddressBook';
 import ChangePassword from './ChangePassword';
-import FeedbackForm from './FeedbackForm';
 
 interface Props {
   initialEmail?: string;
@@ -73,7 +72,9 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           My orders
         </a>
         <ChangePassword />
-        <FeedbackForm />
+        <a href={`${import.meta.env.BASE_URL}?page=feedback`} className="mt-3 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
+          Share feedback
+        </a>
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
       </> : <>

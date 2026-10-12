@@ -1,9 +1,13 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { submitFeedback } from '../services/feedback';
 import type { FeedbackInput } from '../services/feedback';
 
 export default function FeedbackForm() {
-  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    const title = document.title;
+    document.title = 'Share feedback | Luvia Creations';
+    return () => { document.title = title; };
+  }, []);
   const [message, setMessage] = useState('');
   const [category, setCategory] = useState<FeedbackInput['category']>('general');
   const [name, setName] = useState('');
@@ -13,10 +17,7 @@ export default function FeedbackForm() {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const request = useRef<{ signature: string; id: string } | null>(null);
-  return <section aria-label="Share feedback" className="mt-4 rounded-xl border border-mustard/40 bg-cream p-4 text-left text-sm text-cocoa">
-    <button type="button" aria-expanded={expanded} disabled={busy} className="min-h-11 font-semibold underline"
-      onClick={() => setExpanded(value => !value)}>Share feedback</button>
-    {expanded && <>
+  return <section aria-label="Share feedback" className="rounded-2xl border border-mustard/40 bg-white p-4 text-left text-sm text-cocoa shadow-sm sm:p-6">
       <p className="mt-2">Help us improve Luvia. Only your feedback is required. Leave your email only if you would like a reply.</p>
       <p className="mt-2 text-xs">Used only to review your feedback and respond if requested. A session identifier is kept for abuse prevention; account contact details are not attached automatically. Website submissions are kept for up to 90 days; delivered emails remain in our feedback inbox. Please do not include passwords, payment details or sensitive personal information. For order/payment help, email <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a>.</p>
       {saved && <p role="status" className="mt-3">Thank you! Your feedback has been saved and queued for feedback@luviacreations.com.</p>}
@@ -51,6 +52,5 @@ export default function FeedbackForm() {
         </button>
       </form>
       <p className="mt-3 text-xs">Prefer email? Write to <a href="mailto:feedback@luviacreations.com" className="underline">feedback@luviacreations.com</a>. No phone number or address is needed. Feedback is private and is not published as a review.</p>
-    </>}
   </section>;
 }

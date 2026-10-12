@@ -65,6 +65,11 @@ test('My orders is a full page with active-first history, reorder and restorable
   await expect(page.getByRole('heading', { name: 'My orders', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('article').first()).toHaveAttribute('aria-label', 'Order LUV-ACTIVE');
+  await expect(page.getByLabel('Order status for LUV-ACTIVE')).toContainText('Shipped');
+  await expect(page.getByLabel('Order status for LUV-DELIVERED')).toContainText('Delivered');
+  await expect(page.getByText('Payment received', { exact: true })).toHaveCount(0);
+  expect(await page.getByLabel('Order status for LUV-ACTIVE').locator('.text-lg.font-bold').evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(18);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole('button', { name: 'Reorder LUV-EXPIRED' }).click();
   await expect(page.getByText(/1 order item added to your cart at current prices/)).toBeVisible();
   await expect(page.getByText(/Deleted product: No longer available/)).toBeVisible();

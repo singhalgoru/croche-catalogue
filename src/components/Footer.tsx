@@ -1,7 +1,6 @@
 import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
 import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
-import FeedbackForm from './FeedbackForm';
 
 const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
@@ -26,23 +25,31 @@ export default function Footer() {
       </div>
     </section>
     <footer className="bg-cocoa text-cream/90 mt-8 sm:mt-16">
-      <div className="max-w-6xl mx-auto px-4 py-5 sm:py-8 text-center text-sm">
-        <p className="font-heading text-lg text-mustard mb-1">Luvia Creations</p>
-        <p className="mb-2">Gurugram, Haryana, India</p>
-        <p className="mx-auto mb-2 hidden max-w-2xl text-cream/75 sm:block">
+      <div className="mx-auto max-w-6xl px-4 pb-6 pt-8 text-sm sm:px-6 sm:pt-10">
+        <div className="grid gap-7 pb-6 md:grid-cols-2 lg:grid-cols-[1.1fr_0.8fr_1.2fr] lg:gap-10">
+        <div className="md:col-span-2 lg:col-span-1">
+        <p className="font-heading text-2xl font-semibold text-mustard">Luvia Creations</p>
+        <p className="mt-2 max-w-sm leading-relaxed text-cream/80">
           Premium handmade crochet accessories, toys, gifts and decor,
           thoughtfully crafted in India.
         </p>
-        <nav aria-label="Store information" className="mt-2 grid grid-cols-2 gap-x-3 sm:mt-3 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-5">
-          <a href="/collections/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Explore collections</a>
-          <a href="/about/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">About &amp; contact</a>
-          <a href="/faq/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Ordering FAQ</a>
-          <a href="#collaborate" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">Collaborate with us</a>
-          <a href="/return-policy/" className="inline-flex min-h-11 items-center justify-center underline underline-offset-2 hover:text-mustard">
+        <p className="mt-3 text-xs text-cream/70">Gurugram, Haryana, India</p>
+        </div>
+        <div>
+        <h2 className="font-heading text-base font-semibold text-cream">Explore &amp; support</h2>
+        <nav aria-label="Store information" className="mt-2 grid grid-cols-2 gap-x-4 md:grid-cols-1">
+          <a href="/collections/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Explore collections</a>
+          <a href="/about/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">About &amp; contact</a>
+          <a href="/faq/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Ordering FAQ</a>
+          <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Collaborate with us</a>
+          <a href="/return-policy/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">
             Return and refund policy
           </a>
         </nav>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-4 sm:flex sm:items-center sm:justify-center sm:gap-3">
+        </div>
+        <div className="min-w-0">
+        <h2 className="font-heading text-base font-semibold text-cream">Let's stay connected</h2>
+        <div className="mt-3 flex flex-wrap gap-3">
           <a
             href={getGeneralWhatsAppLink()}
             target="_blank"
@@ -52,7 +59,7 @@ export default function Footer() {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#25D366] px-3 sm:px-5 py-2 font-semibold text-cocoa transition-colors hover:bg-[#1ebe5d]"
           >
             <WhatsAppIcon />
-            <span><span className="hidden sm:inline">Contact on </span>WhatsApp</span>
+            <span>WhatsApp</span>
           </a>
           <a
             href={INSTAGRAM_URL}
@@ -63,44 +70,58 @@ export default function Footer() {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] px-3 sm:px-5 py-2 font-semibold text-white transition-opacity hover:opacity-90"
           >
             <InstagramIcon />
-            <span><span className="hidden sm:inline">Contact on </span>Instagram</span>
+            <span>Instagram</span>
           </a>
         </div>
-        <p className="mt-2 text-xs sm:text-sm">
+        <p className="mt-2 text-xs">
           WhatsApp / mobile:{' '}
           <a
             href={getGeneralWhatsAppLink()}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold underline underline-offset-2 hover:text-mustard"
+            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 hover:text-mustard"
           >
             {formatWhatsAppNumber()}
           </a>
         </p>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:mt-5 sm:flex sm:items-center sm:justify-center sm:gap-6 sm:text-sm">
+        <div className="mt-2 space-y-2 text-xs">
           <p className="min-w-0">
-            <span className="block sm:inline">Orders: </span>
+            <span className="block text-cream/70">Order support</span>
             <a
               href="mailto:orders@luviacreations.com"
               onClick={() => trackContactClick('email', 'footer_orders')}
-              className="inline-flex min-h-11 max-w-full items-center break-all font-semibold text-cream underline underline-offset-2 hover:text-mustard"
+              className="inline-flex min-h-11 max-w-full items-center break-all font-semibold text-cream underline underline-offset-4 hover:text-mustard"
             >
               orders@luviacreations.com
             </a>
           </p>
           <p className="min-w-0">
-            <span className="block sm:inline">General enquiries: </span>
+            <span className="block text-cream/70">General enquiries</span>
             <a
               href="mailto:hello@luviacreations.com"
               onClick={() => trackContactClick('email', 'footer_hello')}
-              className="inline-flex min-h-11 max-w-full items-center break-all font-semibold text-cream underline underline-offset-2 hover:text-mustard"
+              className="inline-flex min-h-11 max-w-full items-center break-all font-semibold text-cream underline underline-offset-4 hover:text-mustard"
             >
               hello@luviacreations.com
             </a>
           </p>
         </div>
-        <FeedbackForm />
-        <section aria-label="Payment methods" className="my-4 border-t border-cream/25 pt-5">
+        </div>
+        </div>
+        <section aria-label="Share feedback" className="flex flex-wrap items-center justify-between gap-3 border-t border-cream/20 py-5">
+          <div>
+            <p className="font-semibold text-cream">Made with love. Better with your ideas.</p>
+            <p className="mt-1 text-xs text-cream/75">A suggestion or a little feedback? We would love to hear it.</p>
+          </div>
+          <a href={`${import.meta.env.BASE_URL}?page=feedback`}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-mustard/70 px-5 py-2 font-semibold text-mustard transition-colors hover:bg-mustard/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-mustard">
+            Share feedback
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 12h14m-6-6 6 6-6 6" />
+            </svg>
+          </a>
+        </section>
+        <section aria-label="Payment methods" className="border-t border-cream/20 py-5 text-center">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
           <p className="text-base text-cream">We accept</p>
           <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3" aria-label="Payment networks">
@@ -127,7 +148,7 @@ export default function Footer() {
           </div>
           <p className="mt-3 text-xs text-cream/75">Secure payments via Razorpay. Available payment methods are shown at checkout.</p>
         </section>
-        <p>&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
+        <p className="text-center text-xs text-cream/70">&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
       </div>
     </footer>
     </>

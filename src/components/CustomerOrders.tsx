@@ -95,7 +95,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
       </div>}
       <p className={admin ? 'mb-3 mt-4 text-sm text-cocoa/65' : 'mb-3 text-xs text-cocoa/70'}>{admin
         ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled or expired entry hides it from this list, not from payment records.'
-        : 'Recorded orders, payment status and saved fulfilment updates. WhatsApp/email enquiries are not confirmed orders. Refresh orders to check delivery progress.'}</p>
+        : 'Track your order status and delivery progress here. WhatsApp/email enquiries are not confirmed orders. Refresh orders for the latest updates.'}</p>
       {loading && <p role="status">Loading your orders...</p>}
       {!loading && !error && displayedOrders.length === 0 && <p>{showHidden ? 'No hidden orders loaded.' : orders.length ? 'No visible orders loaded.' : 'No orders yet.'}</p>}
       <div className="space-y-3">
@@ -105,10 +105,18 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
             : 'rounded-xl border border-cocoa/20 p-3 sm:p-4'}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className={admin ? 'font-heading text-lg font-bold text-cocoa' : 'font-semibold'}>{order.reference}</h4>
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'paid' ? 'bg-green-50 text-green-800' : 'bg-mustard/15 text-cocoa'}`}>
+              {admin ? <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.status === 'paid' ? 'bg-green-50 text-green-800' : 'bg-mustard/15 text-cocoa'}`}>
                 {statusLabels[order.status]}
-              </span>
-              {order.status === 'paid' && order.fulfilment && <span className="rounded-full bg-mustard/20 px-3 py-1 text-xs font-semibold text-cocoa">
+              </span> : <div aria-label={`Order status for ${order.reference}`}
+                className={`inline-flex items-center gap-3 rounded-xl border px-4 py-3 ${order.status === 'paid' && order.fulfilment?.status === 'delivered'
+                  ? 'border-green-200 bg-green-50 text-green-800' : 'border-mustard/40 bg-mustard/15 text-cocoa'}`}>
+                <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
+                <span><span className="block text-xs font-semibold uppercase tracking-wide">Status</span>
+                  <span className="block text-lg font-bold">{order.status === 'paid'
+                    ? fulfilmentLabels[order.fulfilment?.status ?? 'confirmed'] : statusLabels[order.status]}</span>
+                </span>
+              </div>}
+              {admin && order.status === 'paid' && order.fulfilment && <span className="rounded-full bg-mustard/20 px-3 py-1 text-xs font-semibold text-cocoa">
                 Order: {fulfilmentLabels[order.fulfilment.status]}
               </span>}
               {admin && <button type="button" className="min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa"
@@ -144,7 +152,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
             </div>}
             <p className="mt-1 text-xs text-cocoa/70">
               Placed {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-              {order.paidAt && ` · Paid ${new Date(order.paidAt).toLocaleDateString('en-IN')}`}
+              {admin && order.paidAt && ` · Paid ${new Date(order.paidAt).toLocaleDateString('en-IN')}`}
             </p>
             {admin && order.status === 'link_created' && order.expiresAt && <p className="text-xs text-cocoa/70">
               Payment window ends {new Date(order.expiresAt).toLocaleString('en-IN')}. Refresh orders to check the latest status.

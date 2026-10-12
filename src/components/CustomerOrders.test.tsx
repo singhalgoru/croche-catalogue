@@ -95,9 +95,32 @@ it('shows customer shipment progress without admin editing controls', async () =
     status: 'delivered', courierName: 'Courier', trackingNumber: '123', trackingUrl: 'https://courier.example/123', updatedAt: null,
   } }]);
   render(<CustomerOrders />);
-  expect(await screen.findByText('Order: Delivered')).toBeTruthy();
+  expect(await screen.findByText('Delivered', { selector: 'span' })).toBeTruthy();
+  expect(screen.getByLabelText('Order status for LUV-ORDER1').textContent).toBe('StatusDelivered');
+  expect(screen.queryByText('Payment received')).toBeNull();
+  expect(screen.queryByText(/ · Paid /)).toBeNull();
   expect(screen.getByRole('link', { name: 'Track shipment' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Save order status' })).toBeNull();
+});
+it.each(['confirmed', 'processing', 'shipped', 'delivered'] as const)('shows %s prominently as the single customer status', async status => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order, fulfilment: {
+    status, courierName: '', trackingNumber: '', trackingUrl: '', updatedAt: null,
+  } }]);
+  render(<CustomerOrders />);
+  const summary = await screen.findByLabelText('Order status for LUV-ORDER1');
+  expect(summary.textContent).toBe(`Status${status[0].toUpperCase()}${status.slice(1)}`);
+  expect(summary.querySelector('.text-lg.font-bold')).toBeTruthy();
+  expect(screen.queryByText('Payment received')).toBeNull();
+});
+it('shows Confirmed for paid orders without fulfilment and preserves actionable unpaid statuses', async () => {
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([order,
+    { ...order, id: 'pending', reference: 'PENDING', status: 'link_created', paidAt: null },
+    { ...order, id: 'review', reference: 'REVIEW', status: 'review_required', paidAt: null }]);
+  render(<CustomerOrders />);
+  expect((await screen.findByLabelText('Order status for LUV-ORDER1')).textContent).toBe('StatusConfirmed');
+  expect(screen.getByLabelText('Order status for PENDING').textContent).toBe('StatusAwaiting payment');
+  expect(screen.getByLabelText('Order status for REVIEW').textContent).toBe('StatusPayment under review');
+  expect(screen.queryByText('Payment received')).toBeNull();
 });
 it('reports fulfilment save failures without changing the displayed status', async () => {
   const load = vi.fn().mockResolvedValue([{ ...order, fulfilment: {
@@ -118,10 +141,10 @@ it('shows the empty state without claiming an enquiry is an order', async () => 
   expect(await screen.findByText('No orders yet.')).toBeTruthy();
   expect(screen.getByText(/WhatsApp\/email enquiries are not confirmed orders/)).toBeTruthy();
 });
-it('shows saved order details and refreshes the current payment status', async () => {
+it('shows saved order details and refreshes the current order status', async () => {
   vi.mocked(fetchCustomerOrders).mockResolvedValue([order]);
   render(<CustomerOrders />);
-  expect(await screen.findByText('Payment received')).toBeTruthy();
+  expect(await screen.findByText('Confirmed')).toBeTruthy();
   expect(screen.getByRole('article', { name: 'Order LUV-ORDER1' })).toBeTruthy();
   expect(screen.getByText('Rose Charm (Pink)')).toBeTruthy();
   expect(screen.getByText('₹550')).toBeTruthy();

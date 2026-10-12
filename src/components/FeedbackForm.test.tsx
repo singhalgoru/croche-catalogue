@@ -7,7 +7,6 @@ beforeEach(() => { vi.clearAllMocks(); submit.mockResolvedValue(undefined); });
 afterEach(cleanup);
 function open() {
   render(<FeedbackForm />);
-  fireEvent.click(screen.getByRole('button', { name: 'Share feedback' }));
 }
 it('collects only optional identity and requires an email for requested replies', () => {
   open();

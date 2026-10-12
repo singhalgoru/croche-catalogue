@@ -59,6 +59,15 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('opens feedback as a dedicated page without requiring sign-in', async () => {
+    window.history.replaceState(null, '', '/?page=feedback');
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'Share feedback', level: 1 })).toBeTruthy();
+    expect(await screen.findByRole('form', { name: 'Share feedback form' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to shop' }).getAttribute('href')).toBe('/');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(screen.getByRole('contentinfo')).queryByRole('form')).toBeNull();
+  });
   it('preserves email-link credentials until the lazy authentication client consumes them', () => {
     window.history.replaceState(null, '', '/#access_token=test-callback&refresh_token=test-refresh&type=magiclink');
     render(<App />);
