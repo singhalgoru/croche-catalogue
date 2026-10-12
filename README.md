@@ -970,8 +970,8 @@ report. Years with sales or expenses, plus the current year, are selectable.
 The snapshot is independent of the monthly filter and does not change the sales CSV.
 
 Each period shows GST-inclusive revenue, sales/pieces, GST collected, estimated
-sales profit, material cost, labour cost, shipping cost, overheads, profit after
-expenses, and the margin after overheads. Material/labour totals multiply saved
+sales profit, material cost, labour cost, packaging cost, shipping cost, overheads, profit after
+expenses, and the margin after overheads. Material/labour/packaging totals multiply saved
 per-piece costs by quantity; shipping is counted once per sale. These cost
 breakdowns are already included in profit deductions, not subtracted again.
 Sales profit and profit after business expenses lead each card in larger summary

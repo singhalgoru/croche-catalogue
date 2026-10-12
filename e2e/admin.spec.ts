@@ -146,7 +146,7 @@ test('shows material, labour and shipping costs in annual and quarterly snapshot
   await page.getByLabel('Snapshot year').selectOption('2026');
   for (const name of ['Year 2026 · Jan–Dec', 'Q1 · Jan–Mar 2026']) {
     const card = page.getByRole('article', { name, exact: true });
-    for (const [label, amount] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Shipping cost', '₹80']]) {
+    for (const [label, amount] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Packaging cost', '₹15'], ['Shipping cost', '₹80']]) {
       await expect(card.locator('dl > div').filter({ has: page.getByText(label, { exact: true }) }).locator('dd')).toHaveText(amount);
     }
   }

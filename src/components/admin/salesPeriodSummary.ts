@@ -25,8 +25,9 @@ export function summarizeSalesPeriod(
   const saleCosts = periodSales.reduce((totals, sale) => ({
     materialCost: totals.materialCost + sale.materialCost * sale.quantity,
     labourCost: totals.labourCost + sale.labourCost * sale.quantity,
+    packagingCost: totals.packagingCost + sale.packagingCost * sale.quantity,
     shippingCost: totals.shippingCost + sale.shippingCost,
-  }), { materialCost: 0, labourCost: 0, shippingCost: 0 });
+  }), { materialCost: 0, labourCost: 0, packagingCost: 0, shippingCost: 0 });
   const overheads = expenses.filter(expense => inPeriod(expense.expenseDate))
     .reduce((total, expense) => total + expense.amount, 0);
   const profitAfterOverheads = summary.profit - overheads;

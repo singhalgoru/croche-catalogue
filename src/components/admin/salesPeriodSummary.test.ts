@@ -30,7 +30,7 @@ describe('period sales snapshots', () => {
       expect(quarter.marginAfterOverheads).toBe(45);
     }
     for (const metric of ['revenue', 'profit', 'overheads', 'profitAfterOverheads', 'gst', 'piecesSold',
-      'materialCost', 'labourCost', 'shippingCost'] as const) {
+      'materialCost', 'labourCost', 'packagingCost', 'shippingCost'] as const) {
       expect(quarters.reduce((sum, quarter) => sum + quarter[metric], 0)).toBeCloseTo(annual[metric]);
     }
   });
@@ -42,13 +42,13 @@ describe('period sales snapshots', () => {
       { ...sale, saleDate: '2025-01-01', quantity: 100 },
     ];
     expect(summarizeSalesPeriod(sales, [], '2026')).toMatchObject({
-      materialCost: 90, labourCost: 54, shippingCost: 125,
+      materialCost: 90, labourCost: 54, packagingCost: 25, shippingCost: 125,
     });
     expect(summarizeSalesPeriod(sales, [], '2026', 1, 3)).toMatchObject({
-      materialCost: 60, labourCost: 30, shippingCost: 75,
+      materialCost: 60, labourCost: 30, packagingCost: 15, shippingCost: 75,
     });
     expect(summarizeSalesPeriod(sales, [], '2026', 7, 9)).toMatchObject({
-      materialCost: 0, labourCost: 0, shippingCost: 0,
+      materialCost: 0, labourCost: 0, packagingCost: 0, shippingCost: 0,
     });
   });
 

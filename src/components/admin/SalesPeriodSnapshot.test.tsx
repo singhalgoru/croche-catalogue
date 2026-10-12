@@ -22,12 +22,12 @@ describe('SalesPeriodSnapshot', () => {
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     for (const name of ['Year 2025 · Jan–Dec', 'Q1 · Jan–Mar 2025']) {
       const article = within(screen.getByRole('article', { name }));
-      for (const [label, value] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Shipping cost', '₹80']]) {
+      for (const [label, value] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Packaging cost', '₹15'], ['Shipping cost', '₹80']]) {
         expect(article.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe(value);
       }
     }
     const empty = within(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2025' }));
-    for (const label of ['Material cost', 'Labour cost', 'Shipping cost']) {
+    for (const label of ['Material cost', 'Labour cost', 'Packaging cost', 'Shipping cost']) {
       expect(empty.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe('₹0');
     }
   });
