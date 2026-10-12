@@ -64,7 +64,11 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - "Collaborate with us" in the hamburger menu and footer links to a maker/brand invitation above the footer, with a prefilled collaboration WhatsApp enquiry using the existing contact number
 - Dedicated order and WhatsApp contact: +91 9205907350
 - Email contacts for orders and general enquiries
-- Installable app experience on supported browsers
+- Installable app experience on supported browsers. A dismissible install suggestion
+  appears six seconds after the browser reports install eligibility, once per tab
+  session. Not now keeps the manual Install App button available. Standalone apps
+  and browsers without an install event do not show the offer; checkout, account,
+  feedback, product-detail and admin pages do not automatically suggest installation.
 
 ## Razorpay payments
 
@@ -492,7 +496,12 @@ Change password and privileged admin changes still require authorization.
 
 **Share feedback** is available in the footer and signed-in My account.
 The footer groups brand information, store links and contact details into
-responsive columns. Its compact feedback link and the My account link open the
+responsive columns on desktop. Below 768px, Contact us and Share feedback remain
+visible in a compact footer, with store, return-policy and contact links inside
+a keyboard-accessible Help & information disclosure. Branding and decorative
+payment logos are hidden on mobile; checkout payment options are unchanged.
+Desktop always shows the full footer, even after collapsing the mobile
+disclosure. Its compact feedback link and the My account link open the
 dedicated `/?page=feedback` page, with a bounded form and a Back to shop link.
 No inline feedback panel expands inside the footer or account dialog.
 Customer My orders cards show one prominent order-status panel (Confirmed,
@@ -708,8 +717,8 @@ homepage logo is preserved.
 When the mobile catalogue toolbar sticks, the cart moves into its search row
 instead of floating over the category chips. Categories retain the full row width,
 and the empty cart remains reachable there after removing the last item.
-The mobile footer groups navigation and contact actions into two columns, keeps
-44px tap targets for primary links, and reduces spacing and repeated brand copy.
+The mobile footer keeps Contact us and Share feedback visible, groups secondary
+navigation and contact actions in Help & information, and keeps 44px tap targets.
 New/renamed/deleted categories and published products are not hardcoded.
 Collection pages have their own descriptions, canonical URLs and matching
 CollectionPage/ItemList structured data. They link to interactive product pages

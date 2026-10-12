@@ -52,6 +52,21 @@ describe('Footer', () => {
     expect(trigger.className).toContain('min-h-11');
     expect(screen.queryByRole('form', { name: 'Share feedback form' })).toBeNull();
   });
+  it('keeps mobile support accessible and toggles information without duplicating desktop links', () => {
+    render(<Footer />);
+    const toggle = screen.getByRole('button', { name: 'Help & information' });
+    const information = document.getElementById(toggle.getAttribute('aria-controls')!);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(information?.className).toContain('hidden');
+    expect(information?.className).toContain('md:grid');
+    expect(screen.getByRole('link', { name: 'Contact us' }).getAttribute('href')).toBe('/about/');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(information?.className).not.toContain('hidden');
+    expect(screen.getAllByRole('link', { name: 'Return and refund policy' })).toHaveLength(1);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
 
   it('shows the WhatsApp mobile number as a direct WhatsApp link', () => {
     render(<Footer />);

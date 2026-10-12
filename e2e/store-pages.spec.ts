@@ -6,6 +6,12 @@ test('footer displays Gurugram and payment network logos without mobile overflow
   await page.goto('/');
   const footer = page.getByRole('contentinfo');
   await footer.scrollIntoViewIfNeeded();
+  if (page.viewportSize()!.width < 768) {
+    await expect(footer.getByText('Gurugram, Haryana, India', { exact: true })).toBeHidden();
+    await expect(footer.getByRole('region', { name: 'Payment methods', includeHidden: true })).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    return;
+  }
   await expect(footer.getByText('Gurugram, Haryana, India', { exact: true })).toBeVisible();
   const payments = footer.getByRole('region', { name: 'Payment methods' });
   for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
@@ -185,17 +191,38 @@ test('mobile footer is compact with complete contact links and usable tap target
   await page.goto('/faq/');
   const footer = page.getByRole('contentinfo');
   await footer.scrollIntoViewIfNeeded();
+  const mobile = page.viewportSize()!.width < 768;
+  if (mobile) {
+    expect((await footer.boundingBox())!.height).toBeLessThan(220);
+    for (const name of ['Contact us', 'Share feedback']) {
+      const link = footer.getByRole('link', { name, exact: true });
+      await expect(link).toBeVisible();
+      expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    const toggle = footer.getByRole('button', { name: 'Help & information' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect((await toggle.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
   for (const name of ['Explore collections', 'About & contact', 'Ordering FAQ', 'Return and refund policy',
     'Contact on WhatsApp', 'Contact on Instagram', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
     const link = footer.getByRole('link', { name, exact: true });
     await expect(link).toBeVisible();
     expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
-  if (page.viewportSize()!.width < 640) {
-    expect((await footer.boundingBox())!.height).toBeLessThan(420);
+  if (mobile) {
     const whatsapp = await footer.getByRole('link', { name: 'Contact on WhatsApp' }).boundingBox();
     const instagram = await footer.getByRole('link', { name: 'Contact on Instagram' }).boundingBox();
     expect(whatsapp!.y).toBe(instagram!.y);
+    await footer.getByRole('button', { name: 'Help & information' }).click();
+    await expect(footer.getByRole('link', { name: 'Return and refund policy' })).toHaveCount(0);
+    expect((await footer.boundingBox())!.height).toBeLessThan(220);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(footer.getByRole('link', { name: 'Return and refund policy' })).toBeVisible();
+    await expect(footer.getByRole('region', { name: 'Payment methods' })).toBeVisible();
+    await expect(footer.getByRole('button', { name: 'Help & information' })).toBeHidden();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });

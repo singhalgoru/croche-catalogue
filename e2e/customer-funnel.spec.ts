@@ -27,6 +27,11 @@ test('home footer ends with themed payment methods and Luvia copyright', async (
   await installMockSupabase(page);
   await page.goto('./');
   const footer = page.getByRole('contentinfo');
+  if (page.viewportSize()!.width < 768) {
+    await expect(footer.getByRole('region', { name: 'Payment methods', includeHidden: true })).toBeHidden();
+    await expect(footer.locator('> div > p').last()).toContainText(`© ${new Date().getFullYear()} Luvia Creations.`);
+    return;
+  }
   const methods = footer.getByRole('region', { name: 'Payment methods' });
   await methods.scrollIntoViewIfNeeded();
   for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {

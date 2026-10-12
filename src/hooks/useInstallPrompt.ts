@@ -13,6 +13,25 @@ const isStandalone = () =>
   // iOS Safari's PWA flag; harmless no-op on other browsers.
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
+const SUGGESTION_KEY = 'luvia:install-suggestion-shown';
+let suggestionShown = false;
+const hasShownSuggestion = () => {
+  try {
+    return suggestionShown || window.sessionStorage.getItem(SUGGESTION_KEY) === 'true';
+  } catch (error) {
+    console.warn('Unable to restore install suggestion preference:', error);
+    return suggestionShown;
+  }
+};
+const rememberSuggestion = () => {
+  suggestionShown = true;
+  try {
+    window.sessionStorage.setItem(SUGGESTION_KEY, 'true');
+  } catch (error) {
+    console.warn('Unable to save install suggestion preference:', error);
+  }
+};
+
 /**
  * Surfaces the browser's "Add to Home Screen" prompt so the catalogue can
  * offer its own install button instead of relying on customers to find the
@@ -21,15 +40,18 @@ const isStandalone = () =>
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(isStandalone);
+  const [showSuggestion, setShowSuggestion] = useState(false);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
+      if (isStandalone()) return;
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
     const onInstalled = () => {
       setDeferredPrompt(null);
       setIsInstalled(true);
+      setShowSuggestion(false);
       trackEvent('pwa_installed');
     };
 
@@ -41,8 +63,19 @@ export function useInstallPrompt() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!deferredPrompt || isInstalled || hasShownSuggestion()) return;
+    const timer = window.setTimeout(() => {
+      rememberSuggestion();
+      setShowSuggestion(true);
+    }, 6000);
+    return () => window.clearTimeout(timer);
+  }, [deferredPrompt, isInstalled]);
+
   const promptInstall = async () => {
     if (!deferredPrompt) return;
+    setShowSuggestion(false);
+    rememberSuggestion();
     // prompt() works once per event, so drop it before a double tap can reuse it.
     setDeferredPrompt(null);
     trackEvent('pwa_install_prompt_shown');
@@ -51,12 +84,14 @@ export function useInstallPrompt() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       trackEvent('pwa_install_prompt_result', { outcome });
-    } catch {
+    } catch (error) {
+      console.error('Unable to open app installation prompt:', error);
       trackEvent('pwa_install_prompt_result', { outcome: 'error' });
     } finally {
       releaseReload();
     }
   };
 
-  return { canInstall: Boolean(deferredPrompt) && !isInstalled, promptInstall };
+  return { canInstall: Boolean(deferredPrompt) && !isInstalled, promptInstall,
+    showSuggestion, dismissSuggestion: () => setShowSuggestion(false) };
 }

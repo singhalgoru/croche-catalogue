@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
 import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
@@ -6,6 +7,8 @@ const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
 
 export default function Footer() {
+  const [informationOpen, setInformationOpen] = useState(false);
+  const informationId = useId();
   return (
     <>
     <section id="collaborate" aria-labelledby="collaboration-heading"
@@ -25,9 +28,18 @@ export default function Footer() {
       </div>
     </section>
     <footer className="bg-cocoa text-cream/90 mt-8 sm:mt-16">
-      <div className="mx-auto max-w-6xl px-4 pb-6 pt-8 text-sm sm:px-6 sm:pt-10">
-        <div className="grid gap-7 pb-6 md:grid-cols-2 lg:grid-cols-[1.1fr_0.8fr_1.2fr] lg:gap-10">
-        <div className="md:col-span-2 lg:col-span-1">
+      <div className="mx-auto max-w-6xl px-4 pb-6 pt-3 text-sm sm:px-6 md:pt-10">
+        <button type="button" aria-expanded={informationOpen} aria-controls={informationId}
+          onClick={() => setInformationOpen(open => !open)}
+          className="flex min-h-11 w-full items-center justify-between gap-3 text-left font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-mustard md:hidden">
+          Help &amp; information
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className={informationOpen ? 'rotate-180' : ''}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        <div id={informationId} className={`${informationOpen ? 'grid' : 'hidden'} gap-7 pb-6 pt-3 md:grid md:grid-cols-2 md:pt-0 lg:grid-cols-[1.1fr_0.8fr_1.2fr] lg:gap-10`}>
+        <div className="hidden md:col-span-2 md:block lg:col-span-1">
         <p className="font-heading text-2xl font-semibold text-mustard">Luvia Creations</p>
         <p className="mt-2 max-w-sm leading-relaxed text-cream/80">
           Premium handmade crochet accessories, toys, gifts and decor,
@@ -108,8 +120,11 @@ export default function Footer() {
         </div>
         </div>
         </div>
-        <section aria-label="Share feedback" className="flex flex-wrap items-center justify-between gap-3 border-t border-cream/20 py-5">
-          <div>
+        <section aria-label="Share feedback" className="flex flex-wrap items-center justify-between gap-3 border-t border-cream/20 py-3 md:py-5">
+          <a href="/about/" className="inline-flex min-h-11 items-center font-semibold underline-offset-4 hover:text-mustard hover:underline md:hidden">
+            Contact us
+          </a>
+          <div className="hidden md:block">
             <p className="font-semibold text-cream">Made with love. Better with your ideas.</p>
             <p className="mt-1 text-xs text-cream/75">A suggestion or a little feedback? We would love to hear it.</p>
           </div>
@@ -121,7 +136,7 @@ export default function Footer() {
             </svg>
           </a>
         </section>
-        <section aria-label="Payment methods" className="border-t border-cream/20 py-5 text-center">
+        <section aria-label="Payment methods" className="hidden border-t border-cream/20 py-5 text-center md:block">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
           <p className="text-base text-cream">We accept</p>
           <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3" aria-label="Payment networks">
