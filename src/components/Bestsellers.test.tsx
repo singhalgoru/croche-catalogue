@@ -31,6 +31,13 @@ it('preserves server ranking, links to products and supports selection', async (
   fireEvent.click(links[0]);
   expect(onSelect).toHaveBeenCalledWith(product('b'));
   expect(screen.getByText('Popular over the last 90 days')).toBeTruthy();
+  for (const image of screen.getAllByRole('img')) {
+    expect(image.className).toContain('object-contain');
+    expect(image.className).not.toContain('object-cover');
+    const background = image.previousElementSibling;
+    expect(background?.getAttribute('aria-hidden')).toBe('true');
+    expect(background?.getAttribute('src')).toBe(image.getAttribute('src'));
+  }
 });
 
 it('hides when fewer than two available catalogue products qualify', async () => {

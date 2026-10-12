@@ -46,8 +46,14 @@ export default function Bestsellers({ products, onSelect }: {
             onSelect(product);
           }}
           className="min-w-0 overflow-hidden rounded-xl border border-mustard/30 bg-white hover:shadow-md">
-          <img src={getProductImageUrl(variant?.image ?? product.image, 480)} alt={product.name}
-            width={480} height={480} loading="lazy" className="aspect-square w-full object-cover" {...productImageProtection} />
+          <div className="relative aspect-square overflow-hidden bg-cream-dark">
+            <img src={getProductImageUrl(variant?.image ?? product.image, 480)} alt="" aria-hidden="true"
+              width={480} height={480} loading="lazy" decoding="async"
+              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" {...productImageProtection} />
+            <img src={getProductImageUrl(variant?.image ?? product.image, 480)} alt={product.name}
+              width={480} height={480} loading="lazy" decoding="async"
+              className="relative h-full w-full object-contain" {...productImageProtection} />
+          </div>
           <div className="space-y-1 p-3">
             <h3 className="break-words font-heading font-bold">{product.name}</h3>
             {price !== null && <p className="text-sm font-semibold">{formatINR(price)}</p>}
