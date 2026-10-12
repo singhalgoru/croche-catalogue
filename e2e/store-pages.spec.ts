@@ -8,11 +8,9 @@ test('footer displays Gurugram and payment network logos without mobile overflow
   await footer.scrollIntoViewIfNeeded();
   if (page.viewportSize()!.width < 768) {
     await expect(footer.getByText('Gurugram, Haryana, India', { exact: true })).toBeHidden();
-    await expect(footer.getByRole('region', { name: 'Payment methods', includeHidden: true })).toBeHidden();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
-    return;
+  } else {
+    await expect(footer.getByText('Gurugram, Haryana, India', { exact: true })).toBeVisible();
   }
-  await expect(footer.getByText('Gurugram, Haryana, India', { exact: true })).toBeVisible();
   const payments = footer.getByRole('region', { name: 'Payment methods' });
   for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
     const image = payments.getByRole('img', { name, exact: true });
@@ -23,7 +21,15 @@ test('footer displays Gurugram and payment network logos without mobile overflow
     })).toBe(true);
   }
   await expect(payments).toContainText('Available payment methods are shown at checkout.');
-  await expect(payments.getByText('Wallet', { exact: true })).toBeVisible();
+  if (page.viewportSize()!.width >= 768) await expect(payments.getByText('Wallet', { exact: true })).toBeVisible();
+  else {
+    await expect(payments.getByText('Wallet', { exact: true })).toBeHidden();
+    const logos = await payments.getByRole('img').all();
+    const boxes = await Promise.all(logos.map(logo => logo.boundingBox()));
+    expect(new Set(boxes.map(box => Math.round(box!.y + box!.height / 2))).size).toBe(1);
+    await page.setViewportSize({ width: 320, height: 640 });
+    expect((await footer.boundingBox())!.height).toBeLessThan(320);
+  }
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
@@ -193,7 +199,7 @@ test('mobile footer is compact with complete contact links and usable tap target
   await footer.scrollIntoViewIfNeeded();
   const mobile = page.viewportSize()!.width < 768;
   if (mobile) {
-    expect((await footer.boundingBox())!.height).toBeLessThan(220);
+    expect((await footer.boundingBox())!.height).toBeLessThan(320);
     for (const name of ['Contact us', 'Share feedback']) {
       const link = footer.getByRole('link', { name, exact: true });
       await expect(link).toBeVisible();
@@ -218,7 +224,7 @@ test('mobile footer is compact with complete contact links and usable tap target
     expect(whatsapp!.y).toBe(instagram!.y);
     await footer.getByRole('button', { name: 'Help & information' }).click();
     await expect(footer.getByRole('link', { name: 'Return and refund policy' })).toHaveCount(0);
-    expect((await footer.boundingBox())!.height).toBeLessThan(220);
+    expect((await footer.boundingBox())!.height).toBeLessThan(320);
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(footer.getByRole('link', { name: 'Return and refund policy' })).toBeVisible();
     await expect(footer.getByRole('region', { name: 'Payment methods' })).toBeVisible();

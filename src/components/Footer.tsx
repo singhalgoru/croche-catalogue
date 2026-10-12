@@ -136,23 +136,23 @@ export default function Footer() {
             </svg>
           </a>
         </section>
-        <section aria-label="Payment methods" className="hidden border-t border-cream/20 py-5 text-center md:block">
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-          <p className="text-base text-cream">We accept</p>
-          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3" aria-label="Payment networks">
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy" className="brightness-0 invert" />
+        <section aria-label="Payment methods" className="border-t border-cream/20 py-3 text-center md:py-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:gap-x-6 md:gap-y-3">
+          <p className="hidden text-base text-cream md:block">We accept</p>
+          <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:gap-x-6 md:gap-y-3" aria-label="Payment networks">
+            <li className="flex h-7 items-center justify-center md:h-10">
+              <img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy" className="max-w-11 brightness-0 invert md:max-w-none" />
             </li>
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy" className="brightness-0 invert" />
+            <li className="flex h-7 items-center justify-center md:h-10">
+              <img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy" className="max-w-11 brightness-0 invert md:max-w-none" />
             </li>
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy" />
+            <li className="flex h-7 items-center justify-center md:h-10">
+              <img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy" className="max-w-11 md:max-w-none" />
             </li>
-            <li className="flex h-10 items-center justify-center">
-              <img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy" className="brightness-0 invert" />
+            <li className="flex h-7 items-center justify-center md:h-10">
+              <img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy" className="max-w-11 brightness-0 invert md:max-w-none" />
             </li>
-            <li className="flex h-10 items-center justify-center gap-2 text-base text-cream">
+            <li className="hidden h-10 items-center justify-center gap-2 text-base text-cream md:flex">
               <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
                 <path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8" />
                 <path d="M20 12h-5a2 2 0 0 0 0 4h5z" />
@@ -161,7 +161,7 @@ export default function Footer() {
             </li>
           </ul>
           </div>
-          <p className="mt-3 text-xs text-cream/75">Secure payments via Razorpay. Available payment methods are shown at checkout.</p>
+          <p className="mt-2 text-xs text-cream/75 md:mt-3">Secure payments via Razorpay. Available payment methods are shown at checkout.</p>
         </section>
         <p className="text-center text-xs text-cream/70">&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
       </div>

@@ -27,11 +27,6 @@ test('home footer ends with themed payment methods and Luvia copyright', async (
   await installMockSupabase(page);
   await page.goto('./');
   const footer = page.getByRole('contentinfo');
-  if (page.viewportSize()!.width < 768) {
-    await expect(footer.getByRole('region', { name: 'Payment methods', includeHidden: true })).toBeHidden();
-    await expect(footer.locator('> div > p').last()).toContainText(`© ${new Date().getFullYear()} Luvia Creations.`);
-    return;
-  }
   const methods = footer.getByRole('region', { name: 'Payment methods' });
   await methods.scrollIntoViewIfNeeded();
   for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
@@ -39,10 +34,10 @@ test('home footer ends with themed payment methods and Luvia copyright', async (
     await expect(image).toBeVisible();
     await expect.poll(() => image.evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
   }
-  await expect(methods.getByText('Wallet', { exact: true })).toBeVisible();
+  if (page.viewportSize()!.width >= 768) await expect(methods.getByText('Wallet', { exact: true })).toBeVisible();
   await expect(footer.locator('> div > p').last()).toContainText(`© ${new Date().getFullYear()} Luvia Creations.`);
   const methodsBox = (await methods.boundingBox())!;
-  const contactsBox = (await footer.getByRole('link', { name: 'hello@luviacreations.com' }).boundingBox())!;
+  const contactsBox = (await footer.getByRole('link', { name: page.viewportSize()!.width < 768 ? 'Contact us' : 'hello@luviacreations.com', exact: true }).boundingBox())!;
   expect(methodsBox.y).toBeGreaterThanOrEqual(contactsBox.y + contactsBox.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width);
 });

@@ -81,6 +81,11 @@ describe('Footer', () => {
     expect(screen.getByRole('img', { name: 'Mastercard' }).getAttribute('src')).toBe('/images/payments/mastercard.svg');
     expect(screen.getByRole('img', { name: 'UPI' }).getAttribute('src')).toBe('/images/payments/upi.svg');
     expect(screen.getByRole('img', { name: 'RuPay' }).getAttribute('src')).toBe('/images/payments/rupay.svg');
+    expect(screen.getByRole('region', { name: 'Payment methods' }).className).not.toContain('hidden');
+    for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
+      expect(screen.getByRole('img', { name }).className).toContain('max-w-11');
+      expect(screen.getByRole('img', { name }).className).toContain('md:max-w-none');
+    }
     expect(screen.getByText('We accept')).toBeTruthy();
     expect(screen.getByText('Wallet')).toBeTruthy();
     expect(screen.getByText(/Available payment methods are shown at checkout/)).toBeTruthy();

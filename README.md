@@ -498,8 +498,10 @@ Change password and privileged admin changes still require authorization.
 The footer groups brand information, store links and contact details into
 responsive columns on desktop. Below 768px, Contact us and Share feedback remain
 visible in a compact footer, with store, return-policy and contact links inside
-a keyboard-accessible Help & information disclosure. Branding and decorative
-payment logos are hidden on mobile; checkout payment options are unchanged.
+a keyboard-accessible Help & information disclosure. Repeated branding is hidden
+on mobile; a slim UPI/Visa/Mastercard/RuPay logo row and checkout-availability
+guidance remain visible above copyright. Desktop keeps the full-size payment
+strip including Wallet. Checkout payment options are unchanged.
 Desktop always shows the full footer, even after collapsing the mobile
 disclosure. Its compact feedback link and the My account link open the
 dedicated `/?page=feedback` page, with a bounded form and a Back to shop link.
