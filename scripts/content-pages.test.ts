@@ -16,6 +16,14 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('includes the AI imagery disclosure in the crawlable FAQ', () => {
+    const doc = documentFor('/faq/');
+    const disclosure = [...doc.querySelectorAll('details')].find(detail =>
+      detail.querySelector('summary')?.textContent === 'Are your product images generated using AI?');
+    expect(disclosure?.textContent).toContain('photographs of our actual handmade products');
+    expect(disclosure?.textContent).toContain('may not reproduce every stitch, colour or proportion exactly');
+    expect(disclosure?.textContent).toContain('actual product photograph');
+  });
   it('omits the redundant homepage shopping button on static collections', () => {
     const result = buildContentPages([toy], '919205907350');
     expect(result.get('/collections/toys/')).not.toContain('with the cart');

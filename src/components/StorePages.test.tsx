@@ -15,6 +15,13 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('explains AI lifestyle imagery using the shared FAQ disclosure', () => {
+    window.history.replaceState(null, '', '/faq/');
+    render(<StorePages {...initial} />);
+    expect(screen.getByText('Are your product images generated using AI?')).toBeTruthy();
+    expect(screen.getByText(/photographs of our actual handmade products/).textContent)
+      .toContain('may not reproduce every stitch, colour or proportion exactly');
+  });
   it('does not send collection shoppers back to homepage filters', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} />);

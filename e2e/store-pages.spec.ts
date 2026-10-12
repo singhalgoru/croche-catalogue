@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('FAQ explains AI imagery and offers actual product photo clarification', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/faq/');
+  const question = page.getByText('Are your product images generated using AI?', { exact: true });
+  await question.click();
+  await expect(page.getByText(/Some lifestyle and styled images/)).toBeVisible();
+  await expect(page.getByText(/Some lifestyle and styled images/)).toContainText('actual product photograph');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+});
+
 test('footer displays Gurugram and payment network logos without mobile overflow', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('/');
