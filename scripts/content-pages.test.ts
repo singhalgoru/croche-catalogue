@@ -16,12 +16,14 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
-  it('renders custom seasonal covers on static cards and pages with product fallback after removal', () => {
+  it('renders custom seasonal covers on static cards only with product fallback after removal', () => {
     const category = { name: 'Festive', priority: 1, isSeasonal: true, productIds: ['p1'], coverImage: 'https://images.luviacreations.com/products/admin/season.webp' };
     const result = buildContentPages([toy], '919205907350', [category]);
     expect(result.get('/collections/')).toContain('season-w480.webp');
     const doc = new JSDOM(result.get('/collections/festive/')).window.document;
-    expect(doc.querySelector('img[alt="Festive collection"]')?.getAttribute('src')).toContain('season-w960.webp');
+    expect(doc.querySelector('img[alt="Festive collection"]')).toBeNull();
+    expect(doc.querySelector('img[src*="season"]')).toBeNull();
+    expect(doc.body.textContent).toContain('Bunny');
     const removed = buildContentPages([toy], '919205907350', [{ ...category, coverImage: '' }]);
     expect(removed.get('/collections/')).not.toContain('season-w480.webp');
     expect(removed.get('/collections/')).toContain('bunny-w480.webp');

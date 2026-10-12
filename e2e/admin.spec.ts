@@ -521,11 +521,12 @@ test('uploads and replaces a seasonal cover, deletes the old R2 renditions and r
   await page.goto('/collections/');
   const card = page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Festive', exact: true });
   await expect(card.locator('img:not([aria-hidden])')).toHaveAttribute('src', cover.replace('.webp', '-w480.webp'));
+  await expect(card.locator('img:not([aria-hidden])')).toHaveCSS('object-fit', 'contain');
   await card.click();
-  const hero = page.getByAltText('Festive collection');
-  await expect(hero).toBeVisible();
-  await expect(hero).toHaveCSS('object-fit', 'contain');
-  await expect.poll(() => hero.evaluate(node => (node as HTMLImageElement).naturalHeight)).toBe(600);
+  await expect(page.getByRole('heading', { name: 'Handmade Festive', exact: true })).toBeVisible();
+  await expect(page.getByAltText('Festive collection')).toHaveCount(0);
+  await expect(page.locator(`img[src*="${new URL(cover).pathname.slice(1, -5)}"]`)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: state.products[0].name, exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.goto('/#admin');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

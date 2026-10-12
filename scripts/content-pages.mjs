@@ -76,7 +76,6 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
       })),
     } };
     const collectionHtml = page(pathname, title, description, `<p class="intro">${escapeHtml(description)}</p>
-      ${coverImage ? `<img src="${escapeHtml(getProductImageUrl(coverImage, 960))}" alt="${escapeHtml(category)} collection" width="960" height="960" style="width:100%;max-height:384px;object-fit:contain;border-radius:16px" decoding="async">` : ''}
       <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability; confirm shipping and dispatch before paying.</p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
       <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema);

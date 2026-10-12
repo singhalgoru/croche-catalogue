@@ -120,7 +120,7 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
           setImageFile(file);
           setPreview(URL.createObjectURL(file));
         }} />
-      <p className="text-xs text-cocoa/70">Use your own seasonal artwork or photo. A square image works best. The full image is shown on collection cards and the collection page. Save to publish; without a cover, cards use a product photo.</p>
+      <p className="text-xs text-cocoa/70">Use your own seasonal artwork or photo. A square image works best. The full image is shown on collection cards, not inside the category page. Save to publish; without a cover, cards use a product photo.</p>
       {(preview || coverImage) && <>
         <img src={preview || coverImage} alt={`${category.name} cover preview`}
           className="aspect-square w-48 rounded-xl bg-cream object-contain" />
