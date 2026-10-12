@@ -17,7 +17,7 @@ afterAll(() => vi.unstubAllGlobals());
 beforeEach(() => {
   vi.clearAllMocks(); updates.length = 0; saveError = null;
   env = { CUSTOMER_WELCOME_WORKER_SECRET: 'fixture-worker', RESEND_API_KEY: 'fixture',
-    WELCOME_COUPON_FROM_EMAIL: 'sender@example.test', SUPABASE_URL: 'https://example.test',
+    SUPABASE_URL: 'https://example.test',
     SUPABASE_SERVICE_ROLE_KEY: 'fixture' };
   rpc.mockResolvedValue({ data: [job], error: null }); send.mockResolvedValue('provider');
   from.mockImplementation(() => ({ update: (value: Record<string, unknown>) => {
@@ -39,7 +39,7 @@ it('does not consume jobs when the provider is unconfigured', async () => {
 });
 it('records provider acceptance, not inbox delivery', async () => {
   expect(await (await handle(request())).json()).toEqual({ accepted: 1, failed: 0 });
-  expect(send).toHaveBeenCalledWith(job, 'fixture', 'sender@example.test');
+  expect(send).toHaveBeenCalledWith(job, 'fixture');
   expect(from).toHaveBeenCalledWith('password_change_emails');
   expect(updates[0]).toMatchObject({ provider_id: 'provider', last_error: null });
   expect(updates[0].accepted_at).toBeTruthy();

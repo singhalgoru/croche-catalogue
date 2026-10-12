@@ -461,14 +461,15 @@ including successful password resets. Migration
 verified non-guest account's password changes; names, sign-ins, unchanged
 password fields and unverified signup drafts do not queue messages.
 Deploy `password-change-worker` before applying the migration. The minute cron
-uses the existing worker secret, Resend API key and sender. Failed messages
+uses the existing worker secret and Resend API key, sending from
+`Luvia Creations <hello@luviacreations.com>`. Failed messages
 retry up to eight attempts with 15-minute leases and a stable provider
 idempotency key. `accepted_at` means provider acceptance, not inbox delivery.
 
 The cream/cocoa/mustard template in
 `supabase/functions/_shared/passwordChangeEmail.ts` includes the Luvia logo,
 account email and change time, and tells recipients to reply immediately if
-they did not request the change. Reply-To is `orders@luviacreations.com`; monitor
+they did not request the change. Reply-To is `hello@luviacreations.com`; monitor
 that mailbox. No password, hash or reset token is stored in the notification
 queue or included in the email. Supabase's native password-change notice stays
 disabled to avoid duplicate messages; this backend queue also covers admin-set

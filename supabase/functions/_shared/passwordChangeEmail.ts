@@ -16,7 +16,7 @@ export function buildPasswordChangeEmail(job: PasswordChangeEmailJob) {
     `The login password for your Luvia account ${job.recipient} was changed on ${time}.`,
     'If you requested this change, no further action is needed. Use your new password the next time you sign in.',
     'If you did not request this change, please reply to this email immediately so our team can help secure your account.',
-    'You can also contact orders@luviacreations.com and use Forgot password on https://luviacreations.com/ to reset your password.',
+    'You can also contact hello@luviacreations.com and use Forgot password on https://luviacreations.com/ to reset your password.',
     'We will never ask you to share your password or verification codes by email.',
     'With care, Team Luvia',
   ].join('\n\n');
@@ -38,7 +38,7 @@ export function buildPasswordChangeEmail(job: PasswordChangeEmailJob) {
         <tr><td style="padding:18px;line-height:1.7;"><strong>Was this not you?</strong><br>
         If you did not request this change, please <strong>reply to this email immediately</strong> so our team can help secure your account.</td></tr>
       </table>
-      <p style="line-height:1.7;">You can also contact <a href="mailto:orders@luviacreations.com" style="color:#604439;">orders@luviacreations.com</a> and use <strong>Forgot password</strong> on our website to reset your password.</p>
+      <p style="line-height:1.7;">You can also contact <a href="mailto:hello@luviacreations.com" style="color:#604439;">hello@luviacreations.com</a> and use <strong>Forgot password</strong> on our website to reset your password.</p>
       <p><a href="https://luviacreations.com/" style="display:inline-block;padding:12px 20px;background:#604439;color:#ffffff;border-radius:24px;text-decoration:none;">Visit Luvia Creations</a></p>
       <p style="font-size:13px;line-height:1.7;color:#8c776c;">We will never ask you to share your password or verification codes by email.</p>
       <p style="line-height:1.7;">With care,<br><strong>Team Luvia</strong></p>
@@ -46,13 +46,13 @@ export function buildPasswordChangeEmail(job: PasswordChangeEmailJob) {
   return { text, html };
 }
 
-export async function sendPasswordChangeEmail(job: PasswordChangeEmailJob, apiKey: string, sender: string): Promise<string> {
+export async function sendPasswordChangeEmail(job: PasswordChangeEmailJob, apiKey: string): Promise<string> {
   const { text, html } = buildPasswordChangeEmail(job);
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json',
       'Idempotency-Key': `password-change-${job.id}` },
     signal: AbortSignal.timeout(12000),
-    body: JSON.stringify({ from: sender, to: [job.recipient], reply_to: 'orders@luviacreations.com',
+    body: JSON.stringify({ from: 'Luvia Creations <hello@luviacreations.com>', to: [job.recipient], reply_to: 'hello@luviacreations.com',
       subject: 'Your login password has changed - Luvia Creations', text, html }),
   });
   if (!response.ok) throw new Error(`Password notification provider returned HTTP ${response.status}.`);

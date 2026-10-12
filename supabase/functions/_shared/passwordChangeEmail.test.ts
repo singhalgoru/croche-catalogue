@@ -8,7 +8,8 @@ it('uses Luvia branding and immediate unauthorized-change instructions in HTML a
   for (const content of [html, text]) {
     expect(content).toContain('Your login password has changed');
     expect(content).toContain('reply to this email immediately');
-    expect(content).toContain('orders@luviacreations.com');
+    expect(content).toContain('hello@luviacreations.com');
+    expect(content).not.toContain('orders@luviacreations.com');
     expect(content).toContain('Forgot password');
     expect(content).toContain('2026-10-12 04:00:00 UTC');
     expect(content).toContain('never ask you to share your password');
@@ -24,16 +25,17 @@ it('escapes recipient content and rejects invalid timestamps', () => {
 it('sets a monitored reply address and stable event-specific provider idempotency', async () => {
   const send = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider' })));
   vi.stubGlobal('fetch', send);
-  await expect(sendPasswordChangeEmail(job, 'fixture-key', 'Luvia <sender@example.test>')).resolves.toBe('provider');
+  await expect(sendPasswordChangeEmail(job, 'fixture-key')).resolves.toBe('provider');
   const options = send.mock.calls[0][1];
   expect(options.headers['Idempotency-Key']).toBe('password-change-fixture');
-  expect(JSON.parse(options.body)).toMatchObject({ to: ['buyer@example.test'], reply_to: 'orders@luviacreations.com',
+  expect(JSON.parse(options.body)).toMatchObject({ from: 'Luvia Creations <hello@luviacreations.com>',
+    to: ['buyer@example.test'], reply_to: 'hello@luviacreations.com',
     subject: 'Your login password has changed - Luvia Creations' });
 });
 it('surfaces provider rejection and invalid acceptance instead of claiming success', async () => {
   const send = vi.fn().mockResolvedValue(new Response('{}', { status: 429 }));
   vi.stubGlobal('fetch', send);
-  await expect(sendPasswordChangeEmail(job, 'fixture', 'sender')).rejects.toThrow('HTTP 429');
+  await expect(sendPasswordChangeEmail(job, 'fixture')).rejects.toThrow('HTTP 429');
   send.mockResolvedValue(new Response('{}'));
-  await expect(sendPasswordChangeEmail(job, 'fixture', 'sender')).rejects.toThrow('Invalid password notification provider confirmation');
+  await expect(sendPasswordChangeEmail(job, 'fixture')).rejects.toThrow('Invalid password notification provider confirmation');
 });

@@ -14,8 +14,7 @@ Deno.serve(async request => {
   for (let index = 0; index < expected.length; index++) difference |= expected.charCodeAt(index) ^ (supplied.charCodeAt(index) || 0);
   if (difference) return json({ error: 'Worker authentication required.' }, 401);
   const apiKey = Deno.env.get('RESEND_API_KEY');
-  const sender = Deno.env.get('WELCOME_COUPON_FROM_EMAIL');
-  if (!apiKey || !sender) return json({ error: 'Password email provider is not configured; messages remain queued.' }, 503);
+  if (!apiKey) return json({ error: 'Password email provider is not configured; messages remain queued.' }, 503);
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false } });
   const { data: jobs, error } = await admin.rpc('claim_password_change_emails');
@@ -27,7 +26,7 @@ Deno.serve(async request => {
   let failed = 0;
   for (const job of jobs) {
     try {
-      const providerId = await sendPasswordChangeEmail(job, apiKey, sender);
+      const providerId = await sendPasswordChangeEmail(job, apiKey);
       const { error: saveError } = await admin.from('password_change_emails')
         .update({ accepted_at: new Date().toISOString(), provider_id: providerId, last_error: null }).eq('id', job.id);
       if (saveError) throw new Error(`Unable to record password email acceptance: ${saveError.message}`);
