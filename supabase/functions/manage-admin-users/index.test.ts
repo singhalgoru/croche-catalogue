@@ -112,3 +112,32 @@ it('reports partial success when audit recording fails after an Auth update', as
   expect(response.status).toBe(400);
   expect((await response.json()).error).toContain('Account updated, but audit recording failed');
 });
+const customerId = '11111111-1111-4111-8111-111111111111';
+it.each(['suspend-customer', 'restore-customer'])('allows verified non-owner admins to %s with an audit reason', async action => {
+  directory.isOwner = false;
+  rpc.mockImplementation(async (name: string) => ({ data: name === 'admin_user_directory' ? directory
+    : name === 'customer_account_candidate' ? { id: customerId, suspended: false } : null, error: null }));
+  const response = await handle(request({ action, id: customerId, reason: 'Customer reported login fraud.', currentPassword: 'current' }));
+  expect(response.status).toBe(200);
+  expect(update).toHaveBeenCalledWith(customerId, { ban_duration: action === 'suspend-customer' ? '876000h' : 'none' });
+  expect(insert).toHaveBeenCalledWith({ actor_id: 'owner', target_id: customerId,
+    action: action === 'suspend-customer' ? 'suspend' : 'restore', reason: 'Customer reported login fraud.' });
+  expect(signIn).toHaveBeenCalled();
+  expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+});
+it('rejects suspension of admin targets or missing reasons and prevents unauthorized changes', async () => {
+  expect((await handle(request({ action: 'suspend-customer', id: customerId, reason: '' }))).status).toBe(400);
+  rpc.mockImplementation(async (name: string) => ({ data: name === 'admin_user_directory' ? directory : null,
+    error: name === 'customer_account_candidate' ? { message: 'Admin accounts cannot be disabled.' } : null }));
+  expect((await handle(request({ action: 'suspend-customer', id: customerId, reason: 'Security report', currentPassword: 'current' }))).status).toBe(400);
+  expect(update).not.toHaveBeenCalled();
+  signIn.mockResolvedValue({ data: {}, error: { message: 'Wrong password' } });
+  expect((await handle(request({ action: 'suspend-customer', id: customerId, reason: 'Security report', currentPassword: 'wrong' }))).status).toBe(401);
+});
+it('surfaces Auth ban failure without writing a successful audit', async () => {
+  rpc.mockImplementation(async (name: string) => ({ data: name === 'admin_user_directory' ? directory : { id: customerId }, error: null }));
+  update.mockResolvedValue({ error: { message: 'Auth update unavailable.' } });
+  const response = await handle(request({ action: 'suspend-customer', id: customerId, reason: 'Security report', currentPassword: 'current' }));
+  expect((await response.json()).error).toBe('Auth update unavailable.');
+  expect(insert).not.toHaveBeenCalled();
+});

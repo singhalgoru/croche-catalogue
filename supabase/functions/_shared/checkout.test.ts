@@ -87,7 +87,8 @@ it('requires authentication, a cart and customer fields', async () => {
   expect(create).not.toHaveBeenCalled();
 });
 it('returns SQL ownership, blocked-session and availability validation failures', async () => {
-  rpc.mockResolvedValue({ error: { message: 'Cart item unavailable.' } });
+  rpc.mockImplementation(async (name: string) => name === 'check_account_suspension'
+    ? { error: null } : { error: { message: 'Cart item unavailable.' } });
   const response = await createHandler(request(orderRequest));
   expect(response.status).toBe(400);
   expect(await response.json()).toEqual({ error: 'Cart item unavailable.' });
@@ -128,7 +129,7 @@ it('requires all signature fields and rejects unowned orders and forged signatur
   expect((await verifyHandler(request(paymentResponse))).status).toBe(400);
   saved = { id: cartId, razorpay_order_id: 'order_other' };
   expect((await verifyHandler(request(paymentResponse))).status).toBe(400);
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
   expect(fetchPayment).not.toHaveBeenCalled();
 });
 it('requires captured payments with matching order, currency and amount', async () => {
@@ -137,7 +138,7 @@ it('requires captured payments with matching order, currency and amount', async 
       currency: 'INR', status: 'captured', ...mismatch });
     expect((await verifyHandler(request(paymentResponse))).status).toBe(409);
   }
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
 });
 it('verifies the expected payment idempotently and checks blocked sessions', async () => {
   expect((await verifyHandler(request(paymentResponse))).status).toBe(200);
@@ -151,7 +152,16 @@ it('verifies the expected payment idempotently and checks blocked sessions', asy
 });
 it('reports persistence failures without claiming success', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-  rpc.mockResolvedValue({ error: { message: 'DB unavailable' } });
+  rpc.mockImplementation(async (name: string) => name === 'check_account_suspension'
+    ? { error: null } : { error: { message: 'DB unavailable' } });
   expect((await verifyHandler(request(paymentResponse))).status).toBe(500);
   log.mockRestore();
+});
+it('blocks disabled accounts before test checkout creation or verification', async () => {
+  rpc.mockResolvedValue({ error: { message: 'This account is temporarily disabled.' } });
+  expect((await createHandler(request(orderRequest))).status).toBe(403);
+  expect((await verifyHandler(request(paymentResponse))).status).toBe(403);
+  expect(create).not.toHaveBeenCalled();
+  expect(fetchPayment).not.toHaveBeenCalled();
+  expect(updates).not.toHaveBeenCalled();
 });

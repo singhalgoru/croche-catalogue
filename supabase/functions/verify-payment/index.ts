@@ -24,6 +24,8 @@ Deno.serve(async request => {
   try {
     const { sdk, secret } = paymentConfig();
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+    const { error: suspensionError } = await client.rpc('check_account_suspension');
+    if (suspensionError) return json({ error: suspensionError.message }, 403);
     const { data: blocked, error: blockError } = await admin.from('cart_session_blocks')
       .select('user_id').eq('user_id', auth.user.id).maybeSingle();
     if (blockError) throw new Error('Unable to check session access.');

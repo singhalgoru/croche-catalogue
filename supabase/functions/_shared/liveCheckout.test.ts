@@ -78,20 +78,20 @@ it.each(['attempted','paid'])('does not replace a provider order in %s state', a
   saved.status = 'link_created';
   fetchOrder.mockResolvedValue({ id: 'order_livefixture', status, amount_paid: status === 'paid' ? 55000 : 0, attempts: 1 });
   expect((await handleLiveCheckout(request({ cartId: id, requestKey: id, previousRequestKey: previousId }), 'create')).status).toBe(409);
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
   expect(create).not.toHaveBeenCalled();
 });
 it('blocks replacement if a payment exists despite a stale created order response', async () => {
   saved.status = 'link_created';
   fetchOrderPayments.mockResolvedValue({ count: 1, items: [{ status: 'authorized' }] });
   expect((await handleLiveCheckout(request({ cartId: id, requestKey: id, previousRequestKey: previousId }), 'create')).status).toBe(409);
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
 });
 it('keeps the old checkout when provider status lookup fails', async () => {
   saved.status = 'link_created';
   fetchOrderPayments.mockRejectedValueOnce(new Error('Provider unavailable'));
   expect((await handleLiveCheckout(request({ cartId: id, requestKey: id, previousRequestKey: previousId }), 'create')).status).toBe(503);
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
 });
 it('confirms only captured, signature-verified payments for the exact amount', async () => {
   const response = await handleLiveCheckout(request(payment), 'verify');
@@ -100,12 +100,12 @@ it('confirms only captured, signature-verified payments for the exact amount', a
   rpc.mockClear();
   fetchPayment.mockResolvedValue({ id: 'pay_livefixture', order_id: 'order_livefixture', amount: 1, currency: 'INR', status: 'captured' });
   expect((await handleLiveCheckout(request(payment), 'verify')).status).toBe(409);
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
 });
 it('rejects forged signatures without settling inventory or coupons', async () => {
   expect((await handleLiveCheckout(request({ ...payment, razorpay_signature: 'bad' }), 'verify')).status).toBe(400);
   expect(fetchPayment).not.toHaveBeenCalled();
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
 });
 it.each([
   { currency: 'USD', order_id: 'order_livefixture', status: 'captured' },
@@ -114,11 +114,21 @@ it.each([
 ])('rejects a nonmatching or uncaptured payment: %j', async fields => {
   fetchPayment.mockResolvedValue({ id: 'pay_livefixture', amount: 55000, ...fields });
   expect((await handleLiveCheckout(request(payment), 'verify')).status).toBe(409);
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.every(([name]) => name === 'check_account_suspension')).toBe(true);
 });
 it('reports review-required payments instead of returning success', async () => {
   rpc.mockResolvedValue({ data: { status: 'review_required' }, error: null });
   const response = await handleLiveCheckout(request(payment), 'verify');
   expect(response.status).toBe(409);
   expect((await response.json()).error).toContain('Payment received');
+});
+it.each(['create', 'verify'] as const)('rejects suspended accounts before %s provider operations', async action => {
+  rpc.mockResolvedValue({ error: { message: 'This account is temporarily disabled.' } });
+  const response = await handleLiveCheckout(request(action === 'create' ? { cartId: id, requestKey: id } : payment), action);
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ error: 'This account is temporarily disabled.' });
+  expect(rpc).toHaveBeenCalledWith('check_account_suspension');
+  expect(create).not.toHaveBeenCalled();
+  expect(fetchPayment).not.toHaveBeenCalled();
+  expect(from).not.toHaveBeenCalled();
 });

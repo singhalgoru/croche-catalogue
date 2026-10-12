@@ -462,6 +462,55 @@ An isolated CAPTCHA-protected sign-in verifies the current password without
 replacing the active session or disrupting carts/addresses. Password fields
 are cleared after submission or cancellation; failures are shown inline.
 Each password field has its own Show password checkbox, hidden by default.
+My account also displays the signed-in email. Admin account-management forms
+offer independent reveal controls for current/new/confirmation passwords and
+reset visibility when cleared or cancelled.
+
+**Customers -> Temporarily disable account** lets an admin suspend a registered
+customer after a fraud report, or re-enable them after identity verification.
+Both actions require an internal reason and the caller's current admin password
+with CAPTCHA. Suspension is manual (implemented as a 100-year Auth ban), not
+account deletion; account data and orders are preserved. All admin accounts are
+protected from this customer-management flow. Restore access before helping a
+suspended customer complete password recovery.
+
+Migration `20261012070000_customer_account_suspension.sql` installs a database API
+pre-request check, rejecting even already-issued JWTs for banned accounts.
+It refuses to overwrite an existing pre-request hook. Service-role checkout and
+coupon entry points check the caller's account/JWT status before privileged work;
+the ban trigger revokes sessions and refresh tokens, so restoring an account
+does not revive previously compromised sessions. Payment webhooks still
+settle legitimate captured payments. `customer_account_audit` keeps private
+actor/target/action/reason history. Deploy the migration before the updated
+`manage-admin-users`, `create-order`, `verify-payment`, `create-live-order`,
+`verify-live-payment` and `welcome-coupon` functions.
+
+**Forgot password** on the storefront and admin login opens a dedicated
+email-only form. No current password is requested. The emailed recovery link
+then lets the recipient choose and confirm a new password; authenticated
+Change password and privileged admin changes still require authorization.
+
+**Share feedback** is available in the footer and signed-in My account.
+Messages are required (10–3,000 characters); category/name are optional.
+Email is collected only when "I'd like a reply" is selected. Account contact
+details are never attached automatically. No phone/address is requested.
+Submissions are private feedback, not public or verified purchase reviews.
+
+Deploy `feedback-worker` before migration `20261012060000_store_feedback.sql`.
+`submit_store_feedback` uses an existing Auth session or a CAPTCHA-protected
+guest session, allows three submissions/session/hour and 100 total/day, and
+deduplicates unchanged retries by request UUID. Browser roles cannot read the
+private queue. Session IDs support rate limiting; rows expire after 90 days.
+Delivered emails have separate mailbox retention.
+
+The existing worker secret/Resend key deliver to `feedback@luviacreations.com`
+from `Luvia Creations <hello@luviacreations.com>`. Reply-To is the supplied email
+only when a reply was requested, otherwise the feedback mailbox. No automated
+customer acknowledgement or marketing subscription is sent. The minute cron
+claims five jobs with eight attempts, 15-minute leases and stable idempotency.
+The UI confirms saved/queued, not inbox delivery. Monitor feedback mailbox
+forwarding and failed jobs; order/payment enquiries remain at
+`orders@luviacreations.com`.
 
 **Password-change security emails** cover both admins and normal customers,
 including successful password resets. Migration

@@ -88,5 +88,7 @@ export interface AdminCustomerSummary {
     lastSignInAt: string | null;
     verified: boolean;
     welcomeStatus: 'sent' | 'retrying' | 'pending' | 'not_queued';
+    suspended: boolean;
+    canManageAccount: boolean;
   }[];
 }

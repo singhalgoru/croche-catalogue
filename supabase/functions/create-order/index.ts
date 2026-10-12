@@ -24,6 +24,8 @@ Deno.serve(async request => {
   try {
     const { sdk, keyId } = paymentConfig();
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+    const { error: suspensionError } = await client.rpc('check_account_suspension');
+    if (suspensionError) return json({ error: suspensionError.message }, 403);
     const { data: payment, error } = await admin.rpc('prepare_checkout_payment', {
       target_cart_id: body.cartId, owner_id: auth.user.id, request_id: body.requestKey,
       customer_name: body.customerName.trim(), customer_phone: `+91${body.customerPhone}`,

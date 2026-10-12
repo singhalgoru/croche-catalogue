@@ -59,8 +59,15 @@ it('requires provider configuration, authentication and eligible verified email'
   expect((await handler(request())).status).toBe(503);
   env.RESEND_API_KEY = 'fixture';
   expect((await handler(request(false))).status).toBe(401);
-  rpc.mockResolvedValue({ data: null, error: { message: 'Verify your email first.' } });
+  rpc.mockImplementation(async (name: string) => name === 'check_account_suspension'
+    ? { error: null } : { data: null, error: { message: 'Verify your email first.' } });
   expect((await handler(request())).status).toBe(400);
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+it('rejects disabled accounts before claiming coupons or emailing', async () => {
+  rpc.mockResolvedValue({ error: { message: 'This account is temporarily disabled.' } });
+  expect((await handler(request())).status).toBe(403);
+  expect(rpc).not.toHaveBeenCalledWith('claim_welcome_coupon', expect.anything());
   expect(fetchMock).not.toHaveBeenCalled();
 });
 it('reports provider failure and leaves the coupon retryable', async () => {

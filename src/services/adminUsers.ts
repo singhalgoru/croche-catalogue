@@ -18,7 +18,8 @@ export type AdminUserChange =
   | { action: 'add'; email: string; name: string }
   | { action: 'edit'; id: string; name: string }
   | { action: 'remove'; id: string }
-  | { action: 'password'; id: string; password: string };
+  | { action: 'password'; id: string; password: string }
+  | { action: 'suspend-customer' | 'restore-customer'; id: string; reason: string };
 
 async function invoke(body: Record<string, unknown>): Promise<unknown> {
   const client = await loadSupabase();

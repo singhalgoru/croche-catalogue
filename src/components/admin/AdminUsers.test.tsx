@@ -52,3 +52,19 @@ it('requires explicit removal confirmation and preserves errors', async () => {
   await screen.findByText('Incorrect current password.');
   expect(screen.getByLabelText('Your current password')).toHaveProperty('value', '');
 });
+it('reveals admin password fields independently and resets them when cancelled', async () => {
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: `Change password for ${member.email}` }));
+  for (const [field, toggle] of [
+    ['Your current password', 'Show your current password'],
+    ['New admin password', 'Show new admin password'],
+    ['Confirm new admin password', 'Show admin password confirmation'],
+  ]) {
+    expect(screen.getByLabelText(field).getAttribute('type')).toBe('password');
+    fireEvent.click(screen.getByLabelText(toggle));
+    expect(screen.getByLabelText(field).getAttribute('type')).toBe('text');
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel admin changes' }));
+  fireEvent.click(screen.getByRole('button', { name: `Change password for ${member.email}` }));
+  expect(screen.getByLabelText('Your current password').getAttribute('type')).toBe('password');
+});

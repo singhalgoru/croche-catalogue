@@ -100,6 +100,15 @@ test('owner manages admin names, passwords and access without mobile overflow', 
   await page.getByRole('button', { name: 'Save admin account' }).click();
   await expect(page.getByText('Updated Admin', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Change password for new@luvia.test', exact: true }).click();
+  for (const [field, toggle] of [
+    ['Your current password', 'Show your current password'],
+    ['New admin password', 'Show new admin password'],
+    ['Confirm new admin password', 'Show admin password confirmation'],
+  ]) {
+    await page.getByLabel(toggle, { exact: true }).check();
+    await expect(page.getByLabel(field, { exact: true })).toHaveAttribute('type', 'text');
+    await page.getByLabel(toggle, { exact: true }).uncheck();
+  }
   await page.getByLabel('New admin password', { exact: true }).fill('StrongPassword123');
   await page.getByLabel('Confirm new admin password', { exact: true }).fill('StrongPassword123');
   await page.getByLabel('Your current password', { exact: true }).fill('test-password');

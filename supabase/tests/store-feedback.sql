@@ -1,0 +1,40 @@
+begin;
+create temporary table feedback_fixture as select gen_random_uuid() as user_id,gen_random_uuid() as first_id;
+grant select on feedback_fixture to authenticated,service_role;
+insert into auth.users(id,is_anonymous) select user_id,true from feedback_fixture;
+select set_config('request.jwt.claims',json_build_object('role','authenticated','sub',(select user_id from feedback_fixture))::text,true);
+set local role authenticated;
+do $$ declare f record; rejected boolean:=false; result uuid; begin
+  select * into f from feedback_fixture;
+  result:=public.submit_store_feedback(f.first_id,'Please add more colours.','suggestion','','ignored@example.test',false);
+  if result<>f.first_id then raise exception 'FAIL: invalid receipt.'; end if;
+  perform public.submit_store_feedback(f.first_id,'Please add more colours.','suggestion','','ignored@example.test',false);
+  begin perform public.submit_store_feedback(gen_random_uuid(),'Please reply to this.','general','','',true);
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: missing reply email accepted.'; end if;
+  perform public.submit_store_feedback(gen_random_uuid(),'Website suggestion two.','website','Buyer','buyer@example.test',true);
+  perform public.submit_store_feedback(gen_random_uuid(),'Third feedback message.','general','','',false);
+  rejected:=false;
+  begin perform public.submit_store_feedback(gen_random_uuid(),'Fourth feedback message.','general','','',false);
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: session limit not enforced.'; end if;
+  rejected:=false;
+  begin perform 1 from public.store_feedback;
+  exception when insufficient_privilege then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: browser can read feedback.'; end if;
+end $$;
+reset role;
+do $$ begin
+  if (select count(*) from public.store_feedback where user_id=(select user_id from feedback_fixture))<>3 then raise exception 'FAIL: duplicate feedback.'; end if;
+  if (select contact_email from public.store_feedback where id=(select first_id from feedback_fixture))<>'' then raise exception 'FAIL: email stored without reply request.'; end if;
+end $$;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+set local role service_role;
+do $$ declare claimed integer; begin
+  update public.store_feedback set next_attempt_at=now()+interval '1 day' where user_id<>(select user_id from feedback_fixture);
+  select count(*) into claimed from public.claim_store_feedback();
+  if claimed<>3 then raise exception 'FAIL: queue claim.'; end if;
+  if exists(select 1 from public.claim_store_feedback()) then raise exception 'FAIL: queue retry lease.'; end if;
+end $$;
+reset role;
+rollback;

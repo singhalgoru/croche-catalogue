@@ -25,6 +25,8 @@ Deno.serve(async request => {
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) return json({ error: 'Your account session has expired.' }, 401);
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+  const { error: suspensionError } = await client.rpc('check_account_suspension');
+  if (suspensionError) return json({ error: suspensionError.message }, 403);
   const { data: coupon, error: claimError } = await admin.rpc('claim_welcome_coupon', { owner_id: data.user.id });
   if (claimError) return json({ error: claimError.message }, 400);
   if (!coupon) return json({ error: 'Unable to prepare your welcome coupon.' }, 500);

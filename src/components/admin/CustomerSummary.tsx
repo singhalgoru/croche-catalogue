@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchAdminCustomerSummary } from '../../services/customer';
 import type { AdminCustomerSummary } from '../../types/customer';
+import { changeAdminUser } from '../../services/adminUsers';
 
 const welcomeLabels: Record<AdminCustomerSummary['customers'][number]['welcomeStatus'], string> = {
   sent: 'Sent', pending: 'Queued', retrying: 'Retrying', not_queued: 'Not queued',
@@ -12,6 +13,14 @@ export default function CustomerSummary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState({ offset: 0, refresh: 0 });
+  const [selected, setSelected] = useState<AdminCustomerSummary['customers'][number] | null>(null);
+  const [reason, setReason] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [message, setMessage] = useState('');
+  const clearAction = () => { setSelected(null); setReason(''); setPassword(''); setShowPassword(false); setActionError(''); };
   useEffect(() => {
     let current = true;
     void fetchAdminCustomerSummary(page.offset).then(value => { if (current) setSummary(value); })
@@ -26,6 +35,38 @@ export default function CustomerSummary() {
         onClick={() => { setLoading(true); setError(''); setPage(previous => ({ ...previous, refresh: previous.refresh + 1 })); }}>Refresh customers</button>
     </div>
     <p className="mt-1 text-sm text-cocoa/70">Luvia customer accounts and active signups awaiting email activation. Guest visitors are not counted.</p>
+    <p className="mt-2 text-xs text-cocoa/70">Temporarily disable an account when login fraud is reported. It stays disabled until an admin re-enables it; orders and account details are not deleted. Admin accounts are protected.</p>
+    {message && <p role="status" className="mt-3 text-sm text-cocoa">{message}</p>}
+    {selected && <form aria-label="Customer account access" className="my-4 space-y-3 rounded-xl border border-mustard/50 bg-cream p-4 text-sm text-cocoa"
+      onSubmit={event => {
+        event.preventDefault(); setSaving(true); setActionError(''); setMessage('');
+        void changeAdminUser({ action: selected.suspended ? 'restore-customer' : 'suspend-customer', id: selected.id, reason }, password)
+          .then(value => { setMessage(value); clearAction(); setLoading(true); setError(''); setPage(previous => ({ ...previous, refresh: previous.refresh + 1 })); })
+          .catch(failure => setActionError(failure instanceof Error ? failure.message : 'Unable to change customer account access.'))
+          .finally(() => { setPassword(''); setShowPassword(false); setSaving(false); });
+      }}>
+      <h3 className="font-semibold break-all">{selected.suspended ? 'Re-enable' : 'Temporarily disable'} {selected.email}</h3>
+      <p>{selected.suspended ? 'Restore access after verifying the customer identity. They can then use Forgot password with their email.'
+        : 'This prevents new sign-ins and blocks existing sessions from accessing account data. Password reset links cannot restore access while disabled.'}</p>
+      <label className="block">Reason (internal)
+        <input required minLength={5} maxLength={300} value={reason} disabled={saving} onChange={event => setReason(event.target.value)}
+          className="mt-1 w-full rounded border p-2" />
+      </label>
+      <p className="text-xs">Keep the reason brief. Do not enter passwords, payment details or sensitive personal information.</p>
+      <label className="block">Your current admin password
+        <input required type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} disabled={saving}
+          onChange={event => setPassword(event.target.value)} className="mt-1 w-full rounded border p-2" />
+      </label>
+      <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={showPassword} disabled={saving}
+        onChange={event => setShowPassword(event.target.checked)} />Show admin password</label>
+      {actionError && <p role="alert" className="text-red-700">{actionError}</p>}
+      <div className="flex flex-wrap gap-3">
+        <button disabled={saving} className="min-h-11 rounded-full bg-cocoa px-4 py-2 font-semibold text-white">
+          {saving ? 'Saving...' : selected.suspended ? 'Confirm re-enable account' : 'Confirm disable account'}
+        </button>
+        <button type="button" disabled={saving} onClick={clearAction} className="min-h-11 underline">Cancel account change</button>
+      </div>
+    </form>}
     {loading && <p role="status" className="mt-3">Loading registered customers...</p>}
     {error && <p role="alert" className="mt-3 text-red-700">{error}</p>}
     {summary && !error && <>
@@ -45,9 +86,15 @@ export default function CustomerSummary() {
           </div>
           <div className="text-xs">
             <p className="font-semibold">{customer.verified ? 'Verified' : 'Awaiting activation'}</p>
+            <p className={customer.suspended ? 'font-semibold text-red-700' : ''}>Account access: {customer.suspended ? 'Temporarily disabled' : 'Active'}</p>
             <p>Registered: {dateLabel(customer.registeredAt)}</p>
             <p>Last sign-in: {customer.lastSignInAt ? dateLabel(customer.lastSignInAt) : 'Not yet'}</p>
             <p>Welcome email: {welcomeLabels[customer.welcomeStatus]}</p>
+            {customer.canManageAccount && <button type="button" disabled={saving || loading}
+              className="mt-2 min-h-11 text-sm font-semibold underline disabled:opacity-50"
+              onClick={() => { clearAction(); setMessage(''); setSelected(customer); }}>
+              {customer.suspended ? 'Re-enable account' : 'Temporarily disable account'}
+            </button>}
           </div>
         </article>)}
       </div>

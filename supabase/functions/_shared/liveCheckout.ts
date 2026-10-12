@@ -30,6 +30,8 @@ export async function handleLiveCheckout(request: Request, action: 'create' | 'v
   try {
     const { sdk, keyId, secret } = liveConfig();
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+    const { error: suspensionError } = await client.rpc('check_account_suspension');
+    if (suspensionError) return json({ error: suspensionError.message }, 403);
     if (action === 'create') {
       if (!uuid(body.cartId) || !uuid(body.requestKey)) return json({ error: 'A cart and checkout request key are required.' }, 400);
       let previousProviderId: string | undefined;

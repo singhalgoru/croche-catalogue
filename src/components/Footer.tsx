@@ -1,6 +1,7 @@
 import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
 import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
+import FeedbackForm from './FeedbackForm';
 
 const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
@@ -98,6 +99,7 @@ export default function Footer() {
             </a>
           </p>
         </div>
+        <FeedbackForm />
         <section aria-label="Payment methods" className="my-4 border-t border-cream/25 pt-5">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
           <p className="text-base text-cream">We accept</p>

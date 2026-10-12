@@ -169,6 +169,12 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
 
 test('checkout signup with password activates the same cart owner, shows the name in the header and signs back in', async ({ page }) => {
   const state = await installMockSupabase(page);
+  const feedbackSubmissions: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/submit_store_feedback', async route => {
+    const body = route.request().postDataJSON();
+    feedbackSubmissions.push(body);
+    await route.fulfill({ json: body.request_id });
+  });
   await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
     id: true, enabled: false, percent: 10, max_discount_rupees: 100, minimum_subtotal_rupees: 500, valid_days: 30,
   } }));
@@ -216,6 +222,18 @@ test('checkout signup with password activates the same cart owner, shows the nam
   const book = accountDialog.getByRole('group', { name: 'Saved addresses' });
   await expect(accountDialog.getByRole('region', { name: 'Your orders' })).toHaveCount(0);
   await expect(accountDialog.getByRole('link', { name: 'My orders', exact: true })).toHaveAttribute('href', '/?account=orders');
+  await expect(accountDialog.getByText('Signed-in email:').locator('..')).toContainText('buyer@example.test');
+  await expect(accountDialog.getByRole('button', { name: 'Share feedback', exact: true })).toBeVisible();
+  await accountDialog.getByRole('button', { name: 'Share feedback', exact: true }).click();
+  const feedbackForm = accountDialog.getByRole('form', { name: 'Share feedback form' });
+  await feedbackForm.getByLabel('Your feedback').fill('Please add more colour options to the catalogue.');
+  await feedbackForm.getByRole('button', { name: 'Send feedback' }).click();
+  await expect(accountDialog.getByRole('status').filter({ hasText: 'Your feedback has been saved' })).toBeVisible();
+  expect(feedbackSubmissions).toHaveLength(1);
+  expect(feedbackSubmissions[0]).toMatchObject({ contact_name: '', contact_email: '', wants_reply: false });
+  expect(state.carts[0].id).toBe(originalCart);
+  expect(state.carts[0].user_id).toBe(originalOwner);
+  await accountDialog.getByRole('button', { name: 'Share feedback', exact: true }).click();
   await accountDialog.getByRole('button', { name: 'Change password', exact: true }).click();
   const passwordForm = accountDialog.getByRole('form', { name: 'Change account password' });
   await expect(passwordForm.getByLabel('Current password', { exact: true })).toHaveAttribute('type', 'password');
@@ -236,7 +254,7 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await passwordForm.getByLabel('New password', { exact: true }).fill('Crochet2028');
   await passwordForm.getByLabel('Confirm new password', { exact: true }).fill('Crochet2028');
   await passwordForm.getByRole('button', { name: 'Save new password' }).click();
-  await expect(accountDialog.getByRole('status').filter({ hasText: 'Your password has been changed' })).toContainText('hello@luviacreations.com');
+  await expect(accountDialog.getByRole('status').filter({ hasText: 'Your password has been changed' })).toContainText('A notification will be sent to your email address for this change.');
   await expect(passwordForm).toHaveCount(0);
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
@@ -294,6 +312,10 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await page.getByRole('button', { name: 'Sign in or create account' }).click();
   await signIn.getByLabel('Account email').fill('buyer@example.test');
   await page.getByRole('dialog', { name: 'Sign in to Luvia' }).getByRole('button', { name: 'Forgot password?' }).click();
+  const recoveryRequest = page.getByRole('form', { name: 'Forgot password', exact: true });
+  await expect(recoveryRequest.getByLabel('Password', { exact: true })).toHaveCount(0);
+  await expect(recoveryRequest.locator('input')).toHaveCount(1);
+  await recoveryRequest.getByRole('button', { name: 'Send reset link' }).click();
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('password reset link is on its way');
   const recoveryToken = state.recoveryAccessToken;
   expect(recoveryToken).toBeTruthy();

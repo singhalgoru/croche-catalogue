@@ -12,10 +12,10 @@ function open() {
   fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'NewPassword123' } });
   fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'NewPassword123' } });
 }
-it('saves passwords and clears the form with accurate queued-email confirmation', async () => {
+it('saves passwords and clears the form with simple email notification wording', async () => {
   open();
   fireEvent.click(screen.getByRole('button', { name: 'Save new password' }));
-  expect((await screen.findByRole('status')).textContent).toContain('hello@luviacreations.com');
+  expect((await screen.findByRole('status')).textContent).toContain('A notification will be sent to your email address for this change.');
   expect(change).toHaveBeenCalledWith('OldPassword123', 'NewPassword123', 'NewPassword123');
   expect(screen.queryByLabelText('Current password')).toBeNull();
 });

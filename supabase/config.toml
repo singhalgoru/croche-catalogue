@@ -64,3 +64,6 @@ verify_jwt = true
 
 [functions.password-change-worker]
 verify_jwt = false
+
+[functions.feedback-worker]
+verify_jwt = false

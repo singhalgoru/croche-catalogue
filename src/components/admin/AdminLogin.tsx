@@ -1,20 +1,29 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../../lib/supabase';
 import { requestCartCaptcha } from '../../services/cartCaptcha';
+import { sendCustomerPasswordReset } from '../../services/customer';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [forgotPassword, setForgotPassword] = useState(false);
+  const [message, setMessage] = useState('');
 
   const signIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!supabase) return;
+    if (!supabase) { setErrorMessage('Admin login requires an online connection.'); return; }
 
     setIsSigningIn(true);
     setErrorMessage(null);
+    setMessage('');
     try {
+      if (forgotPassword) {
+        await sendCustomerPasswordReset(email);
+        setMessage('If an account exists for that email, a password reset link is on its way. Check your inbox or spam.');
+        return;
+      }
       const captchaToken = await requestCartCaptcha();
       const { error } = await supabase.auth.signInWithPassword({
         email, password, ...(captchaToken ? { options: { captchaToken } } : {}),
@@ -35,10 +44,11 @@ export default function AdminLogin() {
         </p>
         <h1 className="mt-2 font-heading text-3xl font-bold text-cocoa">Manage catalogue</h1>
         <p className="mt-2 text-sm text-cocoa/70">
-          Sign in with the admin account created in Supabase.
+          {forgotPassword ? 'Enter your account email to receive a password reset link. No current password is needed.'
+            : 'Sign in with the admin account created in Supabase.'}
         </p>
 
-        <form className="mt-6 space-y-4" onSubmit={signIn}>
+        <form aria-label={forgotPassword ? 'Admin forgot password' : 'Admin sign in'} className="mt-6 space-y-4" onSubmit={signIn}>
           <label className="block text-sm font-semibold text-cocoa">
             Email
             <input
@@ -47,10 +57,11 @@ export default function AdminLogin() {
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
               required
+              disabled={isSigningIn}
               className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2 outline-none focus:border-cocoa"
             />
           </label>
-          <label className="block text-sm font-semibold text-cocoa">
+          {!forgotPassword && <label className="block text-sm font-semibold text-cocoa">
             Password
             <input
               type="password"
@@ -58,24 +69,30 @@ export default function AdminLogin() {
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
               required
+              disabled={isSigningIn}
               className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2 outline-none focus:border-cocoa"
             />
-          </label>
+          </label>}
 
           {errorMessage && (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {errorMessage}
             </p>
           )}
+          {message && <p role="status" className="text-sm text-cocoa">{message}</p>}
 
           <button
             type="submit"
             disabled={isSigningIn}
             className="w-full rounded-full bg-cocoa py-2.5 font-semibold text-cream transition-colors hover:bg-cocoa-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSigningIn ? 'Signing in…' : 'Sign in'}
+            {isSigningIn ? 'Please wait...' : forgotPassword ? 'Send reset link' : 'Sign in'}
           </button>
         </form>
+        <button type="button" disabled={isSigningIn} className="mt-3 min-h-11 text-sm underline"
+          onClick={() => { setForgotPassword(value => !value); setPassword(''); setMessage(''); setErrorMessage(null); }}>
+          {forgotPassword ? 'Back to sign in' : 'Forgot password?'}
+        </button>
 
         <a href="./" className="mt-5 block text-center text-sm font-semibold text-cocoa underline">
           Back to catalogue

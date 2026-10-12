@@ -31,6 +31,9 @@ it('emails a password reset link with visible confirmation', async () => {
   expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
   fireEvent.change(screen.getByLabelText('Account email'), { target: { value: 'buyer@example.test' } });
   fireEvent.click(screen.getByRole('button', { name: 'Forgot password?' }));
+  expect(screen.queryByLabelText('Password')).toBeNull();
+  expect(sendCustomerPasswordReset).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
   expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('password reset link is on its way'));
   expect(sendCustomerPasswordReset).toHaveBeenCalledWith('buyer@example.test');
 });
@@ -50,6 +53,7 @@ it('shows email-provider failures explicitly', async () => {
   render(<CustomerAccount canSignUp={false} />);
   fireEvent.change(screen.getByLabelText('Account email'), { target: { value: 'buyer@example.test' } });
   fireEvent.click(screen.getByRole('button', { name: 'Forgot password?' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Email provider is unavailable.');
   expect(screen.queryByRole('status')).toBeNull();
 });
@@ -118,6 +122,7 @@ it('shows address details, My orders and Change password without inline history'
   expect(screen.queryByRole('region', { name: 'Your orders' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Set or change password' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Change password' })).toBeTruthy();
+  expect(screen.getByText('Signed-in email:').parentElement?.textContent).toContain('buyer@example.test');
   expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
   expect(screen.queryByText(/Verified email:/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Continue to delivery details' }));

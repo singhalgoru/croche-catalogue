@@ -25,7 +25,7 @@ export default function ChangePassword() {
         event.preventDefault(); setBusy(true); setError(''); setMessage('');
         void changeCustomerPassword(currentPassword, password, confirmation).then(() => {
           clear(); setExpanded(false);
-          setMessage('Your password has been changed. Use the new password next time you sign in. A security notification has been queued for your account email from hello@luviacreations.com.');
+          setMessage('Your password has been changed. Use the new password next time you sign in. A notification will be sent to your email address for this change.');
         }).catch(failure => {
           clear(); setError(failure instanceof Error ? failure.message : 'Unable to change your password.');
         }).finally(() => setBusy(false));

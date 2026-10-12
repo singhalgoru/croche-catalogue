@@ -17,6 +17,7 @@ export default function AdminUsers() {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
+  const [visible, setVisible] = useState({ current: false, password: false, confirmation: false });
   useEffect(() => {
     if (!expanded) return;
     let current = true;
@@ -25,7 +26,11 @@ export default function AdminUsers() {
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [expanded, refresh]);
-  const clear = () => { setMode(null); setTarget(null); setPassword(''); setConfirmation(''); setCurrentPassword(''); };
+  const clearPasswords = () => {
+    setPassword(''); setConfirmation(''); setCurrentPassword('');
+    setVisible({ current: false, password: false, confirmation: false });
+  };
+  const clear = () => { setMode(null); setTarget(null); clearPasswords(); };
   const open = (next: NonNullable<typeof mode>, user: AdminUser | null = null) => {
     clear(); setMode(next); setTarget(user); setName(user?.name ?? ''); setEmail('');
     setError(''); setMessage('');
@@ -76,7 +81,7 @@ export default function AdminUsers() {
           setBusy(true);
           void changeAdminUser(change, currentPassword).then(result => {
             clear(); setMessage(result); setLoading(true); setRefresh(value => value + 1);
-          }).catch(failure => { setCurrentPassword(''); setPassword(''); setConfirmation(''); setError(failure instanceof Error ? failure.message : 'Unable to update admin.'); })
+          }).catch(failure => { clearPasswords(); setError(failure instanceof Error ? failure.message : 'Unable to update admin.'); })
             .finally(() => setBusy(false));
         }}>
         <h3 className="font-semibold">{mode === 'add' ? 'Add admin user' : `${mode === 'edit' ? 'Edit name' : mode === 'password' ? 'Change password' : 'Remove admin access'}: ${target?.email}`}</h3>
@@ -90,15 +95,21 @@ export default function AdminUsers() {
         {mode === 'edit' && <p className="text-xs">Login email remains unchanged. To use another email, add its verified account, then remove old admin access.</p>}
         {mode === 'password' && <>
           <p className="text-xs">Use 12–128 characters with uppercase, lowercase and a number. Passwords are never displayed or stored in this form after saving.</p>
-          <label>New admin password<input type="password" autoComplete="new-password" required minLength={12} maxLength={128} value={password} disabled={busy}
+          <label>New admin password<input type={visible.password ? 'text' : 'password'} autoComplete="new-password" required minLength={12} maxLength={128} value={password} disabled={busy}
             onChange={event => setPassword(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
-          <label>Confirm new admin password<input type="password" autoComplete="new-password" required minLength={12} maxLength={128} value={confirmation} disabled={busy}
+          <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={visible.password} disabled={busy}
+            onChange={event => setVisible(value => ({ ...value, password: event.target.checked }))} />Show new admin password</label>
+          <label>Confirm new admin password<input type={visible.confirmation ? 'text' : 'password'} autoComplete="new-password" required minLength={12} maxLength={128} value={confirmation} disabled={busy}
             onChange={event => setConfirmation(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
+          <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={visible.confirmation} disabled={busy}
+            onChange={event => setVisible(value => ({ ...value, confirmation: event.target.checked }))} />Show admin password confirmation</label>
         </>}
         {mode === 'remove' && <p className="text-sm">Confirm removing admin access. This does not delete the account, orders, products or sales. The owner cannot be removed.</p>}
         <p id="admin-password-authorization-help" className="text-xs">Enter the password you currently use to sign in. This field only authorizes the change; it is not the new password.{target && target.id !== directory?.currentUserId ? " Use your own password, not this admin's password." : ''}</p>
-        <label>Your current password<input type="password" autoComplete="current-password" aria-describedby="admin-password-authorization-help" required value={currentPassword} disabled={busy}
+        <label>Your current password<input type={visible.current ? 'text' : 'password'} autoComplete="current-password" aria-describedby="admin-password-authorization-help" required value={currentPassword} disabled={busy}
           onChange={event => setCurrentPassword(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2" /></label>
+        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={visible.current} disabled={busy}
+          onChange={event => setVisible(value => ({ ...value, current: event.target.checked }))} />Show your current password</label>
         <div className="flex flex-wrap gap-4">
           <button type="submit" disabled={busy || loading} className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-white disabled:opacity-50">{busy ? 'Saving...' : mode === 'remove' ? 'Confirm remove access' : 'Save admin account'}</button>
           <button type="button" disabled={busy} onClick={clear} className="min-h-11 underline">Cancel admin changes</button>

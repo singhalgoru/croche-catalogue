@@ -27,10 +27,17 @@ Deno.serve(async request => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid request body.' }, 400);
   const action = body.action;
   if (action === 'list') return json(directory);
-  if (!['add','edit','remove','password'].includes(String(action))) return json({ error: 'Invalid admin action.' }, 400);
+  const customerAction = action === 'suspend-customer' || action === 'restore-customer';
+  if (!['add','edit','remove','password','suspend-customer','restore-customer'].includes(String(action))) return json({ error: 'Invalid admin action.' }, 400);
+  const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+  if (customerAction && (typeof body.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id)
+    || reason.length < 5 || reason.length > 300)) {
+    return json({ error: 'Choose a registered customer and enter a reason of 5–300 characters.' }, 400);
+  }
   const target = typeof body.id === 'string' ? directory.users.find((user: { id: string }) => user.id === body.id) : null;
-  if (action !== 'add' && !target) return json({ error: 'Admin user not found.' }, 404);
-  if (!directory.isOwner && !(action === 'password' && target?.id === identity.user.id)) {
+  if (customerAction && (target || body.id === identity.user.id)) return json({ error: 'Admin accounts cannot be disabled from customer management.' }, 400);
+  if (!customerAction && action !== 'add' && !target) return json({ error: 'Admin user not found.' }, 404);
+  if (!customerAction && !directory.isOwner && !(action === 'password' && target?.id === identity.user.id)) {
     return json({ error: 'Only the owner can manage other admins.' }, 403);
   }
   if (action === 'remove' && target.isOwner) return json({ error: 'Owner access cannot be removed.' }, 400);
@@ -62,9 +69,22 @@ Deno.serve(async request => {
   if (signOutError) return json({ error: 'Unable to close the authorization session. Retry.' }, 500);
   try {
     const { data: latest, error: accessError } = await admin.rpc('admin_user_directory', { actor: identity.user.id });
-    if (accessError || !latest || (!latest.isOwner && !(action === 'password' && target?.id === identity.user.id))
-      || (action !== 'add' && !latest.users.some((user: { id: string }) => user.id === target.id))) {
+    if (accessError || !latest || (!customerAction && !latest.isOwner && !(action === 'password' && target?.id === identity.user.id))
+      || (!customerAction && action !== 'add' && !latest.users.some((user: { id: string }) => user.id === target.id))) {
       return json({ error: 'Admin access changed. Refresh accounts before retrying.' }, 403);
+    }
+    if (customerAction) {
+      const { data: candidate, error: candidateError } = await admin.rpc('customer_account_candidate', { actor: identity.user.id, target: body.id });
+      if (candidateError || !candidate || candidate.id !== body.id) throw new Error(candidateError?.message ?? 'Registered customer account not found.');
+      const { error: updateError } = await admin.auth.admin.updateUserById(candidate.id,
+        { ban_duration: action === 'suspend-customer' ? '876000h' : 'none' });
+      if (updateError) throw new Error(updateError.message);
+      const { error: auditError } = await admin.from('customer_account_audit')
+        .insert({ actor_id: identity.user.id, target_id: candidate.id, action: action === 'suspend-customer' ? 'suspend' : 'restore', reason });
+      if (auditError) throw new Error(`Account access updated, but audit recording failed: ${auditError.message}. Refresh before retrying.`);
+      return json({ message: action === 'suspend-customer'
+        ? 'Customer account temporarily disabled until an admin re-enables it. Existing account data and orders are preserved.'
+        : 'Customer account re-enabled. The customer can sign in or request a password reset.' });
     }
     if (action === 'add') {
       const { data: existingId, error: lookupError } = await admin.rpc('find_admin_candidate', { actor: identity.user.id, account_email: email });
