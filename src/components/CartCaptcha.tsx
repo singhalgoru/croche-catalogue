@@ -91,8 +91,19 @@ function PreparedChallenge() {
     let active = true;
     let widgetId: string | undefined;
     let api: Turnstile | undefined;
+    let stopWaiting = () => {};
     const invalidate = () => { if (active) invalidatePreparedCartCaptcha(); };
     const prepare = async () => {
+      // Turnstile is ~800 KB; fetching it only once the visitor interacts keeps it off the first-load path.
+      // Adding to cart before then still works through the on-demand dialog.
+      await new Promise<void>(resolve => {
+        const events = ['pointerdown', 'keydown', 'touchstart', 'scroll', 'wheel'] as const;
+        const start = () => { stopWaiting(); resolve(); };
+        // Bubbling listeners on window ignore the carousels' own auto-scroll (element scroll events don't bubble).
+        stopWaiting = () => events.forEach(name => window.removeEventListener(name, start));
+        events.forEach(name => window.addEventListener(name, start, { passive: true }));
+      });
+      if (!active) return null;
       const client = await loadSupabase();
       if (client) {
         const { data, error: sessionError } = await client.auth.getSession();
@@ -120,10 +131,10 @@ function PreparedChallenge() {
     }).catch((failure: unknown) => {
       if (active) setError(failure instanceof Error ? failure.message : 'Bot verification could not load.');
     });
-    return () => { active = false; if (widgetId && api) api.remove(widgetId); };
+    return () => { active = false; stopWaiting(); if (widgetId && api) api.remove(widgetId); };
   }, []);
   return <div className="fixed bottom-4 right-4 z-[90] max-w-[calc(100vw-2rem)]">
-    <div ref={containerRef} aria-label="Background bot verification" />
+    <div ref={containerRef} role="group" aria-label="Background bot verification" />
     {error && <p role="status" className="rounded-lg bg-cream p-2 text-xs text-cocoa">{error}</p>}
   </div>;
 }

@@ -77,9 +77,19 @@ it('surfaces script load failures instead of allowing an unverified signup', asy
   await rejected;
 });
 
+it('waits for the first interaction before preparing background verification', async () => {
+  installWidget();
+  render(<CartCaptcha />);
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  expect(window.turnstile?.render).not.toHaveBeenCalled();
+  fireEvent.scroll(window);
+  await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledOnce());
+});
+
 it('prepares verification while browsing and consumes a token only once', async () => {
   installWidget();
   render(<CartCaptcha />);
+  fireEvent.pointerDown(document.body);
   await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledOnce());
   expect(options.appearance).toBe('interaction-only');
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -97,6 +107,7 @@ it('prepares verification while browsing and consumes a token only once', async 
 it('never uses an expired prepared token', async () => {
   installWidget();
   render(<CartCaptcha />);
+  fireEvent.keyDown(window, { key: 'Tab' });
   await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledOnce());
   act(() => options.callback('expired-prepared-token'));
   const now = Date.now();
