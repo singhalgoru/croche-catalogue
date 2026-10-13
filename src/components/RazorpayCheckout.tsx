@@ -5,6 +5,7 @@ import type { PaymentResponse } from '../services/checkout';
 import { formatINR } from '../utils/currency';
 import { trackCartStep, trackEvent } from '../services/analytics';
 import { trackVerifiedPurchase } from '../services/purchaseAnalytics';
+import { calculateEstimatedDeliveryDate, renderGoogleCustomerReviewsOptIn } from '../services/googleCustomerReviews';
 
 interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string }
 
@@ -46,12 +47,28 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const paid = useRef(Boolean(recovery.pending || recovery.verified));
   const request = useRef<{ fingerprint: string; key: string; previousRequestKey?: string } | null>(recovery.request);
   const [statusRequest, setStatusRequest] = useState(recovery.request?.key ?? null);
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
+  const optInTriggered = useRef(false);
   useEffect(() => {
     if (live && verified) {
       if (statusRequest) void trackVerifiedPurchase(statusRequest);
       confirmedCallback.current?.(statusRequest ?? undefined, purchaseCart.current);
+      const email = purchaseCart.current.deliveryDetails?.email?.trim();
+      const orderId = confirmedOrderId ?? statusRequest ?? cart.reference;
+      if (email && orderId && !optInTriggered.current) {
+        optInTriggered.current = true;
+        renderGoogleCustomerReviewsOptIn({
+          orderId,
+          email,
+          deliveryCountry: 'IN',
+          estimatedDeliveryDate: calculateEstimatedDeliveryDate(
+            purchaseCart.current.deliveryEstimate?.maxDays ? Math.max(5, purchaseCart.current.deliveryEstimate.maxDays) : 9,
+          ),
+          optInStyle: 'CENTER_DIALOG',
+        });
+      }
     }
-  }, [live, verified, statusRequest]);
+  }, [live, verified, statusRequest, confirmedOrderId, cart.reference]);
   useEffect(() => {
     if (!live || !statusRequest || verified) return;
     let current = true;
@@ -67,6 +84,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         }
         paid.current = true; locked.current = false;
         if (!confirmationRequest) saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: true }, true);
+        setConfirmedOrderId(result.reference);
         setVerified(true); setPending(null); setBusy(false);
         setMessage(`Order confirmed — ${result.reference}. Payment received. Save this reference; signed-in customers can view it in My Account.`);
       } catch (failure) {
@@ -86,6 +104,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
     catch (error) { console.error('Unable to save payment recovery; keep checkout open:', error); }
     try {
       const id = live ? await verifyCheckoutPayment(payment, true) : await verifyCheckoutPayment(payment);
+      if (live) setConfirmedOrderId(id);
       setVerified(true);
       setPending(null);
       try { saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: true }, live); }

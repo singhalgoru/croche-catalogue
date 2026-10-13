@@ -28,6 +28,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Browser favicons and installed-app icons preserve the original Luvia brand design.
 - GA4 records cart/checkout intent and verified online purchases. Product/cart
   WhatsApp actions record leads, not completed offline purchases.
+- Google Customer Reviews opt-in module prompts verified buyers on order confirmation to collect authentic delivery feedback for Google Seller Ratings.
 - Below-catalogue ordering guide explains cart-to-WhatsApp confirmation and delivery enquiries, also present in the crawler-readable HTML; the return-policy link appears once in the footer
 - Admin-controlled product order shared across the main catalogue and categories
 - Manage products has All products and Featured products tabs with counts. Featured uses the saved featured flag, includes hidden products, supports search and existing edits, and updates after a feature is added or removed. Attention filters return to All products; display-order controls remain disabled while filtering.

@@ -7,7 +7,12 @@ const { createOrder, verify, load, status } = vi.hoisted(() => ({
   createOrder: vi.fn(), verify: vi.fn(), load: vi.fn(), status: vi.fn(),
 }));
 const purchase = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const optInMock = vi.hoisted(() => vi.fn());
 vi.mock('../services/purchaseAnalytics', () => ({ trackVerifiedPurchase: purchase }));
+vi.mock('../services/googleCustomerReviews', () => ({
+  calculateEstimatedDeliveryDate: () => '2026-10-25',
+  renderGoogleCustomerReviewsOptIn: optInMock,
+}));
 vi.mock('../services/checkout', async importOriginal => ({
   ...await importOriginal<typeof import('../services/checkout')>(),
   createCheckoutOrder: createOrder, verifyCheckoutPayment: verify, loadRazorpay: load,
@@ -71,6 +76,12 @@ it('uses saved delivery details and confirms a real order only after backend ver
   expect(verify).toHaveBeenCalledWith(response, true);
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
   await waitFor(() => expect(purchase).toHaveBeenCalledWith(createOrder.mock.calls[0][0].requestKey));
+  expect(optInMock).toHaveBeenCalledWith(expect.objectContaining({
+    orderId: 'LUV-LIVE',
+    email: 'buyer@example.test',
+    deliveryCountry: 'IN',
+    estimatedDeliveryDate: '2026-10-25',
+  }));
 });
 it('shows cancellation and payment failure messages and reuses the same request on retry', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);
