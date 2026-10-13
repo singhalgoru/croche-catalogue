@@ -53,7 +53,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     const glide = (now: number) => {
       const element = track.current;
       if (element && previous !== undefined && document.visibilityState === 'visible' && loopWidth.current > 0) {
-        const distance = Math.min(now - previous, 100) * 18 / 1000;
+        const distance = Math.min(now - previous, 100) * 26 / 1000;
         scrollOffset.current += distance;
         if (scrollOffset.current >= loopWidth.current) {
           scrollOffset.current %= loopWidth.current;

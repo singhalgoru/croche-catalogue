@@ -45,8 +45,8 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   expect(new Set(movement.map(position => Math.round(position))).size).toBeGreaterThan(15);
   expect(movement[movement.length - 1]).toBeGreaterThan(0);
   const durationDistance = movement[movement.length - 1] - movement[0];
-  expect(durationDistance).toBeGreaterThan(80);
-  expect(durationDistance).toBeLessThan(140);
+  expect(durationDistance).toBeGreaterThan(100);
+  expect(durationDistance).toBeLessThan(200);
   await pause.focus();
   await pause.press('Enter');
   await expect(page.getByRole('button', { name: 'Resume collection rotation' })).toHaveAttribute('aria-pressed', 'true');
