@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 
 export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned }: {
   title: string; label: string; children: ReactNode; itemCount: number;
@@ -23,7 +23,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     preference.addEventListener('change', update);
     return () => preference.removeEventListener('change', update);
   }, []);
-  const measure = () => {
+  const measure = useCallback(() => {
     const element = track.current;
     if (element) {
       const first = element.querySelector('a');
@@ -34,14 +34,14 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
       if (pinnedElement) {
         element.parentElement?.style.setProperty('--carousel-pinned-width', `${pinnedElement.getBoundingClientRect().width}px`);
       }
-      setLooping(cards.length > 1 && loopWidth.current - gap > element.clientWidth + 1);
+      setLooping(cards.length > 1);
       if (Math.abs(element.scrollLeft - scrollOffset.current) > 2) {
         scrollOffset.current = element.scrollLeft;
       }
       setEdges({ start: element.scrollLeft <= 1,
         end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1 });
     }
-  };
+  }, [cards.length]);
   useEffect(() => {
     const element = track.current;
     if (!element) return;
@@ -50,7 +50,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     observer.observe(element);
     for (const card of element.children) observer.observe(card);
     return () => observer.disconnect();
-  }, [itemCount, looping]);
+  }, [itemCount, looping, measure]);
   useEffect(() => {
     if (paused || hovered || focused || touched || reducedMotion || !looping) return;
     let animation: number;
