@@ -135,7 +135,6 @@ function App() {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [categoryScrollRequest, setCategoryScrollRequest] = useState(0);
   const [areCatalogueToolsSticky, setAreCatalogueToolsSticky] = useState(false);
-  const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth < 640);
   const [catalogueToolsHeight, setCatalogueToolsHeight] = useState(0);
   const pendingProductReference = useRef(readProductPageReference() ?? readProductReferenceFromHash());
   const promotedFromCatalogue = useRef(false);
@@ -182,10 +181,10 @@ function App() {
   useEffect(() => {
     const updateStickyState = () => {
       const sentinel = catalogueToolsSentinelRef.current;
-      setIsMobileViewport(window.innerWidth < 640);
       setAreCatalogueToolsSticky(
         Boolean(
-          sentinel &&
+          window.innerWidth < 640 &&
+            sentinel &&
             sentinel.getBoundingClientRect().top < 0,
         ),
       );
@@ -431,10 +430,8 @@ function App() {
       const productGrid = productGridRef.current;
       if (!productGrid) return;
       const stickyOffset =
-        areCatalogueToolsSticky
-          ? window.innerWidth < 640
-            ? (stickyCatalogueToolsRef.current?.offsetHeight ?? catalogueToolsHeight ?? 112) + 12
-            : (catalogueToolsRef.current?.offsetHeight ?? catalogueToolsHeight) + 16
+        window.innerWidth < 640
+          ? (stickyCatalogueToolsRef.current?.offsetHeight ?? 112) + 12
           : 16;
       const top = productGrid.getBoundingClientRect().top + window.scrollY - stickyOffset;
       window.scrollTo({
@@ -445,7 +442,7 @@ function App() {
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [areCatalogueToolsSticky, catalogueToolsHeight, categoryScrollRequest, isLoading]);
+  }, [categoryScrollRequest, isLoading]);
 
   const selectedProductIndex = selectedProduct
     ? filteredProducts.findIndex((product) => product.id === selectedProduct.id)
@@ -649,7 +646,7 @@ function App() {
         cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
         mobileCartInToolbar={!pageReference}
-        hideMobileCart={!pageReference && areCatalogueToolsSticky && isMobileViewport}
+        hideMobileCart={!pageReference && areCatalogueToolsSticky}
         tickerMessages={tickerMessages}
         seasonalAnnouncement={seasonalAnnouncement}
         seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
@@ -736,34 +733,32 @@ function App() {
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} onSelect={selectProduct} />}
         <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
-        <div
-          ref={catalogueToolsRef}
-          className={`space-y-3 ${areCatalogueToolsSticky
-            ? 'sm:sticky sm:top-0 sm:z-30 sm:-mx-4 sm:border-b sm:border-mustard/30 sm:bg-cream/95 sm:px-4 sm:py-3 sm:shadow-sm sm:backdrop-blur-md'
-            : ''}`}
-        >
-          <SearchBar
-            value={query}
-            onChange={setQuery}
-            className="sm:max-w-3xl"
-            onSearch={(searchQuery) =>
-              trackEvent('catalogue_search', {
-                query_length: searchQuery.trim().length,
-                result_count: filteredProducts.length,
-              })
-            }
-          />
-          <CategoryFilter
-            categories={categories}
-            seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
-            active={effectiveActiveCategory}
-            onSelect={selectCategory}
-            showNew={hasNewProducts}
-            compactOnMobile
-            collapseCategories
-          />
-        </div>
-        {areCatalogueToolsSticky && isMobileViewport && (
+        {areCatalogueToolsSticky ? (
+          <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
+        ) : (
+          <div ref={catalogueToolsRef} className="space-y-3">
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              onSearch={(searchQuery) =>
+                trackEvent('catalogue_search', {
+                  query_length: searchQuery.trim().length,
+                  result_count: filteredProducts.length,
+                })
+              }
+            />
+            <CategoryFilter
+              categories={categories}
+              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+              active={effectiveActiveCategory}
+              onSelect={selectCategory}
+              showNew={hasNewProducts}
+              compactOnMobile
+              collapseCategories
+            />
+          </div>
+        )}
+        {areCatalogueToolsSticky && (
           <div
             ref={stickyCatalogueToolsRef}
             className="fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:hidden"
@@ -774,7 +769,6 @@ function App() {
                 <SearchBar
                   value={query}
                   onChange={setQuery}
-                  className="sm:max-w-3xl"
                   onSearch={(searchQuery) =>
                     trackEvent('catalogue_search', {
                       query_length: searchQuery.trim().length,
