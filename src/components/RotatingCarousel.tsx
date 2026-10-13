@@ -34,7 +34,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
       if (pinnedElement) {
         element.parentElement?.style.setProperty('--carousel-pinned-width', `${pinnedElement.getBoundingClientRect().width}px`);
       }
-      setLooping(cards.length > 1 && loopWidth.current - gap > element.clientWidth + 1);
+      setLooping(cards.length > 1);
       if (Math.abs(element.scrollLeft - scrollOffset.current) > 2) {
         scrollOffset.current = element.scrollLeft;
       }

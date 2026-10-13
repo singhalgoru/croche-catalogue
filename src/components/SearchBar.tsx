@@ -18,7 +18,7 @@ export default function SearchBar({ value, onChange, onSearch }: Props) {
       }}
       placeholder="Search crochet items..."
       aria-label="Search crochet items"
-      className="w-full max-w-md mx-auto block px-4 py-2 rounded-full border-2 border-mustard bg-white text-cocoa placeholder:text-cocoa/40 focus:outline-none focus:ring-2 focus:ring-mustard"
+      className="w-full max-w-md mx-auto block px-4 py-2 rounded-full border-2 border-mustard bg-white text-cocoa placeholder:text-cocoa/40 focus:outline-none focus:ring-2 focus:ring-mustard sm:max-w-2xl sm:px-6 sm:py-3 sm:text-base lg:max-w-3xl"
     />
   );
 }
