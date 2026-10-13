@@ -1,8 +1,8 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 
-export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description }: {
+export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned }: {
   title: string; label: string; children: ReactNode; itemCount: number;
-  navigation?: boolean; viewAll?: string; description?: string;
+  navigation?: boolean; viewAll?: string; description?: string; pinned?: ReactNode;
 }) {
   const id = useId();
   const track = useRef<HTMLElement>(null);
@@ -29,7 +29,11 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
       const gap = parseFloat(getComputedStyle(element).columnGap || '0');
       loopWidth.current = first ? (first.getBoundingClientRect().width + gap) * cards.length : 0;
       if (first) element.parentElement?.style.setProperty('--carousel-image-center', `${first.getBoundingClientRect().width / 2}px`);
-      setLooping(loopWidth.current - gap > element.clientWidth + 1);
+      const pinnedElement = element.querySelector<HTMLElement>('[data-pinned="true"]');
+      if (pinnedElement) {
+        element.parentElement?.style.setProperty('--carousel-pinned-width', `${pinnedElement.getBoundingClientRect().width}px`);
+      }
+      setLooping(cards.length > 1 && loopWidth.current - gap > element.clientWidth + 1);
       if (Math.abs(element.scrollLeft - scrollOffset.current) > 2) {
         scrollOffset.current = element.scrollLeft;
       }
@@ -91,16 +95,22 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     <div className="relative min-w-0">
       <Track ref={element => { track.current = element; }} id={`${id}-track`} aria-label={title} role={navigation ? undefined : 'group'}
         onScroll={measure} className="no-scrollbar flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {pinned && (
+          <div data-pinned="true" className="sticky left-0 z-10 shrink-0 bg-cream w-[38%] sm:w-[calc((100%-36px)/4)] lg:w-[calc((100%-60px)/6)]">
+            {pinned}
+          </div>
+        )}
         {cards}
         {looping && cards.map(card => isValidElement<HTMLAttributes<HTMLElement>>(card)
           ? cloneElement(card, { key: `loop-${card.key}`, 'aria-hidden': true, tabIndex: -1 }) : null)}
       </Track>
       <button type="button" aria-label={`Previous ${label}s`} aria-controls={`${id}-track`}
         disabled={edges.start} onClick={() => scroll(-1)}
-        className="absolute left-2 top-[var(--carousel-image-center,50%)] hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8592;</button>
+        style={{ left: pinned ? 'calc(var(--carousel-pinned-width, 0px) + 8px)' : '8px' }}
+        className="absolute top-[var(--carousel-image-center,50%)] z-20 hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8592;</button>
       <button type="button" aria-label={`Next ${label}s`} aria-controls={`${id}-track`}
         disabled={edges.end} onClick={() => scroll(1)}
-        className="absolute right-2 top-[var(--carousel-image-center,50%)] hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8594;</button>
+        className="absolute right-2 top-[var(--carousel-image-center,50%)] z-20 hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8594;</button>
     </div>
   </section>;
 }

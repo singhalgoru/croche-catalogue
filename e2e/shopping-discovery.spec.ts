@@ -30,6 +30,8 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   }));
   expect(geometry.overflow).toBe(true);
   expect(names).toContain(geometry.names[0]);
+  const pinnedCard = collections.locator('[data-pinned="true"] a');
+  await expect(pinnedCard).toHaveClass(/card-seasonal-glow/);
   const pause = page.getByRole('button', { name: 'Pause collection rotation' });
   await expect(pause).toHaveClass(/sr-only/);
   const movement = await collections.evaluate(element => new Promise<number[]>(resolve => {

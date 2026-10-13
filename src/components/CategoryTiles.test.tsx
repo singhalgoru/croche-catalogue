@@ -30,6 +30,16 @@ it('places seasonal categories first even when supplied after regular categories
   expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(['Festive', 'Charms & Keychains']);
 });
 
+it('pins the seasonal category at one place with a glowing card halo while remaining categories rotate', () => {
+  const settings = [{ name: 'Festive', priority: 1, isSeasonal: true, productIds: ['a'] }];
+  render(<CategoryTiles categories={['Charms & Keychains', 'Festive', 'Toys']} products={[product]} categorySettings={settings} />);
+  const festiveLink = screen.getByRole('link', { name: 'Festive' });
+  expect(festiveLink.classList.contains('card-seasonal-glow')).toBe(true);
+  const pinnedContainer = festiveLink.closest('[data-pinned="true"]');
+  expect(pinnedContainer).not.toBeNull();
+  expect(pinnedContainer?.classList.contains('sticky')).toBe(true);
+});
+
 it('uses a full custom seasonal cover and falls back after it is removed', () => {
   const settings = [{ name: 'Festive', priority: 1, isSeasonal: true, productIds: ['a'], coverImage: '/season.webp' }];
   const { rerender } = render(<CategoryTiles categories={['Festive']} products={[product]} categorySettings={settings} />);
@@ -64,7 +74,7 @@ it('provides manual scrolling, edge controls, reduced-motion support and a view-
   expect(screen.getByRole('link', { name: 'View all' }).getAttribute('href')).toBe('/collections/');
 });
 
-it('glides continuously at 18px per second, loops seamlessly and pauses safely', () => {
+it('glides continuously at 26px per second, loops seamlessly and pauses safely', () => {
   vi.useFakeTimers();
   const categories = ['A', 'B', 'C', 'D', 'E', 'F'];
   render(<CategoryTiles categories={categories} products={categories.map(category => ({ ...product, id: category, category }))} />);
@@ -78,14 +88,15 @@ it('glides continuously at 18px per second, loops seamlessly and pauses safely',
   expect(nav.querySelectorAll('a[aria-hidden="true"][tabindex="-1"]')).toHaveLength(6);
   expect(within(nav).getAllByRole('link')).toHaveLength(6);
   act(() => vi.advanceTimersByTime(2000));
-  expect(nav.scrollLeft).toBeCloseTo(36, 0);
+  expect(nav.scrollLeft).toBeCloseTo(52, 0);
   const first = nav.scrollLeft;
   act(() => vi.advanceTimersByTime(2000));
-  expect(nav.scrollLeft - first).toBeCloseTo(36, 0);
+  expect(nav.scrollLeft - first).toBeCloseTo(52, 0);
   nav.scrollLeft = 1150;
+  fireEvent.scroll(nav);
   act(() => vi.advanceTimersByTime(1000));
-  expect(nav.scrollLeft).toBeGreaterThan(10);
-  expect(nav.scrollLeft).toBeLessThan(20);
+  expect(nav.scrollLeft).toBeGreaterThan(15);
+  expect(nav.scrollLeft).toBeLessThan(35);
   fireEvent.mouseEnter(section);
   const stopped = nav.scrollLeft;
   act(() => vi.advanceTimersByTime(5000));

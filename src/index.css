@@ -127,6 +127,23 @@ body {
   animation: badge-glow 2.4s ease-in-out infinite;
 }
 
+.card-seasonal-glow {
+  --badge-glow-color: rgb(246 196 83 / 0.85);
+  box-shadow: 0 0 14px -1px var(--badge-glow-color), 0 0 0 2px var(--badge-glow-color);
+  animation: card-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes card-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px 1px rgb(246 196 83 / 0.55), 0 0 0 2px rgb(246 196 83 / 0.7);
+  }
+
+  50% {
+    box-shadow: 0 0 18px 4px rgb(246 196 83 / 0.85), 0 0 0 2.5px rgb(246 196 83 / 0.95);
+  }
+}
+
 @keyframes badge-glow {
   0%,
   100% {
@@ -162,5 +179,10 @@ body {
   .badge-glow {
     animation: none;
     box-shadow: 0 0 0 3px var(--badge-glow-color);
+  }
+
+  .card-seasonal-glow {
+    animation: none;
+    box-shadow: 0 0 12px 2px var(--badge-glow-color), 0 0 0 2px var(--badge-glow-color);
   }
 }
