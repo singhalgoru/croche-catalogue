@@ -8,7 +8,9 @@ import {
   attachProductApp,
   fetchBootstrapBestsellers,
   fetchProducts,
+  firstBestsellerImageUrls,
   getProductImageUrl as prerenderImageUrl,
+  injectImagePreloads,
   injectShell,
   injectCatalogueBootstrap,
   fetchBootstrapCategories,
@@ -659,5 +661,31 @@ describe('legacy clean-link compatibility', () => {
     expect(notFound).toContain('/^\\/shopping\\/([^/]+)\\/([^/]+)\\/?$/');
     expect(notFound).toContain("params.set('variant', decode(merchant[2]))");
     expect(renderSitemap([product], '2026-10-01')).not.toContain(prerenderReference(product));
+  });
+});
+
+describe('bestseller LCP preload', () => {
+  const image = (name: string) => `https://images.luviacreations.com/products/u/${name}.webp`;
+  const rows = [
+    { id: 'sold-out', image_url: image('a'), product_variants: [{ sort_order: 0, in_stock: true, available_quantity: 0, image_url: image('a') }] },
+    { id: 'live', image_url: image('b'), product_variants: [
+      { sort_order: 1, in_stock: true, available_quantity: 2, image_url: image('c') },
+      { sort_order: 0, in_stock: false, available_quantity: 0, image_url: image('b') },
+    ] },
+  ];
+
+  it('picks the first ranked product the carousel will actually show, at card width', () => {
+    expect(firstBestsellerImageUrls(rows, ['missing', 'sold-out', 'live'])).toEqual([
+      'https://images.luviacreations.com/products/u/c-w160.webp',
+      'https://images.luviacreations.com/products/u/c-w480.webp',
+    ]);
+    expect(firstBestsellerImageUrls(rows, ['sold-out'])).toEqual([]);
+  });
+
+  it('adds high-priority preloads at the top of head only when there are images', () => {
+    const html = '<html><head><title>x</title></head></html>';
+    expect(injectImagePreloads(html, [])).toBe(html);
+    const result = injectImagePreloads(html, ['https://images.luviacreations.com/a&b.webp', 'https://images.luviacreations.com/c.webp']);
+    expect(result).toContain('<head>\n    <link rel="preload" as="image" href="https://images.luviacreations.com/a&amp;b.webp" fetchpriority="high" />\n    <link rel="preload" as="image" href="https://images.luviacreations.com/c.webp" fetchpriority="high" /><title>');
   });
 });

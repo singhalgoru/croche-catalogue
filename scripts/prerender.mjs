@@ -676,6 +676,26 @@ export const injectCatalogueBootstrap = (html, rows, categories, homepage, bests
     JSON.stringify({ products: rows, categories, homepage, bestsellers }).replace(/</g, '\\u003c')
   }</script></head>`);
 
+/** Mirrors Bestsellers.tsx: the first ranked product with a purchasable variant, as its blurred-backdrop and card URLs. */
+export const firstBestsellerImageUrls = (rows, bestsellers) => {
+  for (const id of bestsellers) {
+    const row = rows.find(candidate => candidate.id === id);
+    if (!row) continue;
+    const variants = [...(row.product_variants ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const resolved = variants.length > 0 ? variants
+      : [{ in_stock: row.in_stock, available_quantity: row.in_stock ? 1 : 0, image_url: row.image_url }];
+    const variant = resolved.find(item => item.in_stock && item.available_quantity > 0);
+    if (!variant) continue;
+    const image = variant.image_url ?? resolved[0].image_url;
+    return image ? [getProductImageUrl(image, 160), getProductImageUrl(image, 480)] : [];
+  }
+  return [];
+};
+
+// Lets the browser fetch the likely LCP photos straight from the HTML instead of after the app bundle runs.
+export const injectImagePreloads = (html, urls) => urls.length === 0 ? html : html.replace(/<head>/, `<head>${
+  [...new Set(urls)].map(url => `\n    <link rel="preload" as="image" href="${escapeHtml(url)}" fetchpriority="high" />`).join('')}`);
+
 const SOCIAL_IMAGE_SIZE = 800;
 
 /**
@@ -766,7 +786,8 @@ const main = async () => {
 
   const indexPath = path.join(DIST, 'index.html');
   const template = injectCatalogueBootstrap(await readFile(indexPath, 'utf8'), rows, categories, homepage, bestsellers);
-  await writeFile(indexPath, injectShell(template, products, whatsappNumber));
+  await writeFile(indexPath, injectImagePreloads(injectShell(template, products, whatsappNumber),
+    firstBestsellerImageUrls(rows, bestsellers)));
 
   for (const product of products) {
     const slug = toProductSlug(product);

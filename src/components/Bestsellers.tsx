@@ -49,8 +49,8 @@ export default function Bestsellers({ products, onSelect, initialIds = [] }: {
           }}
           className="w-[42%] min-w-0 shrink-0 snap-start overflow-hidden rounded-xl border border-mustard/30 bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cocoa sm:w-[calc((100%-24px)/3)]">
           <div className="relative aspect-square overflow-hidden bg-cream-dark">
-            <img src={getProductImageUrl(variant?.image ?? product.image, 480)} alt="" aria-hidden="true"
-              width={480} height={480} loading={loading} decoding="async"
+            <img src={getProductImageUrl(variant?.image ?? product.image, 160)} alt="" aria-hidden="true"
+              width={160} height={160} loading={loading} decoding="async"
               className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" {...productImageProtection} />
             <img src={getProductImageUrl(variant?.image ?? product.image, 480)} alt={product.name}
               width={480} height={480} loading={loading} fetchPriority={index === 0 ? 'high' : 'auto'} decoding="async"

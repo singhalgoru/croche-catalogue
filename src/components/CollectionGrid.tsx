@@ -19,7 +19,7 @@ export default function CollectionGrid({ categories, products }: Props) {
           <a href={collectionPath(category.name)} aria-label={category.name}
             className="group block h-full overflow-hidden rounded-2xl border border-mustard/40 bg-mustard/25 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
             <div className="relative aspect-square overflow-hidden bg-cream-dark">
-              {image && <img src={getProductImageUrl(image, 480)} alt="" aria-hidden="true" width={480} height={480}
+              {image && <img src={getProductImageUrl(image, 160)} alt="" aria-hidden="true" width={160} height={160}
                 loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" />}
               <img src={image ? getProductImageUrl(image, 480) : '/images/luvia-logo-320.webp'} alt="" width={480} height={480}
                 loading="lazy" decoding="async" className="relative h-full w-full object-contain" />

@@ -201,12 +201,13 @@ export default function ProductCard({
         isFeatured ? 'border-2 border-mustard-dark ring-2 ring-mustard/25' : 'border border-mustard/40'
       } cursor-pointer`}
     >
-      {/* Whole photo (watermark in its real corner) over a blurred copy of itself. */}
+      {/* Whole photo (watermark in its real corner) over a blurred copy of itself.
+          The tiny backdrop is invisible once blurred and keeps it from counting as the LCP image. */}
       <div className="relative aspect-square shrink-0 overflow-hidden bg-cream-dark">
         <img
-          src={getProductImageUrl(activeImageUrl, 480)}
-          srcSet={getProductCardSrcSet(activeImageUrl)}
-          sizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+          src={getProductImageUrl(activeImageUrl, 160)}
+          width={160}
+          height={160}
           loading={isFirstProduct ? 'eager' : 'lazy'}
           decoding="async"
           alt=""
