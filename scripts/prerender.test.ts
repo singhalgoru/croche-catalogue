@@ -617,6 +617,19 @@ describe('renderSitemap', () => {
   it('omits unused priority and changefreq fields', () => {
     expect(xml).not.toMatch(/priority|changefreq/);
   });
+
+  it('lists each product photo once as a sized image-sitemap entry', () => {
+    const photo = 'https://images.luviacreations.com/products/rose/main.webp';
+    const angle = 'https://images.luviacreations.com/products/rose/angle.webp';
+    const sitemap = renderSitemap([{ ...product, image: photo, variants: product.variants.map(variant =>
+      ({ ...variant, image: photo, images: [angle, photo] })) }], '2026-10-05');
+    expect(sitemap).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    const entry = sitemap.split('<url>')[3];
+    expect(entry.match(/<image:loc>/g)).toHaveLength(2);
+    expect(entry).toContain('<image:loc>https://images.luviacreations.com/products/rose/main-w960.webp</image:loc>');
+    expect(entry).toContain('<image:loc>https://images.luviacreations.com/products/rose/angle-w960.webp</image:loc>');
+    expect(sitemap.split('<url>')[1]).not.toContain('<image:image>');
+  });
 });
 
 describe('legacy clean-link compatibility', () => {

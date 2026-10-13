@@ -621,6 +621,10 @@ separate robots policy excludes only the exact root (`Disallow: /$`), keeping
 product and Merchant Center image URLs crawlable. Publish that policy to R2
 with `node --env-file=.env.r2.local scripts/publish-image-host-robots.mjs`.
 Changing the catalogue's `public/robots.txt` does not affect the image subdomain.
+The image host deliberately has no sitemap of its own: product photos are
+listed as `<image:image>` entries (960 px copies) under each product page in the
+main `https://luviacreations.com/sitemap.xml`, which Google accepts for images
+served from another host.
 
 If the image host changes, update `isR2ImageHost`, the CSP in `index.html`,
 `scripts/prerender.mjs` and `public/catalogue-prefetch.js`. R2 photos are

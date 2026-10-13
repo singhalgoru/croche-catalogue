@@ -571,9 +571,17 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
 `;
 };
 
+const sitemapImages = (product) => [
+  product.image,
+  ...product.variants.flatMap(variant => [variant.image, ...(variant.images ?? [])]),
+].filter((image, index, images) => image && images.indexOf(image) === index)
+  .map(image => getProductImageUrl(image, 960))
+  .filter((image, index, images) => /^https:\/\//.test(image) && images.indexOf(image) === index);
+
 const renderSitemap = (products, today, additionalPaths = []) => {
-  const entry = (loc, lastmod) =>
-    `  <url>\n    <loc>${escapeHtml(loc)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}\n  </url>`;
+  const entry = (loc, lastmod, images = []) =>
+    `  <url>\n    <loc>${escapeHtml(loc)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}${images
+      .map(image => `\n    <image:image>\n      <image:loc>${escapeHtml(image)}</image:loc>\n    </image:image>`).join('')}\n  </url>`;
   const productLastmod = (product) => {
     for (const value of [product.updatedAt, product.publishedAt]) {
       if (typeof value === 'string' && value.trim() && Number.isFinite(Date.parse(value))) {
@@ -591,12 +599,13 @@ const renderSitemap = (products, today, additionalPaths = []) => {
       entry(
         productUrl(product),
         productLastmod(product),
+        sitemapImages(product),
       ),
     ),
     ...additionalPaths.map(pathname => entry(`${ORIGIN}${pathname}`, null)),
   ];
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${urls.join('\n')}\n</urlset>\n`;
 };
 
 // --- build step ---
