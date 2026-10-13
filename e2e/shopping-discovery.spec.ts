@@ -59,6 +59,11 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
     expect(geometry.width / geometry.card).toBeLessThan(2.8);
     await expect(page.getByRole('button', { name: 'Next collections' })).toBeHidden();
     await collections.evaluate(element => element.scrollBy({ left: element.clientWidth, behavior: 'instant' }));
+    const touchTarget = collections.locator('a').nth(1);
+    const box = await touchTarget.boundingBox();
+    if (box) {
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    }
   } else {
     await expect(page.getByRole('button', { name: 'Previous collections' })).toBeDisabled();
     const arrow = await page.getByRole('button', { name: 'Next collections' }).boundingBox();

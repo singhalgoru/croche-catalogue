@@ -10,6 +10,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
   const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [looping, setLooping] = useState(false);
   const cards = Children.toArray(children);
@@ -51,7 +52,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     return () => observer.disconnect();
   }, [itemCount, looping]);
   useEffect(() => {
-    if (paused || hovered || focused || reducedMotion || !looping) return;
+    if (paused || hovered || focused || touched || reducedMotion || !looping) return;
     let animation: number;
     let previous: number | undefined;
     const glide = (now: number) => {
@@ -69,7 +70,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     };
     animation = window.requestAnimationFrame(glide);
     return () => window.cancelAnimationFrame(animation);
-  }, [paused, hovered, focused, reducedMotion, looping]);
+  }, [paused, hovered, focused, touched, reducedMotion, looping]);
   const scroll = (direction: number) => {
     const element = track.current;
     if (element) {
@@ -80,6 +81,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
   const Track = navigation ? 'nav' : 'div';
   return <section aria-labelledby={`${id}-heading`} className="relative min-w-0 space-y-3"
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+    onTouchStart={() => setTouched(true)} onTouchEnd={() => setTouched(false)} onTouchCancel={() => setTouched(false)}
     onFocusCapture={() => setFocused(true)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
     <div className="flex items-center justify-between gap-3">

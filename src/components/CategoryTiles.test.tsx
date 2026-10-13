@@ -114,4 +114,10 @@ it('glides continuously at 26px per second, loops seamlessly and pauses safely',
   act(() => vi.advanceTimersByTime(5000));
   expect(nav.scrollLeft).toBe(stopped);
   vi.restoreAllMocks();
+  fireEvent.touchStart(section);
+  act(() => vi.advanceTimersByTime(5000));
+  expect(nav.scrollLeft).toBe(stopped);
+  fireEvent.touchEnd(section);
+  act(() => vi.advanceTimersByTime(2000));
+  expect(nav.scrollLeft - stopped).toBeCloseTo(52, 0);
 });

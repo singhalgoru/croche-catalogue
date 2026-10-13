@@ -16,11 +16,11 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
 - A logo-only mobile brand row with a 64px logo and short header tagline keep browsing uncluttered; desktop retains the full introduction
 - Category filtering and search
-- Homepage collections feature a stationary, glowing seasonal collection card anchored at the start, while the remaining collections rotate continuously beside it in a ticker-style carousel with pause controls and a View all link.
+- Homepage collections feature a stationary, glowing seasonal collection card anchored at the start, while the remaining collections rotate continuously beside it in a ticker-style carousel with touch-pause, hover-pause, keyboard controls and a View all link.
 - Search, All and New remain visible; other homepage category filters sit in a compact Filter by category disclosure.
 - Seasonal collections support custom cover images, with full-photo display and automatic cleanup of replaced public image renditions.
 - Bestseller cards show the full product image over a softly blurred backdrop, keeping embedded corner logos visible.
-- Bestsellers uses the same smooth rotating carousel, with up to six sales-ranked available products, continuous ticker motion, image-centered inset arrows and no native scrollbar lines. Search and category filters follow the carousel.
+- Bestsellers uses the same smooth rotating carousel, with up to six sales-ranked available products, continuous ticker motion, touch-pause interaction, image-centered inset arrows and no native scrollbar lines. Search and category filters follow the carousel.
 - Verified admins share catalogue management, including products, variants and gallery images, with MFA and audit protections retained.
 - Admin product edits confirm the database update before reporting success and retain failed-save messages.
 - FAQ explains AI-assisted lifestyle imagery and how to request actual product photographs before ordering.
