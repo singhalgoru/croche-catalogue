@@ -102,5 +102,6 @@ export function useCatalogueProducts() {
   }, [refreshProducts]);
 
   return { products, categorySettings, isLoading, loadError, refreshProducts,
-    hasCatalogueSnapshot: bootstrap !== null, homepageMetadata: bootstrap?.homepage };
+    hasCatalogueSnapshot: bootstrap !== null, homepageMetadata: bootstrap?.homepage,
+    initialBestsellerIds: bootstrap?.bestsellers ?? [] };
 }

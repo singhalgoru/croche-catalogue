@@ -71,3 +71,24 @@ it('logs API failures without displaying misleading bestsellers', async () => {
   expect(screen.queryByRole('heading')).toBeNull();
   log.mockRestore();
 });
+
+it('renders the build-time ranking on first paint with eager above-the-fold photos', () => {
+  rpc.mockReturnValue(new Promise(() => {}));
+  const items = ['a', 'b', 'c', 'd'].map(product);
+  render(<Bestsellers products={items} initialIds={['c', 'a', 'b', 'd']} onSelect={vi.fn()} />);
+  expect(screen.getByRole('heading', { name: 'Bestsellers' })).toBeTruthy();
+  const photos = screen.getAllByRole('img');
+  expect(photos.map(image => image.getAttribute('alt'))).toEqual(['Product c', 'Product a', 'Product b', 'Product d']);
+  expect(photos.map(image => image.getAttribute('loading'))).toEqual(['eager', 'eager', 'eager', 'lazy']);
+  expect(photos[0].getAttribute('fetchpriority')).toBe('high');
+  expect(photos[0].previousElementSibling?.getAttribute('loading')).toBe('eager');
+});
+
+it('keeps the build-time ranking when the live refresh fails', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  rpc.mockResolvedValue({ data: null, error: { message: 'Unavailable' } });
+  render(<Bestsellers products={[product('a'), product('b')]} initialIds={['b', 'a']} onSelect={vi.fn()} />);
+  await waitFor(() => expect(log).toHaveBeenCalled());
+  expect(screen.getAllByRole('link')[0].textContent).toContain('Product b');
+  log.mockRestore();
+});

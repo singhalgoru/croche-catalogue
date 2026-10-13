@@ -384,6 +384,7 @@ export function readCatalogueBootstrap(): {
   products: Product[];
   categories: CategorySettings[];
   homepage: { title: string; description: string; canonical: string };
+  bestsellers: string[];
 } | null {
   const source = document.getElementById('catalogue-bootstrap')?.textContent;
   if (!source) return null;
@@ -392,13 +393,17 @@ export function readCatalogueBootstrap(): {
       products: ProductRow[];
       categories: CategorySettings[];
       homepage: { title: string; description: string; canonical: string };
+      bestsellers?: unknown;
     };
     if (!Array.isArray(data.products) || !Array.isArray(data.categories) ||
         !data.homepage || typeof data.homepage.title !== 'string' ||
         typeof data.homepage.description !== 'string' || typeof data.homepage.canonical !== 'string') {
       throw new Error('Invalid catalogue bootstrap data.');
     }
-    return { products: data.products.map(mapProductRow), categories: data.categories, homepage: data.homepage };
+    const bestsellers = Array.isArray(data.bestsellers)
+      ? data.bestsellers.filter((id): id is string => typeof id === 'string')
+      : [];
+    return { products: data.products.map(mapProductRow), categories: data.categories, homepage: data.homepage, bestsellers };
   } catch (error) {
     console.error('Unable to read the initial catalogue snapshot:', error);
     return null;

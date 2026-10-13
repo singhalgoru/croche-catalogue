@@ -15,7 +15,7 @@ const product: Product = {
 const categories = [{ name: 'Toys', priority: 10 }];
 const homepage = { title: 'Catalogue', description: 'Catalogue summary.', canonical: 'https://luviacreations.com/' };
 beforeEach(() => {
-  vi.mocked(readCatalogueBootstrap).mockReturnValue({ products: [product], categories, homepage });
+  vi.mocked(readCatalogueBootstrap).mockReturnValue({ products: [product], categories, homepage, bestsellers: [] });
   vi.mocked(fetchCategorySettings).mockResolvedValue(categories);
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.resetAllMocks(); });

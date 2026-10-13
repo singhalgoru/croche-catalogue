@@ -21,7 +21,7 @@ it('preserves category order, links and prefers available product images', () =>
   expect(links.map(link => link.textContent)).toEqual(['Toys', 'Charms & Keychains']);
   expect(links[1].getAttribute('href')).toContain('/collections/charms-keychains/');
   expect(links[1].querySelector('img')?.getAttribute('src')).toContain('available');
-  expect(links[0].querySelector('img')?.getAttribute('loading')).toBe('lazy');
+  expect(links.map(link => link.querySelector('img')?.getAttribute('loading'))).toEqual(['eager', 'eager']);
 });
 it('places seasonal categories first even when supplied after regular categories', () => {
   render(<CategoryTiles categories={['Charms & Keychains', 'Festive']}
@@ -120,4 +120,11 @@ it('glides continuously at 26px per second, loops seamlessly and pauses safely',
   fireEvent.touchEnd(section);
   act(() => vi.advanceTimersByTime(2000));
   expect(nav.scrollLeft - stopped).toBeCloseTo(52, 0);
+});
+
+it('loads only the collection photos visible on first paint eagerly', () => {
+  const categories = ['A', 'B', 'C', 'D'];
+  render(<CategoryTiles categories={categories} products={categories.map(category => ({ ...product, id: category, category }))} />);
+  const links = within(screen.getByRole('navigation', { name: 'Explore collections' })).getAllByRole('link');
+  expect(links.map(link => link.querySelector('img')?.getAttribute('loading'))).toEqual(['eager', 'eager', 'lazy', 'lazy']);
 });

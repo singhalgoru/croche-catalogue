@@ -164,11 +164,13 @@ describe('product detail loading', () => {
     script.textContent = JSON.stringify({
       products: [row], categories: [{ name: row.category, priority: 10 }],
       homepage: { title: 'Catalogue', description: 'Catalogue summary.', canonical: 'https://luviacreations.com/' },
+      bestsellers: ['b', 7, 'a'],
     });
     document.head.append(script);
     try {
       expect(readCatalogueBootstrap()?.products[0]).toMatchObject({ id: row.id, image: row.image_url });
       expect(readCatalogueBootstrap()?.categories).toEqual([{ name: row.category, priority: 10 }]);
+      expect(readCatalogueBootstrap()?.bestsellers).toEqual(['b', 'a']);
       expect(from).not.toHaveBeenCalled();
     } finally { script.remove(); }
   });

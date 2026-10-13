@@ -55,7 +55,7 @@ const readCheckoutStep = () => {
 };
 
 function App() {
-  const { products, categorySettings, isLoading, loadError, refreshProducts, hasCatalogueSnapshot, homepageMetadata } =
+  const { products, categorySettings, isLoading, loadError, refreshProducts, hasCatalogueSnapshot, homepageMetadata, initialBestsellerIds } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
   const [checkoutStep, setCheckoutStep] = useState(readCheckoutStep);
@@ -731,7 +731,7 @@ function App() {
       <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
-        {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} onSelect={selectProduct} />}
+        {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} initialIds={initialBestsellerIds} onSelect={selectProduct} />}
         <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
           <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />

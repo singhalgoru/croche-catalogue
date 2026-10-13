@@ -651,9 +651,29 @@ export const fetchBootstrapCategories = async (supabaseUrl, anonKey) => {
     .sort((a, b) => Number(b.isSeasonal) - Number(a.isSeasonal) || a.priority - b.priority || a.name.localeCompare(b.name));
 };
 
-export const injectCatalogueBootstrap = (html, rows, categories, homepage) =>
+export const fetchBootstrapBestsellers = async (supabaseUrl, anonKey) => {
+  try {
+    const response = await fetch(new URL('/rest/v1/rpc/get_catalogue_bestsellers', supabaseUrl), {
+      method: 'POST',
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows) || rows.some(row => !row || typeof row.product_id !== 'string')) {
+      throw new Error('invalid response');
+    }
+    return [...new Set(rows.map(row => row.product_id))].slice(0, 6);
+  } catch (error) {
+    // Bestsellers are an enhancement: the app still fetches them at runtime.
+    console.warn(`[prerender] Bestseller snapshot unavailable (${error instanceof Error ? error.message : error}).`);
+    return [];
+  }
+};
+
+export const injectCatalogueBootstrap = (html, rows, categories, homepage, bestsellers = []) =>
   html.replace('</head>', `<script id="catalogue-bootstrap" type="application/json">${
-    JSON.stringify({ products: rows, categories, homepage }).replace(/</g, '\\u003c')
+    JSON.stringify({ products: rows, categories, homepage, bestsellers }).replace(/</g, '\\u003c')
   }</script></head>`);
 
 const SOCIAL_IMAGE_SIZE = 800;
@@ -732,9 +752,10 @@ const main = async () => {
     return;
   }
 
-  const [rows, categories] = await Promise.all([
+  const [rows, categories, bestsellers] = await Promise.all([
     fetchProductRows(supabaseUrl, anonKey),
     fetchBootstrapCategories(supabaseUrl, anonKey),
+    fetchBootstrapBestsellers(supabaseUrl, anonKey),
   ]);
   const products = rows.map(toProduct);
   const homepage = {
@@ -744,7 +765,7 @@ const main = async () => {
   };
 
   const indexPath = path.join(DIST, 'index.html');
-  const template = injectCatalogueBootstrap(await readFile(indexPath, 'utf8'), rows, categories, homepage);
+  const template = injectCatalogueBootstrap(await readFile(indexPath, 'utf8'), rows, categories, homepage, bestsellers);
   await writeFile(indexPath, injectShell(template, products, whatsappNumber));
 
   for (const product of products) {

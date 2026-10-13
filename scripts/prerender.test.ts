@@ -6,6 +6,7 @@ import {
   escapeHtml,
   getProductMetaDescription as prerenderMetaDescription,
   attachProductApp,
+  fetchBootstrapBestsellers,
   fetchProducts,
   getProductImageUrl as prerenderImageUrl,
   injectShell,
@@ -72,6 +73,24 @@ describe('fetchProducts', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Unavailable' }));
     await expect(fetchBootstrapCategories('https://example.supabase.co', 'public-key')).rejects.toThrow('503');
   });
+  it('snapshots up to six distinct bestseller ids from the public RPC', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () =>
+      ['b', 'b', 'a', 'c', 'd', 'e', 'f', 'g'].map(product_id => ({ product_id })) });
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await fetchBootstrapBestsellers('https://example.supabase.co', 'public-key')).toEqual(['b', 'a', 'c', 'd', 'e', 'f']);
+    expect(String(fetchMock.mock.calls[0][0])).toBe('https://example.supabase.co/rest/v1/rpc/get_catalogue_bestsellers');
+    expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+  });
+  it('builds without a bestseller snapshot when the RPC is unavailable', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Unavailable' }));
+      expect(await fetchBootstrapBestsellers('https://example.supabase.co', 'public-key')).toEqual([]);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [{ product_id: 1 }] }));
+      expect(await fetchBootstrapBestsellers('https://example.supabase.co', 'public-key')).toEqual([]);
+      expect(warning).toHaveBeenCalledTimes(2);
+    } finally { warning.mockRestore(); }
+  });
   it('fetches every published page, not just Supabase’s first 1,000 products', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => Array(1000).fill(row) })
@@ -120,12 +139,13 @@ describe('parity with the app helpers', () => {
     const rows = [{ ...row, description: '</script><script>alert(1)</script>' }];
     const template = injectCatalogueBootstrap(
       '<html><head><meta http-equiv="Content-Security-Policy" content="default-src \'self\'" /><script type="module" src="/app.js"></script><link rel="stylesheet" href="/app.css"></head></html>',
-      rows, [{ name: 'Toys', priority: 10 }], homepage,
+      rows, [{ name: 'Toys', priority: 10 }], homepage, ['b', 'a'],
     );
     expect(template).not.toContain('</script><script>alert(1)');
     const json = template.match(/id="catalogue-bootstrap" type="application\/json">([\s\S]*?)<\/script>/)![1];
     expect(JSON.parse(json).products).toEqual(rows);
     expect(JSON.parse(json).homepage).toEqual(homepage);
+    expect(JSON.parse(json).bestsellers).toEqual(['b', 'a']);
     const page = attachProductApp(renderProductPage(product), template);
     expect(page).toContain(`id="catalogue-bootstrap" type="application/json">${json}</script>`);
   });
