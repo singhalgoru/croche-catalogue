@@ -10,12 +10,20 @@ const bands = [
   { minimum: 451, maximum: 650, label: '₹451–₹650' },
   { minimum: 651, maximum: null, label: '₹651+' },
 ];
+const priceBandsByCategory = new Map([
+  ['All', bands],
+  ['Decor', bands],
+  ['Navratri Specials', bands],
+  ['Toys', [{ minimum: 251, maximum: null, label: '₹251+' }]],
+]);
 
 it('groups category and suggested price choices under one compact filter control', () => {
   const onApplyPriceRange = vi.fn();
   const onSelectCategory = vi.fn();
+  const onApplyFilters = vi.fn();
   render(<MobileCatalogueFilters activeCategory="All" activePriceRange={null}
     categories={['Decor', 'Navratri Specials', 'Toys']} seasonalCategories={['Navratri Specials']} priceBands={bands}
+    priceBandsByCategory={priceBandsByCategory} onApplyFilters={onApplyFilters}
     onApplyPriceRange={onApplyPriceRange} onSelectCategory={onSelectCategory} />);
 
   const seasonal = screen.getByRole('button', { name: 'Navratri Specials' });
@@ -28,12 +36,18 @@ it('groups category and suggested price choices under one compact filter control
   fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
   const dialog = screen.getByRole('dialog', { name: 'Filter products' });
   expect(dialog.className).toContain('w-full');
+  expect(screen.getByText('Scroll to see all 5 categories')).toBeTruthy();
   const grid = screen.getByRole('button', { name: 'Up to ₹250' }).parentElement!;
   expect(grid.className).toContain('grid-cols-2');
   fireEvent.click(screen.getByRole('button', { name: 'Toys' }));
-  fireEvent.click(screen.getByRole('button', { name: '₹251–₹450' }));
-  expect(onSelectCategory).toHaveBeenCalledWith('Toys');
-  expect(onApplyPriceRange).toHaveBeenCalledWith({ minimum: 251, maximum: 450 });
+  expect(onSelectCategory).toHaveBeenCalledTimes(1);
+  expect(onApplyPriceRange).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: '₹251+' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '₹251+' }));
+  expect(screen.getByRole('dialog', { name: 'Filter products' })).toBeTruthy();
+  expect(onApplyFilters).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
+  expect(onApplyFilters).toHaveBeenCalledWith('Toys', { minimum: 251, maximum: null });
   expect(screen.getByRole('button', { name: 'Filters' }).getAttribute('aria-expanded')).toBe('false');
   expect(screen.queryByRole('dialog', { name: 'Filter products' })).toBeNull();
 });
@@ -41,6 +55,7 @@ it('groups category and suggested price choices under one compact filter control
 it('opens a modal filter dialog and supports Escape dismissal', () => {
   render(<MobileCatalogueFilters activeCategory="All" activePriceRange={null}
     categories={['Toys']} priceBands={bands}
+    priceBandsByCategory={priceBandsByCategory} onApplyFilters={vi.fn()}
     onApplyPriceRange={vi.fn()} onSelectCategory={vi.fn()} />);
 
   const trigger = screen.getByRole('button', { name: 'Filters' });
@@ -56,27 +71,35 @@ it('opens a modal filter dialog and supports Escape dismissal', () => {
 it('validates a custom price range and supports clearing both filters', () => {
   const onApplyPriceRange = vi.fn();
   const onSelectCategory = vi.fn();
+  const onApplyFilters = vi.fn();
   render(<MobileCatalogueFilters activeCategory="Toys" activePriceRange={bands[1]}
     categories={['Decor', 'Toys']} priceBands={bands}
+    priceBandsByCategory={priceBandsByCategory} onApplyFilters={onApplyFilters}
     onApplyPriceRange={onApplyPriceRange} onSelectCategory={onSelectCategory} />);
 
   fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
   fireEvent.change(screen.getByLabelText('Minimum'), { target: { value: '500' } });
   fireEvent.change(screen.getByLabelText('Maximum'), { target: { value: '250' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Apply custom price' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
   expect(screen.getByRole('alert').textContent).toContain('must not exceed');
+  expect(screen.getByRole('dialog', { name: 'Filter products' })).toBeTruthy();
+  expect(onApplyFilters).not.toHaveBeenCalled();
   expect(onApplyPriceRange).not.toHaveBeenCalled();
 
   fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
-  expect(onSelectCategory).toHaveBeenCalledWith('All');
-  expect(onApplyPriceRange).toHaveBeenCalledWith(null);
+  expect(screen.getByRole('button', { name: 'All', pressed: true })).toBeTruthy();
+  expect(onSelectCategory).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
+  expect(onApplyFilters).toHaveBeenCalledWith('All', null);
 });
 
 it('shows active category and price filters in the horizontal bar with individual clear actions', () => {
   const onApplyPriceRange = vi.fn();
   const onSelectCategory = vi.fn();
+  const onApplyFilters = vi.fn();
   render(<MobileCatalogueFilters activeCategory="Toys" activePriceRange={bands[1]}
     categories={['Decor', 'Toys']} priceBands={bands}
+    priceBandsByCategory={priceBandsByCategory} onApplyFilters={onApplyFilters}
     onApplyPriceRange={onApplyPriceRange} onSelectCategory={onSelectCategory} />);
 
   expect(screen.getByRole('button', { name: 'Clear category filter: Toys' }).textContent)

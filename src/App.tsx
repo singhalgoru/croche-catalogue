@@ -43,7 +43,12 @@ import {
   toPublicVariantSlug,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
-import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from './utils/cataloguePrice';
+import {
+  getCataloguePriceBands,
+  matchesCataloguePriceRange,
+  type CataloguePriceBand,
+  type CataloguePriceRange,
+} from './utils/cataloguePrice';
 import { getProductMetaDescription } from './utils/productMetaDescription';
 import { collectionPath } from './utils/collectionLink.js';
 
@@ -182,6 +187,18 @@ function App() {
     [effectiveActiveCategory, catalogueTime, categorySettings, products],
   );
   const priceBands = useMemo(() => getCataloguePriceBands(categoryProducts), [categoryProducts]);
+  const priceBandsByCategory = useMemo(() => {
+    const filters: CatalogueFilter[] = ['All', ...(hasNewProducts ? ['New'] : []), ...categories];
+    return new Map<CatalogueFilter, CataloguePriceBand[]>(filters.map(category => {
+      const matchingProducts = products.filter(product =>
+        category === 'All'
+        || (category === 'New'
+          ? isProductNew(product, catalogueTime)
+          : matchesCategory(product, category, categorySettings)),
+      );
+      return [category, getCataloguePriceBands(matchingProducts)];
+    }));
+  }, [categories, hasNewProducts, catalogueTime, categorySettings, products]);
 
   useEffect(() => {
     const tools = catalogueToolsRef.current;
@@ -403,8 +420,10 @@ function App() {
 
   // Tapping the active category again clears the filter, so users can get
   // back to the full catalogue without hunting for the "All" chip.
-  const selectCategory = (category: CatalogueFilter) => {
-    const next = resolveCategorySelection(category, effectiveActiveCategory);
+  const selectCategory = (category: CatalogueFilter, toggleCurrent = true) => {
+    const next = toggleCurrent
+      ? resolveCategorySelection(category, effectiveActiveCategory)
+      : category;
     trackEvent('select_category', { category: next });
     if (activePriceRange && !products.some((product) => {
       const matchesNextCategory =
@@ -424,6 +443,10 @@ function App() {
     }
     setActiveCategory(next);
     setCategoryScrollRequest((current) => current + 1);
+  };
+  const applyCatalogueFilters = (category: CatalogueFilter, range: CataloguePriceRange | null) => {
+    selectCategory(category, false);
+    setActivePriceRange(range);
   };
 
   const filteredProducts = useMemo(() => {
@@ -775,6 +798,8 @@ function App() {
                 activePriceRange={activePriceRange} categories={categories}
                 seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
                 showNew={hasNewProducts} priceBands={priceBands}
+                priceBandsByCategory={priceBandsByCategory}
+                onApplyFilters={applyCatalogueFilters}
                 onSelectCategory={selectCategory} onApplyPriceRange={setActivePriceRange} />
               <div className="hidden flex-wrap items-center justify-center gap-2 sm:flex">
                 <CategoryFilter
@@ -817,6 +842,8 @@ function App() {
               activePriceRange={activePriceRange} categories={categories}
               seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
               showNew={hasNewProducts} priceBands={priceBands}
+              priceBandsByCategory={priceBandsByCategory}
+              onApplyFilters={applyCatalogueFilters}
               onSelectCategory={selectCategory} onApplyPriceRange={setActivePriceRange} />
           </div>
         )}

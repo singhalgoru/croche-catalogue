@@ -148,12 +148,20 @@ describe('Hybrid product navigation', () => {
     panel = screen.getByRole('dialog', { name: 'Filter products' });
     expect(within(panel).getAllByRole('button', { name: /₹/ }).map(button => button.textContent))
       .toEqual(['Up to ₹650', '₹651+']);
+    expect(screen.getByLabelText('Filtered products').textContent)
+      .toContain('Low-priced Home item');
 
     fireEvent.click(within(panel).getByRole('button', { name: '₹651+' }));
+    expect(screen.getByRole('dialog', { name: 'Filter products' })).toBeTruthy();
+    expect(screen.getByLabelText('Filtered products').textContent)
+      .toContain('Low-priced Home item');
+    fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
     expect(screen.getByLabelText('Filtered products').textContent).toBe('High-priced Toy');
     fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
     panel = screen.getByRole('dialog', { name: 'Filter products' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Home' }));
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('High-priced Toy');
+    fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
     expect(screen.getByLabelText('Filtered products').textContent)
       .toBe('Low-priced Home item, High-priced Home item');
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));

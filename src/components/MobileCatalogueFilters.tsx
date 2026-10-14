@@ -8,9 +8,11 @@ interface Props {
   activeCategory: CatalogueFilter;
   activePriceRange: CataloguePriceRange | null;
   categories: Category[];
+  onApplyFilters: (category: CatalogueFilter, range: CataloguePriceRange | null) => void;
   onApplyPriceRange: (range: CataloguePriceRange | null) => void;
   onSelectCategory: (category: CatalogueFilter) => void;
   priceBands: CataloguePriceBand[];
+  priceBandsByCategory: ReadonlyMap<CatalogueFilter, CataloguePriceBand[]>;
   seasonalCategories?: Category[];
   showNew?: boolean;
 }
@@ -19,38 +21,25 @@ export default function MobileCatalogueFilters({
   activeCategory,
   activePriceRange,
   categories,
+  onApplyFilters,
   onApplyPriceRange,
   onSelectCategory,
   priceBands,
+  priceBandsByCategory,
   seasonalCategories = [],
   showNew = true,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const sourceMinimum = activePriceRange?.minimum ?? null;
-  const sourceMaximum = activePriceRange?.maximum ?? null;
-  const [draftRange, setDraftRange] = useState(() => ({
-    sourceMinimum,
-    sourceMaximum,
-    minimum: sourceMinimum?.toString() ?? '',
-    maximum: sourceMaximum?.toString() ?? '',
-  }));
-  if (draftRange.sourceMinimum !== sourceMinimum || draftRange.sourceMaximum !== sourceMaximum) {
-    setDraftRange({
-      sourceMinimum,
-      sourceMaximum,
-      minimum: sourceMinimum?.toString() ?? '',
-      maximum: sourceMaximum?.toString() ?? '',
-    });
-  }
-  const minimum = draftRange.minimum;
-  const maximum = draftRange.maximum;
-  const setMinimum = (value: string) => setDraftRange(current => ({ ...current, minimum: value }));
-  const setMaximum = (value: string) => setDraftRange(current => ({ ...current, maximum: value }));
+  const [draftCategory, setDraftCategory] = useState(activeCategory);
+  const [minimum, setMinimum] = useState(activePriceRange?.minimum?.toString() ?? '');
+  const [maximum, setMaximum] = useState(activePriceRange?.maximum?.toString() ?? '');
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const activeCount = Number(activeCategory !== 'All') + Number(activePriceRange !== null);
   const options: Category[] = ['All', ...(showNew ? ['New'] : []), ...categories];
+  const draftPriceBands = priceBandsByCategory.get(draftCategory) ?? [];
+  const draftCount = Number(draftCategory !== 'All') + Number(minimum !== '' || maximum !== '');
   const selectedBand = activePriceRange && priceBands.find(
     band => band.minimum === activePriceRange.minimum && band.maximum === activePriceRange.maximum,
   );
@@ -68,6 +57,13 @@ export default function MobileCatalogueFilters({
     : null;
 
   const closeFilters = useCallback(() => setOpen(false), []);
+  const openFilters = () => {
+    setDraftCategory(activeCategory);
+    setMinimum(activePriceRange?.minimum?.toString() ?? '');
+    setMaximum(activePriceRange?.maximum?.toString() ?? '');
+    setError('');
+    setOpen(true);
+  };
   const clearFilters = () => {
     onSelectCategory('All');
     onApplyPriceRange(null);
@@ -75,6 +71,12 @@ export default function MobileCatalogueFilters({
     setMaximum('');
     setError('');
     closeFilters();
+  };
+  const clearDraftFilters = () => {
+    setDraftCategory('All');
+    setMinimum('');
+    setMaximum('');
+    setError('');
   };
 
   useEffect(() => {
@@ -111,7 +113,7 @@ export default function MobileCatalogueFilters({
     };
   }, [open, closeFilters]);
 
-  const applyCustomRange = (event: FormEvent<HTMLFormElement>) => {
+  const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const min = minimum === '' ? null : Number(minimum);
     const max = maximum === '' ? null : Number(maximum);
@@ -125,7 +127,10 @@ export default function MobileCatalogueFilters({
       return;
     }
     setError('');
-    onApplyPriceRange(min === null && max === null ? null : { minimum: min, maximum: max });
+    onApplyFilters(
+      draftCategory,
+      min === null && max === null ? null : { minimum: min, maximum: max },
+    );
     closeFilters();
   };
 
@@ -142,7 +147,7 @@ export default function MobileCatalogueFilters({
           </button>
         ))}
         <button type="button" aria-expanded={open} aria-controls="mobile-catalogue-filters"
-          onClick={() => setOpen(value => !value)}
+          onClick={() => open ? closeFilters() : openFilters()}
           className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${
             activeCount ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-white text-cocoa'
           }`}>
@@ -180,8 +185,8 @@ export default function MobileCatalogueFilters({
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-mustard/30 px-4 py-3">
               <h2 id="mobile-catalogue-filters-title" className="font-heading text-lg font-bold">Filter products</h2>
               <div className="flex items-center gap-2">
-                {activeCount > 0 && <button type="button" className="min-h-10 px-2 text-sm underline"
-                  onClick={clearFilters}>Clear all</button>}
+                {draftCount > 0 && <button type="button" className="min-h-10 px-2 text-sm underline"
+                  onClick={clearDraftFilters}>Clear all</button>}
                 <button ref={closeButtonRef} type="button" onClick={closeFilters}
                   aria-label="Close filters"
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-cocoa/20 text-2xl">×</button>
@@ -189,13 +194,24 @@ export default function MobileCatalogueFilters({
             </div>
             <div className="min-h-0 overflow-y-auto p-4">
               <fieldset>
-                <legend className="mb-2 text-sm font-semibold">Category</legend>
-                <div className="grid max-h-36 grid-cols-2 gap-2 overflow-y-auto">
+                <legend className="mb-2 flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold">Category ({options.length})</span>
+                  {options.length > 4 && <span className="text-xs text-cocoa/65">
+                    Scroll to see all {options.length} categories
+                  </span>}
+                </legend>
+                <div className="grid max-h-[min(32dvh,16rem)] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pb-1">
                   {options.map(category => {
-                    const selected = category === activeCategory;
+                    const selected = category === draftCategory;
                     const seasonal = seasonalCategories.includes(category);
                     return <button key={category} type="button" aria-pressed={selected}
-                      onClick={() => onSelectCategory(category)}
+                      onClick={() => {
+                        if (category === draftCategory) return;
+                        setDraftCategory(category);
+                        setMinimum('');
+                        setMaximum('');
+                        setError('');
+                      }}
                       className={`min-h-10 rounded-xl border px-3 py-2 text-left text-sm font-semibold ${
                         selected ? 'border-cocoa bg-cocoa text-cream'
                           : seasonal ? 'border-mustard bg-mustard/40 text-cocoa'
@@ -204,19 +220,17 @@ export default function MobileCatalogueFilters({
                   })}
                 </div>
               </fieldset>
-              {priceBands.length > 0 && <fieldset className="mt-4">
+              {draftPriceBands.length > 0 && <fieldset className="mt-4">
                 <legend className="mb-2 text-sm font-semibold">Price range</legend>
                 <div className="grid grid-cols-2 gap-2">
-                  {priceBands.map(band => {
-                    const selected = activePriceRange?.minimum === band.minimum
-                      && activePriceRange.maximum === band.maximum;
+                  {draftPriceBands.map(band => {
+                    const selected = Number(minimum) === band.minimum
+                      && (maximum === '' ? null : Number(maximum)) === band.maximum;
                     return <button key={band.label} type="button" aria-pressed={selected}
                       onClick={() => {
-                        onApplyPriceRange({ minimum: band.minimum, maximum: band.maximum });
                         setMinimum(String(band.minimum));
                         setMaximum(band.maximum === null ? '' : String(band.maximum));
                         setError('');
-                        closeFilters();
                       }}
                       className={`min-h-10 rounded-xl border px-3 py-2 text-sm font-semibold ${
                         selected ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard/40 bg-cream/40 text-cocoa'
@@ -224,7 +238,7 @@ export default function MobileCatalogueFilters({
                   })}
                 </div>
               </fieldset>}
-              <form onSubmit={applyCustomRange} className="mt-4 border-t border-mustard/30 pt-3">
+              <form id="mobile-catalogue-filter-form" onSubmit={applyFilters} className="mt-4 border-t border-mustard/30 pt-3">
                 <fieldset>
                   <legend className="mb-2 text-sm font-semibold">Custom price (₹)</legend>
                   <div className="grid grid-cols-2 gap-2">
@@ -241,15 +255,16 @@ export default function MobileCatalogueFilters({
                   </div>
                 </fieldset>
                 {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
-                <button type="submit" className="mt-3 min-h-10 rounded-full bg-cocoa px-4 text-sm font-semibold text-cream">
-                  Apply custom price
-                </button>
               </form>
             </div>
-            <div className="flex shrink-0 justify-end border-t border-mustard/30 p-3">
+            <div className="flex shrink-0 justify-between gap-3 border-t border-mustard/30 p-3">
               <button type="button" onClick={closeFilters}
-                className="min-h-10 rounded-full bg-cocoa px-5 text-sm font-semibold text-cream">
-                Done
+                className="min-h-11 rounded-full border border-cocoa/25 px-5 text-sm font-semibold text-cocoa">
+                Cancel
+              </button>
+              <button type="submit" form="mobile-catalogue-filter-form"
+                className="min-h-11 rounded-full bg-cocoa px-5 text-sm font-semibold text-cream">
+                Show results
               </button>
             </div>
           </section>
