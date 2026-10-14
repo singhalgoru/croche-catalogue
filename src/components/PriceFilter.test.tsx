@@ -34,9 +34,18 @@ it('rejects inverted ranges and leaves the active filter unchanged', () => {
 it('clears the active range', () => {
   const onApply = vi.fn();
   render(<PriceFilter active={{ minimum: 100, maximum: null }} bands={bands} onApply={onApply} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Clear price filter' }));
+  expect(onApply).toHaveBeenCalledWith(null);
+});
+
+it('offers a visible clear action beside an active desktop price filter', () => {
+  const onApply = vi.fn();
+  render(<PriceFilter active={{ minimum: 100, maximum: null }} bands={bands} onApply={onApply} />);
+  expect(screen.getByRole('button', { name: 'Clear price filter' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear price filter' }));
   fireEvent.click(screen.getByText(/Filter by price:/));
   fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-  expect(onApply).toHaveBeenCalledWith(null);
+  expect(onApply).toHaveBeenCalledTimes(2);
 });
 
 it('offers the catalogue price bands in one horizontally scrollable row', () => {

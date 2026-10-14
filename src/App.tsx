@@ -813,6 +813,14 @@ function App() {
                 />
                 <PriceFilter key={`${activePriceRange?.minimum ?? ''}:${activePriceRange?.maximum ?? ''}`}
                   active={activePriceRange} bands={priceBands} onApply={setActivePriceRange} />
+                {(effectiveActiveCategory !== 'All' || activePriceRange !== null) && <button type="button"
+                  onClick={() => {
+                    selectCategory('All', false);
+                    setActivePriceRange(null);
+                  }}
+                  className="min-h-11 rounded-full border border-cocoa/25 bg-white px-3 text-sm font-semibold text-cocoa">
+                  Clear filters ×
+                </button>}
               </div>
             </div>
           </div>

@@ -27,6 +27,31 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     expect(screen.queryByRole('link', { name: /with the cart/ })).toBeNull();
   });
+  it('filters a collection using price bands derived only from that category', () => {
+    const highToy = { ...products[0], id: 'p2', name: 'Large Bunny', price: 900 };
+    const decor = { ...products[0], id: 'p3', name: 'Flower', category: 'Decor', price: 100 };
+    window.history.replaceState(null, '', '/collections/toys/');
+    render(<StorePages {...initial}
+      products={[...products, highToy, decor]}
+      categorySettings={[
+        { name: 'Toys', priority: 1 },
+        { name: 'Decor', priority: 2 },
+      ]} />);
+
+    const priceFilter = screen.getByRole('region', { name: 'Filter collection products by price' });
+    fireEvent.click(priceFilter.querySelector('summary')!);
+    expect(within(priceFilter).getByRole('button', { name: 'Up to ₹700' })).toBeTruthy();
+    expect(within(priceFilter).getByRole('button', { name: '₹701+' })).toBeTruthy();
+    expect(within(priceFilter).queryByRole('button', { name: 'Up to ₹500' })).toBeNull();
+
+    fireEvent.click(within(priceFilter).getByRole('button', { name: '₹701+' }));
+    expect(screen.getByRole('status').textContent).toBe('Showing 1 of 2 products');
+    expect(screen.getByRole('article', { name: 'Product: Large Bunny' })).toBeTruthy();
+    expect(screen.queryByRole('article', { name: 'Product: Bunny' })).toBeNull();
+
+    fireEvent.click(within(priceFilter).getByRole('button', { name: 'Clear price filter' }));
+    expect(screen.getByRole('status').textContent).toBe('Showing 2 of 2 products');
+  });
   it('caps previously saved long overviews at 90 words', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} categorySettings={[{ name: 'Toys', priority: 10, overview: Array(200).fill('crochet').join(' ') }]} />);
@@ -119,10 +144,10 @@ describe('live store pages', () => {
   it('updates product prices and removes unpublished items after a live refresh', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     const { rerender } = render(<StorePages {...initial} />);
-    expect(screen.getByText('₹500')).toBeTruthy();
+    expect(within(screen.getByRole('article', { name: 'Product: Bunny' })).getByText('₹500')).toBeTruthy();
     rerender(<StorePages {...initial} products={[{ ...products[0], price: 650, inStock: false,
       variants: products[0].variants.map(variant => ({ ...variant, inStock: false })) }]} />);
-    expect(screen.getByText('₹650')).toBeTruthy();
+    expect(within(screen.getByRole('article', { name: 'Product: Bunny' })).getByText('₹650')).toBeTruthy();
     expect(screen.getByText('Sold out')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add to cart — Bunny' })).toBeNull();
     rerender(<StorePages {...initial} products={[]} />);

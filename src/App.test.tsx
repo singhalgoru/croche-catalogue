@@ -131,6 +131,10 @@ describe('Hybrid product navigation', () => {
     fireEvent.click(screen.getByText('Filter by category'));
     fireEvent.click(screen.getByRole('button', { name: 'Toys' }));
     expect(screen.getByLabelText('Filtered products').textContent).toBe('Toy item');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters ×' }));
+    expect(screen.getByLabelText('Filtered products').textContent.split(',')).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: 'Clear price filter' })).toBeNull();
+    expect(screen.getByText('Filter by category')).toBeTruthy();
   });
   it('limits quick price ranges to the selected category and clears incompatible ranges', () => {
     catalogueProducts = [

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ProductCard from './ProductCard';
+import PriceFilter from './PriceFilter';
 import Header from './Header';
 import Footer from './Footer';
 import CollectionGrid from './CollectionGrid';
@@ -11,6 +12,7 @@ import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp'
 import type { CategorySettings, Product, ProductVariant } from '../types/product';
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
 import { limitCategoryOverview } from '../utils/categoryOverview.js';
+import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from '../utils/cataloguePrice';
 
 interface Props {
   products: Product[];
@@ -35,6 +37,7 @@ export default function StorePages({
   onOpenOrders,
 }: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
+  const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
@@ -49,6 +52,11 @@ export default function StorePages({
   const category = selectedCategory?.name;
   const collectionProducts = useMemo(() => products.filter(product => category && matchesCategory(product, category, categories))
     .sort((a, b) => compareCatalogueProducts(a, b, { now: catalogueTime, categoryRanks: new Map() })), [category, categories, products, catalogueTime]);
+  const collectionPriceBands = useMemo(() => getCataloguePriceBands(collectionProducts), [collectionProducts]);
+  const filteredCollectionProducts = useMemo(
+    () => collectionProducts.filter(product => matchesCataloguePriceRange(product, activePriceRange)),
+    [collectionProducts, activePriceRange],
+  );
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
@@ -143,8 +151,21 @@ export default function StorePages({
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
+          {showCatalogue && collectionProducts.length > 0 && <section
+            aria-label="Filter collection products by price"
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-mustard/30 bg-white/70 p-3">
+            <h2 className="font-semibold">Filter by price</h2>
+            <PriceFilter key={`${category}:${activePriceRange?.minimum ?? ''}:${activePriceRange?.maximum ?? ''}`}
+              active={activePriceRange} bands={collectionPriceBands} onApply={setActivePriceRange} />
+            <p role="status" className="text-sm text-cocoa/70">
+              Showing {filteredCollectionProducts.length} of {collectionProducts.length} products
+            </p>
+          </section>}
+          {showCatalogue && filteredCollectionProducts.length === 0 && collectionProducts.length > 0 && <p role="status">
+            No products match this price range.
+          </p>}
           {showCatalogue && <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {collectionProducts.map((product, index) => <li key={product.id}>
+            {filteredCollectionProducts.map((product, index) => <li key={product.id}>
               <ProductCard product={product} isFirstProduct={index === 0}
                 onSelect={selected => window.location.assign(toProductPageUrl(selected))}
                 onAddToCart={onAddToCart} isCartBusy={isCartBusy || isLoading || Boolean(loadError)}
