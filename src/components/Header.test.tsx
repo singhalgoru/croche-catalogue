@@ -124,6 +124,11 @@ describe('Header', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
+  it('can hide the collaboration link when its section is unavailable', () => {
+    render(<Header showCollaborationLink={false} showInstallPrompt={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.queryByRole('link', { name: 'Collaborate with us' })).toBeNull();
+  });
 
   it('closes on Escape with focus restored and on an outside pointer click', () => {
     render(<Header showInstallPrompt={false} />);

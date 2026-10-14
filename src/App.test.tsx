@@ -18,7 +18,8 @@ let catalogueSnapshot = false;
 vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: vi.fn() }));
 vi.mock('./hooks/useCatalogueProducts', () => ({
   useCatalogueProducts: () => ({
-    products: catalogueProducts, categorySettings: [{ name: 'Home', priority: 0 }],
+    products: catalogueProducts, categorySettings: [...new Set(catalogueProducts.map(item => item.category))]
+      .map((name, priority) => ({ name, priority })),
     isLoading: catalogueLoading, loadError: null, refreshProducts: vi.fn(),
     hasCatalogueSnapshot: catalogueSnapshot,
     homepageMetadata: { title: 'Catalogue', description: 'Catalogue summary.', canonical: 'https://luviacreations.com/' },
@@ -110,6 +111,26 @@ describe('Hybrid product navigation', () => {
     expect(grid.textContent).toBe('Test Coaster');
     expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     expect(screen.getAllByRole('navigation', { name: 'Explore collections' })).toHaveLength(1);
+  });
+  it('composes price and category filters without including unpriced products in a selected range', () => {
+    catalogueProducts = [
+      product,
+      { ...product, id: 'home-mid', name: 'Mid-priced Home item', price: 250 },
+      { ...product, id: 'toy', name: 'Toy item', category: 'Toys', price: 300 },
+      { ...product, id: 'toy-low', name: 'Low-priced toy', category: 'Toys', price: 100 },
+      { ...product, id: 'enquiry', name: 'Enquiry item', price: null, showPrice: false },
+    ];
+    render(<App />);
+    fireEvent.click(screen.getByText('Filter by price'));
+    fireEvent.change(screen.getByLabelText('Minimum'), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText('Maximum'), { target: { value: '350' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(screen.getByLabelText('Filtered products').textContent)
+      .toBe('Mid-priced Home item, Toy item');
+
+    fireEvent.click(screen.getByText('Filter by category'));
+    fireEvent.click(screen.getByRole('button', { name: 'Toys' }));
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('Toy item');
   });
   it('restores product and checkout pages on Back/Forward and returns to the original collection', async () => {
     window.history.replaceState(null, '', '/?utm_source=instagram');

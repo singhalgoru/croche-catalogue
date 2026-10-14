@@ -36,6 +36,28 @@ it('supports guest contact → address → persisted review without requiring si
   expect(screen.queryByRole('form', { name: 'Customer signup' })).toBeNull();
   expect(screen.getByText(/12 Test Street/)).toBeTruthy();
 });
+it('shows the courier transit window for the selected address pincode after dispatch', () => {
+  const order: Cart = {
+    ...cart,
+    deliveryDetails: details,
+    deliveryPinCode: details.pincode,
+    deliveryEstimate: { provider: 'shiprocket', currency: 'INR', minCharge: 61, maxCharge: 90,
+      minDays: 3, maxDays: 5, weightGrams: 500, itemCount: 1, checkedAt: '' },
+    items: [{ id: 'item', productId: 'p1', variantId: 'v1', productName: 'Flower', variantName: '',
+      image: '', unitPrice: 200, quantity: 1 }],
+  };
+  render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
+    .toContain('For pincode 110001, courier transit is usually 3–5 days after dispatch.');
+  expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
+    .toContain('Preparation time is additional');
+});
+it('explains when the selected address has no courier transit estimate', () => {
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details, deliveryPinCode: details.pincode }}
+    busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
+    .toContain('A courier transit estimate is not available for pincode 110001 right now');
+});
 it('does not overwrite a chosen saved address when the default profile arrives later', async () => {
   let resolveProfile!: (value: typeof details) => void;
   vi.mocked(fetchCustomerProfile).mockImplementation(() => new Promise(resolve => { resolveProfile = resolve; }));

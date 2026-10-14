@@ -13,6 +13,13 @@ afterEach(() => {
 });
 
 describe('Footer', () => {
+  it('can omit the collaboration invitation on the cart page', () => {
+    render(<Footer showCollaboration={false} />);
+    expect(screen.queryByRole('region', { name: 'Create with Luvia' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Work with Luvia' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Explore & support' })).toBeTruthy();
+  });
+
   it('offers a collaboration section and a prefilled WhatsApp enquiry', () => {
     render(<Footer />);
     const section = screen.getByRole('region', { name: 'Create with Luvia' });

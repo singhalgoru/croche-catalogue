@@ -6,12 +6,16 @@ import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
 const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
 
-export default function Footer() {
+interface Props {
+  showCollaboration?: boolean;
+}
+
+export default function Footer({ showCollaboration = true }: Props) {
   const [informationOpen, setInformationOpen] = useState(false);
   const informationId = useId();
   return (
     <>
-    <section id="collaborate" aria-labelledby="collaboration-heading"
+    {showCollaboration && <section id="collaborate" aria-labelledby="collaboration-heading"
       className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
       <div className="rounded-2xl border border-mustard/40 bg-cream p-5 text-center text-cocoa sm:p-8">
         <h2 id="collaboration-heading" className="font-heading text-2xl font-bold">Create with Luvia</h2>
@@ -38,7 +42,7 @@ export default function Footer() {
           Introduce yourself
         </a>
       </div>
-    </section>
+    </section>}
     <footer className="bg-cocoa text-cream/90 mt-8 sm:mt-16">
       <div className="mx-auto max-w-6xl px-4 pb-6 pt-3 text-sm sm:px-6 md:pt-10">
         <button type="button" aria-expanded={informationOpen} aria-controls={informationId}
@@ -65,7 +69,7 @@ export default function Footer() {
           <a href="/collections/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Explore collections</a>
           <a href="/about/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">About &amp; contact</a>
           <a href="/faq/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Ordering FAQ</a>
-          <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Work with Luvia</a>
+          {showCollaboration && <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Work with Luvia</a>}
           <a href="/return-policy/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">
             Return and refund policy
           </a>

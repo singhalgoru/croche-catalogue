@@ -24,6 +24,7 @@ interface Props {
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
   onOpenOrders?: () => void;
   accountName?: string | null;
+  showCollaborationLink?: boolean;
 }
 
 export default function Header({
@@ -45,6 +46,7 @@ export default function Header({
   onOpenAccount,
   onOpenOrders,
   accountName,
+  showCollaborationLink = true,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -245,7 +247,7 @@ export default function Header({
               <a href={`${import.meta.env.BASE_URL}collections/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Explore collection pages</a>
               <a href={`${import.meta.env.BASE_URL}about/`} className="block rounded-lg px-3 py-3 hover:bg-cream">About &amp; contact</a>
               <a href={`${import.meta.env.BASE_URL}faq/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Ordering FAQ</a>
-              <a href="#collaborate" className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">Collaborate with us</a>
+              {showCollaborationLink && <a href="#collaborate" className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">Collaborate with us</a>}
             </nav>
           )}
         </div>

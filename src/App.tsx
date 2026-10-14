@@ -11,6 +11,7 @@ import ProductDetailPreview from './components/ProductDetailPreview';
 import StorePages from './components/StorePages';
 import { isStorePage } from './utils/storePageRoute';
 import CategoryFilter from './components/CategoryFilter';
+import PriceFilter from './components/PriceFilter';
 import CartMenuButton from './components/CartMenuButton';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -41,6 +42,7 @@ import {
   toPublicVariantSlug,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
+import { matchesCataloguePriceRange, type CataloguePriceRange } from './utils/cataloguePrice';
 import { getProductMetaDescription } from './utils/productMetaDescription';
 import { collectionPath } from './utils/collectionLink.js';
 
@@ -121,6 +123,7 @@ function App() {
 
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
     new URLSearchParams(window.location.search).get('category') || 'All');
+  const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
   const [query, setQuery] = useState('');
   const [selectedProductSnapshot, setSelectedProduct] = useState<Product | null>(() => {
     const reference = readProductPageReference() ?? readProductReferenceFromHash();
@@ -417,12 +420,12 @@ function App() {
             ? isProductNew(product, catalogueTime)
             : matchesCategory(product, effectiveActiveCategory, categorySettings));
         const matchesQuery = matchesProductSearch(product, query);
-        return matchesSelectedCategory && matchesQuery;
+        return matchesSelectedCategory && matchesQuery && matchesCataloguePriceRange(product, activePriceRange);
       })
       .sort((left, right) =>
         compareCatalogueProducts(left, right, { now: catalogueTime, categoryRanks }),
       );
-  }, [effectiveActiveCategory, catalogueTime, categorySettings, products, query]);
+  }, [effectiveActiveCategory, catalogueTime, categorySettings, products, query, activePriceRange]);
 
   useEffect(() => {
     if (categoryScrollRequest === 0 || isLoading) return;
@@ -609,12 +612,13 @@ function App() {
     return <div className="flex min-h-screen flex-col bg-cream">
       {cartNotifications}
       <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
+        showCollaborationLink={false}
         seasonalAnnouncement={seasonalAnnouncement}
         seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
       <main className="w-full flex-1">{cartDrawer}</main>
-      <Footer />
+      <Footer showCollaboration={false} />
       {accountDialog}
     </div>;
   }
@@ -750,15 +754,18 @@ function App() {
                 })
               }
             />
-            <CategoryFilter
-              categories={categories}
-              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
-              active={effectiveActiveCategory}
-              onSelect={selectCategory}
-              showNew={hasNewProducts}
-              compactOnMobile
-              collapseCategories
-            />
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <CategoryFilter
+                categories={categories}
+                seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+                active={effectiveActiveCategory}
+                onSelect={selectCategory}
+                showNew={hasNewProducts}
+                compactOnMobile
+                collapseCategories
+              />
+              <PriceFilter active={activePriceRange} onApply={setActivePriceRange} />
+            </div>
           </div>
         )}
         {areCatalogueToolsSticky && (
@@ -782,15 +789,18 @@ function App() {
               </div>
               <CartMenuButton itemCount={cart.itemCount} updateCount={cart.cartUpdateCount} onClick={() => setIsCartOpen(true)} />
             </div>
-            <CategoryFilter
-              categories={categories}
-              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
-              active={effectiveActiveCategory}
-              onSelect={selectCategory}
-              showNew={hasNewProducts}
-              compactOnMobile
-              collapseCategories
-            />
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <CategoryFilter
+                categories={categories}
+                seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+                active={effectiveActiveCategory}
+                onSelect={selectCategory}
+                showNew={hasNewProducts}
+                compactOnMobile
+                collapseCategories
+              />
+              <PriceFilter active={activePriceRange} onApply={setActivePriceRange} />
+            </div>
           </div>
         )}
         <div className="text-center">
