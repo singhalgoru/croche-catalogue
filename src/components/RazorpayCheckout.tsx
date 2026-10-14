@@ -35,7 +35,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const [phone, setPhone] = useState(cart.deliveryDetails?.phone ?? '');
   const [busy, setBusy] = useState(false);
   const [syncingRecovery, setSyncingRecovery] = useState(live && !confirmationOnly && !recovery.error
-    && !recovery.request && !recovery.pending && !recovery.verified);
+    && !recovery.pending && !recovery.verified);
   const [syncError, setSyncError] = useState(false);
   const [syncAttempt, setSyncAttempt] = useState(0);
   const [message, setMessage] = useState(recovery.error
@@ -58,7 +58,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
   const optInTriggered = useRef(false);
   useEffect(() => {
-    if (!live || confirmationOnly || recovery.error || request.current || recovery.pending || recovery.verified) {
+    if (!live || confirmationOnly || recovery.error || recovery.pending || recovery.verified) {
       setSyncingRecovery(false);
       return;
     }
@@ -68,9 +68,11 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
     const sync = async () => {
       try {
         const latest = await fetchLiveCheckoutRecovery(cart.id);
-        if (!current) return;
+        if (!current || paid.current) return;
         if (!latest) { setMessage(''); return; }
-        request.current = { fingerprint: latest.cartMatches ? cartFingerprint : '', key: latest.requestKey };
+        if (request.current?.key !== latest.requestKey) {
+          request.current = { fingerprint: latest.cartMatches ? cartFingerprint : '', key: latest.requestKey };
+        }
         setStatusRequest(latest.requestKey);
         try {
           saveCheckoutRecovery(cart.id, {

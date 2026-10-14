@@ -133,6 +133,17 @@ it('syncs a paid live checkout from another device before another payment can st
   expect(screen.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeTruthy();
   expect(createOrder).not.toHaveBeenCalled();
 });
+it('replaces a browser request left behind by a previously blocked attempt with the real server checkout', async () => {
+  sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
+    request: { fingerprint: 'rejected-browser-request', key: 'not-created-on-server' }, pending: null, verified: false,
+  }));
+  recovery.mockResolvedValue({ requestKey: 'real-server-request', status: 'link_created', reference: 'LUV-REMOTE', cartMatches: true });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Resume secure payment' })).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ requestKey: 'real-server-request' }), true);
+});
 it('requires provider-checked replacement when a remote checkout no longer matches the cart', async () => {
   recovery.mockResolvedValue({ requestKey: 'remote-old', status: 'link_created', reference: 'LUV-OLD', cartMatches: false });
   status.mockResolvedValue({ status: 'link_created', reference: 'LUV-OLD' });
