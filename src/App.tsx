@@ -125,7 +125,6 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
     new URLSearchParams(window.location.search).get('category') || 'All');
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
-  const priceBands = useMemo(() => getCataloguePriceBands(products), [products]);
   const [query, setQuery] = useState('');
   const [selectedProductSnapshot, setSelectedProduct] = useState<Product | null>(() => {
     const reference = readProductPageReference() ?? readProductReferenceFromHash();
@@ -173,6 +172,16 @@ function App() {
     (activeCategory === 'New' && !hasNewProducts)
       || (activeCategory !== 'All' && activeCategory !== 'New' && !categories.includes(activeCategory))
       ? 'All' : activeCategory;
+  const categoryProducts = useMemo(
+    () => products.filter((product) =>
+      effectiveActiveCategory === 'All'
+      || (effectiveActiveCategory === 'New'
+        ? isProductNew(product, catalogueTime)
+        : matchesCategory(product, effectiveActiveCategory, categorySettings)),
+    ),
+    [effectiveActiveCategory, catalogueTime, categorySettings, products],
+  );
+  const priceBands = useMemo(() => getCataloguePriceBands(categoryProducts), [categoryProducts]);
 
   useEffect(() => {
     const tools = catalogueToolsRef.current;
@@ -397,6 +406,16 @@ function App() {
   const selectCategory = (category: CatalogueFilter) => {
     const next = resolveCategorySelection(category, effectiveActiveCategory);
     trackEvent('select_category', { category: next });
+    if (activePriceRange && !products.some((product) => {
+      const matchesNextCategory =
+        next === 'All'
+        || (next === 'New'
+          ? isProductNew(product, catalogueTime)
+          : matchesCategory(product, next, categorySettings));
+      return matchesNextCategory && matchesCataloguePriceRange(product, activePriceRange);
+    })) {
+      setActivePriceRange(null);
+    }
     const url = new URL(window.location.href);
     if (url.searchParams.has('category')) {
       if (next === 'All') url.searchParams.delete('category');
@@ -414,20 +433,15 @@ function App() {
         category.priority * 1000 + index,
       ]),
     );
-    return products
+    return categoryProducts
       .filter((product) => {
-        const matchesSelectedCategory =
-          effectiveActiveCategory === 'All' ||
-          (effectiveActiveCategory === 'New'
-            ? isProductNew(product, catalogueTime)
-            : matchesCategory(product, effectiveActiveCategory, categorySettings));
         const matchesQuery = matchesProductSearch(product, query);
-        return matchesSelectedCategory && matchesQuery && matchesCataloguePriceRange(product, activePriceRange);
+        return matchesQuery && matchesCataloguePriceRange(product, activePriceRange);
       })
       .sort((left, right) =>
         compareCatalogueProducts(left, right, { now: catalogueTime, categoryRanks }),
       );
-  }, [effectiveActiveCategory, catalogueTime, categorySettings, products, query, activePriceRange]);
+  }, [categoryProducts, catalogueTime, categorySettings, query, activePriceRange]);
 
   useEffect(() => {
     if (categoryScrollRequest === 0 || isLoading) return;
@@ -799,7 +813,7 @@ function App() {
               </div>
               <CartMenuButton itemCount={cart.itemCount} updateCount={cart.cartUpdateCount} onClick={() => setIsCartOpen(true)} />
             </div>
-            <MobileCatalogueFilters isSticky activeCategory={effectiveActiveCategory}
+            <MobileCatalogueFilters activeCategory={effectiveActiveCategory}
               activePriceRange={activePriceRange} categories={categories}
               seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
               showNew={hasNewProducts} priceBands={priceBands}

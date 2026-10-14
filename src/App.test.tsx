@@ -132,6 +132,33 @@ describe('Hybrid product navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Toys' }));
     expect(screen.getByLabelText('Filtered products').textContent).toBe('Toy item');
   });
+  it('limits quick price ranges to the selected category and clears incompatible ranges', () => {
+    catalogueProducts = [
+      { ...product, id: 'home-low', name: 'Low-priced Home item', price: 100 },
+      { ...product, id: 'home-high', name: 'High-priced Home item', price: 250 },
+      { ...product, id: 'toy-low', name: 'Low-priced Toy', category: 'Toys', price: 300 },
+      { ...product, id: 'toy-high', name: 'High-priced Toy', category: 'Toys', price: 1000 },
+    ];
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    let panel = screen.getByRole('dialog', { name: 'Filter products' });
+    expect(within(panel).getAllByRole('button', { name: /₹/ })).toHaveLength(4);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Toys' }));
+    panel = screen.getByRole('dialog', { name: 'Filter products' });
+    expect(within(panel).getAllByRole('button', { name: /₹/ }).map(button => button.textContent))
+      .toEqual(['Up to ₹650', '₹651+']);
+
+    fireEvent.click(within(panel).getByRole('button', { name: '₹651+' }));
+    expect(screen.getByLabelText('Filtered products').textContent).toBe('High-priced Toy');
+    fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+    panel = screen.getByRole('dialog', { name: 'Filter products' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Home' }));
+    expect(screen.getByLabelText('Filtered products').textContent)
+      .toBe('Low-priced Home item, High-priced Home item');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+    expect(screen.getByLabelText('Filtered products').textContent.split(',')).toHaveLength(4);
+  });
   it('restores product and checkout pages on Back/Forward and returns to the original collection', async () => {
     window.history.replaceState(null, '', '/?utm_source=instagram');
     render(<App />);

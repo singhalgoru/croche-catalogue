@@ -21,7 +21,11 @@ export const getCataloguePriceBands = (products: Product[]): CataloguePriceBand[
     .sort((a, b) => a - b);
   const uniquePrices = [...new Set(prices)];
   const bandCount = Math.min(4, uniquePrices.length);
-  if (bandCount < 2) return [];
+  if (bandCount === 0) return [];
+  if (bandCount === 1) {
+    const price = uniquePrices[0];
+    return [{ minimum: price, maximum: price, label: formatINR(price) }];
+  }
 
   const cuts: number[] = [];
   for (let band = 1; band < bandCount; band += 1) {

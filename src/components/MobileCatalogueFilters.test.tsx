@@ -26,13 +26,31 @@ it('groups category and suggested price choices under one compact filter control
   fireEvent.click(seasonal);
   expect(onSelectCategory).toHaveBeenCalledWith('Navratri Specials');
   fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-  expect(screen.getByRole('region', { name: 'Catalogue filters' })).toBeTruthy();
+  const dialog = screen.getByRole('dialog', { name: 'Filter products' });
+  expect(dialog.className).toContain('w-full');
   const grid = screen.getByRole('button', { name: 'Up to ₹250' }).parentElement!;
   expect(grid.className).toContain('grid-cols-2');
   fireEvent.click(screen.getByRole('button', { name: 'Toys' }));
   fireEvent.click(screen.getByRole('button', { name: '₹251–₹450' }));
   expect(onSelectCategory).toHaveBeenCalledWith('Toys');
   expect(onApplyPriceRange).toHaveBeenCalledWith({ minimum: 251, maximum: 450 });
+  expect(screen.getByRole('button', { name: 'Filters' }).getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('dialog', { name: 'Filter products' })).toBeNull();
+});
+
+it('opens a modal filter dialog and supports Escape dismissal', () => {
+  render(<MobileCatalogueFilters activeCategory="All" activePriceRange={null}
+    categories={['Toys']} priceBands={bands}
+    onApplyPriceRange={vi.fn()} onSelectCategory={vi.fn()} />);
+
+  const trigger = screen.getByRole('button', { name: 'Filters' });
+  fireEvent.click(trigger);
+  expect(screen.getByRole('dialog', { name: 'Filter products' }).getAttribute('aria-modal')).toBe('true');
+  expect(document.body.style.overflow).toBe('hidden');
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('dialog', { name: 'Filter products' })).toBeNull();
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  expect(document.body.style.overflow).toBe('');
 });
 
 it('validates a custom price range and supports clearing both filters', () => {
@@ -52,4 +70,24 @@ it('validates a custom price range and supports clearing both filters', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
   expect(onSelectCategory).toHaveBeenCalledWith('All');
   expect(onApplyPriceRange).toHaveBeenCalledWith(null);
+});
+
+it('shows active category and price filters in the horizontal bar with individual clear actions', () => {
+  const onApplyPriceRange = vi.fn();
+  const onSelectCategory = vi.fn();
+  render(<MobileCatalogueFilters activeCategory="Toys" activePriceRange={bands[1]}
+    categories={['Decor', 'Toys']} priceBands={bands}
+    onApplyPriceRange={onApplyPriceRange} onSelectCategory={onSelectCategory} />);
+
+  expect(screen.getByRole('button', { name: 'Clear category filter: Toys' }).textContent)
+    .toContain('Category: Toys');
+  expect(screen.getByRole('button', { name: 'Clear price filter: ₹251–₹450' }).textContent)
+    .toContain('Price: ₹251–₹450');
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+  expect(onSelectCategory).toHaveBeenCalledWith('All');
+  expect(onApplyPriceRange).toHaveBeenCalledWith(null);
+  fireEvent.click(screen.getByRole('button', { name: 'Clear category filter: Toys' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Clear price filter: ₹251–₹450' }));
+  expect(onSelectCategory).toHaveBeenCalledTimes(2);
+  expect(onApplyPriceRange).toHaveBeenCalledTimes(2);
 });

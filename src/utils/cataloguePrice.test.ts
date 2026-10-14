@@ -48,8 +48,13 @@ describe('catalogue price filter', () => {
     }
   });
 
-  it('omits ranges when fewer than two priced levels are available', () => {
-    expect(getCataloguePriceBands([product])).toEqual([]);
+  it('creates a precise range when only one priced level is available', () => {
+    expect(getCataloguePriceBands([product])).toEqual([
+      { minimum: 300, maximum: 300, label: '₹300' },
+    ]);
+  });
+
+  it('omits ranges when no priced products are available', () => {
     expect(getCataloguePriceBands([{ ...product, showPrice: false }])).toEqual([]);
   });
 });
