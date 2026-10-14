@@ -62,7 +62,11 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
         className="min-h-11 shrink-0 px-2 underline disabled:opacity-50">Clear</button>
     </div>}
     {cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}</p>}
-    {cart.deliveryPinCode && !cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">Pincode not checked yet. Change and save to verify.</p>}
+    {cart.deliveryPinCode && !cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">
+      {cart.deliveryPinCheckedAt
+        ? 'We could not confirm this PIN’s postal area. Please double-check it; Luvia will confirm delivery availability.'
+        : 'Pincode not checked yet. Change and save to verify.'}
+    </p>}
     {!showEditor && estimate && <p className="mt-1 font-semibold text-cocoa">
       {getCartTotals(cart).shippingSource === 'free'
         ? 'Shipping is free for this order'

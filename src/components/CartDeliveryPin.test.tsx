@@ -50,6 +50,13 @@ it('keeps saved PINs compact with change, cancel and expandable disclosure', () 
   expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('110001');
 });
 
+it('warns when the postal area could not be confirmed for a saved PIN', () => {
+  render(<CartDeliveryPin cart={{ ...cart, deliveryPinCode: '122050', deliveryPinCheckedAt: '2026-10-14T12:00:00.000Z' }}
+    busy={false} onSave={vi.fn()} />);
+  expect(screen.getByText(/could not confirm this PIN’s postal area/)).toBeTruthy();
+  expect(screen.queryByText(/not checked yet/)).toBeNull();
+});
+
 it('shows the Shiprocket estimate and offers a refresh after the cart changes', async () => {
   const item = { id: 'i1', productId: 'p1', variantId: 'v1', productName: 'Bunny', variantName: '', image: '', unitPrice: 200, quantity: 1 };
   const estimate = { provider: 'shiprocket' as const, currency: 'INR' as const, minCharge: 61, maxCharge: 90,

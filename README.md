@@ -835,12 +835,14 @@ available under "How we use your pincode". Saving/clearing is announced to scree
 readers without adding a separate visible confirmation row.
 Only six-digit Indian PIN shapes are accepted. Saving a nonempty PIN calls the
 authenticated `verify-delivery-pin` Edge Function, which verifies the cart owner
-and checks existence using `https://api.postalpincode.in/pincode/{pin}`.
+and checks the PIN using `https://api.postalpincode.in/pincode/{pin}`.
 This is a third-party postal-data API, not an address verification service.
 Only the PIN is sent upstream; no cart IDs, user IDs, IP addresses or GPS are sent.
-Successful postal areas are cached for 30 days. Lookups are limited to one per
-active cart every 10 seconds and have an 8-second upstream timeout. Missing PINs
-and outages produce explicit errors; failures never overwrite saved data.
+Confirmed postal areas are cached for 30 days. If the lookup has no record, the
+format-valid PIN is saved without an area and shoppers are asked to double-check
+it; Luvia confirms delivery availability before fulfilment. Lookup outages still
+produce explicit errors and never overwrite saved data. Lookups are limited to
+one per active cart every 10 seconds and have an 8-second upstream timeout.
 Saved PINs are included in WhatsApp/email enquiries and shown in admin as
 shopper-provided; checked PINs also show district(s), state(s), country and the
 postal lookup date. This is not a verified shopper address or shipping quote.

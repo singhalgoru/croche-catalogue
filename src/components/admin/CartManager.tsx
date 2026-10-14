@@ -170,6 +170,9 @@ export default function CartManager() {
                       Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
                       {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.
                     </p>}
+                    {cart.deliveryPinCode && cart.deliveryPinCheckedAt && !cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
+                      Postal area could not be confirmed by lookup; confirm delivery availability before fulfilment.
+                    </p>}
                     {cart.deliveryPinCode && cart.deliveryEstimate && <p className="mt-1 text-xs text-cocoa/65">
                       Shiprocket estimate: {formatINR(cart.deliveryEstimate.minCharge)}
                       {cart.deliveryEstimate.maxCharge !== cart.deliveryEstimate.minCharge ? `–${formatINR(cart.deliveryEstimate.maxCharge)}` : ''}

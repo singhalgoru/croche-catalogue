@@ -72,6 +72,20 @@ it('verifies PINs and saves only server-derived area metadata', async () => {
   expect(fetchMock.mock.calls[0][0]).toBe('https://api.postalpincode.in/pincode/110001');
   expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('headers');
 });
+it.each(['122050', '999999'])('saves format-valid PIN %s when the postal lookup has no record and returns a warning', async pin => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify([{ Status: 'Error', Message: 'No records found', PostOffice: null }])));
+  const response = await handler(request(pin));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    location: null,
+    warning: expect.stringContaining('double-check it'),
+  });
+  expect(updateValues).toMatchObject({
+    delivery_pin_code: pin, delivery_pin_location: null,
+    delivery_pin_checked_at: expect.any(String),
+  });
+  expect(upserts).not.toContainEqual(expect.objectContaining({ table: 'delivery_pin_cache' }));
+});
 it('uses a fresh cache without sending another upstream request', async () => {
   cached = { location, checked_at: new Date().toISOString() };
   expect((await handler(request())).status).toBe(200);
@@ -81,11 +95,6 @@ it('rejects invalid shapes before database or API calls', async () => {
   expect((await handler(request('000000'))).status).toBe(400);
   expect(from).not.toHaveBeenCalled();
   expect(fetchMock).not.toHaveBeenCalled();
-});
-it('rejects nonexistent PINs without touching the saved PIN', async () => {
-  fetchMock.mockResolvedValue(new Response(JSON.stringify([{ Status: 'Error', Message: 'No records found', PostOffice: null }])));
-  expect((await handler(request('999999'))).status).toBe(422);
-  expect(updateValues).toBeUndefined();
 });
 it('requires a valid authenticated cart owner', async () => {
   getUser.mockResolvedValue({ data: { user: null }, error: new Error('Expired') });

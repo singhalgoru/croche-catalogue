@@ -203,6 +203,10 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
             ? <><p className="mt-1 font-semibold">Around {deliveryDates}</p>
               <p className="mt-1 text-sm">For pincode {reviewed.pincode}, this estimate combines courier transit of {deliveryDays} with 1–5 days for preparation and dispatch after order confirmation. This range assumes you order today; dates are approximate and not guaranteed.</p></>
             : <p className="mt-1 text-cocoa/75">A courier transit estimate is not available for pincode {reviewed.pincode} right now. Delivery timing after dispatch will be confirmed with the courier.</p>}
+          {reviewed.pincode === cart.deliveryPinCode && cart.deliveryPinCheckedAt && !cart.deliveryPinLocation
+            && <p className="mt-2 text-sm text-cocoa/75" role="status">
+              We could not confirm this PIN’s postal area. Please double-check it; Luvia will confirm delivery availability.
+            </p>}
         </section>
         {cart.welcomeCouponCode && <p className="break-words">{cart.coupon
           ? totals.couponShortfall > 0

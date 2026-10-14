@@ -58,10 +58,11 @@ Deno.serve(async request => {
       console.error('Postal lookup failed:', error instanceof Error ? error.message : 'Unknown lookup error');
       return json({ error: 'PIN verification is temporarily unavailable. Please retry, or clear the PIN and enquire without it.' }, 503);
     }
-    if (!location) return json({ error: 'Enter a valid pincode or keep it empty.' }, 422);
     checkedAt = new Date().toISOString();
-    const { error } = await admin.from('delivery_pin_cache').upsert({ pin: body.pin, location, checked_at: checkedAt });
-    if (error) return json({ error: 'Unable to store PIN verification data. Please retry.' }, 500);
+    if (location) {
+      const { error } = await admin.from('delivery_pin_cache').upsert({ pin: body.pin, location, checked_at: checkedAt });
+      if (error) return json({ error: 'Unable to store PIN verification data. Please retry.' }, 500);
+    }
   }
   let estimate: DeliveryEstimate | null = null;
   const shiprocket = readShiprocketConfig((name) => Deno.env.get(name));
@@ -102,5 +103,8 @@ Deno.serve(async request => {
   }).eq('id', cart.id).eq('user_id', auth.user.id).gt('expires_at', new Date().toISOString())
     .select('id').maybeSingle();
   if (saveError || !saved) return json({ error: 'Unable to save the verified PIN to your cart. Please retry.' }, 500);
-  return json({ location, checkedAt, estimate });
+  return json({
+    location, checkedAt, estimate,
+    ...(location ? {} : { warning: 'We could not confirm this PIN’s postal area. Please double-check it; Luvia will confirm delivery availability.' }),
+  });
 });

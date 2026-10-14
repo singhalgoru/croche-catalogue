@@ -60,6 +60,12 @@ it('explains when the selected address has no courier transit estimate', () => {
   expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
     .toContain('A courier transit estimate is not available for pincode 110001 right now');
 });
+it('warns when postal lookup did not confirm the saved PIN area', () => {
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: { ...details, pincode: '122050' },
+    deliveryPinCode: '122050', deliveryPinCheckedAt: '2026-10-14T12:00:00.000Z' }}
+  busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  expect(screen.getByRole('status').textContent).toContain('Luvia will confirm delivery availability');
+});
 it('does not overwrite a chosen saved address when the default profile arrives later', async () => {
   let resolveProfile!: (value: typeof details) => void;
   vi.mocked(fetchCustomerProfile).mockImplementation(() => new Promise(resolve => { resolveProfile = resolve; }));

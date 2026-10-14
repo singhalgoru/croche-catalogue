@@ -6,7 +6,7 @@ it('validates the returned PIN and deduplicates areas without claiming an exact 
   expect(parsePostalResponse([{ Status: 'Success', PostOffice: [office, office, { ...office, District: 'New Delhi' }] }], '110001'))
     .toEqual({ districts: ['Central Delhi', 'New Delhi'], states: ['Delhi'], country: 'India' });
 });
-it('recognizes nonexistent PINs, but never treats provider failures as a valid PIN', () => {
+it('recognizes no-record responses, but never treats provider failures as a valid PIN', () => {
   expect(parsePostalResponse([{ Status: 'Error', Message: 'No records found', PostOffice: null }], '999999')).toBeNull();
   for (const payload of [null, [], [{ Status: 'Success', PostOffice: [] }], [{ Status: 'Error', Message: 'Service unavailable', PostOffice: null }],
     [{ Status: 'Success', PostOffice: [{ ...office, Pincode: '110002' }] }],
