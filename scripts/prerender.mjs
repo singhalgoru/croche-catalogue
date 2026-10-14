@@ -347,7 +347,7 @@ const compareInitialProducts = (left, right, now = Date.now()) => {
     || (left.sortOrder ?? 0) - (right.sortOrder ?? 0);
 };
 
-const renderShell = (products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
+const renderShell = (products) => {
   const orderedProducts = [...products].sort(compareInitialProducts);
   const firstProductId = orderedProducts[0]?.id;
   const groups = groupByCategory(orderedProducts);
@@ -397,10 +397,8 @@ const renderShell = (products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
     '</section>',
     `<section id="bulk-orders" aria-labelledby="bulk-orders-heading"><h2 id="bulk-orders-heading">${escapeHtml(bulkOrders.title)}</h2>`,
-    `<p>${escapeHtml(bulkOrders.description)}</p>`,
-    `<p><a href="${bulkOrders.path}">Plan your bulk order</a> · <a href="mailto:${bulkOrders.email}?subject=${encodeURIComponent(bulkOrders.subject)}&amp;body=${encodeURIComponent(bulkOrders.message)}">Email for bulk orders</a> · `,
-    `<a href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(bulkOrders.message)}">Enquire on WhatsApp</a></p>`,
-    `<p>${escapeHtml(bulkOrders.email)}</p><p>${escapeHtml(bulkOrders.note)}</p></section>`,
+    `<p>${escapeHtml(bulkOrders.invitation)}</p>`,
+    `<p><a href="${bulkOrders.path}">${escapeHtml(bulkOrders.invitationCta)}</a></p></section>`,
     '</main>',
     '<footer><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></footer>',
   ].join('');
@@ -741,7 +739,7 @@ const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) 
       (_, before, after) => `${before}${escapeHtml(description)}${after}`)
     .replace(/("description":\s*")[^"]*(")/,
       () => `"description":${JSON.stringify(description).replace(/</g, '\\u003c')}`)
-    .replace(shell, () => `<!--shell-->${renderShell(products, whatsappNumber)}<!--/shell-->`)
+    .replace(shell, () => `<!--shell-->${renderShell(products)}<!--/shell-->`)
     .replaceAll('{{WHATSAPP_PHONE}}', display)
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };

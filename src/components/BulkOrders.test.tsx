@@ -7,9 +7,19 @@ import { trackContactClick } from '../services/analytics';
 vi.mock('../services/analytics', () => ({ trackContactClick: vi.fn() }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-it('offers an email form, direct email fallback and prefilled WhatsApp enquiry', () => {
+it('keeps the homepage invitation compact with a single dedicated-page link', () => {
   render(<BulkOrders />);
   expect(screen.getByRole('region', { name: bulkOrders.title }).id).toBe('bulk-orders');
+  expect(screen.getByText(bulkOrders.invitation)).toBeTruthy();
+  expect(screen.getAllByRole('link')).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Explore bulk gifting' }).getAttribute('href')).toBe('/bulk-orders/');
+  expect(screen.queryByRole('form', { name: 'Bulk order email enquiry' })).toBeNull();
+  expect(screen.queryByText(bulkOrders.description)).toBeNull();
+  expect(screen.queryByText(bulkOrders.note)).toBeNull();
+});
+
+it('keeps direct email and prefilled WhatsApp enquiries on the dedicated page', () => {
+  render(<BulkOrders presentation="page" />);
   const email = screen.getByRole('link', { name: bulkOrders.email });
   const emailUrl = new URL(email.getAttribute('href')!);
   expect(emailUrl.pathname).toBe('bulkorder@luviacreations.com');
@@ -28,8 +38,7 @@ it('offers an email form, direct email fallback and prefilled WhatsApp enquiry',
   }
   expect(trackContactClick).toHaveBeenCalledWith('email', 'bulk_orders');
   expect(trackContactClick).toHaveBeenCalledWith('whatsapp', 'bulk_orders');
-  expect(screen.getByRole('link', { name: 'Plan your bulk order' }).getAttribute('href')).toBe('/bulk-orders/');
-  expect(screen.queryByRole('form', { name: 'Bulk order email enquiry' })).toBeNull();
+  expect(screen.getByRole('form', { name: 'Bulk order email enquiry' })).toBeTruthy();
 });
 
 it('prepares a branded email from the form without sending automatically and clears stale drafts on edits', () => {

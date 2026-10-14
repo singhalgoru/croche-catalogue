@@ -283,17 +283,16 @@ describe('renderShell', () => {
     expect(shell).toContain('hand-crocheted ivory roses');
   });
 
-  it('renders bulk gifting enquiries without JavaScript and respects the configured WhatsApp number', () => {
-    const html = renderShell([product], '911234567890');
+  it('renders a compact bulk gifting invitation without JavaScript', () => {
+    const html = renderShell([product]);
     const page = new DOMParser().parseFromString(html, 'text/html');
     const section = page.querySelector('#bulk-orders')!;
     expect(section.textContent).toContain('Bulk Orders & Corporate Gifting');
-    const email = new URL(section.querySelector<HTMLAnchorElement>('a[href^="mailto:"]')!.href);
-    expect(email.pathname).toBe('bulkorder@luviacreations.com');
-    expect(email.searchParams.get('body')).toContain('Approximate quantity:');
-    const whatsapp = new URL(section.querySelector<HTMLAnchorElement>('a[href^="https://wa.me/"]')!.href);
-    expect(whatsapp.pathname).toBe('/911234567890');
-    expect(whatsapp.searchParams.get('text')).toBe(email.searchParams.get('body'));
+    expect(section.textContent).toContain('Gifting for a team or celebration? Make it personal with handmade crochet.');
+    expect(section.querySelectorAll('a')).toHaveLength(1);
+    expect(section.querySelector('a')?.textContent).toBe('Explore bulk gifting');
+    expect(section.querySelector('a')?.getAttribute('href')).toBe('/bulk-orders/');
+    expect(section.textContent).not.toContain('Sending an enquiry');
     expect(page.querySelector('footer a[href="/bulk-orders/"]')).toBeTruthy();
   });
   it('uses premium brand positioning in the non-JavaScript homepage introduction', () => {
