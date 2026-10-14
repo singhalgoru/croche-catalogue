@@ -13,6 +13,13 @@ afterEach(() => {
 });
 
 describe('Footer', () => {
+  it('links every footer to bulk enquiries and only shows the section when requested', () => {
+    const { rerender } = render(<Footer />);
+    expect(screen.getByRole('link', { name: 'Bulk orders & corporate gifting' }).getAttribute('href')).toBe('/#bulk-orders');
+    expect(screen.queryByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toBeNull();
+    rerender(<Footer showBulkOrders />);
+    expect(screen.getByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toBeTruthy();
+  });
   it('can omit the collaboration invitation on the cart page', () => {
     render(<Footer showCollaboration={false} />);
     expect(screen.queryByRole('region', { name: 'Create with Luvia' })).toBeNull();

@@ -8,7 +8,7 @@ export { collectionPath };
 const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
-const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a>'
+const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/#bulk-orders">Bulk orders &amp; corporate gifting</a>'
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 const page = (pathname, title, description, body, schema) => `<!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">

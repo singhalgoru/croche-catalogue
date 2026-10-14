@@ -2,19 +2,22 @@ import { useId, useState } from 'react';
 import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
 import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
+import BulkOrders from './BulkOrders';
 
 const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
 
 interface Props {
   showCollaboration?: boolean;
+  showBulkOrders?: boolean;
 }
 
-export default function Footer({ showCollaboration = true }: Props) {
+export default function Footer({ showCollaboration = true, showBulkOrders = false }: Props) {
   const [informationOpen, setInformationOpen] = useState(false);
   const informationId = useId();
   return (
     <>
+    {showBulkOrders && <BulkOrders />}
     {showCollaboration && <section id="collaborate" aria-labelledby="collaboration-heading"
       className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
       <div className="rounded-2xl border border-mustard/40 bg-cream p-5 text-center text-cocoa sm:p-8">
@@ -69,6 +72,7 @@ export default function Footer({ showCollaboration = true }: Props) {
           <a href="/collections/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Explore collections</a>
           <a href="/about/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">About &amp; contact</a>
           <a href="/faq/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Ordering FAQ</a>
+          <a href="/#bulk-orders" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Bulk orders &amp; corporate gifting</a>
           <a href="/terms-and-conditions/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Terms &amp; Conditions</a>
           <a href="/privacy-policy/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Privacy Policy</a>
           {showCollaboration && <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Work with Luvia</a>}

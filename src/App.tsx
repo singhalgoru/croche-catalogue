@@ -249,9 +249,15 @@ function App() {
     if (authParams.has('access_token') || authParams.has('error_description')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)
-      : window.location.hash === '#collaborate' ? '#collaborate' : '';
+      : ['#collaborate', '#bulk-orders'].includes(window.location.hash) ? window.location.hash : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
   }, [isAdminPage, isCartOpen, selectedProduct, pageReference]);
+
+  useEffect(() => {
+    if (isLoading || pageReference || window.location.hash !== '#bulk-orders') return;
+    const frame = window.requestAnimationFrame(() => document.getElementById('bulk-orders')?.scrollIntoView());
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLoading, pageReference]);
 
   useEffect(() => {
     if (!pageReference || !selectedProduct) return;
@@ -312,7 +318,7 @@ function App() {
 
   useEffect(() => {
     const onPopState = () => {
-      if (window.location.hash === '#collaborate') return;
+      if (['#collaborate', '#bulk-orders'].includes(window.location.hash)) return;
       const reference = readProductPageReference();
       setPageReference(reference);
       setActiveCategory(new URLSearchParams(window.location.search).get('category') || 'All');
@@ -891,7 +897,7 @@ function App() {
       </main>
       )}
 
-      <Footer />
+      <Footer showBulkOrders={!pageReference} />
       {!selectedProduct && !isCartOpen && <BackToTopButton />}
 
       {selectedProduct && !pageReference && (

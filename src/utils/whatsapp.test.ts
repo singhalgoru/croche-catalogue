@@ -35,8 +35,13 @@ it('uses the dedicated order number for general, product and cart enquiries', as
 
 it('respects a configured WhatsApp number override', async () => {
   vi.stubEnv('VITE_WHATSAPP_NUMBER', ' 911234567890 ');
-  const { getGeneralWhatsAppLink } = await import('./whatsapp');
+  const { getGeneralWhatsAppLink, getBulkOrderWhatsAppLink } = await import('./whatsapp');
   expect(new URL(getGeneralWhatsAppLink()).pathname).toBe('/911234567890');
+  const bulkUrl = new URL(getBulkOrderWhatsAppLink());
+  expect(bulkUrl.pathname).toBe('/911234567890');
+  for (const field of ['Name / company:', 'Approximate quantity:', 'Budget per gift:', 'Required delivery date:']) {
+    expect(bulkUrl.searchParams.get('text')).toContain(field);
+  }
 });
 it('does not include a cart identifier in checkout support messages', async () => {
   const { getCheckoutSupportWhatsAppLink } = await import('./whatsapp');

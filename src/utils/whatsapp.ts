@@ -3,6 +3,7 @@ import type { Cart } from '../types/cart';
 import { getCampaignReference } from './campaign';
 import { buildWhatsAppCartMessage } from './cartMessage';
 import { toProductPageUrl, toPublicVariantSlug } from './productLink';
+import bulkOrders from '../content/bulkOrders.json';
 
 // Fallback keeps local dev working if the env var isn't set; production reads
 // VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
@@ -23,6 +24,8 @@ const whatsappLink = (message: string) => {
 
 export const getGeneralWhatsAppLink = () =>
   whatsappLink('Hi Luvia, I would like to know more about your crochet catalogue.');
+
+export const getBulkOrderWhatsAppLink = () => whatsappLink(bulkOrders.message);
 
 export const getCollaborationWhatsAppLink = () =>
   whatsappLink("Hi Luvia! I'd like to explore working with you as a maker, content creator or partner.\n\nMy name / brand: \nInterested in: \nAbout my work: \nPhotos or portfolio link: ");

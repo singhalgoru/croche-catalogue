@@ -1,0 +1,37 @@
+import { expect, test } from '@playwright/test';
+import { installMockSupabase } from './mockSupabase';
+
+test('bulk gifting has email and WhatsApp enquiries and a working footer deep link', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/#bulk-orders');
+  const section = page.getByRole('region', { name: 'Bulk Orders & Corporate Gifting' });
+  await expect(section).toBeVisible();
+  await expect(section.getByRole('heading', { name: 'Bulk Orders & Corporate Gifting' })).toBeInViewport();
+  await expect(page).toHaveURL(/#bulk-orders$/);
+  const whatsapp = new URL(await section.getByRole('link', { name: 'Enquire on WhatsApp' }).getAttribute('href') ?? '');
+  expect(whatsapp.origin).toBe('https://wa.me');
+  expect(whatsapp.searchParams.get('text')).toContain('Approximate quantity:');
+  expect(whatsapp.searchParams.get('text')).toContain('Required delivery date:');
+  await section.getByRole('button', { name: 'Email for bulk orders' }).click();
+  const form = section.getByRole('form', { name: 'Bulk order email enquiry' });
+  await form.getByLabel('Your name', { exact: true }).fill('Asha');
+  await form.getByLabel('Reply email', { exact: true }).fill('asha@example.test');
+  await form.getByLabel('Products or gifting ideas', { exact: true }).fill('Rose charms for our team');
+  await form.getByLabel('Approximate quantity', { exact: true }).fill('50');
+  await form.getByLabel('Delivery city / pincode', { exact: true }).fill('Manesar 122050');
+  await form.getByRole('button', { name: 'Prepare email draft' }).click();
+  const email = new URL(await form.getByRole('link', { name: 'Open email draft' }).getAttribute('href') ?? '');
+  expect(email.pathname).toBe('bulkorder@luviacreations.com');
+  expect(email.searchParams.get('subject')).toBe('Luvia Creations | Bulk Orders & Corporate Gifting Enquiry');
+  expect(email.searchParams.get('body')).toContain('Approximate quantity: 50');
+  expect(email.searchParams.get('body')).toContain('Delivery city / pincode: Manesar 122050');
+  await expect(form.getByRole('status')).toContainText('send it from your email app');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.goto('/about/');
+  await expect(page.getByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toHaveCount(0);
+  const toggle = page.getByRole('button', { name: 'Help & information' });
+  if (await toggle.isVisible()) await toggle.click();
+  await page.getByRole('link', { name: 'Bulk orders & corporate gifting', exact: true }).click();
+  await expect(page).toHaveURL(/\/#bulk-orders$/);
+  await expect(page.getByRole('heading', { name: 'Bulk Orders & Corporate Gifting' })).toBeInViewport();
+});

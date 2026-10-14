@@ -21,6 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
+import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -346,7 +347,7 @@ const compareInitialProducts = (left, right, now = Date.now()) => {
     || (left.sortOrder ?? 0) - (right.sortOrder ?? 0);
 };
 
-const renderShell = (products) => {
+const renderShell = (products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
   const orderedProducts = [...products].sort(compareInitialProducts);
   const firstProductId = orderedProducts[0]?.id;
   const groups = groupByCategory(orderedProducts);
@@ -395,8 +396,13 @@ const renderShell = (products) => {
     `<p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>`,
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
     '</section>',
+    `<section id="bulk-orders" aria-labelledby="bulk-orders-heading"><h2 id="bulk-orders-heading">${escapeHtml(bulkOrders.title)}</h2>`,
+    `<p>${escapeHtml(bulkOrders.description)}</p>`,
+    `<p><a href="mailto:${bulkOrders.email}?subject=${encodeURIComponent(bulkOrders.subject)}&amp;body=${encodeURIComponent(bulkOrders.message)}">Email for bulk orders</a> · `,
+    `<a href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(bulkOrders.message)}">Enquire on WhatsApp</a></p>`,
+    `<p>${escapeHtml(bulkOrders.email)}</p><p>${escapeHtml(bulkOrders.note)}</p></section>`,
     '</main>',
-    '<footer><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a></footer>',
+    '<footer><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/#bulk-orders">Bulk orders &amp; corporate gifting</a></footer>',
   ].join('');
 };
 
@@ -560,7 +566,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         <p><a href="/faq/">Shipping &amp; payment information</a> · <a href="/about/">About &amp; contact</a></p>
       </section>
       <footer>
-        <p><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
+        <p><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/#bulk-orders">Bulk orders &amp; corporate gifting</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
         <p>Luvia Creations makes handmade crochet accessories, gifts, toys and decor, shipped across India.
         <a href="/">Browse the full catalogue</a> or follow
         <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>
@@ -735,7 +741,7 @@ const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) 
       (_, before, after) => `${before}${escapeHtml(description)}${after}`)
     .replace(/("description":\s*")[^"]*(")/,
       () => `"description":${JSON.stringify(description).replace(/</g, '\\u003c')}`)
-    .replace(shell, () => `<!--shell-->${renderShell(products)}<!--/shell-->`)
+    .replace(shell, () => `<!--shell-->${renderShell(products, whatsappNumber)}<!--/shell-->`)
     .replaceAll('{{WHATSAPP_PHONE}}', display)
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };
