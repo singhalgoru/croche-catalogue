@@ -28,3 +28,35 @@ export const formatDeliveryDays = (estimate: DeliveryEstimate) => {
     ? `about ${minDays} day${minDays === 1 ? '' : 's'} after dispatch`
     : `${minDays}–${maxDays} days after dispatch`;
 };
+
+export const formatEstimatedDeliveryDateRange = (
+  estimate: DeliveryEstimate,
+  referenceDate = new Date(),
+) => {
+  const { minDays, maxDays } = estimate;
+  if (minDays === null || maxDays === null
+    || !Number.isInteger(minDays) || !Number.isInteger(maxDays)
+    || minDays < 0 || maxDays < minDays) return null;
+
+  const indiaDateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(referenceDate);
+  const datePart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(indiaDateParts.find(part => part.type === type)?.value);
+  const orderDate = new Date(Date.UTC(datePart('year'), datePart('month') - 1, datePart('day')));
+  const earliest = new Date(orderDate);
+  const latest = new Date(earliest);
+  earliest.setUTCDate(earliest.getUTCDate() + minDays + 1);
+  latest.setUTCDate(latest.getUTCDate() + maxDays + 5);
+
+  const formatDate = (date: Date) => new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+  return `${formatDate(earliest)}–${formatDate(latest)}`;
+};

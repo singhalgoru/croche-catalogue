@@ -12,6 +12,7 @@ import StorePages from './components/StorePages';
 import { isStorePage } from './utils/storePageRoute';
 import CategoryFilter from './components/CategoryFilter';
 import PriceFilter from './components/PriceFilter';
+import MobileCatalogueFilters from './components/MobileCatalogueFilters';
 import CartMenuButton from './components/CartMenuButton';
 import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
@@ -42,7 +43,7 @@ import {
   toPublicVariantSlug,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
-import { matchesCataloguePriceRange, type CataloguePriceRange } from './utils/cataloguePrice';
+import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from './utils/cataloguePrice';
 import { getProductMetaDescription } from './utils/productMetaDescription';
 import { collectionPath } from './utils/collectionLink.js';
 
@@ -124,6 +125,7 @@ function App() {
   const [activeCategory, setActiveCategory] = useState<CatalogueFilter>(() =>
     new URLSearchParams(window.location.search).get('category') || 'All');
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
+  const priceBands = useMemo(() => getCataloguePriceBands(products), [products]);
   const [query, setQuery] = useState('');
   const [selectedProductSnapshot, setSelectedProduct] = useState<Product | null>(() => {
     const reference = readProductPageReference() ?? readProductReferenceFromHash();
@@ -754,17 +756,25 @@ function App() {
                 })
               }
             />
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <CategoryFilter
-                categories={categories}
+            <div className="flex items-center justify-center gap-2">
+              <MobileCatalogueFilters activeCategory={effectiveActiveCategory}
+                activePriceRange={activePriceRange} categories={categories}
                 seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
-                active={effectiveActiveCategory}
-                onSelect={selectCategory}
-                showNew={hasNewProducts}
-                compactOnMobile
-                collapseCategories
-              />
-              <PriceFilter active={activePriceRange} onApply={setActivePriceRange} />
+                showNew={hasNewProducts} priceBands={priceBands}
+                onSelectCategory={selectCategory} onApplyPriceRange={setActivePriceRange} />
+              <div className="hidden flex-wrap items-center justify-center gap-2 sm:flex">
+                <CategoryFilter
+                  categories={categories}
+                  seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+                  active={effectiveActiveCategory}
+                  onSelect={selectCategory}
+                  showNew={hasNewProducts}
+                  compactOnMobile
+                  collapseCategories
+                />
+                <PriceFilter key={`${activePriceRange?.minimum ?? ''}:${activePriceRange?.maximum ?? ''}`}
+                  active={activePriceRange} bands={priceBands} onApply={setActivePriceRange} />
+              </div>
             </div>
           </div>
         )}
@@ -789,18 +799,11 @@ function App() {
               </div>
               <CartMenuButton itemCount={cart.itemCount} updateCount={cart.cartUpdateCount} onClick={() => setIsCartOpen(true)} />
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <CategoryFilter
-                categories={categories}
-                seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
-                active={effectiveActiveCategory}
-                onSelect={selectCategory}
-                showNew={hasNewProducts}
-                compactOnMobile
-                collapseCategories
-              />
-              <PriceFilter active={activePriceRange} onApply={setActivePriceRange} />
-            </div>
+            <MobileCatalogueFilters isSticky activeCategory={effectiveActiveCategory}
+              activePriceRange={activePriceRange} categories={categories}
+              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+              showNew={hasNewProducts} priceBands={priceBands}
+              onSelectCategory={selectCategory} onApplyPriceRange={setActivePriceRange} />
           </div>
         )}
         <div className="text-center">

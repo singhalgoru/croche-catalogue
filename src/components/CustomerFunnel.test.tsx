@@ -47,10 +47,12 @@ it('shows the courier transit window for the selected address pincode after disp
       image: '', unitPrice: 200, quantity: 1 }],
   };
   render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
-  expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
-    .toContain('For pincode 110001, courier transit is usually 3–5 days after dispatch.');
-  expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
-    .toContain('Preparation time is additional');
+  const deliveryWindow = screen.getByRole('region', { name: 'Delivery window' }).textContent ?? '';
+  expect(deliveryWindow).toContain('Around');
+  expect(deliveryWindow).toContain('For pincode 110001');
+  expect(deliveryWindow).toContain('courier transit of 3–5 days after dispatch');
+  expect(deliveryWindow).toContain('1–5 days for preparation and dispatch');
+  expect(deliveryWindow).toContain('dates are approximate and not guaranteed');
 });
 it('explains when the selected address has no courier transit estimate', () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details, deliveryPinCode: details.pincode }}

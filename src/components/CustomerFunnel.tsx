@@ -6,7 +6,7 @@ import type { DeliveryDetails, SavedAddress } from '../types/customer';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails, deliveryAddressText } from '../utils/customer';
 import { fetchCustomerAddresses, fetchCustomerProfile } from '../services/customer';
 import { trackCartStep } from '../services/analytics';
-import { formatDeliveryDays, getCurrentDeliveryEstimate } from '../utils/deliveryEstimate';
+import { formatDeliveryDays, formatEstimatedDeliveryDateRange, getCurrentDeliveryEstimate } from '../utils/deliveryEstimate';
 
 const sameAddress = (a: DeliveryDetails, b: DeliveryDetails) =>
   (['name', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'pincode'] as const).every(key => a[key] === b[key]);
@@ -60,6 +60,7 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
   const deliveryEstimate = reviewed.pincode === cart.deliveryPinCode
     ? getCurrentDeliveryEstimate(cart) : null;
   const deliveryDays = deliveryEstimate ? formatDeliveryDays(deliveryEstimate) : null;
+  const deliveryDates = deliveryEstimate ? formatEstimatedDeliveryDateRange(deliveryEstimate) : null;
   const triedDefaultAddress = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -197,9 +198,10 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         {reviewed.email && <p className="break-words">{reviewed.email}</p>}
         <p className="break-words">{deliveryAddressText(reviewed)}</p>
         <section aria-label="Delivery window" className="rounded-xl border border-mustard/30 bg-cream/60 p-3">
-          <h4 className="font-semibold">Estimated delivery after dispatch</h4>
-          {deliveryDays
-            ? <p className="mt-1">For pincode {reviewed.pincode}, courier transit is usually {deliveryDays}. Preparation time is additional; delivery dates are not guaranteed.</p>
+          <h4 className="font-semibold">Estimated delivery</h4>
+          {deliveryDays && deliveryDates
+            ? <><p className="mt-1 font-semibold">Around {deliveryDates}</p>
+              <p className="mt-1 text-sm">For pincode {reviewed.pincode}, this estimate combines courier transit of {deliveryDays} with 1–5 days for preparation and dispatch after order confirmation. This range assumes you order today; dates are approximate and not guaranteed.</p></>
             : <p className="mt-1 text-cocoa/75">A courier transit estimate is not available for pincode {reviewed.pincode} right now. Delivery timing after dispatch will be confirmed with the courier.</p>}
         </section>
         {cart.welcomeCouponCode && <p className="break-words">{cart.coupon

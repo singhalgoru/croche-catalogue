@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../types/product';
-import { getCatalogueProductPrice, matchesCataloguePriceRange } from './cataloguePrice';
+import { getCataloguePriceBands, getCatalogueProductPrice, matchesCataloguePriceRange } from './cataloguePrice';
 
 const product: Product = {
   id: 'p1', name: 'Crochet flower', category: 'Decor', price: 250, showPrice: true,
@@ -28,5 +28,28 @@ describe('catalogue price filter', () => {
     const enquiryOnly = { ...product, showPrice: false };
     expect(getCatalogueProductPrice(enquiryOnly)).toBeNull();
     expect(matchesCataloguePriceRange(enquiryOnly, { minimum: 0, maximum: 500 })).toBe(false);
+  });
+
+  it('creates up to four non-empty bands from displayed product prices', () => {
+    const products = [100, 200, 300, 400, 500, 600, 700, 800].map((price, index) => ({
+      ...product,
+      id: `p${index}`,
+      price,
+      variants: [{ ...product.variants[0], price: null }],
+    }));
+    const bands = getCataloguePriceBands(products);
+    expect(bands).toHaveLength(4);
+    expect(bands.map(band => band.label)).toEqual([
+      'Up to ₹250', '₹251–₹450', '₹451–₹650', '₹651+',
+    ]);
+    for (const item of products) {
+      const matchingBands = bands.filter(band => matchesCataloguePriceRange(item, band));
+      expect(matchingBands).toHaveLength(1);
+    }
+  });
+
+  it('omits ranges when fewer than two priced levels are available', () => {
+    expect(getCataloguePriceBands([product])).toEqual([]);
+    expect(getCataloguePriceBands([{ ...product, showPrice: false }])).toEqual([]);
   });
 });
