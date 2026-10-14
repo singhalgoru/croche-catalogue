@@ -38,7 +38,7 @@ export interface Cart {
   /** Terms of the coupon selected for this cart; the same rule is enforced at payment. */
   coupon?: CartCoupon | null;
   deliveryPinCode?: string | null;
-  deliveryPinLocation?: { districts: string[]; states: string[]; country: 'India' } | null;
+  deliveryPinLocation?: { districts: string[]; cities?: string[]; states: string[]; country: 'India'; provider?: 'shiprocket' } | null;
   deliveryPinCheckedAt?: string | null;
   deliveryEstimate?: DeliveryEstimate | null;
   id: string;

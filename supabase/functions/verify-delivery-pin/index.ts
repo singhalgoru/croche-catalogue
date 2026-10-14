@@ -47,13 +47,16 @@ Deno.serve(async request => {
   const { data: cached, error: cacheError } = await admin.from('delivery_pin_cache').select('location,checked_at')
     .eq('pin', body.pin).gte('checked_at', new Date(Date.now() - 30 * 86400_000).toISOString()).maybeSingle();
   if (cacheError) return json({ error: 'Unable to read PIN verification data. Please retry.' }, 500);
-  let location = cached?.location;
-  let checkedAt = cached?.checked_at;
-  if (!cached) {
+  const currentCache = cached?.location?.provider === 'shiprocket' ? cached : null;
+  let location = currentCache?.location;
+  let checkedAt = currentCache?.checked_at;
+  if (!currentCache) {
     try {
-      const response = await fetch(`https://api.postalpincode.in/pincode/${body.pin}`, { signal: AbortSignal.timeout(8000) });
-      if (!response.ok) throw new Error(`Postal lookup responded HTTP ${response.status}.`);
+      const response = await fetch(`https://apiv2.shiprocket.in/v1/external/open/postcode/details?postcode=${body.pin}`, { signal: AbortSignal.timeout(8000) });
+      // Shiprocket returns HTTP 500 with a specific payload for unknown PINs.
+      if (!response.ok && response.status !== 500) throw new Error(`Postal lookup responded HTTP ${response.status}.`);
       location = parsePostalResponse(await response.json(), body.pin);
+      if (!response.ok && location) throw new Error(`Postal lookup responded HTTP ${response.status}.`);
     } catch (error) {
       console.error('Postal lookup failed:', error instanceof Error ? error.message : 'Unknown lookup error');
       return json({ error: 'PIN verification is temporarily unavailable. Please retry, or clear the PIN and enquire without it.' }, 503);

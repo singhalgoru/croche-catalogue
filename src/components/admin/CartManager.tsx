@@ -167,8 +167,8 @@ export default function CartManager() {
                         onClick={() => setCouponConfirmId(cart.id)}>Mark coupon used for paid offline order</button>}
                     </div>}
                     {cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
-                      Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
-                      {' '}Pincode checked against postal records{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address is not verified.
+                      Postal area: {(cart.deliveryPinLocation.cities ?? cart.deliveryPinLocation.districts).join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}.
+                      {' '}Pincode checked {cart.deliveryPinLocation.provider === 'shiprocket' ? 'with Shiprocket' : 'against postal records'}{cart.deliveryPinCheckedAt ? ` on ${new Date(cart.deliveryPinCheckedAt).toLocaleString()}` : ''}; shopper address and delivery availability are not verified.
                     </p>}
                     {cart.deliveryPinCode && cart.deliveryPinCheckedAt && !cart.deliveryPinLocation && <p className="mt-1 text-xs text-cocoa/65">
                       Postal area could not be confirmed by lookup; confirm delivery availability before fulfilment.

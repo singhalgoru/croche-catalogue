@@ -7,7 +7,9 @@ vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
 let handler: (request: Request) => Promise<Response>;
 const fetchMock = vi.fn();
 const cartId = '11111111-1111-4111-8111-111111111111';
-const location = { districts: ['Central Delhi'], states: ['Delhi'], country: 'India' };
+const location = { districts: [], cities: ['Central Delhi'], states: ['Delhi'], country: 'India', provider: 'shiprocket' };
+const postalPayload = { success: true,
+  postcode_details: { postcode: '110001', country: 'India', state: 'Delhi', city: 'Central Delhi' } };
 let ownedCart: unknown;
 let cached: unknown;
 let saved: unknown;
@@ -46,8 +48,7 @@ beforeEach(() => {
   getUser.mockResolvedValue({ data: { user: { id: 'owner' } }, error: null });
   rpc.mockResolvedValue({ data: true, error: null });
   fetchMock.mockReset();
-  fetchMock.mockResolvedValue(new Response(JSON.stringify([{ Status: 'Success',
-    PostOffice: [{ Pincode: '110001', Country: 'India', State: 'Delhi', District: 'Central Delhi' }] }])));
+  fetchMock.mockResolvedValue(new Response(JSON.stringify(postalPayload)));
   vi.stubGlobal('fetch', fetchMock);
   from.mockImplementation((table: string) => {
     let updating = false;
@@ -69,11 +70,11 @@ it('verifies PINs and saves only server-derived area metadata', async () => {
   expect(response.status).toBe(200);
   expect(await response.json()).toHaveProperty('location', location);
   expect(updateValues).toMatchObject({ delivery_pin_code: '110001', delivery_pin_location: location });
-  expect(fetchMock.mock.calls[0][0]).toBe('https://api.postalpincode.in/pincode/110001');
+  expect(fetchMock.mock.calls[0][0]).toBe('https://apiv2.shiprocket.in/v1/external/open/postcode/details?postcode=110001');
   expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('headers');
 });
 it.each(['122050', '999999'])('saves format-valid PIN %s when the postal lookup has no record and returns a warning', async pin => {
-  fetchMock.mockResolvedValue(new Response(JSON.stringify([{ Status: 'Error', Message: 'No records found', PostOffice: null }])));
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ code: 403, message: `City/State not found for this pincode : ${pin}` }), { status: 500 }));
   const response = await handler(request(pin));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
@@ -90,6 +91,28 @@ it('uses a fresh cache without sending another upstream request', async () => {
   cached = { location, checked_at: new Date().toISOString() };
   expect((await handler(request())).status).toBe(200);
   expect(fetchMock).not.toHaveBeenCalled();
+});
+it('refreshes old provider cache entries using Shiprocket', async () => {
+  cached = { location: { districts: ['Central Delhi'], states: ['Delhi'], country: 'India' }, checked_at: new Date().toISOString() };
+  expect((await handler(request())).status).toBe(200);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(updateValues).toMatchObject({ delivery_pin_location: location });
+});
+it('recognizes Manesar PIN 122050 through Shiprocket', async () => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: true,
+    postcode_details: { postcode: '122050', city: 'Manesar', state: 'Haryana', country: 'India' } })));
+  const response = await handler(request('122050'));
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.location).toMatchObject({ cities: ['Manesar'], states: ['Haryana'], provider: 'shiprocket' });
+  expect(body).not.toHaveProperty('warning');
+});
+it('does not treat a generic provider HTTP 500 as an unknown PIN', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ message: 'Internal server error' }), { status: 500 }));
+  expect((await handler(request())).status).toBe(503);
+  expect(updateValues).toBeUndefined();
+  log.mockRestore();
 });
 it('rejects invalid shapes before database or API calls', async () => {
   expect((await handler(request('000000'))).status).toBe(400);
@@ -133,8 +156,7 @@ it('does not claim success when cache or cart persistence fails', async () => {
   expect(updateValues).toBeUndefined();
   cacheWriteError = null;
   saved = null;
-  fetchMock.mockResolvedValue(new Response(JSON.stringify([{ Status: 'Success',
-    PostOffice: [{ Pincode: '110001', Country: 'India', State: 'Delhi', District: 'Central Delhi' }] }])));
+  fetchMock.mockResolvedValue(new Response(JSON.stringify(postalPayload)));
   expect((await handler(request())).status).toBe(500);
 });
 it('skips Shiprocket entirely until it is configured', async () => {
@@ -146,8 +168,7 @@ it('skips Shiprocket entirely until it is configured', async () => {
 it('saves a Shiprocket estimate for the cart quantity', async () => {
   env = shiprocketEnv;
   ownedCart = { ...(ownedCart as object), cart_items: [{ id: 'i1', quantity: 2 }, { id: 'i2', quantity: 2 }] };
-  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([{ Status: 'Success',
-    PostOffice: [{ Pincode: '110001', Country: 'India', State: 'Delhi', District: 'Central Delhi' }] }])))
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(postalPayload)))
     .mockResolvedValueOnce(new Response(JSON.stringify({ data: { available_courier_companies: [{ rate: 72.5, estimated_delivery_days: '4' }] } })));
   const body = await (await handler(request())).json();
   expect(body.estimate).toMatchObject({ provider: 'shiprocket', minCharge: 73, maxCharge: 73, weightGrams: 700, itemCount: 4 });

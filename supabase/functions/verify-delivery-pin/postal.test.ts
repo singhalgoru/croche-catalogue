@@ -1,16 +1,21 @@
 import { expect, it } from 'vitest';
 import { parsePostalResponse } from './postal';
 
-const office = { Pincode: '110001', Country: 'India', District: 'Central Delhi', State: 'Delhi' };
-it('validates the returned PIN and deduplicates areas without claiming an exact city', () => {
-  expect(parsePostalResponse([{ Status: 'Success', PostOffice: [office, office, { ...office, District: 'New Delhi' }] }], '110001'))
-    .toEqual({ districts: ['Central Delhi', 'New Delhi'], states: ['Delhi'], country: 'India' });
+const details = { postcode: '122050', country: 'India', city: 'Manesar', state: 'Haryana' };
+it('reads Shiprocket city/state without treating the city as a district or storing coordinates', () => {
+  expect(parsePostalResponse({ success: true, postcode_details: { ...details, latitude: '28.37', longitude: '76.91' } }, '122050'))
+    .toEqual({ districts: [], cities: ['Manesar'], states: ['Haryana'], country: 'India', provider: 'shiprocket' });
 });
-it('recognizes no-record responses, but never treats provider failures as a valid PIN', () => {
-  expect(parsePostalResponse([{ Status: 'Error', Message: 'No records found', PostOffice: null }], '999999')).toBeNull();
-  for (const payload of [null, [], [{ Status: 'Success', PostOffice: [] }], [{ Status: 'Error', Message: 'Service unavailable', PostOffice: null }],
-    [{ Status: 'Success', PostOffice: [{ ...office, Pincode: '110002' }] }],
-    [{ Status: 'Success', PostOffice: [{ ...office, District: null }] }]]) {
-    expect(() => parsePostalResponse(payload, '110001')).toThrow();
-  }
+it('recognizes only the explicit no-area response for the requested PIN', () => {
+  expect(parsePostalResponse({ code: 403, message: 'City/State not found for this pincode : 999999' }, '999999')).toBeNull();
+});
+it.each([
+  null, [], {}, { success: false }, { code: 403, message: 'Service unavailable' },
+  { code: 403, message: 'City/State not found for this pincode : 999999' },
+  { success: true, postcode_details: { ...details, postcode: '110001' } },
+  { success: true, postcode_details: { ...details, country: 'US' } },
+  { success: true, postcode_details: { ...details, city: '' } },
+  { success: true, postcode_details: { ...details, state: null } },
+])('rejects invalid, mismatched and unavailable responses: %j', payload => {
+  expect(() => parsePostalResponse(payload, '122050')).toThrow();
 });

@@ -1,7 +1,9 @@
 export interface PostalLocation {
   districts: string[];
+  cities: string[];
   states: string[];
   country: 'India';
+  provider: 'shiprocket';
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -15,23 +17,19 @@ const postalText = (value: unknown): string => {
 };
 
 export const parsePostalResponse = (value: unknown, pin: string): PostalLocation | null => {
-  if (!Array.isArray(value) || value.length !== 1 || !isRecord(value[0])) {
+  if (!isRecord(value)) {
     throw new Error('Postal lookup returned an invalid response. Please retry.');
   }
-  const result = value[0];
-  if (result.Status === 'Error' && result.PostOffice === null
-    && typeof result.Message === 'string' && /^No records found$/i.test(result.Message.trim())) return null;
-  if (result.Status !== 'Success' || !Array.isArray(result.PostOffice) || !result.PostOffice.length) {
+  if (value.code === 403 && value.message === `City/State not found for this pincode : ${pin}`) return null;
+  if (value.success !== true || !isRecord(value.postcode_details)) {
     throw new Error('Postal lookup is unavailable. Please retry.');
   }
-  const districts = new Set<string>();
-  const states = new Set<string>();
-  for (const office of result.PostOffice) {
-    if (!isRecord(office) || office.Pincode !== pin || office.Country !== 'India') {
-      throw new Error('Postal lookup returned mismatched location data. Please retry.');
-    }
-    districts.add(postalText(office.District));
-    states.add(postalText(office.State));
+  const details = value.postcode_details;
+  if (details.postcode !== pin || details.country !== 'India') {
+    throw new Error('Postal lookup returned mismatched location data. Please retry.');
   }
-  return { districts: [...districts].sort(), states: [...states].sort(), country: 'India' };
+  return {
+    districts: [], cities: [postalText(details.city)], states: [postalText(details.state)],
+    country: 'India', provider: 'shiprocket',
+  };
 };

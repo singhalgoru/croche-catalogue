@@ -61,7 +61,7 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
       <button type="button" disabled={busy || saving} onClick={() => void save('')}
         className="min-h-11 shrink-0 px-2 underline disabled:opacity-50">Clear</button>
     </div>}
-    {cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">Postal area: {cart.deliveryPinLocation.districts.join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}</p>}
+    {cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">Postal area: {(cart.deliveryPinLocation.cities ?? cart.deliveryPinLocation.districts).join(', ')} · {cart.deliveryPinLocation.states.join(', ')} · {cart.deliveryPinLocation.country}</p>}
     {cart.deliveryPinCode && !cart.deliveryPinLocation && <p className="text-xs text-cocoa/75">
       {cart.deliveryPinCheckedAt
         ? 'We could not confirm this PIN’s postal area. Please double-check it; Luvia will confirm delivery availability.'
@@ -83,7 +83,7 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
     </p>}
     <details className="mt-1 text-xs text-cocoa/75">
       <summary className="flex min-h-11 cursor-pointer items-center underline">How we use your pincode</summary>
-      <p id="cart-delivery-pin-help">Optional, for shipping enquiries. Only your pincode is sent to Postal PIN Code API to check its postal area and to our courier partner Shiprocket for an approximate delivery charge, then shared with Luvia and stored with this cart for up to 30 days. This does not verify your address; Luvia confirms the final delivery charge.</p>
+      <p id="cart-delivery-pin-help">Optional, for shipping enquiries. Your pincode is sent to our courier partner Shiprocket to check its city/state and, with an approximate parcel weight, estimate delivery charges. The result is shared with Luvia and stored with this cart for up to 30 days. This does not verify your address or guarantee delivery availability; Luvia confirms the final delivery charge.</p>
     </details>
     {showEditor && draft.trim() !== (cart.deliveryPinCode ?? '') && <p className="mt-1 text-xs">Unsaved pincode changes are not shared.</p>}
     {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}

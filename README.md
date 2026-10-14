@@ -835,8 +835,12 @@ available under "How we use your pincode". Saving/clearing is announced to scree
 readers without adding a separate visible confirmation row.
 Only six-digit Indian PIN shapes are accepted. Saving a nonempty PIN calls the
 authenticated `verify-delivery-pin` Edge Function, which verifies the cart owner
-and checks the PIN using `https://api.postalpincode.in/pincode/{pin}`.
-This is a third-party postal-data API, not an address verification service.
+and checks the PIN using Shiprocket's public
+`GET /v1/external/open/postcode/details?postcode={pin}` endpoint.
+The returned city/state is area metadata, not address verification or guaranteed
+courier serviceability. City names are stored separately from district names.
+Old postal-provider cache entries are refreshed through Shiprocket on the next
+lookup; only Shiprocket-derived entries are reused for 30 days.
 Only the PIN is sent upstream; no cart IDs, user IDs, IP addresses or GPS are sent.
 Confirmed postal areas are cached for 30 days. If the lookup has no record, the
 format-valid PIN is saved without an area and shoppers are asked to double-check
@@ -844,7 +848,7 @@ it; Luvia confirms delivery availability before fulfilment. Lookup outages still
 produce explicit errors and never overwrite saved data. Lookups are limited to
 one per active cart every 10 seconds and have an 8-second upstream timeout.
 Saved PINs are included in WhatsApp/email enquiries and shown in admin as
-shopper-provided; checked PINs also show district(s), state(s), country and the
+shopper-provided; checked PINs also show city/state (or legacy district), country and the
 postal lookup date. This is not a verified shopper address or shipping quote.
 Existing PINs remain unverified until the shopper saves them again.
 They share the cart's 30-day lifetime and are cleared on cart deletion/renewal.

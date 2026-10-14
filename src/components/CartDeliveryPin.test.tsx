@@ -56,6 +56,13 @@ it('warns when the postal area could not be confirmed for a saved PIN', () => {
   expect(screen.getByText(/could not confirm this PIN’s postal area/)).toBeTruthy();
   expect(screen.queryByText(/not checked yet/)).toBeNull();
 });
+it('shows the Shiprocket city without requiring or inventing a district', () => {
+  render(<CartDeliveryPin cart={{ ...cart, deliveryPinCode: '122050',
+    deliveryPinLocation: { districts: [], cities: ['Manesar'], states: ['Haryana'], country: 'India', provider: 'shiprocket' } }}
+    busy={false} onSave={vi.fn()} />);
+  expect(screen.getByText('Postal area: Manesar · Haryana · India')).toBeTruthy();
+  expect(screen.queryByText(/could not confirm/)).toBeNull();
+});
 
 it('shows the Shiprocket estimate and offers a refresh after the cart changes', async () => {
   const item = { id: 'i1', productId: 'p1', variantId: 'v1', productName: 'Bunny', variantName: '', image: '', unitPrice: 200, quantity: 1 };
