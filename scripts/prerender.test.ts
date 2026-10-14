@@ -43,8 +43,8 @@ const row = {
     'https://bblsjcjypdxntzlszliy.supabase.co/storage/v1/object/public/product-images/a/b.jpg',
   published_at: '2026-01-01T00:00:07+00:00',
   product_variants: [
-    { id: 'v2', public_slug: 'blush', name: 'Blush', color: 'pink', price: 450, in_stock: true, sort_order: 2 },
-    { id: 'v1', public_slug: 'ivory', name: 'Ivory', color: 'white', price: null, in_stock: true, sort_order: 1 },
+    { id: 'v2', public_slug: 'blush', name: 'Blush', color: 'pink', price: 450, in_stock: true, available_quantity: 2, sort_order: 2 },
+    { id: 'v1', public_slug: 'ivory', name: 'Ivory', color: 'white', price: null, in_stock: true, available_quantity: 1, sort_order: 1 },
   ],
 };
 
@@ -53,6 +53,18 @@ const product = toProduct(row);
 afterEach(() => vi.unstubAllGlobals());
 
 describe('fetchProducts', () => {
+  it('renders zero-quantity variants as out of stock even with an enabled stock flag', () => {
+    const empty = toProduct({ ...row, product_variants: row.product_variants.map(variant => ({
+      ...variant, available_quantity: 0,
+    })) });
+    expect(empty.inStock).toBe(false);
+    expect(empty.variants.every(variant => !variant.inStock)).toBe(true);
+    expect(renderShell([empty])).toContain('Out of stock.');
+    expect(toProduct({ ...row, product_variants: [
+      { ...row.product_variants[0], available_quantity: 0 }, row.product_variants[1],
+    ] }).inStock).toBe(true);
+  });
+
   it('fetches category priorities for immediate initial filters', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true, json: async () => [{ name: 'Toys', sort_order: 10 }],
@@ -393,7 +405,7 @@ describe('renderLlms', () => {
 
   it('does not expose hidden prices or retain removed products and categories', () => {
     const text = renderLlms(template, [{ ...product, price: null, inStock: false }]);
-    expect(text).toContain('Price on request. Sold out.');
+    expect(text).toContain('Price on request. Out of stock.');
     expect(text).not.toContain('₹');
     expect(renderLlms(template, [])).not.toContain('Ivory Rose Gajra');
     expect(renderLlms(template, [])).not.toContain('## Hair Accessories');
@@ -492,10 +504,10 @@ describe('renderProductPage', () => {
 
   it('keeps sold-out wording consistent with structured availability', () => {
     const soldOut = renderProductPage({ ...product, inStock: false }, '91');
-    expect(soldOut).toContain('Sold out.');
+    expect(soldOut).toContain('Out of stock.');
     expect(soldOut).toContain('https://schema.org/OutOfStock');
     expect(soldOut).not.toMatch(/made to order|ready to ship/i);
-    expect(renderShell([{ ...product, inStock: false }])).toContain('Sold out.');
+    expect(renderShell([{ ...product, inStock: false }])).toContain('Out of stock.');
   });
 
   it('never lets JSON-LD break out of its script element', () => {

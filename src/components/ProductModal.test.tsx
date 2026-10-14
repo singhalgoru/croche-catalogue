@@ -409,7 +409,7 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByRole('img', { name: 'Crochet Rose — Ivory' }).getAttribute('src')).toBe(
       '/rose-ivory.jpg',
     );
-    expect(screen.getAllByText('Sold out', { exact: true })).toHaveLength(2);
+    expect(screen.getAllByText('Out of stock', { exact: true })).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Ask on WhatsApp' }).getAttribute('href')).toContain(
       '%E2%80%94%20Ivory',
     );

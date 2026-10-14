@@ -250,7 +250,7 @@ export default function ProductCard({
         )}
         {!product.inStock && (
           <span className="absolute top-2 right-2 bg-cocoa/80 text-cream text-xs px-2 py-1 rounded-full">
-            Sold out
+            Out of stock
           </span>
         )}
         {(isFeatured || isNew) && (

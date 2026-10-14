@@ -544,7 +544,7 @@ export default function ProductModal({
                     selectedVariant?.inStock ? 'text-green-700' : 'text-cocoa/55'
                   }`}
                 >
-                  {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
+                  {selectedVariant?.inStock ? 'In stock' : 'Out of stock'}
                 </span>
               </div>
               <div data-swipe-ignore className="mt-3 flex gap-3 overflow-x-auto pb-2">
@@ -663,7 +663,7 @@ export default function ProductModal({
           <div className={`${isPage ? '' : 'sticky bottom-0 z-30 backdrop-blur-sm'} -mx-4 mt-4 flex flex-col gap-2 border-t border-mustard/25 bg-white/95 px-4 py-3 sm:-mx-6 sm:px-6`}>
             <div className="flex items-center justify-between gap-2">
             <span className={selectedVariant?.inStock ? 'font-medium text-green-700' : 'font-medium text-cocoa/60'}>
-              {selectedVariant?.inStock ? 'In stock' : 'Sold out'}
+              {selectedVariant?.inStock ? 'In stock' : 'Out of stock'}
             </span>
               {!isPage && shareButton}
             </div>

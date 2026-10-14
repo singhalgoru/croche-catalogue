@@ -205,7 +205,7 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   name: row.name,
   color: row.color,
   price: row.price,
-  inStock: row.in_stock,
+  inStock: row.in_stock && row.available_quantity > 0,
   availableQuantity: row.available_quantity,
   image: normalizeProductImageUrl(row.image_url),
   imagePath: row.image_path,

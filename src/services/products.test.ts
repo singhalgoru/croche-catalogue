@@ -98,6 +98,19 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('derives stock from quantity even when the stored availability flag is true', async () => {
+    const variant = { ...draft.variants[0], id: 'v1', in_stock: true, available_quantity: 0,
+      image_url: row.image_url, image_path: row.image_path, sort_order: 0 };
+    queueQuery([{ ...row, product_variants: [variant] }]);
+    const [empty] = await fetchPublishedProducts();
+    expect(empty.inStock).toBe(false);
+    expect(empty.variants[0].inStock).toBe(false);
+    queueQuery([{ ...row, product_variants: [variant, { ...variant, id: 'v2', available_quantity: 2 }] }]);
+    const [mixed] = await fetchPublishedProducts();
+    expect(mixed.inStock).toBe(true);
+    expect(mixed.variants.map(item => item.inStock)).toEqual([false, true]);
+  });
+
   it('persists new-product cost inputs privately and the minimum quantity publicly', async () => {
     const inputs = { timeSpent: '1', timeUnit: 'hours' as const, materialCost: '50',
       shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '45' };

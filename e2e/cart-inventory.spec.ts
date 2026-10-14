@@ -1,6 +1,21 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('zero quantity shows out of stock and cannot be added even with a stale stock flag', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  for (const variant of state.products[0].product_variants) {
+    Object.assign(variant, { in_stock: true, available_quantity: 0 });
+  }
+  await page.goto('/');
+  const card = page.locator('article').filter({ has: page.getByRole('button', { name: 'View Rose Charm', exact: true }) });
+  await expect(card.getByText('Out of stock', { exact: true })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
+  await expect(page.getByText('Out of stock', { exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true })).toHaveCount(0);
+  expect(state.carts.flatMap(cart => cart.cart_items)).toHaveLength(0);
+});
+
 test('product and cart quantities stop at stock and stale excess quantities block checkout', async ({ page }) => {
   const state = await installMockSupabase(page);
   await page.goto('/');

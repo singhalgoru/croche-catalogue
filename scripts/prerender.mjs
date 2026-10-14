@@ -162,7 +162,7 @@ const toProduct = (row) => {
     featured: row.featured === true,
     sortOrder: row.sort_order ?? undefined,
     inStock: variants.length > 0
-      ? variants.some((variant) => variant.in_stock !== false)
+      ? variants.some((variant) => variant.in_stock !== false && variant.available_quantity > 0)
       : row.in_stock !== false,
     image: row.image_url ?? '',
     publishedAt: row.published_at ?? null,
@@ -177,7 +177,7 @@ const toProduct = (row) => {
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         .map((image) => image.image_url).filter(Boolean),
       price: variant.price ?? null,
-      inStock: variant.in_stock !== false,
+      inStock: variant.in_stock !== false && variant.available_quantity > 0,
     })),
   };
 };
@@ -291,7 +291,7 @@ const groupByCategory = (products) => {
 const catalogueDescription = () =>
   'Shop handmade crochet gajras, hair accessories, charms, toys and home decor by Luvia Creations. Crafted in India, shipped nationwide. Secure online checkout.';
 
-const stockLabel = (product) => product.inStock ? 'In stock' : 'Sold out';
+const stockLabel = (product) => product.inStock ? 'In stock' : 'Out of stock';
 
 const priceLabel = (product) => {
   const range = priceRange(product);
