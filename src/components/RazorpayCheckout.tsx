@@ -41,7 +41,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       : 'No saved payment was found in this browser. If you paid, contact Luvia or check My Account. Do not pay again.' : '');
   const [pending, setPending] = useState<PaymentResponse | null>(recovery.pending);
   const [verified, setVerified] = useState(recovery.verified);
-  const [interruption, setInterruption] = useState<'closed' | 'failed' | null>(null);
+  const [interruption, setInterruption] = useState<'closed' | 'failed' | 'blocked' | null>(null);
   const paymentFailed = useRef(false);
   const purchaseCart = useRef(cart);
   const confirmedCallback = useRef(onConfirmed);
@@ -198,7 +198,11 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       if (live) trackEvent('checkout_error', { checkout_stage: 'opening_payment', payment_type: 'Razorpay' });
       locked.current = false;
       setBusy(false);
-      setMessage(error instanceof Error ? error.message : live ? 'Unable to open checkout. Contact Luvia before another payment.' : 'Unable to open test checkout.');
+      const failureMessage = error instanceof Error ? error.message : live ? 'Unable to open checkout. Contact Luvia before another payment.' : 'Unable to open test checkout.';
+      if (live && /pending payment|needs verification|needs review|verify it before|already paid|do not pay again|before another payment|before paying again/i.test(failureMessage)) {
+        setInterruption('blocked');
+      }
+      setMessage(failureMessage);
     }
   };
   const showRecovery = live && interruption !== null && !verified && !pending;
@@ -214,17 +218,20 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       </div>}
       {showRecovery && <div role="status" aria-live="polite" aria-atomic="true">
         <h3 className="font-heading text-xl font-bold text-cocoa">
-          {interruption === 'failed' ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.'}
+          {interruption === 'blocked' ? 'An earlier payment needs checking.'
+            : interruption === 'failed' ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.'}
         </h3>
-        <p className="mt-2 break-words text-sm text-cocoa">{message}</p>
+        <p className="mt-2 break-words text-sm text-cocoa">{message || 'Your saved checkout is available. Your order is not confirmed yet.'}</p>
         <p className="mt-2 text-sm font-semibold text-cocoa">
-          {busy ? 'Close the payment window to resume here, or try another method within it. ' : 'Resume securely and choose your preferred payment method. '}
+          {interruption === 'blocked'
+            ? 'We cannot safely start another payment from this checkout. Contact Luvia to check the earlier payment and help you continue. '
+            : busy ? 'Close the payment window to resume here, or try another method within it. ' : 'Resume securely and choose your preferred payment method. '}
           If money was debited, contact Luvia before paying again.
         </p>
       </div>}
       {!(live && verified) && !showRecovery && <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
         : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>}
-      {!confirmationOnly && !verified && !pending && !recovery.error && (
+      {!confirmationOnly && !verified && !pending && !recovery.error && interruption !== 'blocked' && (
         <form onSubmit={event => { event.preventDefault(); void start(); }} className="mt-2 grid gap-2">
           {!live && <><label className="text-xs text-cocoa">
             Name

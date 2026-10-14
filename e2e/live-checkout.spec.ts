@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-for (const scenario of ['success', 'closed', 'failed']) {
+for (const scenario of ['success', 'closed', 'failed', 'blocked']) {
 const replace = scenario !== 'success';
-test(`reviews address and ${replace ? `resumes ${scenario} payment after a cart change` : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
+test(scenario === 'blocked' ? 'shows safe support instead of paying again when an earlier payment blocks checkout'
+  : `reviews address and ${replace ? `resumes ${scenario} payment after a cart change` : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
   const events: { channel: string; args: unknown[] }[] = [];
   await page.exposeFunction('recordAnalytics', (channel: string, args: unknown[]) => { events.push({ channel, args }); });
   await page.addInitScript(() => {
@@ -41,6 +42,9 @@ test(`reviews address and ${replace ? `resumes ${scenario} payment after a cart 
   }));
   await page.route('**/functions/v1/create-live-order', route => {
     requests.push(route.request().postDataJSON());
+    if (scenario === 'blocked') return route.fulfill({ status: 400, json: {
+      error: 'This cart has a pending payment. Resume it or contact Luvia before paying again.',
+    } });
     return route.fulfill({ json: {
     order_id: 'order_livefixture', amount: requests.length > 1 ? 69800 : 44900, currency: 'INR', key_id: 'rzp_live_fixture',
     test_mode: false, reference: 'LUV-LIVEFIXTURE',
@@ -111,6 +115,15 @@ test(`reviews address and ${replace ? `resumes ${scenario} payment after a cart 
   await expect(page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Need help? Contact Luvia on WhatsApp' })).toBeVisible();
   await pay.click();
+  if (scenario === 'blocked') {
+    await expect(page.getByRole('heading', { name: 'An earlier payment needs checking.' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeVisible();
+    await expect(pay).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status'))
+      .toContainText('We cannot safely start another payment');
+    expect(requests).toHaveLength(1);
+    return;
+  }
   if (replace) {
     const recovery = page.getByRole('region', { name: 'Secure online checkout' });
     await expect(recovery.getByRole('status')).toContainText(scenario === 'failed' ? 'Card declined' : 'Payment window closed');

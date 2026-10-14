@@ -107,7 +107,7 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   expect(status).toHaveBeenCalledWith('saved-request');
   expect(createOrder).not.toHaveBeenCalled();
   expect(verify).not.toHaveBeenCalled();
-  expect(purchase).toHaveBeenCalledWith('saved-request');
+  await waitFor(() => expect(purchase).toHaveBeenCalledWith('saved-request'));
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
 it('rechecks a paid order on confirmation refresh even after the server clears the cart', async () => {
@@ -251,4 +251,21 @@ it('surfaces script and API failures and keeps blocked carts disabled', async ()
   first.unmount();
   render(<RazorpayCheckout cart={cart} disabled />);
   expect(screen.getByRole('button', { name: 'Try Razorpay test checkout' }).hasAttribute('disabled')).toBe(true);
+});
+
+it.each([
+  'This cart has a pending payment. Resume it or contact Luvia before paying again.',
+  'Previous checkout needs verification. Contact Luvia; do not pay again.',
+  'A payment was attempted on the earlier checkout. Verify it before another payment; contact Luvia.',
+])('replaces unsafe payment retries with prominent support for: %s', async message => {
+  createOrder.mockRejectedValueOnce(new Error(message));
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'An earlier payment needs checking.' })).toBeTruthy());
+  expect(screen.getByRole('status').textContent).toContain(message);
+  expect(screen.getByRole('status').textContent).toContain('We cannot safely start another payment');
+  expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Resume secure payment' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeTruthy();
+  expect(open).not.toHaveBeenCalled();
 });
