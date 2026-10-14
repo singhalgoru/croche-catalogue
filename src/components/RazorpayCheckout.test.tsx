@@ -176,10 +176,44 @@ it('renews an expired checkout even when cart details have not changed', async (
   options.modal.ondismiss();
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('closed'));
   status.mockResolvedValue({ status: 'expired', reference: 'LUV-EXPIRED' });
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
   await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
   expect(createOrder.mock.calls[1][0].previousRequestKey).toBe(original);
   expect(createOrder.mock.calls[1][0].requestKey).not.toBe(original);
+});
+it.each(['closed', 'failed'] as const)('prominently recovers a %s live payment without replacing the checkout', async interruption => {
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+  const originalKey = createOrder.mock.calls[0][0].requestKey;
+  if (interruption === 'failed') {
+    failed({ error: { description: 'Card declined' } });
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Card declined'));
+    expect(screen.getByRole('button', { name: 'Payment in progress…' }).hasAttribute('disabled')).toBe(true);
+  }
+  options.modal.ondismiss();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Resume secure payment' })).toBeTruthy());
+  expect(screen.getByRole('heading', { name: interruption === 'failed'
+    ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.' })).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('If money was debited');
+  expect(screen.getByRole('link', { name: 'Get payment help on WhatsApp' }).getAttribute('href')).toContain('https://wa.me/');
+  fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
+  expect(createOrder.mock.calls[1][0].requestKey).toBe(originalKey);
+  expect(screen.queryByRole('button', { name: 'Resume secure payment' })).toBeNull();
+});
+
+it('never offers resume payment when a failed attempt later needs verification', async () => {
+  verify.mockRejectedValue(new Error('Retry verification; do not pay again.'));
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  failed({ error: { description: 'Card declined' } });
+  options.handler({ razorpay_order_id: 'order_test', razorpay_payment_id: 'pay_test', razorpay_signature: 'signature' });
+  options.modal.ondismiss();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Retry payment verification' })).toBeTruthy());
+  expect(screen.queryByRole('button', { name: 'Resume secure payment' })).toBeNull();
+  expect(screen.queryByText(/Let's get you back on track/)).toBeNull();
 });
 it('verifies all response fields and never reports a real purchase', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);

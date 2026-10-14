@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-for (const replace of [false, true]) {
-test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart change' : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
+for (const scenario of ['success', 'closed', 'failed']) {
+const replace = scenario !== 'success';
+test(`reviews address and ${replace ? `resumes ${scenario} payment after a cart change` : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
   const events: { channel: string; args: unknown[] }[] = [];
   await page.exposeFunction('recordAnalytics', (channel: string, args: unknown[]) => { events.push({ channel, args }); });
   await page.addInitScript(() => {
@@ -54,10 +55,13 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   await page.route('https://checkout.razorpay.com/v1/checkout.js', route => route.fulfill({
     contentType: 'application/javascript', body: `window.Razorpay = class {
       constructor(options) { this.options = options; }
-      on() {}
+      on(event, callback) { this.failed = callback; }
       open() {
         window.checkoutOpens = (window.checkoutOpens || 0) + 1;
-        if (${replace} && window.checkoutOpens === 1) { this.options.modal.ondismiss(); return; }
+        if (${replace} && window.checkoutOpens === 1) {
+          if (${scenario === 'failed'}) this.failed({error:{description:'Card declined'}});
+          this.options.modal.ondismiss(); return;
+        }
         this.options.handler({ razorpay_order_id: 'order_livefixture', razorpay_payment_id: 'pay_livefixture', razorpay_signature: 'fixture' });
       }
     };`,
@@ -68,7 +72,7 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
-  const pay = page.getByRole('button', { name: 'Proceed to payment' });
+  const pay = page.getByRole('button', { name: /^(Proceed to payment|Resume secure payment)$/ });
   await expect(page.getByRole('navigation', { name: 'Checkout steps' })).toBeVisible();
   await expect(pay).toHaveCount(0);
   await page.getByRole('main').getByRole('button', { name: 'Rose Charm', exact: true }).click();
@@ -108,7 +112,12 @@ test(`reviews address and ${replace ? 'updates an unpaid checkout after a cart c
   await expect(page.getByRole('link', { name: 'Need help? Contact Luvia on WhatsApp' })).toBeVisible();
   await pay.click();
   if (replace) {
-    await expect(page.getByRole('region', { name: 'Secure online checkout' }).getByRole('status')).toContainText('Payment window closed');
+    const recovery = page.getByRole('region', { name: 'Secure online checkout' });
+    await expect(recovery.getByRole('status')).toContainText(scenario === 'failed' ? 'Card declined' : 'Payment window closed');
+    await expect(page.getByRole('heading', { name: scenario === 'failed'
+      ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Resume secure payment' })).toBeEnabled();
+    await expect(page.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeVisible();
     await page.getByRole('button', { name: /Increase quantity of Rose Charm/ }).click();
     await expect(page.getByRole('button', { name: /Increase quantity of Rose Charm/ })).toBeEnabled();
     await expect(page.getByLabel('Cart order actions').getByText('₹698', { exact: true })).toBeVisible();

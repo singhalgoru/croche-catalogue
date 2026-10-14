@@ -6,6 +6,7 @@ import { formatINR } from '../utils/currency';
 import { trackCartStep, trackEvent } from '../services/analytics';
 import { trackVerifiedPurchase } from '../services/purchaseAnalytics';
 import { calculateEstimatedDeliveryDate, renderGoogleCustomerReviewsOptIn } from '../services/googleCustomerReviews';
+import { getCheckoutSupportWhatsAppLink } from '../utils/whatsapp';
 
 interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string }
 
@@ -40,6 +41,8 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       : 'No saved payment was found in this browser. If you paid, contact Luvia or check My Account. Do not pay again.' : '');
   const [pending, setPending] = useState<PaymentResponse | null>(recovery.pending);
   const [verified, setVerified] = useState(recovery.verified);
+  const [interruption, setInterruption] = useState<'closed' | 'failed' | null>(null);
+  const paymentFailed = useRef(false);
   const purchaseCart = useRef(cart);
   const confirmedCallback = useRef(onConfirmed);
   useEffect(() => { confirmedCallback.current = onConfirmed; }, [onConfirmed]);
@@ -125,6 +128,8 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
     purchaseCart.current = cart;
     setBusy(true);
     setMessage('');
+    setInterruption(null);
+    paymentFailed.current = false;
     try {
       const Constructor = await loadRazorpay();
       const fingerprint = live ? fingerprintForCart() : JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
@@ -169,16 +174,24 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
             if (live) trackEvent('payment_window_closed', { payment_type: 'Razorpay' });
             locked.current = false;
             setBusy(false);
-            setMessage(live ? 'Payment window closed. Your order is not confirmed yet. Resume the same checkout when ready.'
-              : 'Test checkout closed. No order was placed.');
+            if (live) {
+              if (!paymentFailed.current) {
+                setInterruption('closed');
+                setMessage('Payment window closed. Your order is not confirmed yet. Your cart and delivery details are still here, so you can pick up where you left off.');
+              }
+            } else setMessage('Test checkout closed. No order was placed.');
           },
         },
       });
       checkout.on('payment.failed', response => {
         if (live && !paid.current) trackEvent('payment_failed', { payment_type: 'Razorpay' });
-        if (!paid.current) setMessage(response.error?.description || (live
-          ? 'Payment failed. Your order is not confirmed. Resume the same checkout or contact Luvia.'
-          : 'Test payment failed. Try another test payment method or close checkout.'));
+        if (!paid.current) {
+          if (live) {
+            paymentFailed.current = true;
+            setInterruption('failed');
+            setMessage(`Your payment could not be completed. Your order is not confirmed yet. Your cart and delivery details are still here.${response.error?.description ? ` Payment provider: ${response.error.description}` : ''}`);
+          } else setMessage(response.error?.description || 'Test payment failed. Try another test payment method or close checkout.');
+        }
       });
       checkout.open();
     } catch (error) {
@@ -188,16 +201,28 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       setMessage(error instanceof Error ? error.message : live ? 'Unable to open checkout. Contact Luvia before another payment.' : 'Unable to open test checkout.');
     }
   };
+  const showRecovery = live && interruption !== null && !verified && !pending;
   return (
     <section className={live && verified
       ? 'mt-3 rounded-xl border border-green-200 bg-green-50 p-4'
+      : showRecovery ? 'mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 shadow-md'
       : 'mt-3 rounded-xl border border-cocoa/20 p-3'} aria-label={live ? 'Secure online checkout' : 'Razorpay test checkout'}>
       {live && verified && <div>
         <h3 className="font-heading text-xl font-bold text-green-800">Thank you! Your order is confirmed.</h3>
         <p className="mt-2 text-sm text-green-900">Payment received successfully. Do not pay again.</p>
         <p className="mt-2 text-sm text-cocoa">Your order confirmation is sent separately by email. Please check your inbox and Spam folder. Contact orders@luviacreations.com if it does not arrive.</p>
       </div>}
-      {!(live && verified) && <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
+      {showRecovery && <div role="status" aria-live="polite" aria-atomic="true">
+        <h3 className="font-heading text-xl font-bold text-cocoa">
+          {interruption === 'failed' ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.'}
+        </h3>
+        <p className="mt-2 break-words text-sm text-cocoa">{message}</p>
+        <p className="mt-2 text-sm font-semibold text-cocoa">
+          {busy ? 'Close the payment window to resume here, or try another method within it. ' : 'Resume securely and choose your preferred payment method. '}
+          If money was debited, contact Luvia before paying again.
+        </p>
+      </div>}
+      {!(live && verified) && !showRecovery && <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
         : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>}
       {!confirmationOnly && !verified && !pending && !recovery.error && (
         <form onSubmit={event => { event.preventDefault(); void start(); }} className="mt-2 grid gap-2">
@@ -214,8 +239,8 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
               autoComplete="tel-national" className="mt-1 w-full rounded border border-cocoa/20 bg-white p-2" />
           </label></>}
           <button type="submit" disabled={busy || disabled}
-            className="rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {busy ? live ? 'Payment in progress…' : 'Test checkout in progress…' : live ? 'Proceed to payment' : 'Try Razorpay test checkout'}
+            className="min-h-11 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            {busy ? live ? 'Payment in progress…' : 'Test checkout in progress…' : live ? showRecovery ? 'Resume secure payment' : 'Proceed to payment' : 'Try Razorpay test checkout'}
           </button>
         </form>
       )}
@@ -223,7 +248,11 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         className="mt-2 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
         {busy ? 'Verifying…' : 'Retry payment verification'}
       </button>}
-      {message && <p role="status" className={live && verified
+      {showRecovery && <a href={getCheckoutSupportWhatsAppLink()} target="_blank" rel="noopener noreferrer"
+        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-cocoa underline underline-offset-4">
+        Get payment help on WhatsApp
+      </a>}
+      {message && !showRecovery && <p role="status" className={live && verified
         ? 'mt-3 break-words text-sm font-semibold text-green-900'
         : 'mt-2 break-words text-xs text-cocoa'}>{message}</p>}
     </section>
