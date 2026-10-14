@@ -15,9 +15,16 @@ it('groups category and suggested price choices under one compact filter control
   const onApplyPriceRange = vi.fn();
   const onSelectCategory = vi.fn();
   render(<MobileCatalogueFilters activeCategory="All" activePriceRange={null}
-    categories={['Decor', 'Toys']} priceBands={bands}
+    categories={['Decor', 'Navratri Specials', 'Toys']} seasonalCategories={['Navratri Specials']} priceBands={bands}
     onApplyPriceRange={onApplyPriceRange} onSelectCategory={onSelectCategory} />);
 
+  const seasonal = screen.getByRole('button', { name: 'Navratri Specials' });
+  const filter = screen.getByRole('button', { name: 'Filters' });
+  expect(seasonal.compareDocumentPosition(filter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(seasonal.classList.contains('badge-glow')).toBe(true);
+  expect(seasonal.classList.contains('bg-mustard')).toBe(true);
+  fireEvent.click(seasonal);
+  expect(onSelectCategory).toHaveBeenCalledWith('Navratri Specials');
   fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
   expect(screen.getByRole('region', { name: 'Catalogue filters' })).toBeTruthy();
   const grid = screen.getByRole('button', { name: 'Up to ₹250' }).parentElement!;

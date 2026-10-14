@@ -50,10 +50,19 @@ export default function MobileCatalogueFilters({
   };
 
   return (
-    <div className={`relative min-w-0 sm:hidden ${isSticky ? 'z-50' : ''}`}>
+    <div className={`relative flex w-full min-w-0 items-center gap-2 sm:hidden ${isSticky ? 'z-50' : ''}`}>
+      {seasonalCategories.filter(category => categories.includes(category)).map(category => (
+        <button key={category} type="button" aria-pressed={activeCategory === category}
+          onClick={() => onSelectCategory(category)}
+          className={`badge-glow min-h-10 shrink-0 truncate rounded-full border px-3 py-2 text-sm font-semibold ${
+            activeCategory === category ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-mustard text-cocoa'
+          }`}>
+          {category}
+        </button>
+      ))}
       <button type="button" aria-expanded={open} aria-controls="mobile-catalogue-filters"
         onClick={() => setOpen(value => !value)}
-        className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${
+        className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${
           activeCount ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-white text-cocoa'
         }`}>
         Filters{activeCount > 0 && <span aria-label={`${activeCount} active`}>({activeCount})</span>}
