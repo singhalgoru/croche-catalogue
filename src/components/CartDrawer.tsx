@@ -445,6 +445,21 @@ export default function CartDrawer({
               {freeDeliveryShortfall > 0 ? <>
                 <p className="font-semibold">Add {formatINR(freeDeliveryShortfall)} more in items for free delivery!</p>
                 <p className="mt-1 text-xs text-cocoa/70">Free delivery on items worth {formatINR(FREE_SHIPPING_THRESHOLD)} or more after coupon discounts. Shipping fees do not count.</p>
+                <div
+                  role="progressbar"
+                  aria-label="Progress towards free shipping"
+                  aria-valuemin={0}
+                  aria-valuemax={FREE_SHIPPING_THRESHOLD}
+                  aria-valuenow={Math.min(FREE_SHIPPING_THRESHOLD, Math.max(0, totals.subtotal - totals.discount))}
+                  aria-valuetext={`${formatINR(Math.min(FREE_SHIPPING_THRESHOLD, Math.max(0, totals.subtotal - totals.discount)))} of ${formatINR(FREE_SHIPPING_THRESHOLD)} after coupon discounts`}
+                  className="mt-2 h-2 overflow-hidden rounded-full bg-mustard/25"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="block h-full rounded-full bg-cocoa transition-[width]"
+                    style={{ width: `${Math.min(100, Math.max(0, ((totals.subtotal - totals.discount) / FREE_SHIPPING_THRESHOLD) * 100))}%` }}
+                  />
+                </div>
                 <button type="button" disabled={isBusy} onClick={onClose}
                   className="mt-2 min-h-11 font-semibold underline underline-offset-2 disabled:opacity-50">Add more items</button>
               </> : <p className="font-semibold text-green-800">You&apos;ve unlocked free delivery!</p>}

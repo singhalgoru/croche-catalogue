@@ -23,6 +23,11 @@ it.each([499, 500, 501])('uses the exact free-delivery threshold for items worth
   renderCart({ ...cart, items: [{ ...cart.items[0], unitPrice: subtotal }] });
   const banner = screen.getByRole('region', { name: 'Free delivery' });
   expect(banner.textContent).toContain(subtotal < 500 ? 'Add ₹1 more in items for free delivery!' : "You've unlocked free delivery!");
+  if (subtotal < 500) {
+    expect(screen.getByRole('progressbar', { name: 'Progress towards free shipping' }).getAttribute('aria-valuenow')).toBe(String(subtotal));
+  } else {
+    expect(screen.queryByRole('progressbar', { name: 'Progress towards free shipping' })).toBeNull();
+  }
   expect(screen.queryByLabelText('Delivery pincode (optional)')).toBeNull();
   expect(screen.queryByText(/^Delivery pincode:/)).toBeNull();
 });
@@ -36,6 +41,8 @@ it('excludes shipping fees and applies coupon discounts to the free-delivery pro
   renderCart({ ...cart, items: [{ ...cart.items[0], unitPrice: 500 }],
     coupon: { code: 'SAVE', percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500 } }, close);
   expect(screen.getByRole('region', { name: 'Free delivery' }).textContent).toContain('Add ₹55 more in items');
+  expect(screen.getByRole('progressbar', { name: 'Progress towards free shipping' }).getAttribute('aria-valuetext'))
+    .toBe('₹450 of ₹500 after coupon discounts');
   fireEvent.click(screen.getByRole('button', { name: 'Add more items' }));
   expect(close).toHaveBeenCalledTimes(1);
 });

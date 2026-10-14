@@ -150,6 +150,18 @@ const renderModalWithCart = () => {
 const touch = (clientX: number, clientY: number) => ({ clientX, clientY });
 
 describe('ProductModal touch controls', () => {
+  it('shows dispatch and shipping expectations beside the purchase actions', () => {
+    render(<ProductModal product={product} presentation="page" currentIndex={0} totalProducts={1}
+      onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
+    const actions = screen.getByLabelText('Product purchase actions');
+    const assurance = screen.getByRole('region', { name: 'Delivery summary' });
+    expect(actions.contains(assurance)).toBe(true);
+    expect(assurance.textContent).toContain('Within 5 days');
+    expect(assurance.textContent).toContain('transit varies by destination');
+    expect(assurance.textContent).toContain('₹500');
+    expect(assurance.textContent).toContain('check pincode in cart');
+  });
+
   it.each(['modal', 'page'] as const)('includes the currently selected variant in %s customisation enquiries, even when sold out', (presentation) => {
     render(<ProductModal product={product} presentation={presentation} currentIndex={0} totalProducts={1}
       onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
