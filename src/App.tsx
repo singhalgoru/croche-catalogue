@@ -19,6 +19,7 @@ import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
 import CartDrawer from './components/CartDrawer';
 import CartCaptcha from './components/CartCaptcha';
+import CartNotice from './components/CartNotice';
 import BackToTopButton from './components/BackToTopButton';
 import { useCart } from './hooks/useCart';
 import { useCustomerName } from './hooks/useCustomerName';
@@ -526,10 +527,8 @@ function App() {
   const cartNotifications = <>
       <CartCaptcha />
       {cart.error && !isCartOpen && (
-        <div role="alert" className="fixed left-1/2 top-24 z-[120] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 shadow-lg">
-          <p className="min-w-0 flex-1">{cart.error}</p>
-          <button type="button" onClick={cart.dismissError} aria-label="Dismiss cart error"
-            className="min-h-11 shrink-0 px-3 underline">Dismiss</button>
+        <div className="fixed left-1/2 top-24 z-[120] w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
+          <CartNotice message={cart.error} onDismiss={cart.dismissError} />
         </div>
       )}
       {cart.addFeedback && (

@@ -9,6 +9,7 @@ import { getCartWhatsAppLink, getCheckoutSupportWhatsAppLink } from '../utils/wh
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
+import CartNotice from './CartNotice';
 import RazorpayCheckout from './RazorpayCheckout';
 import { fetchLiveCheckoutEnabled } from '../services/checkout';
 import CustomerFunnel from './CustomerFunnel';
@@ -236,9 +237,7 @@ export default function CartDrawer({
         <div className={isPage ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]' : 'contents'}>
         <div className={isPage ? 'min-w-0 rounded-2xl border border-mustard/30 bg-white p-4 sm:p-6' : 'min-h-0 flex-1 overflow-y-auto p-4'}>
           {error && (
-            <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
+            <div className="mb-3"><CartNotice message={error} /></div>
           )}
           {pageStep === 'confirmation' ? <div>
             <h3 className="font-heading text-2xl font-bold">{paidCart ? 'Thank you for choosing Luvia!' : 'Payment confirmation'}</h3>

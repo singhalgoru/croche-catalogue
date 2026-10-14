@@ -34,7 +34,10 @@ test('surfaces backend stock rejection without increasing the saved cart quantit
     return route.fulfill({ status: 400, json: { message: 'Only 1 available for Rose Pink. Please reduce the quantity or remove this item.' } });
   });
   await page.getByRole('button', { name: 'Increase quantity of Rose Charm — Rose Pink' }).click();
-  await expect(page.getByRole('alert')).toContainText('Only 1 available');
+  await expect(page.getByRole('alert')).toContainText('Available quantity');
+  await expect(page.getByRole('alert')).toContainText('We currently have 1 piece of Rose Pink available.');
+  await expect(page.getByRole('alert')).toHaveClass(/bg-cream/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.getByLabel('1 of Rose Charm — Rose Pink in cart', { exact: true })).toBeVisible();
   expect(state.carts[0].cart_items[0].quantity).toBe(1);
 });
