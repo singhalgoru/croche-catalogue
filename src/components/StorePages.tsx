@@ -5,6 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import CollectionGrid from './CollectionGrid';
 import storeContent from '../content/storeContent.json';
+import policies from '../content/policies.json';
 import { collectionPath } from '../utils/collectionLink.js';
 import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
@@ -41,6 +42,7 @@ export default function StorePages({
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
+  const policy = policies.find(item => item.path === requestedPath);
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
@@ -60,10 +62,10 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
-  const title = pathname.startsWith('/about') ? 'About Luvia & contact'
+  const title = policy?.title ?? (pathname.startsWith('/about') ? 'About Luvia & contact'
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
-        : 'Explore our handmade collections';
+        : 'Explore our handmade collections');
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
@@ -75,6 +77,10 @@ export default function StorePages({
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
+    if (policy) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = policy.description;
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
+    }
     if (isCollection) {
       const summary = description || 'This collection is no longer available. Explore the current Luvia collections.';
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = summary;
@@ -97,7 +103,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, requestedPath, title]);
+  }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, policy, requestedPath, title]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -114,10 +120,23 @@ export default function StorePages({
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
       <h1 className="font-heading text-3xl font-bold">{title}</h1>
+      {policy && <article className="max-w-3xl space-y-5">
+        <p className="text-sm">Last updated: {policy.updated}</p>
+        {policy.sections.map(section => <section key={section.title} className="space-y-2">
+          <h2 className="font-heading text-xl font-bold">{section.title}</h2>
+          <p>{section.text}</p>
+        </section>)}
+        <nav aria-label="Related policies" className="flex flex-wrap gap-4">
+          {policies.filter(item => item.path !== policy.path).map(item =>
+            <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
+          <a href="/return-policy/" className="min-h-11 underline">Return and refund policy</a>
+          <a href="/about/" className="min-h-11 underline">About &amp; contact</a>
+        </nav>
+      </article>}
       {loadError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">Unable to refresh the catalogue: {loadError}.
         {hasCatalogueSnapshot ? ' Showing the last available catalogue. Retrying automatically.' : ' Retrying automatically when connected.'}</p>}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
-      {pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
+      {policy ? null : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
@@ -177,7 +196,7 @@ export default function StorePages({
         <a href="/" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
-      {showCatalogue && !isCollectionsHub && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
+      {showCatalogue && !isCollectionsHub && !policy && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
       <p className="text-sm">Confirm the final price, shipping charges and dispatch estimate with us before paying.</p>
     </main><Footer />
   </div>;

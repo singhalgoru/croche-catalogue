@@ -1,5 +1,6 @@
 import { escapeHtml, getProductImageUrl, priceRange, renderSitemap, toProductSlug } from './prerender.mjs';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
+import policies from '../src/content/policies.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 export { collectionPath };
@@ -7,7 +8,8 @@ export { collectionPath };
 const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
-const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a>';
+const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a>'
+  + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 const page = (pathname, title, description, body, schema) => `<!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' https://images.luviacreations.com https://*.supabase.co https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
@@ -121,6 +123,13 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     <details><summary>What is the return and refund policy?</summary><p>Please read our <a href="/return-policy/">return and refund policy</a> before ordering. Contact us about your specific order if you need clarification.</p></details>
     <p><a class="button" href="${contact}">Ask another question on WhatsApp</a></p>`,
     baseSchema('WebPage', '/faq/', faqTitle, faqDescription)));
+  for (const policy of policies) {
+    const body = `<p class="note">Last updated: ${escapeHtml(policy.updated)}</p>`
+      + policy.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p></section>`).join('')
+      + '<p><a href="/return-policy/">Return and refund policy</a> · <a href="/about/">About &amp; contact</a></p>';
+    pages.set(policy.path, page(policy.path, policy.title, policy.description, body,
+      baseSchema('WebPage', policy.path, policy.title, policy.description)));
+  }
   return pages;
 };
 

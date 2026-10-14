@@ -1,0 +1,78 @@
+[
+  {
+    "path": "/terms-and-conditions/",
+    "title": "Terms & Conditions",
+    "description": "Terms for shopping with Luvia Creations, including orders, payments, delivery, cancellations and customer support.",
+    "updated": "14 October 2026",
+    "sections": [
+      {
+        "title": "Shopping with Luvia Creations",
+        "text": "These terms apply to purchases from Luvia Creations through luviacreations.com. We offer handmade crochet products from Gurugram, Haryana, India. Please review the product description, selected variant, price and these terms before ordering. Contact hello@luviacreations.com or +91 92059 07350 for questions."
+      },
+      {
+        "title": "Products and customisation",
+        "text": "Minor stitch, colour and size variations can occur in handmade products, but items must match their advertised description. Some lifestyle images are AI-assisted and may not reproduce every detail exactly; ask for an actual product photograph if needed. Customisation, availability, additional costs and timing must be agreed before ordering."
+      },
+      {
+        "title": "Prices and payment",
+        "text": "Prices are in Indian rupees and displayed product prices include GST. Review the delivery address, applicable coupon, shipping charge and total before payment. Online payments are processed through Razorpay, and orders are confirmed only after payment verification. Adding to a cart or sending a WhatsApp message does not confirm an order. If payment fails or money is debited without confirmation, contact orders@luviacreations.com before paying again."
+      },
+      {
+        "title": "Delivery",
+        "text": "We deliver within India. Preparation and delivery dates shown at checkout are estimates, not guarantees; product availability, customisation, courier service and destination can affect timing. Provide accurate contact and address details and notify us promptly of corrections. Review the shipping charge and estimated delivery window before paying."
+      },
+      {
+        "title": "Cancellations, returns and refunds",
+        "text": "You may request cancellation before dispatch. Defective, damaged or incorrect items are covered by our Return and Refund Policy, including customised items. Change-of-mind returns are not accepted. Please read that policy for reporting deadlines, return instructions, shipping responsibility and refund timelines. These terms do not limit applicable statutory consumer rights."
+      },
+      {
+        "title": "Your account and use of the website",
+        "text": "Guest ordering is available. If you create an account, keep your sign-in credentials secure and provide accurate information. Do not misuse the website, attempt unauthorised access or submit fraudulent orders. Do not share a card PIN, OTP or password with us through messages."
+      },
+      {
+        "title": "Support and updates",
+        "text": "For order or payment issues, email orders@luviacreations.com with your order reference. General questions can be sent to hello@luviacreations.com or +91 92059 07350. Updates to these terms will be published here with a revised date; changes do not remove rights relating to an existing purchase. Applicable Indian law and statutory consumer protections apply."
+      }
+    ]
+  },
+  {
+    "path": "/privacy-policy/",
+    "title": "Privacy Policy",
+    "description": "How Luvia Creations uses customer information for accounts, orders, payments, delivery, support and website analytics.",
+    "updated": "14 October 2026",
+    "sections": [
+      {
+        "title": "Who we are and how to contact us",
+        "text": "Luvia Creations operates luviacreations.com from Gurugram, Haryana, India. For privacy questions or requests about your information, email hello@luviacreations.com. For order support, email orders@luviacreations.com or contact +91 92059 07350."
+      },
+      {
+        "title": "Information we collect",
+        "text": "We use the name, mobile number, email address, delivery address, pincode, cart contents, order details and messages you provide to operate the shop and fulfil orders. Optional accounts involve authentication and saved delivery details. We also process technical information such as browser and device information, page visits and interactions for security and analytics."
+      },
+      {
+        "title": "How information is used",
+        "text": "We use information to maintain your cart, calculate shipping, process and verify payment, fulfil and track orders, provide order updates, manage accounts, apply eligible offers, respond to support requests and prevent fraud. Website analytics help us understand shopping activity and improve the service."
+      },
+      {
+        "title": "Payments and service providers",
+        "text": "Razorpay processes online payments. Payment details entered in its checkout are handled by Razorpay; our order records use payment and transaction references for verification and support, not your card PIN or OTP. Supabase provides database and authentication services. Hosting, image delivery, email and courier providers process information needed for their services. Google Analytics and Meta Pixel may receive page, device, interaction and purchase-event data when configured. These providers may process information outside India under their own privacy terms."
+      },
+      {
+        "title": "Cookies and browser storage",
+        "text": "The website uses browser storage and service-worker caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. Analytics and advertising services may use cookies or similar technologies. Cloudflare Turnstile processes browser signals for bot protection when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
+      },
+      {
+        "title": "WhatsApp, reviews and external services",
+        "text": "When you choose WhatsApp or another external link, information you send is handled by that service under its privacy terms. If you opt in to Google Customer Reviews after an order, order reference, email, delivery country and an estimated delivery date are shared with Google for the survey. Review-survey participation is optional."
+      },
+      {
+        "title": "Retention and security",
+        "text": "Saved delivery details associated with a cart may remain available for up to 30 days. Account, confirmed-order, payment and support records may be retained longer for fulfilment, accounting, dispute handling and applicable legal obligations. We use access controls and service-provider security measures, but no online system can guarantee absolute security."
+      },
+      {
+        "title": "Your choices and requests",
+        "text": "You can shop as a guest, edit delivery details before ordering and contact us to request access, correction or deletion of your information or to raise a privacy concern. We may need to verify your identity and retain records required for legal obligations or unresolved transactions. Contact hello@luviacreations.com for assistance. We will publish policy updates here with a revised date."
+      }
+    ]
+  }
+]

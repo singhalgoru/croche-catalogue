@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { buildContentPages, collectionPath, renderContentSitemap } from './content-pages.mjs';
 import { toProduct } from './prerender.mjs';
+import storeContent from '../src/content/storeContent.json';
 
 const toy = toProduct({
   id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
@@ -16,6 +17,17 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it.each([
+    ['/terms-and-conditions/', 'Terms & Conditions', 'Prices and payment'],
+    ['/privacy-policy/', 'Privacy Policy', 'Your choices and requests'],
+  ])('publishes crawlable policy content and sitemap entry at %s', (path, title, heading) => {
+    const doc = documentFor(path);
+    expect(doc.querySelector('h1')?.textContent).toBe(title);
+    expect(doc.querySelector('main')?.textContent).toContain(heading);
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${path}`);
+    expect(doc.querySelector(`footer a[href="${path}"]`)).not.toBeNull();
+    expect(renderContentSitemap([toy], '2026-10-14', pages)).toContain(`https://luviacreations.com${path}`);
+  });
   it('renders custom seasonal covers on static cards only with product fallback after removal', () => {
     const category = { name: 'Festive', priority: 1, isSeasonal: true, productIds: ['p1'], coverImage: 'https://images.luviacreations.com/products/admin/season.webp' };
     const result = buildContentPages([toy], '919205907350', [category]);
@@ -74,8 +86,8 @@ describe('collection and information pages', () => {
       expect(text).not.toContain('when online checkout is available');
     }
   });
-  it('creates only populated collections and the three information pages', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/collections/', '/about/', '/faq/']);
+  it('creates populated collections, information pages and dedicated policies', () => {
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/collections/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
@@ -144,7 +156,7 @@ describe('collection and information pages', () => {
     expect(about.querySelector('a[href="mailto:orders@luviacreations.com"]')).toBeTruthy();
     expect(about.querySelector('a[href^="https://wa.me/919205907350"]')).toBeTruthy();
     const faq = documentFor('/faq/');
-    expect(faq.querySelectorAll('details summary')).toHaveLength(10);
+    expect(faq.querySelectorAll('details summary')).toHaveLength(storeContent.questions.length + 1);
     expect(faq.body.textContent).toContain('does not confirm an order');
     expect(faq.body.textContent).toContain('before you pay');
     expect(faq.querySelector('a[href="/return-policy/"]')).toBeTruthy();

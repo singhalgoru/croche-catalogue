@@ -396,7 +396,7 @@ const renderShell = (products) => {
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
     '</section>',
     '</main>',
-    '<footer><a href="/return-policy/">Return and refund policy</a></footer>',
+    '<footer><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a></footer>',
   ].join('');
 };
 
@@ -560,7 +560,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         <p><a href="/faq/">Shipping &amp; payment information</a> · <a href="/about/">About &amp; contact</a></p>
       </section>
       <footer>
-        <p><a href="/return-policy/">Return and refund policy</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
+        <p><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
         <p>Luvia Creations makes handmade crochet accessories, gifts, toys and decor, shipped across India.
         <a href="/">Browse the full catalogue</a> or follow
         <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>

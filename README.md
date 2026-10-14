@@ -86,6 +86,8 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ## Razorpay payments
 
+Public compliance URLs are `/terms-and-conditions/`, `/privacy-policy/` and `/return-policy/`. Terms and privacy content share `src/content/policies.json` between the live storefront and pre-rendered HTML, with footer links and sitemap entries. Use the dedicated URLs, not `/about/`, in provider compliance checks. Policy text must be reviewed against actual business practices and applicable requirements; publication does not guarantee provider approval.
+
 ### Standard Checkout webhooks (test mode)
 
 The Razorpay test-payment tool has been removed from admin Settings.

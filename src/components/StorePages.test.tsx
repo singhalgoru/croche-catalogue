@@ -15,6 +15,18 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it.each([
+    ['/terms-and-conditions/', 'Terms & Conditions', 'Prices and payment'],
+    ['/privacy-policy/', 'Privacy Policy', 'Your choices and requests'],
+  ])('renders a dedicated policy at %s without collection content', (path, title, section) => {
+    window.history.replaceState(null, '', path);
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { name: title, level: 1 })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: section })).toBeTruthy();
+    expect(screen.getByText('Last updated: 14 October 2026')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
+    expect(screen.queryByText('Find your favourites by collection, then open a product for photos and details.')).toBeNull();
+  });
   it('explains AI lifestyle imagery using the shared FAQ disclosure', () => {
     window.history.replaceState(null, '', '/faq/');
     render(<StorePages {...initial} />);
