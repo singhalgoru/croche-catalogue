@@ -217,10 +217,16 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         <p className="mt-2 text-sm text-cocoa">Your order confirmation is sent separately by email. Please check your inbox and Spam folder. Contact orders@luviacreations.com if it does not arrive.</p>
       </div>}
       {showRecovery && <div role="status" aria-live="polite" aria-atomic="true">
+        {interruption !== 'blocked' && <p className="mb-2 inline-flex rounded-full bg-amber-200 px-3 py-1 text-xs font-bold uppercase tracking-wide text-cocoa">
+          Payment incomplete
+        </p>}
         <h3 className="font-heading text-xl font-bold text-cocoa">
           {interruption === 'blocked' ? 'An earlier payment needs checking.'
             : interruption === 'failed' ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.'}
         </h3>
+        {interruption !== 'blocked' && <p className="mt-2 text-base font-bold text-cocoa">
+          Your handmade favourites are one step away. Complete your payment to make them yours.
+        </p>}
         <p className="mt-2 break-words text-sm text-cocoa">{message || 'Your saved checkout is available. Your order is not confirmed yet.'}</p>
         <p className="mt-2 text-sm font-semibold text-cocoa">
           {interruption === 'blocked'
@@ -246,9 +252,14 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
               autoComplete="tel-national" className="mt-1 w-full rounded border border-cocoa/20 bg-white p-2" />
           </label></>}
           <button type="submit" disabled={busy || disabled}
-            className="min-h-11 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            className={showRecovery
+              ? 'min-h-12 rounded-full border-2 border-cocoa bg-mustard px-4 py-3 text-base font-bold text-cocoa shadow-sm hover:bg-mustard/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa disabled:opacity-50'
+              : 'min-h-11 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50'}>
             {busy ? live ? 'Payment in progress…' : 'Test checkout in progress…' : live ? showRecovery ? 'Resume secure payment' : 'Proceed to payment' : 'Try Razorpay test checkout'}
           </button>
+          {showRecovery && !busy && <p className="text-center text-xs text-cocoa">
+            No need to start over. Review your saved details and finish securely.
+          </p>}
         </form>
       )}
       {pending && <button type="button" disabled={busy} onClick={() => { void verify(pending); }}

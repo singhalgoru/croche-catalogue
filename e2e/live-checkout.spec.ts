@@ -130,6 +130,8 @@ test(scenario === 'blocked' ? 'shows safe support instead of paying again when a
     await expect(page.getByRole('heading', { name: scenario === 'failed'
       ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Resume secure payment' })).toBeEnabled();
+    await expect(page.getByText('Payment incomplete', { exact: true })).toBeVisible();
+    await expect(page.getByText('Your handmade favourites are one step away. Complete your payment to make them yours.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeVisible();
     await page.getByRole('button', { name: /Increase quantity of Rose Charm/ }).click();
     await expect(page.getByRole('button', { name: /Increase quantity of Rose Charm/ })).toBeEnabled();

@@ -196,6 +196,9 @@ it.each(['closed', 'failed'] as const)('prominently recovers a %s live payment w
   expect(screen.getByRole('heading', { name: interruption === 'failed'
     ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.' })).toBeTruthy();
   expect(screen.getByRole('status').textContent).toContain('If money was debited');
+  expect(screen.getByText('Payment incomplete')).toBeTruthy();
+  expect(screen.getByText('Your handmade favourites are one step away. Complete your payment to make them yours.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Resume secure payment' }).className).toContain('bg-mustard');
   expect(screen.getByRole('link', { name: 'Get payment help on WhatsApp' }).getAttribute('href')).toContain('https://wa.me/');
   fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
   await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
@@ -267,5 +270,6 @@ it.each([
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Resume secure payment' })).toBeNull();
   expect(screen.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeTruthy();
+  expect(screen.queryByText(/Complete your payment to make them yours/)).toBeNull();
   expect(open).not.toHaveBeenCalled();
 });
