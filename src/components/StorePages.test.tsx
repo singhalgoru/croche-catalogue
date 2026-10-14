@@ -15,6 +15,15 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('opens a dedicated bulk gifting page with an immediately available enquiry form', () => {
+    window.history.replaceState(null, '', '/bulk-orders/');
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Bulk Orders & Corporate Gifting' })).toBeTruthy();
+    expect(screen.getByRole('form', { name: 'Bulk order email enquiry' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Enquire on WhatsApp' })).toBeTruthy();
+    expect(document.title).toBe('Bulk Orders & Corporate Gifting | Luvia Creations');
+    expect(screen.queryByText('Find your favourites by collection, then open a product for photos and details.')).toBeNull();
+  });
   it.each([
     ['/terms-and-conditions/', 'Terms & Conditions', 'Prices and payment'],
     ['/privacy-policy/', 'Privacy Policy', 'Your choices and requests'],

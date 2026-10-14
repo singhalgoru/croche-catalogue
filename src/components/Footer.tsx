@@ -72,7 +72,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = fals
           <a href="/collections/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Explore collections</a>
           <a href="/about/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">About &amp; contact</a>
           <a href="/faq/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Ordering FAQ</a>
-          <a href="/#bulk-orders" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Bulk orders &amp; corporate gifting</a>
+          <a href="/bulk-orders/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Bulk orders &amp; corporate gifting</a>
           <a href="/terms-and-conditions/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Terms &amp; Conditions</a>
           <a href="/privacy-policy/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Privacy Policy</a>
           {showCollaboration && <a href="#collaborate" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Work with Luvia</a>}

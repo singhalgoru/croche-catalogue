@@ -28,13 +28,13 @@ it('offers an email form, direct email fallback and prefilled WhatsApp enquiry',
   }
   expect(trackContactClick).toHaveBeenCalledWith('email', 'bulk_orders');
   expect(trackContactClick).toHaveBeenCalledWith('whatsapp', 'bulk_orders');
+  expect(screen.getByRole('link', { name: 'Plan your bulk order' }).getAttribute('href')).toBe('/bulk-orders/');
+  expect(screen.queryByRole('form', { name: 'Bulk order email enquiry' })).toBeNull();
 });
 
 it('prepares a branded email from the form without sending automatically and clears stale drafts on edits', () => {
-  render(<BulkOrders />);
-  const button = screen.getByRole('button', { name: 'Email for bulk orders' });
-  expect(button.getAttribute('aria-expanded')).toBe('false');
-  fireEvent.click(button);
+  render(<BulkOrders presentation="page" />);
+  expect(screen.getByRole('button', { name: 'Hide enquiry form' }).getAttribute('aria-expanded')).toBe('true');
   expect(screen.getByText(/does not send an email automatically/)).toBeTruthy();
   for (const [label, value] of [
     ['Your name', ' Asha '], ['Reply email', 'asha@example.test'],
@@ -64,8 +64,7 @@ it('prepares a branded email from the form without sending automatically and cle
 });
 
 it('rejects whitespace-only required fields instead of preparing an incomplete draft', () => {
-  render(<BulkOrders />);
-  fireEvent.click(screen.getByRole('button', { name: 'Email for bulk orders' }));
+  render(<BulkOrders presentation="page" />);
   fireEvent.submit(screen.getByRole('form', { name: 'Bulk order email enquiry' }));
   expect(screen.getByRole('alert').textContent).toContain('required fields');
   expect(screen.queryByRole('link', { name: 'Open email draft' })).toBeNull();

@@ -294,7 +294,7 @@ describe('renderShell', () => {
     const whatsapp = new URL(section.querySelector<HTMLAnchorElement>('a[href^="https://wa.me/"]')!.href);
     expect(whatsapp.pathname).toBe('/911234567890');
     expect(whatsapp.searchParams.get('text')).toBe(email.searchParams.get('body'));
-    expect(page.querySelector('footer a[href="/#bulk-orders"]')).toBeTruthy();
+    expect(page.querySelector('footer a[href="/bulk-orders/"]')).toBeTruthy();
   });
   it('uses premium brand positioning in the non-JavaScript homepage introduction', () => {
     expect(shell).toContain('<h1>Premium Handmade Crochet Creations</h1>');

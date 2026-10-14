@@ -25,7 +25,7 @@ licensed for reuse — see [LICENSE](./LICENSE).
 - Admin product edits confirm the database update before reporting success and retain failed-save messages.
 - FAQ explains AI-assisted lifestyle imagery and how to request actual product photographs before ordering.
 - Create with Luvia welcomes maker, creator and partner enquiries without advertising unconfirmed job openings.
-- The homepage Bulk Orders & Corporate Gifting section offers a customer enquiry form that prepares a Luvia-branded subject and body for `bulkorder@luviacreations.com`, plus a prefilled WhatsApp enquiry using the configured number. Customers review the draft and send it from their email app; the form does not send automatically or persist details on the server. A direct email link and copyable draft are available if no email app is configured. Footer links lead to `/#bulk-orders`. Quantity, budget, occasion and delivery date are requested; options and terms require confirmation. Shared copy and enquiry templates live in `src/content/bulkOrders.json` and also appear in the non-JavaScript homepage.
+- The homepage Bulk Orders & Corporate Gifting section links to the dedicated `/bulk-orders/` page, where the enquiry form opens immediately and prepares a Luvia-branded subject and body for `bulkorder@luviacreations.com`, plus a prefilled WhatsApp enquiry using the configured number. Customers review the draft and send it from their email app; the form does not send automatically or persist details on the server. A direct email link and copyable draft are available if no email app is configured. Footer links lead to the dedicated page; existing `/#bulk-orders` links still reach the homepage invitation. Quantity, budget, occasion and delivery date are requested; options and terms require confirmation. Shared copy and enquiry templates live in `src/content/bulkOrders.json`. The dedicated page is pre-rendered with contact links, canonical metadata and sitemap discovery.
 - Browser favicons and installed-app icons preserve the original Luvia brand design.
 - GA4 records cart/checkout intent and verified online purchases. Product/cart
   WhatsApp actions record leads, not completed offline purchases.
@@ -425,7 +425,10 @@ npm run build
 ## Product images
 
 For Reddit image posts, open a product's Share menu and choose Reddit. The
-photo-post helper prepares the selected photo (converting WebP to JPEG for
+gallery stops auto-rotating when sharing opens, keeping the selected photo,
+variant and Reddit helper feedback stable even after sharing is closed. Manual
+photo/variant changes remain available.
+The photo-post helper prepares the selected photo (converting WebP to JPEG for
 compatibility), offers native file sharing or
 a download, and lets you copy the title, product description and product link
 separately. Expand **Product description** to select the text manually if clipboard

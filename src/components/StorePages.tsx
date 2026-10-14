@@ -6,6 +6,8 @@ import Footer from './Footer';
 import CollectionGrid from './CollectionGrid';
 import storeContent from '../content/storeContent.json';
 import policies from '../content/policies.json';
+import bulkOrders from '../content/bulkOrders.json';
+import BulkOrders from './BulkOrders';
 import { collectionPath } from '../utils/collectionLink.js';
 import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
@@ -43,6 +45,7 @@ export default function StorePages({
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
   const policy = policies.find(item => item.path === requestedPath);
+  const isBulkOrders = requestedPath === bulkOrders.path;
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
@@ -62,7 +65,7 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
-  const title = policy?.title ?? (pathname.startsWith('/about') ? 'About Luvia & contact'
+  const title = policy?.title ?? (isBulkOrders ? bulkOrders.title : pathname.startsWith('/about') ? 'About Luvia & contact'
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -77,8 +80,8 @@ export default function StorePages({
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
-    if (policy) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = policy.description;
+    if (policy || isBulkOrders) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = policy?.description ?? bulkOrders.description;
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -103,7 +106,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isCollection, isLoading, policy, requestedPath, title]);
+  }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isBulkOrders, isCollection, isLoading, policy, requestedPath, title]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -136,7 +139,7 @@ export default function StorePages({
       {loadError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">Unable to refresh the catalogue: {loadError}.
         {hasCatalogueSnapshot ? ' Showing the last available catalogue. Retrying automatically.' : ' Retrying automatically when connected.'}</p>}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
-      {policy ? null : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
+      {policy ? null : isBulkOrders ? <BulkOrders presentation="page" /> : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>

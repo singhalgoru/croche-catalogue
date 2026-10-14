@@ -503,6 +503,28 @@ describe('ProductModal touch controls', () => {
     expect(getShareableImageFile).toHaveBeenCalledWith('/rose-top.jpg', expect.any(String));
   });
 
+  it('keeps the Reddit photo and feedback stable across auto-rotation intervals and after closing sharing', async () => {
+    getShareableImageFile.mockResolvedValue(new File(['rose'], 'rose.jpg', { type: 'image/jpeg' }));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    renderModal(variantImageProduct);
+    fireEvent.click(screen.getByRole('button', { name: 'Share this product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share on Reddit' }));
+    await act(async () => { await Promise.resolve(); });
+    const preparations = getShareableImageFile.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Copy title' }));
+    await act(async () => { await Promise.resolve(); });
+    expect(writeText).toHaveBeenCalledWith('Variant Image Product — Front');
+    act(() => vi.advanceTimersByTime(3500 * 3));
+    expect(screen.getByRole('img', { name: 'Variant Image Product — Front' }).getAttribute('src')).toBe('/front.jpg');
+    expect(screen.getByText('Title copied. Paste it into the Reddit title field.')).toBeTruthy();
+    expect(getShareableImageFile).toHaveBeenCalledTimes(preparations);
+    expect(screen.queryByText('Preparing product photo…')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Share this product' }));
+    act(() => vi.advanceTimersByTime(3500 * 2));
+    expect(screen.getByRole('button', { name: 'Front' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('uses a resized image in the modal and reserves a larger version for zoom', () => {
     const original = 'https://example.supabase.co/storage/v1/object/public/product-images/rose.jpg';
     renderModal({

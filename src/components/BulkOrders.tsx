@@ -17,8 +17,9 @@ const fields: { key: keyof BulkOrderEnquiry; label: string; type: string; requir
   { key: 'date', label: 'Required delivery date (optional)', type: 'date', required: false, maxLength: 10 },
 ];
 
-export default function BulkOrders() {
-  const [formOpen, setFormOpen] = useState(false);
+export default function BulkOrders({ presentation = 'section' }: { presentation?: 'section' | 'page' }) {
+  const isPage = presentation === 'page';
+  const [formOpen, setFormOpen] = useState(isPage);
   const [enquiry, setEnquiry] = useState<BulkOrderEnquiry>({
     name: '', company: '', email: '', occasion: '', products: '', quantity: '', budget: '', city: '', date: '', preferences: '',
   });
@@ -31,25 +32,28 @@ export default function BulkOrders() {
   };
   return (
     <section id="bulk-orders" aria-labelledby="bulk-orders-heading"
-      className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
+      className={isPage ? 'w-full scroll-mt-24' : 'mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16'}>
       <div className="rounded-2xl border border-mustard/50 bg-mustard/10 p-5 text-cocoa sm:p-8">
         <p className="text-sm font-semibold">Thoughtful gifts, made by hand</p>
-        <h2 id="bulk-orders-heading" className="mt-2 font-heading text-2xl font-bold sm:text-3xl">{bulkOrders.title}</h2>
+        <h2 id="bulk-orders-heading" className="mt-2 font-heading text-2xl font-bold sm:text-3xl">{isPage ? 'Handmade gifts for teams, clients & celebrations' : bulkOrders.title}</h2>
         <p className="mt-3 max-w-3xl text-sm sm:text-base">{bulkOrders.description}</p>
         <p className="mt-3 text-sm">Share your quantity, budget, occasion and required delivery date to help us plan your enquiry.</p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <button type="button" aria-expanded={formOpen} aria-controls="bulk-order-form"
+          {isPage ? <button type="button" aria-expanded={formOpen} aria-controls="bulk-order-form"
             onClick={() => setFormOpen(open => !open)}
             className="inline-flex min-h-11 items-center justify-center rounded-full bg-cocoa px-5 py-3 font-semibold text-cream hover:bg-cocoa/90">
             {formOpen ? 'Hide enquiry form' : 'Email for bulk orders'}
-          </button>
+          </button> : <a href={bulkOrders.path}
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-cocoa px-5 py-3 font-semibold text-cream hover:bg-cocoa/90">
+            Plan your bulk order
+          </a>}
           <a href={getBulkOrderWhatsAppLink()} target="_blank" rel="noopener noreferrer"
             onClick={() => trackContactClick('whatsapp', 'bulk_orders')}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-cocoa px-5 py-3 font-semibold hover:bg-white/70">
             <WhatsAppIcon />Enquire on WhatsApp
           </a>
         </div>
-        {formOpen && <form id="bulk-order-form" aria-label="Bulk order email enquiry" className="mt-5 rounded-xl bg-white p-4 sm:p-6"
+        {isPage && formOpen && <form id="bulk-order-form" aria-label="Bulk order email enquiry" className="mt-5 rounded-xl bg-white p-4 sm:p-6"
           onSubmit={event => {
             event.preventDefault();
             if (fields.some(field => field.required && !enquiry[field.key].trim())) {

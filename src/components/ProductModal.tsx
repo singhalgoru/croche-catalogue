@@ -376,6 +376,7 @@ export default function ProductModal({
 
   const shareButton = (
     <button type="button" onClick={() => {
+      setHasChosenImage(true);
       setIsShareOpen(current => !current);
       setShareFeedback(null);
     }} aria-label="Share this product" aria-expanded={isShareOpen}

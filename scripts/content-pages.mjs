@@ -1,6 +1,7 @@
 import { escapeHtml, getProductImageUrl, priceRange, renderSitemap, toProductSlug } from './prerender.mjs';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import policies from '../src/content/policies.json' with { type: 'json' };
+import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 export { collectionPath };
@@ -8,7 +9,7 @@ export { collectionPath };
 const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
-const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/#bulk-orders">Bulk orders &amp; corporate gifting</a>'
+const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 const page = (pathname, title, description, body, schema) => `<!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -130,6 +131,15 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     pages.set(policy.path, page(policy.path, policy.title, policy.description, body,
       baseSchema('WebPage', policy.path, policy.title, policy.description)));
   }
+  pages.set(bulkOrders.path, page(bulkOrders.path, bulkOrders.title, bulkOrders.description, `
+    <section class="intro"><h2>Handmade gifts for teams, clients &amp; celebrations</h2>
+    <p>${escapeHtml(bulkOrders.description)}</p>
+    <p>Share your quantity, budget, occasion and required delivery date to help us plan your enquiry.</p>
+    <p><a class="button" href="mailto:${bulkOrders.email}?subject=${encodeURIComponent(bulkOrders.subject)}&amp;body=${encodeURIComponent(bulkOrders.message)}">Email for bulk orders</a>
+    <a class="button" href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(bulkOrders.message)}">Enquire on WhatsApp</a></p>
+    <p>${escapeHtml(bulkOrders.email)}</p><p class="note">${escapeHtml(bulkOrders.note)}</p>
+    <p class="note">With JavaScript enabled, use our enquiry form to prepare a personalised email draft. Review and send it from your email app; preparing a draft does not send it automatically.</p></section>`,
+    baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description)));
   return pages;
 };
 

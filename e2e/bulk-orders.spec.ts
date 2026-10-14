@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-test('bulk gifting has email and WhatsApp enquiries and a working footer deep link', async ({ page }) => {
+test('bulk gifting opens its dedicated page with an email form and WhatsApp enquiry', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('/#bulk-orders');
   const section = page.getByRole('region', { name: 'Bulk Orders & Corporate Gifting' });
@@ -12,8 +12,11 @@ test('bulk gifting has email and WhatsApp enquiries and a working footer deep li
   expect(whatsapp.origin).toBe('https://wa.me');
   expect(whatsapp.searchParams.get('text')).toContain('Approximate quantity:');
   expect(whatsapp.searchParams.get('text')).toContain('Required delivery date:');
-  await section.getByRole('button', { name: 'Email for bulk orders' }).click();
-  const form = section.getByRole('form', { name: 'Bulk order email enquiry' });
+  await expect(section.getByRole('form', { name: 'Bulk order email enquiry' })).toHaveCount(0);
+  await section.getByRole('link', { name: 'Plan your bulk order' }).click();
+  await expect(page).toHaveURL(/\/bulk-orders\/$/);
+  await expect(page.getByRole('heading', { name: 'Bulk Orders & Corporate Gifting', level: 1 })).toBeVisible();
+  const form = page.getByRole('form', { name: 'Bulk order email enquiry' });
   await form.getByLabel('Your name', { exact: true }).fill('Asha');
   await form.getByLabel('Reply email', { exact: true }).fill('asha@example.test');
   await form.getByLabel('Products or gifting ideas', { exact: true }).fill('Rose charms for our team');
@@ -32,6 +35,9 @@ test('bulk gifting has email and WhatsApp enquiries and a working footer deep li
   const toggle = page.getByRole('button', { name: 'Help & information' });
   if (await toggle.isVisible()) await toggle.click();
   await page.getByRole('link', { name: 'Bulk orders & corporate gifting', exact: true }).click();
-  await expect(page).toHaveURL(/\/#bulk-orders$/);
-  await expect(page.getByRole('heading', { name: 'Bulk Orders & Corporate Gifting' })).toBeInViewport();
+  await expect(page).toHaveURL(/\/bulk-orders\/$/);
+  await expect(page.getByRole('heading', { name: 'Bulk Orders & Corporate Gifting', level: 1 })).toBeVisible();
+  await expect(page.getByRole('form', { name: 'Bulk order email enquiry' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('form', { name: 'Bulk order email enquiry' })).toBeVisible();
 });

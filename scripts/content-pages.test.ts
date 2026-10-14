@@ -17,6 +17,16 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('publishes a bulk gifting page with branded email, WhatsApp and sitemap discovery', () => {
+    const doc = documentFor('/bulk-orders/');
+    expect(doc.querySelector('h1')?.textContent).toBe('Bulk Orders & Corporate Gifting');
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://luviacreations.com/bulk-orders/');
+    const email = new URL(doc.querySelector<HTMLAnchorElement>('main a[href^="mailto:"]')!.href);
+    expect(email.pathname).toBe('bulkorder@luviacreations.com');
+    expect(email.searchParams.get('subject')).toBe('Luvia Creations | Bulk Orders & Corporate Gifting Enquiry');
+    expect(doc.querySelector('main a[href^="https://wa.me/919205907350"]')).toBeTruthy();
+    expect(renderContentSitemap([toy], '2026-10-14', pages)).toContain('https://luviacreations.com/bulk-orders/');
+  });
   it.each([
     ['/terms-and-conditions/', 'Terms & Conditions', 'Prices and payment'],
     ['/privacy-policy/', 'Privacy Policy', 'Your choices and requests'],
@@ -88,7 +98,7 @@ describe('collection and information pages', () => {
     }
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/collections/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/collections/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
