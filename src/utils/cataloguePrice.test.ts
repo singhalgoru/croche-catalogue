@@ -40,11 +40,49 @@ describe('catalogue price filter', () => {
     const bands = getCataloguePriceBands(products);
     expect(bands).toHaveLength(4);
     expect(bands.map(band => band.label)).toEqual([
-      'Up to ₹250', '₹251–₹450', '₹451–₹650', '₹651+',
+      'Up to ₹300', '₹300–₹500', '₹500–₹700', '₹700+',
     ]);
     for (const item of products) {
       const matchingBands = bands.filter(band => matchesCataloguePriceRange(item, band));
-      expect(matchingBands).toHaveLength(1);
+      expect(matchingBands.length).toBeGreaterThanOrEqual(1);
+    }
+    for (const band of bands) {
+      expect(band.minimum! % 100).toBe(0);
+      if (band.maximum !== null) expect(band.maximum % 100).toBe(0);
+      expect(products.some(item => matchesCataloguePriceRange(item, band))).toBe(true);
+    }
+  });
+
+  it('includes shared round-number boundaries in either adjacent suggestion', () => {
+    const products = [100, 300, 500, 800].map(price => ({
+      ...product, price, variants: [{ ...product.variants[0], price: null }],
+    }));
+    const bands = getCataloguePriceBands(products);
+    expect(bands.map(band => band.label)).toEqual([
+      'Up to ₹200', '₹200–₹400', '₹400–₹700', '₹700+',
+    ]);
+    const boundaryProduct = { ...products[0], price: 200 };
+    expect(matchesCataloguePriceRange(boundaryProduct, bands[0])).toBe(true);
+    expect(matchesCataloguePriceRange(boundaryProduct, bands[1])).toBe(true);
+  });
+
+  it.each([
+    [[349], ['₹300–₹400']],
+    [[310, 349, 375, 399], ['₹300–₹400']],
+    [[0, 25, 75], ['₹0–₹100']],
+    [[199, 200, 201, 202], ['Up to ₹200', '₹200+']],
+  ])('merges nearby prices into populated rounded ranges: %s', (prices, labels) => {
+    const products = prices.map(price => ({
+      ...product, price, variants: [{ ...product.variants[0], price: null }],
+    }));
+    const bands = getCataloguePriceBands(products);
+    expect(bands.map(band => band.label)).toEqual(labels);
+    expect(bands.length).toBeLessThanOrEqual(4);
+    for (const band of bands) {
+      expect(products.some(item => matchesCataloguePriceRange(item, band))).toBe(true);
+    }
+    for (const item of products) {
+      expect(bands.some(band => matchesCataloguePriceRange(item, band))).toBe(true);
     }
   });
 

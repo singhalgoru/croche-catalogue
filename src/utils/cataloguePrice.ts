@@ -22,21 +22,28 @@ export const getCataloguePriceBands = (products: Product[]): CataloguePriceBand[
   const uniquePrices = [...new Set(prices)];
   const bandCount = Math.min(4, uniquePrices.length);
   if (bandCount === 0) return [];
-  if (bandCount === 1) {
-    const price = uniquePrices[0];
-    return [{ minimum: price, maximum: price, label: formatINR(price) }];
-  }
-
   const cuts: number[] = [];
   for (let band = 1; band < bandCount; band += 1) {
     const nextStart = Math.ceil(uniquePrices.length * band / bandCount);
     const lower = uniquePrices[nextStart - 1];
     const upper = uniquePrices[nextStart];
-    cuts.push(Math.floor((lower + upper) / 2));
+    const firstBoundary = Math.ceil(lower / 100) * 100;
+    const lastBoundary = Math.floor(upper / 100) * 100;
+    if (firstBoundary > lastBoundary) continue;
+    const boundary = Math.max(firstBoundary, Math.min(lastBoundary, Math.round((lower + upper) / 200) * 100));
+    if (boundary > 0 && !cuts.includes(boundary)) cuts.push(boundary);
   }
 
-  return Array.from({ length: bandCount }, (_, index) => {
-    const minimum = index === 0 ? 0 : cuts[index - 1] + 1;
+  if (cuts.length === 0) {
+    const minimum = Math.floor(uniquePrices[0] / 100) * 100;
+    const maximum = Math.ceil(uniquePrices[uniquePrices.length - 1] / 100) * 100;
+    return [{ minimum, maximum, label: minimum === maximum
+      ? formatINR(minimum) : `${formatINR(minimum)}–${formatINR(maximum)}` }];
+  }
+
+  // Adjacent suggestions share an inclusive boundary, matching their displayed labels.
+  return Array.from({ length: cuts.length + 1 }, (_, index) => {
+    const minimum = index === 0 ? 0 : cuts[index - 1];
     const maximum = index < cuts.length ? cuts[index] : null;
     const label = maximum === null
       ? `${formatINR(minimum)}+`

@@ -43,6 +43,8 @@ test('collection price ranges filter products and clear without reopening the me
   await page.goto('/collections/charms/');
   const filters = page.getByRole('region', { name: 'Filter collection products by price' });
   await filters.locator('summary').click();
+  await expect(filters.getByRole('button', { name: 'Up to ₹500', exact: true })).toBeVisible();
+  await expect(filters.getByRole('button', { name: '₹500+', exact: true })).toBeVisible();
   const range = filters.getByRole('button', { name: /₹\d+\+$/ });
   const rangeLabel = await range.innerText();
   await range.click();

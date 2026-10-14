@@ -151,11 +151,11 @@ describe('Hybrid product navigation', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Toys' }));
     panel = screen.getByRole('dialog', { name: 'Filter products' });
     expect(within(panel).getAllByRole('button', { name: /₹/ }).map(button => button.textContent))
-      .toEqual(['Up to ₹650', '₹651+']);
+      .toEqual(['Up to ₹700', '₹700+']);
     expect(screen.getByLabelText('Filtered products').textContent)
       .toContain('Low-priced Home item');
 
-    fireEvent.click(within(panel).getByRole('button', { name: '₹651+' }));
+    fireEvent.click(within(panel).getByRole('button', { name: '₹700+' }));
     expect(screen.getByRole('dialog', { name: 'Filter products' })).toBeTruthy();
     expect(screen.getByLabelText('Filtered products').textContent)
       .toContain('Low-priced Home item');

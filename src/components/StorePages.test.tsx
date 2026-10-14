@@ -41,10 +41,10 @@ describe('live store pages', () => {
     const priceFilter = screen.getByRole('region', { name: 'Filter collection products by price' });
     fireEvent.click(priceFilter.querySelector('summary')!);
     expect(within(priceFilter).getByRole('button', { name: 'Up to ₹700' })).toBeTruthy();
-    expect(within(priceFilter).getByRole('button', { name: '₹701+' })).toBeTruthy();
+    expect(within(priceFilter).getByRole('button', { name: '₹700+' })).toBeTruthy();
     expect(within(priceFilter).queryByRole('button', { name: 'Up to ₹500' })).toBeNull();
 
-    fireEvent.click(within(priceFilter).getByRole('button', { name: '₹701+' }));
+    fireEvent.click(within(priceFilter).getByRole('button', { name: '₹700+' }));
     expect(screen.getByRole('status').textContent).toBe('Showing 1 of 2 products');
     expect(screen.getByRole('article', { name: 'Product: Large Bunny' })).toBeTruthy();
     expect(screen.queryByRole('article', { name: 'Product: Bunny' })).toBeNull();
