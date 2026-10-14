@@ -54,3 +54,26 @@ it('explains an expired reset link', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save new password' }));
   expect((await screen.findByRole('alert')).textContent).toContain('reset link has expired');
 });
+
+it('closes after sign-in without showing the My account window', () => {
+  const onClose = vi.fn();
+  const { rerender } = render(<AccountDialog mode="signin" accountName={null} onClose={onClose} />);
+  rerender(<AccountDialog mode="signin" accountName="Buyer" onClose={onClose} />);
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('keeps My account available when deliberately opened by a signed-in customer', () => {
+  const onClose = vi.fn();
+  render(<AccountDialog mode="signin" accountName="Buyer" onClose={onClose} />);
+  expect(screen.getByRole('dialog', { name: 'My account' })).toBeTruthy();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('does not close password recovery when the customer becomes signed in', () => {
+  const onClose = vi.fn();
+  const { rerender } = render(<AccountDialog mode="reset" accountName={null} onClose={onClose} />);
+  rerender(<AccountDialog mode="reset" accountName="Buyer" onClose={onClose} />);
+  expect(screen.getByRole('dialog', { name: 'Set a new password' })).toBeTruthy();
+  expect(onClose).not.toHaveBeenCalled();
+});

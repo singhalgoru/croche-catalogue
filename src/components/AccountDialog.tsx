@@ -9,9 +9,14 @@ interface Props {
 }
 export default function AccountDialog({ mode, accountName, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const [openedSignedIn] = useState(Boolean(accountName));
+  const signedInDuringDialog = !openedSignedIn && Boolean(accountName) && mode !== 'reset';
   const [view, setView] = useState(mode);
   const [openedMode, setOpenedMode] = useState(mode);
   if (openedMode !== mode) { setOpenedMode(mode); setView(mode); }
+  useEffect(() => {
+    if (signedInDuringDialog) onClose();
+  }, [signedInDuringDialog, onClose]);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButton.current?.focus();
@@ -25,6 +30,7 @@ export default function AccountDialog({ mode, accountName, onClose }: Props) {
       previous?.focus();
     };
   }, [onClose]);
+  if (signedInDuringDialog) return null;
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-cocoa/40 sm:items-center sm:p-6">
       <div role="dialog" aria-modal="true" aria-labelledby="account-dialog-title"
