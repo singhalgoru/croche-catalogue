@@ -250,7 +250,7 @@ function App() {
     if (authParams.has('access_token') || authParams.has('error_description')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)
-      : ['#collaborate', '#bulk-orders'].includes(window.location.hash) ? window.location.hash : '';
+      : ['#collaborate', '#bulk-orders', '#products'].includes(window.location.hash) ? window.location.hash : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
   }, [isAdminPage, isCartOpen, selectedProduct, pageReference]);
 
@@ -259,6 +259,12 @@ function App() {
     const frame = window.requestAnimationFrame(() => document.getElementById('bulk-orders')?.scrollIntoView());
     return () => window.cancelAnimationFrame(frame);
   }, [isLoading, pageReference]);
+
+  useEffect(() => {
+    if (isLoading || isCartOpen || pageReference || window.location.hash !== '#products') return;
+    const frame = window.requestAnimationFrame(() => document.getElementById('products')?.scrollIntoView());
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLoading, isCartOpen, pageReference]);
 
   useEffect(() => {
     if (!pageReference || !selectedProduct) return;
@@ -780,7 +786,7 @@ function App() {
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} initialIds={initialBestsellerIds} onSelect={selectProduct} />}
-        <div ref={catalogueToolsSentinelRef} className="h-px" aria-hidden="true" />
+        <div id="products" ref={catalogueToolsSentinelRef} className="h-px scroll-mt-24" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
           <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
         ) : (

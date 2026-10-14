@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('empty cart Shop now link returns directly to homepage products', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/?checkout=cart');
+  await expect(page.getByText('Your cart is empty', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Shop now', exact: true }).click();
+  await expect(page).toHaveURL(/\/#products$/);
+  await expect(page.getByText('Your cart is empty', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'View Rose Charm', exact: true })).toBeInViewport();
+});
+
 test('zero quantity shows out of stock and cannot be added even with a stale stock flag', async ({ page }) => {
   const state = await installMockSupabase(page);
   for (const variant of state.products[0].product_variants) {

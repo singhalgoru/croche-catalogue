@@ -252,6 +252,10 @@ export default function CartDrawer({
               <p className="mt-2 text-sm text-cocoa/60">
                 Add products and they will remain here for up to 30 days.
               </p>
+              <a href={`${import.meta.env.BASE_URL}#products`} onClick={isPage ? undefined : onClose}
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-mustard px-6 py-3 font-bold text-cocoa transition-colors hover:bg-mustard/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+                Shop now
+              </a>
             </div>
           ) : (
             <div className="space-y-3">

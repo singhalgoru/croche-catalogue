@@ -36,6 +36,12 @@ it('expands the cart price breakdown by default', () => {
   expect(screen.getByText('Price breakdown', { exact: true }).closest('details')?.open).toBe(true);
   expect(screen.getByText('Items subtotal')).toBeTruthy();
 });
+it('links the empty cart directly to homepage products', () => {
+  renderCart({ ...cart, items: [] });
+  expect(screen.getByText('Your cart is empty')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Shop now' }).getAttribute('href'))
+    .toBe(`${import.meta.env.BASE_URL}#products`);
+});
 it('excludes shipping fees and applies coupon discounts to the free-delivery prompt', () => {
   const close = vi.fn();
   renderCart({ ...cart, items: [{ ...cart.items[0], unitPrice: 500 }],
