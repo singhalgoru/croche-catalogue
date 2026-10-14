@@ -11,6 +11,22 @@ export interface CataloguePriceBand extends CataloguePriceRange {
   label: string;
 }
 
+export const getCataloguePriceRangeLabel = (
+  range: CataloguePriceRange,
+  bands: CataloguePriceBand[] = [],
+): string => {
+  const selectedBand = bands.find(
+    band => band.minimum === range.minimum && band.maximum === range.maximum,
+  );
+  if (selectedBand) return selectedBand.label;
+  const { minimum, maximum } = range;
+  if (minimum === null) return maximum === null ? 'Any price' : `Up to ${formatINR(maximum)}`;
+  if (maximum === null) return `${formatINR(minimum)}+`;
+  if (minimum === maximum) return formatINR(minimum);
+  if (minimum === 0) return `Up to ${formatINR(maximum)}`;
+  return `${formatINR(minimum)}–${formatINR(maximum)}`;
+};
+
 export const getCatalogueProductPrice = (product: Product) =>
   getPublicVariantPrice(product, product.variants[0]);
 
@@ -37,19 +53,14 @@ export const getCataloguePriceBands = (products: Product[]): CataloguePriceBand[
   if (cuts.length === 0) {
     const minimum = Math.floor(uniquePrices[0] / 100) * 100;
     const maximum = Math.ceil(uniquePrices[uniquePrices.length - 1] / 100) * 100;
-    return [{ minimum, maximum, label: minimum === maximum
-      ? formatINR(minimum) : `${formatINR(minimum)}–${formatINR(maximum)}` }];
+    return [{ minimum, maximum, label: getCataloguePriceRangeLabel({ minimum, maximum }) }];
   }
 
   // Adjacent suggestions share an inclusive boundary, matching their displayed labels.
   return Array.from({ length: cuts.length + 1 }, (_, index) => {
     const minimum = index === 0 ? 0 : cuts[index - 1];
     const maximum = index < cuts.length ? cuts[index] : null;
-    const label = maximum === null
-      ? `${formatINR(minimum)}+`
-      : index === 0
-        ? `Up to ${formatINR(maximum)}`
-        : `${formatINR(minimum)}–${formatINR(maximum)}`;
+    const label = getCataloguePriceRangeLabel({ minimum, maximum });
     return { minimum, maximum, label };
   });
 };

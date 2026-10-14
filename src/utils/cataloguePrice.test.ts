@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../types/product';
-import { getCataloguePriceBands, getCatalogueProductPrice, matchesCataloguePriceRange } from './cataloguePrice';
+import { getCataloguePriceBands, getCataloguePriceRangeLabel, getCatalogueProductPrice, matchesCataloguePriceRange } from './cataloguePrice';
 
 const product: Product = {
   id: 'p1', name: 'Crochet flower', category: 'Decor', price: 250, showPrice: true,
@@ -12,6 +12,18 @@ const product: Product = {
 };
 
 describe('catalogue price filter', () => {
+  it.each([
+    [{ minimum: null, maximum: null }, 'Any price'],
+    [{ minimum: null, maximum: 200 }, 'Up to ₹200'],
+    [{ minimum: 0, maximum: 200 }, 'Up to ₹200'],
+    [{ minimum: 200, maximum: 400 }, '₹200–₹400'],
+    [{ minimum: 400, maximum: null }, '₹400+'],
+    [{ minimum: 300, maximum: 300 }, '₹300'],
+    [{ minimum: 0, maximum: 0 }, '₹0'],
+  ])('formats ranges consistently across filter surfaces: %s', (range, label) => {
+    expect(getCataloguePriceRangeLabel(range)).toBe(label);
+  });
+
   it('uses the same initial variant price shown on the product card', () => {
     expect(getCatalogueProductPrice(product)).toBe(300);
     expect(matchesCataloguePriceRange(product, { minimum: 300, maximum: 300 })).toBe(true);
@@ -69,7 +81,7 @@ describe('catalogue price filter', () => {
   it.each([
     [[349], ['₹300–₹400']],
     [[310, 349, 375, 399], ['₹300–₹400']],
-    [[0, 25, 75], ['₹0–₹100']],
+    [[0, 25, 75], ['Up to ₹100']],
     [[199, 200, 201, 202], ['Up to ₹200', '₹200+']],
   ])('merges nearby prices into populated rounded ranges: %s', (prices, labels) => {
     const products = prices.map(price => ({

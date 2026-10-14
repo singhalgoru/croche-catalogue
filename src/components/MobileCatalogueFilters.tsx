@@ -1,8 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { CatalogueFilter, Category } from '../types/product';
-import type { CataloguePriceBand, CataloguePriceRange } from '../utils/cataloguePrice';
-import { formatINR } from '../utils/currency';
+import { getCataloguePriceRangeLabel, type CataloguePriceBand, type CataloguePriceRange } from '../utils/cataloguePrice';
 
 interface Props {
   activeCategory: CatalogueFilter;
@@ -40,20 +39,8 @@ export default function MobileCatalogueFilters({
   const options: Category[] = ['All', ...(showNew ? ['New'] : []), ...categories];
   const draftPriceBands = priceBandsByCategory.get(draftCategory) ?? [];
   const draftCount = Number(draftCategory !== 'All') + Number(minimum !== '' || maximum !== '');
-  const selectedBand = activePriceRange && priceBands.find(
-    band => band.minimum === activePriceRange.minimum && band.maximum === activePriceRange.maximum,
-  );
   const activePriceLabel = activePriceRange
-    ? selectedBand?.label
-      ?? (activePriceRange.minimum === null
-        ? activePriceRange.maximum === null
-          ? 'Any price'
-          : `Up to ${formatINR(activePriceRange.maximum)}`
-        : activePriceRange.maximum === null
-          ? `${formatINR(activePriceRange.minimum)}+`
-          : activePriceRange.minimum === activePriceRange.maximum
-            ? formatINR(activePriceRange.minimum)
-            : `${formatINR(activePriceRange.minimum)}–${formatINR(activePriceRange.maximum)}`)
+    ? getCataloguePriceRangeLabel(activePriceRange, priceBands)
     : null;
 
   const closeFilters = useCallback(() => setOpen(false), []);

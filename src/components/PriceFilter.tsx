@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { CataloguePriceBand, CataloguePriceRange } from '../utils/cataloguePrice';
-import { formatINR } from '../utils/currency';
+import { getCataloguePriceRangeLabel, type CataloguePriceBand, type CataloguePriceRange } from '../utils/cataloguePrice';
 
 interface Props {
   active: CataloguePriceRange | null;
@@ -13,20 +12,7 @@ export default function PriceFilter({ active, bands, onApply }: Props) {
   const [maximum, setMaximum] = useState(active?.maximum?.toString() ?? '');
   const [error, setError] = useState('');
 
-  const selectedBand = active && bands.find(
-    band => band.minimum === active.minimum && band.maximum === active.maximum,
-  );
-  const rangeLabel = active
-    ? selectedBand?.label ?? (
-      active.minimum === null
-        ? active.maximum === null ? 'Any price' : `Up to ${formatINR(active.maximum)}`
-        : active.maximum === null
-          ? `${formatINR(active.minimum)}+`
-          : active.minimum === active.maximum
-            ? formatINR(active.minimum)
-            : `${formatINR(active.minimum)}–${formatINR(active.maximum)}`
-    )
-    : null;
+  const rangeLabel = active ? getCataloguePriceRangeLabel(active, bands) : null;
   const label = active
     ? `Filter by price: ${rangeLabel}`
     : 'Filter by price';
