@@ -55,15 +55,15 @@
       },
       {
         "title": "Payments and service providers",
-        "text": "Razorpay processes online payments. Payment details entered in its checkout are handled by Razorpay; our order records use payment and transaction references for verification and support, not your card PIN or OTP. Supabase provides database and authentication services. Hosting, image delivery, email and courier providers process information needed for their services. Google Analytics and Meta Pixel may receive page, device, interaction and purchase-event data when configured. These providers may process information outside India under their own privacy terms."
+        "text": "Our payment service provider processes online payments and handles payment details entered in its secure checkout. Our order records use payment and transaction references for verification and support, not your card PIN or OTP. We use database, account authentication, hosting, image delivery, email and courier service providers to operate the shop and fulfil orders. Analytics and advertising service providers may receive page, device, interaction and purchase-event data when configured. These providers may process information outside India under their own privacy terms."
       },
       {
         "title": "Cookies and browser storage",
-        "text": "The website uses browser storage and service-worker caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. Analytics and advertising services may use cookies or similar technologies. Cloudflare Turnstile processes browser signals for bot protection when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
+        "text": "The website uses browser storage and caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. Analytics and advertising services may use cookies or similar technologies. Our security and bot-protection services process browser signals when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
       },
       {
-        "title": "WhatsApp, reviews and external services",
-        "text": "When you choose WhatsApp or another external link, information you send is handled by that service under its privacy terms. If you opt in to Google Customer Reviews after an order, order reference, email, delivery country and an estimated delivery date are shared with Google for the survey. Review-survey participation is optional."
+        "title": "Messaging, reviews and external services",
+        "text": "When you choose an external messaging service or another external link, information you send is handled by that service under its privacy terms. If you opt in to a customer-review survey after an order, your order reference, email, delivery country and an estimated delivery date are shared with the review service provider for the survey. Review-survey participation is optional."
       },
       {
         "title": "Retention and security",
