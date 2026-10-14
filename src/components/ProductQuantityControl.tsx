@@ -3,6 +3,7 @@ interface Props {
   variantName?: string;
   quantity: number;
   minimumQuantity?: number;
+  maximumQuantity?: number;
   disabled?: boolean;
   onDecrease: () => void;
   onIncrease: () => void;
@@ -15,6 +16,7 @@ export default function ProductQuantityControl({
   variantName,
   quantity,
   minimumQuantity = 1,
+  maximumQuantity = 99,
   disabled = false,
   onDecrease,
   onIncrease,
@@ -47,7 +49,7 @@ export default function ProductQuantityControl({
       <button
         type="button"
         onClick={onIncrease}
-        disabled={disabled || quantity >= 99}
+        disabled={disabled || quantity >= Math.min(99, maximumQuantity)}
         className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/15 disabled:opacity-35"
         aria-label={`Increase quantity of ${itemName}`}
       >

@@ -118,7 +118,7 @@ export default function CartDrawer({
             const variant = product?.variants.find(
               (candidate) => candidate.id === item.variantId,
             );
-            return !product || !variant || !variant.inStock;
+            return !product || !variant || !variant.inStock || item.quantity > variant.availableQuantity;
           })
           .map((item) => item.id),
       ),
@@ -260,6 +260,8 @@ export default function CartDrawer({
                 const isUnavailable = unavailableItemIds.has(item.id);
                 const isBelowMinimum = belowMinimumItemIds.has(item.id);
                 const product = products.find((candidate) => candidate.id === item.productId);
+                const variant = product?.variants.find(candidate => candidate.id === item.variantId);
+                const availableQuantity = variant?.inStock ? variant.availableQuantity : 0;
                 const minimumQuantity = normalizeMinimumOrderQuantity(product?.minimumOrderQuantity);
                 const itemName = item.variantName
                   ? `${item.productName} — ${item.variantName}`
@@ -312,7 +314,11 @@ export default function CartDrawer({
                         </p>
                         {isUnavailable && (
                           <p className="mt-1 text-xs font-semibold text-red-700">
-                            Currently unavailable — remove this item to continue.
+                            {availableQuantity >= minimumQuantity
+                              ? `Only ${availableQuantity} available. Reduce the quantity to continue.`
+                              : availableQuantity > 0
+                              ? `Only ${availableQuantity} available, below the minimum order. Remove this item to continue.`
+                              : 'Currently unavailable — remove this item to continue.'}
                           </p>
                         )}
                         {isBelowMinimum && (
@@ -329,7 +335,7 @@ export default function CartDrawer({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1, minimumQuantity)}
+                          onClick={() => onUpdateQuantity(item.id, Math.min(item.quantity - 1, Math.max(minimumQuantity, availableQuantity)), minimumQuantity)}
                           disabled={isBusy || item.quantity <= minimumQuantity}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
                           aria-label={`Decrease quantity of ${itemName}`}
@@ -342,7 +348,7 @@ export default function CartDrawer({
                         <button
                           type="button"
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1, minimumQuantity)}
-                          disabled={isBusy || item.quantity >= 99}
+                          disabled={isBusy || item.quantity >= Math.min(99, availableQuantity)}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-mustard text-cocoa disabled:opacity-35"
                           aria-label={`Increase quantity of ${itemName}`}
                         >

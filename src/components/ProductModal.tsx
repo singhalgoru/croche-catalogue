@@ -679,11 +679,12 @@ export default function ProductModal({
                   }
                   quantity={selectedCartItem.quantity}
                   minimumQuantity={minimumOrderQuantity}
+                  maximumQuantity={selectedVariant.inStock ? selectedVariant.availableQuantity : 0}
                   disabled={isCartBusy}
                   onDecrease={() => {
                     void onUpdateCartItem(
                       selectedCartItem.id,
-                      selectedCartItem.quantity - 1,
+                      Math.min(selectedCartItem.quantity - 1, Math.max(minimumOrderQuantity, selectedVariant.availableQuantity)),
                       minimumOrderQuantity,
                     );
                   }}

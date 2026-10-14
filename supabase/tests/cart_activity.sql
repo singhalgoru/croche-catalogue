@@ -15,6 +15,8 @@ begin
 end;
 $$;
 insert into auth.users (id) select owner_id from cart_guard_fixture;
+update public.product_variants set in_stock = true, available_quantity = 10
+where id = (select variant_id from cart_guard_fixture);
 grant select on cart_guard_fixture to authenticated;
 select set_config('request.jwt.claims', json_build_object(
   'sub', (select owner_id from cart_guard_fixture), 'role', 'authenticated'
