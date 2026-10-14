@@ -613,7 +613,7 @@ export default function ProductModal({
           {displayedPrice !== null && (
             <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
               {formatINR(displayedPrice)}
-              <span className="mt-1 block font-sans text-xs font-normal">Includes GST · shipping additional</span>
+              <span className="mt-1 block font-sans text-xs font-normal">Shipping calculated at checkout</span>
             </p>
           )}
           {minimumOrderQuantity > 1 && (

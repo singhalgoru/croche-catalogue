@@ -398,8 +398,9 @@ describe('renderProductPage', () => {
   const page = renderProductPage(product, '910000000000');
   it('discloses order requests, tax, shipping and payment on crawler-facing product pages', () => {
     expect(page).toContain('does not take payment or confirm an order');
-    expect(page).toContain('Displayed product prices include GST');
-    expect(page).toContain('Shipping is additional');
+    expect(page).toContain('Prices are in Indian rupees');
+    expect(page).not.toContain('include GST');
+    expect(page).toContain('Shipping charges, if applicable, are shown before payment.');
     expect(page).toContain('href="/faq/"');
     expect(page).toContain('href="/about/"');
   });

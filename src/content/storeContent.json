@@ -10,7 +10,7 @@
   "orderingDisclosure": {
     "title": "Before you order",
     "request": "Choose your items, save your delivery address, review your coupon, shipping and total, then pay securely through Razorpay. Your online order is confirmed after payment verification. Adding items to a cart or sending a WhatsApp message does not take payment or confirm an order.",
-    "price": "Displayed product prices include GST. Shipping is additional unless the free-shipping threshold applies. Review the selected variant, quantity, availability and final total including shipping before paying.",
+    "price": "Prices are in Indian rupees. Shipping charges, if applicable, are shown before payment. Review the selected variant, quantity, availability and final total including shipping before paying.",
     "payment": "Use WhatsApp for help, customisation or assisted ordering. If online checkout is unavailable, contact Luvia to confirm availability, the total and payment instructions. Never share your card PIN, OTP or passwords in a message."
   },
   "dispatch": "Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window.",
@@ -29,7 +29,7 @@
     ["When will my order be dispatched?", "Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window."],
     ["How do I pay?", "Use Proceed to payment after reviewing your delivery address, coupon, shipping and total. Razorpay processes the payment, and your online order is confirmed after payment verification. If online checkout is unavailable, contact Luvia for assisted ordering and confirm payment instructions before sending money. Never share your card PIN, OTP or passwords in a message."],
     ["Does this website take payment or complete checkout?", "Yes. Online checkout uses Razorpay, and your order is confirmed after payment verification. You do not need to confirm a paid online order on WhatsApp. Adding items to a cart or sending a message does not take payment or confirm an order. If online checkout is unavailable, contact Luvia for assisted ordering."],
-    ["Are taxes and shipping included in the displayed price?", "Displayed product prices include GST. Shipping is additional unless explicitly stated otherwise. Confirm the selected variant, quantity and final total including shipping before paying. Variant prices can differ; the price shown for your selected variant applies."],
+    ["Are shipping charges included in the displayed price?", "Prices are in Indian rupees. Shipping charges, if applicable, are shown before payment. Confirm the selected variant, quantity and final total including shipping before paying. Variant prices can differ; the price shown for your selected variant applies."],
     ["What materials and sizes are used?", "Check the individual product details for confirmed materials and dimensions. Information varies by product; ask us to confirm any missing details, suitability or sizing before ordering."],
     ["How should I care for my crochet product?", "Follow the care instructions on the individual product page where provided. If instructions are missing or you are unsure, contact us before washing; care depends on the materials and construction."]
   ]

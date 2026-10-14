@@ -78,8 +78,9 @@ describe('collection and information pages', () => {
     for (const pathname of ['/about/', '/faq/']) {
       const text = documentFor(pathname).body.textContent;
       expect(text).toContain('does not take payment or confirm an order');
-      expect(text).toContain('Displayed product prices include GST');
-      expect(text).toContain('Shipping is additional');
+      expect(text).toContain('Prices are in Indian rupees');
+      expect(text).not.toContain('include GST');
+      expect(text).toContain('Shipping charges, if applicable, are shown before payment.');
       expect(text).toContain('Never share your card PIN, OTP or passwords');
       expect(text).not.toContain('Admin Razorpay');
       expect(text).not.toContain('sandbox demonstration');

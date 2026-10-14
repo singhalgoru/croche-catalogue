@@ -101,7 +101,7 @@ describe('live store pages', () => {
     const orderingCopy = screen.getByText(/then pay securely through Razorpay/);
     expect(orderingCopy.textContent).toContain('Your online order is confirmed after payment verification.');
     expect(orderingCopy.textContent).toContain('Adding items to a cart or sending a WhatsApp message does not take payment or confirm an order.');
-    expect(screen.getByText(/Displayed product prices include GST/)).toBeTruthy();
+    expect(screen.getByText(/Prices are in Indian rupees/)).toBeTruthy();
     expect(screen.getByRole('link', { name: '+91 92059 07350' }).getAttribute('href')).toContain('https://wa.me/');
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
   });

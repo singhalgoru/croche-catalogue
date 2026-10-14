@@ -89,6 +89,8 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ## Razorpay payments
 
+Customer-facing price disclosures state that prices are in Indian rupees and applicable shipping is shown before payment. They do not claim GST inclusion or exemption. Internal tax estimates are separate from storefront wording; confirm registration and tax obligations with a qualified adviser.
+
 Public compliance URLs are `/terms-and-conditions/`, `/privacy-policy/` and `/return-policy/`. Terms and privacy content share `src/content/policies.json` between the live storefront and pre-rendered HTML, with footer links and sitemap entries. Use the dedicated URLs, not `/about/`, in provider compliance checks. Policy text must be reviewed against actual business practices and applicable requirements; publication does not guarantee provider approval.
 
 ### Standard Checkout webhooks (test mode)

@@ -534,7 +534,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         `<img src="${escapeHtml(getProductImageUrl(photo.image, 480))}" alt="${escapeHtml(photo.alt)}" width="160" height="160" loading="lazy" decoding="async" />`,
       ).join('')}</div>` : ''}
       <p class="price">${escapeHtml(priceLine)}</p>
-      ${product.price !== null ? '<p>Includes GST · shipping additional</p>' : ''}
+      ${product.price !== null ? '<p>Shipping calculated at checkout</p>' : ''}
       <p class="stock">${stockLabel(product)}.</p>
       <p>Free shipping on items worth ₹500 or more after coupon discounts.</p>
       <p>${escapeHtml(product.description)}</p>

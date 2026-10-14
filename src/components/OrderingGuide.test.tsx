@@ -31,7 +31,7 @@ describe('OrderingGuide', () => {
     expect(screen.getByText(/Delivery time after dispatch depends on the destination/)).toBeTruthy();
     expect(screen.getByText(/items subtotal after coupon discounts is at least ₹500/)).toBeTruthy();
     expect(screen.getByText(/does not take payment or confirm an order/)).toBeTruthy();
-    expect(screen.getByText(/Displayed product prices include GST/)).toBeTruthy();
+    expect(screen.getByText(/Prices are in Indian rupees/)).toBeTruthy();
   });
 
   it('shows the return policy only once in the footer alongside the guide', () => {

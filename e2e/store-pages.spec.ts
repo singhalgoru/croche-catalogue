@@ -111,7 +111,7 @@ test('about and ordering FAQ retain accessible content and current category navi
   await page.goto('/about/');
   await expect(page.getByRole('heading', { name: 'About Luvia & contact', exact: true })).toBeVisible();
   await expect(page.getByText(/does not take payment or confirm an order/)).toBeVisible();
-  await expect(page.getByText(/Displayed product prices include GST/)).toBeVisible();
+  await expect(page.getByText(/Prices are in Indian rupees/)).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Read the ordering FAQ', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ordering, delivery & care FAQ', exact: true })).toBeVisible();

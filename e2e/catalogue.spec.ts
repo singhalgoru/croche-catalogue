@@ -973,7 +973,7 @@ test('shows prices only for products opted into price display', async ({ page })
   await expect(coasterCard.getByText('₹')).toHaveCount(0);
 
   await roseCard.getByRole('button', { name: 'View Rose Charm' }).click();
-  await expect(page.getByRole('main').getByText('₹349Includes GST · shipping additional', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText('₹349Shipping calculated at checkout', { exact: true })).toBeVisible();
 });
 
 test('supports full-modal swipes and touch-only overlay controls', async ({ page }) => {
