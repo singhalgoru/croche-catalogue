@@ -13,8 +13,22 @@ export default function PriceFilter({ active, bands, onApply }: Props) {
   const [maximum, setMaximum] = useState(active?.maximum?.toString() ?? '');
   const [error, setError] = useState('');
 
+  const selectedBand = active && bands.find(
+    band => band.minimum === active.minimum && band.maximum === active.maximum,
+  );
+  const rangeLabel = active
+    ? selectedBand?.label ?? (
+      active.minimum === null
+        ? active.maximum === null ? 'Any price' : `Up to ${formatINR(active.maximum)}`
+        : active.maximum === null
+          ? `${formatINR(active.minimum)}+`
+          : active.minimum === active.maximum
+            ? formatINR(active.minimum)
+            : `${formatINR(active.minimum)}–${formatINR(active.maximum)}`
+    )
+    : null;
   const label = active
-    ? `Filter by price: ${active.minimum === null ? 'Any' : formatINR(active.minimum)}–${active.maximum === null ? 'Any' : formatINR(active.maximum)}`
+    ? `Filter by price: ${rangeLabel}`
     : 'Filter by price';
 
   const apply = (event: FormEvent<HTMLFormElement>) => {
@@ -40,7 +54,7 @@ export default function PriceFilter({ active, bands, onApply }: Props) {
       <details className="min-w-0">
         <summary aria-label={label} className={`min-h-11 cursor-pointer whitespace-nowrap rounded-full border-2 px-2 py-2 text-sm font-semibold sm:px-3 ${
           active ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-white text-cocoa'
-        }`}><span className="sm:hidden">Price</span><span className="hidden sm:inline">{label}</span></summary>
+        }`}><span className="sm:hidden">{rangeLabel ?? 'Price'}</span><span className="hidden sm:inline">{label}</span></summary>
         <form onSubmit={apply} className="mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-mustard/40 bg-white p-3 shadow-lg">
           {bands.length > 0 && <fieldset className="mb-3">
             <legend className="mb-2 text-sm font-semibold">Popular price ranges</legend>

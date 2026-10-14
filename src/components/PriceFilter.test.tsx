@@ -59,3 +59,16 @@ it('offers the catalogue price bands in one horizontally scrollable row', () => 
   fireEvent.click(screen.getByRole('button', { name: '₹251–₹450' }));
   expect(onApply).toHaveBeenCalledWith({ minimum: 251, maximum: 450 });
 });
+
+it.each([
+  [{ minimum: 0, maximum: 250 }, 'Up to ₹250'],
+  [{ minimum: 651, maximum: null }, '₹651+'],
+  [{ minimum: 200, maximum: 500 }, '₹200–₹500'],
+  [{ minimum: null, maximum: 500 }, 'Up to ₹500'],
+  [{ minimum: 500, maximum: 500 }, '₹500'],
+])('keeps the active range visible in the closed mobile filter: %s', (active, label) => {
+  render(<PriceFilter active={active} bands={bands} onApply={vi.fn()} />);
+  const summary = screen.getByLabelText(`Filter by price: ${label}`);
+  expect(summary.querySelector('.sm\\:hidden')?.textContent).toBe(label);
+  expect(summary.closest('details')).toHaveProperty('open', false);
+});

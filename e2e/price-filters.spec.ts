@@ -43,8 +43,14 @@ test('collection price ranges filter products and clear without reopening the me
   await page.goto('/collections/charms/');
   const filters = page.getByRole('region', { name: 'Filter collection products by price' });
   await filters.locator('summary').click();
-  await filters.getByRole('button', { name: /₹\d+\+$/ }).click();
+  const range = filters.getByRole('button', { name: /₹\d+\+$/ });
+  const rangeLabel = await range.innerText();
+  await range.click();
   await expect(filters.locator('details')).not.toHaveAttribute('open');
+  await expect(filters.locator('summary')).toHaveAccessibleName(`Filter by price: ${rangeLabel}`);
+  await expect(filters.locator('summary').getByText(
+    page.viewportSize()!.width < 640 ? rangeLabel : `Filter by price: ${rangeLabel}`, { exact: true },
+  )).toBeVisible();
   await expect(page.getByRole('article', { name: 'Product: Rose Charm', exact: true })).toHaveCount(0);
   await expect(page.getByRole('article', { name: 'Product: Large Rose Charm', exact: true })).toBeVisible();
   await filters.getByRole('button', { name: 'Clear price filter', exact: true }).click();
