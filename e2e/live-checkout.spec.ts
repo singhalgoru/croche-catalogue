@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-for (const scenario of ['success', 'closed', 'failed', 'blocked']) {
-const replace = scenario !== 'success';
-test(scenario === 'blocked' ? 'shows safe support instead of paying again when an earlier payment blocks checkout'
+for (const scenario of ['success', 'closed', 'failed', 'blocked', 'remote']) {
+const replace = scenario !== 'success' && scenario !== 'remote';
+test(scenario === 'remote' ? 'restores the same payment request without browser recovery on another device'
+  : scenario === 'blocked' ? 'shows safe support instead of paying again when an earlier payment blocks checkout'
   : `reviews address and ${replace ? `resumes ${scenario} payment after a cart change` : 'pays online'} before showing a verified order confirmation`, async ({ page }) => {
   const events: { channel: string; args: unknown[] }[] = [];
   await page.exposeFunction('recordAnalytics', (channel: string, args: unknown[]) => { events.push({ channel, args }); });
@@ -40,6 +41,11 @@ test(scenario === 'blocked' ? 'shows safe support instead of paying again when a
     json: paid ? { status: 'paid', reference: 'LUV-LIVEFIXTURE' }
       : replace && requests.length ? { status: 'link_created', reference: 'LUV-LIVEFIXTURE' } : null,
   }));
+  await page.route('**/rest/v1/rpc/get_live_checkout_recovery', route => route.fulfill({
+    json: scenario === 'remote' && requests.length && !paid ? {
+      requestKey: requests[0].requestKey, status: 'link_created', reference: 'LUV-LIVEFIXTURE', cartMatches: true,
+    } : null,
+  }));
   await page.route('**/functions/v1/create-live-order', route => {
     requests.push(route.request().postDataJSON());
     if (scenario === 'blocked') return route.fulfill({ status: 400, json: {
@@ -62,7 +68,7 @@ test(scenario === 'blocked' ? 'shows safe support instead of paying again when a
       on(event, callback) { this.failed = callback; }
       open() {
         window.checkoutOpens = (window.checkoutOpens || 0) + 1;
-        if (${replace} && window.checkoutOpens === 1) {
+        if (${replace || scenario === 'remote'} && window.checkoutOpens === 1) {
           if (${scenario === 'failed'}) this.failed({error:{description:'Card declined'}});
           this.options.modal.ondismiss(); return;
         }
@@ -115,6 +121,19 @@ test(scenario === 'blocked' ? 'shows safe support instead of paying again when a
   await expect(page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Need help? Contact Luvia on WhatsApp' })).toBeVisible();
   await pay.click();
+  if (scenario === 'remote') {
+    await expect(page.getByRole('button', { name: 'Resume secure payment' })).toBeEnabled();
+    await page.evaluate(() => sessionStorage.clear());
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Resume secure payment' })).toBeEnabled();
+    await page.evaluate(() => { Object.assign(window, { checkoutOpens: 1 }); });
+    await page.getByRole('button', { name: 'Resume secure payment' }).click();
+    await expect(page.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeVisible();
+    expect(requests).toHaveLength(2);
+    expect(requests[1].requestKey).toBe(requests[0].requestKey);
+    expect(requests[1].previousRequestKey).toBeUndefined();
+    return;
+  }
   if (scenario === 'blocked') {
     await expect(page.getByRole('heading', { name: 'An earlier payment needs checking.' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeVisible();

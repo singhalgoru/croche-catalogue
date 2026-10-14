@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Cart } from '../types/cart';
-import { createCheckoutOrder, loadRazorpay, verifyCheckoutPayment, readCheckoutRecovery, saveCheckoutRecovery, fetchLiveCheckoutStatus } from '../services/checkout';
+import { createCheckoutOrder, loadRazorpay, verifyCheckoutPayment, readCheckoutRecovery, saveCheckoutRecovery, fetchLiveCheckoutStatus, fetchLiveCheckoutRecovery } from '../services/checkout';
 import type { PaymentResponse } from '../services/checkout';
 import { formatINR } from '../utils/currency';
 import { trackCartStep, trackEvent } from '../services/analytics';
@@ -14,13 +14,14 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const fingerprintForCart = () => JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
     cart.deliveryPinCode, cart.deliveryEstimate, cart.deliveryDetails, cart.welcomeCouponCode,
     cart.deliveryDetails?.name.trim() ?? '', cart.deliveryDetails?.phone ?? '']);
+  const cartFingerprint = fingerprintForCart();
   const [recovery] = useState(() => {
     try {
       if (live && confirmationOnly && confirmationRequest) {
         return { request: { fingerprint: '', key: confirmationRequest }, pending: null, verified: false, error: false };
       }
       const saved = readCheckoutRecovery(cart.id, live);
-      if (live && !confirmationOnly && saved.verified && saved.request?.fingerprint !== fingerprintForCart()) {
+      if (live && !confirmationOnly && saved.verified && saved.request?.fingerprint !== cartFingerprint) {
         return { request: null, pending: null, verified: false, error: false };
       }
       return { ...saved, verified: confirmationOnly ? false : saved.verified, error: false };
@@ -33,6 +34,10 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const [name, setName] = useState(cart.deliveryDetails?.name ?? '');
   const [phone, setPhone] = useState(cart.deliveryDetails?.phone ?? '');
   const [busy, setBusy] = useState(false);
+  const [syncingRecovery, setSyncingRecovery] = useState(live && !confirmationOnly && !recovery.error
+    && !recovery.request && !recovery.pending && !recovery.verified);
+  const [syncError, setSyncError] = useState(false);
+  const [syncAttempt, setSyncAttempt] = useState(0);
   const [message, setMessage] = useState(recovery.error
     ? 'Unable to restore checkout. Contact Luvia before paying again.'
     : recovery.verified ? live ? 'Your order is confirmed. View it in My Account. Do not pay again.' : 'Test payment already verified. No real order was placed.'
@@ -52,6 +57,58 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const [statusRequest, setStatusRequest] = useState(recovery.request?.key ?? null);
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
   const optInTriggered = useRef(false);
+  useEffect(() => {
+    if (!live || confirmationOnly || recovery.error || request.current || recovery.pending || recovery.verified) {
+      setSyncingRecovery(false);
+      return;
+    }
+    setSyncingRecovery(true);
+    setSyncError(false);
+    let current = true;
+    const sync = async () => {
+      try {
+        const latest = await fetchLiveCheckoutRecovery(cart.id);
+        if (!current) return;
+        if (!latest) { setMessage(''); return; }
+        request.current = { fingerprint: latest.cartMatches ? cartFingerprint : '', key: latest.requestKey };
+        setStatusRequest(latest.requestKey);
+        try {
+          saveCheckoutRecovery(cart.id, {
+            request: request.current, pending: null, verified: latest.status === 'paid',
+          }, true);
+        } catch (error) {
+          console.error('Unable to save synced checkout recovery:', error);
+        }
+        if (latest.status === 'paid') {
+          paid.current = true;
+          locked.current = false;
+          setConfirmedOrderId(latest.reference);
+          setVerified(true);
+          setPending(null);
+          setInterruption(null);
+          setMessage(`Order confirmed — ${latest.reference}. Payment received. Save this reference; signed-in customers can view it in My Account.`);
+          return;
+        }
+        if (latest.status === 'review_required') {
+          setInterruption('blocked');
+          setMessage(`Checkout ${latest.reference} needs verification. Contact Luvia before paying again.`);
+          return;
+        }
+        setInterruption('closed');
+        setMessage(`This cart has a pending payment (${latest.reference}). Resume it here or contact Luvia before paying again.`);
+      } catch (error) {
+        if (current) {
+          console.error('Unable to sync live checkout:', error);
+          setSyncError(true);
+          setMessage(error instanceof Error ? error.message : 'Unable to check your earlier payment. Please retry before paying.');
+        }
+      } finally {
+        if (current) setSyncingRecovery(false);
+      }
+    };
+    void sync();
+    return () => { current = false; };
+  }, [cart.id, cartFingerprint, confirmationOnly, live, recovery.error, recovery.pending, recovery.verified, syncAttempt]);
   useEffect(() => {
     if (live && verified) {
       if (statusRequest) void trackVerifiedPurchase(statusRequest);
@@ -123,7 +180,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
     }
   };
   const start = async () => {
-    if (locked.current || disabled || confirmationOnly || paid.current || recovery.error) return;
+    if (locked.current || disabled || confirmationOnly || paid.current || recovery.error || syncingRecovery || syncError) return;
     locked.current = true;
     purchaseCart.current = cart;
     setBusy(true);
@@ -132,7 +189,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
     paymentFailed.current = false;
     try {
       const Constructor = await loadRazorpay();
-      const fingerprint = live ? fingerprintForCart() : JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
+      const fingerprint = live ? cartFingerprint : JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
         cart.deliveryPinCode, cart.deliveryEstimate, cart.deliveryDetails, cart.welcomeCouponCode, name.trim(), phone]);
       if (live && request.current) {
         const existing = await fetchLiveCheckoutStatus(request.current.key);
@@ -237,6 +294,11 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       </div>}
       {!(live && verified) && !showRecovery && <p className="text-xs text-cocoa/70">{live ? 'Pay securely with Razorpay. Your order is confirmed only after payment verification. Close any earlier payment windows and use only the latest checkout.'
         : 'Test checkout only — no real money, purchase or dispatch. Shipping remains indicative.'}</p>}
+      {live && syncingRecovery && <p role="status" className="mt-2 text-xs text-cocoa">Checking for an earlier payment on this cart…</p>}
+      {syncError && <button type="button" onClick={() => setSyncAttempt(attempt => attempt + 1)}
+        className="mt-2 min-h-11 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white">
+        Retry payment status check
+      </button>}
       {!confirmationOnly && !verified && !pending && !recovery.error && interruption !== 'blocked' && (
         <form onSubmit={event => { event.preventDefault(); void start(); }} className="mt-2 grid gap-2">
           {!live && <><label className="text-xs text-cocoa">
@@ -251,7 +313,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
               value={phone} disabled={busy || disabled} onChange={event => setPhone(event.target.value)}
               autoComplete="tel-national" className="mt-1 w-full rounded border border-cocoa/20 bg-white p-2" />
           </label></>}
-          <button type="submit" disabled={busy || disabled}
+          <button type="submit" disabled={busy || disabled || syncingRecovery || syncError}
             className={showRecovery
               ? 'min-h-12 rounded-full border-2 border-cocoa bg-mustard px-4 py-3 text-base font-bold text-cocoa shadow-sm hover:bg-mustard/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa disabled:opacity-50'
               : 'min-h-11 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50'}>

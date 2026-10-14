@@ -30,8 +30,22 @@ begin
   select * into f from live_fixture;
   update public.checkout_settings set live_enabled=true;
   update public.product_variants set available_quantity=3 where id=f.variant_id;
+  update public.cart_items set unit_price=500 where cart_id=f.other_cart_id;
   previous:=public.prepare_live_checkout(f.other_cart_id,f.other_id,gen_random_uuid());
+  perform set_config('request.jwt.claims',json_build_object('sub',f.other_id,'role','service_role')::text,true);
+  result:=public.get_live_checkout_recovery(f.other_cart_id);
+  if result->>'requestKey'<>previous.request_key::text or result->>'cartMatches'<>'true' then
+    raise exception 'FAIL: another device cannot restore the owned matching checkout.';
+  end if;
+  perform set_config('request.jwt.claims',json_build_object('sub',f.owner_id,'role','service_role')::text,true);
+  if public.get_live_checkout_recovery(f.other_cart_id) is not null then
+    raise exception 'FAIL: recovery exposed another customer checkout.';
+  end if;
+  perform set_config('request.jwt.claims',json_build_object('sub',f.other_id,'role','service_role')::text,true);
   update public.payment_orders set expires_at=now()-interval '1 minute',provider_claimed_at=now() where id=previous.id;
+  if public.get_live_checkout_recovery(f.other_cart_id)->>'status'<>'review_required' then
+    raise exception 'FAIL: ambiguous provider creation was offered for payment.';
+  end if;
   perform public.expire_live_checkouts();
   if (select status from public.payment_orders where id=previous.id)<>'creating_link' then raise exception 'FAIL: ambiguous provider creation was released.'; end if;
   update public.payment_orders set provider_claimed_at=null where id=previous.id;
@@ -39,7 +53,14 @@ begin
   if (select status from public.payment_orders where id=previous.id)<>'expired' then raise exception 'FAIL: unclaimed checkout did not expire.'; end if;
   update public.payment_orders set status='link_created',razorpay_order_id='order_replacefixture' where id=previous.id;
   perform public.expire_live_checkouts();
+  if public.get_live_checkout_recovery(f.other_cart_id)->>'status'<>'expired' then
+    raise exception 'FAIL: expired provider checkout lost its recovery key.';
+  end if;
   update public.cart_items set quantity=2 where cart_id=f.other_cart_id;
+  if public.get_live_checkout_recovery(f.other_cart_id)->>'cartMatches'<>'false' then
+    raise exception 'FAIL: changed cart incorrectly matched an earlier payment snapshot.';
+  end if;
+  perform set_config('request.jwt.claims','{"role":"service_role"}',true);
   begin
     perform public.replace_unattempted_live_checkout(f.other_cart_id,f.owner_id,previous.request_key,key,'order_replacefixture');
   exception when others then rejected:=true; end;
@@ -141,6 +162,8 @@ declare result jsonb; rejected boolean:=false;
 begin
   result:=public.get_live_checkout_status((select request_id from live_fixture));
   if result->>'status'<>'paid' then raise exception 'FAIL: owner cannot see confirmation.'; end if;
+  result:=public.get_live_checkout_recovery((select cart_id from live_fixture));
+  if result->>'status'<>'paid' then raise exception 'FAIL: paid checkout cannot sync after cart settlement.'; end if;
   begin perform public.settle_live_checkout((select id from live_order),'pay_forged',55000,'INR'); exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: customer can settle a payment.'; end if;
   if jsonb_array_length(public.get_customer_orders())<>2 then raise exception 'FAIL: live order missing from history.'; end if;
@@ -157,6 +180,7 @@ select set_config('request.jwt.claims',json_build_object('sub',(select other_id 
 set local role authenticated;
 do $$ begin
   if public.get_live_checkout_status((select request_id from live_fixture)) is not null then raise exception 'FAIL: another customer can see confirmation.'; end if;
+  if public.get_live_checkout_recovery((select cart_id from live_fixture)) is not null then raise exception 'FAIL: another customer can recover confirmation.'; end if;
 end $$;
 reset role;
 insert into public.catalogue_admins(user_id) select owner_id from live_fixture;

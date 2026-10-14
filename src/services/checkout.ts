@@ -90,6 +90,25 @@ export async function fetchLiveCheckoutStatus(requestId: string): Promise<{ stat
   if (!data || typeof data.status !== 'string' || typeof data.reference !== 'string') throw new Error('Invalid order status response.');
   return data;
 }
+export interface LiveCheckoutRecoveryStatus {
+  requestKey: string;
+  status: 'creating_link' | 'link_created' | 'review_required' | 'paid' | 'expired';
+  reference: string;
+  cartMatches: boolean;
+}
+export async function fetchLiveCheckoutRecovery(cartId: string): Promise<LiveCheckoutRecoveryStatus | null> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Checkout recovery requires an online connection.');
+  const { data, error } = await client.rpc('get_live_checkout_recovery', { target_cart_id: cartId });
+  if (error) throw new Error(`Unable to restore your earlier payment: ${error.message}`);
+  if (data === null) return null;
+  if (!data || typeof data.requestKey !== 'string' || !data.requestKey
+    || !['creating_link', 'link_created', 'review_required', 'paid', 'expired'].includes(data.status)
+    || typeof data.reference !== 'string' || !data.reference || typeof data.cartMatches !== 'boolean') {
+    throw new Error('Invalid checkout recovery response.');
+  }
+  return data;
+}
 export async function createCheckoutOrder(body: {
   cartId: string; requestKey: string; customerName: string; customerPhone: string; previousRequestKey?: string;
 }, live = false): Promise<CheckoutOrder> {

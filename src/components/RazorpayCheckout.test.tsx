@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import RazorpayCheckout from './RazorpayCheckout';
 import type { Cart } from '../types/cart';
 import type { CheckoutOptions } from '../services/checkout';
-const { createOrder, verify, load, status } = vi.hoisted(() => ({
-  createOrder: vi.fn(), verify: vi.fn(), load: vi.fn(), status: vi.fn(),
+const { createOrder, verify, load, status, recovery } = vi.hoisted(() => ({
+  createOrder: vi.fn(), verify: vi.fn(), load: vi.fn(), status: vi.fn(), recovery: vi.fn(),
 }));
 const purchase = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const optInMock = vi.hoisted(() => vi.fn());
@@ -16,7 +16,7 @@ vi.mock('../services/googleCustomerReviews', () => ({
 vi.mock('../services/checkout', async importOriginal => ({
   ...await importOriginal<typeof import('../services/checkout')>(),
   createCheckoutOrder: createOrder, verifyCheckoutPayment: verify, loadRazorpay: load,
-  fetchLiveCheckoutStatus: status,
+  fetchLiveCheckoutStatus: status, fetchLiveCheckoutRecovery: recovery,
 }));
 const cart: Cart = {
   id: 'cart-fixture', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '', whatsappStartedAt: null,
@@ -28,6 +28,7 @@ let open: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.clearAllMocks();
   status.mockResolvedValue(null);
+  recovery.mockResolvedValue(null);
   sessionStorage.clear();
   open = vi.fn();
   load.mockResolvedValue(class {
@@ -40,6 +41,11 @@ beforeEach(() => {
   verify.mockResolvedValue('pay_test');
 });
 afterEach(cleanup);
+async function proceed() {
+  const button = screen.getByRole('button', { name: 'Proceed to payment' });
+  await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+  fireEvent.click(button);
+}
 async function start() {
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Test Buyer' } });
   fireEvent.change(screen.getByLabelText('Indian mobile number'), { target: { value: '9876543210' } });
@@ -63,7 +69,7 @@ it('uses saved delivery details and confirms a real order only after backend ver
     email: 'buyer@example.test', addressLine1: '12 Test Street', addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' } }}
     disabled={false} live />);
   expect(screen.queryByLabelText('Name')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(open).toHaveBeenCalled());
   expect(options.description).toBe('Order LUV-LIVE');
   expect(options.prefill).toEqual({ name: 'Buyer', contact: '+919876543210' });
@@ -110,6 +116,45 @@ it('recovers webhook confirmation after losing the browser payment callback', as
   await waitFor(() => expect(purchase).toHaveBeenCalledWith('saved-request'));
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
 });
+it('syncs a recoverable live checkout from another device and resumes the same request', async () => {
+  recovery.mockResolvedValue({ requestKey: 'remote-request', status: 'link_created', reference: 'LUV-REMOTE', cartMatches: true });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Resume secure payment' })).toBeTruthy());
+  expect(screen.getByRole('status').textContent).toContain('pending payment (LUV-REMOTE)');
+  fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ requestKey: 'remote-request' }), true);
+});
+it('syncs a paid live checkout from another device before another payment can start', async () => {
+  recovery.mockResolvedValue({ requestKey: 'remote-paid', status: 'paid', reference: 'LUV-SYNCED', cartMatches: false });
+  status.mockResolvedValue({ status: 'paid', reference: 'LUV-SYNCED' });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-SYNCED'));
+  expect(screen.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeTruthy();
+  expect(createOrder).not.toHaveBeenCalled();
+});
+it('requires provider-checked replacement when a remote checkout no longer matches the cart', async () => {
+  recovery.mockResolvedValue({ requestKey: 'remote-old', status: 'link_created', reference: 'LUV-OLD', cartMatches: false });
+  status.mockResolvedValue({ status: 'link_created', reference: 'LUV-OLD' });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Resume secure payment' })).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ previousRequestKey: 'remote-old' }), true);
+  expect(createOrder.mock.calls[0][0].requestKey).not.toBe('remote-old');
+});
+it('blocks payment on a recovery outage and offers an explicit status retry', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  recovery.mockRejectedValueOnce(new Error('Unable to restore your earlier payment.'));
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Retry payment status check' })).toBeTruthy());
+  expect(screen.getByRole('button', { name: 'Proceed to payment' }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByRole('status').textContent).toContain('Unable to restore');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry payment status check' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Proceed to payment' }).hasAttribute('disabled')).toBe(false));
+  expect(createOrder).not.toHaveBeenCalled();
+  log.mockRestore();
+});
 it('rechecks a paid order on confirmation refresh even after the server clears the cart', async () => {
   sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
     request: { fingerprint: 'purchased-items', key: 'paid-request' }, pending: null, verified: true,
@@ -146,10 +191,18 @@ it('does not replace a checkout under review after cart details change', async (
   }));
   status.mockResolvedValue({ status: 'review_required', reference: 'LUV-PENDING' });
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Contact Luvia before another payment'));
   expect(createOrder).not.toHaveBeenCalled();
   expect(JSON.parse(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)!).request.key).toBe('saved-request');
+});
+it('syncs a blocked live checkout from another device and prevents another payment', async () => {
+  recovery.mockResolvedValue({ requestKey: 'review-request', status: 'review_required', reference: 'LUV-REVIEW', cartMatches: true });
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'An earlier payment needs checking.' })).toBeTruthy());
+  expect(screen.getByRole('status').textContent).toContain('LUV-REVIEW');
+  expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();
+  expect(createOrder).not.toHaveBeenCalled();
 });
 it('requests a server-checked replacement with the updated cart and retains its key on failure', async () => {
   sessionStorage.setItem(`luvia-checkout-live-${cart.id}`, JSON.stringify({
@@ -158,19 +211,19 @@ it('requests a server-checked replacement with the updated cart and retains its 
   status.mockResolvedValue({ status: 'link_created', reference: 'LUV-PENDING' });
   createOrder.mockRejectedValueOnce(new Error('Provider unavailable.'));
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Provider unavailable'));
   const first = createOrder.mock.calls[0][0];
   expect(first.previousRequestKey).toBe('saved-request');
   expect(first.requestKey).not.toBe('saved-request');
   expect(JSON.parse(sessionStorage.getItem(`luvia-checkout-live-${cart.id}`)!).request.previousRequestKey).toBe('saved-request');
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(open).toHaveBeenCalled());
   expect(createOrder.mock.calls[1][0]).toEqual(first);
 });
 it('renews an expired checkout even when cart details have not changed', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
   const original = createOrder.mock.calls[0][0].requestKey;
   options.modal.ondismiss();
@@ -183,7 +236,7 @@ it('renews an expired checkout even when cart details have not changed', async (
 });
 it.each(['closed', 'failed'] as const)('prominently recovers a %s live payment without replacing the checkout', async interruption => {
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
   const originalKey = createOrder.mock.calls[0][0].requestKey;
   if (interruption === 'failed') {
@@ -209,7 +262,7 @@ it.each(['closed', 'failed'] as const)('prominently recovers a %s live payment w
 it('never offers resume payment when a failed attempt later needs verification', async () => {
   verify.mockRejectedValue(new Error('Retry verification; do not pay again.'));
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(open).toHaveBeenCalled());
   failed({ error: { description: 'Card declined' } });
   options.handler({ razorpay_order_id: 'order_test', razorpay_payment_id: 'pay_test', razorpay_signature: 'signature' });
@@ -263,7 +316,7 @@ it.each([
 ])('replaces unsafe payment retries with prominent support for: %s', async message => {
   createOrder.mockRejectedValueOnce(new Error(message));
   render(<RazorpayCheckout cart={cart} disabled={false} live />);
-  fireEvent.click(screen.getByRole('button', { name: 'Proceed to payment' }));
+  await proceed();
   await waitFor(() => expect(screen.getByRole('heading', { name: 'An earlier payment needs checking.' })).toBeTruthy());
   expect(screen.getByRole('status').textContent).toContain(message);
   expect(screen.getByRole('status').textContent).toContain('We cannot safely start another payment');

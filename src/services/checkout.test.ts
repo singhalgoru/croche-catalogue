@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createCheckoutOrder, verifyCheckoutPayment, readCheckoutRecovery, saveCheckoutRecovery } from './checkout';
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke } }) }));
+import { createCheckoutOrder, verifyCheckoutPayment, readCheckoutRecovery, saveCheckoutRecovery, fetchLiveCheckoutRecovery } from './checkout';
+const { invoke, rpc } = vi.hoisted(() => ({ invoke: vi.fn(), rpc: vi.fn() }));
+vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke }, rpc }) }));
 const valid = { order_id: 'order_test', amount: 100, currency: 'INR',
   key_id: 'rzp_test_fixture', test_mode: true, reference: 'TEST-123' };
 const body = { cartId: 'cart', requestKey: 'key', customerName: 'Buyer', customerPhone: '9999999999' };
@@ -40,6 +40,12 @@ it('surfaces the backend error message', async () => {
   invoke.mockResolvedValue({ data: null, error: { message: 'Function failed',
     context: new Response(JSON.stringify({ error: 'Cart item unavailable.' })) } });
   await expect(createCheckoutOrder(body)).rejects.toThrow('Cart item unavailable.');
+});
+it('restores a live checkout from server state and rejects malformed recovery responses', async () => {
+  rpc.mockResolvedValueOnce({ data: { requestKey: 'saved-request', status: 'link_created', reference: 'LUV-123', cartMatches: true }, error: null });
+  expect(await fetchLiveCheckoutRecovery('cart')).toEqual({ requestKey: 'saved-request', status: 'link_created', reference: 'LUV-123', cartMatches: true });
+  rpc.mockResolvedValueOnce({ data: { requestKey: 'saved-request', status: 'link_created' }, error: null });
+  await expect(fetchLiveCheckoutRecovery('cart')).rejects.toThrow('Invalid checkout recovery response.');
 });
 it('round-trips request and payment recovery without silently ignoring corruption', () => {
   const recovery = { request: { fingerprint: 'cart-items', key: 'key' },
