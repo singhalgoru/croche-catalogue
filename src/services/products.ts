@@ -49,6 +49,7 @@ interface ProductVariantRow {
   name: string;
   color: string;
   price: number | null;
+  regular_price?: number | null;
   in_stock: boolean;
   available_quantity: number;
   image_path: string;
@@ -71,6 +72,8 @@ interface ProductRow {
   care_instructions?: string | null;
   featured: boolean;
   price: number | null;
+  regular_price?: number | null;
+  discount_percent?: number;
   minimum_order_quantity: number;
   product_profit_margins?:
     | ProductProfitMarginRow
@@ -205,6 +208,7 @@ const mapVariantRow = (row: ProductVariantRow): ProductVariant => ({
   name: row.name,
   color: row.color,
   price: row.price,
+  regularPrice: row.regular_price,
   inStock: row.in_stock && row.available_quantity > 0,
   availableQuantity: row.available_quantity,
   image: normalizeProductImageUrl(row.image_url),
@@ -260,6 +264,8 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     name: row.name,
     category: row.category,
     price: row.price,
+    regularPrice: row.regular_price,
+    discountPercent: row.discount_percent ?? 0,
     minimumOrderQuantity: row.minimum_order_quantity ?? 1,
     profitMarginPercent: marginRow?.profit_margin_percent ?? null,
     gstPercent: marginRow?.gst_percent ?? null,
@@ -959,6 +965,17 @@ export async function reduceVariantStock(
   });
   if (error) throw new Error(`Unable to reduce stock: ${error.message}`);
   return fetchProductById(product.id);
+}
+
+export async function setProductDiscount(productId: string, percentOff: number): Promise<void> {
+  if (!Number.isInteger(percentOff) || percentOff < 0 || percentOff > 90) {
+    throw new Error('Choose a whole percentage from 1 to 90, or 0 to remove the discount.');
+  }
+  const { client } = await getCurrentUser();
+  const { error } = await client.rpc('set_product_discount', {
+    target_product_id: productId, percent_off: percentOff,
+  });
+  if (error) throw new Error(`Unable to update the product discount: ${error.message}`);
 }
 
 export async function reorderProductVariants(

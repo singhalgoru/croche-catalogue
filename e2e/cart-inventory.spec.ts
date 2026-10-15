@@ -18,12 +18,27 @@ test('zero quantity shows out of stock and cannot be added even with a stale sto
   }
   await page.goto('/');
   const card = page.locator('article').filter({ has: page.getByRole('button', { name: 'View Rose Charm', exact: true }) });
-  await expect(card.getByText('Out of stock', { exact: true })).toBeVisible();
+  await expect(card.getByText('Out of stock', { exact: true })).toHaveCount(2);
+  const share = card.getByRole('button', { name: 'Share Rose Charm', exact: true });
+  const actions = card.getByRole('group', { name: 'Rose Charm purchase actions' });
+  await expect(actions.getByText('Out of stock', { exact: true })).toBeVisible();
+  await expect(share).toBeEnabled();
+  const stockBounds = await actions.getByText('Out of stock', { exact: true }).boundingBox();
+  const shareBounds = await share.boundingBox();
+  expect(stockBounds).not.toBeNull();
+  expect(shareBounds).not.toBeNull();
+  expect(Math.abs(stockBounds!.y - shareBounds!.y)).toBeLessThan(80);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(card.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
   await expect(page.getByText('Out of stock', { exact: true }).last()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true })).toHaveCount(0);
   expect(state.carts.flatMap(cart => cart.cart_items)).toHaveLength(0);
+  const purchaseBar = page.getByLabel('Product purchase actions', { exact: true });
+  await expect(purchaseBar.getByText('Out of stock', { exact: true })).toBeInViewport();
+  await expect(purchaseBar.getByRole('button', { name: 'Share this product', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('product and cart quantities stop at stock and stale excess quantities block checkout', async ({ page }) => {

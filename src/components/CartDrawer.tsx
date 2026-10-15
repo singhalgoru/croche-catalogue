@@ -10,6 +10,7 @@ import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } fr
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
 import CartNotice from './CartNotice';
+import ProductDiscount from './ProductDiscount';
 import RazorpayCheckout from './RazorpayCheckout';
 import { fetchLiveCheckoutEnabled } from '../services/checkout';
 import CustomerFunnel from './CustomerFunnel';
@@ -314,6 +315,7 @@ export default function CartDrawer({
                           {item.unitPrice === null
                             ? 'Price on enquiry'
                             : formatINR(item.unitPrice)}
+                          {product && <ProductDiscount product={product} variant={variant} />}
                         </p>
                         {isUnavailable && (
                           <p className="mt-1 text-xs font-semibold text-red-700">

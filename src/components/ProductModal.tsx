@@ -24,6 +24,7 @@ import ProductPurchaseAssurance from './ProductPurchaseAssurance';
 import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
 import { getPublicVariantPrice } from '../utils/productPrice';
+import ProductDiscount from './ProductDiscount';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { toProductPageUrl, toPublicVariantSlug } from '../utils/productLink';
@@ -614,6 +615,7 @@ export default function ProductModal({
           {displayedPrice !== null && (
             <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
               {formatINR(displayedPrice)}
+              <ProductDiscount product={product} variant={selectedVariant} />
               <span className="mt-1 block font-sans text-xs font-normal">Shipping calculated at checkout</span>
             </p>
           )}
@@ -671,6 +673,11 @@ export default function ProductModal({
               isPage ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'
             }`}>
               <ProductPurchaseAssurance />
+              {selectedCartItem && !selectedVariant?.inStock && (
+                <p className="col-span-full justify-self-start rounded-full border border-cocoa/40 bg-cream px-3 py-1 text-xs font-bold text-cocoa">
+                  Out of stock
+                </p>
+              )}
               {selectedCartItem && onUpdateCartItem && onRemoveCartItem ? (
                 <ProductQuantityControl
                   productName={product.name}
@@ -714,6 +721,10 @@ export default function ProductModal({
                   showLabel
                   className="w-full min-w-0"
                 />
+              ) : !selectedVariant?.inStock ? (
+                <p className="justify-self-start rounded-full border border-cocoa/40 bg-cream px-3 py-2 text-xs font-bold text-cocoa">
+                  Out of stock
+                </p>
               ) : null}
               <a
                 href={whatsappOrderLink}

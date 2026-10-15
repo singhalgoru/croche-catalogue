@@ -25,6 +25,7 @@ export interface ProductVariant {
   color: string;
   /** Optional price override in whole rupees. Falls back to the product price. */
   price: number | null;
+  regularPrice?: number | null;
   inStock: boolean;
   availableQuantity: number;
   image: string;
@@ -60,6 +61,8 @@ export interface Product extends ProductDetails {
   category: Category;
   /** Price in whole rupees. `null` when no price has been set yet. */
   price: number | null;
+  regularPrice?: number | null;
+  discountPercent?: number;
   /** Minimum number of pieces customers must order; defaults to one. */
   minimumOrderQuantity?: number;
   /** Last profit margin calculated when the admin applied a price recommendation. */

@@ -6,6 +6,7 @@ import {
   readCatalogueBootstrap,
   deleteVariantGalleryImage,
   reduceVariantStock,
+  setProductDiscount,
   type NewProduct, type ProductUpdate,
 } from './products';
 import { PRODUCT_COLUMNS } from './productColumns';
@@ -99,6 +100,26 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('maps regular prices and applies validated discounts only through the admin RPC', async () => {
+    queueQuery([{ ...row, price: 240, regular_price: 300, discount_percent: 20 }]);
+    const [product] = await fetchManagedProducts();
+    expect(product).toMatchObject({ price: 240, regularPrice: 300, discountPercent: 20 });
+    rpc.mockResolvedValue({ error: null });
+    await setProductDiscount(product.id, 20);
+    expect(rpc).toHaveBeenCalledWith('set_product_discount', { target_product_id: product.id, percent_off: 20 });
+    await setProductDiscount(product.id, 0);
+    expect(rpc).toHaveBeenCalledWith('set_product_discount', { target_product_id: product.id, percent_off: 0 });
+  });
+
+  it('rejects invalid discount percentages and surfaces backend permission errors', async () => {
+    for (const percent of [-1, 91, NaN, 1.5]) {
+      await expect(setProductDiscount('p1', percent)).rejects.toThrow();
+    }
+    expect(rpc).not.toHaveBeenCalled();
+    rpc.mockResolvedValue({ error: { message: 'Verified admin required.' } });
+    await expect(setProductDiscount('p1', 10)).rejects.toThrow('Verified admin required.');
+  });
+
   it('reduces stock using only the dedicated non-sale RPC and returns confirmed inventory', async () => {
     queueQuery([row]);
     const [product] = await fetchManagedProducts();

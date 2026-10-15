@@ -65,6 +65,22 @@ describe('ProductCard share image preparation', () => {
     expect(screen.getByRole('button', { name: 'View Crochet Rose' })).toBeTruthy();
   });
 
+  it('shows unavailable stock beside the share action as well as on the photo', () => {
+    render(<ProductCard product={{
+      ...product, inStock: false,
+      variants: product.variants.map(variant => ({ ...variant, inStock: false, availableQuantity: 0 })),
+    }} isFirstProduct onSelect={vi.fn()} onAddToCart={vi.fn()} />);
+    expect(screen.getAllByText('Out of stock', { exact: true })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Share Crochet Rose' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Crochet Rose purchase actions' }).textContent).toContain('Out of stock');
+    expect(screen.queryByRole('button', { name: 'Add to cart — Crochet Rose' })).toBeNull();
+  });
+
+  it('does not show an out-of-stock label for available products', () => {
+    renderCard();
+    expect(screen.queryByText('Out of stock', { exact: true })).toBeNull();
+  });
+
   it('does not download full-size images just because the card is visible or the cart is used', () => {
     renderCard();
     expect(getShareableImageFile).not.toHaveBeenCalled();

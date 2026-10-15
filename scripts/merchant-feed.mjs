@@ -62,6 +62,8 @@ export const merchantItems = (products) => {
         name: product.variants.length > 1 ? `${product.name.trim()} - ${variant.name}` : product.name.trim(),
         catalogueReference: toProductSlug(product),
         price,
+        regularPrice: variant?.price !== null && variant?.price !== undefined
+          ? variant.regularPrice : product.regularPrice,
         inStock: variant?.inStock ?? product.inStock,
         image,
         cleanKey: cleanImageKey(image),
@@ -88,7 +90,8 @@ ${items.map((item) => `<item>${[
     field('image_link', item.image),
     ...(item.additionalImages ?? []).map((image) => field('additional_image_link', image)),
     field('availability', item.inStock ? 'in_stock' : 'out_of_stock'),
-    field('price', `${item.price.toFixed(2)} INR`),
+    field('price', `${(item.regularPrice > item.price ? item.regularPrice : item.price).toFixed(2)} INR`),
+    ...(item.regularPrice > item.price ? [field('sale_price', `${item.price.toFixed(2)} INR`)] : []),
     field('condition', 'new'),
     field('brand', 'Luvia Creations'),
     field('identifier_exists', 'no'),

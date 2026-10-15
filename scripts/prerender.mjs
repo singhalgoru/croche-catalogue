@@ -30,8 +30,8 @@ const ORIGIN = 'https://luviacreations.com';
 const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
-  'id,public_slug,name,category,description,seo_description,materials,dimensions,included_items,care_instructions,price,show_price,color,in_stock,featured,image_url,image_path,published,published_at,updated_at,sort_order,created_at,' +
-  'product_variants(id,public_slug,name,color,price,in_stock,available_quantity,image_url,image_path,sort_order,product_variant_images(id,image_url,image_path,sort_order))';
+  'id,public_slug,name,category,description,seo_description,materials,dimensions,included_items,care_instructions,price,regular_price,discount_percent,show_price,color,in_stock,featured,image_url,image_path,published,published_at,updated_at,sort_order,created_at,' +
+  'product_variants(id,public_slug,name,color,price,regular_price,in_stock,available_quantity,image_url,image_path,sort_order,product_variant_images(id,image_url,image_path,sort_order))';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
@@ -71,6 +71,7 @@ export const variantShareProduct = (product, variant) => ({
   name: product.variants.length > 1 ? `${product.name} — ${variant.name}` : product.name,
   image: variant.image || product.image,
   price: product.price === null ? null : variant.price ?? product.price,
+  regularPrice: variant.price !== null ? variant.regularPrice : product.regularPrice,
   inStock: variant.inStock,
   variants: [variant],
   catalogueReference: toProductSlug(product),
@@ -159,6 +160,8 @@ const toProduct = (row) => {
     includedItems: row.included_items?.trim() || undefined,
     careInstructions: row.care_instructions?.trim() || undefined,
     price: row.show_price === false ? null : (row.price ?? null),
+    regularPrice: row.regular_price ?? null,
+    discountPercent: row.discount_percent ?? 0,
     featured: row.featured === true,
     sortOrder: row.sort_order ?? undefined,
     inStock: variants.length > 0
@@ -177,6 +180,7 @@ const toProduct = (row) => {
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         .map((image) => image.image_url).filter(Boolean),
       price: variant.price ?? null,
+      regularPrice: variant.regular_price ?? null,
       inStock: variant.in_stock !== false && variant.available_quantity > 0,
     })),
   };
@@ -302,6 +306,15 @@ const priceLabel = (product) => {
       : `${formatPrice(range.low)} – ${formatPrice(range.high)}`;
 };
 
+const discountMarkup = (product) => {
+  if (!product.discountPercent || product.price === null || !product.regularPrice || product.regularPrice <= product.price) return '';
+  const regular = {
+    ...product, price: product.regularPrice,
+    variants: product.variants.map(variant => ({ ...variant, price: variant.regularPrice ?? null })),
+  };
+  return `<p><del>${escapeHtml(priceLabel(regular))}</del> <strong>${product.discountPercent}% off</strong></p>`;
+};
+
 const markdownText = (value) =>
   String(value).replace(/\s+/g, ' ').trim().replace(/[\\`*_[\]<>#]/g, '\\$&');
 
@@ -367,6 +380,7 @@ const renderShell = (products) => {
             `<article>${image}<h4><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h4>`,
             `<p>${escapeHtml(truncate(product.description, 150))}</p>`,
             `<p>${escapeHtml(`${price.trim()} ${stock}`)}</p>`,
+            discountMarkup(product),
             '</article></li>',
           ].join('');
         })
@@ -538,6 +552,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         `<img src="${escapeHtml(getProductImageUrl(photo.image, 480))}" alt="${escapeHtml(photo.alt)}" width="160" height="160" loading="lazy" decoding="async" />`,
       ).join('')}</div>` : ''}
       <p class="price">${escapeHtml(priceLine)}</p>
+      ${discountMarkup(product)}
       ${product.price !== null ? '<p>Shipping calculated at checkout</p>' : ''}
       <p class="stock">${stockLabel(product)}.</p>
       <p>Free shipping on items worth ₹500 or more after coupon discounts.</p>

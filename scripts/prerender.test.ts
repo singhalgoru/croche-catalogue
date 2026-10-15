@@ -53,6 +53,13 @@ const product = toProduct(row);
 afterEach(() => vi.unstubAllGlobals());
 
 describe('fetchProducts', () => {
+  it('keeps offer prices and regular-price messaging in the initial page', () => {
+    const discounted = toProduct({ ...row, price: 320, regular_price: 400, discount_percent: 20,
+      product_variants: [{ ...row.product_variants[1], price: null }] });
+    expect(discounted).toMatchObject({ price: 320, regularPrice: 400, discountPercent: 20 });
+    expect(renderShell([discounted])).toContain('20% off');
+    expect(renderShell([discounted])).toContain('<del>₹400</del>');
+  });
   it('renders zero-quantity variants as out of stock even with an enabled stock flag', () => {
     const empty = toProduct({ ...row, product_variants: row.product_variants.map(variant => ({
       ...variant, available_quantity: 0,

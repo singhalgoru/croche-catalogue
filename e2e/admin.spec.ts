@@ -1039,6 +1039,52 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   expect(state.products[0].product_variants).toHaveLength(2);
 });
 
+test('admin product discounts update customer card, detail and cart prices and can be removed', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const product = state.products[0];
+  product.price = 500;
+  await page.route('**/rest/v1/rpc/set_product_discount', async route => {
+    const { target_product_id, percent_off } = route.request().postDataJSON();
+    expect(target_product_id).toBe(product.id);
+    expect([0, 20]).toContain(percent_off);
+    Object.assign(product, {
+      price: percent_off ? 400 : 500, regular_price: percent_off ? 500 : null, discount_percent: percent_off,
+    });
+    await route.fulfill({ json: null });
+  });
+  await signIn(page);
+  await page.getByRole('button', { name: 'Product discounts', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Discount product', exact: true }).selectOption(product.id);
+  await page.getByLabel('Discount percentage', { exact: true }).fill('20');
+  await page.getByRole('button', { name: 'Apply product discount', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('20% product discount applied to Rose Charm.');
+  await page.goto('/');
+  const card = page.locator('article').filter({
+    has: page.getByRole('button', { name: 'View Rose Charm', exact: true }),
+  });
+  await expect(card.getByText('20% off', { exact: true })).toBeVisible();
+  await expect(card.locator('del')).toHaveText('₹500');
+  await expect(card.getByText('Save ₹100 per piece', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
+  await expect(page.getByText('20% off', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
+  await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page.getByText('Save ₹100 per piece', { exact: true })).toBeVisible();
+  expect(state.carts[0].cart_items[0].unit_price).toBe(400);
+  await expectNoHorizontalOverflow(page);
+  await page.goto('/#admin');
+  await page.getByRole('button', { name: 'Product discounts', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Discount product', exact: true }).selectOption(product.id);
+  await page.getByRole('button', { name: 'Remove product discount', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Regular prices restored for Rose Charm.');
+  await page.goto('/');
+  const restored = page.locator('article').filter({
+    has: page.getByRole('button', { name: 'View Rose Charm', exact: true }),
+  });
+  await expect(restored.getByText('20% off', { exact: true })).toHaveCount(0);
+  await expect(restored.getByText('₹500', { exact: true })).toBeVisible();
+});
+
 test('reduces stock without recording sales and handles rejected adjustments', async ({ page }) => {
   const state = await installMockSupabase(page);
   const salesRequests: string[] = [];

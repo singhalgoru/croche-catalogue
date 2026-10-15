@@ -13,6 +13,7 @@ import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { trackEvent } from '../services/analytics';
 import CartIconButton from './CartIconButton';
 import ShareIconButton from './ShareIconButton';
+import ProductDiscount from './ProductDiscount';
 
 interface Props {
   product: Product;
@@ -330,16 +331,22 @@ export default function ProductCard({
             })}
           </div>
         )}
-        <div className="mt-auto flex min-h-12 items-center justify-between gap-3 pt-2">
-          <div>
+        <div role="group" aria-label={`${product.name} purchase actions`} className="mt-auto flex min-h-12 items-center justify-between gap-3 pt-2">
+          <div className="min-w-0">
             {displayedPrice !== null && (
               <p className="font-heading text-xl font-bold text-cocoa sm:text-lg">
                 {formatINR(displayedPrice)}
+                <ProductDiscount product={product} variant={previewedVariant ?? cartVariant} />
               </p>
             )}
             {minimumOrderQuantity > 1 && (
               <p className="mt-1 text-xs font-semibold text-cocoa/70">
                 Minimum {minimumOrderQuantity} pieces
+              </p>
+            )}
+            {!product.inStock && (
+              <p className="mt-2 inline-block rounded-full border border-cocoa/40 bg-cream px-3 py-1 text-xs font-bold text-cocoa">
+                Out of stock
               </p>
             )}
           </div>

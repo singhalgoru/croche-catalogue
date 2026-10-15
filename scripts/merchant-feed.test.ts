@@ -11,12 +11,21 @@ const product = toProduct({
   id: 'p1', public_slug: 'rose-coaster', name: 'Rose & Coaster', category: 'Decor', description: 'Handmade <rose> & leaves.',
   price: 450, image_url: 'https://images.luviacreations.com/products/admin/photo-wm3.webp',
   product_variants: [
-    { id: 'v1', public_slug: 'red', name: 'Red', price: 450, in_stock: true },
-    { id: 'v2', public_slug: 'blue', name: 'Blue', price: 500, in_stock: false, image_url: 'https://images.luviacreations.com/products/admin/blue.webp' },
+    { id: 'v1', public_slug: 'red', name: 'Red', price: 450, in_stock: true, available_quantity: 1 },
+    { id: 'v2', public_slug: 'blue', name: 'Blue', price: 500, in_stock: false, available_quantity: 0, image_url: 'https://images.luviacreations.com/products/admin/blue.webp' },
   ],
 });
 
 describe('Merchant Center feed', () => {
+  it('exports regular and sale prices matching the current variant offer', () => {
+    const items = merchantItems([{ ...product, discountPercent: 20,
+      variants: [{ ...product.variants[0], price: 360, regularPrice: 450 }] }]);
+    const feed = renderMerchantFeed(items);
+    expect(feed).toContain('<g:price>450.00 INR</g:price>');
+    expect(feed).toContain('<g:sale_price>360.00 INR</g:sale_price>');
+    expect(items[0].regularPrice).toBe(450);
+    expect(items[0].price).toBe(360);
+  });
   it('maps migrated, static and new photos only to private clean WebP keys', () => {
     expect(cleanImageKey(product.image)).toBe('admin/photo/original.webp');
     expect(cleanImageKey('https://images.luviacreations.com/products/static/rose-wm3.webp')).toBe('static/rose/original.webp');
@@ -127,7 +136,7 @@ describe('Merchant Center feed', () => {
       expect(graph.offers.availability).toContain('OutOfStock');
       expect(graph.image).toContain('/merchant-images/');
       expect(doc.querySelector('.hero')?.getAttribute('src')).toBe(graph.image);
-      expect(doc.querySelector('.cta.alt')?.getAttribute('href')).toBe('/#product=rose-coaster');
+      expect(doc.querySelector('.cta')?.getAttribute('href')).toBe('/#product=rose-coaster');
       const oldPage = await readFile(path.join(dir, 'shopping', 'rose-coaster--p1', 'v2', 'index.html'), 'utf8');
       expect(new JSDOM(oldPage).window.document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(seoDescription);
       expect(new JSDOM(oldPage).window.document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(items[1].url);

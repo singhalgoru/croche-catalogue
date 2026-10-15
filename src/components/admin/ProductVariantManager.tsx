@@ -708,7 +708,9 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
           className="mt-1 w-full rounded-xl border border-mustard/60 px-3 py-2"
         />
         <span className="mt-1 block text-xs font-normal text-cocoa/55">
-          Leave blank to use the product price.
+          {product.discountPercent
+            ? 'An offer is active. Remove it in Product discounts before changing existing prices. New variant prices receive the same discount.'
+            : 'Leave blank to use the product price.'}
         </span>
       </label>
       <label className="min-w-0 text-sm font-semibold text-cocoa">

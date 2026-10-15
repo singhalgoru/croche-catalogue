@@ -12,6 +12,7 @@ import CustomerOrders from '../CustomerOrders';
 import { fetchAdminLiveOrders } from '../../services/customer';
 import CustomerSummary from './CustomerSummary';
 import ProductManager from './ProductManager';
+import ProductDiscountManager from './ProductDiscountManager';
 import ProductUploadForm from './ProductUploadForm';
 import SellerSalesDashboard from './SellerSalesDashboard';
 import TickerManager from './TickerManager';
@@ -250,6 +251,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
             <ProductManager categories={categories} refreshKey={productRefreshKey} salesRefreshKey={salesRefreshKey} onChanged={handleProductChanged} />
+            <ProductDiscountManager refreshKey={productRefreshKey} onChanged={handleProductChanged} />
           </>,
           Orders: <><CustomerOrders loadOrders={fetchAdminLiveOrders} admin /><CartManager /></>,
           Customers: <CustomerSummary />,
