@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { fetchManagedProducts, setProductDiscount, type ManagedProduct } from '../../services/products';
 import { formatINR } from '../../utils/currency';
+import { calculatePriceAtSellingPrice, DEFAULT_PRICE_DISCOVERY_DEFAULTS } from './priceDiscovery';
+import MarginLabel from './MarginLabel';
 
 export default function ProductDiscountManager({ refreshKey, onChanged }: {
   refreshKey: number; onChanged: () => Promise<void>;
@@ -22,6 +24,19 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
     return () => { current = false; };
   }, [expanded, refreshKey]);
   const product = products.find(item => item.id === productId);
+  const previewPercent = Number(percent);
+  const validPreview = percent.trim() !== '' && Number.isInteger(previewPercent) && previewPercent >= 1 && previewPercent <= 90;
+  const marginPreview = product && validPreview
+    ? (product.variants.length ? product.variants : [null]).map(variant => {
+      const regularPrice = variant?.price !== null && variant?.price !== undefined
+        ? variant.regularPrice ?? variant.price : product.regularPrice ?? product.price;
+      const offerPrice = regularPrice !== null
+        ? Math.max(1, Math.round(regularPrice * (100 - previewPercent) / 100)) : null;
+      const outcome = product.priceDiscoveryInputs && offerPrice !== null
+        ? calculatePriceAtSellingPrice(product.priceDiscoveryInputs, DEFAULT_PRICE_DISCOVERY_DEFAULTS, String(offerPrice))
+        : null;
+      return { id: variant?.id ?? product.id, name: variant?.name ?? 'Product', regularPrice, offerPrice, outcome };
+    }) : [];
   const save = async (value: number) => {
     if (!product) { setError('Select a product first.'); return; }
     setBusy(true); setError(''); setMessage('');
@@ -59,7 +74,9 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
             setProductId(event.target.value); setPercent(String(selected?.discountPercent || 10)); setMessage('');
           }} className="mt-1 w-full rounded-xl border border-mustard/60 bg-white p-3">
             <option value="">Select a product</option>
-            {products.map(item => <option key={item.id} value={item.id}>{item.name}{!item.published ? ' (hidden)' : ''}</option>)}
+            {products.map(item => <option key={item.id} value={item.id}>
+              {item.name} - {item.discountPercent ? `${item.discountPercent}% off applied` : 'No discount'}{!item.published ? ' (hidden)' : ''}
+            </option>)}
           </select>
         </label>
         <label className="text-sm font-semibold">Discount percentage
@@ -72,6 +89,25 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
           {product.price !== null ? `Current product price: ${formatINR(product.price)}. ` : 'Set a public price first. '}
           {product.regularPrice ? `Regular price: ${formatINR(product.regularPrice)}.` : ''}
         </p>}
+        {marginPreview.length > 0 && <section aria-label="Post-discount margin preview" className="min-w-0 rounded-xl border border-mustard/40 bg-cream p-3 sm:col-span-2">
+          <h3 className="font-semibold">After {previewPercent}% discount (preview)</h3>
+          <p className="mt-1 text-xs text-cocoa/70">
+            Estimated per-piece profit and margin using saved product costs, labour at ₹100/hour and payment fees of 2% + 18% GST on fees. Saved shipping and packaging costs are included. Extra coupon discounts are not included.
+          </p>
+          <div className="mt-3 space-y-3">
+            {marginPreview.map(row => <div key={row.id} className="rounded-xl bg-white p-3 text-sm">
+              <p className="font-bold">{row.name}</p>
+              <p className="mt-1">Regular: {row.regularPrice === null ? 'Not set' : formatINR(row.regularPrice)} · Offer: {row.offerPrice === null ? 'Not set' : formatINR(row.offerPrice)}</p>
+              {row.outcome ? <>
+                <p className="mt-2"><MarginLabel margin={row.outcome.profitMarginPercent}>
+                  Post-discount margin: {row.outcome.profitMarginPercent === null ? 'Not calculated' : `${row.outcome.profitMarginPercent.toFixed(1)}%`}
+                </MarginLabel></p>
+                <p className="mt-2 font-semibold">Estimated profit: {formatINR(row.outcome.profit)} per piece</p>
+              </> : <p className="mt-2 text-cocoa/70">Cost details needed. Save complete price discovery costs in Manage products to calculate the post-discount margin.</p>}
+            </div>)}
+          </div>
+          <p className="mt-2 text-xs text-cocoa/70">Preview only until you apply the discount. A negative profit means this offer is estimated to make a loss.</p>
+        </section>}
         <button type="submit" disabled={busy || !product || !product.showPrice || product.price === null}
           className="min-h-11 rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50">
           {busy ? 'Saving...' : 'Apply product discount'}

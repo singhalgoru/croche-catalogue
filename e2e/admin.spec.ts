@@ -1043,6 +1043,10 @@ test('admin product discounts update customer card, detail and cart prices and c
   const state = await installMockSupabase(page);
   const product = state.products[0];
   product.price = 500;
+  Object.assign(product, { product_profit_margins: [{
+    profit_margin_percent: 45, gst_percent: 5, time_spent: 1, time_unit: 'hours',
+    material_cost: 50, shipping_cost: 50, packaging_cost: 10, target_margin_percent: 45,
+  }] });
   await page.route('**/rest/v1/rpc/set_product_discount', async route => {
     const { target_product_id, percent_off } = route.request().postDataJSON();
     expect(target_product_id).toBe(product.id);
@@ -1056,8 +1060,13 @@ test('admin product discounts update customer card, detail and cart prices and c
   await page.getByRole('button', { name: 'Product discounts', exact: true }).click();
   await page.getByRole('combobox', { name: 'Discount product', exact: true }).selectOption(product.id);
   await page.getByLabel('Discount percentage', { exact: true }).fill('20');
+  const preview = page.getByRole('region', { name: 'Post-discount margin preview' });
+  await expect(preview.getByText('After 20% discount (preview)')).toBeVisible();
+  await expect(preview.getByText('Post-discount margin: 42.4%')).toHaveCount(2);
+  await expectNoHorizontalOverflow(page);
   await page.getByRole('button', { name: 'Apply product discount', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('20% product discount applied to Rose Charm.');
+  await expect(page.getByRole('option', { name: 'Rose Charm - 20% off applied', exact: true })).toHaveCount(1);
   await page.goto('/');
   const card = page.locator('article').filter({
     has: page.getByRole('button', { name: 'View Rose Charm', exact: true }),
@@ -1079,6 +1088,7 @@ test('admin product discounts update customer card, detail and cart prices and c
   await page.getByRole('combobox', { name: 'Discount product', exact: true }).selectOption(product.id);
   await page.getByRole('button', { name: 'Remove product discount', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Regular prices restored for Rose Charm.');
+  await expect(page.getByRole('option', { name: 'Rose Charm - No discount', exact: true })).toHaveCount(1);
   await page.goto('/');
   const restored = page.locator('article').filter({
     has: page.getByRole('button', { name: 'View Rose Charm', exact: true }),
