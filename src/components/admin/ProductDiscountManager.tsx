@@ -37,8 +37,14 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
   };
   return <section className="rounded-2xl border border-mustard/40 bg-white p-5 text-cocoa shadow-sm">
     <button type="button" aria-expanded={expanded} aria-controls="product-discounts-panel"
-      onClick={() => { if (!expanded) setLoading(true); setExpanded(value => !value); }} className="min-h-11 w-full text-left font-heading text-2xl font-bold">
-      Product discounts
+      onClick={() => { if (!expanded) setLoading(true); setExpanded(value => !value); }} className="flex min-h-11 w-full items-center justify-between gap-4 text-left font-heading text-2xl font-bold">
+      <span>Product discounts</span>
+      <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mustard/20">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`h-5 w-5 transition-transform motion-reduce:transition-none ${expanded ? 'rotate-180' : ''}`}>
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </span>
     </button>
     <div id="product-discounts-panel" hidden={!expanded}>
       <p className="mt-2 text-sm">Run an automatic product offer for everyone. All variants receive the same percentage discount, including cart and checkout. Existing coupons can still apply under their normal rules.</p>

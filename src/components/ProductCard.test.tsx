@@ -81,6 +81,15 @@ describe('ProductCard share image preparation', () => {
     expect(screen.queryByText('Out of stock', { exact: true })).toBeNull();
   });
 
+  it('highlights a genuine discount on the photo as well as beside the price', () => {
+    render(<ProductCard product={{
+      ...product, showPrice: true, price: 180, regularPrice: 200, discountPercent: 10,
+    }} isFirstProduct onSelect={vi.fn()} onAddToCart={vi.fn()} />);
+    expect(screen.getByText('10% OFF', { exact: true })).toBeTruthy();
+    expect(screen.getByText('10% off', { exact: true }).className).toContain('bg-cocoa');
+    expect(screen.getByText('Save ₹20 per piece')).toBeTruthy();
+  });
+
   it('does not download full-size images just because the card is visible or the cart is used', () => {
     renderCard();
     expect(getShareableImageFile).not.toHaveBeenCalled();

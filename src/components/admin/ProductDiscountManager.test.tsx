@@ -13,6 +13,20 @@ beforeEach(() => {
   vi.mocked(setProductDiscount).mockResolvedValue(undefined);
 });
 afterEach(cleanup);
+it('rotates the decorative chevron as the panel opens and closes', async () => {
+  render(<ProductDiscountManager refreshKey={0} onChanged={vi.fn()} />);
+  const toggle = screen.getByRole('button', { name: 'Product discounts' });
+  const arrow = toggle.querySelector('svg');
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(arrow?.getAttribute('class')).not.toContain('rotate-180');
+  fireEvent.click(toggle);
+  await screen.findByRole('option', { name: 'Rose' });
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(arrow?.getAttribute('class')).toContain('rotate-180');
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(arrow?.getAttribute('class')).not.toContain('rotate-180');
+});
 it('applies and removes a selected product offer', async () => {
   const changed = vi.fn().mockResolvedValue(undefined);
   render(<ProductDiscountManager refreshKey={0} onChanged={changed} />);

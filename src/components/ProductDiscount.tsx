@@ -1,15 +1,13 @@
 import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
-import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductDiscount } from '../utils/productPrice';
 
 export default function ProductDiscount({ product, variant }: { product: Product; variant?: ProductVariant | null }) {
-  const price = getPublicVariantPrice(product, variant);
-  const regular = variant?.price !== null && variant?.price !== undefined
-    ? variant.regularPrice : product.regularPrice;
-  if (price === null || !regular || regular <= price || !product.discountPercent) return null;
-  return <span className="mt-1 block text-xs font-semibold leading-relaxed text-cocoa">
-    <del className="font-normal text-cocoa/60">{formatINR(regular)}</del>
-    <span className="ml-2 rounded bg-mustard/40 px-1.5 py-0.5">{product.discountPercent}% off</span>
-    <span className="block">Save {formatINR(regular - price)} per piece</span>
+  const discount = getProductDiscount(product, variant);
+  if (!discount) return null;
+  return <span className="mt-2 block text-xs font-semibold leading-relaxed text-cocoa">
+    <del className="font-normal text-cocoa/60">{formatINR(discount.regular)}</del>
+    <span className="ml-2 inline-block rounded-full bg-cocoa px-3 py-1 text-sm font-bold uppercase tracking-wide text-cream">{discount.percent}% off</span>
+    <span className="mt-1 block font-bold">Save {formatINR(discount.saving)} per piece</span>
   </span>;
 }

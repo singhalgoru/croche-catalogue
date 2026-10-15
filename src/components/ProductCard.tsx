@@ -4,7 +4,7 @@ import type { Product, ProductVariant } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { isProductNew } from '../utils/productStatus';
 import { productImageProtection } from '../utils/imageProtection';
-import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductDiscount, getPublicVariantPrice } from '../utils/productPrice';
 import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
 import { toProductPageUrl } from '../utils/productLink';
 import { getProductShareDetails } from '../utils/productShare';
@@ -67,6 +67,7 @@ export default function ProductCard({
     (previewedVariant?.inStock ? previewedVariant : null)
     ?? product.variants.find((variant) => variant.inStock);
   const displayedPrice = getPublicVariantPrice(product, previewedVariant ?? cartVariant);
+  const discount = getProductDiscount(product, previewedVariant ?? cartVariant);
   const shareVariant = previewedVariant ?? cartVariant ?? product.variants[0];
   const shareDetails = getProductShareDetails(product, shareVariant);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
@@ -254,8 +255,13 @@ export default function ProductCard({
             Out of stock
           </span>
         )}
-        {(isFeatured || isNew) && (
+        {(discount || isFeatured || isNew) && (
           <div className="absolute left-2 top-2 flex flex-col items-start gap-1.5">
+            {discount && (
+              <span className="rounded-full border border-mustard bg-cocoa px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-cream shadow-md">
+                {discount.percent}% OFF
+              </span>
+            )}
             {isFeatured && (
               <span
                 className="badge-glow rounded-full bg-cocoa px-2.5 py-1 text-xs font-bold text-cream shadow-md"
@@ -274,7 +280,7 @@ export default function ProductCard({
             )}
           </div>
         )}
-        {!isFeatured && !isNew && (
+        {!discount && !isFeatured && !isNew && (
           <span className="absolute top-2 left-2 flex items-center justify-center h-8 w-8 rounded-full bg-white/90 text-cocoa opacity-0 group-hover:opacity-100 transition-opacity">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" />

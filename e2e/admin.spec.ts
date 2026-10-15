@@ -1063,6 +1063,8 @@ test('admin product discounts update customer card, detail and cart prices and c
     has: page.getByRole('button', { name: 'View Rose Charm', exact: true }),
   });
   await expect(card.getByText('20% off', { exact: true })).toBeVisible();
+  await expect(card.getByText('20% OFF', { exact: true })).toBeVisible();
+  await expect(card.getByText('20% off', { exact: true })).toHaveClass(/bg-cocoa/);
   await expect(card.locator('del')).toHaveText('₹500');
   await expect(card.getByText('Save ₹100 per piece', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
