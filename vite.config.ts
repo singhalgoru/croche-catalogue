@@ -67,6 +67,8 @@ export default defineConfig({
       // so it can drive an in-app "update available" experience later.
       injectRegister: false,
       workbox: {
+        // Keep the lazy admin console out of public visitors' background downloads.
+        globIgnores: ['**/AdminPage-*.js'],
         // Activate new versions immediately; otherwise an installed app can
         // keep running a stale bundle until every window is closed.
         skipWaiting: true,
