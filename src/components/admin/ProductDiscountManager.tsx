@@ -10,6 +10,7 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
   const [expanded, setExpanded] = useState(false);
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [productId, setProductId] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const [percent, setPercent] = useState('10');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,11 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
     return () => { current = false; };
   }, [expanded, refreshKey]);
   const product = products.find(item => item.id === productId);
+  const searchQuery = productSearch.trim().toLocaleLowerCase();
+  const matchingProducts = products.filter(item =>
+    `${item.name} ${item.category}`.toLocaleLowerCase().includes(searchQuery));
+  const visibleProducts = product && !matchingProducts.some(item => item.id === product.id)
+    ? [product, ...matchingProducts] : matchingProducts;
   const previewPercent = Number(percent);
   const validPreview = percent.trim() !== '' && Number.isInteger(previewPercent) && previewPercent >= 1 && previewPercent <= 90;
   const marginPreview = product && validPreview
@@ -68,13 +74,27 @@ export default function ProductDiscountManager({ refreshKey, onChanged }: {
       {message && <p role="status" className="mt-3 text-sm font-semibold">{message}</p>}
       {loading ? <p className="mt-3">Loading products...</p> : <form className="mt-4 grid gap-3 sm:grid-cols-2"
         onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void save(Number(percent)); }}>
+        <div className="min-w-0 sm:col-span-2">
+          <label className="block text-sm font-semibold">Search discount products
+            <input type="search" value={productSearch} disabled={busy}
+              onChange={event => setProductSearch(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }}
+              placeholder="Search by product name or category"
+              className="mt-1 w-full rounded-xl border border-mustard/60 bg-white p-3" />
+          </label>
+          <div className="mt-1 flex items-center justify-between gap-2 text-xs text-cocoa/70">
+            <p aria-live="polite">{matchingProducts.length ? `${matchingProducts.length} matching products` : 'No matching products.'}{product && !matchingProducts.some(item => item.id === product.id) ? ' Your selected product remains available below.' : ''}</p>
+            {productSearch && <button type="button" disabled={busy} onClick={() => setProductSearch('')}
+              className="min-h-11 shrink-0 px-2 font-semibold text-cocoa underline">Clear search</button>}
+          </div>
+        </div>
         <label className="min-w-0 text-sm font-semibold">Discount product
           <select required value={productId} disabled={busy} onChange={event => {
             const selected = products.find(item => item.id === event.target.value);
             setProductId(event.target.value); setPercent(String(selected?.discountPercent || 10)); setMessage('');
           }} className="mt-1 w-full rounded-xl border border-mustard/60 bg-white p-3">
             <option value="">Select a product</option>
-            {products.map(item => <option key={item.id} value={item.id}>
+            {visibleProducts.map(item => <option key={item.id} value={item.id}>
               {item.name} - {item.discountPercent ? `${item.discountPercent}% off applied` : 'No discount'}{!item.published ? ' (hidden)' : ''}
             </option>)}
           </select>

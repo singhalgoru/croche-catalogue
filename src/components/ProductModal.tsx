@@ -23,7 +23,7 @@ import ProductDeliveryInfo from './ProductDeliveryInfo';
 import ProductPurchaseAssurance from './ProductPurchaseAssurance';
 import type { CartItem } from '../types/cart';
 import { getProductShareDetails } from '../utils/productShare';
-import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductDiscount, getPublicVariantPrice } from '../utils/productPrice';
 import ProductDiscount from './ProductDiscount';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
@@ -101,6 +101,7 @@ export default function ProductModal({
   const selectedVariant =
     product.variants.find((variant) => variant.id === selectedVariantId) ?? product.variants[0];
   const displayedPrice = getPublicVariantPrice(product, selectedVariant);
+  const discount = getProductDiscount(product, selectedVariant);
   const selectedCartItem = selectedVariant
     ? getCartItem?.(product.id, selectedVariant.id)
     : undefined;
@@ -468,14 +469,21 @@ export default function ProductModal({
                 </svg>
               </button>
             </div>
-            {isNew && (
+            <div className="pointer-events-none absolute left-3 top-3 flex flex-col items-start gap-2">
+              {discount && (
+                <span className="rounded-full border border-cream/60 bg-cocoa px-4 py-2 text-base font-bold tracking-wide text-cream shadow-md">
+                  {discount.percent}% OFF
+                </span>
+              )}
+              {isNew && (
               <span
-                className="badge-glow absolute left-3 top-3 rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md"
+                className="badge-glow rounded-full bg-mustard px-3 py-1 text-xs font-bold text-cocoa shadow-md"
                 style={{ '--badge-glow-color': 'rgb(93 64 55 / 0.55)' } as CSSProperties}
               >
                 New
               </span>
-            )}
+              )}
+            </div>
             {hasCarousel && (
               <>
                 <button
@@ -613,11 +621,14 @@ export default function ProductModal({
             ? <h1 className="mt-1 font-heading text-2xl font-semibold text-cocoa sm:text-3xl">{product.name}</h1>
             : <h2 className="font-heading text-2xl font-semibold text-cocoa mt-1">{product.name}</h2>}
           {displayedPrice !== null && (
-            <p className="mt-2 font-heading text-2xl font-bold text-cocoa">
-              {formatINR(displayedPrice)}
-              <ProductDiscount product={product} variant={selectedVariant} />
-              <span className="mt-1 block font-sans text-xs font-normal">Shipping calculated at checkout</span>
-            </p>
+            <div className={discount ? 'mt-3 rounded-2xl border-2 border-mustard bg-mustard/10 p-4 text-cocoa' : 'mt-2 text-cocoa'}>
+              {discount && <p className="mb-1 text-sm font-bold uppercase tracking-wide">Product offer</p>}
+              <p className={`font-heading font-bold ${discount ? 'text-3xl sm:text-4xl' : 'text-2xl'}`}>
+                {formatINR(displayedPrice)}
+                <ProductDiscount product={product} variant={selectedVariant} />
+              </p>
+              <p className="mt-2 text-xs">Shipping calculated at checkout</p>
+            </div>
           )}
           {minimumOrderQuantity > 1 && (
             <p className="mt-1 text-sm font-semibold text-cocoa">

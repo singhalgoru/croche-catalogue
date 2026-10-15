@@ -13,6 +13,30 @@ beforeEach(() => {
   vi.mocked(setProductDiscount).mockResolvedValue(undefined);
 });
 afterEach(cleanup);
+it('searches names and categories without losing the selected offer or submitting on Enter', async () => {
+  vi.mocked(fetchManagedProducts).mockResolvedValue([
+    product, { ...product, id: 'p2', name: 'Bunny', category: 'Toys', discountPercent: 15, published: false },
+  ]);
+  render(<ProductDiscountManager refreshKey={0} onChanged={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Product discounts' }));
+  await screen.findByRole('option', { name: 'Rose - No discount' });
+  const search = screen.getByRole('searchbox', { name: 'Search discount products' });
+  fireEvent.change(search, { target: { value: '  bUnNy ' } });
+  expect(screen.queryByRole('option', { name: 'Rose - No discount' })).toBeNull();
+  expect(screen.getByRole('option', { name: 'Bunny - 15% off applied (hidden)' })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Discount product'), { target: { value: 'p2' } });
+  fireEvent.change(search, { target: { value: 'Decor' } });
+  expect(screen.getByRole('option', { name: 'Rose - No discount' })).toBeTruthy();
+  expect(screen.getByLabelText('Discount product')).toHaveProperty('value', 'p2');
+  fireEvent.change(search, { target: { value: 'unmatched' } });
+  expect(screen.getByText(/No matching products/)).toBeTruthy();
+  expect(screen.getByLabelText('Discount product')).toHaveProperty('value', 'p2');
+  fireEvent.keyDown(search, { key: 'Enter' });
+  expect(setProductDiscount).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+  expect(search).toHaveProperty('value', '');
+  expect(screen.getByRole('option', { name: 'Rose - No discount' })).toBeTruthy();
+});
 it('rotates the decorative chevron as the panel opens and closes', async () => {
   render(<ProductDiscountManager refreshKey={0} onChanged={vi.fn()} />);
   const toggle = screen.getByRole('button', { name: 'Product discounts' });

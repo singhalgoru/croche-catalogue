@@ -1058,6 +1058,11 @@ test('admin product discounts update customer card, detail and cart prices and c
   });
   await signIn(page);
   await page.getByRole('button', { name: 'Product discounts', exact: true }).click();
+  const discountSearch = page.getByRole('searchbox', { name: 'Search discount products' });
+  await discountSearch.fill('does-not-match-any-product');
+  await expect(page.getByText('No matching products.', { exact: true })).toBeVisible();
+  await discountSearch.fill('rOsE');
+  await expect(page.getByRole('option', { name: 'Rose Charm - No discount', exact: true })).toHaveCount(1);
   await page.getByRole('combobox', { name: 'Discount product', exact: true }).selectOption(product.id);
   await page.getByLabel('Discount percentage', { exact: true }).fill('20');
   const preview = page.getByRole('region', { name: 'Post-discount margin preview' });
@@ -1078,6 +1083,10 @@ test('admin product discounts update customer card, detail and cart prices and c
   await expect(card.getByText('Save ₹100 per piece', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
   await expect(page.getByText('20% off', { exact: true })).toBeVisible();
+  await expect(page.getByText('20% OFF', { exact: true })).toBeVisible();
+  await expect(page.getByText('Product offer', { exact: true })).toBeVisible();
+  await expect(page.getByText('Product offer', { exact: true }).locator('..')).toHaveClass(/border-mustard/);
+  await expectNoHorizontalOverflow(page);
   await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   await expect(page.getByText('Save ₹100 per piece', { exact: true })).toBeVisible();
@@ -1095,6 +1104,9 @@ test('admin product discounts update customer card, detail and cart prices and c
   });
   await expect(restored.getByText('20% off', { exact: true })).toHaveCount(0);
   await expect(restored.getByText('₹500', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
+  await expect(page.getByText('Product offer', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('20% OFF', { exact: true })).toHaveCount(0);
 });
 
 test('reduces stock without recording sales and handles rejected adjustments', async ({ page }) => {
