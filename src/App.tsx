@@ -25,6 +25,7 @@ import { useCart } from './hooks/useCart';
 import { useCustomerName } from './hooks/useCustomerName';
 import { isPasswordRecoveryLink } from './utils/authLinks';
 import { useCatalogueProducts } from './hooks/useCatalogueProducts';
+import CatalogueNotice from './components/CatalogueNotice';
 import { useTickerMessages } from './hooks/useTickerMessages';
 import { trackEvent, trackProductSelected, trackWhatsAppCart } from './services/analytics';
 import type { CatalogueFilter, Product } from './types/product';
@@ -677,7 +678,7 @@ function App() {
     return <>
       {cartNotifications}
       <StorePages products={products} categorySettings={categorySettings} isLoading={isLoading}
-        loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot}
+        loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot} onRetry={refreshProducts}
         onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
         isCartBusy={cart.isBusy} getCartQuantity={productId => cart.cart?.items
           .filter(item => item.productId === productId).reduce((total, item) => total + item.quantity, 0) ?? 0}
@@ -727,9 +728,10 @@ function App() {
           {!selectedProduct && (
             isLoading
               ? <p role="status">Loading product details…</p>
-              : <p role="alert" className="rounded-xl border border-mustard/30 bg-white p-4 text-cocoa">
-                {loadError || 'This product is unavailable or no longer published. Browse the collection for available items.'}
-              </p>
+              : loadError ? <CatalogueNotice message={loadError} onRetry={refreshProducts} />
+                : <p role="alert" className="rounded-xl border border-mustard/30 bg-white p-4 text-cocoa">
+                  This product is unavailable or no longer published. Browse the collection for available items.
+                </p>
           )}
           {selectedProduct && (
             <nav aria-label="Breadcrumb" className="text-sm text-cocoa">
@@ -778,7 +780,7 @@ function App() {
           {selectedProduct && (
             <RelatedProducts product={selectedProduct} products={products} onSelect={openRelatedProduct} />
           )}
-          {loadError && selectedProduct && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
+          {loadError && selectedProduct && <CatalogueNotice message={loadError} onRetry={refreshProducts} />}
           <OrderingGuide />
         </main>
       ) : (
@@ -875,9 +877,7 @@ function App() {
           </p>
         </div>
         {loadError && (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
-            {loadError}
-          </p>
+          <CatalogueNotice message={loadError} onRetry={refreshProducts} />
         )}
         <div ref={productGridRef}>
           {isLoading && !hasCatalogueSnapshot ? (

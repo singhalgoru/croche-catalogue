@@ -1,6 +1,28 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('catalogue connection failures show friendly guidance and retry restores browsing', async ({ page }) => {
+  await installMockSupabase(page);
+  let fail = false;
+  await page.route('**/rest/v1/products?*', async route => {
+    if (fail) await route.abort('internetdisconnected');
+    else await route.fallback();
+  });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'View Rose Charm', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true })).toBeEnabled();
+  fail = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  const notice = page.getByRole('alert').filter({ hasText: 'Check your internet connection to continue browsing.' });
+  await expect(notice).toBeVisible({ timeout: 20_000 });
+  await expect(notice).toHaveClass(/bg-cream/);
+  await expect(page.getByRole('button', { name: 'View Rose Charm', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  fail = false;
+  await notice.getByRole('button', { name: 'Try again' }).click();
+  await expect(notice).toHaveCount(0);
+});
+
 test('empty cart Shop now link returns directly to homepage products', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('/?checkout=cart');

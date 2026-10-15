@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from '../lib/supabaseConfig';
 import { fetchCategorySettings } from '../services/categories';
 import { fetchPublishedProducts, readCatalogueBootstrap } from '../services/products';
 import type { CategorySettings, Product } from '../types/product';
+import { getCatalogueErrorMessage } from '../utils/catalogueError';
 
 const localCategorySettings = Array.from(
   new Set(localProducts.map((product) => product.category)),
@@ -69,9 +70,9 @@ export function useCatalogueProducts() {
         latestCatalogue.current = { products: result.products, categorySettings: result.categorySettings };
         setProducts(result.products);
         setCategorySettings(result.categorySettings);
-        setLoadError(result.error instanceof Error ? result.error.message : result.error ? 'Unable to load catalogue products.' : null);
+        setLoadError(result.error ? getCatalogueErrorMessage(result.error) : null);
       } catch (error) {
-        if (active.current) setLoadError(error instanceof Error ? error.message : 'Unable to load catalogue products.');
+        if (active.current) setLoadError(getCatalogueErrorMessage(error));
       } finally {
         if (active.current) setIsLoading(false);
         pendingRefresh.current = null;

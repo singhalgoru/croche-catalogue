@@ -21,6 +21,16 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.resetAllMocks(); });
 
 describe('initial catalogue snapshot', () => {
+  it('shows friendly network guidance, retains products and clears it after a successful retry', async () => {
+    vi.mocked(fetchPublishedProducts).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const { result } = renderHook(useCatalogueProducts);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.loadError).toBe('Check your internet connection to continue browsing.');
+    expect(result.current.products).toEqual([product]);
+    vi.mocked(fetchPublishedProducts).mockResolvedValue([product]);
+    await act(async () => { await result.current.refreshProducts(); });
+    expect(result.current.loadError).toBeNull();
+  });
   it('provides built products and categories immediately while awaiting live data', async () => {
     let resolve: (products: Product[]) => void = () => {};
     vi.mocked(fetchPublishedProducts).mockImplementation(() => new Promise(done => { resolve = done; }));

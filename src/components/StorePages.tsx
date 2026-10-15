@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ProductCard from './ProductCard';
+import CatalogueNotice from './CatalogueNotice';
 import PriceFilter from './PriceFilter';
 import Header from './Header';
 import Footer from './Footer';
@@ -22,6 +23,7 @@ interface Props {
   categorySettings: CategorySettings[];
   isLoading: boolean;
   loadError: string | null;
+  onRetry?: () => Promise<void>;
   hasCatalogueSnapshot: boolean;
   onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy: boolean;
@@ -37,7 +39,7 @@ interface Props {
 export default function StorePages({
   products, categorySettings, isLoading, loadError, hasCatalogueSnapshot,
   onAddToCart, isCartBusy, getCartQuantity, cartItemCount, cartUpdateCount, onOpenCart, onOpenAccount, accountName,
-  onOpenOrders,
+  onOpenOrders, onRetry,
 }: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
@@ -136,8 +138,7 @@ export default function StorePages({
           <a href="/about/" className="min-h-11 underline">About &amp; contact</a>
         </nav>
       </article>}
-      {loadError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">Unable to refresh the catalogue: {loadError}.
-        {hasCatalogueSnapshot ? ' Showing the last available catalogue. Retrying automatically.' : ' Retrying automatically when connected.'}</p>}
+      {loadError && <CatalogueNotice message={loadError} onRetry={onRetry} />}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
       {policy ? null : isBulkOrders ? <BulkOrders presentation="page" /> : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>

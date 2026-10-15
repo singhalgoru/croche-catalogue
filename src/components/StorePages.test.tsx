@@ -171,7 +171,7 @@ describe('live store pages', () => {
     rerender(<StorePages {...initial} products={[{ ...products[0], price: 650, inStock: false,
       variants: products[0].variants.map(variant => ({ ...variant, inStock: false })) }]} />);
     expect(within(screen.getByRole('article', { name: 'Product: Bunny' })).getByText('₹650')).toBeTruthy();
-    expect(screen.getByText('Out of stock')).toBeTruthy();
+    expect(screen.getAllByText('Out of stock')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'Add to cart — Bunny' })).toBeNull();
     rerender(<StorePages {...initial} products={[]} />);
     expect(screen.queryByRole('heading', { name: 'Bunny' })).toBeNull();
