@@ -5,6 +5,7 @@ import {
   bulkUpdateProductDescriptions,
   readCatalogueBootstrap,
   deleteVariantGalleryImage,
+  reduceVariantStock,
   type NewProduct, type ProductUpdate,
 } from './products';
 import { PRODUCT_COLUMNS } from './productColumns';
@@ -98,6 +99,40 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('reduces stock using only the dedicated non-sale RPC and returns confirmed inventory', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    const variant = { ...product.variants[0], availableQuantity: 5 };
+    rpc.mockResolvedValue({ error: null });
+    queueQuery({ ...row, product_variants: [{
+      id: variant.id, name: variant.name, color: variant.color, in_stock: true,
+      available_quantity: 3, image_url: row.image_url, image_path: row.image_path,
+    }] });
+    const saved = await reduceVariantStock(product, variant, 2);
+    expect(saved.variants[0].availableQuantity).toBe(3);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('reduce_variant_stock', {
+      target_variant_id: variant.id, removed_quantity: 2,
+    });
+  });
+
+  it('rejects invalid stock reductions before making a request', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    const variant = { ...product.variants[0], availableQuantity: 5 };
+    for (const quantity of [0, -1, 1.5, NaN, Infinity, 6]) {
+      await expect(reduceVariantStock(product, variant, quantity)).rejects.toThrow();
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('surfaces server stock-reduction failures without returning success', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    rpc.mockResolvedValue({ error: { message: 'Stock is reserved for an active payment.' } });
+    await expect(reduceVariantStock(product, product.variants[0], 1))
+      .rejects.toThrow('Unable to reduce stock: Stock is reserved for an active payment.');
+  });
+
   it('derives stock from quantity even when the stored availability flag is true', async () => {
     const variant = { ...draft.variants[0], id: 'v1', in_stock: true, available_quantity: 0,
       image_url: row.image_url, image_path: row.image_path, sort_order: 0 };

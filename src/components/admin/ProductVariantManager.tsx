@@ -9,6 +9,7 @@ import {
   reorderProductVariants,
   reorderVariantGalleryImages,
   recordVariantSale,
+  reduceVariantStock,
   setVariantMainImage,
   updateProductVariant,
   type ManagedProduct,
@@ -120,6 +121,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saleQuantities, setSaleQuantities] = useState<Record<string, number>>({});
   const [stockQuantities, setStockQuantities] = useState<Record<string, number>>({});
+  const [reductionQuantities, setReductionQuantities] = useState<Record<string, string>>({});
 
   const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -606,6 +608,22 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       );
     } catch (stockError) {
       setError(stockError instanceof Error ? stockError.message : 'Unable to add stock.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const reduceStock = async (event: FormEvent<HTMLFormElement>, variant: ProductVariant) => {
+    event.preventDefault();
+    const quantity = Number(reductionQuantities[variant.id] ?? '1');
+    setIsBusy(true);
+    setError(null);
+    try {
+      const saved = await reduceVariantStock(product, variant, quantity);
+      setReductionQuantities(current => ({ ...current, [variant.id]: '1' }));
+      await onSaved(saved, `Reduced stock by ${quantity} for "${variant.name}". No sale was recorded.`);
+    } catch (stockError) {
+      setError(stockError instanceof Error ? stockError.message : 'Unable to reduce stock.');
     } finally {
       setIsBusy(false);
     }
@@ -1333,6 +1351,33 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                 </button>
               </div>
             </div>
+
+            <form onSubmit={event => void reduceStock(event, variant)}
+              className="mt-3 rounded-xl border border-mustard/40 bg-cream p-3">
+              <p className="text-sm font-semibold text-cocoa">Stock adjustment (not a sale)</p>
+              <p className="mt-1 text-xs text-cocoa/65">
+                Remove damaged, missing or incorrectly counted pieces. This only reduces stock; it does not record a sale or revenue.
+              </p>
+              <div className="mt-2 flex min-w-0 flex-wrap items-end gap-2">
+                <label className="min-w-0 flex-1 text-xs font-semibold text-cocoa">
+                  Quantity to reduce
+                  <input type="number" min="1" max={variant.availableQuantity} step="1" required
+                    value={reductionQuantities[variant.id] ?? '1'}
+                    onChange={event => setReductionQuantities(current => ({
+                      ...current, [variant.id]: event.target.value,
+                    }))}
+                    disabled={isBusy || variant.availableQuantity === 0}
+                    aria-label={`Quantity to reduce for ${variant.name}`}
+                    className="mt-1 block w-full rounded-xl border border-mustard/60 bg-white px-3 py-2 text-sm" />
+                </label>
+                <button type="submit"
+                  disabled={isBusy || variant.availableQuantity === 0}
+                  aria-label={`Reduce stock for ${variant.name}`}
+                  className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa disabled:opacity-50">
+                  Reduce stock
+                </button>
+              </div>
+            </form>
 
             {editingId === variant.id && (
               <form className="mt-4 border-t border-mustard/20 pt-4" onSubmit={(event) => void saveVariant(event, variant)}>

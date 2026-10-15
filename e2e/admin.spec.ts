@@ -1039,6 +1039,44 @@ test('adds, updates, and removes product variants', async ({ page }) => {
   expect(state.products[0].product_variants).toHaveLength(2);
 });
 
+test('reduces stock without recording sales and handles rejected adjustments', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const salesRequests: string[] = [];
+  page.on('request', request => {
+    if (request.method() !== 'GET' && /record_variant_sale|seller_sales/.test(request.url())) {
+      salesRequests.push(request.url());
+    }
+  });
+  let reject = false;
+  await page.route('**/rest/v1/rpc/reduce_variant_stock', async route => {
+    if (reject) {
+      await route.fulfill({ status: 400, json: { message: 'Stock is reserved for an active payment.' } });
+      return;
+    }
+    const body = route.request().postDataJSON();
+    expect(body).toEqual({ target_variant_id: 'variant-1', removed_quantity: 2 });
+    const variant = state.products[0].product_variants[0];
+    Object.assign(variant, { available_quantity: 1 });
+    await route.fulfill({ json: null });
+  });
+  await signIn(page, 'manage');
+  const rose = page.locator('article').filter({
+    has: page.getByRole('heading', { name: 'Rose Charm', exact: true }),
+  });
+  await rose.getByRole('button', { name: 'Edit' }).click();
+  const variant = rose.getByRole('group', { name: 'Rose Pink variant' });
+  await variant.getByLabel('Quantity to reduce for Rose Pink').fill('2');
+  await variant.getByRole('button', { name: 'Reduce stock for Rose Pink' }).click();
+  await expect(page.getByText('Reduced stock by 2 for "Rose Pink". No sale was recorded.')).toBeVisible();
+  await expect(variant.getByText('In stock · 1 available')).toBeVisible();
+  reject = true;
+  await variant.getByRole('button', { name: 'Reduce stock for Rose Pink' }).click();
+  await expect(page.getByText('Unable to reduce stock: Stock is reserved for an active payment.', { exact: true })).toBeVisible();
+  await expect(variant.getByText('In stock · 1 available')).toBeVisible();
+  expect(salesRequests).toEqual([]);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('records confirmed sales and restocks depleted variants', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'manage');

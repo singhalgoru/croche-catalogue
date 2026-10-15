@@ -941,6 +941,26 @@ export async function addVariantStock(
   return fetchProductById(product.id);
 }
 
+export async function reduceVariantStock(
+  product: ManagedProduct,
+  variant: ProductVariant,
+  removedQuantity: number,
+): Promise<ManagedProduct> {
+  if (!Number.isSafeInteger(removedQuantity) || removedQuantity < 1) {
+    throw new Error('Stock reduction must be a whole number of at least 1.');
+  }
+  if (removedQuantity > variant.availableQuantity) {
+    throw new Error(`Only ${variant.availableQuantity} item(s) are available to reduce.`);
+  }
+  const { client } = await getCurrentUser();
+  const { error } = await client.rpc('reduce_variant_stock', {
+    target_variant_id: variant.id,
+    removed_quantity: removedQuantity,
+  });
+  if (error) throw new Error(`Unable to reduce stock: ${error.message}`);
+  return fetchProductById(product.id);
+}
+
 export async function reorderProductVariants(
   product: ManagedProduct,
   orderedVariantIds: string[],
