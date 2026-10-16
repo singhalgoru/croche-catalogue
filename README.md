@@ -1123,6 +1123,25 @@ The separate **Negative margin** filter shows only finite saved margins below
 0%, excluding zero and missing margins. These products also remain included
 in **Below 35% margin**. The same search, edit and clear-filter controls apply.
 
+### Automatic online sales
+
+When a website checkout is paid, each order line is added to the sales dashboard
+as an **Online** sale automatically (migration
+`20261016031000_record_paid_online_orders_as_sales.sql`). Each line records:
+
+- the price actually paid, with any coupon discount split across lines by value;
+- the product's saved GST, material, packaging and labour (₹100/hour) costs;
+- the saved shipping cost on one line per order, since the order ships once;
+- a 2% payment fee with 18% GST on the fee;
+- the paid date in IST, and a note with the order reference and shipping charged.
+
+Each line is recorded once, so repeat updates don't create duplicates. Test
+checkouts, unpaid/expired orders and older payment-link orders are not recorded.
+Recording never blocks payment confirmation; a failure is logged as a database
+warning. Automatic sales count towards homepage bestsellers and can be edited or
+deleted like manual entries. Orders paid before this change were not added
+automatically; enter them manually if they are missing.
+
 ### Business expenses
 
 Sale and expense dates are entered and displayed as **DD/MM/YYYY**, independently
