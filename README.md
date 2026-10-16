@@ -13,7 +13,9 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 Cron execution history retention is configured by
 `supabase/migrations/20261016023000_limit_cron_run_history.sql`. It requires
-`pg_cron`, prunes existing history on deployment, and runs hourly at minute 17.
+`pg_cron` and prunes existing history on deployment. The follow-up migration
+`supabase/migrations/20261016024000_run_cron_history_cleanup_daily.sql` sets cleanup
+to run daily at 00:17 UTC (05:47 IST).
 Each job retains its latest seven completed executions (successful or failed);
 unfinished executions are left untouched. Schedules and business data are not
 deleted. Between cleanup runs, more than seven completed entries may exist.

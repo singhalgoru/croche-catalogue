@@ -27,6 +27,11 @@ do $$
 declare
   fixture_jobid bigint := (select jobid from cron_history_fixture);
 begin
+  if (select count(*) from cron.job
+      where jobname = 'retain-last-seven-cron-runs'
+        and schedule = '17 0 * * *' and active) <> 1 then
+    raise exception 'Expected one active daily history cleanup job.';
+  end if;
   if (select count(*) from cron.job_run_details where jobid = fixture_jobid and end_time is not null) <> 7 then
     raise exception 'Expected exactly seven completed runs.';
   end if;
