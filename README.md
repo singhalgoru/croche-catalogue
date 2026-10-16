@@ -11,6 +11,15 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ## Features
 
+Cron execution history retention is configured by
+`supabase/migrations/20261016023000_limit_cron_run_history.sql`. It requires
+`pg_cron`, prunes existing history on deployment, and runs hourly at minute 17.
+Each job retains its latest seven completed executions (successful or failed);
+unfinished executions are left untouched. Schedules and business data are not
+deleted. Between cleanup runs, more than seven completed entries may exist.
+The cleanup function is not callable by public API roles. Validate with the
+transactional `supabase/tests/cron_run_history.sql` test after deployment.
+
 - Responsive product catalogue
 - Compact mobile header and horizontally scrolling categories, with explicit WhatsApp ordering guidance
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
