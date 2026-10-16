@@ -591,9 +591,31 @@ test('authors regular category image hotspots and shoppers explore products in t
   await expect(marker.locator('span')).toHaveCSS('width', '10px');
   await expect(marker.locator('span')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(marker.locator('span')).toHaveCSS('animation-name', 'hotspot-glow');
+  const ripple = await marker.locator('span').evaluate(node => {
+    const animation = node.getAnimations({ subtree: true }).find(item =>
+      item instanceof CSSAnimation && item.animationName === 'hotspot-ripple');
+    if (!animation) throw new Error('Hotspot ripple is missing');
+    animation.pause();
+    animation.currentTime = 0;
+    const start = getComputedStyle(node, '::after');
+    const startScale = new DOMMatrixReadOnly(start.transform).a;
+    const startOpacity = Number(start.opacity);
+    animation.currentTime = 900;
+    const peak = getComputedStyle(node, '::after');
+    const result = { startScale, startOpacity, scale: new DOMMatrixReadOnly(peak.transform).a,
+      opacity: Number(peak.opacity), fill: peak.backgroundColor };
+    animation.play();
+    return result;
+  });
+  expect(ripple.startScale).toBe(1);
+  expect(ripple.startOpacity).toBeGreaterThan(0.9);
+  expect(ripple.scale).toBeGreaterThan(2);
+  expect(ripple.opacity).toBeLessThan(ripple.startOpacity);
+  expect(ripple.fill).toBe('rgba(0, 0, 0, 0)');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(marker.locator('span')).toHaveCSS('animation-name', 'none');
   await expect(marker.locator('span')).not.toHaveCSS('box-shadow', 'none');
+  expect(await marker.locator('span').evaluate(node => getComputedStyle(node, '::after').animationName)).toBe('none');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });

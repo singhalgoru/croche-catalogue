@@ -156,22 +156,44 @@ body {
 }
 
 .hotspot-ring {
-  box-shadow: 0 0 0 1px rgb(96 66 57 / 0.6), 0 0 5px 1px rgb(246 196 83 / 0.7);
+  position: relative;
+  box-shadow: 0 0 0 1px rgb(96 66 57 / 0.9), 0 0 6px 2px rgb(255 255 255 / 0.9);
   animation: hotspot-glow 2.4s ease-in-out infinite;
+}
+
+.hotspot-ring::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: -2px;
+  border: 1.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 2px 1px rgb(96 66 57 / 0.8);
+  animation: hotspot-ripple 1.8s ease-out infinite;
+}
+
+@keyframes hotspot-ripple {
+  0% { transform: scale(1); opacity: 0.95; }
+  80%, 100% { transform: scale(2.4); opacity: 0; }
 }
 
 @keyframes hotspot-glow {
   0%, 100% {
-    box-shadow: 0 0 0 1px rgb(96 66 57 / 0.6), 0 0 4px 1px rgb(246 196 83 / 0.5);
+    box-shadow: 0 0 0 1px rgb(96 66 57 / 0.9), 0 0 4px 1px rgb(255 255 255 / 0.7);
   }
   50% {
-    box-shadow: 0 0 0 1px rgb(96 66 57 / 0.6), 0 0 8px 2px rgb(246 196 83 / 0.9);
+    box-shadow: 0 0 0 1px rgb(96 66 57 / 0.9), 0 0 8px 2px white;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hotspot-ring {
     animation: none;
+  }
+  .hotspot-ring::after {
+    animation: none;
+    transform: scale(1.6);
+    opacity: 0.7;
   }
   .shipping-ticker-track.shipping-ticker-featured,
   .shipping-ticker-featured > a {
