@@ -4,6 +4,7 @@ import { collectionPath } from '../utils/collectionLink.js';
 import { getProductCardSrcSet, getProductImageUrl } from '../utils/productImageUrl';
 import { productImageProtection } from '../utils/imageProtection';
 import RotatingCarousel from './RotatingCarousel';
+import { getCategoryImage } from '../utils/categoryImage.js';
 
 export default function CategoryTiles({ categories, products, categorySettings = [] }: {
   categories: string[]; products: Product[]; categorySettings?: CategorySettings[];
@@ -18,10 +19,9 @@ export default function CategoryTiles({ categories, products, categorySettings =
 
   const renderCard = (category: string, isPinned = false, isAboveFold = false) => {
     const candidates = products.filter(product => matchesCategory(product, category, categorySettings));
-    const product = candidates.find(candidate => candidate.inStock) ?? candidates[0];
-    if (!product) return null;
+    if (!candidates.length) return null;
     const settings = categorySettings.find(item => item.name === category);
-    const image = (settings?.isSeasonal && settings.coverImage) || (product.variants.find(variant => variant.inStock)?.image ?? product.image);
+    const image = getCategoryImage(candidates, settings);
     const isSeasonal = Boolean(settings?.isSeasonal);
     return <a key={category} href={collectionPath(category)}
       className={`${isPinned ? 'w-full block card-seasonal-glow' : isSeasonal ? 'card-seasonal-glow w-[38%] sm:w-[calc((100%-36px)/4)] lg:w-[calc((100%-60px)/6)]' : 'w-[38%] sm:w-[calc((100%-36px)/4)] lg:w-[calc((100%-60px)/6)]'} min-w-0 shrink-0 snap-start overflow-hidden rounded-xl border border-mustard/40 bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cocoa`}>

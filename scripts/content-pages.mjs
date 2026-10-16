@@ -4,6 +4,7 @@ import policies from '../src/content/policies.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
+import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -11,15 +12,16 @@ const descriptions = storeContent.collectionDescriptions;
 
 const navigation = '<a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
-const page = (pathname, title, description, body, schema) => `<!doctype html>
+const page = (pathname, title, description, body, schema, socialImage = `${ORIGIN}/images/luvia-logo.jpg`) => `<!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' https://images.luviacreations.com https://*.supabase.co https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
 <title>${escapeHtml(title)} | Luvia Creations</title><meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${ORIGIN}${pathname}"><link rel="icon" href="/images/favicon-96.png">
 <meta property="og:type" content="website"><meta property="og:title" content="${escapeHtml(title)} | Luvia Creations">
 <meta property="og:description" content="${escapeHtml(description)}"><meta property="og:url" content="${ORIGIN}${pathname}">
-<meta property="og:image" content="${ORIGIN}/images/luvia-logo.jpg">
-<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtml(title)} | Luvia Creations">
+<meta property="og:image" content="${escapeHtml(socialImage)}">
+<meta name="twitter:image" content="${escapeHtml(socialImage)}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(title)} | Luvia Creations">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
 <style>
@@ -59,7 +61,18 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     if (pages.has(pathname)) throw new Error(`Duplicate collection path: ${category}`);
     const title = `Handmade ${category}`;
     const settings = categories.find(item => item.name === category);
-    const coverImage = settings?.isSeasonal ? settings.coverImage : '';
+    const coverImage = settings?.coverImage;
+    const categoryImage = getCategoryImage(items, settings);
+    const socialImage = categoryImage ? getProductImageUrl(categoryImage, 1080) : undefined;
+    const hotspots = getCategoryHotspots(items, settings);
+    const look = coverImage && hotspots.length ? `<section aria-label="Shop the look: ${escapeHtml(category)}">
+      <h2>Shop this look</h2><p>Explore the glowing dots in this collection photo.</p>
+      <div style="position:relative;max-width:760px">
+        <img src="${escapeHtml(getProductImageUrl(coverImage, 1080))}" alt="${escapeHtml(category)} styled collection" style="display:block;width:100%;height:auto">
+        ${hotspots.map(spot => `<a href="/p/${toProductSlug(spot.product)}/" aria-label="View ${escapeHtml(spot.product.name)}"
+          style="position:absolute;left:${spot.x}%;top:${spot.y}%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center"><span aria-hidden="true" style="width:12px;height:12px;border-radius:50%;background:#edc357;border:2px solid white;box-shadow:0 0 0 7px #edc35759,0 0 0 13px #edc3572e"></span></a>`).join('')}
+      </div><ol>${hotspots.map(spot => `<li><a href="/p/${toProductSlug(spot.product)}/">${escapeHtml(spot.product.name)}</a> — ${priceRange(spot.product) ? `From ₹${priceRange(spot.product).low.toLocaleString('en-IN')}` : 'Price on request'}</li>`).join('')}</ol>
+      </section>` : '';
     const description = limitCategoryOverview(categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
       : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`));
     const cards = items.map((product, index) => {
@@ -79,13 +92,14 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
       })),
     } };
     const collectionHtml = page(pathname, title, description, `<p class="intro">${escapeHtml(description)}</p>
+      ${look}
       <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability; confirm shipping and dispatch before paying.</p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
-      <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema);
+      <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema, socialImage);
     pages.set(pathname, items.length ? collectionHtml
       : collectionHtml.replace('</head>', '<meta name="robots" content="noindex,follow"></head>'));
     if (items.length) {
-      const image = coverImage || items.find(product => product.image)?.image;
+      const image = categoryImage;
       const src = image ? getProductImageUrl(image, 480) : '/images/luvia-logo-320.webp';
       collectionLinks.push(`<li class="card product-card"><a class="collection-tile" href="${pathname}" aria-label="${escapeHtml(category)}">
         <span class="collection-photo">${image ? `<img class="photo-backdrop" src="${escapeHtml(src)}" alt="" aria-hidden="true" width="480" height="480" loading="lazy" decoding="async">` : ''}

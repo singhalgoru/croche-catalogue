@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryOverview, saveSeasonalCategory, uploadSeasonalCategoryImage } from '../../services/categories';
+import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryContent, saveSeasonalCategory, uploadSeasonalCategoryImage } from '../../services/categories';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
-import type { CategorySettings } from '../../types/product';
+import type { CategoryHotspot, CategorySettings } from '../../types/product';
 import { countOverviewWords, limitCategoryOverview } from '../../utils/categoryOverview.js';
 import ImageFilePicker from './ImageFilePicker';
+import CategoryHotspotEditor from './CategoryHotspotEditor';
 
 export default function SeasonalCategoryEditor({ category, onChanged, onClose }: {
   category: CategorySettings; onChanged: () => Promise<void>; onClose: () => void;
@@ -14,6 +15,7 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
   const [overview, setOverview] = useState(() => limitCategoryOverview(category.overview ?? ''));
   const [featuredTicker, setFeaturedTicker] = useState(category.featuredTicker ?? false);
   const [coverImage, setCoverImage] = useState(category.coverImage ?? '');
+  const [hotspots, setHotspots] = useState<CategoryHotspot[]>(category.imageHotspots ?? []);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -65,7 +67,6 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
     setBusy(true); setError('');
     let categorySaved = false;
     try {
-      if (category.isSeasonal) {
         let image = coverImage;
         let drafts = uploadedImages;
         if (imageFile) {
@@ -76,16 +77,16 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
           drafts = [...drafts, image];
           setUploadedImages(drafts);
         }
-        const previous = await saveSeasonalCategory(category.name, [...selected], visible, overview, featuredTicker, image);
+        const previous = category.isSeasonal
+          ? await saveSeasonalCategory(category.name, [...selected], visible, overview, featuredTicker, image, hotspots)
+          : await saveCategoryContent(category.name, overview, image, hotspots);
         categorySaved = true;
         setUploadedImages([]);
         const obsolete = [...new Set([...drafts, previous].filter(url => url && url !== image))];
         setPendingCleanup(obsolete);
-        setMessage('Seasonal category saved.');
+        setMessage('Category saved.');
         await removeSeasonalCategoryImages(obsolete);
         setPendingCleanup([]);
-      }
-      else await saveCategoryOverview(category.name, overview);
       await onChanged();
       onClose();
     } catch (failure) {
@@ -106,8 +107,9 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
       Feature this category in the clickable store ticker
     </label>
     <p className="mt-1 text-xs text-cocoa/70">Selecting this replaces the previously featured seasonal category. Hidden or empty categories are not announced.</p>
+    </>}
     <div className="mt-4 space-y-2">
-      <ImageFilePicker label="Seasonal collection cover image" file={imageFile} disabled={busy}
+      <ImageFilePicker label={category.isSeasonal ? 'Seasonal collection cover image' : 'Category cover image'} file={imageFile} disabled={busy}
         onChange={event => {
           const file = event.target.files?.[0] ?? null;
           event.target.value = '';
@@ -119,15 +121,18 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
           setError('');
           setImageFile(file);
           setPreview(URL.createObjectURL(file));
+          setHotspots([]);
+          setMessage('New image selected. Previous hotspots were cleared; add markers for this photo before saving.');
         }} />
-      <p className="text-xs text-cocoa/70">Use your own seasonal artwork or photo. A square image works best. The full image is shown on collection cards, not inside the category page. Save to publish; without a cover, cards use a product photo.</p>
+      <p className="text-xs text-cocoa/70">Optional: upload your category artwork or styled photo. The full image is shown without cropping. Without an upload, cards use the first published product image in saved display order. Add product hotspots below to show a shop-the-look image on the category page. Save to publish.</p>
       {(preview || coverImage) && <>
         <img src={preview || coverImage} alt={`${category.name} cover preview`}
           className="aspect-square w-48 rounded-xl bg-cream object-contain" />
-        <button type="button" disabled={busy} onClick={() => { setImageFile(null); setCoverImage(''); setPreview(''); }}
+        <button type="button" disabled={busy} onClick={() => { setImageFile(null); setCoverImage(''); setPreview(''); setHotspots([]); }}
           className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Remove cover image</button>
       </>}
     </div>
+    {category.isSeasonal && <>
     <label className="mt-3 block text-sm">Search products
       <input type="search" value={query} disabled={busy} onChange={event => setQuery(event.target.value)}
         className="mt-1 w-full rounded-xl border border-mustard/60 p-2" />
@@ -136,17 +141,24 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
       {products.filter(product => `${product.name} ${product.category}`.toLowerCase().includes(query.toLowerCase())).map(product => <label
         key={product.id} className="flex items-center gap-3 rounded-lg bg-cream p-2 text-sm">
         <input type="checkbox" checked={selected.has(product.id)} disabled={busy}
-          onChange={event => setSelected(current => {
+          onChange={event => {
+            if (!event.target.checked) setHotspots(current => current.filter(spot => spot.productId !== product.id));
+            setSelected(current => {
             const next = new Set(current);
             if (event.target.checked) next.add(product.id); else next.delete(product.id);
             return next;
-          })} />
+          }); }} />
         {product.name} · {product.category}{!product.published ? ' · Unpublished (not shown to shoppers)' : ''}
       </label>)}
       {products.length === 0 && !error && <p>No products available yet.</p>}
     </div>}
     <p className="mt-2 text-xs text-cocoa/70">{selected.size} selected. Only published products appear in the shop. Empty seasonal categories are not shown in the shop navigation.</p>
     </>}
+    {(preview || coverImage) && <div className="mt-4">
+      <CategoryHotspotEditor key={preview || coverImage} image={preview || coverImage}
+        products={products.filter(product => product.published && (category.isSeasonal ? selected.has(product.id) : product.category === category.name))}
+        hotspots={hotspots} onChange={setHotspots} disabled={busy || loading} />
+    </div>}
     <label className="mt-4 block text-sm font-semibold">Category overview
       <textarea value={overview} maxLength={2000} rows={5} disabled={busy} onChange={event => setOverview(event.target.value)}
         className="mt-1 w-full rounded-xl border border-mustard/60 p-2" />
@@ -162,7 +174,7 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
       className="mt-3 min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Retry old cover cleanup</button>}
     <div className="mt-4 flex gap-3">
       <button type="button" disabled={busy || loading || products.length === 0 || pendingCleanup.length > 0} onClick={() => { void save(); }}
-        className="min-h-11 rounded-full bg-cocoa px-4 py-2 font-semibold text-cream disabled:opacity-60">{busy ? 'Please wait…' : category.isSeasonal ? 'Save seasonal category' : 'Save category overview'}</button>
+        className="min-h-11 rounded-full bg-cocoa px-4 py-2 font-semibold text-cream disabled:opacity-60">{busy ? 'Please wait…' : category.isSeasonal ? 'Save seasonal category' : 'Save category content'}</button>
       <button type="button" disabled={busy} onClick={() => { void cancel(); }} className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2">Cancel</button>
     </div>
   </section>;

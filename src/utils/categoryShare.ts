@@ -1,5 +1,6 @@
 import type { CategorySettings, Product } from '../types/product';
 import { matchesCategory } from './categorySelection';
+import { getCategoryHotspots, getCategoryImage } from './categoryImage.js';
 
 export const getCategoryShareImageUrl = (
   category: string | null | undefined,
@@ -8,8 +9,13 @@ export const getCategoryShareImageUrl = (
 ): string => {
   if (!category || category === 'All' || category === 'New') return '';
   const settings = categorySettings.find((item) => item.name === category);
-  if (settings?.isSeasonal && settings.coverImage) return settings.coverImage;
   const candidates = products.filter((product) => matchesCategory(product, category, categorySettings));
-  const image = candidates.find((product) => product.image)?.image ?? '';
-  return image;
+  return getCategoryImage(candidates, settings);
 };
+
+export const getCategoryShareHotspots = (
+  category: string | null | undefined, products: Product[], categorySettings: CategorySettings[] = [],
+) => getCategoryHotspots(
+  products.filter(product => category && matchesCategory(product, category, categorySettings)),
+  categorySettings.find(item => item.name === category),
+);

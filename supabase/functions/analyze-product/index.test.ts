@@ -114,7 +114,7 @@ describe('analyze-product endpoint', () => {
     cloudflareEnabled = true;
     mockCategoryOverview();
     fetchMock.mockImplementation(async (url: string) => url.includes('api.cloudflare.com')
-      ? new Response(JSON.stringify({ success: true, result: { response: JSON.stringify({ overview: validOverview }) } }))
+      ? new Response(JSON.stringify({ success: true, result: { response: { overview: validOverview } } }))
       : new Response(JSON.stringify({ error: { message: 'High demand' } }), { status: 503 }));
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
     expect(response.status).toBe(200);

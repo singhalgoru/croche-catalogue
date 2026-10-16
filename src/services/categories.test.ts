@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryOverview, saveSeasonalCategory, uploadSeasonalCategoryImage } from './categories';
+import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryContent, saveCategoryOverview, saveSeasonalCategory, uploadSeasonalCategoryImage } from './categories';
 import { archiveImageOriginal } from './imageOriginals';
 import { deleteImagesFromR2, uploadImageToR2 } from './r2ImageStorage';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
@@ -76,4 +76,27 @@ it('deletes obsolete R2 covers using the rendition-aware storage helper', async 
   await removeSeasonalCategoryImages(['https://images.luviacreations.com/products/admin/old.webp', 'https://images.luviacreations.com/products/admin/old.webp']);
   expect(deleteImagesFromR2).toHaveBeenCalledExactlyOnceWith(['r2:products/admin/old']);
   await expect(removeSeasonalCategoryImages(['https://untrusted.test/old.webp'])).rejects.toThrow('invalid seasonal cover');
+});
+it('saves category image and hotspots atomically and preserves the old URL for cleanup', async () => {
+  const cover = 'https://images.luviacreations.com/products/admin/new.webp';
+  const spots = [{ productId: 'p1', x: 25, y: 50 }];
+  rpc.mockResolvedValue({ data: 'https://images.luviacreations.com/products/admin/old.webp', error: null });
+  expect(await saveCategoryContent('Toys', 'Reviewed.', cover, spots)).toContain('old.webp');
+  expect(rpc).toHaveBeenLastCalledWith('save_category_content', {
+    category_name: 'Toys', category_overview: 'Reviewed.', category_cover_image: cover, category_hotspots: spots,
+    selected_product_ids: null, show_category: true, feature_in_ticker: false,
+  });
+  await saveSeasonalCategory('Festive', ['p1'], true, 'Reviewed.', false, cover, spots);
+  expect(rpc.mock.calls.at(-1)?.[1]).toMatchObject({ selected_product_ids: ['p1'], category_hotspots: spots });
+});
+it('rejects invalid marker counts, coordinates and missing covers before saving', async () => {
+  for (const spots of [
+    Array(7).fill({ productId: 'p1', x: 50, y: 50 }),
+    [{ productId: 'p1', x: NaN, y: 50 }],
+    [{ productId: 'p1', x: 101, y: 50 }],
+  ]) {
+    await expect(saveCategoryContent('Toys', '', '/cover.webp', spots)).rejects.toThrow('six hotspots');
+  }
+  await expect(saveCategoryContent('Toys', '', '', [{ productId: 'p1', x: 50, y: 50 }])).rejects.toThrow('Upload');
+  expect(rpc).not.toHaveBeenCalled();
 });

@@ -6,6 +6,7 @@ import Header from './Header';
 import Footer from './Footer';
 import CollectionGrid from './CollectionGrid';
 import CategoryShareButton from './CategoryShareButton';
+import CategoryLook from './CategoryLook';
 import storeContent from '../content/storeContent.json';
 import policies from '../content/policies.json';
 import bulkOrders from '../content/bulkOrders.json';
@@ -18,7 +19,7 @@ import type { CategorySettings, Product, ProductVariant } from '../types/product
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
 import { limitCategoryOverview } from '../utils/categoryOverview.js';
 import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from '../utils/cataloguePrice';
-import { getCategoryShareImageUrl } from '../utils/categoryShare';
+import { getCategoryShareHotspots, getCategoryShareImageUrl } from '../utils/categoryShare';
 
 interface Props {
   products: Product[];
@@ -66,6 +67,7 @@ export default function StorePages({
     [category, categories, collectionProducts],
   );
   const collectionPriceBands = useMemo(() => getCataloguePriceBands(collectionProducts), [collectionProducts]);
+  const collectionShareHotspots = getCategoryShareHotspots(category, collectionProducts, categories);
   const filteredCollectionProducts = useMemo(
     () => collectionProducts.filter(product => matchesCataloguePriceRange(product, activePriceRange)),
     [collectionProducts, activePriceRange],
@@ -94,6 +96,11 @@ export default function StorePages({
     }
     if (isCollection) {
       const summary = description || 'This collection is no longer available. Explore the current Luvia collections.';
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:image"], meta[name="twitter:image"]')) {
+        if (!meta.content.startsWith(`${window.location.origin}${requestedPath}og`)) {
+          meta.content = collectionShareImageUrl || `${window.location.origin}/images/luvia-logo.jpg`;
+        }
+      }
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = summary;
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
       const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement('meta');
@@ -114,7 +121,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, description, hasCatalogueSnapshot, incomingCollection, isBulkOrders, isCollection, isLoading, policy, requestedPath, title]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isBulkOrders, isCollection, isLoading, policy, requestedPath, title]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -179,7 +186,9 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
-          {category && <CategoryShareButton key={category} category={category} imageUrl={collectionShareImageUrl} />}
+          {category && <CategoryShareButton key={category} category={category} imageUrl={collectionShareImageUrl} hotspots={collectionShareHotspots} />}
+          {showCatalogue && selectedCategory && collectionProducts.length > 0 &&
+            <CategoryLook key={`${category}:${selectedCategory.coverImage}`} category={selectedCategory} products={collectionProducts} />}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
           {showCatalogue && collectionProducts.length > 0 && <section
             aria-label="Filter collection products by price"

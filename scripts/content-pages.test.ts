@@ -17,6 +17,22 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('publishes regular category covers, product hotspots and category-specific social preview images', () => {
+    const cover = 'https://images.luviacreations.com/products/admin/look.webp';
+    const categories = [{ name: 'Toys', priority: 1, coverImage: cover, imageHotspots: [
+      { productId: 'p1', x: 20, y: 75 }, { productId: 'removed', x: 30, y: 30 },
+    ] }];
+    const result = buildContentPages([toy], '919205907350', categories);
+    const doc = new JSDOM(result.get('/collections/toys/')).window.document;
+    expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(cover);
+    expect(doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe(cover);
+    expect(doc.querySelectorAll('section[aria-label="Shop the look: Toys"] a')).toHaveLength(2);
+    expect(doc.querySelector('section[aria-label="Shop the look: Toys"] a')?.getAttribute('style')).toContain('left:20%;top:75%');
+    expect(doc.querySelector('section[aria-label="Shop the look: Toys"] a')?.textContent).toBe('');
+    expect(result.get('/collections/')).toContain('look-w480.webp');
+    const fallback = new JSDOM(buildContentPages([toy], '919205907350').get('/collections/toys/')).window.document;
+    expect(fallback.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(toy.image);
+  });
   it('publishes a bulk gifting page with branded email, WhatsApp and sitemap discovery', () => {
     const doc = documentFor('/bulk-orders/');
     expect(doc.querySelector('h1')?.textContent).toBe('Bulk Orders & Corporate Gifting');

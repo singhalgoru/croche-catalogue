@@ -1,50 +1,56 @@
 import { useEffect, useState } from 'react';
 import { collectionPath } from '../utils/collectionLink.js';
-import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
+import { toShareFileName } from '../utils/shareImage';
+import { getCategoryShareImageFile } from '../utils/categoryShareImage';
+import type { CategoryHotspot } from '../types/product';
 import ShareIconButton from './ShareIconButton';
 
-export default function CategoryShareButton({ category, imageUrl = '' }: { category: string; imageUrl?: string }) {
+const NO_HOTSPOTS: CategoryHotspot[] = [];
+export default function CategoryShareButton({ category, imageUrl = '', hotspots = NO_HOTSPOTS }: { category: string; imageUrl?: string; hotspots?: CategoryHotspot[] }) {
   const [error, setError] = useState<string | null>(null);
-  const [preparedShareFile, setPreparedShareFile] = useState<File | null>(null);
+  const preparationKey = JSON.stringify([category, imageUrl, hotspots.map(({ productId, x, y }) => ({ productId, x, y }))]);
+  const [prepared, setPrepared] = useState<{ key: string; file: File | null; error?: string } | null>(null);
 
   useEffect(() => {
-    if (!imageUrl) {
-      setPreparedShareFile(null);
-      return;
-    }
+    if (!imageUrl) return;
     let cancelled = false;
-    void getShareableImageFile(imageUrl, toShareFileName(category)).then((file) => {
-      if (!cancelled) setPreparedShareFile(file);
+    void getCategoryShareImageFile(imageUrl, toShareFileName(category), hotspots).then(file => {
+      if (!cancelled) setPrepared({ key: preparationKey, file });
+    }).catch((failure: unknown) => {
+      if (!cancelled) setPrepared({ key: preparationKey, file: null,
+        error: failure instanceof Error ? failure.message : 'Unable to prepare the category share photo.' });
     });
     return () => {
       cancelled = true;
     };
-  }, [category, imageUrl]);
+  }, [category, imageUrl, hotspots, preparationKey]);
 
   const share = async () => {
     setError(null);
     const url = new URL(collectionPath(category), window.location.origin).href;
     try {
-      const file = preparedShareFile;
+      const current = prepared?.key === preparationKey ? prepared : null;
+      const file = current?.file ?? null;
+      if (imageUrl && !file) setError(current?.error
+        ? `${current.error} Sharing the collection link without a photo.`
+        : 'The collection photo is loading or unavailable. Sharing the collection link without a photo.');
+      const text = `Explore ${category} from Luvia Creations.${hotspots.length ? ' Open the collection link to tap the glowing dots and explore the products.' : ''}`;
       const canShareImage =
         file !== null &&
         typeof navigator.canShare === 'function' &&
         navigator.canShare({ files: [file] });
-      if (canShareImage && navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(url).catch(() => {});
-      }
       if (typeof navigator.share === 'function') {
         await navigator.share(
           canShareImage
             ? {
                 title: `${category} | Luvia Creations`,
-                text: `Explore ${category} from Luvia Creations.`,
+                text: `${text}\n${url}`,
                 url,
                 files: [file],
               }
             : {
                 title: `${category} | Luvia Creations`,
-                text: `Explore ${category} from Luvia Creations.`,
+                text,
                 url,
               },
         );

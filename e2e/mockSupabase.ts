@@ -46,7 +46,7 @@ export interface MockCatalogueState {
   /** Access token a mocked password-reset email link would carry, set once a reset is requested. */
   recoveryAccessToken?: string;
   categories: string[];
-  categorySettings: Record<string, { priority: number; isSeasonal?: boolean; visible?: boolean; productIds?: string[]; overview?: string; coverImage?: string; featuredTicker?: boolean }>;
+  categorySettings: Record<string, { priority: number; isSeasonal?: boolean; visible?: boolean; productIds?: string[]; overview?: string; coverImage?: string; featuredTicker?: boolean; imageHotspots?: { productId: string; x: number; y: number }[] }>;
   products: ProductRow[];
   carts: CartRow[];
   cartSessionBlocks: { user_id: string; created_at: string }[];
@@ -769,17 +769,17 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
       return;
     }
 
-    if (pathname === '/rest/v1/rpc/save_seasonal_category') {
+    if (pathname === '/rest/v1/rpc/save_seasonal_category' || pathname === '/rest/v1/rpc/save_category_content') {
       const body = getRequestBody<{ category_name: string; selected_product_ids: string[]; show_category: boolean;
-        category_overview: string; feature_in_ticker: boolean; category_cover_image?: string }>(route);
+        category_overview: string; feature_in_ticker: boolean; category_cover_image?: string; category_hotspots?: { productId: string; x: number; y: number }[] }>(route);
       const current = state.categorySettings[body.category_name];
       const previous = current.coverImage ?? '';
       if (body.feature_in_ticker && body.show_category) {
         for (const settings of Object.values(state.categorySettings)) settings.featuredTicker = false;
       }
-      Object.assign(current, { productIds: body.selected_product_ids, visible: body.show_category,
+      Object.assign(current, { ...(current.isSeasonal ? { productIds: body.selected_product_ids } : {}), visible: body.show_category ?? true,
         overview: body.category_overview, featuredTicker: body.feature_in_ticker && body.show_category,
-        coverImage: body.category_cover_image ?? previous });
+        coverImage: body.category_cover_image ?? previous, imageHotspots: body.category_hotspots ?? [] });
       await json(route, previous);
       return;
     }
@@ -796,6 +796,7 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
               visible: state.categorySettings[name]?.visible ?? true,
               overview: state.categorySettings[name]?.overview ?? '',
               cover_image_url: state.categorySettings[name]?.coverImage ?? '',
+              image_hotspots: state.categorySettings[name]?.imageHotspots ?? [],
               featured_ticker: state.categorySettings[name]?.featuredTicker ?? false,
               seasonal_category_products: (state.categorySettings[name]?.productIds ?? []).map(product_id => ({ product_id })),
             }))

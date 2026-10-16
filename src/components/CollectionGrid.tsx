@@ -2,6 +2,7 @@ import type { CategorySettings, Product } from '../types/product';
 import { collectionPath } from '../utils/collectionLink.js';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { compareCategorySettings, matchesCategory } from '../utils/categorySelection';
+import { getCategoryImage } from '../utils/categoryImage.js';
 
 interface Props {
   categories: CategorySettings[];
@@ -14,7 +15,7 @@ export default function CollectionGrid({ categories, products }: Props) {
       {[...categories].sort(compareCategorySettings).map(category => {
         const items = products.filter(product => matchesCategory(product, category.name, categories));
         if (!items.length) return null;
-        const image = (category.isSeasonal && category.coverImage) || items.find(product => product.image)?.image;
+        const image = getCategoryImage(items, category);
         return <li key={category.name}>
           <a href={collectionPath(category.name)} aria-label={category.name}
             className="group block h-full overflow-hidden rounded-2xl border border-mustard/40 bg-mustard/25 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">

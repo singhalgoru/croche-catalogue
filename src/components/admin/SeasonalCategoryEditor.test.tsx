@@ -2,10 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import SeasonalCategoryEditor from './SeasonalCategoryEditor';
 import { fetchManagedProducts } from '../../services/products';
-import { generateCategoryOverview, removeSeasonalCategoryImages, saveSeasonalCategory, uploadSeasonalCategoryImage } from '../../services/categories';
+import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryContent, saveSeasonalCategory, uploadSeasonalCategoryImage } from '../../services/categories';
 import { products } from '../../data/products';
 vi.mock('../../services/products', () => ({ fetchManagedProducts: vi.fn() }));
-vi.mock('../../services/categories', () => ({ saveSeasonalCategory: vi.fn(), saveCategoryOverview: vi.fn(), generateCategoryOverview: vi.fn(), uploadSeasonalCategoryImage: vi.fn(), removeSeasonalCategoryImages: vi.fn() }));
+vi.mock('../../services/categories', () => ({ saveSeasonalCategory: vi.fn(), saveCategoryContent: vi.fn(), generateCategoryOverview: vi.fn(), uploadSeasonalCategoryImage: vi.fn(), removeSeasonalCategoryImages: vi.fn() }));
 const category = { name: 'Navaratri', priority: 1, isSeasonal: true, productIds: ['rose'] };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -18,6 +18,7 @@ beforeEach(() => {
     { ...products[0], id: 'flower', name: 'Flower', category: 'Decor', published: false, imagePath: '', publishedAt: null, createdAt: '' },
   ]);
   vi.mocked(saveSeasonalCategory).mockResolvedValue('');
+  vi.mocked(saveCategoryContent).mockResolvedValue('');
   vi.mocked(removeSeasonalCategoryImages).mockResolvedValue(undefined);
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -30,7 +31,7 @@ it('saves existing products and visibility without editing their primary categor
   fireEvent.click(screen.getByLabelText('Flower · Decor · Unpublished (not shown to shoppers)'));
   fireEvent.click(screen.getByLabelText('Show this seasonal category in the shop'));
   fireEvent.click(screen.getByRole('button', { name: 'Save seasonal category' }));
-  await waitFor(() => expect(saveSeasonalCategory).toHaveBeenCalledWith('Navaratri', ['rose', 'flower'], false, '', false, ''));
+  await waitFor(() => expect(saveSeasonalCategory).toHaveBeenCalledWith('Navaratri', ['rose', 'flower'], false, '', false, '', []));
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   expect(changed).toHaveBeenCalledOnce();
 });
@@ -45,7 +46,7 @@ it('generates an editable overview draft without automatically publishing it', a
   fireEvent.change(screen.getByLabelText('Category overview'), { target: { value: 'Reviewed overview.' } });
   fireEvent.click(screen.getByLabelText('Feature this category in the clickable store ticker'));
   fireEvent.click(screen.getByRole('button', { name: 'Save seasonal category' }));
-  await waitFor(() => expect(saveSeasonalCategory).toHaveBeenCalledWith('Navaratri', ['rose'], true, 'Reviewed overview.', true, ''));
+  await waitFor(() => expect(saveSeasonalCategory).toHaveBeenCalledWith('Navaratri', ['rose'], true, 'Reviewed overview.', true, '', []));
 });
 it('keeps selections and shows an explicit save error', async () => {
   vi.mocked(saveSeasonalCategory).mockRejectedValue(new Error('Unable to save seasonal category: Offline'));
@@ -93,7 +94,7 @@ it('previews a new cover, uploads on save and preserves the uploaded draft after
   fireEvent.click(screen.getByRole('button', { name: 'Save seasonal category' }));
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   expect(uploadSeasonalCategoryImage).toHaveBeenCalledExactlyOnceWith(file);
-  expect(saveSeasonalCategory).toHaveBeenLastCalledWith('Navaratri', ['rose'], true, '', false, image);
+  expect(saveSeasonalCategory).toHaveBeenLastCalledWith('Navaratri', ['rose'], true, '', false, image, []);
 });
 
 it('removes an existing cover only when the category is saved', async () => {
@@ -103,7 +104,7 @@ it('removes an existing cover only when the category is saved', async () => {
   expect(screen.queryByAltText('Navaratri cover preview')).toBeNull();
   expect(saveSeasonalCategory).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Save seasonal category' }));
-  await waitFor(() => expect(saveSeasonalCategory).toHaveBeenCalledWith('Navaratri', ['rose'], true, '', false, ''));
+  await waitFor(() => expect(saveSeasonalCategory).toHaveBeenCalledWith('Navaratri', ['rose'], true, '', false, '', []));
 });
 
 it('reports upload failure without saving the category or losing the selected file', async () => {
@@ -170,4 +171,37 @@ it('does not delete the stored cover after a failed save and cleans the unused u
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   expect(removeSeasonalCategoryImages).toHaveBeenCalledExactlyOnceWith([image]);
+});
+
+it('saves a regular category image and hotspot without changing product membership', async () => {
+  const cover = 'https://images.luviacreations.com/products/admin/regular.webp';
+  const close = vi.fn();
+  render(<SeasonalCategoryEditor category={{ name: 'Charms', priority: 1, coverImage: cover }}
+    onChanged={vi.fn().mockResolvedValue(undefined)} onClose={close} />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save category content' })).toHaveProperty('disabled', false));
+  fireEvent.change(screen.getByLabelText('Product for new hotspot'), { target: { value: 'rose' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add at centre' }));
+  fireEvent.change(screen.getByLabelText('Horizontal % for hotspot 1'), { target: { value: '25' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save category content' }));
+  await waitFor(() => expect(saveCategoryContent).toHaveBeenCalledWith('Charms', '', cover, [{ productId: 'rose', x: 25, y: 50 }]));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(saveSeasonalCategory).not.toHaveBeenCalled();
+});
+
+it('clears hotspots when the cover is replaced and when their seasonal product is removed', async () => {
+  const cover = 'https://images.luviacreations.com/products/admin/season.webp';
+  render(<SeasonalCategoryEditor category={{ ...category, coverImage: cover, imageHotspots: [{ productId: 'rose', x: 10, y: 20 }] }}
+    onChanged={vi.fn()} onClose={vi.fn()} />);
+  await screen.findByLabelText('Rose · Charms');
+  fireEvent.click(screen.getByLabelText('Rose · Charms'));
+  expect(screen.queryByRole('button', { name: 'Remove hotspot 1' })).toBeNull();
+  fireEvent.click(screen.getByLabelText('Rose · Charms'));
+  fireEvent.change(screen.getByLabelText('Product for new hotspot'), { target: { value: 'rose' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add at centre' }));
+  expect(screen.getByRole('button', { name: 'Remove hotspot 1' })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Seasonal collection cover image'), {
+    target: { files: [new File(['cover'], 'new.png', { type: 'image/png' })] },
+  });
+  expect(screen.queryByRole('button', { name: 'Remove hotspot 1' })).toBeNull();
+  expect(screen.getByRole('status').textContent).toContain('Previous hotspots were cleared');
 });

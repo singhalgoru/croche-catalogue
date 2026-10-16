@@ -13,15 +13,20 @@ const product: Product = {
   description: '', color: '#ffffff', inStock: false, image: '/sold.webp', variants: [],
 };
 
-it('preserves category order, links and prefers available product images', () => {
+it('preserves category links and uses the first product image in saved display order', () => {
   const available = { ...product, id: 'b', inStock: true, image: '/available.webp' };
   render(<CategoryTiles categories={['Toys', 'Charms & Keychains', 'Empty']}
     products={[product, available, { ...product, id: 'toy', category: 'Toys' }]} />);
   const links = within(screen.getByRole('navigation', { name: 'Explore collections' })).getAllByRole('link');
   expect(links.map(link => link.textContent)).toEqual(['Toys', 'Charms & Keychains']);
   expect(links[1].getAttribute('href')).toContain('/collections/charms-keychains/');
-  expect(links[1].querySelector('img')?.getAttribute('src')).toContain('available');
+  expect(links[1].querySelector('img')?.getAttribute('src')).toContain('sold');
   expect(links.map(link => link.querySelector('img')?.getAttribute('loading'))).toEqual(['eager', 'eager']);
+});
+it('uses uploaded covers for regular categories too', () => {
+  render(<CategoryTiles categories={['Charms & Keychains']} products={[product]}
+    categorySettings={[{ name: 'Charms & Keychains', priority: 1, coverImage: '/styled.webp' }]} />);
+  expect(screen.getByRole('link', { name: 'Charms & Keychains' }).querySelector('img')?.getAttribute('src')).toContain('styled');
 });
 it('places seasonal categories first even when supplied after regular categories', () => {
   render(<CategoryTiles categories={['Charms & Keychains', 'Festive']}

@@ -1,6 +1,12 @@
 export type Category = string;
 export type CatalogueFilter = Category | 'All' | 'New';
 
+export interface CategoryHotspot {
+  productId: string;
+  x: number;
+  y: number;
+}
+
 export interface CategorySettings {
   name: Category;
   priority: number;
@@ -10,6 +16,7 @@ export interface CategorySettings {
   overview?: string;
   featuredTicker?: boolean;
   coverImage?: string;
+  imageHotspots?: CategoryHotspot[];
 }
 
 export interface ProductVariantImage {

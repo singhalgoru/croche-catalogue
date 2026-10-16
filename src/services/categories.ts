@@ -1,5 +1,5 @@
 import { loadSupabase } from '../lib/supabaseConfig';
-import type { Category, CategorySettings } from '../types/product';
+import type { Category, CategoryHotspot, CategorySettings } from '../types/product';
 import { compareCategorySettings } from '../utils/categorySelection';
 import { countOverviewWords } from '../utils/categoryOverview.js';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
@@ -15,6 +15,7 @@ interface CategoryRow {
   overview?: string;
   featured_ticker?: boolean;
   cover_image_url?: string;
+  image_hotspots?: CategoryHotspot[];
 }
 
 declare global {
@@ -75,7 +76,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     const client = await requireSupabase();
     const { data, error } = await client
       .from('categories')
-      .select('name, sort_order, is_seasonal, visible, overview, featured_ticker, cover_image_url, seasonal_category_products(product_id)')
+      .select('name, sort_order, is_seasonal, visible, overview, featured_ticker, cover_image_url, image_hotspots, seasonal_category_products(product_id)')
       .order('sort_order')
       .order('name');
     if (error) throw new Error(`Unable to load categories: ${error.message}`);
@@ -91,6 +92,7 @@ export async function fetchCategorySettings(): Promise<CategorySettings[]> {
     overview: category.overview ?? '',
     featuredTicker: category.featured_ticker ?? false,
     coverImage: category.cover_image_url ?? '',
+    imageHotspots: category.image_hotspots ?? [],
   })).sort(compareCategorySettings);
 }
 
@@ -134,7 +136,8 @@ export async function removeSeasonalCategoryImages(images: string[]): Promise<vo
   await deleteImagesFromR2(paths);
 }
 
-export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean, overview = '', featuredTicker = false, coverImage?: string): Promise<string> {
+export async function saveSeasonalCategory(name: string, productIds: string[], visible: boolean, overview = '', featuredTicker = false, coverImage?: string, imageHotspots?: CategoryHotspot[]): Promise<string> {
+  if (imageHotspots !== undefined) return saveCategoryContent(name, overview, coverImage ?? '', imageHotspots, productIds, visible, featuredTicker);
   if (countOverviewWords(overview) > 90) throw new Error('Keep the category overview to 90 words or fewer.');
   const client = await requireSupabase();
   const { data, error } = await client.rpc('save_seasonal_category', {
@@ -147,6 +150,27 @@ export async function saveSeasonalCategory(name: string, productIds: string[], v
   return data;
 }
 
+export async function saveCategoryContent(
+  name: string, overview: string, coverImage: string, imageHotspots: CategoryHotspot[],
+  productIds: string[] | null = null, visible = true, featuredTicker = false,
+): Promise<string> {
+  if (countOverviewWords(overview) > 90) throw new Error('Keep the category overview to 90 words or fewer.');
+  if (imageHotspots.length > 6 || imageHotspots.some(spot => !spot.productId
+    || !Number.isFinite(spot.x) || !Number.isFinite(spot.y)
+    || spot.x < 0 || spot.x > 100 || spot.y < 0 || spot.y > 100)) {
+    throw new Error('Use up to six hotspots with a product and coordinates between 0 and 100.');
+  }
+  if (!coverImage && imageHotspots.length) throw new Error('Upload a category image before adding hotspots.');
+  const client = await requireSupabase();
+  const { data, error } = await client.rpc('save_category_content', {
+    category_name: name, category_overview: overview, category_cover_image: coverImage,
+    category_hotspots: imageHotspots, selected_product_ids: productIds,
+    show_category: visible, feature_in_ticker: featuredTicker,
+  });
+  if (error) throw new Error(`Unable to save category content: ${error.message}`);
+  if (typeof data !== 'string') throw new Error('Category storage returned an invalid save confirmation. Refresh before retrying.');
+  return data;
+}
 export async function saveCategoryOverview(name: string, overview: string): Promise<void> {
   if (countOverviewWords(overview) > 90) throw new Error('Keep the category overview to 90 words or fewer.');
   const client = await requireSupabase();

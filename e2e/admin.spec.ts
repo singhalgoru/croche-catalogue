@@ -541,6 +541,83 @@ test('uploads and replaces a seasonal cover, deletes the old R2 renditions and r
   await expect(card.locator('img:not([aria-hidden])')).not.toHaveAttribute('src', cover.replace('.webp', '-w480.webp'));
 });
 
+test('authors regular category image hotspots and shoppers explore products in the look', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const product = state.products[0];
+  const category = product.category;
+  const cover = 'https://images.luviacreations.com/products/admin-user/look-cover.webp';
+  state.categorySettings[category].coverImage = cover;
+  await page.route('https://images.luviacreations.com/**', route => route.fulfill({
+    contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#224455"/></svg>',
+  }));
+  await signIn(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /Manage categories/ }).click();
+  const row = page.getByLabel(`Priority for ${category}`).locator('..').locator('..').locator('..').locator('..');
+  await row.getByRole('button', { name: 'Edit image & overview', exact: true }).click();
+  const editor = page.getByRole('region', { name: `Products in ${category}` });
+  await editor.getByLabel('Search hotspot products').fill(product.name.slice(0, 3));
+  await editor.getByLabel('Product for new hotspot').selectOption(product.id);
+  await editor.getByRole('button', { name: 'Place new hotspot on photo' }).click();
+  const imageButton = editor.getByRole('button', { name: 'Place hotspot on collection image' });
+  await imageButton.click({ position: { x: 50, y: 75 } });
+  await editor.getByLabel('Horizontal % for hotspot 1').fill('25');
+  await editor.getByLabel('Vertical % for hotspot 1').fill('60');
+  await editor.getByRole('button', { name: 'Save category content', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  expect(state.categorySettings[category].imageHotspots).toEqual([{ productId: product.id, x: 25, y: 60 }]);
+  await page.goto(`/collections/${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/`);
+  const look = page.getByRole('region', { name: `Shop the look: ${category}` });
+  await expect(look).toBeVisible();
+  const marker = look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` });
+  await expect(marker).toHaveCSS('left', /px$/);
+  await marker.click();
+  await expect(look.getByRole('heading', { name: product.name })).toBeVisible();
+  const geometry = await look.evaluate(section => {
+    const img = section.querySelector('img')!.getBoundingClientRect();
+    const marker = section.querySelector('button')!.getBoundingClientRect();
+    return { x: ((marker.x + marker.width / 2 - img.x) / img.width) * 100,
+      y: ((marker.y + marker.height / 2 - img.y) / img.height) * 100 };
+  });
+  expect(geometry.x).toBeCloseTo(25, 0);
+  expect(geometry.y).toBeCloseTo(60, 0);
+  await expectNoHorizontalOverflow(page);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (payload: ShareData) => {
+      const file = payload.files?.[0];
+      if (!file) return;
+      const image = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width; canvas.height = image.height;
+      const context = canvas.getContext('2d')!;
+      context.drawImage(image, 0, 0);
+      const centre = [...context.getImageData(172, 562, 1, 1).data];
+      document.documentElement.dataset.hotspotShare = JSON.stringify({
+        width: image.width, height: image.height, type: file.type, text: payload.text, centre,
+      });
+      image.close();
+    } });
+  });
+  await expect.poll(async () => {
+    await page.getByRole('button', { name: `Share ${category} collection`, exact: true }).click();
+    return page.locator('html').getAttribute('data-hotspot-share');
+  }).not.toBeNull();
+  const shared = JSON.parse((await page.locator('html').getAttribute('data-hotspot-share'))!) as {
+    width: number; height: number; type: string; text: string; centre: number[];
+  };
+  expect(shared).toMatchObject({ width: 644, height: 944, type: 'image/webp' });
+  expect(shared.centre[0]).toBeGreaterThan(220);
+  expect(shared.centre[1]).toBeGreaterThan(170);
+  expect(shared.centre[2]).toBeLessThan(115);
+  expect(shared.text).toContain('glowing dots');
+  expect(shared.text).toContain('/collections/charms/');
+  await look.getByRole('link', { name: 'View product', exact: true }).click();
+  await expect(page).toHaveURL(/\/p\//);
+  await expect(page.getByRole('heading', { name: product.name, exact: true, level: 1 })).toBeVisible();
+});
+
 test('saves one product order for the main catalogue and category views', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'manage');

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { CatalogueFilter, Category } from '../types/product';
+import type { CatalogueFilter, Category, CategoryHotspot } from '../types/product';
 import { orderCategoryOptions } from '../utils/categorySelection';
 import CategoryShareButton from './CategoryShareButton';
 
@@ -12,6 +12,7 @@ interface Props {
   showNew?: boolean;
   collapseCategories?: boolean;
   shareImageUrl?: string;
+  shareHotspots?: CategoryHotspot[];
 }
 
 export default function CategoryFilter({
@@ -23,6 +24,7 @@ export default function CategoryFilter({
   showNew = true,
   collapseCategories = false,
   shareImageUrl = '',
+  shareHotspots,
 }: Props) {
   const orderedOptions = orderCategoryOptions(
     ['All', ...(showNew ? (['New'] as const) : []), ...categories],
@@ -93,7 +95,7 @@ export default function CategoryFilter({
         </div>
       </details>}
       {active !== 'All' && active !== 'New' && categories.includes(active) &&
-        <CategoryShareButton key={active} category={active} imageUrl={shareImageUrl} />}
+        <CategoryShareButton key={active} category={active} imageUrl={shareImageUrl} hotspots={shareHotspots} />}
     </div>
   );
 }

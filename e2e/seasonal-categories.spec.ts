@@ -17,7 +17,7 @@ test('ordinary ticker messages move at 50 pixels per second too', async ({ page 
   expect(velocity).toBeCloseTo(50, 1);
 });
 
-test('admin creates a seasonal category, selects existing products and hides it without moving products', async ({ page }) => {
+test('admin creates a seasonal category, selects existing products and hides it without moving products', async ({ page, isMobile }) => {
   const state = await installMockSupabase(page);
   type CategoryRow = { name: string; sort_order: number; is_seasonal: boolean; visible: boolean; overview?: string; featured_ticker?: boolean; seasonal_category_products: { product_id: string }[] };
   const categories: CategoryRow[] = state.categories.map(name => ({
@@ -30,7 +30,7 @@ test('admin creates a seasonal category, selects existing products and hides it 
       await route.fulfill({ status: 201 });
     } else await route.fulfill({ json: categories });
   });
-  await page.route('**/rest/v1/rpc/save_seasonal_category', async route => {
+  await page.route('**/rest/v1/rpc/save_category_content', async route => {
     const body = route.request().postDataJSON();
     const category = categories.find(item => item.name === body.category_name)!;
     category.visible = body.show_category;
@@ -60,21 +60,20 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await expect(editor).toHaveCount(0);
   expect(state.products.find(product => product.name === 'Rose Charm')?.category).toBe('Charms');
   await page.getByRole('button', { name: 'Manage products', exact: true }).click();
-  await editor.getByRole('button', { name: 'Generate overview with Gemini' }).click();
+  await editor.getByRole('button', { name: 'Generate overview with AI' }).click();
   await expect(editor.getByLabel('Category overview')).toHaveValue('Explore handmade rose charms in our Navaratri collection.');
   expect(categories.find(item => item.name === 'Navaratri')?.overview).toBe('');
   await editor.getByLabel('Category overview').fill('Reviewed Navaratri collection overview.');
   await editor.getByRole('button', { name: 'Save seasonal category' }).click();
   await expect(editor).toHaveCount(0);
   await page.goto('./?category=Navaratri');
-  await page.getByText('Filter by category: Navaratri', { exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Navaratri', exact: true })).toBeVisible();
-  const buttons = page.getByLabel('Category filters', { exact: true }).getByRole('button');
-  await expect(buttons.first()).toHaveText('Navaratri');
-  await expect(buttons.first()).toHaveClass(/badge-glow/);
-  await expect.poll(() => buttons.first().evaluate(node => getComputedStyle(node).animationName)).toBe('badge-glow');
+  if (!isMobile) await page.getByLabel('Filter by category: Navaratri', { exact: true }).click();
+  const seasonalButton = page.getByRole('button', { name: 'Navaratri', exact: true });
+  await expect(seasonalButton).toBeVisible();
+  await expect(seasonalButton).toHaveClass(/badge-glow/);
+  await expect.poll(() => seasonalButton.evaluate(node => getComputedStyle(node).animationName)).toBe('badge-glow');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect.poll(() => buttons.first().evaluate(node => getComputedStyle(node).animationName)).toBe('none');
+  await expect.poll(() => seasonalButton.evaluate(node => getComputedStyle(node).animationName)).toBe('none');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   const announcement = page.getByRole('link', { name: 'Check out our Navaratri collection', exact: true });
   await expect(announcement).toHaveAttribute('href', '/collections/navaratri/');
@@ -99,11 +98,16 @@ test('admin creates a seasonal category, selects existing products and hides it 
   await expect.poll(() => announcement.evaluate(node => getComputedStyle(node).animationName)).toBe('none');
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Product: New Heart Charm' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Charms', exact: true }).click();
-  await page.getByText('Filter by category: Charms', { exact: true }).click();
-  await expect(buttons.first()).toHaveText('Navaratri');
-  await expect(buttons.first()).toHaveClass(/bg-mustard/);
-  await expect(buttons.first()).toHaveAttribute('aria-pressed', 'false');
+  if (isMobile) {
+    await page.getByRole('button', { name: /^Filters/ }).click();
+    await page.getByRole('dialog', { name: 'Filter products' }).getByRole('button', { name: 'Charms', exact: true }).click();
+    await page.getByRole('button', { name: 'Show results', exact: true }).click();
+  } else {
+    await page.getByRole('button', { name: 'Charms', exact: true }).click();
+    await page.getByLabel('Filter by category: Charms', { exact: true }).click();
+  }
+  await expect(seasonalButton).toHaveClass(/bg-mustard/);
+  await expect(seasonalButton).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('article', { name: 'Product: Rose Charm' })).toBeVisible();
   await page.getByRole('link', { name: 'Check out our Navaratri collection', exact: true }).click();
   await expect(page).toHaveURL(/\/collections\/navaratri\/$/);

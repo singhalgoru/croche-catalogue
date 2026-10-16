@@ -23,6 +23,7 @@ import { loadEnv } from 'vite';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
+import { getCategoryHotspots, getCategoryImage, getHotspotGlowOverlay } from '../src/utils/categoryImage.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -667,7 +668,7 @@ const fetchProducts = async (supabaseUrl, anonKey) =>
 
 export const fetchBootstrapCategories = async (supabaseUrl, anonKey) => {
   const endpoint = new URL('/rest/v1/categories', supabaseUrl);
-  endpoint.searchParams.set('select', 'name,sort_order,is_seasonal,visible,overview,featured_ticker,cover_image_url,seasonal_category_products(product_id)');
+  endpoint.searchParams.set('select', 'name,sort_order,is_seasonal,visible,overview,featured_ticker,cover_image_url,image_hotspots,seasonal_category_products(product_id)');
   endpoint.searchParams.set('order', 'sort_order.asc,name.asc');
   const response = await fetch(endpoint, { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
   if (!response.ok) throw new Error(`Unable to load bootstrap categories: ${response.status} ${response.statusText}`);
@@ -676,7 +677,7 @@ export const fetchBootstrapCategories = async (supabaseUrl, anonKey) => {
   return rows.map(row => ({ name: row.name, priority: row.sort_order,
     isSeasonal: row.is_seasonal ?? false, visible: row.visible ?? true,
     productIds: row.seasonal_category_products?.map(item => item.product_id) ?? [],
-    overview: row.overview ?? '', featuredTicker: row.featured_ticker ?? false, coverImage: row.cover_image_url ?? '' }))
+    overview: row.overview ?? '', featuredTicker: row.featured_ticker ?? false, coverImage: row.cover_image_url ?? '', imageHotspots: row.image_hotspots ?? [] }))
     .sort((a, b) => Number(b.isSeasonal) - Number(a.isSeasonal) || a.priority - b.priority || a.name.localeCompare(b.name));
 };
 
@@ -732,20 +733,26 @@ const SOCIAL_IMAGE_SIZE = 800;
  * og:image themselves, and WhatsApp in particular skips WebP. Any failure
  * leaves the page on the WebP image rather than failing the deploy.
  */
-const writeSocialImage = async (product, dir, reference) => {
+export const writeSocialImage = async (product, dir, pathname, hotspots = []) => {
   if (!product.image) return null;
   try {
     const response = await fetch(getProductImageUrl(product.image, 960));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const { default: sharp } = await import('sharp');
-    const { data, info } = await sharp(Buffer.from(await response.arrayBuffer()))
+    let output = sharp(Buffer.from(await response.arrayBuffer()))
       .rotate()
       .resize(SOCIAL_IMAGE_SIZE, SOCIAL_IMAGE_SIZE, { fit: 'inside', withoutEnlargement: true })
-      .flatten({ background: '#ffffff' })
-      .jpeg({ quality: 80, mozjpeg: true })
-      .toBuffer({ resolveWithObject: true });
-    await writeFile(path.join(dir, 'og.jpg'), data);
-    return { url: `${ORIGIN}/p/${reference}/og.jpg`, width: info.width, height: info.height };
+      .flatten({ background: '#ffffff' });
+    if (hotspots.length) {
+      const resized = await output.png().toBuffer({ resolveWithObject: true });
+      const overlay = getHotspotGlowOverlay(resized.info.width, resized.info.height, hotspots);
+      output = sharp(resized.data).extend({ top: overlay.padding, bottom: overlay.padding, left: overlay.padding, right: overlay.padding, background: '#ffffff' })
+        .composite([{ input: Buffer.from(overlay.svg), top: 0, left: 0 }]);
+    }
+    const { data, info } = await output.jpeg({ quality: 80, mozjpeg: true }).toBuffer({ resolveWithObject: true });
+    const filename = pathname.startsWith('/collections/') ? `og-${createHash('sha256').update(data).digest('hex').slice(0, 12)}.jpg` : 'og.jpg';
+    await writeFile(path.join(dir, filename), data);
+    return { url: `${ORIGIN}${pathname}${filename}`, width: info.width, height: info.height };
   } catch (error) {
     console.warn(`[prerender] No JPEG share image for ${product.name}: ${error.message}`);
     return null;
@@ -822,7 +829,7 @@ const main = async () => {
     const slug = toProductSlug(product);
     const dir = path.join(DIST, 'p', slug);
     await mkdir(dir, { recursive: true });
-    const socialImage = await writeSocialImage(product, dir, slug);
+    const socialImage = await writeSocialImage(product, dir, `/p/${slug}/`);
     await writeFile(
       path.join(dir, 'index.html'),
       attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
@@ -832,7 +839,7 @@ const main = async () => {
       const variantDir = path.join(dir, 'variant', toVariantSlug(variant));
       await mkdir(variantDir, { recursive: true });
       const shareProduct = variantShareProduct(product, variant);
-      const variantImage = await writeSocialImage(shareProduct, variantDir, reference);
+      const variantImage = await writeSocialImage(shareProduct, variantDir, `/p/${reference}/`);
       await writeFile(
         path.join(variantDir, 'index.html'),
         attachProductApp(renderProductPage(shareProduct, whatsappNumber, variantImage, false), template),
@@ -854,7 +861,20 @@ const main = async () => {
   for (const [pathname, html] of contentPages) {
     const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(dir, 'index.html'), attachProductApp(html, template));
+    let content = html;
+    const category = categories.find(item => collectionPath(item.name) === pathname && item.visible !== false);
+    if (category) {
+      const items = products.filter(product => category.isSeasonal ? category.productIds?.includes(product.id) : product.category === category.name);
+      const image = getCategoryImage(items, category);
+      const socialImage = items.length && image ? await writeSocialImage(
+        { name: category.name, image }, dir, pathname, getCategoryHotspots(items, category),
+      ) : null;
+      if (socialImage) content = content.replace(
+        /(<meta (?:property="og:image"|name="twitter:image") content=")[^"]*(")/g,
+        (_, before, after) => `${before}${escapeHtml(socialImage.url)}${after}`,
+      ).replace('</head>', `<meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="${socialImage.width}"><meta property="og:image:height" content="${socialImage.height}"></head>`);
+    }
+    await writeFile(path.join(dir, 'index.html'), attachProductApp(content, template));
   }
   await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages));
   await writeFile(

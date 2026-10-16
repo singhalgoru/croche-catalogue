@@ -14,7 +14,14 @@ export const callCloudflareOverview = async (
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
           max_tokens: 500,
-          response_format: { type: 'json_object' },
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              type: 'object',
+              properties: { overview: { type: 'string' } },
+              required: ['overview'],
+            },
+          },
         }),
       },
     );
@@ -22,10 +29,17 @@ export const callCloudflareOverview = async (
     if (!response.ok || payload?.success === false) {
       return { error: `Cloudflare overview generation failed (HTTP ${response.status}). Check Workers AI permissions and quota, or try again later.` };
     }
-    const text = payload?.result?.response;
-    if (typeof text !== 'string') return { error: 'Cloudflare returned an invalid category overview response.' };
-    const data: unknown = JSON.parse(text);
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    const result: unknown = payload?.result?.response;
+    let data: unknown = result;
+    if (typeof result === 'string') {
+      try {
+        data = JSON.parse(result);
+      } catch {
+        return { error: 'Cloudflare returned an invalid category overview response.' };
+      }
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)
+      || !('overview' in data) || typeof data.overview !== 'string') {
       return { error: 'Cloudflare returned an invalid category overview response.' };
     }
     return { data: data as Record<string, unknown> };
