@@ -32,6 +32,7 @@ import type { CatalogueFilter, Product } from './types/product';
 import { isProductNew } from './utils/productStatus';
 import { compareCatalogueProducts } from './utils/catalogueSort';
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory, resolveCategorySelection } from './utils/categorySelection';
+import { getCategoryShareImageUrl } from './utils/categoryShare';
 import {
   findProductByReference,
   readProductReferenceFromHash,
@@ -179,6 +180,10 @@ function App() {
     (activeCategory === 'New' && !hasNewProducts)
       || (activeCategory !== 'All' && activeCategory !== 'New' && !categories.includes(activeCategory))
       ? 'All' : activeCategory;
+  const activeCategoryShareImageUrl = useMemo(
+    () => getCategoryShareImageUrl(effectiveActiveCategory, products, categorySettings),
+    [categorySettings, effectiveActiveCategory, products],
+  );
   const categoryProducts = useMemo(
     () => products.filter((product) =>
       effectiveActiveCategory === 'All'
@@ -823,6 +828,7 @@ function App() {
                   showNew={hasNewProducts}
                   compactOnMobile
                   collapseCategories
+                  shareImageUrl={activeCategoryShareImageUrl}
                 />
                 <PriceFilter key={`${activePriceRange?.minimum ?? ''}:${activePriceRange?.maximum ?? ''}`}
                   active={activePriceRange} bands={priceBands} onApply={setActivePriceRange} />

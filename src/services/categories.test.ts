@@ -29,6 +29,19 @@ it.each([
   } });
   await expect(generateCategoryOverview('Navratri Specials')).rejects.toThrow(`${message} (HTTP ${status})`);
 });
+it('retries transient overview failures once and keeps the successful draft', async () => {
+  invoke
+    .mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: new Response(JSON.stringify({ error: 'This model is currently experiencing high demand.' }), { status: 502 }),
+      },
+    })
+    .mockResolvedValueOnce({ data: { overview: ' Reviewed draft. ' }, error: null });
+  expect(await generateCategoryOverview('Navratri Specials')).toBe('Reviewed draft.');
+  expect(invoke).toHaveBeenCalledTimes(2);
+});
 it('keeps HTTP diagnostics for non-JSON gateway responses', async () => {
   invoke.mockResolvedValue({ data: null, error: {
     message: 'Edge Function returned a non-2xx status code',

@@ -18,6 +18,7 @@ import type { CategorySettings, Product, ProductVariant } from '../types/product
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
 import { limitCategoryOverview } from '../utils/categoryOverview.js';
 import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from '../utils/cataloguePrice';
+import { getCategoryShareImageUrl } from '../utils/categoryShare';
 
 interface Props {
   products: Product[];
@@ -60,6 +61,10 @@ export default function StorePages({
   const category = selectedCategory?.name;
   const collectionProducts = useMemo(() => products.filter(product => category && matchesCategory(product, category, categories))
     .sort((a, b) => compareCatalogueProducts(a, b, { now: catalogueTime, categoryRanks: new Map() })), [category, categories, products, catalogueTime]);
+  const collectionShareImageUrl = useMemo(
+    () => getCategoryShareImageUrl(category, collectionProducts, categories),
+    [category, categories, collectionProducts],
+  );
   const collectionPriceBands = useMemo(() => getCataloguePriceBands(collectionProducts), [collectionProducts]);
   const filteredCollectionProducts = useMemo(
     () => collectionProducts.filter(product => matchesCataloguePriceRange(product, activePriceRange)),
@@ -174,7 +179,7 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
-          {category && <CategoryShareButton key={category} category={category} />}
+          {category && <CategoryShareButton key={category} category={category} imageUrl={collectionShareImageUrl} />}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
           {showCatalogue && collectionProducts.length > 0 && <section
             aria-label="Filter collection products by price"

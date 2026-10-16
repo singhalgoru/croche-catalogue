@@ -33,6 +33,47 @@ const requireSupabase = async () => {
   return supabase;
 };
 
+const TRANSIENT_CATEGORY_OVERVIEW_ERROR = /(high demand|rate limit|quota|temporarily unavailable|service unavailable|please try again later|busy right now)/i;
+const TRANSIENT_CATEGORY_OVERVIEW_STATUS = new Set([429, 503, 504]);
+
+const isTransientCategoryOverviewError = (message: string, status?: number): boolean =>
+  TRANSIENT_CATEGORY_OVERVIEW_ERROR.test(message) || (status !== undefined && TRANSIENT_CATEGORY_OVERVIEW_STATUS.has(status));
+
+const readFunctionError = async (error: { message: string; context?: Response }) => {
+  let message = error.message;
+  let status: number | undefined;
+  if ('context' in error && error.context instanceof Response) {
+    const text = await error.context.clone().text();
+    try {
+      const payload: unknown = JSON.parse(text);
+      if (payload && typeof payload === 'object') {
+        if ('error' in payload && typeof payload.error === 'string') message = payload.error;
+        else if ('message' in payload && typeof payload.message === 'string') message = payload.message;
+      }
+    } catch {
+      // Non-JSON gateway errors retain the SDK message and HTTP status.
+    }
+    status = error.context.status;
+    message = `${message} (HTTP ${error.context.status})`;
+  }
+  return { message, status };
+};
+
+const invokeCategoryOverview = async (client: Awaited<ReturnType<typeof requireSupabase>>, name: string) => {
+  const { data, error } = await client.functions.invoke('analyze-product', {
+    body: { mode: 'category-overview', categoryName: name },
+  });
+  if (error) {
+    const { message, status } = await readFunctionError(error);
+    throw new Error(`Unable to generate category overview: ${message}`, { cause: { status } });
+  }
+  if (data?.error) throw new Error(String(data.error));
+  if (typeof data?.overview !== 'string' || !data.overview.trim() || data.overview.length > 2000) {
+    throw new Error('Gemini returned an invalid category overview.');
+  }
+  return data.overview.trim();
+};
+
 export async function fetchCategorySettings(): Promise<CategorySettings[]> {
   const initial = window.categoriesPrefetch;
   window.categoriesPrefetch = undefined;
@@ -124,31 +165,21 @@ export async function saveCategoryOverview(name: string, overview: string): Prom
 
 export async function generateCategoryOverview(name: string): Promise<string> {
   const client = await requireSupabase();
-  const { data, error } = await client.functions.invoke('analyze-product', {
-    body: { mode: 'category-overview', categoryName: name },
-  });
-  if (error) {
-    let message = error.message;
-    if ('context' in error && error.context instanceof Response) {
-      const text = await error.context.clone().text();
+  try {
+    return await invokeCategoryOverview(client, name);
+  } catch (failure) {
+    if (failure instanceof Error && isTransientCategoryOverviewError(failure.message, (failure.cause as { status?: number } | undefined)?.status)) {
       try {
-        const payload: unknown = JSON.parse(text);
-        if (payload && typeof payload === 'object') {
-          if ('error' in payload && typeof payload.error === 'string') message = payload.error;
-          else if ('message' in payload && typeof payload.message === 'string') message = payload.message;
+        return await invokeCategoryOverview(client, name);
+      } catch (retryFailure) {
+        if (retryFailure instanceof Error && isTransientCategoryOverviewError(retryFailure.message, (retryFailure.cause as { status?: number } | undefined)?.status)) {
+          throw new Error('Unable to generate category overview right now. Gemini is busy. Please try again in a moment.');
         }
-      } catch {
-        // Non-JSON gateway errors retain the SDK message and HTTP status.
+        throw retryFailure;
       }
-      message = `${message} (HTTP ${error.context.status})`;
     }
-    throw new Error(`Unable to generate category overview: ${message}`);
+    throw failure;
   }
-  if (data?.error) throw new Error(String(data.error));
-  if (typeof data?.overview !== 'string' || !data.overview.trim() || data.overview.length > 2000) {
-    throw new Error('Gemini returned an invalid category overview.');
-  }
-  return data.overview.trim();
 }
 
 export async function renameCategory(currentName: string, replacementName: string): Promise<void> {

@@ -11,6 +11,7 @@ interface Props {
   compactOnMobile?: boolean;
   showNew?: boolean;
   collapseCategories?: boolean;
+  shareImageUrl?: string;
 }
 
 export default function CategoryFilter({
@@ -21,6 +22,7 @@ export default function CategoryFilter({
   compactOnMobile = false,
   showNew = true,
   collapseCategories = false,
+  shareImageUrl = '',
 }: Props) {
   const orderedOptions = orderCategoryOptions(
     ['All', ...(showNew ? (['New'] as const) : []), ...categories],
@@ -91,7 +93,7 @@ export default function CategoryFilter({
         </div>
       </details>}
       {active !== 'All' && active !== 'New' && categories.includes(active) &&
-        <CategoryShareButton key={active} category={active} />}
+        <CategoryShareButton key={active} category={active} imageUrl={shareImageUrl} />}
     </div>
   );
 }
