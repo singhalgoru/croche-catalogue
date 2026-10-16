@@ -155,7 +155,24 @@ body {
   }
 }
 
+.hotspot-ring {
+  box-shadow: 0 0 0 1px rgb(96 66 57 / 0.6), 0 0 5px 1px rgb(246 196 83 / 0.7);
+  animation: hotspot-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes hotspot-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgb(96 66 57 / 0.6), 0 0 4px 1px rgb(246 196 83 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgb(96 66 57 / 0.6), 0 0 8px 2px rgb(246 196 83 / 0.9);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .hotspot-ring {
+    animation: none;
+  }
   .shipping-ticker-track.shipping-ticker-featured,
   .shipping-ticker-featured > a {
     animation: none;

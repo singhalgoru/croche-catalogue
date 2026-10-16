@@ -25,7 +25,7 @@ export default function CategoryLook({ category, products }: { category: Categor
           onClick={() => setActive(index)}
           style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
           className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
-          <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border-white bg-transparent shadow-[0_0_0_1px_#60423999] ${
+          <span aria-hidden="true" className={`hotspot-ring h-2.5 w-2.5 rounded-full border-white bg-transparent ${
             selected === spot ? 'border-2' : 'border-[1.5px]'
           }`} />
         </button>)}

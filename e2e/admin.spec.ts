@@ -590,7 +590,11 @@ test('authors regular category image hotspots and shoppers explore products in t
   await expect(productLinks).toHaveCSS('overflow', 'hidden');
   await expect(marker.locator('span')).toHaveCSS('width', '10px');
   await expect(marker.locator('span')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(marker.locator('span')).toHaveCSS('animation-name', 'hotspot-glow');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(marker.locator('span')).toHaveCSS('animation-name', 'none');
+  await expect(marker.locator('span')).not.toHaveCSS('box-shadow', 'none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
     Object.defineProperty(navigator, 'share', { configurable: true, value: async (payload: ShareData) => {
