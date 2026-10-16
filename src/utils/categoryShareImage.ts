@@ -1,5 +1,5 @@
 import type { CategoryHotspot } from '../types/product';
-import { getHotspotGlowOverlay } from './categoryImage.js';
+import { getHotspotRingOverlay } from './categoryImage.js';
 import { getShareableImageFile } from './shareImage';
 
 const loadImage = (blob: Blob) => new Promise<HTMLImageElement>((resolve, reject) => {
@@ -18,8 +18,8 @@ export async function getCategoryShareImageFile(imageUrl: string, name: string, 
   const scale = Math.min(1, 1080 / Math.max(image.naturalWidth, image.naturalHeight));
   const width = Math.round(image.naturalWidth * scale);
   const height = Math.round(image.naturalHeight * scale);
-  const overlay = getHotspotGlowOverlay(width, height, hotspots);
-  const glow = await loadImage(new Blob([overlay.svg], { type: 'image/svg+xml' }));
+  const overlay = getHotspotRingOverlay(width, height, hotspots);
+  const rings = await loadImage(new Blob([overlay.svg], { type: 'image/svg+xml' }));
   const canvas = document.createElement('canvas');
   canvas.width = overlay.width;
   canvas.height = overlay.height;
@@ -28,7 +28,7 @@ export async function getCategoryShareImageFile(imageUrl: string, name: string, 
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, overlay.padding, overlay.padding, width, height);
-  context.drawImage(glow, 0, 0);
+  context.drawImage(rings, 0, 0);
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(value => value ? resolve(value) : reject(new Error('Unable to encode the hotspot share photo.')), 'image/webp', 0.9));
   if (blob.type !== 'image/webp') throw new Error('WebP photo sharing is not supported by this browser.');

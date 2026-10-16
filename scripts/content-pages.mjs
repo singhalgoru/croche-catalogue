@@ -26,6 +26,7 @@ const page = (pathname, title, description, body, schema, socialImage = `${ORIGI
 <script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#fffaf0;color:#604239;font:16px/1.65 system-ui,sans-serif}
+.hotspot-links{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.hotspot-links:focus-within{position:static;width:auto;height:auto;margin:0;overflow:visible;clip-path:none;white-space:normal}
 a{color:inherit;text-underline-offset:4px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid #604239;outline-offset:4px}
 header,main,footer{max-width:1120px;margin:auto;padding:24px}header{border-bottom:3px solid #edc357}.brand{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none}.brand img{border-radius:50%}.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:8px;background:white;padding:8px}
 nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:760px}h1{font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.2}h2{line-height:1.3}
@@ -66,12 +67,12 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
     const socialImage = categoryImage ? getProductImageUrl(categoryImage, 1080) : undefined;
     const hotspots = getCategoryHotspots(items, settings);
     const look = coverImage && hotspots.length ? `<section aria-label="Shop the look: ${escapeHtml(category)}">
-      <h2>Shop this look</h2><p>Explore the glowing dots in this collection photo.</p>
+      <h2>Shop this look</h2><p>Explore the small rings in this collection photo.</p>
       <div style="position:relative;max-width:760px">
         <img src="${escapeHtml(getProductImageUrl(coverImage, 1080))}" alt="${escapeHtml(category)} styled collection" style="display:block;width:100%;height:auto">
         ${hotspots.map(spot => `<a href="/p/${toProductSlug(spot.product)}/" aria-label="View ${escapeHtml(spot.product.name)}"
-          style="position:absolute;left:${spot.x}%;top:${spot.y}%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center"><span aria-hidden="true" style="width:12px;height:12px;border-radius:50%;background:#edc357;border:2px solid white;box-shadow:0 0 0 7px #edc35759,0 0 0 13px #edc3572e"></span></a>`).join('')}
-      </div><ol>${hotspots.map(spot => `<li><a href="/p/${toProductSlug(spot.product)}/">${escapeHtml(spot.product.name)}</a> — ${priceRange(spot.product) ? `From ₹${priceRange(spot.product).low.toLocaleString('en-IN')}` : 'Price on request'}</li>`).join('')}</ol>
+          style="position:absolute;left:${spot.x}%;top:${spot.y}%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center"><span aria-hidden="true" style="width:10px;height:10px;border-radius:50%;background:transparent;border:1.5px solid white;box-shadow:0 0 0 1px #60423999"></span></a>`).join('')}
+      </div><ol class="hotspot-links" aria-label="Products in this look">${hotspots.map(spot => `<li><a href="/p/${toProductSlug(spot.product)}/">${escapeHtml(spot.product.name)}</a></li>`).join('')}</ol>
       </section>` : '';
     const description = limitCategoryOverview(categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
       : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`));

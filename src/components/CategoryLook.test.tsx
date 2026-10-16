@@ -18,6 +18,9 @@ it('positions accessible markers by percentage and opens the corresponding produ
   expect(marker.style.top).toBe('75%');
   expect(marker.getAttribute('aria-pressed')).toBe('true');
   expect(marker.textContent).toBe('');
+  expect(marker.className).toContain('h-11 w-11');
+  expect(marker.firstElementChild?.className).toContain('bg-transparent');
+  expect(marker.firstElementChild?.className).not.toContain('animate-pulse');
   expect(screen.getByRole('heading', { name: 'Rose' })).toBeTruthy();
   const roseUrl = screen.getByRole('link', { name: 'View product' }).getAttribute('href');
   fireEvent.click(screen.getByRole('button', { name: 'Explore Lotus, hotspot 2' }));
@@ -25,6 +28,7 @@ it('positions accessible markers by percentage and opens the corresponding produ
   expect(screen.getByRole('link', { name: 'View product' }).getAttribute('href')).not.toBe(roseUrl);
   expect(screen.queryByText('₹200')).toBeNull();
   expect(screen.getByRole('list', { name: 'Products in this look' }).children).toHaveLength(2);
+  expect(screen.getByRole('list', { name: 'Products in this look' }).className).toBe('sr-only focus-within:not-sr-only');
 });
 
 it('omits stale/deleted products and requires a custom cover with valid hotspots', () => {

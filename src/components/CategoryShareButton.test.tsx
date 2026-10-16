@@ -84,7 +84,7 @@ describe('CategoryShareButton', () => {
     }));
   });
 
-  it('shares glowing hotspots with the collection link in the photo caption', async () => {
+  it('shares subtle hotspots with the collection link in the photo caption', async () => {
     const file = new File(['webp'], 'look.webp', { type: 'image/webp' });
     getShareableImageFile.mockResolvedValue(file);
     const share = vi.fn().mockResolvedValue(undefined);
@@ -94,7 +94,7 @@ describe('CategoryShareButton', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(getShareableImageFile).toHaveBeenCalledWith('/look.webp', 'decor', spots);
     expect(share).toHaveBeenCalledWith(expect.objectContaining({
-      files: [file], text: expect.stringContaining(`glowing dots and explore the products.\n${window.location.origin}/collections/decor/`),
+      files: [file], text: expect.stringContaining(`small rings and explore the products.\n${window.location.origin}/collections/decor/`),
     }));
   });
 

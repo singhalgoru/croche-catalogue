@@ -23,7 +23,7 @@ import { loadEnv } from 'vite';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
-import { getCategoryHotspots, getCategoryImage, getHotspotGlowOverlay } from '../src/utils/categoryImage.js';
+import { getCategoryHotspots, getCategoryImage, getHotspotRingOverlay } from '../src/utils/categoryImage.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -745,7 +745,7 @@ export const writeSocialImage = async (product, dir, pathname, hotspots = []) =>
       .flatten({ background: '#ffffff' });
     if (hotspots.length) {
       const resized = await output.png().toBuffer({ resolveWithObject: true });
-      const overlay = getHotspotGlowOverlay(resized.info.width, resized.info.height, hotspots);
+      const overlay = getHotspotRingOverlay(resized.info.width, resized.info.height, hotspots);
       output = sharp(resized.data).extend({ top: overlay.padding, bottom: overlay.padding, left: overlay.padding, right: overlay.padding, background: '#ffffff' })
         .composite([{ input: Buffer.from(overlay.svg), top: 0, left: 0 }]);
     }

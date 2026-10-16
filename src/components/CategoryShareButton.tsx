@@ -34,7 +34,7 @@ export default function CategoryShareButton({ category, imageUrl = '', hotspots 
       if (imageUrl && !file) setError(current?.error
         ? `${current.error} Sharing the collection link without a photo.`
         : 'The collection photo is loading or unavailable. Sharing the collection link without a photo.');
-      const text = `Explore ${category} from Luvia Creations.${hotspots.length ? ' Open the collection link to tap the glowing dots and explore the products.' : ''}`;
+      const text = `Explore ${category} from Luvia Creations.${hotspots.length ? ' Open the collection link to tap the small rings and explore the products.' : ''}`;
       const canShareImage =
         file !== null &&
         typeof navigator.canShare === 'function' &&

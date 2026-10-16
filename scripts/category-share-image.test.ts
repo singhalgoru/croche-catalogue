@@ -12,22 +12,28 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true })));
 });
 
-it('writes a full-photo JPEG preview with static glowing dots and a content-versioned URL', async () => {
+it('writes small hollow rings while preserving photo detail inside and outside the marker', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'luvia-category-share-'));
   directories.push(directory);
   const photo = await sharp({ create: { width: 600, height: 900, channels: 3, background: '#224455' } }).png().toBuffer();
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, arrayBuffer: async () => photo })));
   const result = await writeSocialImage({ name: 'Decor', image: 'https://images.luviacreations.com/products/admin/look.webp' },
     directory, '/collections/decor/', [{ productId: 'rose', x: 25, y: 60 }]);
-  expect(result).toMatchObject({ width: 573, height: 840 });
+  expect(result).toMatchObject({ width: 545, height: 812 });
   expect(result!.url).toMatch(/^https:\/\/luviacreations.com\/collections\/decor\/og-[a-f0-9]{12}\.jpg$/);
   const filename = new URL(result!.url).pathname.split('/').at(-1)!;
   const image = await readFile(path.join(directory, filename));
   expect((await sharp(image).metadata()).format).toBe('jpeg');
-  const pixel = await sharp(image).extract({ left: 153, top: 500, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
-  expect(pixel[0]).toBeGreaterThan(220);
-  expect(pixel[1]).toBeGreaterThan(170);
-  expect(pixel[2]).toBeLessThan(115);
+  for (const left of [139, 151]) {
+    const pixel = await sharp(image).extract({ left, top: 486, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+    expect(Math.abs(pixel[0] - 34)).toBeLessThan(20);
+    expect(Math.abs(pixel[1] - 68)).toBeLessThan(20);
+    expect(Math.abs(pixel[2] - 85)).toBeLessThan(20);
+  }
+  const ring = await sharp(image).extract({ left: 143, top: 486, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+  expect(ring[0]).toBeGreaterThan(180);
+  expect(ring[1]).toBeGreaterThan(180);
+  expect(ring[2]).toBeGreaterThan(180);
   const changed = await writeSocialImage({ name: 'Decor', image: '/look.webp' }, directory, '/collections/decor/',
     [{ productId: 'rose', x: 75, y: 60 }]);
   expect(changed!.url).not.toBe(result!.url);

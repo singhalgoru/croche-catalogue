@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { getCategoryHotspots, getCategoryImage, getHotspotGlowOverlay } from './categoryImage.js';
+import { getCategoryHotspots, getCategoryImage, getHotspotRingOverlay } from './categoryImage.js';
 import { products } from '../data/products';
 
 it('uses optional custom images for both regular and seasonal categories', () => {
@@ -7,7 +7,7 @@ it('uses optional custom images for both regular and seasonal categories', () =>
     expect(getCategoryImage(products, { name: 'Test', priority: 1, isSeasonal, coverImage: '/cover.webp' })).toBe('/cover.webp');
   }
 });
-it('excludes stale markers and draws only glowing circles, not numbers', () => {
+it('excludes stale markers and draws small hollow rings without fill, glow or numbers', () => {
   const category = { name: 'Test', priority: 1, coverImage: '/look.webp', imageHotspots: [
     { productId: products[0].id, x: 25, y: 60 },
     { productId: 'deleted', x: 50, y: 50 },
@@ -15,12 +15,14 @@ it('excludes stale markers and draws only glowing circles, not numbers', () => {
   ] };
   const spots = getCategoryHotspots(products, category);
   expect(spots).toHaveLength(1);
-  const overlay = getHotspotGlowOverlay(600, 900, spots);
+  const overlay = getHotspotRingOverlay(600, 900, spots);
   expect(overlay.svg).not.toContain('<text');
-  expect(overlay.svg.match(/<circle /g)).toHaveLength(3);
-  expect(overlay.svg).toContain('cx="172" cy="562"');
-  expect(overlay.width).toBe(644);
-  expect(overlay.height).toBe(944);
+  expect(overlay.svg.match(/<circle /g)).toHaveLength(2);
+  expect(overlay.svg.match(/fill="none"/g)).toHaveLength(2);
+  expect(overlay.svg).not.toContain('#edc357');
+  expect(overlay.svg).toContain('cx="156" cy="546"');
+  expect(overlay.width).toBe(612);
+  expect(overlay.height).toBe(912);
   expect(getCategoryHotspots(products, { ...category, coverImage: '' })).toEqual([]);
 });
 

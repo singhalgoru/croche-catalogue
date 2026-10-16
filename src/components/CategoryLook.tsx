@@ -15,7 +15,7 @@ export default function CategoryLook({ category, products }: { category: Categor
 
   return <section aria-label={`Shop the look: ${category.name}`} className="max-w-3xl space-y-3 rounded-2xl border border-mustard/40 bg-white p-3 sm:p-5">
     <h2 className="font-heading text-xl font-bold">Shop this look</h2>
-    <p className="text-sm text-cocoa/70">Tap a glowing dot to explore the product. All linked products are also listed below.</p>
+    <p className="text-sm text-cocoa/70">Tap a small ring to explore the product.</p>
     {imageFailed ? <p role="alert">This collection photo could not load. You can still explore its linked products below.</p> :
       <div className="relative">
         <img src={getProductImageUrl(category.coverImage, 1080)} alt={`${category.name} styled collection`}
@@ -25,8 +25,8 @@ export default function CategoryLook({ category, products }: { category: Categor
           onClick={() => setActive(index)}
           style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
           className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
-          <span aria-hidden="true" className={`h-3 w-3 rounded-full border-2 border-white bg-mustard shadow-[0_0_0_7px_#edc35759,0_0_0_13px_#edc3572e] ${
-            selected === spot ? 'ring-2 ring-cocoa' : 'motion-safe:animate-pulse'
+          <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border-white bg-transparent shadow-[0_0_0_1px_#60423999] ${
+            selected === spot ? 'border-2' : 'border-[1.5px]'
           }`} />
         </button>)}
       </div>}
@@ -44,10 +44,10 @@ export default function CategoryLook({ category, products }: { category: Categor
         </a>
       </div>
     </div>
-    <ol className="flex flex-wrap gap-x-5 gap-y-2 text-sm" aria-label="Products in this look">
+    <ol className="sr-only focus-within:not-sr-only" aria-label="Products in this look">
       {spots.map((spot, index) => <li key={`${spot.productId}-${index}`}>
         <a href={toProductPageUrl(spot.product)} className="inline-flex min-h-11 items-center underline underline-offset-4">
-          {index + 1}. {spot.product.name}
+          {spot.product.name}
         </a>
       </li>)}
     </ol>

@@ -583,6 +583,12 @@ test('authors regular category image hotspots and shoppers explore products in t
   expect(geometry.x).toBeCloseTo(25, 0);
   expect(geometry.y).toBeCloseTo(60, 0);
   await expectNoHorizontalOverflow(page);
+  const productLinks = look.getByRole('list', { name: 'Products in this look' });
+  await expect(productLinks).toHaveCSS('width', '1px');
+  await expect(productLinks).toHaveCSS('overflow', 'hidden');
+  await expect(marker.locator('span')).toHaveCSS('width', '10px');
+  await expect(marker.locator('span')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(marker.locator('span')).toHaveCSS('animation-name', 'none');
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
     Object.defineProperty(navigator, 'share', { configurable: true, value: async (payload: ShareData) => {
@@ -593,9 +599,11 @@ test('authors regular category image hotspots and shoppers explore products in t
       canvas.width = image.width; canvas.height = image.height;
       const context = canvas.getContext('2d')!;
       context.drawImage(image, 0, 0);
-      const centre = [...context.getImageData(172, 562, 1, 1).data];
+      const centre = [...context.getImageData(156, 546, 1, 1).data];
+      const outside = [...context.getImageData(168, 546, 1, 1).data];
+      const ring = [...context.getImageData(160, 546, 1, 1).data];
       document.documentElement.dataset.hotspotShare = JSON.stringify({
-        width: image.width, height: image.height, type: file.type, text: payload.text, centre,
+        width: image.width, height: image.height, type: file.type, text: payload.text, centre, outside, ring,
       });
       image.close();
     } });
@@ -605,13 +613,19 @@ test('authors regular category image hotspots and shoppers explore products in t
     return page.locator('html').getAttribute('data-hotspot-share');
   }).not.toBeNull();
   const shared = JSON.parse((await page.locator('html').getAttribute('data-hotspot-share'))!) as {
-    width: number; height: number; type: string; text: string; centre: number[];
+    width: number; height: number; type: string; text: string; centre: number[]; outside: number[]; ring: number[];
   };
-  expect(shared).toMatchObject({ width: 644, height: 944, type: 'image/webp' });
-  expect(shared.centre[0]).toBeGreaterThan(220);
-  expect(shared.centre[1]).toBeGreaterThan(170);
-  expect(shared.centre[2]).toBeLessThan(115);
-  expect(shared.text).toContain('glowing dots');
+  expect(shared).toMatchObject({ width: 612, height: 912, type: 'image/webp' });
+  for (const pixel of [shared.centre, shared.outside]) {
+    expect(Math.abs(pixel[0] - 34)).toBeLessThan(20);
+    expect(Math.abs(pixel[1] - 68)).toBeLessThan(20);
+    expect(Math.abs(pixel[2] - 85)).toBeLessThan(20);
+  }
+  for (let channel = 0; channel < 3; channel++) {
+    expect(shared.ring[channel] - shared.centre[channel]).toBeGreaterThan(80);
+  }
+  expect(Math.max(...shared.ring.slice(0, 3)) - Math.min(...shared.ring.slice(0, 3))).toBeLessThan(40);
+  expect(shared.text).toContain('small rings');
   expect(shared.text).toContain('/collections/charms/');
   await look.getByRole('link', { name: 'View product', exact: true }).click();
   await expect(page).toHaveURL(/\/p\//);

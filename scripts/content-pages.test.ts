@@ -29,6 +29,7 @@ describe('collection and information pages', () => {
     expect(doc.querySelectorAll('section[aria-label="Shop the look: Toys"] a')).toHaveLength(2);
     expect(doc.querySelector('section[aria-label="Shop the look: Toys"] a')?.getAttribute('style')).toContain('left:20%;top:75%');
     expect(doc.querySelector('section[aria-label="Shop the look: Toys"] a')?.textContent).toBe('');
+    expect(doc.querySelector('ol[aria-label="Products in this look"]')?.className).toBe('hotspot-links');
     expect(result.get('/collections/')).toContain('look-w480.webp');
     const fallback = new JSDOM(buildContentPages([toy], '919205907350').get('/collections/toys/')).window.document;
     expect(fallback.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(toy.image);
