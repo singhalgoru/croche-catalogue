@@ -1,20 +1,17 @@
 import { useEffect, useState } from 'react';
 import { collectionPath } from '../utils/collectionLink.js';
-import { toShareFileName } from '../utils/shareImage';
-import { getCategoryShareImageFile } from '../utils/categoryShareImage';
-import type { CategoryHotspot } from '../types/product';
+import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import ShareIconButton from './ShareIconButton';
 
-const NO_HOTSPOTS: CategoryHotspot[] = [];
-export default function CategoryShareButton({ category, imageUrl = '', hotspots = NO_HOTSPOTS }: { category: string; imageUrl?: string; hotspots?: CategoryHotspot[] }) {
+export default function CategoryShareButton({ category, imageUrl = '' }: { category: string; imageUrl?: string }) {
   const [error, setError] = useState<string | null>(null);
-  const preparationKey = JSON.stringify([category, imageUrl, hotspots.map(({ productId, x, y }) => ({ productId, x, y }))]);
+  const preparationKey = JSON.stringify([category, imageUrl]);
   const [prepared, setPrepared] = useState<{ key: string; file: File | null; error?: string } | null>(null);
 
   useEffect(() => {
     if (!imageUrl) return;
     let cancelled = false;
-    void getCategoryShareImageFile(imageUrl, toShareFileName(category), hotspots).then(file => {
+    void getShareableImageFile(imageUrl, toShareFileName(category)).then(file => {
       if (!cancelled) setPrepared({ key: preparationKey, file });
     }).catch((failure: unknown) => {
       if (!cancelled) setPrepared({ key: preparationKey, file: null,
@@ -23,7 +20,7 @@ export default function CategoryShareButton({ category, imageUrl = '', hotspots 
     return () => {
       cancelled = true;
     };
-  }, [category, imageUrl, hotspots, preparationKey]);
+  }, [category, imageUrl, preparationKey]);
 
   const share = async () => {
     setError(null);
@@ -34,7 +31,7 @@ export default function CategoryShareButton({ category, imageUrl = '', hotspots 
       if (imageUrl && !file) setError(current?.error
         ? `${current.error} Sharing the collection link without a photo.`
         : 'The collection photo is loading or unavailable. Sharing the collection link without a photo.');
-      const text = `Explore ${category} from Luvia Creations.${hotspots.length ? ' Open the collection link to tap the small rings and explore the products.' : ''}`;
+      const text = `Explore ${category} from Luvia Creations.`;
       const canShareImage =
         file !== null &&
         typeof navigator.canShare === 'function' &&

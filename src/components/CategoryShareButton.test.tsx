@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import CategoryShareButton from './CategoryShareButton';
 
 const getShareableImageFile = vi.hoisted(() => vi.fn());
-vi.mock('../utils/categoryShareImage', () => ({ getCategoryShareImageFile: getShareableImageFile }));
 vi.mock('../utils/shareImage', () => ({
   getShareableImageFile,
   toShareFileName: (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
@@ -76,7 +75,7 @@ describe('CategoryShareButton', () => {
     vi.stubGlobal('navigator', { share, canShare, clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
     await act(async () => { render(<CategoryShareButton category="Navratri Specials" imageUrl="https://images.luviacreations.com/products/admin/navratri.webp" />); });
     await screen.findByRole('button', { name: 'Share Navratri Specials collection' });
-    expect(getShareableImageFile).toHaveBeenCalledWith('https://images.luviacreations.com/products/admin/navratri.webp', 'navratri-specials', []);
+    expect(getShareableImageFile).toHaveBeenCalledWith('https://images.luviacreations.com/products/admin/navratri.webp', 'navratri-specials');
     fireEvent.click(screen.getByRole('button', { name: 'Share Navratri Specials collection' }));
     expect(share).toHaveBeenCalledWith(expect.objectContaining({
       url: `${window.location.origin}/collections/navratri-specials/`,
@@ -84,21 +83,20 @@ describe('CategoryShareButton', () => {
     }));
   });
 
-  it('shares subtle hotspots with the collection link in the photo caption', async () => {
+  it('shares the untouched WebP photo and a plain collection caption without hotspot instructions', async () => {
     const file = new File(['webp'], 'look.webp', { type: 'image/webp' });
     getShareableImageFile.mockResolvedValue(file);
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { share, canShare: () => true });
-    const spots = [{ productId: 'rose', x: 25, y: 60 }];
-    await act(async () => { render(<CategoryShareButton category="Decor" imageUrl="/look.webp" hotspots={spots} />); });
+    await act(async () => { render(<CategoryShareButton category="Decor" imageUrl="/look.webp" />); });
     fireEvent.click(screen.getByRole('button'));
-    expect(getShareableImageFile).toHaveBeenCalledWith('/look.webp', 'decor', spots);
+    expect(getShareableImageFile).toHaveBeenCalledWith('/look.webp', 'decor');
     expect(share).toHaveBeenCalledWith(expect.objectContaining({
-      files: [file], text: expect.stringContaining(`small rings and explore the products.\n${window.location.origin}/collections/decor/`),
+      files: [file], text: `Explore Decor from Luvia Creations.\n${window.location.origin}/collections/decor/`,
     }));
   });
 
-  it('never attaches the previous image while a changed cover or hotspot layout is preparing', async () => {
+  it('never attaches the previous image while a changed cover is preparing', async () => {
     const old = new File(['old'], 'old.jpg', { type: 'image/jpeg' });
     getShareableImageFile.mockResolvedValueOnce(old).mockImplementationOnce(() => new Promise(() => {}));
     const share = vi.fn().mockResolvedValue(undefined);

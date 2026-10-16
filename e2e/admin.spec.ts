@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import sharp from 'sharp';
 import { installMockSupabase } from './mockSupabase';
 
 const signIn = async (page: Page, productSection?: 'add' | 'manage') => {
@@ -547,9 +548,10 @@ test('authors regular category image hotspots and shoppers explore products in t
   const category = product.category;
   const cover = 'https://images.luviacreations.com/products/admin-user/look-cover.webp';
   state.categorySettings[category].coverImage = cover;
+  const photo = await sharp({ create: { width: 600, height: 900, channels: 3, background: '#224455' } }).webp().toBuffer();
   await page.route('https://images.luviacreations.com/**', route => route.fulfill({
-    contentType: 'image/svg+xml',
-    body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#224455"/></svg>',
+    contentType: 'image/webp',
+    body: photo,
   }));
   await signIn(page);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -599,9 +601,9 @@ test('authors regular category image hotspots and shoppers explore products in t
       canvas.width = image.width; canvas.height = image.height;
       const context = canvas.getContext('2d')!;
       context.drawImage(image, 0, 0);
-      const centre = [...context.getImageData(156, 546, 1, 1).data];
-      const outside = [...context.getImageData(168, 546, 1, 1).data];
-      const ring = [...context.getImageData(160, 546, 1, 1).data];
+      const centre = [...context.getImageData(150, 540, 1, 1).data];
+      const outside = [...context.getImageData(162, 540, 1, 1).data];
+      const ring = [...context.getImageData(154, 540, 1, 1).data];
       document.documentElement.dataset.hotspotShare = JSON.stringify({
         width: image.width, height: image.height, type: file.type, text: payload.text, centre, outside, ring,
       });
@@ -615,17 +617,13 @@ test('authors regular category image hotspots and shoppers explore products in t
   const shared = JSON.parse((await page.locator('html').getAttribute('data-hotspot-share'))!) as {
     width: number; height: number; type: string; text: string; centre: number[]; outside: number[]; ring: number[];
   };
-  expect(shared).toMatchObject({ width: 612, height: 912, type: 'image/webp' });
-  for (const pixel of [shared.centre, shared.outside]) {
+  expect(shared).toMatchObject({ width: 600, height: 900, type: 'image/webp' });
+  for (const pixel of [shared.centre, shared.outside, shared.ring]) {
     expect(Math.abs(pixel[0] - 34)).toBeLessThan(20);
     expect(Math.abs(pixel[1] - 68)).toBeLessThan(20);
     expect(Math.abs(pixel[2] - 85)).toBeLessThan(20);
   }
-  for (let channel = 0; channel < 3; channel++) {
-    expect(shared.ring[channel] - shared.centre[channel]).toBeGreaterThan(80);
-  }
-  expect(Math.max(...shared.ring.slice(0, 3)) - Math.min(...shared.ring.slice(0, 3))).toBeLessThan(40);
-  expect(shared.text).toContain('small rings');
+  expect(shared.text).not.toMatch(/rings|hotspots|glow/i);
   expect(shared.text).toContain('/collections/charms/');
   await look.getByRole('link', { name: 'View product', exact: true }).click();
   await expect(page).toHaveURL(/\/p\//);

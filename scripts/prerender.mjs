@@ -23,7 +23,7 @@ import { loadEnv } from 'vite';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
-import { getCategoryHotspots, getCategoryImage, getHotspotRingOverlay } from '../src/utils/categoryImage.js';
+import { getCategoryImage } from '../src/utils/categoryImage.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -733,22 +733,16 @@ const SOCIAL_IMAGE_SIZE = 800;
  * og:image themselves, and WhatsApp in particular skips WebP. Any failure
  * leaves the page on the WebP image rather than failing the deploy.
  */
-export const writeSocialImage = async (product, dir, pathname, hotspots = []) => {
+export const writeSocialImage = async (product, dir, pathname) => {
   if (!product.image) return null;
   try {
     const response = await fetch(getProductImageUrl(product.image, 960));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const { default: sharp } = await import('sharp');
-    let output = sharp(Buffer.from(await response.arrayBuffer()))
+    const output = sharp(Buffer.from(await response.arrayBuffer()))
       .rotate()
       .resize(SOCIAL_IMAGE_SIZE, SOCIAL_IMAGE_SIZE, { fit: 'inside', withoutEnlargement: true })
       .flatten({ background: '#ffffff' });
-    if (hotspots.length) {
-      const resized = await output.png().toBuffer({ resolveWithObject: true });
-      const overlay = getHotspotRingOverlay(resized.info.width, resized.info.height, hotspots);
-      output = sharp(resized.data).extend({ top: overlay.padding, bottom: overlay.padding, left: overlay.padding, right: overlay.padding, background: '#ffffff' })
-        .composite([{ input: Buffer.from(overlay.svg), top: 0, left: 0 }]);
-    }
     const { data, info } = await output.jpeg({ quality: 80, mozjpeg: true }).toBuffer({ resolveWithObject: true });
     const filename = pathname.startsWith('/collections/') ? `og-${createHash('sha256').update(data).digest('hex').slice(0, 12)}.jpg` : 'og.jpg';
     await writeFile(path.join(dir, filename), data);
@@ -867,7 +861,7 @@ const main = async () => {
       const items = products.filter(product => category.isSeasonal ? category.productIds?.includes(product.id) : product.category === category.name);
       const image = getCategoryImage(items, category);
       const socialImage = items.length && image ? await writeSocialImage(
-        { name: category.name, image }, dir, pathname, getCategoryHotspots(items, category),
+        { name: category.name, image }, dir, pathname,
       ) : null;
       if (socialImage) content = content.replace(
         /(<meta (?:property="og:image"|name="twitter:image") content=")[^"]*(")/g,

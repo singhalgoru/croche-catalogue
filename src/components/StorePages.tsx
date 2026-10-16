@@ -19,7 +19,7 @@ import type { CategorySettings, Product, ProductVariant } from '../types/product
 import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } from '../utils/categorySelection';
 import { limitCategoryOverview } from '../utils/categoryOverview.js';
 import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from '../utils/cataloguePrice';
-import { getCategoryShareHotspots, getCategoryShareImageUrl } from '../utils/categoryShare';
+import { getCategoryShareImageUrl } from '../utils/categoryShare';
 
 interface Props {
   products: Product[];
@@ -67,7 +67,6 @@ export default function StorePages({
     [category, categories, collectionProducts],
   );
   const collectionPriceBands = useMemo(() => getCataloguePriceBands(collectionProducts), [collectionProducts]);
-  const collectionShareHotspots = getCategoryShareHotspots(category, collectionProducts, categories);
   const filteredCollectionProducts = useMemo(
     () => collectionProducts.filter(product => matchesCataloguePriceRange(product, activePriceRange)),
     [collectionProducts, activePriceRange],
@@ -186,7 +185,7 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
-          {category && <CategoryShareButton key={category} category={category} imageUrl={collectionShareImageUrl} hotspots={collectionShareHotspots} />}
+          {category && <CategoryShareButton key={category} category={category} imageUrl={collectionShareImageUrl} />}
           {showCatalogue && selectedCategory && collectionProducts.length > 0 &&
             <CategoryLook key={`${category}:${selectedCategory.coverImage}`} category={selectedCategory} products={collectionProducts} />}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
