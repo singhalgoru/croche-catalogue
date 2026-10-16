@@ -31,6 +31,7 @@ const queueGstLookup = (value: unknown, status = 200) => {
   fetchMock.mockResolvedValueOnce(gstAcceleratorResponse(value, status));
 };
 let gstAcceleratorApiKey: string | undefined = 'test-provider-key';
+let cloudflareEnabled = false;
 const gstMatch = {
   hsn_code: '580810',
   description: 'Crocheted textile bag charm articles',
@@ -48,7 +49,9 @@ beforeAll(async () => {
       SUPABASE_URL: 'https://example.supabase.co',
       SUPABASE_ANON_KEY: 'test-public-key',
       GEMINI_API_KEY: 'test-placeholder',
-    })[name] ?? (name === 'GST_ACCELERATOR_API_KEY' ? gstAcceleratorApiKey : undefined) },
+    })[name] ?? (name === 'GST_ACCELERATOR_API_KEY' ? gstAcceleratorApiKey
+      : cloudflareEnabled && name === 'CLOUDFLARE_ACCOUNT_ID' ? 'test-account'
+        : cloudflareEnabled && name === 'CLOUDFLARE_API_TOKEN' ? 'test-token' : undefined) },
     serve: (callback: typeof handler) => { handler = callback; },
   });
   await import('./index');
@@ -58,6 +61,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockReset();
   gstAcceleratorApiKey = 'test-provider-key';
+  cloudflareEnabled = false;
   vi.stubGlobal('fetch', fetchMock);
   rpc.mockResolvedValue({ data: true, error: null });
   const order = vi.fn();
@@ -106,7 +110,48 @@ describe('analyze-product endpoint', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('/gemini-3.6-flash:generateContent');
     expect(fetchMock.mock.calls[1][0]).toContain('/gemini-3.7-flash:generateContent');
   });
+  it('uses Cloudflare after all Gemini models are busy, sending only published category facts', async () => {
+    cloudflareEnabled = true;
+    mockCategoryOverview();
+    fetchMock.mockImplementation(async (url: string) => url.includes('api.cloudflare.com')
+      ? new Response(JSON.stringify({ success: true, result: { response: JSON.stringify({ overview: validOverview }) } }))
+      : new Response(JSON.stringify({ error: { message: 'High demand' } }), { status: 503 }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ overview: validOverview });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    const [url, options] = fetchMock.mock.calls[3];
+    expect(url).toContain('/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect(JSON.parse(options.body).messages[0].content).toContain('Handmade rose charm.');
+    expect(options.body).not.toContain('aW1hZ2U=');
+  });
+  it('reports both-provider failure without returning a fabricated draft', async () => {
+    cloudflareEnabled = true;
+    mockCategoryOverview();
+    fetchMock.mockImplementation(async (url: string) => new Response('{}', { status: url.includes('api.cloudflare.com') ? 403 : 503 }));
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(502);
+    expect((await response.json()).error).toContain('Gemini is unavailable. Cloudflare overview generation failed (HTTP 403)');
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+  it('uses Cloudflare for a word-count correction without restarting Gemini', async () => {
+    cloudflareEnabled = true;
+    mockCategoryOverview();
+    let cloudflareCalls = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (!url.includes('api.cloudflare.com')) return new Response('{}', { status: 503 });
+      cloudflareCalls++;
+      return new Response(JSON.stringify({ success: true, result: { response: JSON.stringify({
+        overview: cloudflareCalls === 1 ? 'Too short.' : validOverview,
+      }) } }));
+    });
+    const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
   it('does not retry overview API-key authorization failures', async () => {
+    cloudflareEnabled = true;
     mockCategoryOverview();
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: { message: 'API key not valid' } }), { status: 403 }));
     const response = await handler(request({ mode: 'category-overview', categoryName: 'Navaratri' }));

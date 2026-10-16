@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { callCloudflareOverview } from './categoryOverview.ts';
 import {
   buildProductPrompt,
   DETAIL_FIELDS,
@@ -87,7 +88,9 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'Unsupported product analysis mode.' }, 400);
   }
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!geminiApiKey) {
+  const cloudflareAccountId = isCategoryMode ? Deno.env.get('CLOUDFLARE_ACCOUNT_ID') : undefined;
+  const cloudflareToken = isCategoryMode ? Deno.env.get('CLOUDFLARE_API_TOKEN') : undefined;
+  if (!geminiApiKey && !(isCategoryMode && cloudflareAccountId && cloudflareToken)) {
     return jsonResponse({ error: 'GEMINI_API_KEY is not configured.' }, 500);
   }
   let context: AnalysisContext = {};
@@ -319,11 +322,12 @@ Deno.serve(async (request) => {
     requestBody: string,
   ): Promise<{
     data: Record<string, unknown>;
-  } | { error: string }> => {
+  } | { error: string; canFallback?: boolean }> => {
     let geminiResponse: Response | null = null;
     let apiMessage = '';
+    let canFallback = true;
 
-    for (const model of models) {
+    for (const model of geminiApiKey ? models : []) {
       try {
         geminiResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
@@ -331,6 +335,7 @@ Deno.serve(async (request) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: requestBody,
+            ...(isCategoryMode ? { signal: AbortSignal.timeout(12_000) } : {}),
           },
         );
       } catch (error) {
@@ -358,15 +363,21 @@ Deno.serve(async (request) => {
           : `Gemini request failed with status ${geminiResponse.status}.`;
 
       if (geminiResponse.status !== 429 && !(isCategoryMode && geminiResponse.status === 404) && geminiResponse.status < 500) {
+        canFallback = false;
         break;
       }
     }
 
     if (!geminiResponse?.ok) {
-      return { error: apiMessage || 'Gemini analysis failed.' };
+      return { error: apiMessage || 'Gemini analysis failed.', canFallback };
     }
 
-    const geminiPayload = await geminiResponse.json();
+    let geminiPayload;
+    try {
+      geminiPayload = await geminiResponse.json();
+    } catch {
+      return { error: 'Gemini returned malformed product details.', canFallback: true };
+    }
     const responseText = geminiPayload?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof responseText !== 'string') {
       return { error: 'Gemini did not return product details.' };
@@ -412,20 +423,36 @@ Deno.serve(async (request) => {
       generationConfig: { temperature: 0.3, responseMimeType: 'application/json',
         responseSchema: { type: 'OBJECT', required: ['overview'], properties: { overview: { type: 'STRING' } } } },
     };
-    let result = await callGemini(JSON.stringify(overviewRequest));
+    let usingCloudflare = false;
+    const generateOverview = async () => {
+      const prompt = overviewRequest.contents[0].parts.map(part => part.text).join('\n');
+      if (usingCloudflare && cloudflareAccountId && cloudflareToken) {
+        return callCloudflareOverview(cloudflareAccountId, cloudflareToken, prompt);
+      }
+      const result = await callGemini(JSON.stringify(overviewRequest));
+      if ('error' in result && result.canFallback !== false && cloudflareAccountId && cloudflareToken) {
+        console.warn('Gemini category overview unavailable; trying Cloudflare Workers AI.');
+        usingCloudflare = true;
+        const fallback = await callCloudflareOverview(cloudflareAccountId, cloudflareToken, prompt);
+        if ('error' in fallback) return { error: `Gemini is unavailable. ${fallback.error}` };
+        return fallback;
+      }
+      return result;
+    };
+    let result = await generateOverview();
     if ('error' in result) return jsonResponse({ error: result.error }, 502);
     let overview = result.data.overview;
     if (typeof overview === 'string' && overview.trim() && (overview.trim().split(/\s+/u).length < 60 || overview.trim().split(/\s+/u).length > 90)) {
       overviewRequest.contents[0].parts.push({ text: `The previous draft contained ${overview.trim().split(/\s+/u).length} words. Rewrite it using the same product facts in 60-90 words.` });
-      result = await callGemini(JSON.stringify(overviewRequest));
+      result = await generateOverview();
       if ('error' in result) return jsonResponse({ error: result.error }, 502);
       overview = result.data.overview;
     }
     if (typeof overview !== 'string' || !overview.trim() || overview.length > 2000) {
-      return jsonResponse({ error: 'Gemini returned an invalid category overview.' }, 502);
+      return jsonResponse({ error: `${usingCloudflare ? 'Cloudflare' : 'Gemini'} returned an invalid category overview.` }, 502);
     }
     const words = overview.trim().split(/\s+/u).length;
-    if (words < 60 || words > 90) return jsonResponse({ error: 'Gemini must return an overview of 60-90 words. Please retry or enter a shorter overview manually.' }, 502);
+    if (words < 60 || words > 90) return jsonResponse({ error: 'AI must return an overview of 60-90 words. Please retry or enter a shorter overview manually.' }, 502);
     return jsonResponse({ overview: overview.trim() });
   }
   if (isGstRateMode) {

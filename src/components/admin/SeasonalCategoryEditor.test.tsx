@@ -38,7 +38,7 @@ it('generates an editable overview draft without automatically publishing it', a
   vi.mocked(generateCategoryOverview).mockResolvedValue('Handmade rose charms for thoughtful gifting.');
   render(<SeasonalCategoryEditor category={category} onChanged={vi.fn()} onClose={vi.fn()} />);
   await screen.findByLabelText('Rose · Charms');
-  fireEvent.click(screen.getByRole('button', { name: 'Generate overview with Gemini' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Generate overview with AI' }));
   expect((await screen.findByRole('status')).textContent).toContain('Review and edit');
   expect(screen.getByLabelText('Category overview')).toHaveProperty('value', 'Handmade rose charms for thoughtful gifting.');
   expect(saveSeasonalCategory).not.toHaveBeenCalled();
@@ -56,6 +56,17 @@ it('keeps selections and shows an explicit save error', async () => {
   expect((await screen.findByRole('alert')).textContent).toContain('Offline');
   expect(close).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Rose · Charms')).toHaveProperty('checked', true);
+});
+it('retains the current overview and product selection when all AI providers fail', async () => {
+  vi.mocked(generateCategoryOverview).mockRejectedValueOnce(new Error('Gemini is unavailable. Cloudflare is busy.'));
+  render(<SeasonalCategoryEditor category={{ ...category, overview: 'Keep this reviewed overview.' }} onChanged={vi.fn()} onClose={vi.fn()} />);
+  await screen.findByLabelText('Rose · Charms');
+  fireEvent.click(screen.getByRole('button', { name: 'Generate overview with AI' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Cloudflare is busy');
+  expect(screen.getByLabelText('Category overview')).toHaveProperty('value', 'Keep this reviewed overview.');
+  expect(screen.getByLabelText('Rose · Charms')).toHaveProperty('checked', true);
+  expect(saveSeasonalCategory).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Generate overview with AI' })).toHaveProperty('disabled', false);
 });
 it('reports loading failures instead of allowing an empty selection to overwrite saved products', async () => {
   vi.mocked(fetchManagedProducts).mockRejectedValue(new Error('Products unavailable'));
