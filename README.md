@@ -27,6 +27,7 @@ transactional `supabase/tests/cron_run_history.sql` test after deployment.
 - Top-left mobile branding and a single sticky product ordering area; Share sits beside stock status above the ordering buttons, and the product close control stays visible
 - A logo-only mobile brand row with a 64px logo and short header tagline keep browsing uncluttered; desktop retains the full introduction
 - Category filtering and search
+- Share category from a selected homepage category or its collection page, including seasonal collections. Supported devices open the native share menu; other browsers copy the canonical collection link to the clipboard, with visible feedback if sharing is unavailable or fails.
 - Homepage collections feature a stationary, glowing seasonal collection card anchored at the start, while the remaining collections rotate continuously beside it in a ticker-style carousel with touch-pause, hover-pause, keyboard controls and a View all link.
 - Search, All and New remain visible; other homepage category filters sit in a compact Filter by category disclosure.
 - Seasonal collections support custom cover images, with full-photo display and automatic cleanup of replaced public image renditions.

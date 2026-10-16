@@ -5,6 +5,7 @@ import PriceFilter from './PriceFilter';
 import Header from './Header';
 import Footer from './Footer';
 import CollectionGrid from './CollectionGrid';
+import CategoryShareButton from './CategoryShareButton';
 import storeContent from '../content/storeContent.json';
 import policies from '../content/policies.json';
 import bulkOrders from '../content/bulkOrders.json';
@@ -173,6 +174,7 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
+          {category && <CategoryShareButton key={category} category={category} />}
           {showCatalogue && collectionProducts.length === 0 && <p>No published products in this collection yet.</p>}
           {showCatalogue && collectionProducts.length > 0 && <section
             aria-label="Filter collection products by price"

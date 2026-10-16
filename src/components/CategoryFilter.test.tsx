@@ -7,6 +7,14 @@ afterEach(() => {
 });
 
 describe('CategoryFilter', () => {
+  it('offers sharing for an actual selected category only', () => {
+    const { rerender } = render(<CategoryFilter categories={['Toys']} active="Toys" onSelect={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Share Toys collection' })).toBeTruthy();
+    rerender(<CategoryFilter categories={['Toys']} active="All" onSelect={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Share .* collection/ })).toBeNull();
+    rerender(<CategoryFilter categories={['Toys']} active="New" onSelect={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Share .* collection/ })).toBeNull();
+  });
   it('keeps All and New visible and reveals category filters through a disclosure', () => {
     const select = vi.fn();
     const { rerender } = render(<CategoryFilter categories={['Toys']} active="All" onSelect={select} collapseCategories />);
@@ -62,7 +70,7 @@ describe('CategoryFilter', () => {
   });
 
   it('shows the selected category first and restores its place once cleared', () => {
-    const chipNames = () => screen.getAllByRole('button').map((chip) => chip.textContent);
+    const chipNames = () => screen.getAllByRole('button').filter(chip => chip.hasAttribute('aria-pressed')).map((chip) => chip.textContent);
     const { rerender } = render(
       <CategoryFilter categories={['Bags', 'Toys']} active="Toys" onSelect={vi.fn()} />,
     );

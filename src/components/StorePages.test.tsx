@@ -47,6 +47,7 @@ describe('live store pages', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} />);
     expect(screen.queryByRole('link', { name: /with the cart/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Share Toys collection' })).toBeTruthy();
   });
   it('filters a collection using price bands derived only from that category', () => {
     const highToy = { ...products[0], id: 'p2', name: 'Large Bunny', price: 900 };
@@ -85,6 +86,7 @@ describe('live store pages', () => {
       name: 'Navaratri', priority: 999, isSeasonal: true, visible: true, productIds: ['p1'], overview: 'Our reviewed seasonal overview.',
     }]} />);
     expect(screen.getByText('Our reviewed seasonal overview.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Share Navaratri collection' })).toBeTruthy();
     expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
     expect(screen.getByRole('banner').textContent).toBe('Navaratri, Toys');
   });

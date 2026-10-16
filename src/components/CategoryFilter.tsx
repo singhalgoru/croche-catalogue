@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { CatalogueFilter, Category } from '../types/product';
 import { orderCategoryOptions } from '../utils/categorySelection';
+import CategoryShareButton from './CategoryShareButton';
 
 interface Props {
   categories: Category[];
@@ -89,6 +90,8 @@ export default function CategoryFilter({
             }`}>{option}</button>)}
         </div>
       </details>}
+      {active !== 'All' && active !== 'New' && categories.includes(active) &&
+        <CategoryShareButton key={active} category={active} />}
     </div>
   );
 }
