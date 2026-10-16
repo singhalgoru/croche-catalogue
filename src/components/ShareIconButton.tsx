@@ -4,7 +4,6 @@ interface Props {
   productName: string;
   onClick: () => void;
   onShareIntent?: () => void;
-  feedback?: string | null;
   className?: string;
   overlay?: boolean;
 }
@@ -13,7 +12,6 @@ export default function ShareIconButton({
   productName,
   onClick,
   onShareIntent,
-  feedback = null,
   className = '',
   overlay = true,
 }: Props) {
@@ -30,12 +28,6 @@ export default function ShareIconButton({
       >
         <ShareIcon className="h-5 w-5" />
       </button>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-lg bg-cocoa px-2.5 py-1.5 text-xs font-semibold text-cream opacity-0 shadow-lg transition-opacity group-hover/share:opacity-100 group-focus-within/share:opacity-100"
-      >
-        {feedback ?? 'Share'}
-      </span>
     </div>
   );
 }

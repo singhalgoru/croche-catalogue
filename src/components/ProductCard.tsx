@@ -70,7 +70,6 @@ export default function ProductCard({
   const discount = getProductDiscount(product, previewedVariant ?? cartVariant);
   const shareVariant = previewedVariant ?? cartVariant ?? product.variants[0];
   const shareDetails = getProductShareDetails(product, shareVariant);
-  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
   // Fetch only for the photo the shopper intends to share, not every card
   // near the viewport (or every photo as the card's carousel rotates).
@@ -104,10 +103,7 @@ export default function ProductCard({
       navigator.canShare({ files: [file] });
 
     if (!navigator.share) {
-      void navigator.clipboard
-        ?.writeText(shareDetails.url)
-        .then(() => setShareFeedback('Link copied!'))
-        .catch(() => setShareFeedback('Unable to share.'));
+      void navigator.clipboard?.writeText(shareDetails.url);
       return;
     }
 
@@ -138,21 +134,11 @@ export default function ProductCard({
           variant_id: shareVariant?.id,
           with_image: canShareImage,
         });
-        setShareFeedback(
-          canShareImage ? 'Photo shared. Link copied too!' : 'Share menu opened.',
-        );
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        setShareFeedback(error instanceof Error ? error.message : 'Unable to share.');
       });
   };
-
-  useEffect(() => {
-    if (!shareFeedback) return;
-    const timer = window.setTimeout(() => setShareFeedback(null), 2200);
-    return () => window.clearTimeout(timer);
-  }, [shareFeedback]);
 
   useEffect(() => {
     if (!cardRef.current) return;
@@ -361,7 +347,6 @@ export default function ProductCard({
               productName={product.name}
               onClick={shareProduct}
               onShareIntent={() => setShareIntentImage(activeImageUrl)}
-              feedback={shareFeedback}
               overlay={false}
             />
             {cartVariant && (
