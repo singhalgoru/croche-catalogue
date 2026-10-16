@@ -327,14 +327,24 @@ const whatsappContactDetails = (number) => {
   return { digits, display };
 };
 
-const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
+const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, categorySettings = []) => {
   const marker = /<!--catalogue-->[\s\S]*?<!--\/catalogue-->/;
   if (!marker.test(template)) throw new Error('llms.txt is missing the <!--catalogue--> markers');
-  const categories = groupByCategory(products);
+  // Seasonal collections hold products by membership, not by product.category.
+  const seasonal = categorySettings
+    .filter(category => category.isSeasonal && category.visible !== false)
+    .sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
+    .map(category => [category.name, products.filter(product => category.productIds?.includes(product.id))])
+    .filter(([, items]) => items.length > 0);
+  const seasonalNames = new Set(seasonal.map(([name]) => name));
+  const categories = [...seasonal, ...groupByCategory(products).filter(([name]) => !seasonalNames.has(name))];
   const listing = [
     'Prices are in INR. Variant prices may differ; confirm current price and availability on the linked product page.',
     ...categories.map(([category, items]) => [
       `## ${markdownText(category)}`,
+      ...(seasonalNames.has(category)
+        ? [`Seasonal collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}). Products also appear under their regular categories.`]
+        : []),
       ...items.map((product) =>
         `- [${markdownText(product.name)}](${productUrl(product)}): ${priceLabel(product)}. ${stockLabel(product)}.`,
       ),
@@ -849,7 +859,7 @@ const main = async () => {
   await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages));
   await writeFile(
     path.join(DIST, 'llms.txt'),
-    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber),
+    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber, categories),
   );
 
   console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);

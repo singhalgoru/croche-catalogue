@@ -402,6 +402,16 @@ describe('renderLlms', () => {
     expect(text).not.toMatch(/made to order|<!--catalogue-->|AI image generation/i);
   });
 
+  it('lists visible seasonal collections first by membership without dropping regular categories', () => {
+    const seasonal = { name: 'Diwali Specials', priority: 1, isSeasonal: true, visible: true, productIds: [product.id] };
+    const text = renderLlms(template, [product], undefined, [seasonal]);
+    expect(text.indexOf('## Diwali Specials')).toBeLessThan(text.indexOf('## Hair Accessories'));
+    expect(text).toContain('Seasonal collection: [Diwali Specials](https://luviacreations.com/collections/diwali-specials/)');
+    expect(text.match(/\[Ivory Rose Gajra\]/g)).toHaveLength(2);
+    expect(renderLlms(template, [product], undefined, [{ ...seasonal, visible: false }])).not.toContain('Diwali Specials');
+    expect(renderLlms(template, [product], undefined, [{ ...seasonal, productIds: [] }])).not.toContain('Diwali Specials');
+  });
+
   it('uses the configured number in crawler contact details', () => {
     const text = renderLlms(template, [product], '+44 20 1234 5678');
     expect(text).toContain('[+442012345678](https://wa.me/442012345678)');
