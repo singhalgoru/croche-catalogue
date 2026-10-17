@@ -559,6 +559,13 @@ test('authors regular category image hotspots and shoppers explore products in t
   const row = page.getByLabel(`Priority for ${category}`).locator('..').locator('..').locator('..').locator('..');
   await row.getByRole('button', { name: 'Edit image & overview', exact: true }).click();
   const editor = page.getByRole('region', { name: `Products in ${category}` });
+  const scenePrompt = editor.getByRole('group', { name: 'Shop this look photo prompt' });
+  await scenePrompt.getByRole('checkbox', { name: product.name, exact: true }).check();
+  await scenePrompt.getByLabel('Scene or occasion (optional)').fill('A cosy living room showing the products in everyday use.');
+  await scenePrompt.getByRole('button', { name: 'Generate scene prompt' }).click();
+  await expect(scenePrompt.getByLabel('Generated scene prompt')).toContainText('Do not change the pattern, size or colour of ANY product');
+  await expect(scenePrompt.getByLabel('Generated scene prompt')).toContainText(`1. ${product.name}`);
+  expect(state.categorySettings[category].imageHotspots ?? []).toEqual([]);
   await editor.getByLabel('Search hotspot products').fill(product.name.slice(0, 3));
   await editor.getByLabel('Product for new hotspot').selectOption(product.id);
   await editor.getByRole('button', { name: 'Place new hotspot on photo' }).click();

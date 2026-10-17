@@ -5,6 +5,7 @@ import type { CategoryHotspot, CategorySettings } from '../../types/product';
 import { countOverviewWords, limitCategoryOverview } from '../../utils/categoryOverview.js';
 import ImageFilePicker from './ImageFilePicker';
 import CategoryHotspotEditor from './CategoryHotspotEditor';
+import CategoryScenePrompt from './CategoryScenePrompt';
 
 export default function SeasonalCategoryEditor({ category, onChanged, onClose }: {
   category: CategorySettings; onChanged: () => Promise<void>; onClose: () => void;
@@ -154,6 +155,9 @@ export default function SeasonalCategoryEditor({ category, onChanged, onClose }:
     </div>}
     <p className="mt-2 text-xs text-cocoa/70">{selected.size} selected. Only published products appear in the shop. Empty seasonal categories are not shown in the shop navigation.</p>
     </>}
+    <CategoryScenePrompt category={category.name}
+      products={products.filter(product => product.published && (category.isSeasonal ? selected.has(product.id) : product.category === category.name))}
+      disabled={busy || loading} />
     {(preview || coverImage) && <div className="mt-4">
       <CategoryHotspotEditor key={preview || coverImage} image={preview || coverImage}
         products={products.filter(product => product.published && (category.isSeasonal ? selected.has(product.id) : product.category === category.name))}

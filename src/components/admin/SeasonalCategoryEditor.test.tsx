@@ -22,6 +22,29 @@ beforeEach(() => {
   vi.mocked(removeSeasonalCategoryImages).mockResolvedValue(undefined);
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+it('offers only published category members for scene prompts without changing the saved content', async () => {
+  render(<SeasonalCategoryEditor category={{ name: 'Charms', priority: 1 }} onChanged={vi.fn()} onClose={vi.fn()} />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save category content' })).toHaveProperty('disabled', false));
+  expect(screen.queryByLabelText('Flower', { selector: 'input' })).toBeNull();
+  fireEvent.click(screen.getByLabelText('Rose', { selector: 'input' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Generate scene prompt' }));
+  expect(screen.getByLabelText<HTMLTextAreaElement>('Generated scene prompt').value).toContain('1. Rose (Charms)');
+  expect(saveCategoryContent).not.toHaveBeenCalled();
+  expect(saveSeasonalCategory).not.toHaveBeenCalled();
+});
+
+it('uses the draft seasonal membership and drops scene choices when a member is removed', async () => {
+  render(<SeasonalCategoryEditor category={category} onChanged={vi.fn()} onClose={vi.fn()} />);
+  await screen.findByLabelText('Rose · Charms');
+  fireEvent.click(screen.getByLabelText('Rose', { selector: 'input' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Generate scene prompt' }));
+  expect(screen.getByLabelText('Generated scene prompt')).toBeTruthy();
+  fireEvent.click(screen.getByLabelText('Rose · Charms'));
+  expect(screen.queryByLabelText('Generated scene prompt')).toBeNull();
+  expect(screen.queryByLabelText('Rose', { selector: 'input' })).toBeNull();
+  expect(saveSeasonalCategory).not.toHaveBeenCalled();
+});
+
 it('saves existing products and visibility without editing their primary categories', async () => {
   const changed = vi.fn().mockResolvedValue(undefined);
   const close = vi.fn();
