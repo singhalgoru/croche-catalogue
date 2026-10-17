@@ -26,8 +26,82 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  # Blocks every deployment unless lint, type checks, unit tests and the
+  # release-path browser suite pass. Catalogue-change and scheduled rebuilds
+  # reuse an earlier pass for the same commit so admin edits are not slowed
+  # down.
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for an earlier pass of this commit
+        id: verified
+        uses: actions/cache/restore@v4
+        with:
+          path: .verified
+          key: verified-${{ github.sha }}
+          lookup-only: true
+
+      - name: Set up Node
+        if: steps.verified.outputs.cache-hit != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: npm run lint
+
+      - name: Type check
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: npx tsc -b
+
+      - name: Unit tests
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: npm test
+
+      - name: Install Playwright browser
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Release browser tests (desktop and mobile)
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: npm run test:e2e
+
+      - name: Upload browser test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+      - name: Record the pass for this commit
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: mkdir -p .verified && echo "${{ github.sha }}" > .verified/sha
+
+      - name: Save the pass marker
+        if: steps.verified.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .verified
+          key: verified-${{ github.sha }}
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      entry_asset: ${{ steps.entry.outputs.asset }}
     steps:
       # A newer catalogue change cancels this run while it waits, so a burst
       # of admin edits produces one build of the final data.
@@ -63,6 +137,13 @@ jobs:
           VITE_CSP_EXTRA_CONNECT_SRC: ""
           VITE_ENABLE_RAZORPAY_TEST_CHECKOUT: ${{ vars.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT }}
 
+      - name: Record the entry script name
+        id: entry
+        run: |
+          asset="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -n 1)"
+          test -n "$asset"
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+
       - name: Generate Merchant Center feed and clean images
         run: node scripts/merchant-feed.mjs
         env:
@@ -85,7 +166,60 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Read-only checks against the live site once it serves this build.
+  smoke:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for the live site to serve this build
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+          ENTRY_ASSET: ${{ needs.build.outputs.entry_asset }}
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS "${PAGE_URL}?deploy-check=${GITHUB_RUN_ID}-${attempt}" | grep -q "$ENTRY_ASSET"; then
+              echo "Live site serves $ENTRY_ASSET"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::The live site did not serve $ENTRY_ASSET within 10 minutes"
+          exit 1
+
+      - name: Live smoke tests
+        run: npx playwright test -c playwright.smoke.config.ts
+        env:
+          SMOKE_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+
+      - name: Upload smoke test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

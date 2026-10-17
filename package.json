@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test e2e/release.spec.ts",
+    "test:e2e:full": "playwright test",
+    "test:smoke": "playwright test -c playwright.smoke.config.ts",
     "test:all": "npm run lint && npm run test && npm run test:e2e && npm run build",
     "backup:images": "node --env-file=.env.r2.local scripts/backup-r2-images.mjs"
   },

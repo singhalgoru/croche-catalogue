@@ -92,6 +92,12 @@ it('prepares verification while browsing and consumes a token only once', async 
   fireEvent.pointerDown(document.body);
   await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalledOnce());
   expect(options.appearance).toBe('interaction-only');
+  const corner = screen.getByRole('group', { name: 'Background bot verification' }).parentElement!;
+  expect(corner.className).toContain('pointer-events-none');
+  act(() => options['before-interactive-callback']?.());
+  expect(corner.className).not.toContain('pointer-events-none');
+  act(() => options['after-interactive-callback']?.());
+  expect(corner.className).toContain('pointer-events-none');
   expect(screen.queryByRole('dialog')).toBeNull();
   act(() => options.callback('prepared-token'));
   expect(await requestCartCaptcha()).toBe('prepared-token');

@@ -9,6 +9,8 @@ interface Turnstile {
     size: 'flexible';
     appearance?: 'interaction-only';
     callback: (token: string) => void;
+    'before-interactive-callback'?: () => void;
+    'after-interactive-callback'?: () => void;
     'error-callback': () => void;
     'expired-callback': () => void;
     'timeout-callback': () => void;
@@ -87,6 +89,7 @@ function ChallengeDialog() {
 function PreparedChallenge() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isInteractive, setInteractive] = useState(false);
   useEffect(() => {
     let active = true;
     let widgetId: string | undefined;
@@ -121,6 +124,8 @@ function PreparedChallenge() {
         sitekey: cartCaptchaSiteKey, action: 'authentication', size: 'flexible',
         appearance: 'interaction-only',
         callback: token => { if (active) finishCartCaptcha(token); },
+        'before-interactive-callback': () => { if (active) setInteractive(true); },
+        'after-interactive-callback': () => { if (active) setInteractive(false); },
         'expired-callback': invalidate,
         'error-callback': () => {
           invalidate();
@@ -133,7 +138,9 @@ function PreparedChallenge() {
     });
     return () => { active = false; stopWaiting(); if (widgetId && api) api.remove(widgetId); };
   }, []);
-  return <div className="fixed bottom-4 right-4 z-[90] max-w-[calc(100vw-2rem)]">
+  // The hidden widget still occupies the corner, so let taps reach the
+  // controls beneath it (e.g. Go to top) until Cloudflare needs the visitor.
+  return <div className={`fixed bottom-4 right-4 z-[90] max-w-[calc(100vw-2rem)] ${isInteractive ? '' : 'pointer-events-none'}`}>
     <div ref={containerRef} role="group" aria-label="Background bot verification" />
     {error && <p role="status" className="rounded-lg bg-cream p-2 text-xs text-cocoa">{error}</p>}
   </div>;

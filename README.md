@@ -449,9 +449,26 @@ npm run dev
 
 ```bash
 npm run lint
-npm run test -- --run
+npx tsc -b
+npm test
+npm run test:e2e   # deploy gate: stable release-path browser checks
+npm run test:e2e:full   # broader browser suite while older specs are refreshed
 npm run build
 ```
+
+`npm run test:all` runs lint, unit tests, browser tests and the build together.
+`npm run test:smoke` runs the read-only live checks in `e2e-smoke/`.
+
+Every deployment is gated by the same checks (see [Deployment](#deployment)).
+If a change intentionally alters the storefront, update the matching release
+test in `e2e/release.spec.ts` (and any broader `e2e/` specs you touched) in the
+same commit; a failing gate blocks the deploy and the live site keeps serving
+the last good build.
+
+`playwright.smoke.config.ts` runs read-only checks (`e2e-smoke/`) against the
+live site: `npm run test:smoke`. Set
+`SMOKE_BASE_URL` to check another deployment. These tests must never add to the
+cart, submit forms or sign in.
 
 ## Product images
 
@@ -1318,6 +1335,17 @@ The build fetches published products from Supabase and generates a crawlable
 `/p/<product>/` page and sitemap entry for each one. The deploy workflow runs on
 every push to `main`, about a minute after any catalogue change in admin (via a
 database trigger), and daily at 01:23 UTC as a safety net.
+
+Each run first verifies the code: lint, type checks, unit tests and the
+release-path Playwright suite on desktop and mobile Chromium
+(`e2e/release.spec.ts`). Nothing is deployed unless all of them pass. A passing
+commit is remembered (an Actions cache entry keyed by the commit), so
+catalogue-change and scheduled rebuilds of already-verified code skip straight
+to the build. After deploying, the `smoke` job waits until the live site serves
+the new entry script, then runs the read-only live smoke tests on desktop and
+mobile. A failed run uploads the Playwright report as an artifact and GitHub
+emails the repository owner. The broader `npm run test:e2e:full` suite remains
+available for refreshing older specs without slowing routine deployments.
 Check the deploy workflow if an update
 has not appeared. GitHub Pages and browsers may cache the sitemap briefly.
 Product sitemap `lastmod` uses the stored `updated_at` timestamp (UTC date), not
