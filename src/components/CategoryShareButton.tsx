@@ -42,7 +42,6 @@ export default function CategoryShareButton({ category, imageUrl = '' }: { categ
             ? {
                 title: `${category} | Luvia Creations`,
                 text: `${text}\n${url}`,
-                url,
                 files: [file],
               }
             : {

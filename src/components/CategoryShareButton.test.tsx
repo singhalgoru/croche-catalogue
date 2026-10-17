@@ -78,9 +78,11 @@ describe('CategoryShareButton', () => {
     expect(getShareableImageFile).toHaveBeenCalledWith('https://images.luviacreations.com/products/admin/navratri.webp', 'navratri-specials');
     fireEvent.click(screen.getByRole('button', { name: 'Share Navratri Specials collection' }));
     expect(share).toHaveBeenCalledWith(expect.objectContaining({
-      url: `${window.location.origin}/collections/navratri-specials/`,
+      text: `Explore Navratri Specials from Luvia Creations.\n${window.location.origin}/collections/navratri-specials/`,
       files: [file],
     }));
+    // WhatsApp shows the link twice when it appears in both `text` and `url`.
+    expect(share.mock.calls[0][0]).not.toHaveProperty('url');
   });
 
   it('shares the untouched WebP photo and a plain collection caption without hotspot instructions', async () => {

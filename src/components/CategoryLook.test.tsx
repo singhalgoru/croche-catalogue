@@ -1,7 +1,12 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import CategoryLook from './CategoryLook';
 import { products } from '../data/products';
+import * as analytics from '../services/analytics';
+
+vi.mock('../services/analytics', () => ({
+  trackShopTheLookViewed: vi.fn(), trackShopTheLookHotspot: vi.fn(), trackShopTheLookProductOpened: vi.fn(),
+}));
 const items = [
   { ...products[0], id: 'rose', name: 'Rose', category: 'Decor', price: 100, showPrice: true },
   { ...products[0], id: 'lotus', name: 'Lotus', category: 'Decor', price: 200, showPrice: false },
@@ -9,7 +14,28 @@ const items = [
 const category = { name: 'Decor', priority: 1, coverImage: '/styled.webp', imageHotspots: [
   { productId: 'rose', x: 25, y: 75 }, { productId: 'lotus', x: 50, y: 10 },
 ] };
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
+
+it('tracks the look once when seen, hotspot taps and product opens', () => {
+  let notify: IntersectionObserverCallback = () => {};
+  const disconnect = vi.fn();
+  vi.stubGlobal('IntersectionObserver', vi.fn(function (this: unknown, callback: IntersectionObserverCallback) {
+    notify = callback;
+    return { observe: vi.fn(), disconnect };
+  }));
+  render(<CategoryLook category={category} products={items} />);
+  expect(analytics.trackShopTheLookViewed).not.toHaveBeenCalled();
+  notify([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+  expect(analytics.trackShopTheLookViewed).toHaveBeenCalledTimes(1);
+  expect(analytics.trackShopTheLookViewed).toHaveBeenCalledWith('Decor', [items[0], items[1]]);
+  expect(disconnect).toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Explore Lotus, hotspot 2' }));
+  expect(analytics.trackShopTheLookHotspot).toHaveBeenCalledWith('Decor', items[1], 1);
+  const link = screen.getByRole('link', { name: 'View product' });
+  link.addEventListener('click', event => event.preventDefault());
+  fireEvent.click(link);
+  expect(analytics.trackShopTheLookProductOpened).toHaveBeenCalledWith('Decor', items[1], 1, 'card');
+});
 
 it('positions accessible markers by percentage and opens the corresponding product card', () => {
   render(<CategoryLook category={category} products={items} />);

@@ -402,6 +402,26 @@ test('shows a back-to-top control after scrolling the landing page', async ({ pa
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
 });
 
+for (const path of ['/p/rose-charm/', '/collections/', '/?page=feedback']) {
+  test(`shows a back-to-top control after scrolling ${path}`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+    await page.evaluate(() => {
+      document.body.style.minHeight = '4000px';
+      window.scrollTo(0, 900);
+    });
+    const goToTop = page.getByRole('button', { name: 'Go to top' });
+    await expect(goToTop).toBeVisible();
+    if (path.startsWith('/p/')) {
+      const purchaseBar = await page.getByLabel('Product purchase actions').boundingBox();
+      const button = await goToTop.boundingBox();
+      expect(button!.y + button!.height).toBeLessThanOrEqual(purchaseBar!.y);
+    }
+    await goToTop.click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
+  });
+}
+
 test('opens a product from its card and restores the browsing position', async ({ page }) => {
   const roseCard = page.getByRole('article', { name: 'Product: Rose Charm' });
   await page.evaluate(() => window.scrollTo(0, 650));

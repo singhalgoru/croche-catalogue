@@ -532,6 +532,7 @@ function App() {
         <Suspense fallback={<p role="status">Loading admin console…</p>}>
           <AdminPage onProductPublished={refreshProducts} />
         </Suspense>
+        <BackToTopButton />
       </>
     );
   }
@@ -639,7 +640,7 @@ function App() {
           <FeedbackForm />
         </Suspense>
       </main>
-      <Footer />{accountDialog}
+      <Footer /><BackToTopButton />{accountDialog}
     </div>;
   }
 
@@ -661,7 +662,7 @@ function App() {
           <button type="button" onClick={() => openAccount('signin')} className="mt-3 min-h-11 rounded-full bg-cocoa px-4 py-2 text-cream">Sign in to view orders</button>
         </div>}
       </main>
-      <Footer />{accountDialog}
+      <Footer /><BackToTopButton />{accountDialog}
     </div>;
   }
   if (isCartOpen) {
@@ -675,6 +676,7 @@ function App() {
         onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
       <main className="w-full flex-1">{cartDrawer}</main>
       <Footer showCollaboration={false} />
+      <BackToTopButton />
       {accountDialog}
     </div>;
   }
@@ -689,6 +691,7 @@ function App() {
           .filter(item => item.productId === productId).reduce((total, item) => total + item.quantity, 0) ?? 0}
         cartItemCount={cart.itemCount} cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)} onOpenAccount={openAccount} onOpenOrders={openOrders} accountName={customerName} />
+      <BackToTopButton />
       {cartDrawer}
       {accountDialog}
     </>;
@@ -909,7 +912,7 @@ function App() {
       )}
 
       <Footer showBulkOrders={!pageReference} />
-      {!selectedProduct && !isCartOpen && <BackToTopButton />}
+      {(!selectedProduct || pageReference) && <BackToTopButton raised={Boolean(pageReference && selectedProduct)} />}
 
       {selectedProduct && !pageReference && (
         <Suspense fallback={<p role="status">Loading product details…</p>}>

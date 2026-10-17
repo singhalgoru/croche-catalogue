@@ -122,6 +122,23 @@ it('records WhatsApp cart purchase intent as a lead, never as a purchase', async
   trackContactClick('whatsapp', 'footer');
   expect(ga.mock.calls.some(call => call[1] === 'generate_lead')).toBe(false);
 });
+it('records shop-the-look impressions, hotspot taps and product opens as promotion events', async () => {
+  const { trackShopTheLookViewed, trackShopTheLookHotspot, trackShopTheLookProductOpened } = await import('./analytics');
+  const product: Product = { id: 'rose', name: 'Rose', category: 'Decor', price: 200, showPrice: true,
+    description: '', color: 'pink', inStock: true, image: '/rose.webp', variants: [] };
+  trackShopTheLookViewed('Decor', [product]);
+  trackShopTheLookHotspot('Decor', product, 0);
+  trackShopTheLookProductOpened('Decor', product, 0, 'card');
+  expect(ga).toHaveBeenCalledWith('event', 'view_promotion', expect.objectContaining({
+    promotion_id: 'shop_the_look:Decor', hotspot_count: 1, items: [expect.objectContaining({ item_id: 'rose', index: 0 })],
+  }));
+  expect(ga).toHaveBeenCalledWith('event', 'category_hotspot_click', expect.objectContaining({
+    category: 'Decor', hotspot_index: 1, item_id: 'rose',
+  }));
+  expect(ga).toHaveBeenCalledWith('event', 'select_promotion', expect.objectContaining({
+    promotion_name: 'Shop this look: Decor', creative_slot: 'hotspot_1', link_source: 'card',
+  }));
+});
 it('records product WhatsApp intent with known prices only', async () => {
   const { trackWhatsAppEnquiry } = await import('./analytics');
   const product: Product = { id: 'rose', name: 'Rose', category: 'Flowers', price: 200, showPrice: true,

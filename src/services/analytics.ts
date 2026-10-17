@@ -224,3 +224,24 @@ export const trackContactClick = (channel: string, location: string) => {
   trackEvent('contact_click', { channel, location });
   trackMetaEvent('Contact', { contact_channel: channel, contact_location: location });
 };
+
+const shopTheLookPromotion = (category: string) => ({
+  promotion_id: `shop_the_look:${category}`,
+  promotion_name: `Shop this look: ${category}`,
+  creative_name: 'category_hotspot_image',
+});
+
+export const trackShopTheLookViewed = (category: string, products: Product[]) => {
+  trackEvent('view_promotion', { ...shopTheLookPromotion(category), hotspot_count: products.length,
+    items: products.map((product, index) => ({ ...itemParameters(product), index })) });
+};
+
+export const trackShopTheLookHotspot = (category: string, product: Product, index: number) => {
+  trackEvent('category_hotspot_click', { category, hotspot_index: index + 1,
+    item_id: product.id, item_name: product.name });
+};
+
+export const trackShopTheLookProductOpened = (category: string, product: Product, index: number, source: 'card' | 'list') => {
+  trackEvent('select_promotion', { ...shopTheLookPromotion(category), creative_slot: `hotspot_${index + 1}`,
+    link_source: source, items: [{ ...itemParameters(product), index }] });
+};
