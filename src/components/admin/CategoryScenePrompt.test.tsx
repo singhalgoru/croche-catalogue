@@ -22,7 +22,9 @@ it('requires selection, builds a product-specific prompt and enforces product pr
   expect(prompt.indexOf('1. Scene product 1')).toBeLessThan(prompt.indexOf('2. Scene product 0'));
   for (const text of ['Description 1', '10 x 12 cm', 'Cotton', 'Under a cup of tea.', 'A cosy tea table.',
     'Do not change the pattern, size or colour of ANY product', 'override any conflicting',
-    'Do NOT draw hotspots', 'WebP', 'ask for measurements rather than guessing']) {
+    'Do NOT draw hotspots', 'WebP', 'ask for measurements rather than guessing',
+    'Do not include the Luvia or Luvia Creations logo',
+    'Do not copy any logo or watermark visible in the reference photos']) {
     expect(prompt).toContain(text);
   }
   expect(prompt).not.toContain('Description 2');
