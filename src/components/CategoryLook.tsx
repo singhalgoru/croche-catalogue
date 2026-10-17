@@ -53,8 +53,13 @@ export default function CategoryLook({ category, products }: { category: Categor
         </button>)}
       </div>}
     <div aria-live="polite" className="flex items-center gap-3 rounded-xl bg-cream p-3">
-      <img src={getProductImageUrl(selected.product.image, 160)} alt="" width={80} height={80}
-        className="h-20 w-20 rounded-lg object-contain" loading="lazy" />
+      <a href={toProductPageUrl(selected.product)}
+        aria-label={`View ${selected.product.name}`}
+        onClick={() => trackShopTheLookProductOpened(category.name, selected.product, selectedIndex, 'card')}
+        className="shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+        <img src={getProductImageUrl(selected.product.image, 160)} alt="" width={80} height={80}
+          className="h-20 w-20 rounded-lg object-contain" loading="lazy" />
+      </a>
       <div className="min-w-0 space-y-1">
         <h3 className="font-semibold">{selected.product.name}</h3>
         {selected.product.showPrice !== false && selected.product.price !== null &&

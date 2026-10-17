@@ -58,6 +58,21 @@ it('positions accessible markers by percentage and opens the corresponding produ
   expect(screen.getByRole('list', { name: 'Products in this look' }).className).toBe('sr-only focus-within:not-sr-only');
 });
 
+it('links the thumbnail to the currently selected product and tracks one product open', () => {
+  render(<CategoryLook category={category} products={items} />);
+  expect(screen.getByRole('link', { name: 'View Rose' }).getAttribute('href'))
+    .toBe(screen.getByRole('link', { name: 'View product' }).getAttribute('href'));
+  fireEvent.click(screen.getByRole('button', { name: 'Explore Lotus, hotspot 2' }));
+  expect(screen.queryByRole('link', { name: 'View Rose' })).toBeNull();
+  const thumbnail = screen.getByRole('link', { name: 'View Lotus' });
+  expect(thumbnail.querySelector('img')).not.toBeNull();
+  expect(thumbnail.getAttribute('href'))
+    .toBe(screen.getByRole('link', { name: 'View product' }).getAttribute('href'));
+  thumbnail.addEventListener('click', event => event.preventDefault());
+  fireEvent.click(thumbnail);
+  expect(analytics.trackShopTheLookProductOpened).toHaveBeenCalledExactlyOnceWith('Decor', items[1], 1, 'card');
+});
+
 it('omits stale/deleted products and requires a custom cover with valid hotspots', () => {
   const { rerender } = render(<CategoryLook category={category} products={[]} />);
   expect(screen.queryByRole('region')).toBeNull();
