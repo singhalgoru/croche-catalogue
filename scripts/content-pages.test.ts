@@ -198,6 +198,29 @@ describe('collection and information pages', () => {
     expect(buildContentPages([], '919205907350').has('/collections/toys/')).toBe(false);
   });
 
+  it('adds clean category covers and fallback images only to indexable collection entries', () => {
+    const cover = 'https://images.luviacreations.com/products/admin/look.webp';
+    const categories = [
+      { name: 'Toys', priority: 1, coverImage: cover },
+      { name: 'Festive', priority: 2, isSeasonal: true, productIds: [toy.id], coverImage: cover },
+      { name: 'Empty', priority: 3, coverImage: cover },
+    ];
+    const generated = buildContentPages([toy, hair], '919205907350', categories);
+    const xml = renderContentSitemap([toy, hair], '2026-10-18', generated, categories);
+    const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+    const entries = [...doc.getElementsByTagName('url')];
+    for (const pathname of ['/collections/toys/', '/collections/festive/']) {
+      const entry = entries.find(node => node.querySelector('loc')?.textContent === `https://luviacreations.com${pathname}`)!;
+      expect(entry.getElementsByTagNameNS('http://www.google.com/schemas/sitemap-image/1.1', 'loc')[0].textContent).toContain('look');
+    }
+    expect(xml).not.toContain('/collections/empty/');
+    expect(xml).not.toContain('hotspot');
+    const fallback = renderContentSitemap([toy], '2026-10-18', buildContentPages([toy], '919205907350'));
+    const entry = fallback.split('<url>').find(node => node.includes('<loc>https://luviacreations.com/collections/toys/</loc>'))!;
+    expect(entry).toContain('bunny');
+    expect(entry).toContain('<image:image>');
+  });
+
   it('creates new admin categories including empty ones and removes deleted category pages on rebuild', () => {
     const next = buildContentPages([], '919205907350', [{ name: 'New Gifts', priority: 1 }]);
     expect(next.has('/collections/new-gifts/')).toBe(true);

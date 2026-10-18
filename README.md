@@ -689,6 +689,9 @@ The image host deliberately has no sitemap of its own: product photos are
 listed as `<image:image>` entries (960 px copies) under each product page in the
 main `https://luviacreations.com/sitemap.xml`, which Google accepts for images
 served from another host.
+Collection page entries also include their saved category cover (or the first
+published product photo in saved display order when no cover is set). Empty
+noindex collections are excluded; sitemap images never contain hotspot overlays.
 
 If the image host changes, update `isR2ImageHost`, the CSP in `index.html`,
 `scripts/prerender.mjs` and `public/catalogue-prefetch.js`. R2 photos are
@@ -751,6 +754,12 @@ a build warning. Reviewed photos containing promotional text are listed in
 `scripts/merchant-feed.mjs`: the feed uses an alternate variant gallery photo
 where available, otherwise excludes the item with a warning until a plain photo
 is uploaded. New uploads should be reviewed for Google image-policy compliance.
+Category scenes are exported separately as up to five `lifestyle_image_link`
+values, only for published category members explicitly tagged with valid hotspots.
+For variants, only the variant using the product's primary reference photo receives
+the scene; other colours/designs are not assumed to appear. These use the existing
+private clean-original publishing pipeline, not watermarked website covers or
+hotspot screenshots. Main and additional product photos remain unchanged.
 Invalid descriptions, prices or missing clean images fail
 deployment rather than publishing incomplete items. Handmade items without
 assigned GTIN/MPN use `identifier_exists=no`; no identifiers are invented.
@@ -1427,14 +1436,16 @@ unavailable message. Merchant `/shopping/` landing pages remain static and uncha
 For AI discovery, the site publishes [public/llms.txt](./public/llms.txt).
 During each build, the prerenderer replaces its catalogue markers with the
 published categories and product-page links, including visible price ranges
-in INR and stock status. It also updates the homepage meta descriptions from
+in INR and stock status. Each category also links to its collection page and its
+saved cover image (or the standard first-product fallback). It also updates the homepage meta descriptions from
 those categories, so unpublished categories are not advertised. Contact details
 remain in the template; WhatsApp enquiries link to the catalogue's contact
 buttons rather than publishing a mobile number in the discovery file.
 Stock wording follows the catalogue's "In stock" / "Sold out" status and does
 not promise made-to-order fulfilment or immediate dispatch.
 Each static product page includes Product JSON-LD with its visible price and
-availability, plus breadcrumbs. The sitemap contains URLs and `lastmod` only.
+availability, plus breadcrumbs. The sitemap includes page URLs, available
+`lastmod` dates and product/collection image entries.
 
 The approved return policy is published at `/return-policy/` from
 [public/return-policy/index.html](./public/return-policy/index.html). It is

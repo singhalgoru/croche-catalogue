@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { AwsClient } from 'aws4fetch';
 import sharp from 'sharp';
 import { loadEnv } from 'vite';
-import { escapeHtml, fetchProducts, renderProductPage, toProductReference, toProductSlug, toVariantSlug } from './prerender.mjs';
+import { escapeHtml, fetchBootstrapCategories, fetchProducts, renderProductPage, toProductReference, toProductSlug, toVariantSlug } from './prerender.mjs';
+import { getCategoryHotspots } from '../src/utils/categoryImage.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ORIGIN = 'https://luviacreations.com';
@@ -32,7 +33,18 @@ export const cleanImageKey = (source) => {
   return url.pathname.slice('/products/'.length).replace(/(?:-wm\d*)?\.webp$/, '/original.webp');
 };
 
-export const merchantItems = (products) => {
+export const merchantItems = (products, categories = []) => {
+  const lifestyleKeys = new Map();
+  for (const category of categories.filter(settings => settings.visible !== false)) {
+    const members = products.filter(product => category.isSeasonal
+      ? category.productIds?.includes(product.id) : product.category === category.name);
+    for (const spot of getCategoryHotspots(members, category)) {
+      const keys = lifestyleKeys.get(spot.productId) ?? [];
+      const key = cleanImageKey(category.coverImage);
+      if (!TEXT_OVERLAY_IMAGES.has(key) && !keys.includes(key)) keys.push(key);
+      lifestyleKeys.set(spot.productId, keys);
+    }
+  }
   const items = [];
   for (const product of products) {
     if (product.price === null) {
@@ -68,6 +80,8 @@ export const merchantItems = (products) => {
         image,
         cleanKey: cleanImageKey(image),
         additionalCleanKeys: cleanKeys.slice(1, 11),
+        lifestyleCleanKeys: !variant?.image || cleanImageKey(variant.image) === cleanImageKey(product.image)
+          ? (lifestyleKeys.get(product.id) ?? []).slice(0, 5) : [],
         variants: [],
         url: `${ORIGIN}/shopping/${toProductSlug(product)}/${toVariantSlug(variant)}/`,
         legacyUrl: `${ORIGIN}/shopping/${toProductReference(product)}/${id}/`,
@@ -89,6 +103,7 @@ ${items.map((item) => `<item>${[
     field('link', item.url),
     field('image_link', item.image),
     ...(item.additionalImages ?? []).map((image) => field('additional_image_link', image)),
+    ...(item.lifestyleImages ?? []).map((image) => field('lifestyle_image_link', image)),
     field('availability', item.inStock ? 'in_stock' : 'out_of_stock'),
     field('price', `${(item.regularPrice > item.price ? item.regularPrice : item.price).toFixed(2)} INR`),
     ...(item.regularPrice > item.price ? [field('sale_price', `${item.price.toFixed(2)} INR`)] : []),
@@ -133,7 +148,12 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
         additionalImages.push(additionalImage);
       }
     }
-    const publishedItem = { ...item, image, additionalImages };
+    const lifestyleImages = [];
+    for (const key of item.lifestyleCleanKeys ?? []) {
+      const lifestyleImage = await publishImage(key, item.name);
+      if (lifestyleImage !== image && !lifestyleImages.includes(lifestyleImage)) lifestyleImages.push(lifestyleImage);
+    }
+    const publishedItem = { ...item, image, additionalImages, lifestyleImages };
     const dir = path.join(dist, ...new URL(item.url).pathname.split('/').filter(Boolean));
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'index.html'), renderProductPage(publishedItem, whatsappNumber, null, false));
@@ -154,7 +174,11 @@ const main = async () => {
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ORIGINALS_BUCKET'];
   const missing = required.filter((name) => !env[name]);
   if (missing.length) throw new Error(`Missing Merchant configuration: ${missing.join(', ')}`);
-  const items = merchantItems(await fetchProducts(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY));
+  const [products, categories] = await Promise.all([
+    fetchProducts(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
+    fetchBootstrapCategories(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
+  ]);
+  const items = merchantItems(products, categories);
   if (!items.length) throw new Error('Refusing to publish an empty Merchant feed');
   const r2 = new AwsClient({ accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY, service: 's3', region: 'auto' });
   await writeMerchantCatalogue(items, path.join(ROOT, 'dist'), async (key) => {

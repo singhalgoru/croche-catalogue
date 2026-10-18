@@ -341,15 +341,20 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
   const categories = [...seasonal, ...groupByCategory(products).filter(([name]) => !seasonalNames.has(name))];
   const listing = [
     'Prices are in INR. Variant prices may differ; confirm current price and availability on the linked product page.',
-    ...categories.map(([category, items]) => [
+    ...categories.map(([category, items]) => {
+      const image = getCategoryImage(items, categorySettings.find(settings => settings.name === category));
+      return [
       `## ${markdownText(category)}`,
+      `Collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}).`,
+      ...(/^https:\/\//.test(image) ? [`Collection image: ${getProductImageUrl(image, 960)}`] : []),
       ...(seasonalNames.has(category)
         ? [`Seasonal collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}). Products also appear under their regular categories.`]
         : []),
       ...items.map((product) =>
         `- [${markdownText(product.name)}](${productUrl(product)}): ${priceLabel(product)}. ${stockLabel(product)}.`,
       ),
-    ].join('\n')),
+      ].join('\n');
+    }),
   ].join('\n\n');
   const contact = whatsappContactDetails(whatsappNumber);
   return template
@@ -632,7 +637,9 @@ const renderSitemap = (products, today, additionalPaths = []) => {
         sitemapImages(product),
       ),
     ),
-    ...additionalPaths.map(pathname => entry(`${ORIGIN}${pathname}`, null)),
+    ...additionalPaths.map(page => typeof page === 'string'
+      ? entry(`${ORIGIN}${page}`, null)
+      : entry(`${ORIGIN}${page.pathname}`, null, page.images)),
   ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${urls.join('\n')}\n</urlset>\n`;
@@ -870,7 +877,7 @@ const main = async () => {
     }
     await writeFile(path.join(dir, 'index.html'), attachProductApp(content, template));
   }
-  await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages));
+  await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages, categories));
   await writeFile(
     path.join(DIST, 'llms.txt'),
     renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber, categories),

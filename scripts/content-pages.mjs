@@ -158,5 +158,13 @@ export const buildContentPages = (products, whatsappNumber, categories = []) => 
   return pages;
 };
 
-export const renderContentSitemap = (products, today, pages) =>
-  renderSitemap(products, today, [...pages].filter(([, html]) => !html.includes('<meta name="robots" content="noindex,follow">')).map(([pathname]) => pathname));
+export const renderContentSitemap = (products, today, pages, categories = []) =>
+  renderSitemap(products, today, [...pages]
+    .filter(([, html]) => !html.includes('<meta name="robots" content="noindex,follow">'))
+    .map(([pathname]) => {
+      const category = categories.find(settings => collectionPath(settings.name) === pathname);
+      const items = products.filter(product => category?.isSeasonal
+        ? category.productIds?.includes(product.id) : collectionPath(product.category) === pathname);
+      const image = getProductImageUrl(getCategoryImage(items, category), 960);
+      return { pathname, images: /^https:\/\//.test(image) ? [image] : [] };
+    }));

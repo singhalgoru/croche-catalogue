@@ -399,7 +399,9 @@ describe('renderLlms', () => {
     expect(text).not.toMatch(/\{\{WHATSAPP_|tel:/);
     expect(text).toContain('mailto:orders@luviacreations.com');
     expect(text).toContain('mailto:hello@luviacreations.com');
-    expect(text).not.toMatch(/luviacreations\.com\/(?:products|collections|about|contact)\b/);
+    expect(text).toContain('Collection: [Hair Accessories](https://luviacreations.com/collections/hair-accessories/)');
+    expect(text).toContain('Collection image: https://');
+    expect(text).not.toMatch(/luviacreations\.com\/(?:products|about|contact)\b/);
     expect(text).not.toMatch(/made to order|<!--catalogue-->|AI image generation/i);
   });
 
@@ -419,6 +421,20 @@ describe('renderLlms', () => {
     const shell = injectShell(readFileSync(path.resolve('index.html'), 'utf8'), [product], '911234567890');
     expect(shell).toContain('"telephone": "+91 12345 67890"');
     expect(shell).not.toContain('{{WHATSAPP_PHONE}}');
+  });
+
+  it('uses saved regular and seasonal category covers and removes them when categories disappear', () => {
+    const cover = 'https://images.luviacreations.com/products/admin/scene.webp';
+    const categories = [
+      { name: product.category, coverImage: cover },
+      { name: 'Festive', priority: 1, isSeasonal: true, productIds: [product.id], coverImage: cover },
+    ];
+    const text = renderLlms(template, [product], undefined, categories);
+    expect(text.match(/Collection image: .*scene/g)).toHaveLength(2);
+    expect(text).toContain('Collection: [Festive](https://luviacreations.com/collections/festive/)');
+    expect(renderLlms(template, [], undefined, categories)).not.toContain('scene');
+    expect(renderLlms(template, [product], undefined, categories.map(category => ({ ...category, coverImage: '' }))))
+      .not.toContain('scene');
   });
 
   it('does not expose hidden prices or retain removed products and categories', () => {

@@ -17,6 +17,46 @@ const product = toProduct({
 });
 
 describe('Merchant Center feed', () => {
+  it('includes category scenes only for tagged members and matching primary-image variants', () => {
+    const category = { name: 'Decor', coverImage: 'https://images.luviacreations.com/products/admin/scene.webp',
+      imageHotspots: [{ productId: product.id, x: 25, y: 50 }] };
+    const items = merchantItems([product], [category, category]);
+    expect(items[0].lifestyleCleanKeys).toEqual(['admin/scene/original.webp']);
+    expect(items[1].lifestyleCleanKeys).toEqual([]);
+    expect(items[0].cleanKey).toBe('admin/photo/original.webp');
+    expect(merchantItems([product], [{ ...category, imageHotspots: [] }])[0].lifestyleCleanKeys).toEqual([]);
+    expect(merchantItems([product], [{ ...category, visible: false }])[0].lifestyleCleanKeys).toEqual([]);
+    expect(merchantItems([product], [{ ...category, name: 'Other' }])[0].lifestyleCleanKeys).toEqual([]);
+    expect(merchantItems([product], [{ ...category, isSeasonal: true, productIds: [product.id] }])[0].lifestyleCleanKeys).toHaveLength(1);
+    expect(merchantItems([product], [{ ...category, isSeasonal: true, productIds: [] }])[0].lifestyleCleanKeys).toEqual([]);
+    const many = Array.from({ length: 7 }, (_, index) => ({ ...category,
+      coverImage: `https://images.luviacreations.com/products/admin/scene-${index}.webp` }));
+    expect(merchantItems([product], many)[0].lifestyleCleanKeys).toHaveLength(5);
+  });
+
+  it('publishes clean scene originals as lifestyle images, not main or additional product photos', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-scenes-'));
+    try {
+      const main = await sharp({ create: { width: 600, height: 600, channels: 3, background: '#ffffff' } }).webp().toBuffer();
+      const scene = await sharp({ create: { width: 600, height: 600, channels: 3, background: '#224455' } }).webp().toBuffer();
+      const items = merchantItems([{ ...product, variants: [] }], [{
+        name: 'Decor', coverImage: 'https://images.luviacreations.com/products/admin/scene.webp',
+        imageHotspots: [{ productId: product.id, x: 25, y: 50 }],
+      }]);
+      const getImage = vi.fn(async (key: string) => key.includes('scene') ? scene : main);
+      await writeMerchantCatalogue(items, dir, getImage, '911234567890');
+      expect(getImage).toHaveBeenCalledWith('admin/scene/original.webp');
+      const xml = await readFile(path.join(dir, 'merchant-feed.xml'), 'utf8');
+      const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+      const field = (name: string) => doc.getElementsByTagNameNS('http://base.google.com/ns/1.0', name);
+      expect(field('lifestyle_image_link')).toHaveLength(1);
+      expect(field('lifestyle_image_link')[0].textContent).toContain('/merchant-images/');
+      expect(field('lifestyle_image_link')[0].textContent).not.toBe(field('image_link')[0].textContent);
+      expect(field('additional_image_link')).toHaveLength(0);
+      expect(xml).not.toContain('/products/admin/scene');
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
   it('exports regular and sale prices matching the current variant offer', () => {
     const items = merchantItems([{ ...product, discountPercent: 20,
       variants: [{ ...product.variants[0], price: 360, regularPrice: 450 }] }]);
