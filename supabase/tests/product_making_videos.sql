@@ -21,6 +21,8 @@ do $$ begin
   if has_function_privilege('authenticated','public.claim_product_video()','EXECUTE')
     or has_function_privilege('anon','public.reserve_product_video(uuid,bigint)','EXECUTE')
     or has_function_privilege('anon','public.reserve_product_video_with_music(uuid,bigint,bigint,text,text,boolean)','EXECUTE')
+    or has_function_privilege('anon','public.reserve_product_video_with_brand_music(uuid,bigint)','EXECUTE')
+    or has_function_privilege('anon','public.reprocess_product_video(uuid,text)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video(uuid,uuid,bigint,numeric,integer,integer,text)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video_publish(uuid,uuid,text,text,text)','EXECUTE')
     or has_function_privilege('anon','public.claim_product_video_transfer(uuid,text,integer)','EXECUTE')
@@ -101,9 +103,16 @@ begin
   exception when check_violation then null;
   end;
   j := public.reserve_product_video_with_music(p,1000,3,'audio/mpeg','mix',true);
-  if not exists(select 1 from product_video_jobs where id=j and music_bytes=3 and music_mode='mix') then
+  -- Legacy callers may still send 'mix'; supplied music always replaces source audio.
+  if not exists(select 1 from product_video_jobs where id=j and music_bytes=3 and music_mode='replace') then
     raise exception 'FAIL: music metadata missing';
   end if;
+  begin
+    perform public.reprocess_product_video(j,'brand');
+    raise exception 'FAIL: non-review draft reprocessed';
+  exception when raise_exception then
+    if sqlerrm<>'Only a private draft awaiting review can be reprocessed.' then raise; end if;
+  end;
   perform public.begin_product_video_upload(j);
   perform public.discard_product_video(p);
   if not exists(select 1 from public.product_making_videos where product_id=p and video_url='https://example.com/live.mp4') then

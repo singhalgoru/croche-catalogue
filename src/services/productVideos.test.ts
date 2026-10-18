@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo,
-  removeProductVideo, uploadProductVideo, validateVideoFile, validateMusicFile } from './productVideos';
+  removeProductVideo, reprocessProductVideo, uploadProductVideo, validateVideoFile, validateMusicFile } from './productVideos';
 const { invoke, from } = vi.hoisted(() => ({ invoke: vi.fn(), from: vi.fn() }));
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke }, from }) }));
 const id = '11111111-1111-4111-8111-111111111111';
@@ -64,18 +64,35 @@ it('validates music and permission before reservation and uploads music separate
     new File(['x'], 'a.mp4', { type: 'video/mp4' }), { name: 'a.wav', type: 'audio/wav', size: 20971521 } as File]) {
     expect(() => validateMusicFile(bad)).toThrow('20 MB');
   }
-  await expect(uploadProductVideo('p1', file(), { file: track, mode: 'mix', rightsConfirmed: false }))
+  await expect(uploadProductVideo('p1', file(), { file: track, rightsConfirmed: false }))
     .rejects.toThrow('permission');
   expect(invoke).not.toHaveBeenCalled();
   mockUpload();
-  await uploadProductVideo('p1', file(), { file: track, mode: 'mix', rightsConfirmed: true });
+  await uploadProductVideo('p1', file(), { file: track, rightsConfirmed: true });
+  // Supplied music always replaces (removes) source audio; no mode choice exists.
   expect(invoke.mock.calls[0][1].body.music).toEqual({
-    size: 5, type: 'audio/mpeg', mode: 'mix', rightsConfirmed: true,
+    size: 5, type: 'audio/mpeg', mode: 'replace', rightsConfirmed: true,
   });
   const payload = invoke.mock.calls[3][1];
   expect(invoke.mock.calls[3][0]).toBe(`product-videos?jobId=${id}&action=music`);
   expect(payload.body).toBe(track);
   expect(payload.headers['Content-Type']).toBe('application/octet-stream');
+});
+it('requests the private Luvia default track without any browser music upload', async () => {
+  mockUpload();
+  await uploadProductVideo('p1', file(), { source: 'brand' });
+  expect(invoke.mock.calls[0][1].body.music).toEqual({ source: 'brand' });
+  expect(invoke.mock.calls.some(call => String(call[0]).includes('action=music'))).toBe(false);
+  invoke.mockClear(); mockUpload();
+  await uploadProductVideo('p1', file());
+  expect(invoke.mock.calls[0][1].body.music).toBeUndefined();
+});
+it('reprocesses a review draft by ID with an explicit music option and requires confirmation', async () => {
+  invoke.mockResolvedValueOnce({ data: { queued: true } });
+  await reprocessProductVideo(id, 'brand');
+  expect(invoke).toHaveBeenCalledWith('product-videos', { body: { action: 'reprocess', jobId: id, music: 'brand' } });
+  invoke.mockResolvedValueOnce({ data: { queued: false } });
+  await expect(reprocessProductVideo(id)).rejects.toThrow('not confirmed');
 });
 it('sends an exact 500 MB boundary file as sequential bounded slices without reading the original', async () => {
   mockUpload();

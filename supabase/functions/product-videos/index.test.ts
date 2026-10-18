@@ -42,6 +42,8 @@ beforeEach(() => {
     if (name === 'is_catalogue_admin') return { data: true };
     if (name === 'reserve_product_video') return { data: id };
     if (name === 'reserve_product_video_with_music') return { data: id };
+    if (name === 'reserve_product_video_with_brand_music') return { data: id };
+    if (name === 'reprocess_product_video') { status = 'queued'; return { data: true }; }
     if (name === 'begin_product_video_upload') { status = 'receiving'; writer = true; }
     if (name === 'claim_product_video_transfer') {
       if (status !== 'receiving' || writer || !transfer.original_upload_id ||
@@ -209,17 +211,91 @@ const musicUploadRequest = () => new Request(`https://example.test/product-video
   method: 'POST', headers: { Authorization: '******', 'Content-Type': 'application/octet-stream' },
   body: new Uint8Array(1003),
 });
-it('validates music metadata and rights before reserving a music job', async () => {
-  const valid = { size: 3, type: 'audio/mpeg', mode: 'mix', rightsConfirmed: true };
+it('validates music metadata and rights, always reserving supplied music as replace', async () => {
+  const valid = { size: 3, type: 'audio/mpeg', mode: 'replace', rightsConfirmed: true };
   for (const patch of [{ size: 20971521 }, { size: 0 }, { type: 'video/mp4' }, { mode: 'loud' }, { rightsConfirmed: false }]) {
     expect((await handler(request({ action: 'prepare', productId: id, size: 1000, type: 'video/mp4',
       music: { ...valid, ...patch } }))).status).toBe(400);
   }
-  expect((await handler(request({ action: 'prepare', productId: id, size: 1000, type: 'video/mp4', music: valid }))).status).toBe(200);
-  expect(rpc).toHaveBeenCalledWith('reserve_product_video_with_music', {
-    p_product_id: id, p_bytes: 1000, p_music_bytes: 3, p_music_type: 'audio/mpeg',
-    p_music_mode: 'mix', p_music_rights: true,
+  // An older open admin tab may still send 'mix': it is stored and encoded as replace.
+  for (const mode of ['replace', 'mix', undefined]) {
+    expect((await handler(request({ action: 'prepare', productId: id, size: 1000, type: 'video/mp4',
+      music: { ...valid, mode } }))).status).toBe(200);
+  }
+  expect(rpc.mock.calls.filter(call => call[0] === 'reserve_product_video_with_music').map(call => call[1]))
+    .toEqual(Array(3).fill({ p_product_id: id, p_bytes: 1000, p_music_bytes: 3, p_music_type: 'audio/mpeg',
+      p_music_mode: 'replace', p_music_rights: true }));
+});
+it('reserves the private default track without any music upload metadata', async () => {
+  const response = await handler(request({ action: 'prepare', productId: id, size: 1000, type: 'video/mp4',
+    music: { source: 'brand' } }));
+  expect(await response.json()).toEqual({ jobId: id });
+  expect(rpc).toHaveBeenCalledWith('reserve_product_video_with_brand_music', { p_product_id: id, p_bytes: 1000 });
+  expect(rpc).not.toHaveBeenCalledWith('reserve_product_video_with_music', expect.anything());
+  expect(storageFetch).not.toHaveBeenCalled();
+});
+it('reprocesses a review draft through the admin RPC only, without storage or public changes', async () => {
+  for (const body of [{ jobId: '../x' }, { jobId: id, music: 'loud' }]) {
+    expect((await handler(request({ action: 'reprocess', ...body }))).status).toBe(400);
+  }
+  expect(await (await handler(request({ action: 'reprocess', jobId: id, music: 'brand' }))).json()).toEqual({ queued: true });
+  expect(rpc).toHaveBeenCalledWith('reprocess_product_video', { p_job_id: id, p_music: 'brand' });
+  await handler(request({ action: 'reprocess', jobId: id }));
+  expect(rpc).toHaveBeenLastCalledWith('reprocess_product_video', { p_job_id: id, p_music: 'keep' });
+  expect(storageFetch).not.toHaveBeenCalled(); expect(sign).not.toHaveBeenCalled();
+  rpc.mockImplementation(async (name: string) => name === 'is_catalogue_admin' ? { data: true }
+    : { error: { message: 'Only a private draft awaiting review can be reprocessed.' } });
+  const rejected = await handler(request({ action: 'reprocess', jobId: id }));
+  expect(rejected.status).toBe(400);
+  expect((await rejected.json()).error).toContain('awaiting review');
+  rpc.mockResolvedValue({ data: false });
+  expect((await handler(request({ action: 'reprocess', jobId: id }))).status).toBe(403);
+});
+const wav = (bytes = 64, channels = 2, rate = 22050) => {
+  const data = new Uint8Array(44 + bytes);
+  const view = new DataView(data.buffer);
+  data.set(new TextEncoder().encode('RIFF'), 0); view.setUint32(4, 36 + bytes, true);
+  data.set(new TextEncoder().encode('WAVEfmt '), 8); view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); view.setUint16(22, channels, true); view.setUint32(24, rate, true);
+  view.setUint32(28, rate * channels * 2, true); view.setUint16(32, channels * 2, true); view.setUint16(34, 16, true);
+  data.set(new TextEncoder().encode('data'), 36); view.setUint32(40, bytes, true);
+  return data;
+};
+const install = (body: Uint8Array, authorization = 'Bearer service-fixture', type = 'audio/wav', length = String(body.length)) =>
+  new Request('https://example.test/product-videos?action=install-brand-music', {
+    method: 'POST', headers: { Authorization: authorization, 'Content-Type': type, 'Content-Length': length }, body,
   });
+it('installs the private default track only for the service role, at a fixed private key', async () => {
+  const response = await handler(install(wav()));
+  expect(await response.json()).toEqual({ installed: true, bytes: 108 });
+  expect(storageFetch).toHaveBeenCalledOnce();
+  const [url, options] = storageFetch.mock.calls[0];
+  expect(url).toBe('https://account.r2.cloudflarestorage.com/private/making-video-music/luvia-gentle.wav');
+  expect(options).toMatchObject({ method: 'PUT', headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'private, no-store' } });
+  expect(getUser).not.toHaveBeenCalled(); expect(rpc).not.toHaveBeenCalled();
+});
+it('rejects admin/anon credentials, non-WAV bytes, wrong MIME and oversized tracks before storage', async () => {
+  for (const [req, code] of [
+    [install(wav(), 'Bearer admin-user-jwt'), 403], [install(wav(), ''), 403],
+    [install(wav(), 'Bearer service-fixtur'), 403], [install(wav(), 'Bearer service-fixture2'), 403],
+    [install(wav(), 'Bearer service-fixture', 'audio/mpeg'), 400],
+    [install(wav(), 'Bearer service-fixture', 'audio/wav', String(20 * 1024 * 1024 + 1)), 400],
+    [install(new TextEncoder().encode('ID3'.padEnd(64, 'x'))), 400],
+    [install(wav(64, 6)), 400], [install(wav(64, 2, 192000)), 400], [install(wav(0)), 400],
+  ] as const) expect((await handler(req)).status).toBe(code);
+  expect(storageFetch).not.toHaveBeenCalled();
+  env.R2_ORIGINALS_BUCKET = 'public';
+  expect((await handler(install(wav()))).status).toBe(503);
+  env.SUPABASE_SERVICE_ROLE_KEY = '';
+  expect((await handler(install(wav(), 'Bearer '))).status).toBe(403);
+  expect(storageFetch).not.toHaveBeenCalled();
+});
+it('accepts a gateway-verified service_role JWT even when the env key uses another format', async () => {
+  const jwt = (role: string) => `Bearer h.${btoa(JSON.stringify({ role })).replace(/=/g, '')}.s`;
+  expect((await handler(install(wav(), jwt('authenticated')))).status).toBe(403);
+  expect((await handler(install(wav(), jwt('anon')))).status).toBe(403);
+  expect(storageFetch).not.toHaveBeenCalled();
+  expect((await handler(install(wav(), jwt('service_role')))).status).toBe(200);
 });
 it('stores a private bounded track before queuing and does not queue failed track uploads', async () => {
   music = { music_bytes: 3, music_type: 'audio/mpeg', music_mode: 'mix' };

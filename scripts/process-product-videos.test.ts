@@ -3,7 +3,7 @@ import { mkdir, readFile, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { encodeVideo, readBoundedBody, runMediaTool, validateProbe, validateMusicProbe } from './process-product-videos.mjs';
+import { encodeVideo, outputSize, readBoundedBody, runMediaTool, validateProbe, validateMusicProbe } from './process-product-videos.mjs';
 import { createVideoWatermark, VIDEO_WATERMARK } from './video-watermark.mjs';
 
 const dir = resolve('.video-processing', 'test-processor');
@@ -49,31 +49,19 @@ it('rejects music containers with video/artwork, invalid duration, excessive cha
   expect(() => validateMusicProbe({ ...music, format: { ...music.format, format_name: 'wav' } }, 'audio/wav')).toThrow('audio-only');
 });
 
-it.each([
-  { sourceAudio: false, mode: 'mix', type: 'audio/wav', extension: 'wav', codec: 'pcm_s16le' },
-  { sourceAudio: true, mode: 'mix', type: 'audio/mpeg', extension: 'mp3', codec: 'libmp3lame' },
-  { sourceAudio: true, mode: 'replace', type: 'audio/mp4', extension: 'm4a', codec: 'aac' },
-])('loops, trims and fades real $extension music in $mode mode (source audio: $sourceAudio)', async ({ sourceAudio, mode, type, extension, codec }) => {
-  const base = join(dir, `music-${extension}`);
-  const input = `${base}-source.mp4`;
-  const track = `${base}.${extension}`;
-  const output = `${base}-mixed.mp4`;
-  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x90:r=30',
-    ...(sourceAudio ? ['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'] : []),
-    '-t', '2', '-c:v', 'libx264', '-preset', 'ultrafast', ...(sourceAudio ? ['-c:a', 'aac'] : []), input]);
-  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000',
-    '-t', extension === 'wav' ? '3' : '0.3', '-c:a', codec, track]);
-  const original = await readFile(input);
-  const originalTrack = await readFile(track);
-  const info = await encodeVideo(input, output, `${base}.webp`, runMediaTool, { path: track, type, mode });
-  expect(Math.abs(info.duration - 2)).toBeLessThan(0.06);
-  expect(await readFile(input)).toEqual(original);
-  expect(await readFile(track)).toEqual(originalTrack);
-  const pcm = `${base}.pcm`;
-  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-i', output,
+const streamsOf = async (file: string) => JSON.parse(await runMediaTool('ffprobe',
+  ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file])) as {
+  streams: { codec_type: string; codec_name: string; width?: number; height?: number }[];
+  format: { duration: string; size: string };
+};
+const audioStreams = async (file: string) =>
+  (await streamsOf(file)).streams.filter(stream => stream.codec_type === 'audio');
+const amplitudeOf = async (file: string) => {
+  const pcm = `${file}.pcm`;
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-i', file,
     '-vn', '-ac', '1', '-ar', '48000', '-f', 'f32le', pcm]);
   const samples = await readFile(pcm);
-  const amplitude = (frequency: number, start: number, seconds = 0.15) => {
+  return (frequency: number, start: number, seconds = 0.15) => {
     let real = 0, imaginary = 0;
     const count = Math.floor(seconds * 48000);
     for (let i = 0; i < count; i++) {
@@ -83,24 +71,104 @@ it.each([
     }
     return 2 * Math.hypot(real, imaginary) / count;
   };
+};
+
+it.each([
+  { sourceAudio: false, mode: 'replace', type: 'audio/wav', extension: 'wav', codec: 'pcm_s16le' },
+  // Legacy queued/reprocessed rows may still carry 'mix'; they must drop source audio too.
+  { sourceAudio: true, mode: 'mix', type: 'audio/mpeg', extension: 'mp3', codec: 'libmp3lame' },
+  { sourceAudio: true, mode: 'replace', type: 'audio/mp4', extension: 'm4a', codec: 'aac' },
+])('outputs only looped, trimmed, faded $extension music and never source audio ($mode row, source audio: $sourceAudio)', async ({ sourceAudio, mode, type, extension, codec }) => {
+  const base = join(dir, `music-${extension}`);
+  const input = `${base}-source.mp4`;
+  const track = `${base}.${extension}`;
+  const output = `${base}-music.mp4`;
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x90:r=30',
+    ...(sourceAudio ? ['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'] : []),
+    '-t', '2', '-c:v', 'libx264', '-preset', 'ultrafast', ...(sourceAudio ? ['-c:a', 'aac'] : []), input]);
+  if (sourceAudio) expect(await audioStreams(input)).toHaveLength(1);
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000',
+    '-t', extension === 'wav' ? '3' : '0.3', '-c:a', codec, track]);
+  const original = await readFile(input);
+  const originalTrack = await readFile(track);
+  const info = await encodeVideo(input, output, `${base}.webp`, runMediaTool, { path: track, type, mode });
+  expect(Math.abs(info.duration - 2)).toBeLessThan(0.06);
+  expect(await readFile(input)).toEqual(original);
+  expect(await readFile(track)).toEqual(originalTrack);
+  const audio = await audioStreams(output);
+  expect(audio).toHaveLength(1);
+  expect(audio[0].codec_name).toBe('aac');
+  const amplitude = await amplitudeOf(output);
   // Short MP3/M4A tracks must loop; the longer WAV must trim to the clip length.
   expect(amplitude(880, 1.3)).toBeGreaterThan(0.006);
   expect(amplitude(880, 1)).toBeLessThan(0.04);
   expect(amplitude(880, 0, 0.05)).toBeLessThan(amplitude(880, 1) * 0.5);
   expect(amplitude(880, 1.94, 0.04)).toBeLessThan(amplitude(880, 1) * 0.5);
-  if (sourceAudio && mode === 'mix') expect(amplitude(440, 1)).toBeGreaterThan(0.07);
-  else expect(amplitude(440, 1)).toBeLessThan(0.003);
+  // The loud 440 Hz source tone is entirely absent in every music mode.
+  for (const at of [0.3, 1, 1.6]) expect(amplitude(440, at)).toBeLessThan(0.003);
   if (!sourceAudio) {
-    const silent = `${base}-no-music.mp4`;
-    await encodeVideo(input, silent, `${base}-no-music.webp`);
-    const noMusic = JSON.parse(await runMediaTool('ffprobe', ['-v', 'error', '-show_streams', '-of', 'json', silent]));
-    expect(noMusic.streams.some((stream: { codec_type: string }) => stream.codec_type === 'audio')).toBe(false);
     await expect(encodeVideo(input, `${base}-invalid.mp4`, `${base}-invalid.webp`, runMediaTool,
-      { path: input, type: 'audio/mp4', mode: 'mix' })).rejects.toThrow('audio-only');
+      { path: input, type: 'audio/mp4', mode: 'replace' })).rejects.toThrow('audio-only');
   }
 }, 120_000);
 
-it('processes a real synthetic MP4 with FFmpeg into faststart H264/AAC and a WebP poster', async () => {
+it('removes source audio entirely when no music is chosen (no audio stream at all)', async () => {
+  const base = join(dir, 'no-music');
+  const input = `${base}-source.mp4`;
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=320x180:r=30',
+    '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000', '-f', 'lavfi', '-i', 'anoisesrc=a=0.3:c=pink',
+    '-filter_complex', '[1:a][2:a]amix=inputs=2[a]', '-map', '0:v', '-map', '[a]',
+    '-t', '2', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', input]);
+  expect(await audioStreams(input)).toHaveLength(1);
+  const output = `${base}.mp4`;
+  await encodeVideo(input, output, `${base}.webp`);
+  expect(await audioStreams(output)).toHaveLength(0);
+  expect((await streamsOf(output)).streams).toHaveLength(1);
+}, 120_000);
+
+it('rejects an encode whose output audio does not match the music choice', async () => {
+  const withAudio = JSON.stringify(probe);
+  await expect(encodeVideo('in.mp4', 'out.mp4', 'poster.webp', async () => withAudio))
+    .rejects.toThrow('audio does not match');
+});
+
+it.each([
+  { label: 'large landscape', width: 1920, height: 1080, expected: [1280, 720] },
+  { label: 'phone portrait', width: 1080, height: 1920, expected: [404, 720] },
+  { label: '4K portrait', width: 2160, height: 3840, expected: [404, 720] },
+  { label: 'ultrawide', width: 3840, height: 1080, expected: [1280, 360] },
+  { label: 'exact 720p', width: 1280, height: 720, expected: [1280, 720] },
+  { label: 'small landscape', width: 160, height: 90, expected: [160, 90] },
+  { label: 'small portrait', width: 360, height: 640, expected: [360, 640] },
+  { label: 'odd small', width: 331, height: 187, expected: [330, 186] },
+])('sizes $label without upscaling, cropping or changing orientation', ({ width, height, expected }) => {
+  const result = outputSize(width, height);
+  expect([result.width, result.height]).toEqual(expected);
+  expect(result.width).toBeLessThanOrEqual(Math.max(width, 2));
+  expect(result.height).toBeLessThanOrEqual(Math.max(height, 2));
+  expect(Math.abs(result.width / result.height - width / height) / (width / height)).toBeLessThan(0.02);
+  expect(result.width % 2 + result.height % 2).toBe(0);
+});
+
+it('encodes a real phone-portrait source to a compact 404x720 portrait MP4', async () => {
+  const base = join(dir, 'phone-portrait');
+  const input = `${base}-source.mp4`;
+  const output = `${base}.mp4`;
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1080x1920:r=30',
+    '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+    '-t', '3', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-c:a', 'aac', input]);
+  const info = await encodeVideo(input, output, `${base}.webp`);
+  expect([info.width, info.height]).toEqual([404, 720]);
+  const encoded = await streamsOf(output);
+  expect(encoded.streams.filter(stream => stream.codec_type === 'audio')).toHaveLength(0);
+  const bytes = Number(encoded.format.size);
+  const sourceBytes = (await readFile(input)).byteLength;
+  // CRF 24 + 30fps cap: well under 3 Mbit/s and smaller than the high-quality source.
+  expect(bytes * 8 / Number(encoded.format.duration)).toBeLessThan(3_000_000);
+  expect(bytes).toBeLessThan(sourceBytes);
+}, 120_000);
+
+it('processes a real synthetic MP4 with FFmpeg into faststart H264 without source audio and a WebP poster', async () => {
   const input = join(dir, 'original.mp4');
   const output = join(dir, 'video.mp4');
   const poster = join(dir, 'poster.webp');
@@ -112,6 +180,7 @@ it('processes a real synthetic MP4 with FFmpeg into faststart H264/AAC and a Web
   const result = await encodeVideo(input, output, poster);
   expect(result.width).toBe(1280);
   expect(result.height).toBe(720);
+  expect(await audioStreams(output)).toHaveLength(0);
   expect(result.duration).toBeGreaterThanOrEqual(2);
   const mp4 = await readFile(output);
   expect(mp4.indexOf('moov')).toBeLessThan(mp4.indexOf('mdat'));
@@ -131,7 +200,7 @@ it('never passes user filenames through a shell and constrains input protocols',
   const calls: string[][] = [];
   await encodeVideo('untrusted;$(run).mp4', 'out.mp4', 'poster.webp', async (_tool: string, args: string[]) => {
     calls.push(args);
-    return JSON.stringify(probe);
+    return JSON.stringify(calls.length === 4 ? { ...probe, streams: [probe.streams[0]] } : probe);
   });
   expect(calls[0]).toContain('file,pipe');
   expect(calls[1]).toContain('untrusted;$(run).mp4');
@@ -139,6 +208,19 @@ it('never passes user filenames through a shell and constrains input protocols',
   expect(calls[1]).toContain('+faststart');
   expect(calls[1]).toContain('-filter_complex');
   expect(calls[1].some(value => value.includes('overlay=main_w-overlay_w'))).toBe(true);
+  expect(calls[1]).toContain('-an');
+  expect(calls[1].join(' ')).not.toMatch(/0:a|\[0:a/);
+  const musicCalls: string[][] = [];
+  const music = { format: { format_name: 'mp3', duration: '3' },
+    streams: [{ codec_type: 'audio', codec_name: 'mp3', channels: 2, sample_rate: '44100' }] };
+  await encodeVideo('in.mp4', 'out.mp4', 'poster.webp', async (_tool: string, args: string[]) => {
+    musicCalls.push(args);
+    return JSON.stringify(musicCalls.length === 2 ? music : probe);
+  }, { path: 'music.bin', type: 'audio/mpeg', mode: 'mix' });
+  const ffmpeg = musicCalls[2].join(' ');
+  expect(ffmpeg).not.toMatch(/0:a|amix/);
+  expect(ffmpeg).toContain('-map [audio]');
+  expect(musicCalls[2]).not.toContain('-an');
 });
 
 it.each([
@@ -163,6 +245,11 @@ it.each([
   const info = await encodeVideo(source, output, poster);
   expect(await readFile(source)).toEqual(original);
   expect(info.width <= 1280 && info.height <= 720).toBe(true);
+  // Small sources are never upscaled.
+  const displayWidth = rotate ? height : width * sar;
+  const displayHeight = rotate ? width : height;
+  expect(info.width).toBeLessThanOrEqual(displayWidth);
+  expect(info.height).toBeLessThanOrEqual(displayHeight);
   if (rotate || width > height) expect(info.width).toBeGreaterThan(info.height);
   else expect(info.width).toBeLessThan(info.height);
   const expectedAspect = rotate ? height / (width * sar) : width * sar / height;

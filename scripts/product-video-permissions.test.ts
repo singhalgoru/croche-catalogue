@@ -6,6 +6,7 @@ const edge = readFileSync(new URL('../supabase/functions/product-videos/index.ts
 const dispatch = readFileSync(new URL('../supabase/migrations/20261018142000_dispatch_product_video_processing.sql', import.meta.url), 'utf8');
 const workflow = readFileSync(new URL('../.github/workflows/process-product-videos.yml', import.meta.url), 'utf8');
 const music = readFileSync(new URL('../supabase/migrations/20261018160000_product_video_music.sql', import.meta.url), 'utf8');
+const audioPolicy = readFileSync(new URL('../supabase/migrations/20261018190000_product_video_audio_policy.sql', import.meta.url), 'utf8');
 const multipart = readFileSync(new URL('../supabase/migrations/20261018173000_product_video_multipart.sql', import.meta.url), 'utf8');
 it('bounds multipart originals to 500 MB, serializes writers and restricts transfer completion to the service role', () => {
   expect(multipart).toContain('source_bytes between 1 and 524288000');
@@ -19,6 +20,20 @@ it('bounds multipart originals to 500 MB, serializes writers and restricts trans
   expect(multipart).toContain('from public,anon,authenticated');
   expect(multipart).toContain('grant execute on function public.finish_product_video_transfer(uuid,uuid,text,text,text,text) to service_role');
 });
+it('stores supplied music as replace-only and restricts brand music and draft reprocessing to admins', () => {
+  expect(audioPolicy).toContain("music_mode='replace'");
+  expect(audioPolicy).toContain("music_source in ('brand')");
+  expect(audioPolicy).toContain("music_source='brand' and music_bytes is null and music_type is null and music_mode is null");
+  for (const fn of ['reserve_product_video_with_brand_music(uuid,bigint)', 'reprocess_product_video(uuid,text)']) {
+    expect(audioPolicy).toContain(`revoke all on function public.${fn} from public,anon`);
+    expect(audioPolicy).toContain(`grant execute on function public.${fn} to authenticated`);
+  }
+  expect(audioPolicy.match(/if not public\.is_catalogue_admin\(\)/g)).toHaveLength(3);
+  expect(audioPolicy).toContain("status='review' and not writer_active");
+  expect(audioPolicy).toContain("p_music not in ('keep','brand','none')");
+  expect(edge).toContain("=== 'install-brand-music') return await installBrandMusic(request)");
+});
+
 it('restricts music reservation to admins, requires acknowledged rights and constrains nullable metadata', () => {
   expect(music).toContain('if not public.is_catalogue_admin()');
   expect(music).toContain('p_music_rights is distinct from true');

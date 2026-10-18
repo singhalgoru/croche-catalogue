@@ -41,11 +41,10 @@ export function validateVideoFile(file: File) {
   }
 }
 
-export interface VideoMusic {
-  file: File;
-  mode: 'mix' | 'replace';
-  rightsConfirmed: boolean;
-}
+// Source audio is always removed. Music is either the private Luvia default
+// track (installed server-side; never downloaded by the browser) or an
+// admin-supplied file. Omit music for a video with no audio stream.
+export type VideoMusic = { source: 'brand' } | { file: File; rightsConfirmed: boolean };
 
 export function validateMusicFile(file: File) {
   const extensions: Record<string, RegExp> = {
@@ -59,14 +58,15 @@ export function validateMusicFile(file: File) {
 
 export async function uploadProductVideo(productId: string, file: File, music?: VideoMusic) {
   validateVideoFile(file);
-  if (music) {
-    validateMusicFile(music.file);
-    if (!music.rightsConfirmed) throw new Error('Confirm that you own or have permission to use this music.');
-    if (!['mix', 'replace'].includes(music.mode)) throw new Error('Choose a valid music mode.');
+  const custom = music && 'file' in music ? music : undefined;
+  if (music && !custom && !('source' in music && music.source === 'brand')) throw new Error('Choose a valid music option.');
+  if (custom) {
+    validateMusicFile(custom.file);
+    if (!custom.rightsConfirmed) throw new Error('Confirm that you own or have permission to use this music.');
   }
   const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: 'video/mp4',
-    ...(music ? { music: { size: music.file.size, type: music.file.type, mode: music.mode,
-      rightsConfirmed: music.rightsConfirmed } } : {}),
+    ...(custom ? { music: { size: custom.file.size, type: custom.file.type, mode: 'replace',
+      rightsConfirmed: custom.rightsConfirmed } } : music ? { music: { source: 'brand' } } : {}),
   });
   if (typeof jobId !== 'string' || !/^[0-9a-f-]{36}$/i.test(jobId)) throw new Error('Invalid video upload response.');
   const started = await invoke({ action: 'start', jobId });
@@ -85,7 +85,7 @@ export async function uploadProductVideo(productId: string, file: File, music?: 
   for (let offset = 0, part = 1; offset < file.size; offset += partBytes, part++) {
     await upload('part', file.slice(offset, Math.min(offset + partBytes, file.size)), part);
   }
-  if (music) await upload('music', music.file);
+  if (custom) await upload('music', custom.file);
   const completed = await invoke({ action: 'complete', jobId });
   if (completed.queued !== true) throw new Error(completed.error || 'Video upload did not complete. Discard the draft and retry.');
   return jobId as string;
@@ -117,6 +117,11 @@ export async function previewProductVideo(jobId: string): Promise<VideoPreview> 
     throw new Error('Private preview returned invalid media metadata. Refresh the preview and try again.');
   }
   return data;
+}
+
+export async function reprocessProductVideo(jobId: string, music: 'keep' | 'brand' | 'none' = 'keep') {
+  const data = await invoke({ action: 'reprocess', jobId, music });
+  if (data.queued !== true) throw new Error('Reprocessing was not confirmed. Reload the status before retrying.');
 }
 
 export async function publishProductVideo(jobId: string) {

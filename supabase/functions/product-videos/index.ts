@@ -32,10 +32,85 @@ async function readUpload(request: Request, expected: number) {
   return bytes;
 }
 
+export const BRAND_MUSIC_KEY = 'making-video-music/luvia-gentle.wav';
+const MAX_MUSIC_BYTES = 20 * 1024 * 1024;
+
+function sameSecret(supplied: string, expected: string) {
+  const a = new TextEncoder().encode(supplied);
+  const b = new TextEncoder().encode(expected);
+  let difference = a.length ^ b.length;
+  for (let index = 0; index < b.length; index++) difference |= (a[index] ?? 0) ^ b[index];
+  return difference === 0 && b.length > 0;
+}
+
+// Structural PCM WAV check before storage; the worker re-validates with FFprobe.
+function validateWav(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const tag = (offset: number) => String.fromCharCode(...bytes.subarray(offset, offset + 4));
+  if (bytes.length < 44 || tag(0) !== 'RIFF' || tag(8) !== 'WAVE') throw new Error('Default music must be a PCM WAV file.');
+  let format = false;
+  let data = false;
+  for (let offset = 12; offset + 8 <= bytes.length;) {
+    const size = view.getUint32(offset + 4, true);
+    if (tag(offset) === 'fmt ' && size >= 16 && offset + 24 <= bytes.length) {
+      const code = view.getUint16(offset + 8, true);
+      const channels = view.getUint16(offset + 10, true);
+      const rate = view.getUint32(offset + 12, true);
+      const bits = view.getUint16(offset + 22, true);
+      format = [1, 3, 0xfffe].includes(code) && channels >= 1 && channels <= 2 &&
+        rate >= 8000 && rate <= 96000 && [8, 16, 24, 32].includes(bits);
+    }
+    if (tag(offset) === 'data' && size > 0) data = true;
+    offset += 8 + size + (size % 2);
+  }
+  if (!format || !data) throw new Error('Default music must be mono/stereo 8–96 kHz PCM WAV audio.');
+}
+
+// Service-role-only: installs the private default (brand) track. Admin JWTs,
+// anon keys and browsers cannot reach this path; nothing is made public.
+async function installBrandMusic(request: Request) {
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const token = request.headers.get('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1] ?? '';
+  // The gateway (verify_jwt) has already verified the signature; its role claim distinguishes service keys.
+  let claimRole = '';
+  try {
+    claimRole = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role ?? '';
+  } catch { /* non-JWT keys are compared directly */ }
+  if (!serviceKey || !(sameSecret(token, serviceKey) || claimRole === 'service_role')) {
+    return json({ error: 'Service role required.' }, 403);
+  }
+  const type = request.headers.get('content-type')?.split(';')[0];
+  const declared = request.headers.get('content-length');
+  if (!['audio/wav', 'audio/x-wav'].includes(type ?? '') || !declared || !/^\d+$/.test(declared) ||
+    Number(declared) < 44 || Number(declared) > MAX_MUSIC_BYTES) {
+    await request.body?.cancel();
+    return json({ error: 'Send a PCM WAV (audio/wav) up to 20 MB with Content-Length.' }, 400);
+  }
+  const account = Deno.env.get('R2_ACCOUNT_ID') || Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
+  const bucket = Deno.env.get('R2_ORIGINALS_BUCKET');
+  const publicBucket = Deno.env.get('R2_BUCKET');
+  const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID');
+  const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
+  if (!account || !bucket || !publicBucket || bucket === publicBucket || !accessKeyId || !secretAccessKey) {
+    await request.body?.cancel();
+    return json({ error: 'Private video storage is not configured.' }, 503);
+  }
+  const bytes = await readUpload(request, Number(declared));
+  validateWav(bytes);
+  const r2 = new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto', retries: 1 });
+  const response = await r2.fetch(`https://${account}.r2.cloudflarestorage.com/${bucket}/${BRAND_MUSIC_KEY}`, {
+    method: 'PUT', body: bytes, signal: AbortSignal.timeout(60_000),
+    headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'private, no-store' },
+  });
+  if (!response.ok) throw new Error(`Default music upload failed (HTTP ${response.status}).`);
+  return json({ installed: true, bytes: bytes.length });
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
   try {
+    if (new URL(request.url).searchParams.get('action') === 'install-brand-music') return await installBrandMusic(request);
     const authorization = request.headers.get('Authorization');
     if (!authorization) return json({ error: 'Authentication required.' }, 401);
     const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -56,6 +131,17 @@ Deno.serve(async (request) => {
     const query = new URL(request.url).searchParams;
     const body = binary ? { action: query.get('action') || 'upload',
       jobId: query.get('jobId'), part: Number(query.get('part')) } : await request.json();
+    if (body.action === 'reprocess') {
+      const musicChoice = body.music ?? 'keep';
+      if (!uuid.test(body.jobId) || !['keep', 'brand', 'none'].includes(musicChoice)) {
+        return json({ error: 'Invalid video reprocess request.' }, 400);
+      }
+      // Re-queues the retained private original; the trigger dispatches the worker.
+      if (await rpc('reprocess_product_video', { p_job_id: body.jobId, p_music: musicChoice }) !== true) {
+        throw new Error('Reprocessing was not confirmed. Reload the status before retrying.');
+      }
+      return json({ queued: true });
+    }
     if (body.action === 'remove') {
       if (!uuid.test(body.productId)) return json({ error: 'Invalid product ID.' }, 400);
       await rpc('remove_product_video', { p_product_id: body.productId });
@@ -105,14 +191,17 @@ Deno.serve(async (request) => {
         return json({ error: 'Choose an MP4 video no larger than 500 MB. Clips must still be 1–60 seconds.' }, 400);
       }
       const music = body.music;
-      if (music !== undefined && (!music || !Number.isSafeInteger(music.size) || music.size < 1 ||
-        music.size > 20 * 1024 * 1024 || !['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav'].includes(music.type) ||
-        !['mix', 'replace'].includes(music.mode) || music.rightsConfirmed !== true)) {
+      const brand = music?.source === 'brand';
+      // Older open tabs may still send mode 'mix'; any supplied track now replaces source audio.
+      if (music !== undefined && !brand && (!music || !Number.isSafeInteger(music.size) || music.size < 1 ||
+        music.size > MAX_MUSIC_BYTES || !['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav'].includes(music.type) ||
+        ![undefined, 'mix', 'replace'].includes(music.mode) || music.rightsConfirmed !== true)) {
         return json({ error: 'Choose MP3, M4A or WAV music up to 20 MB and confirm permission to use it.' }, 400);
       }
-      const jobId = await rpc(music ? 'reserve_product_video_with_music' : 'reserve_product_video',
-        { p_product_id: body.productId, p_bytes: body.size, ...(music ? {
-          p_music_bytes: music.size, p_music_type: music.type, p_music_mode: music.mode,
+      const jobId = await rpc(brand ? 'reserve_product_video_with_brand_music'
+        : music ? 'reserve_product_video_with_music' : 'reserve_product_video',
+        { p_product_id: body.productId, p_bytes: body.size, ...(music && !brand ? {
+          p_music_bytes: music.size, p_music_type: music.type, p_music_mode: 'replace',
           p_music_rights: music.rightsConfirmed,
         } : {}) });
       return json({ jobId });

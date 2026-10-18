@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../types/product';
-import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo,
-  removeProductVideo, uploadProductVideo, validateMusicFile, type VideoJob, type VideoPreview } from '../../services/productVideos';
+import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo, removeProductVideo,
+  reprocessProductVideo, uploadProductVideo, validateMusicFile, type VideoJob, type VideoMusic,
+  type VideoPreview } from '../../services/productVideos';
+
+type MusicChoice = 'brand' | 'custom' | 'none';
+const browseClass = 'min-h-11 text-sm font-semibold text-cocoa underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function ProductVideoManager({ product }: { product: Product }) {
   const [job, setJob] = useState<VideoJob | null>(null);
@@ -13,12 +17,16 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   const [message, setMessage] = useState('');
   const [now, setNow] = useState(Date.now);
   const [music, setMusic] = useState<File | null>(null);
-  const [musicMode, setMusicMode] = useState<'mix' | 'replace'>('mix');
+  const [musicChoice, setMusicChoice] = useState<MusicChoice>('brand');
   const [musicRights, setMusicRights] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const musicInput = useRef<HTMLInputElement>(null);
   const previousStatus = useRef('');
   const draft = Boolean(job && !['ready', 'replaced', 'cancelled'].includes(job.status));
+  const reviewing = job?.status === 'review';
+  const musicBlocked = musicChoice === 'custom' && !(music && musicRights);
+  const selectedMusic = (): VideoMusic | undefined => musicChoice === 'brand' ? { source: 'brand' }
+    : musicChoice === 'custom' && music ? { file: music, rightsConfirmed: musicRights } : undefined;
   const delayed = job && ['uploading', 'receiving', 'queued', 'processing', 'publishing', 'discarding'].includes(job.status)
     && job.updated_at && now - Date.parse(job.updated_at) > 20 * 60_000;
   useEffect(() => {
@@ -58,7 +66,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   return (
     <section aria-label="Manage making video" className="rounded-xl border border-cocoa/20 p-3 sm:col-span-2">
       <h4 className="font-semibold text-cocoa">Making video (optional)</h4>
-      <p className="my-2 text-sm text-cocoa/75">MP4, H.264 / optional AAC audio, originals up to 500 MB and 60 seconds.
+      <p className="my-2 text-sm text-cocoa/75">MP4, H.264 video, originals up to 500 MB and 60 seconds.
         Ideally 15–30 seconds, 720p, up to 30 fps. Upload triggers background processing with the Luvia watermark.
         Preview the actual encoded video privately, then explicitly publish it.
         Your existing public video remains unchanged until publication.</p>
@@ -72,61 +80,68 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         {message && ` ${message}`}
       </p>
       {job?.error && job.status !== 'failed' && <p role="alert" className="my-2 text-sm text-red-700">{job.error}</p>}
-      <fieldset disabled={busy || draft || checking} className="my-3 space-y-2 text-sm">
-        <legend className="font-semibold">Background music (optional — choose before Browse video)</legend>
-        <p>Supply your own owned or licensed MP3, M4A (AAC) or WAV (PCM), up to 20 MB,
-          10 minutes, mono/stereo. Audio only; no embedded artwork or video.
-          Music loops or trims to the video length, plays quietly at 15% volume and fades in/out.
-          Leave empty to keep the original audio unchanged.</p>
-        <label className="block">Music file
-          <input ref={musicInput} type="file" accept="audio/mpeg,audio/mp4,audio/wav,audio/x-wav,.mp3,.m4a,.wav"
-            className="block w-full" onChange={(event) => {
-              const track = event.target.files?.[0];
-              setMusic(null); setMusicRights(false); setError('');
-              if (!track) return;
-              try { validateMusicFile(track); setMusic(track); }
-              catch (reason) {
-                setError(reason instanceof Error ? reason.message : 'Invalid music file.');
-                event.target.value = '';
-              }
-            }} />
-        </label>
-        {music && <>
-          <button type="button" className="underline" onClick={() => {
-            setMusic(null); setMusicRights(false);
-            if (musicInput.current) musicInput.current.value = '';
-          }}>Remove selected music</button>
-          <label className="block">Music mode
-            <select value={musicMode} onChange={(event) => setMusicMode(event.target.value as 'mix' | 'replace')}>
-              <option value="mix">Mix quietly under original audio</option>
-              <option value="replace">Replace original audio with music</option>
-            </select>
+      <fieldset disabled={busy || checking || (draft && !reviewing)} className="my-3 space-y-2 text-sm">
+        <legend className="font-semibold">Background music (choose before Browse video)</legend>
+        <p>The original sound of every video (speech, room or background noise) is always removed.
+          The processed video plays only the music chosen here, looped or trimmed to the video length
+          at 15% volume with short fades. Choose No music for a silent video with no audio track.</p>
+        {([['brand', 'Luvia gentle instrumental (default)'], ['custom', 'Upload my own music'],
+          ['none', 'No music (silent video, no audio track)']] as const).map(([value, label]) => (
+          <label key={value} className="flex min-h-11 items-center gap-2">
+            <input type="radio" name={`making-video-music-${product.id}`} value={value}
+              checked={musicChoice === value} onChange={() => { setMusicChoice(value); setError(''); }} />
+            {label}
           </label>
-          <label className="block">
+        ))}
+        {musicChoice === 'custom' && <fieldset disabled={draft} className="space-y-2 border-l-2 border-cocoa/20 pl-3">
+          <p>Owned or licensed MP3, M4A (AAC) or WAV (PCM), up to 20 MB, 10 minutes, mono/stereo.
+            Audio only; no embedded artwork or video. It replaces the default track.</p>
+          <input ref={musicInput} type="file" aria-label="Music file" tabIndex={-1} className="sr-only"
+            accept="audio/mpeg,audio/mp4,audio/wav,audio/x-wav,.mp3,.m4a,.wav"
+            onChange={(event) => {
+              const track = event.target.files?.[0];
+              // An empty change (picker dismissed) keeps the current selection.
+              if (!track) return;
+              setError('');
+              try { validateMusicFile(track); setMusic(track); setMusicRights(false); }
+              catch (reason) { setError(reason instanceof Error ? reason.message : 'Invalid music file.'); }
+              finally { event.target.value = ''; }
+            }} />
+          {music && <p>Selected audio: <span className="font-semibold">{music.name}</span>
+            {' '}({(music.size / 1024 / 1024).toFixed(1)} MB)</p>}
+          <div className="flex flex-wrap gap-4">
+            <button type="button" className={browseClass} onClick={() => musicInput.current?.click()}>
+              {music ? 'Change audio' : 'Browse audio'}
+            </button>
+            {music && <button type="button" className={browseClass} onClick={() => {
+              setMusic(null); setMusicRights(false);
+              if (musicInput.current) musicInput.current.value = '';
+            }}>Remove audio</button>}
+          </div>
+          {music && <label className="block">
             <input type="checkbox" checked={musicRights} onChange={(event) => setMusicRights(event.target.checked)} />
             {' '}I own this music or have permission to use it in this product video.
-          </label>
-        </>}
-        <p>The supplied track is retained privately with the original video, including after publication
+          </label>}
+          {!draft && musicBlocked && <p>Browse audio and confirm permission, or choose another music option.</p>}
+        </fieldset>}
+        <p>A supplied track is retained privately with the original video, including after publication
           or removal. Explicitly discarding a draft deletes its track too. No automatic deletion policy.</p>
       </fieldset>
       <label className="block text-sm font-semibold">Upload or replace making video
-        <input ref={input} type="file" accept="video/mp4,.mp4" disabled={busy || draft || checking || Boolean(music && !musicRights)}
+        <input ref={input} type="file" accept="video/mp4,.mp4" disabled={busy || draft || checking || musicBlocked}
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (!file) return;
+            if (!file || musicBlocked) return;
             void action(async () => {
-              await uploadProductVideo(product.id, file, music
-                ? { file: music, mode: musicMode, rightsConfirmed: musicRights } : undefined);
+              await uploadProductVideo(product.id, file, selectedMusic());
               setPreview(null); await refresh();
               setMessage('Upload received. Processing will create a private review draft, not publish automatically.');
             }).finally(() => { if (input.current) input.current.value = ''; });
           }} />
       </label>
-      <button type="button" disabled={busy || draft || checking || Boolean(music && !musicRights)}
-        onClick={() => input.current?.click()}
-        className="my-2 min-h-11 text-sm font-semibold text-cocoa underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa disabled:cursor-not-allowed disabled:opacity-50">
+      <button type="button" disabled={busy || draft || checking || musicBlocked}
+        onClick={() => input.current?.click()} className={`my-2 ${browseClass}`}>
         Browse video
       </button>
       {job?.status === 'review' && <div className="my-3 flex flex-wrap gap-2">
@@ -139,11 +154,22 @@ export default function ProductVideoManager({ product }: { product: Product }) {
             await publishProductVideo(job.id); setHasPublished(true); setPreview(null); await refresh();
             setMessage('Video published. Reload the catalogue to see it.');
           })}>Publish video</button>
+        <button type="button" disabled={busy} className="rounded-full border border-cocoa/30 px-4 py-2 text-sm disabled:opacity-50"
+          onClick={() => void action(async () => {
+            setPreview(null);
+            await reprocessProductVideo(job.id, musicChoice === 'custom' ? 'keep' : musicChoice);
+            await refresh();
+            setMessage('Reprocessing from the retained original without re-upload. Original sound is removed; preview the new draft before publishing. The published video is unchanged.');
+          })}>Reprocess draft</button>
+        <p className="w-full text-xs text-cocoa/75">Reprocess draft applies the music option above: the Luvia default or
+          No music. Upload my own music keeps this draft&apos;s previously supplied track (or no audio if none).</p>
       </div>}
       {preview && job?.status === 'review' && <div className="my-3">
         <video src={preview.videoUrl} poster={preview.posterUrl} controls controlsList="nodownload"
           playsInline preload="none" width={preview.width} height={preview.height}
-          aria-label="Private processed making video preview" className="max-h-96 w-full rounded-lg bg-cream"
+          aria-label="Private processed making video preview" style={{ aspectRatio: `${preview.width} / ${preview.height}`,
+            maxWidth: `${Math.round(384 * preview.width / preview.height)}px` }}
+          className="mx-auto block h-auto max-h-96 w-full rounded-lg bg-cream object-contain"
           onError={() => setError('Private preview expired or could not be played. Refresh the private preview and try again.')} />
         <p className="mt-2 text-sm">{preview.durationSeconds.toFixed(1)} seconds · {(preview.videoBytes / 1024 / 1024).toFixed(1)} MB
           · {preview.width}×{preview.height}. Private preview links expire after five minutes.

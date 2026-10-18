@@ -23,25 +23,41 @@ are separate: a video error never recreates the product. A catalogue refresh err
 offers a refresh-only retry while keeping the saved product's video manager.
 For an existing product, open **Manage products → Edit → Making video**.
 Upload/replace or remove its optional making video independently of the product form.
-Use an MP4 with H.264 video and optional AAC audio: ideally 15–30 seconds, 720p,
+Use an MP4 with H.264 video (any original AAC audio is discarded): ideally 15–30 seconds, 720p,
 at most 30 fps; hard input limits are 500 MB, 1–60 seconds and 4096px per axis.
 The previous 60 MB original-upload cap no longer applies. Processed videos remain
 limited to 40 MB; increasing original size does not relax codec or duration checks.
 Invalid media, upload failures and processing failures are shown explicitly.
-To add background music, choose **Music file before Browse video** and confirm that
-you own or have permission to use the track. Only admin-supplied tracks are supported;
-no stock music is downloaded. Optional MP3, AAC M4A or PCM WAV uploads are limited to
-20 MB, 0.1–600 seconds, mono/stereo and 8–96 kHz, with no artwork/video streams.
+**Original sound/background noise is always removed.** Choose the music before
+**Browse video**; there is no mix/replace choice:
+- **Luvia gentle instrumental** (default for every new upload): the user-supplied
+  track stored privately at `making-video-music/luvia-gentle.wav` in the originals
+  bucket. It is never committed to this public repo or sent to the browser; the
+  worker copies it server-side. If it is not installed, processing fails with
+  "Default Luvia music is not installed"; install it, then **Reprocess draft**.
+- **Upload my own music**: **Browse audio** (Change/Remove after selection), then
+  confirm that you own or have permission to use the track. It replaces the default.
+  MP3, AAC M4A or PCM WAV, up to 20 MB, 0.1–600 seconds, mono/stereo, 8–96 kHz,
+  no artwork/video streams. No stock music is downloaded.
+- **No music**: the processed MP4 has no audio stream at all.
 The worker verifies actual media using ffprobe, loops/trims the track to video duration,
-uses 15% music volume with short fades in/out, and mixes beneath the original audio
-(or choose **Replace original audio with music**). Silent videos are supported.
-With no music selected, existing processing/audio behavior is unchanged.
+uses 15% music volume with short fades in/out, and outputs only that music track.
+Older `mix` jobs are encoded the same way (source audio removed).
+Videos are never upscaled or cropped: output fits within 1280×720 (portrait at most
+720px tall, e.g. 1080×1920 → 404×720) with the original aspect ratio; smaller
+sources keep their size (rounded to even pixels).
 After processing, use **Preview processed video** to review the actual branded MP4
-and WebP poster privately, with duration, dimensions and file size. Choose **Publish
+and WebP poster privately (shown at its natural aspect ratio), with duration, dimensions
+and file size. **Reprocess draft** re-encodes a draft awaiting review from its retained
+private original with the currently chosen music (default/no music, or keeps a
+retained uploaded track) without re-uploading; the preview is cleared and publish is
+unavailable until the new encode is ready. The published video is never touched.
+Drafts processed before the audio policy keep their old audio until reprocessed.
+Choose **Publish
 video** explicitly to make it public. Processing alone never publishes or replaces
 the existing video. Preview URLs are admin-authorized, expire after five minutes,
 and point to the private bucket; refresh expired previews with visible error/retry.
-**Discard draft** permanently deletes that draft's original, supplied music, processed MP4 and poster
+**Discard draft** permanently deletes that draft's original, uploaded music, processed MP4 and poster
 from R2 while preserving the current public video. **Remove published video** detaches
 only the public clip; drafts and retained originals are unchanged.
 Photos, variants, zoom and sharing are unchanged.
@@ -60,7 +76,18 @@ byte-count validation and partial-file cleanup, rather than buffering a 500 MB s
 Music uses a separate authenticated upload bounded to 20 MB. Its private
 `making-videos/<job-id>/music.bin` source is retained after publication/removal
 alongside the original video; no automatic retention/deletion policy is added.
-Private review plays the actual mixed MP4; publication never mixes a different copy.
+Private review plays the actual processed MP4; publication never re-encodes a different copy.
+
+Audio policy rollout: apply `20261018190000_product_video_audio_policy.sql`, deploy
+the `product-videos` function, then the worker on `main`. Install the default track once
+(server-only; requires the legacy JWT `service_role` key, never an admin/anon token):
+```powershell
+curl.exe -X POST "$env:SUPABASE_URL/functions/v1/product-videos?action=install-brand-music" `
+  -H "Authorization: Bearer $env:SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: audio/wav" `
+  --data-binary "@luvia_crochet_gentle_instrumental.wav"
+```
+The action validates the PCM WAV header and size (<=20 MB) and overwrites only that
+fixed private key (`Cache-Control: private, no-store`).
 
 Music/multipart rollout (after updating the processor on `main`; no new secrets required):
 ```powershell
@@ -86,7 +113,7 @@ discard. There is no recurring polling schedule or idle Actions-minute budget.
 The worker
 processes at most three sequential jobs, with timeouts, leased claims, at most three
 attempts after interrupted runs, and a 20-job queue cap. It probes the real media,
-encodes a <=1280×720 / 30fps H.264/AAC faststart MP4 plus WebP poster, and stages
+encodes a <=1280×720 (never upscaled) / 30fps H.264 faststart MP4 (AAC only when music is chosen) plus WebP poster, and stages
 both privately for admin review. Publication copies the reviewed bytes server-side
 inside R2 and atomically switches public metadata only after both copies succeed.
 Failed processing/publication retains the old public video. The video has the same

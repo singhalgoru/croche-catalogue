@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { access, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { processQueue } from './process-product-videos.mjs';
@@ -11,7 +11,8 @@ const id = '11111111-1111-4111-8111-111111111111';
 const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'fixture',
   R2_ACCOUNT_ID: 'account', R2_ACCESS_KEY_ID: 'fixture', R2_SECRET_ACCESS_KEY: 'fixture',
   R2_BUCKET: 'public', R2_ORIGINALS_BUCKET: 'private', R2_PUBLIC_URL: 'https://images.example.test' };
-let jobs: { id: string; lease: string; source_bytes: number; music_bytes?: number; music_type?: string; music_mode?: string }[];
+let jobs: { id: string; lease: string; source_bytes: number; music_bytes?: number; music_type?: string;
+  music_mode?: string; music_source?: string }[];
 let publish = true;
 let discarded: { id: string; writer_active: boolean; original_upload_id?: string }[] = [];
 const encode = vi.fn(async (_input: string, output: string, poster: string, _run?: unknown, _music?: unknown) => {
@@ -117,13 +118,38 @@ it('rejects changed original size before invoking FFmpeg', async () => {
   expect(rpc.mock.calls.find(call => call[0] === 'finish_product_video')![1].p_error).toContain('size changed');
 });
 it('downloads retained private music and passes trusted job metadata to the encoder', async () => {
+  // Legacy 'mix' rows are encoded exactly like 'replace': no source-audio mode is forwarded.
   Object.assign(jobs[0], { music_bytes: 3, music_type: 'audio/mpeg', music_mode: 'mix' });
   await processQueue(env, { encode });
   expect(encode.mock.calls[0][4]).toEqual({
-    path: resolve('.video-processing', id, 'music.bin'), type: 'audio/mpeg', mode: 'mix',
+    path: resolve('.video-processing', id, 'music.bin'), type: 'audio/mpeg',
   });
   expect(storageFetch.mock.calls.some(call => call[0].endsWith('/music.bin'))).toBe(true);
   expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE')).toHaveLength(0);
+});
+it('uses the fixed private default track for brand jobs and never deletes it', async () => {
+  let brandBytes: Buffer | undefined;
+  encode.mockImplementationOnce(async (_input: string, output: string, poster: string, _run?: unknown, music?: unknown) => {
+    brandBytes = await readFile((music as { path: string }).path);
+    await writeFile(output, 'encoded'); await writeFile(poster, 'poster');
+    return { duration: 20, width: 404, height: 720 };
+  });
+  Object.assign(jobs[0], { music_source: 'brand' });
+  await processQueue(env, { encode });
+  expect(encode.mock.calls[0][4]).toEqual({ path: resolve('.video-processing', id, 'music.wav'), type: 'audio/wav' });
+  expect(brandBytes?.toString()).toBe('mp4');
+  expect(storageFetch.mock.calls.some(call =>
+    call[0] === 'https://account.r2.cloudflarestorage.com/private/making-video-music/luvia-gentle.wav' && !call[1]?.method)).toBe(true);
+  expect(storageFetch.mock.calls.some(call => call[0].includes('public/making-video-music'))).toBe(false);
+  expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE')).toHaveLength(0);
+});
+it('fails a brand job clearly when the default track is not installed', async () => {
+  Object.assign(jobs[0], { music_source: 'brand' });
+  storageFetch.mockImplementation(async (url: string, options?: { method?: string }) =>
+    new Response(options?.method ? null : 'mp4', { status: url.endsWith('luvia-gentle.wav') ? 404 : 200 }));
+  await expect(processQueue(env, { encode })).rejects.toThrow('One or more video jobs failed');
+  expect(encode).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.find(call => call[0] === 'finish_product_video')![1].p_error).toContain('Default Luvia music is not installed');
 });
 it('rejects a changed track size without processing or deleting retained music', async () => {
   Object.assign(jobs[0], { music_bytes: 4, music_type: 'audio/mpeg', music_mode: 'mix' });

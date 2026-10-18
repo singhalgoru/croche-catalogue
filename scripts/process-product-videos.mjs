@@ -11,6 +11,9 @@ export const MAX_SOURCE_BYTES = 500 * 1024 * 1024;
 export const MAX_MUSIC_BYTES = 20 * 1024 * 1024;
 const UUID = /^[0-9a-f-]{36}$/;
 const MAX_OUTPUT_BYTES = 40 * 1024 * 1024;
+// Private default (brand) track, installed once by the service-role-only
+// install-brand-music edge action. Never public and never deleted by discard.
+export const BRAND_MUSIC_KEY = 'making-video-music/luvia-gentle.wav';
 
 export function runMediaTool(tool, args) {
   return new Promise((resolveResult, reject) => {
@@ -63,24 +66,30 @@ export function validateMusicProbe(probe, type) {
   return duration;
 }
 
+// Fit within 1280x720 (landscape) / 720px tall (portrait) without ever
+// upscaling or cropping; dimensions are even for H.264 4:2:0.
+export function outputSize(displayWidth, displayHeight) {
+  const scale = Math.min(1, 1280 / displayWidth, 720 / displayHeight);
+  const even = (value) => Math.max(2, Math.floor(value / 2 + 1e-6) * 2);
+  return { width: even(displayWidth * scale), height: even(displayHeight * scale) };
+}
+
 export async function encodeVideo(input, output, poster, run = runMediaTool, music = undefined) {
   const probe = JSON.parse(await run('ffprobe', [
     '-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_streams', '-show_format', '-of', 'json', input,
   ]));
   const { duration } = validateProbe(probe);
   if (music) {
-    if (!['mix', 'replace'].includes(music.mode)) throw new Error('Invalid music mode.');
+    // Legacy rows may still say 'mix'; every supplied track now replaces source audio.
     const musicProbe = JSON.parse(await run('ffprobe', [
       '-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_streams', '-show_format', '-of', 'json', music.path,
     ]));
     validateMusicProbe(musicProbe, music.type);
   }
-  const hasAudio = probe.streams.some((value) => value.codec_type === 'audio');
   const fade = Math.min(0.5, duration / 4);
-  const musicFilter = music ? `;[2:a:0]aresample=48000,asetpts=N/SR/TB,atrim=duration=${duration},volume=0.15,afade=t=in:d=${fade},afade=t=out:st=${duration - fade}:d=${fade}[music]` +
-    (music.mode === 'mix' && hasAudio
-      ? `;[0:a:0]aresample=48000,asetpts=PTS-STARTPTS,apad,atrim=duration=${duration}[original];[original][music]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95:level=0[audio]`
-      : ';[music]anull[audio]') : '';
+  // Source audio (speech, room noise, background sound) is never mapped. The
+  // only possible output track is the supplied music.
+  const musicFilter = music ? `;[2:a:0]aresample=48000,asetpts=N/SR/TB,atrim=duration=${duration},volume=0.15,afade=t=in:d=${fade},afade=t=out:st=${duration - fade}:d=${fade}[audio]` : '';
   const stream = probe.streams.find((value) => value.codec_type === 'video');
   const rotation = Number(stream.side_data_list?.find((value) => value.rotation !== undefined)?.rotation ?? stream.tags?.rotate ?? 0);
   const rotated = Math.abs(rotation) % 180 === 90;
@@ -88,9 +97,8 @@ export async function encodeVideo(input, output, poster, run = runMediaTool, mus
   const sar = sarNumerator > 0 && sarDenominator > 0 ? sarNumerator / sarDenominator : 1;
   const displayWidth = rotated ? stream.height : stream.width * sar;
   const displayHeight = rotated ? stream.width * sar : stream.height;
-  const scale = Math.min(1280 / displayWidth, 720 / displayHeight);
-  const badge = await createVideoWatermark(Math.max(2, Math.floor(displayWidth * scale / 2) * 2),
-    Math.max(2, Math.floor(displayHeight * scale / 2) * 2));
+  const { width, height } = outputSize(displayWidth, displayHeight);
+  const badge = await createVideoWatermark(width, height);
   const badgePath = `${output}.watermark.png`;
   await writeFile(badgePath, badge.bytes);
   try {
@@ -98,10 +106,11 @@ export async function encodeVideo(input, output, poster, run = runMediaTool, mus
     '-nostdin', '-v', 'error', '-y', '-threads', '2', '-protocol_whitelist', 'file,pipe', '-i', input,
     '-i', badgePath, ...(music ? ['-stream_loop', '-1', '-protocol_whitelist', 'file,pipe', '-i', music.path] : []),
     '-filter_complex_threads', '2',
-    '-filter_complex', `[0:v:0]scale=w='max(2,if(gte(dar,16/9),1280,trunc(720*dar/2)*2))':h='max(2,if(gte(dar,16/9),trunc(1280/dar/2)*2,720))',setsar=1,fps=30[video];[video][1:v:0]overlay=main_w-overlay_w-${badge.margin}:main_h-overlay_h-${badge.margin}:format=auto,format=yuv420p[branded]${musicFilter}`,
-    '-map', '[branded]', '-map', music ? '[audio]' : '0:a:0?', '-map_metadata', '-1', '-map_metadata:s', '-1', '-map_chapters', '-1',
+    '-filter_complex', `[0:v:0]scale=${width}:${height},setsar=1,fps=30[video];[video][1:v:0]overlay=main_w-overlay_w-${badge.margin}:main_h-overlay_h-${badge.margin}:format=auto,format=yuv420p[branded]${musicFilter}`,
+    '-map', '[branded]', ...(music ? ['-map', '[audio]', '-c:a', 'aac', '-b:a', '96k', '-ac', '2'] : ['-an']),
+    '-map_metadata', '-1', '-map_metadata:s', '-1', '-map_chapters', '-1',
     '-c:v', 'libx264', '-threads', '2', '-preset', 'medium', '-crf', '24', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '96k', '-ac', '2', '-movflags', '+faststart', '-t', music ? String(duration) : '60', output,
+    '-movflags', '+faststart', '-t', music ? String(duration) : '60', output,
     ]);
   } finally { await rm(badgePath, { force: true }); }
   await run('ffmpeg', [
@@ -111,7 +120,10 @@ export async function encodeVideo(input, output, poster, run = runMediaTool, mus
   const result = JSON.parse(await run('ffprobe', [
     '-v', 'error', '-show_streams', '-show_format', '-of', 'json', output,
   ]));
-  return validateProbe(result);
+  const info = validateProbe(result);
+  const audioStreams = result.streams.filter((value) => value.codec_type === 'audio').length;
+  if (audioStreams !== (music ? 1 : 0)) throw new Error('Processed video audio does not match the selected music.');
+  return info;
 }
 
 async function checked(response, operation) {
@@ -217,7 +229,18 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
         `making-videos/${job.id}/original.mp4`), { signal: AbortSignal.timeout(90_000) }), 'Private video download');
       await downloadToFile(response, input, MAX_SOURCE_BYTES, job.source_bytes);
       let music;
-      if (job.music_bytes != null) {
+      if (job.music_source === 'brand') {
+        const brandResponse = await r2.fetch(objectUrl(env.R2_ORIGINALS_BUCKET, BRAND_MUSIC_KEY),
+          { signal: AbortSignal.timeout(90_000) });
+        if (brandResponse.status === 404) {
+          throw new Error('Default Luvia music is not installed. Install it, then reprocess the draft.');
+        }
+        await checked(brandResponse, 'Default music download');
+        const path = join(dir, 'music.wav');
+        await writeFile(path, await readBoundedBody(brandResponse, MAX_MUSIC_BYTES));
+        // FFprobe in encodeVideo still validates the actual stored bytes as PCM WAV.
+        music = { path, type: 'audio/wav' };
+      } else if (job.music_bytes != null) {
         if (!Number.isSafeInteger(job.music_bytes) || job.music_bytes < 1 || job.music_bytes > MAX_MUSIC_BYTES) {
           throw new Error('Invalid stored music size.');
         }
@@ -225,7 +248,7 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
           `making-videos/${job.id}/music.bin`), { signal: AbortSignal.timeout(90_000) }), 'Private music download');
         const path = join(dir, 'music.bin');
         await downloadToFile(musicResponse, path, MAX_MUSIC_BYTES, job.music_bytes, 'music');
-        music = { path, type: job.music_type, mode: job.music_mode };
+        music = { path, type: job.music_type };
       }
       const info = await encode(input, output, poster, runMediaTool, music);
       if ((await stat(output)).size > MAX_OUTPUT_BYTES) throw new Error('Optimized video is too large. Use a shorter video.');

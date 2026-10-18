@@ -1,14 +1,17 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, onTestFinished, vi } from 'vitest';
 import ProductVideoManager from './ProductVideoManager';
+import AdminDialog from './AdminDialog';
+import { mockNativeDialog } from './dialogTestSupport';
 import type { Product } from '../../types/product';
-const { getJob, upload, remove, discard, preview, publish } = vi.hoisted(() => ({
+const { getJob, upload, remove, discard, preview, publish, reprocess } = vi.hoisted(() => ({
   getJob: vi.fn(), upload: vi.fn(), remove: vi.fn(), discard: vi.fn(), preview: vi.fn(), publish: vi.fn(),
+  reprocess: vi.fn(),
 }));
 vi.mock('../../services/productVideos', () => ({
   getProductVideoJob: getJob, uploadProductVideo: upload, removeProductVideo: remove,
   discardProductVideo: discard, previewProductVideo: preview, publishProductVideo: publish,
-  validateMusicFile: vi.fn(),
+  reprocessProductVideo: reprocess, validateMusicFile: vi.fn(),
 }));
 const product: Product = {
   id: 'p1', name: 'Rose', category: 'Flowers', price: 200, description: 'Rose',
@@ -45,24 +48,88 @@ it('shows upload processing as private work, not automatic publication', async (
   expect(publish).not.toHaveBeenCalled();
   expect(input.disabled).toBe(true);
 });
-it('requires music permission before browsing video, passes the selection and supports removing it', async () => {
+it('defaults every new upload to the Luvia track and supports explicit No music', async () => {
   render(<ProductVideoManager product={product} />);
   const browse = screen.getByRole('button', { name: 'Browse video' }) as HTMLButtonElement;
   await waitFor(() => expect(browse.disabled).toBe(false));
+  expect((screen.getByRole('radio', { name: /Luvia gentle instrumental \(default\)/ }) as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByText(/original sound of every video .* is always removed/)).toBeTruthy();
+  expect(screen.queryByLabelText('Music mode')).toBeNull();
+  const video = new File(['video'], 'a.mp4', { type: 'video/mp4' });
+  fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, { source: 'brand' }));
+  await waitFor(() => expect(browse.disabled).toBe(false));
+  fireEvent.click(screen.getByRole('radio', { name: /No music/ }));
+  fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
+  await waitFor(() => expect(upload).toHaveBeenLastCalledWith('p1', video, undefined));
+});
+it('uses a styled Browse audio control; cancelling keeps the dialog and uploads nothing', async () => {
+  const onClose = vi.fn();
+  const restore = mockNativeDialog();
+  onTestFinished(restore);
+  render(<AdminDialog title="Edit product" onClose={onClose}><ProductVideoManager product={product} /></AdminDialog>);
+  const browse = screen.getByRole('button', { name: 'Browse video' }) as HTMLButtonElement;
+  await waitFor(() => expect(browse.disabled).toBe(false));
+  fireEvent.click(screen.getByRole('radio', { name: 'Upload my own music' }));
+  expect(browse.disabled).toBe(true);
+  const audioInput = screen.getByLabelText('Music file') as HTMLInputElement;
+  expect(audioInput.className).toContain('sr-only');
+  const click = vi.spyOn(audioInput, 'click');
+  fireEvent.click(screen.getByRole('button', { name: 'Browse audio' }));
+  expect(click).toHaveBeenCalledOnce();
+  const cancel = new Event('cancel', { bubbles: true });
+  fireEvent(audioInput, cancel);
+  fireEvent.change(audioInput, { target: { files: [] } });
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog')).toHaveProperty('open', true);
+  expect(upload).not.toHaveBeenCalled();
+  expect(browse.disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Browse audio' })).toBeTruthy();
+});
+it('shows the chosen custom audio, requires permission, supports change/remove and overrides the default', async () => {
+  render(<ProductVideoManager product={product} />);
+  const browse = screen.getByRole('button', { name: 'Browse video' }) as HTMLButtonElement;
+  await waitFor(() => expect(browse.disabled).toBe(false));
+  fireEvent.click(screen.getByRole('radio', { name: 'Upload my own music' }));
   const track = new File(['music'], 'track.mp3', { type: 'audio/mpeg' });
   fireEvent.change(screen.getByLabelText('Music file'), { target: { files: [track] } });
+  expect(screen.getByText('track.mp3')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Change audio' })).toBeTruthy();
   expect(browse.disabled).toBe(true);
   fireEvent.click(screen.getByRole('checkbox', { name: /I own this music/ }));
   expect(browse.disabled).toBe(false);
-  fireEvent.change(screen.getByLabelText('Music mode'), { target: { value: 'replace' } });
   const video = new File(['video'], 'a.mp4', { type: 'video/mp4' });
   fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
-  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, {
-    file: track, mode: 'replace', rightsConfirmed: true,
-  }));
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, { file: track, rightsConfirmed: true }));
   await waitFor(() => expect(browse.disabled).toBe(false));
-  fireEvent.click(screen.getByRole('button', { name: 'Remove selected music' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove audio' }));
   expect(screen.queryByRole('checkbox')).toBeNull();
+  expect(screen.queryByText('track.mp3')).toBeNull();
+  expect(browse.disabled).toBe(true);
+});
+it('reprocesses a review draft without re-upload, clearing the preview and disabling publish', async () => {
+  getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });
+  reprocess.mockResolvedValue(undefined);
+  const { container } = render(<ProductVideoManager product={product} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Preview processed video' }));
+  await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+  getJob.mockResolvedValue({ id: 'j1', status: 'queued', error: null });
+  fireEvent.click(screen.getByRole('button', { name: 'Reprocess draft' }));
+  await waitFor(() => expect(reprocess).toHaveBeenCalledWith('j1', 'brand'));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Publish video' })).toBeNull());
+  expect(container.querySelector('video')).toBeNull();
+  expect(upload).not.toHaveBeenCalled();
+  expect(publish).not.toHaveBeenCalled();
+  expect(screen.getByRole('status').textContent).toContain('published video is unchanged');
+});
+it('can reprocess a review draft to No music', async () => {
+  getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });
+  reprocess.mockResolvedValue(undefined);
+  render(<ProductVideoManager product={product} />);
+  await screen.findByRole('button', { name: 'Reprocess draft' });
+  fireEvent.click(screen.getByRole('radio', { name: /No music/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reprocess draft' }));
+  await waitFor(() => expect(reprocess).toHaveBeenCalledWith('j1', 'none'));
 });
 it('provides a playable private branded preview with duration/size before explicit Publish video', async () => {
   getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });
@@ -75,6 +142,10 @@ it('provides a playable private branded preview with duration/size before explic
   expect(container.querySelector('video')!.autoplay).toBe(false);
   expect(container.querySelector('video')!.preload).toBe('none');
   expect(container.querySelector('video')!.getAttribute('crossorigin')).toBeNull();
+  // Sized to its natural aspect ratio instead of a full-width letterboxed panel.
+  expect(container.querySelector('video')!.style.aspectRatio).toBe('1280 / 720');
+  expect(container.querySelector('video')!.style.maxWidth).toBe('683px');
+  expect(container.querySelector('video')!.className).toContain('object-contain');
   expect(screen.getByText(/20.0 seconds · 2.0 MB/)).toBeTruthy();
   getJob.mockResolvedValue({ id: 'j1', status: 'ready', error: null });
   fireEvent.click(button);

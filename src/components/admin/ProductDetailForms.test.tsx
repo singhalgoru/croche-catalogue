@@ -343,7 +343,7 @@ describe('Product detail admin integration', () => {
     vi.mocked(uploadProductVideo).mockRejectedValueOnce(new Error('Music upload failed; discard draft and retry.'));
     fireEvent.change(input, { target: { files: [video] } });
     expect((await screen.findByRole('alert')).textContent).toContain('Music upload failed');
-    expect(uploadProductVideo).toHaveBeenCalledWith(product.id, video, undefined);
+    expect(uploadProductVideo).toHaveBeenCalledWith(product.id, video, { source: 'brand' });
     expect(publishProduct).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'Publish product then add video' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Add another product' }));
