@@ -30,6 +30,11 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   const video = product.makingVideo;
   if (!video) return null;
   const event = (name: string) => trackEvent(name, { product_id: product.id });
+  const portrait = video.width / video.height < 0.9;
+  const frameClass = portrait
+    ? 'aspect-[4/5] w-full rounded-lg bg-cocoa/10 object-cover object-bottom'
+    : 'w-full rounded-lg bg-cocoa/10 object-cover';
+  const frameStyle = portrait ? undefined : { aspectRatio: `${video.width} / ${video.height}` };
   return (
     <section id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-4 rounded-xl border border-cocoa/15 p-3">
       <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">See how it’s made</h3>
@@ -53,7 +58,8 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           width={video.width}
           height={video.height}
           aria-label={`Making ${product.name}`}
-          className="max-h-96 w-full rounded-lg bg-cream"
+          className={frameClass}
+          style={frameStyle}
           onPlay={() => { setNeedsPlayTap(false); event('making_video_play'); }}
           onEnded={() => event('making_video_complete')}
           onError={() => { setError(true); event('making_video_error'); }}
@@ -63,7 +69,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           onClick={() => { setRequested(true); event('making_video_request'); }}
           aria-label={`Play making video for ${product.name}`}>
           <img src={video.posterUrl} alt="" loading="lazy" width={video.width} height={video.height}
-            className="max-h-80 w-full object-contain" />
+            className={frameClass} style={frameStyle} />
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="rounded-full bg-cocoa px-5 py-3 font-semibold text-white">▶ Watch making video</span>
           </span>
