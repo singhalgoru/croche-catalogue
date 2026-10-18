@@ -580,6 +580,7 @@ test('authors regular category image hotspots and shoppers explore products in t
   const look = page.getByRole('region', { name: `Shop the look: ${category}` });
   await expect(look).toBeVisible();
   const marker = look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` });
+  await expect(look.getByRole('group', { name: 'Selected hotspot product' })).toHaveCount(0);
   await expect(marker).toHaveCSS('left', /px$/);
   await marker.click();
   await expect(look.getByRole('heading', { name: product.name })).toBeVisible();
@@ -623,6 +624,25 @@ test('authors regular category image hotspots and shoppers explore products in t
   await expect(marker.locator('span')).toHaveCSS('animation-name', 'none');
   await expect(marker.locator('span')).not.toHaveCSS('box-shadow', 'none');
   expect(await marker.locator('span').evaluate(node => getComputedStyle(node, '::after').animationName)).toBe('none');
+  for (const [x, y] of [[2, 2], [98, 2], [2, 98], [98, 98]]) {
+    state.categorySettings[category].imageHotspots = [{ productId: product.id, x, y }];
+    await page.reload();
+    const cornerMarker = look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` });
+    await cornerMarker.focus();
+    await page.keyboard.press('Enter');
+    const preview = look.getByRole('group', { name: 'Selected hotspot product' });
+    await expect(preview).toBeVisible();
+    await expect.poll(async () => {
+      const card = await preview.boundingBox();
+      const photo = await look.getByAltText(`${category} styled collection`).boundingBox();
+      return Boolean(card && photo && card.x >= photo.x && card.y >= photo.y &&
+        card.x + card.width <= photo.x + photo.width + 1 && card.y + card.height <= photo.y + photo.height + 1);
+    }).toBe(true);
+    await preview.getByRole('link', { name: `View ${product.name}` }).focus();
+    await page.keyboard.press('Escape');
+    await expect(preview).toHaveCount(0);
+    await expect(cornerMarker).toBeFocused();
+  }
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
@@ -658,7 +678,8 @@ test('authors regular category image hotspots and shoppers explore products in t
   }
   expect(shared.text).not.toMatch(/rings|hotspots|glow/i);
   expect(shared.text).toContain('/collections/charms/');
-  await look.getByRole('link', { name: 'View product', exact: true }).click();
+  await look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` }).click();
+  await look.getByRole('group', { name: 'Selected hotspot product' }).getByRole('link', { name: `View ${product.name}` }).click();
   await expect(page).toHaveURL(/\/p\//);
   await expect(page.getByRole('heading', { name: product.name, exact: true, level: 1 })).toBeVisible();
 });
