@@ -583,8 +583,13 @@ test('authors regular category image hotspots and shoppers explore products in t
     const photo = look.getByAltText(`${category} styled collection`);
     await expect.poll(async () => {
       const bounds = await photo.boundingBox();
+      const section = await look.boundingBox();
       const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
-      return Boolean(bounds && Math.abs(bounds.x) <= 1 && Math.abs(bounds.width - viewportWidth) <= 1);
+      return Boolean(bounds && section && Math.abs(section.x) <= 1 &&
+        Math.abs(section.width - viewportWidth) <= 1 &&
+        bounds.height > 0 && bounds.height <= Math.min(page.viewportSize()!.height * 0.7, 720) + 1 &&
+        Math.abs(bounds.width / bounds.height - 600 / 900) < 0.01 &&
+        Math.abs(bounds.x + bounds.width / 2 - viewportWidth / 2) <= 1);
     }).toBe(true);
   }
   const marker = look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` });

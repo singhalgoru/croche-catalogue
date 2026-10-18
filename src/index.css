@@ -64,7 +64,16 @@ body {
     padding-inline: 1rem;
   }
 
+  .store-page-content > .category-look > div {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
   .store-page-content > .category-look > div > img {
+    width: auto;
+    max-width: 100%;
+    max-height: min(70vh, 720px);
     border-radius: 0;
   }
 }
