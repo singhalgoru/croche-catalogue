@@ -11,6 +11,201 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ## Features
 
+### Optional product making videos
+
+Save a new product first, then open its editor in **Manage products → Making video**.
+Upload/replace or remove its optional making video independently of the product form.
+Use an MP4 with H.264 video and optional AAC audio: ideally 15–30 seconds, 720p,
+at most 30 fps; hard input limits are 60 MB, 1–60 seconds and 4096px per axis.
+Invalid media, upload failures and processing failures are shown explicitly.
+After processing, use **Preview processed video** to review the actual branded MP4
+and WebP poster privately, with duration, dimensions and file size. Choose **Publish
+video** explicitly to make it public. Processing alone never publishes or replaces
+the existing video. Preview URLs are admin-authorized, expire after five minutes,
+and point to the private bucket; refresh expired previews with visible error/retry.
+**Discard draft** permanently deletes that draft's original, processed MP4 and poster
+from R2 while preserving the current public video. **Remove published video** detaches
+only the public clip; drafts and retained originals are unchanged.
+Photos, variants, zoom and sharing are unchanged.
+
+Originals are uploaded through an authenticated, size-bounded edge request to the
+existing **private** R2 originals bucket. This intentionally does not issue reusable
+presigned PUT URLs, which cannot be revoked safely during discard. No browser or
+edge FFmpeg runs.
+The Supabase queue is admin-only (including existing MFA checks); an event-triggered
+GitHub Actions worker starts when an upload queues or an admin requests/retries
+discard. There is no recurring polling schedule or idle Actions-minute budget.
+`20261018142000_dispatch_product_video_processing.sql` reuses the existing Vault
+`github_deploy_token` and `pg_net` to dispatch `process-product-videos.yml` on main.
+The worker
+processes at most three sequential jobs, with timeouts, leased claims, at most three
+attempts after interrupted runs, and a 20-job queue cap. It probes the real media,
+encodes a <=1280×720 / 30fps H.264/AAC faststart MP4 plus WebP poster, and stages
+both privately for admin review. Publication copies the reviewed bytes server-side
+inside R2 and atomically switches public metadata only after both copies succeed.
+Failed processing/publication retains the old public video. The video has the same
+bottom-right circular Luvia badge as product images: `luvia-logo-480.webp`, 12% of
+the short side, 3% margin, white ring (3.5% of badge size), 70% opacity. FFmpeg bakes
+the badge into the encoded MP4; the poster is extracted from that branded video.
+Aspect ratio and camera rotation are preserved; the source is never modified.
+Watermarks deter casual reuse but can be cropped/removed; this is not DRM.
+
+There is **no automatic remote retention/deletion policy**. Originals, replaced
+and removed assets are retained unless an admin explicitly discards a draft. Discard
+sets a persistent tombstone before attempting R2 deletion, fences in-flight upload/
+processing/publication writers, and confirms success only after all writers finish
+and deletion succeeds. Late writers clean up their own output; interrupted writers
+are recovered after a bounded 15-minute lease by a subsequent upload/discard/manual
+run. Cleanup errors remain visible and retryable; workers retry only explicitly
+authorized discard tombstones.
+It does not delete unrelated failed/old/orphan assets automatically. Enable GitHub
+Actions failure notifications for processing or cleanup failures.
+Partial public copies from a failed explicit publication are rolled back; private
+originals and review assets are retained so publication can be retried.
+
+Shoppers see a separate **See how it’s made** poster and play button on product
+pages/modals. No video element/source exists before an explicit tap; videos do not
+autoplay on page load. Native controls, inline playback and retry errors are provided.
+Only product ID and playback events go through the existing consent/privacy-aware
+analytics helper. `nodownload` is a UI hint, not DRM; optimized media is public.
+No adaptive streaming is used.
+
+**Deployment order (do not deploy the frontend before the migration):**
+
+1. Apply `supabase/migrations/20261018130000_product_making_videos.sql`, then
+   `supabase/migrations/20261018142000_dispatch_product_video_processing.sql`.
+   The latter depends on existing `pg_net`, Supabase Vault and a Vault secret
+   `github_deploy_token` authorized to dispatch repository Actions workflows
+   (fine-grained token: Actions read/write; classic token: repository access).
+   No extra paid provider is required. Missing dispatch configuration fails the
+   upload queue/discard operation explicitly instead of silently abandoning work.
+2. Deploy `supabase/functions/product-videos` with JWT verification enabled. It uses
+   the existing `R2_ACCOUNT_ID` (or `CLOUDFLARE_ACCOUNT_ID`), `R2_ACCESS_KEY_ID`,
+   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_ORIGINALS_BUCKET` and `R2_PUBLIC_URL`
+   function secrets, plus the platform-provided `SUPABASE_SERVICE_ROLE_KEY`.
+   The originals bucket must differ from the public bucket and have public access
+   disabled. Never configure its public/custom domain. Do not add expiration/
+   lifecycle rules for `making-videos/`; verify existing rules do not delete these
+   retained files without an approved retention policy.
+3. On the private originals bucket, allow CORS `GET`/`HEAD` from
+   `https://luviacreations.com` (and explicit localhost origins for development),
+   with `Range` allowed for private media preview. Browser uploads go through the
+   authenticated function, not a private-bucket PUT URL. Never expose originals GET
+   URLs. R2 credentials need read/write/delete on both buckets and server-side
+   CopyObject access from private to public. Public optimized media
+   continues using the existing images domain; preserve Range support and MIME.
+4. Configure GitHub Actions secrets `SUPABASE_SERVICE_ROLE_KEY` (new, server-only),
+   `VITE_SUPABASE_URL`, and existing `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_ORIGINALS_BUCKET`, `R2_PUBLIC_URL`.
+   Never place the service-role key in a `VITE_*` variable. Merge
+   `.github/workflows/process-product-videos.yml` onto the default branch so its
+   event dispatch can find it. GitHub-hosted Ubuntu provides FFmpeg/FFprobe; the workflow fails
+   explicitly if either is missing. No new paid service or npm dependency is needed.
+5. Deploy/rebuild the frontend and prerendered catalogue. Upload a short test video,
+   run **Process product making videos** manually, then verify queued → private
+   review → preview → explicit publish. Check the baked logo/poster, no public draft,
+   tap-to-play, failed replacements retaining the old clip, explicit draft discard
+   deleting all its R2 assets (including retry/race cases), and public removal.
+   Local worker invocation: set the same server-only environment variables and run
+   `node scripts/process-product-videos.mjs`. This mutates storage/database: only
+   run it against the intended environment.
+
+**Cost/concurrency bounds:** each event-driven run has a 14-minute timeout and at most
+three sequential encodes (two FFmpeg/two FFprobe passes each are individually
+time-bounded); the queue holds at most 20 active drafts. GitHub serializes runs in
+one concurrency group. After three jobs, a run dispatches another only if actual
+queued jobs remain. Before checkout/npm install, a dependency-free queue check
+skips stale/empty event runs. Interrupted failures do not cause an infinite retry
+loop: inspect workflow/admin errors and use manual **Run workflow** or retry
+discard. GitHub Actions itself may queue/delay jobs; configure repository Actions
+spending limits/alerts as appropriate. Published/review/failed clips create no
+recurring processing runs.
+
+The maintained browser release suite includes optional-video absence, no video
+request before a tap, actual synthetic H.264 playback on desktop/mobile Chromium,
+unchanged product photos, and playback error/retry without hiding purchase actions:
+`npx playwright test release.spec.ts`. FFmpeg must be on PATH; fixtures are
+generated entirely in memory.
+
+**Exact linked-project deployment commands (PowerShell; shipping is an operator action):**
+
+```powershell
+Set-Location 'C:\AEM\Projects\Personal Projects\croche-catalogue'
+npx.cmd --no-install supabase db push --linked
+npx.cmd --no-install supabase functions deploy product-videos --project-ref bblsjcjypdxntzlszliy
+# Execute only against an appropriate linked TEST database; rolls back all fixtures:
+npx.cmd --no-install supabase db query --linked --file supabase\tests\product_making_videos.sql
+# Once the workflow exists on main:
+gh workflow run process-product-videos.yml --repo singhalgoru/croche-catalogue --ref main
+gh run list --repo singhalgoru/croche-catalogue --workflow process-product-videos.yml --limit 5
+```
+
+The function requires these existing server secrets: `R2_ACCOUNT_ID` (fallback
+`CLOUDFLARE_ACCOUNT_ID`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`,
+`R2_ORIGINALS_BUCKET`, `R2_PUBLIC_URL`. Supabase supplies `SUPABASE_URL`,
+`SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` automatically. GitHub requires
+`VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and all six `R2_*` names above
+(the workflow uses `R2_ACCOUNT_ID`, not its fallback). Set/replace secrets using
+the normal secure operator process, never commit them or print their values.
+The Vault `github_deploy_token` used by existing site rebuilds can be reused if it
+can dispatch Actions on this repository; no additional Cloudflare API token is
+needed for processing or server-side CopyObject.
+
+In Cloudflare Dashboard → R2 → the **private originals bucket** → Settings → CORS
+policy, merge this rule with existing image rules (do not blindly replace them):
+
+```json
+{
+  "AllowedOrigins": ["https://luviacreations.com"],
+  "AllowedMethods": ["GET", "HEAD"],
+  "AllowedHeaders": ["Range", "Content-Type"],
+  "ExposeHeaders": ["Accept-Ranges", "Content-Length", "Content-Range", "ETag"],
+  "MaxAgeSeconds": 300
+}
+```
+
+The Dashboard JSON editor accepts an array of rule objects; wrap this object in
+`[...]` when setting the complete policy. If local previews are needed, explicitly
+add `http://localhost:5173`, `http://127.0.0.1:5173`, and/or
+`http://127.0.0.1:4187` to `AllowedOrigins`; do not use `*`.
+CORS does not make the bucket public. Keep r2.dev/public custom-domain access
+disabled. Bucket lifecycle expiration must not cover `making-videos/` without an
+approved retention policy.
+
+There is no separate “enable CopyObject” switch. The current R2 S3 token suffices
+if it has **Object Read & Write** for **both** public and originals buckets:
+the worker reads/writes private assets, the function copies private → public,
+and explicit discard deletes the draft keys in both buckets. A token restricted
+to only the public bucket must be updated. An Object Read & Write S3 token is
+not necessarily authorized to change bucket CORS; use the authenticated Dashboard
+for settings rather than assuming that object credentials are management tokens.
+
+Manual smoke route: `https://luviacreations.com/#admin`, sign in and complete MFA,
+open **Manage products → Edit → Making video (optional)**. The controls are
+**Upload or replace making video**, **Preview processed video**,
+**Refresh private preview**, **Publish video**,
+**Discard draft (delete original and processed files)**, **Retry discard cleanup**,
+and **Remove published video**. Review must show the real branded video/poster,
+seconds/MB/dimensions. Before Publish, inspect the public product in a separate
+signed-out browser: its old clip (or no clip) must remain. Afterwards the public
+product displays **See how it’s made → Watch making video**; no MP4 request should
+occur until tapped. Verify discard in the private/public bucket key prefix
+`making-videos/<draft-job-id>/` and confirm the current published job prefix is
+unchanged. Published removal only detaches metadata; it does not authorize
+deleting retained originals or a separate draft.
+
+Targeted checks: `npm test -- src/components/ProductMakingVideo.test.tsx
+src/components/admin/ProductVideoManager.test.tsx src/services/productVideos.test.ts
+scripts/process-product-videos.test.ts scripts/product-video-queue.test.ts
+scripts/product-video-permissions.test.ts supabase/functions/product-videos/index.test.ts`.
+The processor test uses local FFmpeg/FFprobe and synthetic media, not remote storage.
+`supabase/tests/product_making_videos.sql` is a rollback-only database integration
+test for a migrated test database with a published fixture product; execute with
+`psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/product_making_videos.sql`.
+It checks real privileges, non-admin denial, private staging, explicit publication,
+lease fencing, discard tombstones and public-video preservation. Do not use a
+production catalogue for tests.
+
 Cron execution history retention is configured by
 `supabase/migrations/20261016023000_limit_cron_run_history.sql`. It requires
 `pg_cron` and prunes existing history on deployment. The follow-up migration

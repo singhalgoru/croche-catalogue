@@ -1,0 +1,92 @@
+import { loadSupabase } from '../lib/supabaseConfig';
+import { getImageStorageErrorMessage } from './r2ImageStorage';
+
+export interface VideoJob {
+  id: string;
+  status: 'uploading' | 'receiving' | 'queued' | 'processing' | 'review' | 'publishing' | 'ready' | 'failed' | 'discarding' | 'cancelled' | 'replaced';
+  error: string | null;
+  updated_at?: string;
+}
+
+export interface VideoPreview {
+  videoUrl: string;
+  posterUrl: string;
+  durationSeconds: number;
+  width: number;
+  height: number;
+  videoBytes: number;
+  expiresAt: string;
+}
+
+async function client() {
+  const db = await loadSupabase();
+  if (!db) throw new Error('Supabase is not configured.');
+  return db;
+}
+
+async function invoke(body: Record<string, unknown>) {
+  const { data, error } = await (await client()).functions.invoke('product-videos', { body });
+  if (error) throw new Error(await getImageStorageErrorMessage(error));
+  if (!data || data.error) throw new Error(data?.error || 'Invalid video storage response.');
+  return data;
+}
+
+export function validateVideoFile(file: File) {
+  if (file.type !== 'video/mp4' || !/\.mp4$/i.test(file.name) || file.size < 1 || file.size > 60 * 1024 * 1024) {
+    throw new Error('Choose an MP4 video no larger than 60 MB.');
+  }
+}
+
+export async function uploadProductVideo(productId: string, file: File) {
+  validateVideoFile(file);
+  const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: file.type });
+  if (typeof jobId !== 'string' || !/^[0-9a-f-]{36}$/i.test(jobId)) throw new Error('Invalid video upload response.');
+  // Authenticated bounded edge upload, not a revocable-looking presigned PUT that
+  // could recreate an original after an explicit discard.
+  const { data, error } = await (await client()).functions.invoke(`product-videos?jobId=${jobId}`, {
+    body: file, headers: { 'Content-Type': 'video/mp4' },
+  });
+  if (error) throw new Error(await getImageStorageErrorMessage(error));
+  if (data?.queued !== true) throw new Error(data?.error || 'Video upload did not complete. Discard the draft and retry.');
+  return jobId as string;
+}
+
+export async function removeProductVideo(productId: string) {
+  const data = await invoke({ action: 'remove', productId });
+  if (data.removed !== true) throw new Error('Video removal was not confirmed. Reload the status before retrying.');
+}
+
+export async function discardProductVideo(productId: string): Promise<{ discarded: boolean; pending?: boolean }> {
+  const data = await invoke({ action: 'discard', productId });
+  if (data.discarded !== true && data.pending !== true) throw new Error('Draft deletion was not confirmed. Retry discard cleanup.');
+  return data;
+}
+
+export async function previewProductVideo(jobId: string): Promise<VideoPreview> {
+  const data = await invoke({ action: 'preview', jobId });
+  const validUrl = (value: unknown) => {
+    try {
+      return typeof value === 'string' && new URL(value).protocol === 'https:'
+        && new URL(value).hostname.endsWith('.r2.cloudflarestorage.com');
+    } catch { return false; }
+  };
+  if (!validUrl(data.videoUrl) || !validUrl(data.posterUrl) ||
+      !Number.isFinite(data.durationSeconds) || data.durationSeconds <= 0 ||
+      !Number.isFinite(data.videoBytes) || data.videoBytes <= 0 ||
+      !Number.isFinite(data.width) || data.width < 2 || !Number.isFinite(data.height) || data.height < 2) {
+    throw new Error('Private preview returned invalid media metadata. Refresh the preview and try again.');
+  }
+  return data;
+}
+
+export async function publishProductVideo(jobId: string) {
+  const data = await invoke({ action: 'publish', jobId });
+  if (data.published !== true) throw new Error('Video publication was not confirmed. Reload the status before retrying.');
+}
+
+export async function getProductVideoJob(productId: string): Promise<VideoJob | null> {
+  const { data, error } = await (await client()).from('product_video_jobs')
+    .select('id,status,error,updated_at').eq('product_id', productId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(`Unable to check video processing: ${error.message}`);
+  return data as VideoJob | null;
+}

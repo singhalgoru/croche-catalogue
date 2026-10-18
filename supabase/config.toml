@@ -26,6 +26,9 @@ verify_jwt = true
 [functions.r2-images]
 verify_jwt = true
 
+[functions.product-videos]
+verify_jwt = true
+
 [functions.verify-delivery-pin]
 verify_jwt = true
 

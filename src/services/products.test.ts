@@ -100,6 +100,17 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('loads only published making-video metadata in live queries and catalogue bootstrap', async () => {
+    const video = { video_url: 'https://images.luviacreations.com/making-videos/id/video.mp4',
+      poster_url: 'https://images.luviacreations.com/making-videos/id/poster.webp',
+      duration_seconds: 20, width: 1280, height: 720 };
+    queueQuery([{ ...row, product_making_videos: video }]);
+    expect((await fetchPublishedProducts())[0].makingVideo).toEqual({
+      videoUrl: video.video_url, posterUrl: video.poster_url, durationSeconds: 20, width: 1280, height: 720,
+    });
+    expect(PRODUCT_COLUMNS).toContain('product_making_videos(video_url, poster_url, duration_seconds, width, height)');
+    expect(PRODUCT_COLUMNS).not.toContain('product_video_jobs');
+  });
   it('maps regular prices and applies validated discounts only through the admin RPC', async () => {
     queueQuery([{ ...row, price: 240, regular_price: 300, discount_percent: 20 }]);
     const [product] = await fetchManagedProducts();
@@ -227,17 +238,21 @@ describe('product detail loading', () => {
   });
 
   it('reads the public HTML snapshot without consuming live prefetch data', () => {
+    const video = { video_url: 'https://images.luviacreations.com/making-videos/id/video.mp4',
+      poster_url: 'https://images.luviacreations.com/making-videos/id/poster.webp',
+      duration_seconds: 20, width: 1280, height: 720 };
     const script = document.createElement('script');
     script.id = 'catalogue-bootstrap';
     script.type = 'application/json';
     script.textContent = JSON.stringify({
-      products: [row], categories: [{ name: row.category, priority: 10 }],
+      products: [{ ...row, product_making_videos: video }], categories: [{ name: row.category, priority: 10 }],
       homepage: { title: 'Catalogue', description: 'Catalogue summary.', canonical: 'https://luviacreations.com/' },
       bestsellers: ['b', 7, 'a'],
     });
     document.head.append(script);
     try {
       expect(readCatalogueBootstrap()?.products[0]).toMatchObject({ id: row.id, image: row.image_url });
+      expect(readCatalogueBootstrap()?.products[0].makingVideo?.videoUrl).toBe(video.video_url);
       expect(readCatalogueBootstrap()?.categories).toEqual([{ name: row.category, priority: 10 }]);
       expect(readCatalogueBootstrap()?.bestsellers).toEqual(['b', 'a']);
       expect(from).not.toHaveBeenCalled();

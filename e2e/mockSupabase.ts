@@ -1,6 +1,9 @@
 import type { Page, Route } from '@playwright/test';
 
 export interface ProductRow {
+  product_making_videos?: {
+    video_url: string; poster_url: string; duration_seconds: number; width: number; height: number;
+  } | null;
   id: string;
   sort_order: number;
   name: string;

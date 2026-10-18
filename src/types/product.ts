@@ -59,7 +59,16 @@ export interface ProductPricingInputs {
   targetMarginPercent: string;
 }
 
+export interface MakingVideo {
+  videoUrl: string;
+  posterUrl: string;
+  durationSeconds: number;
+  width: number;
+  height: number;
+}
+
 export interface Product extends ProductDetails {
+  makingVideo?: MakingVideo;
   id: string;
   publicSlug?: string;
   /** Shared display order used in the full catalogue and category filters. */

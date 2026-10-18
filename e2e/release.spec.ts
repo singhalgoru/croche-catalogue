@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
+import { execFileSync } from 'node:child_process';
+
+const makingVideoUrl = 'https://images.luviacreations.com/making-videos/release/video.mp4';
+const makingPosterUrl = 'https://images.luviacreations.com/making-videos/release/poster.webp';
+let makingVideoBytes: Buffer;
+test.beforeAll(() => {
+  // Entirely local synthetic H.264 fixture; no remote reads, writes or scratch files.
+  makingVideoBytes = execFileSync('ffmpeg', ['-nostdin', '-v', 'error',
+    '-f', 'lavfi', '-i', 'color=c=red:s=320x180:r=24', '-t', '2',
+    '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+    '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1']);
+});
 
 test.beforeEach(async ({ page }) => {
   await installMockSupabase(page);
@@ -16,6 +28,61 @@ test('home page opens a product page with current purchase actions', async ({ pa
   await expect(purchase.getByRole('button', { name: 'Share this product' })).toBeVisible();
   await expect(purchase.getByRole('link', { name: 'Ask on WhatsApp' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Delivery and returns' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Making video', exact: true })).toHaveCount(0);
+});
+
+test('optional making video requests no media before a tap and plays inline without changing product photos', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].product_making_videos = {
+    video_url: makingVideoUrl, poster_url: makingPosterUrl, duration_seconds: 2, width: 320, height: 180,
+  };
+  const requests: string[] = [];
+  page.on('request', request => {
+    if (request.url() === makingVideoUrl) requests.push(request.url());
+  });
+  await page.route(makingPosterUrl, route => route.fulfill({ status: 200, contentType: 'image/png',
+    body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=', 'base64') }));
+  await page.route(makingVideoUrl, route => route.fulfill({ status: 200, contentType: 'video/mp4',
+    headers: { 'Accept-Ranges': 'bytes' }, body: makingVideoBytes }));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  const making = page.getByRole('region', { name: 'Making video', exact: true });
+  await expect(making).toBeVisible();
+  await expect(making.locator('video,source')).toHaveCount(0);
+  await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
+  expect(requests).toHaveLength(0);
+  const photos = await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
+    images.map(image => image.getAttribute('src')));
+  await making.getByRole('button', { name: 'Play making video for Rose Charm' }).click();
+  const video = making.locator('video');
+  await expect(video).toHaveAttribute('src', makingVideoUrl);
+  await expect(video).toHaveAttribute('preload', 'none');
+  await expect(video).not.toHaveAttribute('autoplay', '');
+  await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  expect(requests.length).toBeGreaterThan(0);
+  expect(await video.evaluate(element => (element as HTMLVideoElement).playsInline)).toBe(true);
+  expect(await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
+    images.map(image => image.getAttribute('src')))).toEqual(photos);
+});
+
+test('making-video playback errors offer retry while purchase actions remain usable', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].product_making_videos = {
+    video_url: makingVideoUrl, poster_url: makingPosterUrl, duration_seconds: 2, width: 320, height: 180,
+  };
+  await page.route(makingPosterUrl, route => route.fulfill({ status: 204, body: '' }));
+  await page.route(makingVideoUrl, route => route.fulfill({ status: 503, body: 'Unavailable' }));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  const making = page.getByRole('region', { name: 'Making video', exact: true });
+  await making.getByRole('button', { name: 'Play making video for Rose Charm' }).click();
+  await expect(making.getByRole('alert')).toContainText('could not be played');
+  await making.getByRole('button', { name: 'Retry video' }).click();
+  await expect(making.locator('video')).toHaveCount(0);
+  await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
+  await expect(page.getByLabel('Product purchase actions', { exact: true }).getByRole('link', { name: 'Ask on WhatsApp' }))
+    .toBeVisible();
 });
 
 test('cart drawer opens from the catalogue and starts the delivery flow', async ({ page }) => {

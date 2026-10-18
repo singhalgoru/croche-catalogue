@@ -53,6 +53,16 @@ const product = toProduct(row);
 afterEach(() => vi.unstubAllGlobals());
 
 describe('fetchProducts', () => {
+  it('preserves making-video metadata through static prerender mapping without creating eager video sources', () => {
+    const video = { video_url: 'https://images.luviacreations.com/making-videos/id/video.mp4',
+      poster_url: 'https://images.luviacreations.com/making-videos/id/poster.webp',
+      duration_seconds: '20.5', width: 1280, height: 720 };
+    const mapped = toProduct({ ...row, product_making_videos: video });
+    expect(mapped.makingVideo).toEqual({ videoUrl: video.video_url, posterUrl: video.poster_url,
+      durationSeconds: 20.5, width: 1280, height: 720 });
+    expect(toProduct({ ...row, product_making_videos: [video] }).makingVideo).toEqual(mapped.makingVideo);
+    expect(renderProductPage(mapped)).not.toContain('<video');
+  });
   it('keeps offer prices and regular-price messaging in the initial page', () => {
     const discounted = toProduct({ ...row, price: 320, regular_price: 400, discount_percent: 20,
       product_variants: [{ ...row.product_variants[1], price: null }] });

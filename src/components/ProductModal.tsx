@@ -19,6 +19,7 @@ import { isProductNew } from '../utils/productStatus';
 import CartIconButton from './CartIconButton';
 import ProductQuantityControl from './ProductQuantityControl';
 import ProductDetails from './ProductDetails';
+import ProductMakingVideo from './ProductMakingVideo';
 import ProductDeliveryInfo from './ProductDeliveryInfo';
 import ProductPurchaseAssurance from './ProductPurchaseAssurance';
 import type { CartItem } from '../types/cart';
@@ -637,6 +638,7 @@ export default function ProductModal({
           )}
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductDetails product={product} collapsible={!isPage} />
+          <ProductMakingVideo key={`${product.id}:${product.makingVideo?.videoUrl ?? ''}`} product={product} />
           <ProductDeliveryInfo />
           <details className="mt-4 rounded-xl border border-mustard/40 p-3 text-sm text-cocoa">
             <summary className="cursor-pointer font-semibold">{storeContent.orderingDisclosure.title}</summary>

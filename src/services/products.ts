@@ -11,6 +11,7 @@ import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { archiveImageOriginal } from './imageOriginals';
 import { normalizeProductImageUrl } from '../utils/productImageUrl';
 import { PRODUCT_COLUMNS } from './productColumns';
+import { mapMakingVideo, type MakingVideoRow } from '../utils/makingVideo';
 import { getNewProductSortOrder } from './catalogueOrder';
 import { getProductPublishError } from '../utils/productPublishValidation';
 import {
@@ -59,6 +60,7 @@ interface ProductVariantRow {
 }
 
 interface ProductRow {
+  product_making_videos?: MakingVideoRow | MakingVideoRow[] | null;
   id: string;
   public_slug: string;
   sort_order: number;
@@ -277,6 +279,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     dimensions: row.dimensions?.trim() || undefined,
     includedItems: row.included_items?.trim() || undefined,
     careInstructions: row.care_instructions?.trim() || undefined,
+    makingVideo: mapMakingVideo(row.product_making_videos),
     featured: row.featured,
     color: primaryVariant.color,
     inStock: resolvedVariants.some((variant) => variant.inStock),

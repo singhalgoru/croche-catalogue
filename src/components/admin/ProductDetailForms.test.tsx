@@ -17,6 +17,10 @@ import { mockNativeDialog } from './dialogTestSupport';
 import { fetchSellerSales, type SellerSale } from '../../services/sellerSales';
 
 vi.mock('../../services/sellerSales', () => ({ fetchSellerSales: vi.fn() }));
+vi.mock('../../services/productVideos', () => ({
+  getProductVideoJob: vi.fn().mockResolvedValue(null), uploadProductVideo: vi.fn(),
+  discardProductVideo: vi.fn(), previewProductVideo: vi.fn(), publishProductVideo: vi.fn(), removeProductVideo: vi.fn(),
+}));
 vi.mock('../../services/products', () => ({
   fetchManagedProducts: vi.fn(), publishProduct: vi.fn(), updateProduct: vi.fn(),
   saveProductPriceDiscoveryInputs: vi.fn(), deleteProduct: vi.fn(), reorderProducts: vi.fn(),

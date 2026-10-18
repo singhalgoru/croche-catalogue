@@ -14,6 +14,7 @@ import { getProductImageUrl } from '../../utils/productImageUrl';
 import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
+import ProductVideoManager from './ProductVideoManager';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import AdminDialog from './AdminDialog';
@@ -948,6 +949,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                         onChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)}
                       />
                     </div>
+                    <ProductVideoManager key={product.id} product={product} />
                     <div className="flex flex-wrap items-center gap-5 sm:col-span-2">
                       <label className="flex items-center gap-2 text-sm font-semibold text-cocoa">
                         <input
