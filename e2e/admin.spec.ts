@@ -579,7 +579,14 @@ test('authors regular category image hotspots and shoppers explore products in t
   await page.goto(`/collections/${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/`);
   const look = page.getByRole('region', { name: `Shop the look: ${category}` });
   await expect(look).toBeVisible();
+  const backdrop = look.locator('.category-look-backdrop');
   if (page.viewportSize()!.width >= 1024) {
+    await expect(backdrop).toBeVisible();
+    await expect(backdrop).toHaveCSS('filter', 'blur(24px)');
+    await expect.poll(async () => {
+      const bounds = await look.locator('.category-look-stage').boundingBox();
+      return bounds?.width;
+    }).toBe(await page.evaluate(() => document.documentElement.clientWidth));
     const photo = look.getByAltText(`${category} styled collection`);
     await expect.poll(async () => {
       const bounds = await photo.boundingBox();
@@ -591,6 +598,8 @@ test('authors regular category image hotspots and shoppers explore products in t
         Math.abs(bounds.width / bounds.height - 600 / 900) < 0.01 &&
         Math.abs(bounds.x + bounds.width / 2 - viewportWidth / 2) <= 1);
     }).toBe(true);
+  } else {
+    await expect(backdrop).toBeHidden();
   }
   const marker = look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` });
   await expect(look.getByRole('group', { name: 'Selected hotspot product' })).toHaveCount(0);
@@ -598,7 +607,7 @@ test('authors regular category image hotspots and shoppers explore products in t
   await marker.click();
   await expect(look.getByRole('heading', { name: product.name })).toBeVisible();
   const geometry = await look.evaluate(section => {
-    const img = section.querySelector('img')!.getBoundingClientRect();
+    const img = section.querySelector('.category-look-photo > img')!.getBoundingClientRect();
     const marker = section.querySelector('button')!.getBoundingClientRect();
     return { x: ((marker.x + marker.width / 2 - img.x) / img.width) * 100,
       y: ((marker.y + marker.height / 2 - img.y) / img.height) * 100 };

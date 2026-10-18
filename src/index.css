@@ -64,13 +64,22 @@ body {
     padding-inline: 1rem;
   }
 
-  .store-page-content > .category-look > div {
+  .category-look-stage {
+    overflow: hidden;
+    background-color: var(--color-cream-dark);
+  }
+
+  .category-look-backdrop {
+    display: block;
+  }
+
+  .category-look-photo {
     width: fit-content;
     max-width: 100%;
     margin-inline: auto;
   }
 
-  .store-page-content > .category-look > div > img {
+  .category-look-photo > img {
     width: auto;
     max-width: 100%;
     max-height: min(70vh, 720px);
