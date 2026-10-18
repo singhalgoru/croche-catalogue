@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../types/product';
 import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo,
-  removeProductVideo, uploadProductVideo, type VideoJob, type VideoPreview } from '../../services/productVideos';
+  removeProductVideo, uploadProductVideo, validateMusicFile, type VideoJob, type VideoPreview } from '../../services/productVideos';
 
 export default function ProductVideoManager({ product }: { product: Product }) {
   const [job, setJob] = useState<VideoJob | null>(null);
@@ -12,7 +12,11 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [now, setNow] = useState(Date.now);
+  const [music, setMusic] = useState<File | null>(null);
+  const [musicMode, setMusicMode] = useState<'mix' | 'replace'>('mix');
+  const [musicRights, setMusicRights] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const musicInput = useRef<HTMLInputElement>(null);
   const previousStatus = useRef('');
   const draft = Boolean(job && !['ready', 'replaced', 'cancelled'].includes(job.status));
   const delayed = job && ['uploading', 'receiving', 'queued', 'processing', 'publishing', 'discarding'].includes(job.status)
@@ -24,7 +28,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         const next = await getProductVideoJob(product.id);
         if (alive) {
           if (previousStatus.current === 'discarding' && next?.status === 'cancelled') {
-            setMessage('Draft discarded. Its original, processed MP4 and poster have been deleted from R2.');
+            setMessage('Draft discarded. Its original, music track (if supplied), processed MP4 and poster have been deleted from R2.');
             setError(''); setPreview(null);
           }
           previousStatus.current = next?.status ?? '';
@@ -68,20 +72,59 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         {message && ` ${message}`}
       </p>
       {job?.error && job.status !== 'failed' && <p role="alert" className="my-2 text-sm text-red-700">{job.error}</p>}
+      <fieldset disabled={busy || draft || checking} className="my-3 space-y-2 text-sm">
+        <legend className="font-semibold">Background music (optional — choose before Browse video)</legend>
+        <p>Supply your own owned or licensed MP3, M4A (AAC) or WAV (PCM), up to 20 MB,
+          10 minutes, mono/stereo. Audio only; no embedded artwork or video.
+          Music loops or trims to the video length, plays quietly at 15% volume and fades in/out.
+          Leave empty to keep the original audio unchanged.</p>
+        <label className="block">Music file
+          <input ref={musicInput} type="file" accept="audio/mpeg,audio/mp4,audio/wav,audio/x-wav,.mp3,.m4a,.wav"
+            className="block w-full" onChange={(event) => {
+              const track = event.target.files?.[0];
+              setMusic(null); setMusicRights(false); setError('');
+              if (!track) return;
+              try { validateMusicFile(track); setMusic(track); }
+              catch (reason) {
+                setError(reason instanceof Error ? reason.message : 'Invalid music file.');
+                event.target.value = '';
+              }
+            }} />
+        </label>
+        {music && <>
+          <button type="button" className="underline" onClick={() => {
+            setMusic(null); setMusicRights(false);
+            if (musicInput.current) musicInput.current.value = '';
+          }}>Remove selected music</button>
+          <label className="block">Music mode
+            <select value={musicMode} onChange={(event) => setMusicMode(event.target.value as 'mix' | 'replace')}>
+              <option value="mix">Mix quietly under original audio</option>
+              <option value="replace">Replace original audio with music</option>
+            </select>
+          </label>
+          <label className="block">
+            <input type="checkbox" checked={musicRights} onChange={(event) => setMusicRights(event.target.checked)} />
+            {' '}I own this music or have permission to use it in this product video.
+          </label>
+        </>}
+        <p>The supplied track is retained privately with the original video, including after publication
+          or removal. Explicitly discarding a draft deletes its track too. No automatic deletion policy.</p>
+      </fieldset>
       <label className="block text-sm font-semibold">Upload or replace making video
-        <input ref={input} type="file" accept="video/mp4,.mp4" disabled={busy || draft || checking}
+        <input ref={input} type="file" accept="video/mp4,.mp4" disabled={busy || draft || checking || Boolean(music && !musicRights)}
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (!file) return;
             void action(async () => {
-              await uploadProductVideo(product.id, file);
+              await uploadProductVideo(product.id, file, music
+                ? { file: music, mode: musicMode, rightsConfirmed: musicRights } : undefined);
               setPreview(null); await refresh();
               setMessage('Upload received. Processing will create a private review draft, not publish automatically.');
             }).finally(() => { if (input.current) input.current.value = ''; });
           }} />
       </label>
-      <button type="button" disabled={busy || draft || checking}
+      <button type="button" disabled={busy || draft || checking || Boolean(music && !musicRights)}
         onClick={() => input.current?.click()}
         className="my-2 min-h-11 text-sm font-semibold text-cocoa underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa disabled:cursor-not-allowed disabled:opacity-50">
         Browse video
@@ -113,7 +156,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
             const result = await discardProductVideo(product.id);
             setPreview(null); await refresh();
             setMessage(result.discarded
-              ? 'Draft discarded. Its original, processed MP4 and poster have been deleted from R2. The published video is unchanged.'
+              ? 'Draft discarded. Its original, music track (if supplied), processed MP4 and poster have been deleted from R2. The published video is unchanged.'
               : 'Discard requested; deletion is not complete yet. Active writers will clean up before confirming success.');
           })}>{job?.status === 'discarding' ? 'Retry discard cleanup' : 'Discard draft (delete original and processed files)'}</button>}
         <button type="button" disabled={busy || checking || !hasPublished}
@@ -125,7 +168,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
       </div>
       <p className="mt-2 text-xs text-cocoa/65">Video changes save independently of the product form.
         No automatic file-retention/deletion policy is enabled. Discard explicitly deletes only the draft’s
-        original and processed assets, never the current published video. Watermarking is a deterrent, not DRM.</p>
+        original, supplied music and processed assets, never the current published video. Watermarking is a deterrent, not DRM.</p>
       {delayed && <p role="alert" className="mt-2 text-sm text-red-700">
         Processing is taking longer than expected. Check the “Process product making videos” GitHub workflow
         for errors, or retry draft discard cleanup. The existing published video is unchanged.

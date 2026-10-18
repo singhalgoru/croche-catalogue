@@ -20,6 +20,7 @@ do $$ begin
   end if;
   if has_function_privilege('authenticated','public.claim_product_video()','EXECUTE')
     or has_function_privilege('anon','public.reserve_product_video(uuid,bigint)','EXECUTE')
+    or has_function_privilege('anon','public.reserve_product_video_with_music(uuid,bigint,bigint,text,text,boolean)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video(uuid,uuid,bigint,numeric,integer,integer,text)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video_publish(uuid,uuid,text,text,text)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video_discard(uuid,text)','EXECUTE') then
@@ -86,7 +87,21 @@ set local role authenticated;
 do $$
 declare p uuid := (select product_id from video_fixture); j uuid;
 begin
-  j := public.reserve_product_video(p,1000);
+  begin
+    perform public.reserve_product_video_with_music(p,1000,3,'audio/mpeg','mix',false);
+    raise exception 'FAIL: music accepted without rights';
+  exception when raise_exception then
+    if sqlerrm<>'Confirm that you own or have permission to use this music.' then raise; end if;
+  end;
+  begin
+    perform public.reserve_product_video_with_music(p,1000,20971521,'audio/mpeg','mix',true);
+    raise exception 'FAIL: oversized music accepted';
+  exception when check_violation then null;
+  end;
+  j := public.reserve_product_video_with_music(p,1000,3,'audio/mpeg','mix',true);
+  if not exists(select 1 from product_video_jobs where id=j and music_bytes=3 and music_mode='mix') then
+    raise exception 'FAIL: music metadata missing';
+  end if;
   perform public.begin_product_video_upload(j);
   perform public.discard_product_video(p);
   if not exists(select 1 from public.product_making_videos where product_id=p and video_url='https://example.com/live.mp4') then

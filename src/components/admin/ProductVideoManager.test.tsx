@@ -8,6 +8,7 @@ const { getJob, upload, remove, discard, preview, publish } = vi.hoisted(() => (
 vi.mock('../../services/productVideos', () => ({
   getProductVideoJob: getJob, uploadProductVideo: upload, removeProductVideo: remove,
   discardProductVideo: discard, previewProductVideo: preview, publishProductVideo: publish,
+  validateMusicFile: vi.fn(),
 }));
 const product: Product = {
   id: 'p1', name: 'Rose', category: 'Flowers', price: 200, description: 'Rose',
@@ -43,6 +44,25 @@ it('shows upload processing as private work, not automatic publication', async (
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('not publish automatically'));
   expect(publish).not.toHaveBeenCalled();
   expect(input.disabled).toBe(true);
+});
+it('requires music permission before browsing video, passes the selection and supports removing it', async () => {
+  render(<ProductVideoManager product={product} />);
+  const browse = screen.getByRole('button', { name: 'Browse video' }) as HTMLButtonElement;
+  await waitFor(() => expect(browse.disabled).toBe(false));
+  const track = new File(['music'], 'track.mp3', { type: 'audio/mpeg' });
+  fireEvent.change(screen.getByLabelText('Music file'), { target: { files: [track] } });
+  expect(browse.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox', { name: /I own this music/ }));
+  expect(browse.disabled).toBe(false);
+  fireEvent.change(screen.getByLabelText('Music mode'), { target: { value: 'replace' } });
+  const video = new File(['video'], 'a.mp4', { type: 'video/mp4' });
+  fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, {
+    file: track, mode: 'replace', rightsConfirmed: true,
+  }));
+  await waitFor(() => expect(browse.disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove selected music' }));
+  expect(screen.queryByRole('checkbox')).toBeNull();
 });
 it('provides a playable private branded preview with duration/size before explicit Publish video', async () => {
   getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });

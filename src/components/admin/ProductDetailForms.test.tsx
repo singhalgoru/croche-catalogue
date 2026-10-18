@@ -10,7 +10,8 @@ import {
 } from '../../services/products';
 import type { ManagedProduct } from '../../services/products';
 import { suggestProductGstRate } from '../../services/productAnalysis';
-import { loadProductDraft, saveProductDraft, EMPTY_PRODUCT_DRAFT } from './productDraftStore';
+import { loadProductDraft, saveProductDraft, clearProductDraft, EMPTY_PRODUCT_DRAFT } from './productDraftStore';
+import { getProductVideoJob, uploadProductVideo } from '../../services/productVideos';
 import { createDefaultPriceInputs } from './priceDiscovery';
 import { createEmptyVariant } from './variantDraft';
 import { mockNativeDialog } from './dialogTestSupport';
@@ -20,6 +21,7 @@ vi.mock('../../services/sellerSales', () => ({ fetchSellerSales: vi.fn() }));
 vi.mock('../../services/productVideos', () => ({
   getProductVideoJob: vi.fn().mockResolvedValue(null), uploadProductVideo: vi.fn(),
   discardProductVideo: vi.fn(), previewProductVideo: vi.fn(), publishProductVideo: vi.fn(), removeProductVideo: vi.fn(),
+  validateMusicFile: vi.fn(),
 }));
 vi.mock('../../services/products', () => ({
   fetchManagedProducts: vi.fn(), publishProduct: vi.fn(), updateProduct: vi.fn(),
@@ -318,6 +320,53 @@ describe('Product detail admin integration', () => {
       seoDescription: 'Handmade cotton crochet coaster.',
       includedItems: 'One coaster', careInstructions: 'Gentle hand wash',
     });
+  });
+
+  it('hands a newly saved product directly to video upload without recreating it after a video error', async () => {
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn().mockResolvedValue(undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    expect(screen.getByRole('region', { name: 'Making video for new product' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Browse video' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
+    for (const [label, value] of [['Product name', 'Coaster'], ['Description', 'A handmade coaster.'],
+      ['Materials', 'Cotton yarn'], ["What's included", 'One coaster']]) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    }
+    fireEvent.submit(screen.getByRole('button', { name: 'Publish product then add video' }).closest('form')!);
+    expect(await screen.findByRole('heading', { name: 'Add a making video for Coaster' })).toBeTruthy();
+    expect(clearProductDraft).toHaveBeenCalled();
+    expect(publishProduct).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(getProductVideoJob).toHaveBeenCalledWith(product.id));
+    const input = screen.getByLabelText('Upload or replace making video') as HTMLInputElement;
+    await waitFor(() => expect(input.disabled).toBe(false));
+    const video = new File(['video'], 'video.mp4', { type: 'video/mp4' });
+    vi.mocked(uploadProductVideo).mockRejectedValueOnce(new Error('Music upload failed; discard draft and retry.'));
+    fireEvent.change(input, { target: { files: [video] } });
+    expect((await screen.findByRole('alert')).textContent).toContain('Music upload failed');
+    expect(uploadProductVideo).toHaveBeenCalledWith(product.id, video, undefined);
+    expect(publishProduct).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Publish product then add video' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Add another product' }));
+    expect(screen.getByLabelText('Product name')).toHaveProperty('value', '');
+    expect(screen.getByRole('button', { name: 'Publish product then add video' })).toBeTruthy();
+  });
+
+  it('keeps the saved product handoff when catalogue refresh fails and retries only the refresh', async () => {
+    const onPublished = vi.fn().mockRejectedValueOnce(new Error('Refresh offline')).mockResolvedValue(undefined);
+    render(<ProductUploadForm categories={['Home']} onPublished={onPublished} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
+    for (const [label, value] of [['Product name', 'Coaster'], ['Description', 'A handmade coaster.'],
+      ['Materials', 'Cotton yarn'], ["What's included", 'One coaster']]) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    }
+    fireEvent.submit(screen.getByRole('button', { name: 'Publish product with 1 variant' }).closest('form')!);
+    expect((await screen.findByRole('alert')).textContent).toContain('Product was published');
+    expect(screen.getByRole('heading', { name: 'Add a making video for Coaster' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry catalogue refresh' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry catalogue refresh' })).toBeNull());
+    expect(onPublished).toHaveBeenCalledTimes(2);
+    expect(publishProduct).toHaveBeenCalledTimes(1);
   });
 
   it('loads existing details and includes edits when saving', async () => {

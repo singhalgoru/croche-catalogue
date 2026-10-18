@@ -4,7 +4,8 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export async function deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoint, id) {
   if (!UUID.test(id)) throw new Error('Invalid video draft ID.');
   for (const [endpoint, file] of [
-    [privateEndpoint, 'original.mp4'], [privateEndpoint, 'video.mp4'], [privateEndpoint, 'poster.webp'],
+    [privateEndpoint, 'original.mp4'], [privateEndpoint, 'music.bin'],
+    [privateEndpoint, 'video.mp4'], [privateEndpoint, 'poster.webp'],
     [publicEndpoint, 'video.mp4'], [publicEndpoint, 'poster.webp'],
   ]) {
     const response = await r2.fetch(`${endpoint}/making-videos/${id}/${file}`, {

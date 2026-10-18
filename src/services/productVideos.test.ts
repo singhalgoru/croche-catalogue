@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo,
-  removeProductVideo, uploadProductVideo, validateVideoFile } from './productVideos';
+  removeProductVideo, uploadProductVideo, validateVideoFile, validateMusicFile } from './productVideos';
 const { invoke, from } = vi.hoisted(() => ({ invoke: vi.fn(), from: vi.fn() }));
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke }, from }) }));
 const id = '11111111-1111-4111-8111-111111111111';
@@ -31,6 +31,24 @@ it('surfaces upload failures explicitly', async () => {
     error: { message: 'Upload failed', context: new Response(JSON.stringify({ error: 'Private storage offline' })) },
   });
   await expect(uploadProductVideo('p1', file())).rejects.toThrow('Private storage offline');
+});
+it('validates music and permission before reservation and uploads video plus track as one bounded payload', async () => {
+  const track = new File(['music'], 'track.mp3', { type: 'audio/mpeg' });
+  for (const bad of [new File([], 'a.mp3', { type: 'audio/mpeg' }),
+    new File(['x'], 'a.mp4', { type: 'video/mp4' }), { name: 'a.wav', type: 'audio/wav', size: 20971521 } as File]) {
+    expect(() => validateMusicFile(bad)).toThrow('20 MB');
+  }
+  await expect(uploadProductVideo('p1', file(), { file: track, mode: 'mix', rightsConfirmed: false }))
+    .rejects.toThrow('permission');
+  expect(invoke).not.toHaveBeenCalled();
+  invoke.mockResolvedValueOnce({ data: { jobId: id } }).mockResolvedValueOnce({ data: { queued: true } });
+  await uploadProductVideo('p1', file(), { file: track, mode: 'mix', rightsConfirmed: true });
+  expect(invoke.mock.calls[0][1].body.music).toEqual({
+    size: 5, type: 'audio/mpeg', mode: 'mix', rightsConfirmed: true,
+  });
+  const payload = invoke.mock.calls[1][1];
+  expect(payload.body.size).toBe(8);
+  expect(payload.headers['Content-Type']).toBe('application/octet-stream');
 });
 it('keeps private preview, explicit publish, draft discard and public removal distinct', async () => {
   invoke.mockResolvedValueOnce({ data: { videoUrl: 'https://account.r2.cloudflarestorage.com/private/video.mp4',

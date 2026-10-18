@@ -3,7 +3,7 @@ import { mkdir, readFile, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { encodeVideo, readBoundedBody, runMediaTool, validateProbe } from './process-product-videos.mjs';
+import { encodeVideo, readBoundedBody, runMediaTool, validateProbe, validateMusicProbe } from './process-product-videos.mjs';
 import { createVideoWatermark, VIDEO_WATERMARK } from './video-watermark.mjs';
 
 const dir = resolve('.video-processing', 'test-processor');
@@ -33,6 +33,72 @@ it('bounds downloads even when the sender lies about Content-Length', async () =
     .rejects.toThrow('size limit');
   expect((await readBoundedBody(new Response('123'), 5)).toString()).toBe('123');
 });
+it('rejects music containers with video/artwork, invalid duration, excessive channels or false MIME', () => {
+  const music = { format: { format_name: 'mp3', duration: '3' },
+    streams: [{ codec_type: 'audio', codec_name: 'mp3', channels: 2, sample_rate: '44100' }] };
+  expect(validateMusicProbe(music, 'audio/mpeg')).toBe(3);
+  for (const invalid of [
+    { ...music, streams: [...music.streams, { codec_type: 'video' }] },
+    { ...music, streams: [{ ...music.streams[0], channels: 6 }] },
+    { ...music, format: { ...music.format, duration: '601' } },
+    { ...music, format: { ...music.format, duration: 'NaN' } },
+    { ...music, streams: [{ ...music.streams[0], sample_rate: '192000' }] },
+  ]) expect(() => validateMusicProbe(invalid, 'audio/mpeg')).toThrow('audio-only');
+  expect(() => validateMusicProbe(music, 'audio/mp4')).toThrow('audio-only');
+  expect(() => validateMusicProbe(probe, 'audio/mp4')).toThrow('audio-only');
+  expect(() => validateMusicProbe({ ...music, format: { ...music.format, format_name: 'wav' } }, 'audio/wav')).toThrow('audio-only');
+});
+
+it.each([
+  { sourceAudio: false, mode: 'mix', type: 'audio/wav', extension: 'wav', codec: 'pcm_s16le' },
+  { sourceAudio: true, mode: 'mix', type: 'audio/mpeg', extension: 'mp3', codec: 'libmp3lame' },
+  { sourceAudio: true, mode: 'replace', type: 'audio/mp4', extension: 'm4a', codec: 'aac' },
+])('loops, trims and fades real $extension music in $mode mode (source audio: $sourceAudio)', async ({ sourceAudio, mode, type, extension, codec }) => {
+  const base = join(dir, `music-${extension}`);
+  const input = `${base}-source.mp4`;
+  const track = `${base}.${extension}`;
+  const output = `${base}-mixed.mp4`;
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=160x90:r=30',
+    ...(sourceAudio ? ['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'] : []),
+    '-t', '2', '-c:v', 'libx264', '-preset', 'ultrafast', ...(sourceAudio ? ['-c:a', 'aac'] : []), input]);
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000',
+    '-t', extension === 'wav' ? '3' : '0.3', '-c:a', codec, track]);
+  const original = await readFile(input);
+  const originalTrack = await readFile(track);
+  const info = await encodeVideo(input, output, `${base}.webp`, runMediaTool, { path: track, type, mode });
+  expect(Math.abs(info.duration - 2)).toBeLessThan(0.06);
+  expect(await readFile(input)).toEqual(original);
+  expect(await readFile(track)).toEqual(originalTrack);
+  const pcm = `${base}.pcm`;
+  await runMediaTool('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-i', output,
+    '-vn', '-ac', '1', '-ar', '48000', '-f', 'f32le', pcm]);
+  const samples = await readFile(pcm);
+  const amplitude = (frequency: number, start: number, seconds = 0.15) => {
+    let real = 0, imaginary = 0;
+    const count = Math.floor(seconds * 48000);
+    for (let i = 0; i < count; i++) {
+      const value = samples.readFloatLE((Math.floor(start * 48000) + i) * 4);
+      const phase = 2 * Math.PI * frequency * i / 48000;
+      real += value * Math.cos(phase); imaginary += value * Math.sin(phase);
+    }
+    return 2 * Math.hypot(real, imaginary) / count;
+  };
+  // Short MP3/M4A tracks must loop; the longer WAV must trim to the clip length.
+  expect(amplitude(880, 1.3)).toBeGreaterThan(0.006);
+  expect(amplitude(880, 1)).toBeLessThan(0.04);
+  expect(amplitude(880, 0, 0.05)).toBeLessThan(amplitude(880, 1) * 0.5);
+  expect(amplitude(880, 1.94, 0.04)).toBeLessThan(amplitude(880, 1) * 0.5);
+  if (sourceAudio && mode === 'mix') expect(amplitude(440, 1)).toBeGreaterThan(0.07);
+  else expect(amplitude(440, 1)).toBeLessThan(0.003);
+  if (!sourceAudio) {
+    const silent = `${base}-no-music.mp4`;
+    await encodeVideo(input, silent, `${base}-no-music.webp`);
+    const noMusic = JSON.parse(await runMediaTool('ffprobe', ['-v', 'error', '-show_streams', '-of', 'json', silent]));
+    expect(noMusic.streams.some((stream: { codec_type: string }) => stream.codec_type === 'audio')).toBe(false);
+    await expect(encodeVideo(input, `${base}-invalid.mp4`, `${base}-invalid.webp`, runMediaTool,
+      { path: input, type: 'audio/mp4', mode: 'mix' })).rejects.toThrow('audio-only');
+  }
+}, 120_000);
 
 it('processes a real synthetic MP4 with FFmpeg into faststart H264/AAC and a WebP poster', async () => {
   const input = join(dir, 'original.mp4');

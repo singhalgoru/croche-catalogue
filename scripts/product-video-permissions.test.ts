@@ -5,6 +5,17 @@ const migration = readFileSync(new URL('../supabase/migrations/20261018130000_pr
 const edge = readFileSync(new URL('../supabase/functions/product-videos/index.ts', import.meta.url), 'utf8');
 const dispatch = readFileSync(new URL('../supabase/migrations/20261018142000_dispatch_product_video_processing.sql', import.meta.url), 'utf8');
 const workflow = readFileSync(new URL('../.github/workflows/process-product-videos.yml', import.meta.url), 'utf8');
+const music = readFileSync(new URL('../supabase/migrations/20261018160000_product_video_music.sql', import.meta.url), 'utf8');
+it('restricts music reservation to admins, requires acknowledged rights and constrains nullable metadata', () => {
+  expect(music).toContain('if not public.is_catalogue_admin()');
+  expect(music).toContain('p_music_rights is distinct from true');
+  expect(music).toContain('p_music_bytes is null or p_music_type is null or p_music_mode is null');
+  expect(music).toContain('music_bytes between 1 and 20971520');
+  expect(music).toContain("music_mode in ('mix','replace')");
+  expect(music).toContain('from public,anon');
+  expect(music).toContain('to authenticated');
+  expect(music).toContain('public.reserve_product_video(p_product_id,p_bytes)');
+});
 it('dispatches only actual user-created work with no recurring idle workflow budget', () => {
   expect(workflow).not.toContain('schedule:');
   expect(workflow).not.toContain('cron:');

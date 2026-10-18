@@ -11,10 +11,10 @@ const id = '11111111-1111-4111-8111-111111111111';
 const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'fixture',
   R2_ACCOUNT_ID: 'account', R2_ACCESS_KEY_ID: 'fixture', R2_SECRET_ACCESS_KEY: 'fixture',
   R2_BUCKET: 'public', R2_ORIGINALS_BUCKET: 'private', R2_PUBLIC_URL: 'https://images.example.test' };
-let jobs: { id: string; lease: string; source_bytes: number }[];
+let jobs: { id: string; lease: string; source_bytes: number; music_bytes?: number; music_type?: string; music_mode?: string }[];
 let publish = true;
 let discarded: { id: string; writer_active: boolean }[] = [];
-const encode = vi.fn(async (_input: string, output: string, poster: string) => {
+const encode = vi.fn(async (_input: string, output: string, poster: string, _run?: unknown, _music?: unknown) => {
   await writeFile(output, 'encoded');
   await writeFile(poster, 'poster');
   return { duration: 20, width: 1280, height: 720 };
@@ -70,6 +70,7 @@ it('honors explicit discard tombstones after an in-flight writer finishes and de
   await processQueue(env, { encode });
   expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE').map(call => call[0])).toEqual([
     `https://account.r2.cloudflarestorage.com/private/making-videos/${id}/original.mp4`,
+    `https://account.r2.cloudflarestorage.com/private/making-videos/${id}/music.bin`,
     `https://account.r2.cloudflarestorage.com/private/making-videos/${id}/video.mp4`,
     `https://account.r2.cloudflarestorage.com/private/making-videos/${id}/poster.webp`,
     `https://account.r2.cloudflarestorage.com/public/making-videos/${id}/video.mp4`,
@@ -113,4 +114,19 @@ it('rejects changed original size before invoking FFmpeg', async () => {
   await expect(processQueue(env, { encode })).rejects.toThrow('One or more video jobs failed');
   expect(encode).not.toHaveBeenCalled();
   expect(rpc.mock.calls.find(call => call[0] === 'finish_product_video')![1].p_error).toContain('size changed');
+});
+it('downloads retained private music and passes trusted job metadata to the encoder', async () => {
+  Object.assign(jobs[0], { music_bytes: 3, music_type: 'audio/mpeg', music_mode: 'mix' });
+  await processQueue(env, { encode });
+  expect(encode.mock.calls[0][4]).toEqual({
+    path: resolve('.video-processing', id, 'music.bin'), type: 'audio/mpeg', mode: 'mix',
+  });
+  expect(storageFetch.mock.calls.some(call => call[0].endsWith('/music.bin'))).toBe(true);
+  expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE')).toHaveLength(0);
+});
+it('rejects a changed track size without processing or deleting retained music', async () => {
+  Object.assign(jobs[0], { music_bytes: 4, music_type: 'audio/mpeg', music_mode: 'mix' });
+  await expect(processQueue(env, { encode })).rejects.toThrow('One or more video jobs failed');
+  expect(encode).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.find(call => call[0] === 'finish_product_video')![1].p_error).toContain('music size changed');
 });

@@ -13,17 +13,33 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ### Optional product making videos
 
-Save a new product first, then open its editor in **Manage products → Making video**.
+In **Add product**, the visible **Making video (optional)** section offers
+**Publish product then add video**. Complete the required product details/photos
+first; this saves the product and keeps its permanent ID in a success panel with
+the full video/music manager. The normal Publish button opens the same handoff.
+Video/music files are deliberately selected after saving, so existing IndexedDB
+product-draft restoration is unchanged. Product creation and video publication
+are separate: a video error never recreates the product. A catalogue refresh error
+offers a refresh-only retry while keeping the saved product's video manager.
+For an existing product, open **Manage products → Edit → Making video**.
 Upload/replace or remove its optional making video independently of the product form.
 Use an MP4 with H.264 video and optional AAC audio: ideally 15–30 seconds, 720p,
 at most 30 fps; hard input limits are 60 MB, 1–60 seconds and 4096px per axis.
 Invalid media, upload failures and processing failures are shown explicitly.
+To add background music, choose **Music file before Browse video** and confirm that
+you own or have permission to use the track. Only admin-supplied tracks are supported;
+no stock music is downloaded. Optional MP3, AAC M4A or PCM WAV uploads are limited to
+20 MB, 0.1–600 seconds, mono/stereo and 8–96 kHz, with no artwork/video streams.
+The worker verifies actual media using ffprobe, loops/trims the track to video duration,
+uses 15% music volume with short fades in/out, and mixes beneath the original audio
+(or choose **Replace original audio with music**). Silent videos are supported.
+With no music selected, existing processing/audio behavior is unchanged.
 After processing, use **Preview processed video** to review the actual branded MP4
 and WebP poster privately, with duration, dimensions and file size. Choose **Publish
 video** explicitly to make it public. Processing alone never publishes or replaces
 the existing video. Preview URLs are admin-authorized, expire after five minutes,
 and point to the private bucket; refresh expired previews with visible error/retry.
-**Discard draft** permanently deletes that draft's original, processed MP4 and poster
+**Discard draft** permanently deletes that draft's original, supplied music, processed MP4 and poster
 from R2 while preserving the current public video. **Remove published video** detaches
 only the public clip; drafts and retained originals are unchanged.
 Photos, variants, zoom and sharing are unchanged.
@@ -32,6 +48,23 @@ Originals are uploaded through an authenticated, size-bounded edge request to th
 existing **private** R2 originals bucket. This intentionally does not issue reusable
 presigned PUT URLs, which cannot be revoked safely during discard. No browser or
 edge FFmpeg runs.
+Music is uploaded with the video under one leased, bounded upload. Its private
+`making-videos/<job-id>/music.bin` source is retained after publication/removal
+alongside the original video; no automatic retention/deletion policy is added.
+Private review plays the actual mixed MP4; publication never mixes a different copy.
+
+Music rollout (after updating the processor on `main`; no new secrets required):
+```powershell
+Set-Location 'C:\AEM\Projects\Personal Projects\croche-catalogue'
+npx.cmd --no-install supabase db push --linked
+npx.cmd --no-install supabase functions deploy product-videos --project-ref bblsjcjypdxntzlszliy
+# Once the frontend/processor changes are on main:
+gh workflow run deploy.yml --repo singhalgoru/croche-catalogue --ref main
+```
+The database command applies `20261018160000_product_video_music.sql` on the linked
+project. Deploy the storefront through the existing production release workflow.
+Deploy the worker code before enabling music in the UI, so older processors cannot
+silently omit a supplied track. Existing no-music jobs remain compatible.
 The Supabase queue is admin-only (including existing MFA checks); an event-triggered
 GitHub Actions worker starts when an upload queues or an admin requests/retries
 discard. There is no recurring polling schedule or idle Actions-minute budget.

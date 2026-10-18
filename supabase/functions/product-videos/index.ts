@@ -49,7 +49,8 @@ Deno.serve(async (request) => {
       if (error) throw error;
       return data;
     };
-    const binary = request.headers.get('content-type')?.split(';')[0] === 'video/mp4';
+    const contentType = request.headers.get('content-type')?.split(';')[0];
+    const binary = contentType === 'video/mp4' || contentType === 'application/octet-stream';
     const body = binary ? { action: 'upload', jobId: new URL(request.url).searchParams.get('jobId') } : await request.json();
     if (body.action === 'remove') {
       if (!uuid.test(body.productId)) return json({ error: 'Invalid product ID.' }, 400);
@@ -95,7 +96,17 @@ Deno.serve(async (request) => {
         body.size < 1 || body.size > 60 * 1024 * 1024) {
         return json({ error: 'Choose an MP4 video no larger than 60 MB.' }, 400);
       }
-      const jobId = await rpc('reserve_product_video', { p_product_id: body.productId, p_bytes: body.size });
+      const music = body.music;
+      if (music !== undefined && (!music || !Number.isSafeInteger(music.size) || music.size < 1 ||
+        music.size > 20 * 1024 * 1024 || !['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav'].includes(music.type) ||
+        !['mix', 'replace'].includes(music.mode) || music.rightsConfirmed !== true)) {
+        return json({ error: 'Choose MP3, M4A or WAV music up to 20 MB and confirm permission to use it.' }, 400);
+      }
+      const jobId = await rpc(music ? 'reserve_product_video_with_music' : 'reserve_product_video',
+        { p_product_id: body.productId, p_bytes: body.size, ...(music ? {
+          p_music_bytes: music.size, p_music_type: music.type, p_music_mode: music.mode,
+          p_music_rights: music.rightsConfirmed,
+        } : {}) });
       return json({ jobId });
     }
     if (body.action === 'upload') {
@@ -105,12 +116,26 @@ Deno.serve(async (request) => {
         p_job_id: job.id, p_lease: job.lease, p_error: error ?? null,
       });
       try {
-        const bytes = await readUpload(request, job.source_bytes);
+        const hasMusic = job.music_bytes != null;
+        if (contentType !== (hasMusic ? 'application/octet-stream' : 'video/mp4')) {
+          throw new Error('Upload content type does not match the reserved media.');
+        }
+        // One bounded writer owns both objects, so discard fences late music PUTs too.
+        const bytes = await readUpload(request, Number(job.source_bytes) + Number(job.music_bytes ?? 0));
         const response = await r2.fetch(`${privateEndpoint}/making-videos/${job.id}/original.mp4`, {
-          method: 'PUT', body: bytes, headers: { 'Content-Type': 'video/mp4', 'Cache-Control': 'private, no-store' },
+          method: 'PUT', body: bytes.subarray(0, Number(job.source_bytes)),
+          headers: { 'Content-Type': 'video/mp4', 'Cache-Control': 'private, no-store' },
           signal: AbortSignal.timeout(60_000),
         });
         if (!response.ok) throw new Error(`Private video upload failed (HTTP ${response.status}).`);
+        if (hasMusic) {
+          const musicResponse = await r2.fetch(`${privateEndpoint}/making-videos/${job.id}/music.bin`, {
+            method: 'PUT', body: bytes.subarray(Number(job.source_bytes)),
+            headers: { 'Content-Type': job.music_type, 'Cache-Control': 'private, no-store' },
+            signal: AbortSignal.timeout(60_000),
+          });
+          if (!musicResponse.ok) throw new Error(`Private music upload failed (HTTP ${musicResponse.status}).`);
+        }
         const queued = await finish();
         await cleanupIfDiscarded(job.id);
         if (!queued) throw new Error('Upload was discarded. No video was queued.');

@@ -8,6 +8,7 @@ import { createVideoWatermark } from './video-watermark.mjs';
 import { deleteVideoDraftAssets } from '../supabase/functions/_shared/productVideoStorage.js';
 
 export const MAX_SOURCE_BYTES = 60 * 1024 * 1024;
+export const MAX_MUSIC_BYTES = 20 * 1024 * 1024;
 const UUID = /^[0-9a-f-]{36}$/;
 const MAX_OUTPUT_BYTES = 40 * 1024 * 1024;
 
@@ -44,11 +45,42 @@ export function validateProbe(probe) {
   return { duration, width: video[0].width, height: video[0].height };
 }
 
-export async function encodeVideo(input, output, poster, run = runMediaTool) {
+export function validateMusicProbe(probe, type) {
+  const formats = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/wav': 'wav', 'audio/x-wav': 'wav' };
+  const audio = probe.streams?.[0];
+  const duration = Number(probe.format?.duration);
+  if (!formats[type] || !probe.format?.format_name?.split(',').includes(formats[type]) ||
+      probe.streams?.length !== 1 || audio.codec_type !== 'audio' ||
+      !['mp3', 'aac', 'pcm_s16le', 'pcm_s24le', 'pcm_s32le', 'pcm_f32le', 'pcm_u8'].includes(audio.codec_name) ||
+      (type === 'audio/mpeg' && audio.codec_name !== 'mp3') ||
+      (type === 'audio/mp4' && audio.codec_name !== 'aac') ||
+      (formats[type] === 'wav' && !audio.codec_name.startsWith('pcm_')) ||
+      !(audio.channels >= 1 && audio.channels <= 2) ||
+      !(Number(audio.sample_rate) >= 8000 && Number(audio.sample_rate) <= 96000) ||
+      !Number.isFinite(duration) || duration < 0.1 || duration > 600) {
+    throw new Error('Music must be audio-only MP3, AAC M4A or PCM WAV, 0.1–600 seconds, mono/stereo, 8–96 kHz.');
+  }
+  return duration;
+}
+
+export async function encodeVideo(input, output, poster, run = runMediaTool, music = undefined) {
   const probe = JSON.parse(await run('ffprobe', [
     '-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_streams', '-show_format', '-of', 'json', input,
   ]));
-  validateProbe(probe);
+  const { duration } = validateProbe(probe);
+  if (music) {
+    if (!['mix', 'replace'].includes(music.mode)) throw new Error('Invalid music mode.');
+    const musicProbe = JSON.parse(await run('ffprobe', [
+      '-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_streams', '-show_format', '-of', 'json', music.path,
+    ]));
+    validateMusicProbe(musicProbe, music.type);
+  }
+  const hasAudio = probe.streams.some((value) => value.codec_type === 'audio');
+  const fade = Math.min(0.5, duration / 4);
+  const musicFilter = music ? `;[2:a:0]aresample=48000,asetpts=N/SR/TB,atrim=duration=${duration},volume=0.15,afade=t=in:d=${fade},afade=t=out:st=${duration - fade}:d=${fade}[music]` +
+    (music.mode === 'mix' && hasAudio
+      ? `;[0:a:0]aresample=48000,asetpts=PTS-STARTPTS,apad,atrim=duration=${duration}[original];[original][music]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95:level=0[audio]`
+      : ';[music]anull[audio]') : '';
   const stream = probe.streams.find((value) => value.codec_type === 'video');
   const rotation = Number(stream.side_data_list?.find((value) => value.rotation !== undefined)?.rotation ?? stream.tags?.rotate ?? 0);
   const rotated = Math.abs(rotation) % 180 === 90;
@@ -64,11 +96,12 @@ export async function encodeVideo(input, output, poster, run = runMediaTool) {
   try {
     await run('ffmpeg', [
     '-nostdin', '-v', 'error', '-y', '-threads', '2', '-protocol_whitelist', 'file,pipe', '-i', input,
-    '-i', badgePath, '-filter_complex_threads', '2',
-    '-filter_complex', `[0:v:0]scale=w='max(2,if(gte(dar,16/9),1280,trunc(720*dar/2)*2))':h='max(2,if(gte(dar,16/9),trunc(1280/dar/2)*2,720))',setsar=1,fps=30[video];[video][1:v:0]overlay=main_w-overlay_w-${badge.margin}:main_h-overlay_h-${badge.margin}:format=auto,format=yuv420p[branded]`,
-    '-map', '[branded]', '-map', '0:a:0?', '-map_metadata', '-1', '-map_metadata:s', '-1', '-map_chapters', '-1',
+    '-i', badgePath, ...(music ? ['-stream_loop', '-1', '-protocol_whitelist', 'file,pipe', '-i', music.path] : []),
+    '-filter_complex_threads', '2',
+    '-filter_complex', `[0:v:0]scale=w='max(2,if(gte(dar,16/9),1280,trunc(720*dar/2)*2))':h='max(2,if(gte(dar,16/9),trunc(1280/dar/2)*2,720))',setsar=1,fps=30[video];[video][1:v:0]overlay=main_w-overlay_w-${badge.margin}:main_h-overlay_h-${badge.margin}:format=auto,format=yuv420p[branded]${musicFilter}`,
+    '-map', '[branded]', '-map', music ? '[audio]' : '0:a:0?', '-map_metadata', '-1', '-map_metadata:s', '-1', '-map_chapters', '-1',
     '-c:v', 'libx264', '-threads', '2', '-preset', 'medium', '-crf', '24', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '96k', '-ac', '2', '-movflags', '+faststart', '-t', '60', output,
+    '-c:a', 'aac', '-b:a', '96k', '-ac', '2', '-movflags', '+faststart', '-t', music ? String(duration) : '60', output,
     ]);
   } finally { await rm(badgePath, { force: true }); }
   await run('ffmpeg', [
@@ -144,7 +177,20 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
       const source = await readBoundedBody(response, MAX_SOURCE_BYTES);
       if (source.length !== job.source_bytes) throw new Error('Uploaded video size changed. Please upload again.');
       await writeFile(input, source);
-      const info = await encode(input, output, poster);
+      let music;
+      if (job.music_bytes != null) {
+        if (!Number.isSafeInteger(job.music_bytes) || job.music_bytes < 1 || job.music_bytes > MAX_MUSIC_BYTES) {
+          throw new Error('Invalid stored music size.');
+        }
+        const musicResponse = await checked(await r2.fetch(objectUrl(env.R2_ORIGINALS_BUCKET,
+          `making-videos/${job.id}/music.bin`), { signal: AbortSignal.timeout(90_000) }), 'Private music download');
+        const track = await readBoundedBody(musicResponse, MAX_MUSIC_BYTES);
+        if (track.length !== job.music_bytes) throw new Error('Uploaded music size changed. Please upload again.');
+        const path = join(dir, 'music.bin');
+        await writeFile(path, track);
+        music = { path, type: job.music_type, mode: job.music_mode };
+      }
+      const info = await encode(input, output, poster, runMediaTool, music);
       if ((await stat(output)).size > MAX_OUTPUT_BYTES) throw new Error('Optimized video is too large. Use a shorter video.');
       for (const [path, type] of [[output, 'video/mp4'], [poster, 'image/webp']]) {
         const key = `making-videos/${job.id}/${path === output ? 'video.mp4' : 'poster.webp'}`;

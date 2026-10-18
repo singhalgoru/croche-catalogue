@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import ProductDetailsEditor from './ProductDetailsEditor';
 import AdminDialog from './AdminDialog';
+import ProductVideoManager from './ProductVideoManager';
 import RequiredMark from './RequiredMark';
 import { getProductPublishError } from '../../utils/productPublishValidation';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
@@ -9,7 +10,7 @@ import {
   estimateProductPrice,
 } from './priceDiscovery';
 import { publishProduct } from '../../services/products';
-import type { Category } from '../../types/product';
+import type { Category, Product } from '../../types/product';
 import VariantDraftFields from './VariantDraftFields';
 import {
   createEmptyVariant,
@@ -47,6 +48,8 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [createdProduct, setCreatedProduct] = useState<Product | null>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
 
   useEffect(() => {
     variantsRef.current = variants;
@@ -108,7 +111,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
 
   const submitProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isAnalyzing) return;
+    if (isAnalyzing || isPublishing || createdProduct) return;
     const category = categories.includes(draft.category) ? draft.category : categories[0];
     if (!category) {
       setErrorMessage('Create at least one category before publishing a product.');
@@ -163,7 +166,9 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           galleryFiles: variant.galleryFiles,
         })),
       });
-      await onPublished();
+      // Keep the persisted ID before refreshing the catalogue: retrying a refresh
+      // must never publish a second product or lose the video handoff.
+      setCreatedProduct(product);
       releaseVariantPreviews(variants);
       setDraft(EMPTY_DRAFT);
       setPricingDraftVersion(current => current + 1);
@@ -173,6 +178,13 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       setSuccessMessage(`${product.name} with ${product.variants.length} variant${
         product.variants.length === 1 ? '' : 's'
       } was published to the catalogue.`);
+      try {
+        await onPublished();
+        setRefreshFailed(false);
+      } catch {
+        setRefreshFailed(true);
+        setErrorMessage('Product was published, but the catalogue list could not refresh. Retry refresh below; do not create the product again.');
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to publish the product.');
     } finally {
@@ -213,7 +225,30 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       </button>
       {isExpanded && (
         <AdminDialog title="Add product" busy={isAnalyzing || isPublishing} onClose={() => setIsExpanded(false)}>
-        <form
+        {createdProduct ? <div id="add-product-panel" className="space-y-4 p-3 sm:p-5">
+          <p role="status" className="text-sm text-green-800">{successMessage}</p>
+          <h2 className="font-heading text-xl font-bold text-cocoa">Add a making video for {createdProduct.name}</h2>
+          <p className="text-sm text-cocoa/75">
+            Your product is saved. Add an optional video and owned/licensed background music below,
+            review the processed video privately, then explicitly publish the video.
+            You can also close this panel and return through Manage products → Edit.
+          </p>
+          {errorMessage && <p role="alert" className="text-sm text-red-700">{errorMessage}</p>}
+          {refreshFailed && <button type="button" disabled={isPublishing}
+            className="rounded-full border border-cocoa/30 px-4 py-2 text-sm"
+            onClick={() => {
+              setIsPublishing(true);
+              void onPublished().then(() => { setRefreshFailed(false); setErrorMessage(null); })
+                .catch(() => setErrorMessage('Product is already published. Catalogue refresh failed; retry refresh or reopen Manage products.'))
+                .finally(() => setIsPublishing(false));
+            }}>Retry catalogue refresh</button>}
+          <ProductVideoManager key={createdProduct.id} product={createdProduct} />
+          <button type="button" disabled={isPublishing}
+            className="rounded-full border border-cocoa/30 px-4 py-2 text-sm"
+            onClick={() => {
+              setCreatedProduct(null); setSuccessMessage(null); setErrorMessage(null); setRefreshFailed(false);
+            }}>Add another product</button>
+        </div> : <form
           id="add-product-panel"
           className="space-y-4 border-t border-mustard/30 p-3 sm:space-y-6 sm:p-5"
           onSubmit={submitProduct}
@@ -403,6 +438,22 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </div>
       </section>
 
+      <section aria-label="Making video for new product" className="rounded-2xl border border-mustard/40 bg-white p-4 sm:p-5">
+        <h2 className="font-heading text-xl font-bold text-cocoa">Making video (optional)</h2>
+        <p className="mt-2 text-sm text-cocoa/75">
+          Save this product first to attach a video to its permanent product ID.
+          Complete the required photos and details, then choose Publish product then add video.
+          This publishes the product and opens video upload here — no need to find it in Edit.
+          You can choose optional owned/licensed background music before browsing for the video,
+          preview the processed result privately and publish the video separately.
+          Video and music files are selected after saving, not stored in this unsaved product draft.
+        </p>
+        <button type="submit" disabled={categories.length === 0 || isAnalyzing || isPublishing}
+          className="mt-3 min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-60">
+          Publish product then add video
+        </button>
+      </section>
+
       <section className="rounded-2xl border border-mustard/40 bg-white p-4 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-mustard-dark">
           Step 3 of 3
@@ -433,7 +484,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           }`}
         </button>
       </section>
-        </form>
+        </form>}
         </AdminDialog>
       )}
     </section>

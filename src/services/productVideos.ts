@@ -37,14 +37,39 @@ export function validateVideoFile(file: File) {
   }
 }
 
-export async function uploadProductVideo(productId: string, file: File) {
+export interface VideoMusic {
+  file: File;
+  mode: 'mix' | 'replace';
+  rightsConfirmed: boolean;
+}
+
+export function validateMusicFile(file: File) {
+  const extensions: Record<string, RegExp> = {
+    'audio/mpeg': /\.mp3$/i, 'audio/mp4': /\.m4a$/i,
+    'audio/wav': /\.wav$/i, 'audio/x-wav': /\.wav$/i,
+  };
+  if (!extensions[file.type]?.test(file.name) || file.size < 1 || file.size > 20 * 1024 * 1024) {
+    throw new Error('Choose an MP3, M4A or WAV audio file no larger than 20 MB.');
+  }
+}
+
+export async function uploadProductVideo(productId: string, file: File, music?: VideoMusic) {
   validateVideoFile(file);
-  const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: file.type });
+  if (music) {
+    validateMusicFile(music.file);
+    if (!music.rightsConfirmed) throw new Error('Confirm that you own or have permission to use this music.');
+    if (!['mix', 'replace'].includes(music.mode)) throw new Error('Choose a valid music mode.');
+  }
+  const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: file.type,
+    ...(music ? { music: { size: music.file.size, type: music.file.type, mode: music.mode,
+      rightsConfirmed: music.rightsConfirmed } } : {}),
+  });
   if (typeof jobId !== 'string' || !/^[0-9a-f-]{36}$/i.test(jobId)) throw new Error('Invalid video upload response.');
   // Authenticated bounded edge upload, not a revocable-looking presigned PUT that
   // could recreate an original after an explicit discard.
   const { data, error } = await (await client()).functions.invoke(`product-videos?jobId=${jobId}`, {
-    body: file, headers: { 'Content-Type': 'video/mp4' },
+    body: music ? new Blob([file, music.file], { type: 'application/octet-stream' }) : file,
+    headers: { 'Content-Type': music ? 'application/octet-stream' : 'video/mp4' },
   });
   if (error) throw new Error(await getImageStorageErrorMessage(error));
   if (data?.queued !== true) throw new Error(data?.error || 'Video upload did not complete. Discard the draft and retry.');
