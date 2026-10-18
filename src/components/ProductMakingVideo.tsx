@@ -17,7 +17,7 @@ export function WatchMakingVideoLink({ product }: { product: Product }) {
         section?.querySelector<HTMLButtonElement>('button[data-making-play]')?.click();
       }}
     >
-      ▶ Watch how it’s made (video)
+      ▶ Watch how it’s made
     </a>
   );
 }
