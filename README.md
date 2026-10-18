@@ -13,6 +13,16 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ### Optional product making videos
 
+**Dedicated public video bucket (optional).** Set the GitHub secrets
+`R2_VIDEO_BUCKET` and `R2_VIDEO_PUBLIC_URL` (HTTPS public/custom domain of that
+bucket, e.g. `https://videos.<your-domain>`) and the same two Supabase function
+secrets, then redeploy `product-videos`. New published videos and posters are copied
+there; private originals/music stay in `R2_ORIGINALS_BUCKET`. Without these values
+the existing `R2_BUCKET`/`R2_PUBLIC_URL` image bucket is used. Already-published
+videos keep their stored URLs, and discard/cleanup removes objects from both buckets.
+Create the bucket and enable its public domain in the Cloudflare dashboard first
+(the object-only R2 token cannot create buckets).
+
 In **Add product**, the visible **Making video (optional)** section offers
 **Publish product then add video**. Complete the required product details/photos
 first; this saves the product and keeps its permanent ID in a success panel with

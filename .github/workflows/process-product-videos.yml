@@ -71,6 +71,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_VIDEO_BUCKET: ${{ secrets.R2_VIDEO_BUCKET }}
           R2_ORIGINALS_BUCKET: ${{ secrets.R2_ORIGINALS_BUCKET }}
       - name: Ensure FFmpeg is installed for queued jobs
         if: inputs.processor_check == true || steps.queue.outputs.has_work == 'true'
@@ -91,6 +92,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_VIDEO_BUCKET: ${{ secrets.R2_VIDEO_BUCKET }}
           R2_ORIGINALS_BUCKET: ${{ secrets.R2_ORIGINALS_BUCKET }}
       - name: Process bounded video queue
         if: steps.queue.outputs.has_work == 'true'
@@ -102,5 +104,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_VIDEO_BUCKET: ${{ secrets.R2_VIDEO_BUCKET }}
           R2_ORIGINALS_BUCKET: ${{ secrets.R2_ORIGINALS_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          R2_VIDEO_PUBLIC_URL: ${{ secrets.R2_VIDEO_PUBLIC_URL }}

@@ -133,6 +133,19 @@ it('copies the reviewed MP4 and poster server-side only on explicit publish, the
   expect(storageFetch.mock.invocationCallOrder[1]).toBeLessThan(serviceRpc.mock.invocationCallOrder[0]);
   expect(status).toBe('ready');
 });
+it('publishes to the dedicated video bucket and URL when configured', async () => {
+  env.R2_VIDEO_BUCKET = 'videos'; env.R2_VIDEO_PUBLIC_URL = 'https://videos.example.test/';
+  expect((await handler(request({ action: 'publish', jobId: id }))).status).toBe(200);
+  const puts = storageFetch.mock.calls.filter(call => call[1].method === 'PUT');
+  expect(puts.map(call => call[0])).toEqual([
+    `https://account.r2.cloudflarestorage.com/videos/making-videos/${id}/video.mp4`,
+    `https://account.r2.cloudflarestorage.com/videos/making-videos/${id}/poster.webp`,
+  ]);
+  expect(serviceRpc).toHaveBeenCalledWith('finish_product_video_publish', expect.objectContaining({
+    p_video_url: `https://videos.example.test/making-videos/${id}/video.mp4`,
+    p_poster_url: `https://videos.example.test/making-videos/${id}/poster.webp`,
+  }));
+});
 it('returns a failed publication to private review without switching the existing public metadata', async () => {
   storageFetch.mockResolvedValueOnce(new Response('<CopyObjectResult/>'))
     .mockResolvedValueOnce(new Response('<Error>copy failed</Error>'));

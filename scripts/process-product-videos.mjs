@@ -197,9 +197,11 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
   const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'R2_ACCOUNT_ID',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_ORIGINALS_BUCKET', 'R2_PUBLIC_URL'];
   for (const key of required) if (!env[key]) throw new Error(`Missing ${key}.`);
-  if (env.R2_BUCKET === env.R2_ORIGINALS_BUCKET) throw new Error('Originals bucket must be private and separate.');
-  const publicUrl = new URL(env.R2_PUBLIC_URL);
-  if (publicUrl.protocol !== 'https:') throw new Error('R2_PUBLIC_URL must use HTTPS.');
+  if (env.R2_BUCKET === env.R2_ORIGINALS_BUCKET || env.R2_VIDEO_BUCKET === env.R2_ORIGINALS_BUCKET) {
+    throw new Error('Originals bucket must be private and separate.');
+  }
+  const publicUrl = new URL(env.R2_VIDEO_PUBLIC_URL || env.R2_PUBLIC_URL);
+  if (publicUrl.protocol !== 'https:') throw new Error('The public video URL must use HTTPS.');
   const db = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const r2 = new AwsClient({ accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     service: 's3', region: 'auto', retries: 1 });
@@ -280,7 +282,8 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
     if (job.writer_active) continue;
     try {
       await deleteVideoDraftAssets(r2, objectUrl(env.R2_ORIGINALS_BUCKET, '').replace(/\/$/, ''),
-        objectUrl(env.R2_BUCKET, '').replace(/\/$/, ''), job.id, job.original_upload_id);
+        [...new Set([env.R2_VIDEO_BUCKET || env.R2_BUCKET, env.R2_BUCKET])]
+          .map(bucket => objectUrl(bucket, '').replace(/\/$/, '')), job.id, job.original_upload_id);
       if (!await rpc('finish_product_video_discard', { p_job_id: job.id })) {
         throw new Error('Draft cleanup was not confirmed. Retry discard cleanup.');
       }

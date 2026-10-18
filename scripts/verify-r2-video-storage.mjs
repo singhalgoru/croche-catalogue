@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { AwsClient } from 'aws4fetch';
 
-const env = process.env;
+const env = { ...process.env, R2_BUCKET: process.env.R2_VIDEO_BUCKET || process.env.R2_BUCKET };
 for (const name of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET']) {
   if (!env[name]) throw new Error(`Missing ${name}.`);
 }

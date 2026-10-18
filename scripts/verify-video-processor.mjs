@@ -5,7 +5,7 @@ import { AwsClient } from 'aws4fetch';
 import { encodeVideo, readBoundedBody, runMediaTool } from './process-product-videos.mjs';
 
 // Deliberately no database client: never claim or modify a concurrent admin job.
-const env = process.env;
+const env = { ...process.env, R2_BUCKET: process.env.R2_VIDEO_BUCKET || process.env.R2_BUCKET };
 for (const key of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ORIGINALS_BUCKET', 'R2_BUCKET']) {
   if (!env[key]) throw new Error(`Missing ${key}.`);
 }

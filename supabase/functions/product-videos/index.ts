@@ -149,11 +149,12 @@ Deno.serve(async (request) => {
     }
     const account = Deno.env.get('R2_ACCOUNT_ID') || Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
     const bucket = Deno.env.get('R2_ORIGINALS_BUCKET');
-    const publicBucket = Deno.env.get('R2_BUCKET');
+    const publicBucket = Deno.env.get('R2_VIDEO_BUCKET') || Deno.env.get('R2_BUCKET');
+    const legacyBucket = Deno.env.get('R2_BUCKET');
     const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID');
     const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const publicUrl = Deno.env.get('R2_PUBLIC_URL')?.replace(/\/+$/, '');
+    const publicUrl = (Deno.env.get('R2_VIDEO_PUBLIC_URL') || Deno.env.get('R2_PUBLIC_URL'))?.replace(/\/+$/, '');
     if (!account || !bucket || !publicBucket || bucket === publicBucket || !accessKeyId || !secretAccessKey || !serviceKey || !publicUrl) {
       return json({ error: 'Private video storage is not configured.' }, 503);
     }
@@ -167,13 +168,14 @@ Deno.serve(async (request) => {
     const endpoint = `https://${account}.r2.cloudflarestorage.com`;
     const privateEndpoint = `${endpoint}/${bucket}`;
     const publicEndpoint = `${endpoint}/${publicBucket}`;
+    const publicEndpoints = [...new Set([publicBucket, legacyBucket])].map(name => `${endpoint}/${name}`);
     const cleanup = async (id: string) => {
       try {
         const { data: job, error } = await service.from('product_video_jobs')
           .select('status,writer_active,original_upload_id').eq('id', id).single();
         if (error) throw error;
         if (job?.status !== 'discarding' || job.writer_active) return false;
-        await deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoint, id, job.original_upload_id);
+        await deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoints, id, job.original_upload_id);
         return await serviceRpc('finish_product_video_discard', { p_job_id: id });
       } catch (error) {
         await serviceRpc('finish_product_video_discard', { p_job_id: id, p_error: errorMessage(error) });
