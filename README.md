@@ -44,7 +44,7 @@ Invalid media, upload failures and processing failures are shown explicitly.
   track stored privately at `making-video-music/luvia-gentle.wav` in the originals
   bucket. It is never committed to this public repo or sent to the browser; the
   worker copies it server-side. If it is not installed, processing fails with
-  "Default Luvia music is not installed"; install it, then **Reprocess draft**.
+  "Default Luvia music is not installed"; install it, then discard and upload again.
 - **Upload my own music**: **Browse audio** (Change/Remove after selection), then
   confirm that you own or have permission to use the track. It replaces the default.
   MP3, AAC M4A or PCM WAV, up to 20 MB, 0.1–600 seconds, mono/stereo, 8–96 kHz,
@@ -58,11 +58,17 @@ Videos are never upscaled or cropped: output fits within 1280×720 (portrait at 
 sources keep their size (rounded to even pixels).
 After processing, use **Preview processed video** to review the actual branded MP4
 and WebP poster privately (shown at its natural aspect ratio), with duration, dimensions
-and file size. **Reprocess draft** re-encodes a draft awaiting review from its retained
-private original with the currently chosen music (default/no music, or keeps a
-retained uploaded track) without re-uploading; the preview is cleared and publish is
-unavailable until the new encode is ready. The published video is never touched.
-Drafts processed before the audio policy keep their old audio until reprocessed.
+and file size. **Uploaded originals are automatically deleted only after successful
+publication**, including originals of older published jobs. Private review drafts,
+failed publication and in-flight jobs retain their originals. **Reprocess draft**
+remains available before publishing, using the selected music without re-upload.
+The worker deletes only `original.mp4`, verifies its
+absence, and records `original_deleted_at`; failures are visible in the workflow
+and can be retried by running **Process product making videos**. Processed MP4s,
+posters and the private default music are not deleted. After publication, upload
+again to replace/reprocess the video; the previous published video is unchanged
+until a replacement is published.
+Drafts processed before the audio policy keep their old audio until replaced.
 Choose **Publish
 video** explicitly to make it public. Processing alone never publishes or replaces
 the existing video. Preview URLs are admin-authorized, expire after five minutes,
@@ -84,8 +90,8 @@ are not resumable: discard the draft and retry. No browser or edge FFmpeg runs.
 The worker streams originals to its per-job working directory with backpressure,
 byte-count validation and partial-file cleanup, rather than buffering a 500 MB source.
 Music uses a separate authenticated upload bounded to 20 MB. Its private
-`making-videos/<job-id>/music.bin` source is retained after publication/removal
-alongside the original video; no automatic retention/deletion policy is added.
+`making-videos/<job-id>/music.bin` source is retained after publication/removal;
+only the original video is automatically deleted after successful publication.
 Private review plays the actual processed MP4; publication never re-encodes a different copy.
 
 Audio policy rollout: apply `20261018190000_product_video_audio_policy.sql`, deploy
@@ -133,27 +139,37 @@ the badge into the encoded MP4; the poster is extracted from that branded video.
 Aspect ratio and camera rotation are preserved; the source is never modified.
 Watermarks deter casual reuse but can be cropped/removed; this is not DRM.
 
-There is **no automatic remote retention/deletion policy**. Originals, replaced
-and removed assets are retained unless an admin explicitly discards a draft. Discard
+Published originals are automatically deleted and their deletion is tracked in
+`original_deleted_at`. Other replaced and removed assets are retained unless an
+admin explicitly discards a draft. Discard
 sets a persistent tombstone before attempting R2 deletion, fences in-flight upload/
 processing/publication writers, and confirms success only after all writers finish
 and deletion succeeds. Late writers clean up their own output; interrupted writers
 are recovered after a bounded 15-minute lease by a subsequent upload/discard/manual
 run. Cleanup errors remain visible and retryable; workers retry only explicitly
-authorized discard tombstones.
+authorized discard tombstones and published-original cleanup.
 It does not delete unrelated failed/old/orphan assets automatically. Enable GitHub
 Actions failure notifications for processing or cleanup failures.
 Partial public copies from a failed explicit publication are rolled back; private
-originals and review assets are retained so publication can be retried.
+review assets are retained so publication can be retried without an original.
 
 Shoppers see a separate **See how it’s made** poster and play button on product
 pages/modals. No video element/source exists before an explicit tap; videos do not
 autoplay on page load. Native controls, inline playback and retry errors are provided.
+**Share making video** opens native sharing, or copies a clean product-page link
+ending in `#making-video`. Opening that link scrolls to the video without autoplay.
+Sharing errors show a selectable manual link; cancelling native sharing is harmless.
 Only product ID and playback events go through the existing consent/privacy-aware
 analytics helper. `nodownload` is a UI hint, not DRM; optimized media is public.
 No adaptive streaming is used.
 
 **Deployment order (do not deploy the frontend before the migration):**
+
+For automatic original cleanup, apply
+`supabase/migrations/20261018233000_product_video_original_cleanup.sql` followed by
+`supabase/migrations/20261018234500_product_video_published_original_cleanup.sql` before
+deploying the worker/frontend. Run **Process product making videos** once to
+clean up older published originals. A failed cleanup is retried by another manual run.
 
 1. Apply `supabase/migrations/20261018130000_product_making_videos.sql`, then
    `supabase/migrations/20261018142000_dispatch_product_video_processing.sql`.

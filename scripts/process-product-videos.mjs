@@ -274,7 +274,26 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
       await rm(dir, { recursive: true, force: true });
     }
   }
-  // Only explicit user discard tombstones authorize remote deletion. No retention policy.
+  // Only successfully published jobs qualify; private review drafts retain sources.
+  const { data: processed, error: cleanupQueryError } = await db.from('product_video_jobs')
+    .select('id').in('status', ['ready', 'replaced'])
+    .is('original_deleted_at', null).limit(30);
+  if (cleanupQueryError) throw cleanupQueryError;
+  for (const job of processed) {
+    if (!UUID.test(job.id)) throw new Error('Invalid stored job ID.');
+    const url = objectUrl(env.R2_ORIGINALS_BUCKET, `making-videos/${job.id}/original.mp4`);
+    const response = await r2.fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(30_000) });
+    if (!response.ok && !(response.status === 404 && /<Code>NoSuchKey<\/Code>/.test(await response.text()))) {
+      throw new Error(`Original video cleanup failed (HTTP ${response.status}). Retry processing workflow; processed video is safe.`);
+    }
+    const head = await r2.fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(30_000) });
+    if (head.status !== 404) throw new Error(`Original video deletion could not be verified (HTTP ${head.status}).`);
+    if (!await rpc('finish_product_video_original_cleanup', { p_job_id: job.id })) {
+      throw new Error('Original video cleanup was not confirmed. Retry processing workflow.');
+    }
+    console.log(`Video job ${job.id}: original deleted; processed video and poster retained`);
+  }
+  // Discard still authorizes deletion of the other private/public draft assets.
   const { data: discarded, error } = await db.from('product_video_jobs').select('id,writer_active,original_upload_id')
     .eq('status', 'discarding').limit(30);
   if (error) throw error;
@@ -297,7 +316,7 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
   if (remainingError) throw remainingError;
   // GitHub keeps one pending run per concurrency group. Chain only actual queued
   // work so bursts above three uploads drain without any recurring idle schedule.
-  if (remaining.length) await rpc('request_product_video_processing');
+  if (remaining.length || processed.length === 30) await rpc('request_product_video_processing');
   if (failed) throw new Error('One or more video jobs failed; details are visible in the admin and workflow log.');
 }
 

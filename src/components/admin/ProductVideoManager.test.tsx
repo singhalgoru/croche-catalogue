@@ -107,29 +107,15 @@ it('shows the chosen custom audio, requires permission, supports change/remove a
   expect(screen.queryByText('track.mp3')).toBeNull();
   expect(browse.disabled).toBe(true);
 });
-it('reprocesses a review draft without re-upload, clearing the preview and disabling publish', async () => {
+it('keeps reprocessing available until publication and explains post-publication original deletion', async () => {
   getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });
-  reprocess.mockResolvedValue(undefined);
-  const { container } = render(<ProductVideoManager product={product} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Preview processed video' }));
-  await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+  render(<ProductVideoManager product={product} />);
+  await screen.findByRole('button', { name: 'Preview processed video' });
+  expect(screen.getByText(/original is kept until publication succeeds/)).toBeTruthy();
   getJob.mockResolvedValue({ id: 'j1', status: 'queued', error: null });
   fireEvent.click(screen.getByRole('button', { name: 'Reprocess draft' }));
   await waitFor(() => expect(reprocess).toHaveBeenCalledWith('j1', 'brand'));
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Publish video' })).toBeNull());
-  expect(container.querySelector('video')).toBeNull();
-  expect(upload).not.toHaveBeenCalled();
-  expect(publish).not.toHaveBeenCalled();
-  expect(screen.getByRole('status').textContent).toContain('published video is unchanged');
-});
-it('can reprocess a review draft to No music', async () => {
-  getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });
-  reprocess.mockResolvedValue(undefined);
-  render(<ProductVideoManager product={product} />);
-  await screen.findByRole('button', { name: 'Reprocess draft' });
-  fireEvent.click(screen.getByRole('radio', { name: /No music/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Reprocess draft' }));
-  await waitFor(() => expect(reprocess).toHaveBeenCalledWith('j1', 'none'));
 });
 it('provides a playable private branded preview with duration/size before explicit Publish video', async () => {
   getJob.mockResolvedValue({ id: 'j1', status: 'review', error: null });

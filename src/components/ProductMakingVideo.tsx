@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../types/product';
 import { trackEvent } from '../services/analytics';
+import { toProductPageUrl } from '../utils/productLink';
 
 export const MAKING_VIDEO_ID = 'making-video';
 
@@ -26,17 +27,60 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   const [requested, setRequested] = useState(false);
   const [error, setError] = useState(false);
   const [needsPlayTap, setNeedsPlayTap] = useState(false);
+  const [shareMessage, setShareMessage] = useState('');
+  const [shareError, setShareError] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
   const started = useRef(false);
   const video = product.makingVideo;
+  useEffect(() => {
+    if (!video) return;
+    const scrollToVideo = () => {
+      if (window.location.hash === `#${MAKING_VIDEO_ID}`) {
+        sectionRef.current?.scrollIntoView({ block: 'start' });
+      }
+    };
+    scrollToVideo();
+    window.addEventListener('hashchange', scrollToVideo);
+    return () => window.removeEventListener('hashchange', scrollToVideo);
+  }, [video]);
   if (!video) return null;
   const event = (name: string) => trackEvent(name, { product_id: product.id });
+  const shareUrl = `${toProductPageUrl(product)}#${MAKING_VIDEO_ID}`;
+  const share = async () => {
+    setSharing(true); setShareMessage(''); setShareError(false);
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: `${product.name} | Luvia Creations`,
+          text: `Watch how ${product.name} is made by Luvia Creations.`,
+          url: shareUrl,
+        });
+        event('making_video_share');
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareMessage('Making video link copied.');
+        event('making_video_share');
+      } else {
+        setShareError(true);
+        setShareMessage('Sharing is unavailable in this browser. Copy the video link below.');
+      }
+    } catch (error) {
+      if (!(error && typeof error === 'object' && 'name' in error && error.name === 'AbortError')) {
+        setShareError(true);
+        setShareMessage('Unable to share the making video. Copy the video link below.');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
   const portrait = video.width / video.height < 0.9;
   const frameClass = portrait
     ? 'aspect-[4/5] w-full rounded-lg bg-cocoa/10 object-cover object-bottom'
     : 'w-full rounded-lg bg-cocoa/10 object-cover';
   const frameStyle = portrait ? undefined : { aspectRatio: `${video.width} / ${video.height}` };
   return (
-    <section id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-4 rounded-xl border border-cocoa/15 p-3">
+    <section ref={sectionRef} id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-24 rounded-xl border border-cocoa/15 p-3">
       <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">See how it’s made</h3>
       {requested ? (
         <video
@@ -75,6 +119,13 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           </span>
         </button>
       )}
+      <button type="button" disabled={sharing} onClick={() => void share()}
+        className="mt-3 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa underline disabled:opacity-50">
+        Share making video
+      </button>
+      {shareMessage && <p role={shareError ? 'alert' : 'status'} className="mt-2 text-sm text-cocoa">{shareMessage}</p>}
+      {shareError && <input aria-label="Making video share link" readOnly value={shareUrl}
+        onFocus={event => event.currentTarget.select()} className="mt-2 w-full rounded border border-cocoa/30 p-2 text-sm" />}
       {needsPlayTap && !error && <p role="status" className="mt-2 text-sm text-cocoa">
         Tap the video’s play control to start playback.
       </p>}

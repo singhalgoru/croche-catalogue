@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Product } from '../types/product';
 import ProductMakingVideo, { WatchMakingVideoLink } from './ProductMakingVideo';
@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 
 it('renders nothing for products without a video', () => {
   const { container } = render(<ProductMakingVideo product={{ ...product, makingVideo: undefined }} />);
@@ -54,6 +54,60 @@ it('shows an explicit error and retries without changing product photos', () => 
   expect(container.querySelector('video')).toBeNull();
   expect(screen.getByRole('button', { name: 'Play making video for Rose' })).toBeTruthy();
   expect(product.image).toBe('/photo.webp');
+});
+
+it('shares a clean product link anchored to the making video without fetching or playing it', async () => {
+  const share = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', { share });
+  const { container } = render(<ProductMakingVideo product={product} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Share making video' }));
+  await waitFor(() => expect(share).toHaveBeenCalledWith({
+    title: 'Rose | Luvia Creations',
+    text: 'Watch how Rose is made by Luvia Creations.',
+    url: `${window.location.origin}/p/rose/#making-video`,
+  }));
+  expect(container.querySelector('video')).toBeNull();
+  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+});
+
+it('copies the anchored link when native sharing is unavailable', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', { clipboard: { writeText } });
+  render(<ProductMakingVideo product={product} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Share making video' }));
+  await screen.findByText('Making video link copied.');
+  expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/p/rose/#making-video`);
+});
+
+it('shows a selectable link when neither native sharing nor clipboard is available', async () => {
+  vi.stubGlobal('navigator', {});
+  render(<ProductMakingVideo product={product} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Share making video' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Sharing is unavailable');
+  expect(screen.getByLabelText<HTMLInputElement>('Making video share link').value).toContain('#making-video');
+});
+
+it('handles cancellation quietly and exposes a manual link on actual sharing failure', async () => {
+  const share = vi.fn().mockRejectedValue(new DOMException('Cancelled', 'AbortError'));
+  vi.stubGlobal('navigator', { share });
+  render(<ProductMakingVideo product={product} />);
+  const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Share making video' });
+  fireEvent.click(button);
+  await waitFor(() => expect(button.disabled).toBe(false));
+  expect(screen.queryByRole('alert')).toBeNull();
+  share.mockRejectedValue(new Error('Permission denied'));
+  fireEvent.click(button);
+  expect((await screen.findByRole('alert')).textContent).toContain('Unable to share');
+  expect(screen.getByLabelText<HTMLInputElement>('Making video share link').value).toBe(`${window.location.origin}/p/rose/#making-video`);
+});
+
+it('opens a shared anchor at the video without autoplay', () => {
+  const scroll = vi.fn();
+  Element.prototype.scrollIntoView = scroll;
+  window.history.replaceState(null, '', '/p/rose/#making-video');
+  render(<ProductMakingVideo product={product} />);
+  expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
 });
 
 it('offers a link near the top that scrolls to the video and starts it', () => {

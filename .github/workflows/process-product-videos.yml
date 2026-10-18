@@ -40,7 +40,7 @@ jobs:
           if (!base || !key) throw new Error('Video processor Supabase secrets are missing.');
           const url = new URL('/rest/v1/product_video_jobs', base);
           url.searchParams.set('select', 'id');
-          url.searchParams.set('status', 'in.(queued,processing,discarding)');
+          url.searchParams.set('or', '(status.in.(queued,processing,discarding),and(status.in.(ready,replaced),original_deleted_at.is.null))');
           url.searchParams.set('limit', '1');
           const response = await fetch(url, {
             headers: { apikey: key, Authorization: `Bearer ${key}` },

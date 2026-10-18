@@ -50,6 +50,13 @@ test('optional making video requests no media before a tap and plays inline with
   await expect(making).toBeVisible();
   await expect(making.locator('video,source')).toHaveCount(0);
   await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
+  await page.evaluate(() => Object.defineProperty(navigator, 'share', {
+    configurable: true,
+    value: async (data: ShareData) => document.body.setAttribute('data-video-share-url', data.url ?? ''),
+  }));
+  await making.getByRole('button', { name: 'Share making video' }).click();
+  await expect(page.locator('body')).toHaveAttribute('data-video-share-url', /\/p\/[^/]+\/#making-video$/);
+  await expect(making.locator('video,source')).toHaveCount(0);
   expect(requests).toHaveLength(0);
   const photos = await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
     images.map(image => image.getAttribute('src')));

@@ -162,7 +162,8 @@ export default function ProductVideoManager({ product }: { product: Product }) {
             setMessage('Reprocessing from the retained original without re-upload. Original sound is removed; preview the new draft before publishing. The published video is unchanged.');
           })}>Reprocess draft</button>
         <p className="w-full text-xs text-cocoa/75">Reprocess draft applies the music option above: the Luvia default or
-          No music. Upload my own music keeps this draft&apos;s previously supplied track (or no audio if none).</p>
+          No music. Upload my own music keeps this draft&apos;s previously supplied track (or no audio if none).
+          The original is kept until publication succeeds, then automatically deleted.</p>
       </div>}
       {preview && job?.status === 'review' && <div className="my-3">
         <video src={preview.videoUrl} poster={preview.posterUrl} controls controlsList="nodownload"
@@ -173,7 +174,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
           onError={() => setError('Private preview expired or could not be played. Refresh the private preview and try again.')} />
         <p className="mt-2 text-sm">{preview.durationSeconds.toFixed(1)} seconds · {(preview.videoBytes / 1024 / 1024).toFixed(1)} MB
           · {preview.width}×{preview.height}. Private preview links expire after five minutes.
-          The source is unchanged; this branded video and its poster are exactly what publication will use.</p>
+          This branded video and its poster are exactly what publication will use; the uploaded original is deleted only after publication succeeds.</p>
       </div>}
       <div className="my-2 flex flex-wrap gap-2">
         {draft && <button type="button" disabled={busy || checking}

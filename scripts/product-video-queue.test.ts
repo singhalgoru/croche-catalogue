@@ -15,6 +15,7 @@ let jobs: { id: string; lease: string; source_bytes: number; music_bytes?: numbe
   music_mode?: string; music_source?: string }[];
 let publish = true;
 let discarded: { id: string; writer_active: boolean; original_upload_id?: string }[] = [];
+let processed: { id: string }[] = [];
 const encode = vi.fn(async (_input: string, output: string, poster: string, _run?: unknown, _music?: unknown) => {
   await writeFile(output, 'encoded');
   await writeFile(poster, 'poster');
@@ -26,6 +27,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   publish = true;
   discarded = [];
+  processed = [];
   jobs = [{ id, lease: id, source_bytes: 3 }];
   rpc.mockImplementation(async (name: string, args: { p_error?: string }) => ({
     data: name === 'claim_product_video' ? jobs.splice(0, 1)
@@ -33,7 +35,11 @@ beforeEach(() => {
   }));
   let filter = '';
   const query = { select: () => query, eq: (_column: string, value: string) => { filter = value; return query; },
-    limit: async () => ({ data: filter === 'discarding' ? discarded : jobs.filter(() => true), error: null }) };
+    in: (_column: string, statuses: string[]) => {
+      expect(statuses).toEqual(['ready', 'replaced']);
+      filter = 'processed'; return query;
+    }, is: () => query,
+    limit: async () => ({ data: filter === 'processed' ? processed : filter === 'discarding' ? discarded : jobs.filter(() => true), error: null }) };
   from.mockReturnValue(query);
   storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
     new Response(options?.method ? null : 'mp4', { status: 200 }));
@@ -65,6 +71,37 @@ it('records an explicit failure without publishing when either asset upload fail
   expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE')).toHaveLength(0);
   await expect(access(resolve('.video-processing', id))).rejects.toThrow();
 });
+
+it('deletes only published originals, verifies absence, then records cleanup without deleting processed assets', async () => {
+  jobs = [];
+  processed = [{ id }];
+  storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
+    new Response(null, { status: options?.method === 'HEAD' ? 404 : 204 }));
+  await processQueue(env, { encode });
+  expect(storageFetch.mock.calls.map(call => [call[0], call[1].method])).toEqual([
+    [`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/original.mp4`, 'DELETE'],
+    [`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/original.mp4`, 'HEAD'],
+  ]);
+  expect(rpc).toHaveBeenCalledWith('finish_product_video_original_cleanup', { p_job_id: id });
+});
+
+it('keeps the original after processing into a private review draft', async () => {
+  await processQueue(env, { encode });
+  expect(rpc).toHaveBeenCalledWith('finish_product_video', expect.objectContaining({ p_duration: 20 }));
+  expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE')).toHaveLength(0);
+  expect(rpc.mock.calls.some(call => call[0] === 'finish_product_video_original_cleanup')).toBe(false);
+});
+
+it.each([['DELETE', 503], ['HEAD', 200], ['HEAD', 403]])(
+  'does not record original cleanup if %s returns %i', async (method, status) => {
+    jobs = []; processed = [{ id }];
+    storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
+      new Response(null, { status: options?.method === method ? status : 204 }));
+    await expect(processQueue(env, { encode })).rejects.toThrow(/Original video/);
+    expect(rpc).not.toHaveBeenCalledWith('finish_product_video_original_cleanup', { p_job_id: id });
+    expect(rpc.mock.calls.some(call => call[0] === 'finish_product_video')).toBe(false);
+  },
+);
 
 it('honors explicit discard tombstones after an in-flight writer finishes and deletes all draft assets', async () => {
   publish = false;

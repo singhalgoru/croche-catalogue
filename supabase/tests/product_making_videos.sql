@@ -31,6 +31,13 @@ do $$ begin
     raise exception 'FAIL: restricted RPC permissions';
   end if;
 end $$;
+do $$ begin
+  if has_function_privilege('authenticated','public.finish_product_video_original_cleanup(uuid)','EXECUTE')
+    or has_function_privilege('anon','public.finish_product_video_original_cleanup(uuid)','EXECUTE')
+    or not has_function_privilege('service_role','public.finish_product_video_original_cleanup(uuid)','EXECUTE') then
+    raise exception 'FAIL: original cleanup RPC permissions';
+  end if;
+end $$;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal2',
   'session_id',session_id,'amr',jsonb_build_array(jsonb_build_object('method','totp',
   'timestamp',floor(extract(epoch from now())))))::text,true) from video_fixture;
