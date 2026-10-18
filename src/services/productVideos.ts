@@ -32,8 +32,12 @@ async function invoke(body: Record<string, unknown>) {
 }
 
 export function validateVideoFile(file: File) {
-  if (file.type !== 'video/mp4' || !/\.mp4$/i.test(file.name) || file.size < 1 || file.size > 60 * 1024 * 1024) {
-    throw new Error('Choose an MP4 video no larger than 60 MB.');
+  if (!/\.mp4$/i.test(file.name) || !['', 'application/octet-stream', 'video/mp4'].includes(file.type)) {
+    throw new Error(`"${file.name}" is not a supported MP4 upload (reported type: ${file.type || 'unknown'}). Export as MP4 with H.264 video and AAC audio; renaming the file is not enough.`);
+  }
+  if (file.size < 1) throw new Error(`"${file.name}" is empty. Choose a non-empty MP4 video.`);
+  if (file.size > 60 * 1024 * 1024) {
+    throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. The MP4 upload limit is 60 MB before processing. Export a shorter or lower-resolution copy and try again.`);
   }
 }
 
@@ -60,7 +64,7 @@ export async function uploadProductVideo(productId: string, file: File, music?: 
     if (!music.rightsConfirmed) throw new Error('Confirm that you own or have permission to use this music.');
     if (!['mix', 'replace'].includes(music.mode)) throw new Error('Choose a valid music mode.');
   }
-  const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: file.type,
+  const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: 'video/mp4',
     ...(music ? { music: { size: music.file.size, type: music.file.type, mode: music.mode,
       rightsConfirmed: music.rightsConfirmed } } : {}),
   });

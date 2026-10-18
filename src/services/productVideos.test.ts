@@ -26,6 +26,20 @@ it('uploads binary media through the authenticated edge function, never an unrev
     body: video, headers: { 'Content-Type': 'video/mp4' },
   });
 });
+it('accepts MP4 filenames with missing or generic browser MIME and normalizes the upload metadata', async () => {
+    for (const type of ['', 'application/octet-stream']) {
+      invoke.mockResolvedValueOnce({ data: { jobId: id } }).mockResolvedValueOnce({ data: { queued: true } });
+      await uploadProductVideo('p1', new File(['mp4'], 'recording.MP4', { type }));
+      expect(invoke.mock.calls.at(-2)?.[1].body.type).toBe('video/mp4');
+      expect(invoke.mock.calls.at(-1)?.[1].headers['Content-Type']).toBe('video/mp4');
+    }
+  });
+  it('distinguishes size, empty-file and format failures with actionable file details', () => {
+    expect(() => validateVideoFile({ name: 'large.mp4', type: 'video/mp4', size: 80 * 1024 * 1024 } as File))
+      .toThrow('80.0 MB');
+    expect(() => validateVideoFile(new File([], 'empty.mp4', { type: 'video/mp4' }))).toThrow('empty');
+    expect(() => validateVideoFile(new File(['x'], 'phone.mov', { type: 'video/quicktime' }))).toThrow('renaming');
+  });
 it('surfaces upload failures explicitly', async () => {
   invoke.mockResolvedValueOnce({ data: { jobId: id } }).mockResolvedValueOnce({
     error: { message: 'Upload failed', context: new Response(JSON.stringify({ error: 'Private storage offline' })) },
