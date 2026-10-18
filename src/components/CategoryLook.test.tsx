@@ -100,11 +100,8 @@ it('deters saving the scene and thumbnail without disabling hotspot or product l
   render(<CategoryLook category={category} products={items} />);
   fireEvent.click(screen.getByRole('button', { name: 'Explore Rose, hotspot 1' }));
   const scene = screen.getByAltText('Decor styled collection');
-  const backdrop = screen.getByRole('region').querySelector<HTMLImageElement>('.category-look-backdrop')!;
-  expect(backdrop.getAttribute('aria-hidden')).toBe('true');
-  expect(backdrop.getAttribute('alt')).toBe('');
   const thumbnail = screen.getByRole('link', { name: 'View Rose' }).querySelector('img')!;
-  for (const image of [scene, backdrop, thumbnail]) {
+  for (const image of [scene, thumbnail]) {
     expect(image.getAttribute('draggable')).toBe('false');
     expect(fireEvent.contextMenu(image)).toBe(false);
     expect(image.style.userSelect).toBe('none');

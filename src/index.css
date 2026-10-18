@@ -35,58 +35,6 @@ body {
   font-family: var(--font-sans);
 }
 
-@media (min-width: 1024px) {
-  .store-page-content {
-    display: grid;
-    grid-template-columns: minmax(1rem, 1fr) minmax(0, 70rem) minmax(1rem, 1fr);
-    align-content: start;
-    max-width: none;
-    padding-inline: 0;
-  }
-
-  .store-page-content > * {
-    grid-column: 2;
-    min-width: 0;
-  }
-
-  .store-page-content > .category-look {
-    grid-column: 1 / -1;
-    max-width: none;
-    padding-inline: 0;
-    border-inline: 0;
-    border-radius: 0;
-  }
-
-  .store-page-content > .category-look > h2,
-  .store-page-content > .category-look > p:not(.sr-only) {
-    max-width: 72rem;
-    margin-inline: auto;
-    padding-inline: 1rem;
-  }
-
-  .category-look-stage {
-    overflow: hidden;
-    background-color: var(--color-cream-dark);
-  }
-
-  .category-look-backdrop {
-    display: block;
-  }
-
-  .category-look-photo {
-    width: fit-content;
-    max-width: 100%;
-    margin-inline: auto;
-  }
-
-  .category-look-photo > img {
-    width: auto;
-    max-width: 100%;
-    max-height: min(70vh, 720px);
-    border-radius: 0;
-  }
-}
-
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

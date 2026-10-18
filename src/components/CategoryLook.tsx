@@ -74,15 +74,11 @@ export default function CategoryLook({ category, products }: { category: Categor
 
   if (!hasLook || !category.coverImage) return null;
 
-  return <section ref={sectionRef} aria-label={`Shop the look: ${category.name}`} className="category-look max-w-3xl space-y-3 rounded-2xl border border-mustard/40 bg-white p-3 sm:p-5">
+  return <section ref={sectionRef} aria-label={`Shop the look: ${category.name}`} className="max-w-3xl space-y-3 rounded-2xl border border-mustard/40 bg-white p-3 sm:p-5">
     <h2 className="font-heading text-xl font-bold">Shop this look</h2>
     <p className="text-sm text-cocoa/70">Tap a small ring to explore the products used in this image</p>
     {imageFailed ? <p role="alert">This collection photo could not load. You can still explore its linked products below.</p> :
-      <div className="category-look-stage relative isolate">
-        <img src={getProductImageUrl(category.coverImage, 160)} alt="" aria-hidden="true"
-          className="category-look-backdrop pointer-events-none absolute inset-0 -z-10 hidden h-full w-full scale-110 object-cover opacity-70 blur-xl"
-          {...productImageProtection} />
-      <div ref={sceneRef} className="category-look-photo relative"
+      <div ref={sceneRef} className="relative"
         onClick={event => {
           if (!(event.target instanceof Element) || !event.target.closest('button, a')) setActive(null);
         }}
@@ -126,7 +122,6 @@ export default function CategoryLook({ category, products }: { category: Categor
             </div>
           </a>
         </div>}
-      </div>
       </div>}
     <p aria-live="polite" className="sr-only">{selected ? `${selected.product.name} selected. Open its product card to view details.` : ''}</p>
     <ol className="sr-only focus-within:not-sr-only" aria-label="Products in this look">

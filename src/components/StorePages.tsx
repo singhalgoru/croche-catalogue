@@ -133,7 +133,7 @@ export default function StorePages({
       seasonalAnnouncement={getSeasonalAnnouncement(categories, products)}
       seasonalCategories={categories.filter(item => item.isSeasonal).map(item => item.name)}
       cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} onOpenOrders={onOpenOrders} accountName={accountName} />
-    <main className="store-page-content mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
+    <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
       <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
       <h1 className="font-heading text-3xl font-bold">{title}</h1>
