@@ -13,4 +13,9 @@ export const preventImageContextMenu = (event: MouseEvent<HTMLImageElement>) => 
 export const productImageProtection = {
   draggable: false,
   onContextMenu: preventImageContextMenu,
+  style: {
+    WebkitTouchCallout: 'none',
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+  },
 } as const;

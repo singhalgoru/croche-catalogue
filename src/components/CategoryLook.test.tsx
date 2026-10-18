@@ -88,3 +88,17 @@ it('keeps product links available after an image loading failure', () => {
   expect(screen.getByRole('alert').textContent).toContain('could not load');
   expect(screen.getByRole('link', { name: 'View product' })).toBeTruthy();
 });
+
+it('deters saving the scene and thumbnail without disabling hotspot or product links', () => {
+  render(<CategoryLook category={category} products={items} />);
+  const scene = screen.getByAltText('Decor styled collection');
+  const thumbnail = screen.getByRole('link', { name: 'View Rose' }).querySelector('img')!;
+  for (const image of [scene, thumbnail]) {
+    expect(image.getAttribute('draggable')).toBe('false');
+    expect(fireEvent.contextMenu(image)).toBe(false);
+    expect(image.style.userSelect).toBe('none');
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Explore Lotus, hotspot 2' }));
+  expect(screen.getByRole('link', { name: 'View Lotus' }).getAttribute('href'))
+    .toBe(screen.getByRole('link', { name: 'View product' }).getAttribute('href'));
+});

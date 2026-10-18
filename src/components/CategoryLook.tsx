@@ -5,6 +5,7 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import { toProductPageUrl } from '../utils/productLink';
 import ProductDiscount from './ProductDiscount';
 import { getCategoryHotspots } from '../utils/categoryImage.js';
+import { productImageProtection } from '../utils/imageProtection';
 import { trackShopTheLookHotspot, trackShopTheLookProductOpened, trackShopTheLookViewed } from '../services/analytics';
 
 export default function CategoryLook({ category, products }: { category: CategorySettings; products: Product[] }) {
@@ -41,7 +42,7 @@ export default function CategoryLook({ category, products }: { category: Categor
     {imageFailed ? <p role="alert">This collection photo could not load. You can still explore its linked products below.</p> :
       <div className="relative">
         <img src={getProductImageUrl(category.coverImage, 1080)} alt={`${category.name} styled collection`}
-          onError={() => setImageFailed(true)} className="block h-auto w-full rounded-xl" />
+          onError={() => setImageFailed(true)} className="block h-auto w-full rounded-xl" {...productImageProtection} />
         {spots.map((spot, index) => <button key={`${spot.productId}-${index}`} type="button"
           aria-label={`Explore ${spot.product.name}, hotspot ${index + 1}`} aria-pressed={selected === spot}
           onClick={() => { setActive(index); trackShopTheLookHotspot(category.name, spot.product, index); }}
@@ -58,7 +59,7 @@ export default function CategoryLook({ category, products }: { category: Categor
         onClick={() => trackShopTheLookProductOpened(category.name, selected.product, selectedIndex, 'card')}
         className="shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
         <img src={getProductImageUrl(selected.product.image, 160)} alt="" width={80} height={80}
-          className="h-20 w-20 rounded-lg object-contain" loading="lazy" />
+          className="h-20 w-20 rounded-lg object-contain" loading="lazy" {...productImageProtection} />
       </a>
       <div className="min-w-0 space-y-1">
         <h3 className="font-semibold">{selected.product.name}</h3>

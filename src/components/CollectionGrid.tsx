@@ -3,6 +3,7 @@ import { collectionPath } from '../utils/collectionLink.js';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { compareCategorySettings, matchesCategory } from '../utils/categorySelection';
 import { getCategoryImage } from '../utils/categoryImage.js';
+import { productImageProtection } from '../utils/imageProtection';
 
 interface Props {
   categories: CategorySettings[];
@@ -21,9 +22,9 @@ export default function CollectionGrid({ categories, products }: Props) {
             className="group block h-full overflow-hidden rounded-2xl border border-mustard/40 bg-mustard/25 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
             <div className="relative aspect-square overflow-hidden bg-cream-dark">
               {image && <img src={getProductImageUrl(image, 160)} alt="" aria-hidden="true" width={160} height={160}
-                loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" />}
+                loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-xl" {...productImageProtection} />}
               <img src={image ? getProductImageUrl(image, 480) : '/images/luvia-logo-320.webp'} alt="" width={480} height={480}
-                loading="lazy" decoding="async" className="relative h-full w-full object-contain" />
+                loading="lazy" decoding="async" className="relative h-full w-full object-contain" {...productImageProtection} />
             </div>
             <div className={`p-3 sm:p-4 ${category.isSeasonal ? 'badge-glow' : ''}`}>
               <h2 className="font-heading text-lg font-semibold leading-snug group-hover:underline">{category.name}</h2>
