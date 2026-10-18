@@ -82,6 +82,14 @@ test('optional making video requests no media before a tap and plays inline with
   const bounds = await sharedVideo.boundingBox();
   expect(bounds!.y).toBeGreaterThanOrEqual(0);
   expect(bounds!.y).toBeLessThan(300);
+  const legacyUrl = new URL(sharedUrl!);
+  legacyUrl.search = '';
+  await page.goto(legacyUrl.href);
+  await expect(page).toHaveURL(/#making-video$/);
+  const legacyVideo = page.locator('#making-video video');
+  await expect(legacyVideo).toBeVisible();
+  await expect.poll(() => legacyVideo.evaluate(element => (element as HTMLVideoElement).currentTime),
+    { timeout: 15_000 }).toBeGreaterThan(0);
 });
 
 test('making-video playback errors offer retry while purchase actions remain usable', async ({ page }) => {

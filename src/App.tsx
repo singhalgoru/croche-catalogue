@@ -275,6 +275,7 @@ function App() {
   useEffect(() => {
     if (!pageReference || !selectedProduct) return;
     const url = new URL(toProductPageUrl(selectedProduct));
+    if (window.location.hash === '#making-video') url.hash = '#making-video';
     const params = new URLSearchParams(window.location.search);
     params.delete('productPage');
     const incomingVariant = readProductVariantReference();
