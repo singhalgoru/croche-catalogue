@@ -142,6 +142,15 @@ gh workflow run process-product-videos.yml --repo singhalgoru/croche-catalogue -
 gh run list --repo singhalgoru/croche-catalogue --workflow process-product-videos.yml --limit 5
 ```
 
+For actual runtime FFmpeg plus private storage integration, dispatch the same
+workflow with `-f processor_check=true`. This generates a 1.2-second synthetic
+H.264 source, uploads/downloads it privately, runs the production branded encoder,
+uploads and byte-verifies the private MP4/WebP, then deletes and HEAD-verifies all
+three exact objects. It uses an eight-minute step bound and never accesses the
+database or public bucket. This intentionally does **not** claim real queue jobs
+or create a draft against an existing product, avoiding concurrent-admin races.
+SQL queue transitions remain covered by the rollback integration test.
+
 The function requires these existing server secrets: `R2_ACCOUNT_ID` (fallback
 `CLOUDFLARE_ACCOUNT_ID`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`,
 `R2_ORIGINALS_BUCKET`, `R2_PUBLIC_URL`. Supabase supplies `SUPABASE_URL`,

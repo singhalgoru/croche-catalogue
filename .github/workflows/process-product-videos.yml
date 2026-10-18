@@ -8,6 +8,11 @@ on:
         type: boolean
         required: false
         default: false
+      processor_check:
+        description: Private synthetic FFmpeg/storage smoke only; no queue or product changes
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -22,7 +27,7 @@ jobs:
     timeout-minutes: 14
     steps:
       - name: Check for bounded queued work before checkout/install
-        if: inputs.storage_check != true
+        if: inputs.storage_check != true && inputs.processor_check != true
         id: queue
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -48,14 +53,14 @@ jobs:
           console.log(rows.length ? 'Video work found.' : 'No pending video work; skipping setup and processing.');
           JS
       - uses: actions/checkout@v4
-        if: inputs.storage_check == true || steps.queue.outputs.has_work == 'true'
+        if: inputs.storage_check == true || inputs.processor_check == true || steps.queue.outputs.has_work == 'true'
       - uses: actions/setup-node@v4
-        if: inputs.storage_check == true || steps.queue.outputs.has_work == 'true'
+        if: inputs.storage_check == true || inputs.processor_check == true || steps.queue.outputs.has_work == 'true'
         with:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
-        if: inputs.storage_check == true || steps.queue.outputs.has_work == 'true'
+        if: inputs.storage_check == true || inputs.processor_check == true || steps.queue.outputs.has_work == 'true'
       - name: Verify bounded R2 object permissions
         if: inputs.storage_check == true
         timeout-minutes: 5
@@ -68,15 +73,25 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ORIGINALS_BUCKET: ${{ secrets.R2_ORIGINALS_BUCKET }}
       - name: Ensure FFmpeg is installed for queued jobs
-        if: steps.queue.outputs.has_work == 'true'
+        if: inputs.processor_check == true || steps.queue.outputs.has_work == 'true'
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
       - name: Verify FFmpeg availability
-        if: steps.queue.outputs.has_work == 'true'
+        if: inputs.processor_check == true || steps.queue.outputs.has_work == 'true'
         run: ffmpeg -version && ffprobe -version && test -f public/images/luvia-logo-480.webp
+      - name: Verify private synthetic processor pipeline
+        if: inputs.processor_check == true
+        timeout-minutes: 8
+        run: node scripts/verify-video-processor.mjs
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ORIGINALS_BUCKET: ${{ secrets.R2_ORIGINALS_BUCKET }}
       - name: Process bounded video queue
         if: steps.queue.outputs.has_work == 'true'
         run: node scripts/process-product-videos.mjs
