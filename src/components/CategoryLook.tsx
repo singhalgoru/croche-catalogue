@@ -74,9 +74,9 @@ export default function CategoryLook({ category, products }: { category: Categor
 
   if (!hasLook || !category.coverImage) return null;
 
-  return <section ref={sectionRef} aria-label={`Shop the look: ${category.name}`} className="max-w-3xl space-y-3 rounded-2xl border border-mustard/40 bg-white p-3 sm:p-5">
+  return <section ref={sectionRef} aria-label={`Shop the look: ${category.name}`} className="category-look max-w-3xl space-y-3 rounded-2xl border border-mustard/40 bg-white p-3 sm:p-5">
     <h2 className="font-heading text-xl font-bold">Shop this look</h2>
-    <p className="text-sm text-cocoa/70">Tap a small ring to explore the product.</p>
+    <p className="text-sm text-cocoa/70">Tap a small ring to explore the products used in this image</p>
     {imageFailed ? <p role="alert">This collection photo could not load. You can still explore its linked products below.</p> :
       <div ref={sceneRef} className="relative"
         onClick={event => {

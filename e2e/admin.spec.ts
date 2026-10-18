@@ -579,6 +579,14 @@ test('authors regular category image hotspots and shoppers explore products in t
   await page.goto(`/collections/${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/`);
   const look = page.getByRole('region', { name: `Shop the look: ${category}` });
   await expect(look).toBeVisible();
+  if (page.viewportSize()!.width >= 1024) {
+    const photo = look.getByAltText(`${category} styled collection`);
+    await expect.poll(async () => {
+      const bounds = await photo.boundingBox();
+      const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
+      return Boolean(bounds && Math.abs(bounds.x) <= 1 && Math.abs(bounds.width - viewportWidth) <= 1);
+    }).toBe(true);
+  }
   const marker = look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` });
   await expect(look.getByRole('group', { name: 'Selected hotspot product' })).toHaveCount(0);
   await expect(marker).toHaveCSS('left', /px$/);
