@@ -156,8 +156,11 @@ review assets are retained so publication can be retried without an original.
 Shoppers see a separate **See how it’s made** poster and play button on product
 pages/modals. No video element/source exists before an explicit tap; videos do not
 autoplay on page load. Native controls, inline playback and retry errors are provided.
-**Share making video** opens native sharing, or copies a clean product-page link
-ending in `#making-video`. Opening that link scrolls to the video without autoplay.
+The **share icon** beside the video opens native sharing, or copies a product-page
+link with `?watch=making-video#making-video`. Opening that link (or an older
+`#making-video` link) scrolls to the video after layout settles and starts muted
+playback, with **Turn sound on** available. Browser-blocked playback shows a play prompt.
+Ordinary product links still load no video until a tap.
 Sharing errors show a selectable manual link; cancelling native sharing is harmless.
 Only product ID and playback events go through the existing consent/privacy-aware
 analytics helper. `nodownload` is a UI hint, not DRM; optimized media is public.

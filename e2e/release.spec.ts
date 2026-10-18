@@ -55,7 +55,7 @@ test('optional making video requests no media before a tap and plays inline with
     value: async (data: ShareData) => document.body.setAttribute('data-video-share-url', data.url ?? ''),
   }));
   await making.getByRole('button', { name: 'Share making video' }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-video-share-url', /\/p\/[^/]+\/#making-video$/);
+  await expect(page.locator('body')).toHaveAttribute('data-video-share-url', /\/p\/[^/]+\/\?watch=making-video#making-video$/);
   await expect(making.locator('video,source')).toHaveCount(0);
   expect(requests).toHaveLength(0);
   const photos = await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
@@ -71,6 +71,17 @@ test('optional making video requests no media before a tap and plays inline with
   expect(await video.evaluate(element => (element as HTMLVideoElement).playsInline)).toBe(true);
   expect(await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
     images.map(image => image.getAttribute('src')))).toEqual(photos);
+  const sharedUrl = await page.locator('body').getAttribute('data-video-share-url');
+  await page.goto(sharedUrl!);
+  const sharedVideo = page.getByRole('region', { name: 'Making video', exact: true }).locator('video');
+  await expect(sharedVideo).toBeVisible();
+  await expect.poll(() => sharedVideo.evaluate(element => (element as HTMLVideoElement).currentTime),
+    { timeout: 15_000 }).toBeGreaterThan(0);
+  expect(await sharedVideo.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Turn sound on' })).toBeVisible();
+  const bounds = await sharedVideo.boundingBox();
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y).toBeLessThan(300);
 });
 
 test('making-video playback errors offer retry while purchase actions remain usable', async ({ page }) => {

@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../types/product';
 import { trackEvent } from '../services/analytics';
 import { toProductPageUrl } from '../utils/productLink';
+import { ShareIcon } from './SocialIcons';
 
 export const MAKING_VIDEO_ID = 'making-video';
+const isVideoLink = () => window.location.hash === `#${MAKING_VIDEO_ID}`
+  || new URLSearchParams(window.location.search).get('watch') === MAKING_VIDEO_ID;
 
 export function WatchMakingVideoLink({ product }: { product: Product }) {
   if (!product.makingVideo) return null;
@@ -24,7 +27,8 @@ export function WatchMakingVideoLink({ product }: { product: Product }) {
 }
 
 export default function ProductMakingVideo({ product }: { product: Product }) {
-  const [requested, setRequested] = useState(false);
+  const [requested, setRequested] = useState(isVideoLink);
+  const [muted, setMuted] = useState(isVideoLink);
   const [error, setError] = useState(false);
   const [needsPlayTap, setNeedsPlayTap] = useState(false);
   const [shareMessage, setShareMessage] = useState('');
@@ -35,18 +39,39 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   const video = product.makingVideo;
   useEffect(() => {
     if (!video) return;
+    let frame = 0;
     const scrollToVideo = () => {
-      if (window.location.hash === `#${MAKING_VIDEO_ID}`) {
-        sectionRef.current?.scrollIntoView({ block: 'start' });
-      }
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ block: 'start' }));
     };
-    scrollToVideo();
-    window.addEventListener('hashchange', scrollToVideo);
-    return () => window.removeEventListener('hashchange', scrollToVideo);
+    const openVideo = () => {
+      if (!isVideoLink()) return;
+      setMuted(true);
+      setRequested(true);
+      scrollToVideo();
+    };
+    // Product photos above the player can change layout after the app mounts.
+    const observer = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => { if (isVideoLink()) scrollToVideo(); }) : null;
+    if (isVideoLink()) {
+      scrollToVideo();
+      if (sectionRef.current?.parentElement) observer?.observe(sectionRef.current.parentElement);
+    }
+    const stopFollowing = () => observer?.disconnect();
+    const timer = window.setTimeout(stopFollowing, 5000);
+    window.addEventListener('pointerdown', stopFollowing, { once: true });
+    window.addEventListener('wheel', stopFollowing, { once: true });
+    window.addEventListener('hashchange', openVideo);
+    return () => {
+      observer?.disconnect(); clearTimeout(timer); cancelAnimationFrame(frame);
+      window.removeEventListener('pointerdown', stopFollowing);
+      window.removeEventListener('wheel', stopFollowing);
+      window.removeEventListener('hashchange', openVideo);
+    };
   }, [video]);
   if (!video) return null;
   const event = (name: string) => trackEvent(name, { product_id: product.id });
-  const shareUrl = `${toProductPageUrl(product)}#${MAKING_VIDEO_ID}`;
+  const shareUrl = `${toProductPageUrl(product)}?watch=${MAKING_VIDEO_ID}#${MAKING_VIDEO_ID}`;
   const share = async () => {
     setSharing(true); setShareMessage(''); setShareError(false);
     try {
@@ -98,6 +123,8 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           controls
           controlsList="nodownload"
           playsInline
+          muted={muted}
+          onVolumeChange={event => setMuted(event.currentTarget.muted)}
           preload="none"
           width={video.width}
           height={video.height}
@@ -119,10 +146,12 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           </span>
         </button>
       )}
-      <button type="button" disabled={sharing} onClick={() => void share()}
-        className="mt-3 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa underline disabled:opacity-50">
-        Share making video
+      <button type="button" aria-label="Share making video" title="Share making video" disabled={sharing} onClick={() => void share()}
+        className="mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/30 text-cocoa disabled:opacity-50">
+        <ShareIcon className="h-5 w-5" />
       </button>
+      {requested && muted && <button type="button" className="mt-2 text-sm text-cocoa underline"
+        onClick={() => setMuted(false)}>Turn sound on</button>}
       {shareMessage && <p role={shareError ? 'alert' : 'status'} className="mt-2 text-sm text-cocoa">{shareMessage}</p>}
       {shareError && <input aria-label="Making video share link" readOnly value={shareUrl}
         onFocus={event => event.currentTarget.select()} className="mt-2 w-full rounded border border-cocoa/30 p-2 text-sm" />}

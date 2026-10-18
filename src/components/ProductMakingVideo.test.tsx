@@ -64,7 +64,7 @@ it('shares a clean product link anchored to the making video without fetching or
   await waitFor(() => expect(share).toHaveBeenCalledWith({
     title: 'Rose | Luvia Creations',
     text: 'Watch how Rose is made by Luvia Creations.',
-    url: `${window.location.origin}/p/rose/#making-video`,
+    url: `${window.location.origin}/p/rose/?watch=making-video#making-video`,
   }));
   expect(container.querySelector('video')).toBeNull();
   expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ it('copies the anchored link when native sharing is unavailable', async () => {
   render(<ProductMakingVideo product={product} />);
   fireEvent.click(screen.getByRole('button', { name: 'Share making video' }));
   await screen.findByText('Making video link copied.');
-  expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/p/rose/#making-video`);
+  expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/p/rose/?watch=making-video#making-video`);
 });
 
 it('shows a selectable link when neither native sharing nor clipboard is available', async () => {
@@ -98,16 +98,20 @@ it('handles cancellation quietly and exposes a manual link on actual sharing fai
   share.mockRejectedValue(new Error('Permission denied'));
   fireEvent.click(button);
   expect((await screen.findByRole('alert')).textContent).toContain('Unable to share');
-  expect(screen.getByLabelText<HTMLInputElement>('Making video share link').value).toBe(`${window.location.origin}/p/rose/#making-video`);
+  expect(screen.getByLabelText<HTMLInputElement>('Making video share link').value).toBe(`${window.location.origin}/p/rose/?watch=making-video#making-video`);
 });
 
-it('opens a shared anchor at the video without autoplay', () => {
+it.each(['/p/rose/#making-video', '/p/rose/?watch=making-video'])('opens %s at the video and starts muted playback', async (url) => {
   const scroll = vi.fn();
   Element.prototype.scrollIntoView = scroll;
-  window.history.replaceState(null, '', '/p/rose/#making-video');
-  render(<ProductMakingVideo product={product} />);
-  expect(scroll).toHaveBeenCalledWith({ block: 'start' });
-  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  window.history.replaceState(null, '', url);
+  const { container } = render(<ProductMakingVideo product={product} />);
+  await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'start' }));
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+  expect(container.querySelector('video')?.muted).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Turn sound on' }));
+  expect(container.querySelector('video')?.muted).toBe(false);
+  expect(screen.getByRole('button', { name: 'Share making video' }).textContent).toBe('');
 });
 
 it('offers a link near the top that scrolls to the video and starts it', () => {
