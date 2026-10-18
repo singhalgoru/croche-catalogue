@@ -87,12 +87,14 @@ No adaptive streaming is used.
    disabled. Never configure its public/custom domain. Do not add expiration/
    lifecycle rules for `making-videos/`; verify existing rules do not delete these
    retained files without an approved retention policy.
-3. On the private originals bucket, allow CORS `GET`/`HEAD` from
-   `https://luviacreations.com` (and explicit localhost origins for development),
-   with `Range` allowed for private media preview. Browser uploads go through the
-   authenticated function, not a private-bucket PUT URL. Never expose originals GET
-   URLs. R2 credentials need read/write/delete on both buckets and server-side
-   CopyObject access from private to public. Public optimized media
+3. **No private-bucket CORS change is required.** Private preview uses signed GET
+   URLs in native `<video>`/poster elements without `crossorigin`, producing
+   no-CORS browser requests. Browser uploads go through the authenticated Edge
+   function, which provides its own CORS handling; R2 PUT, CopyObject and deletion
+   occur server-to-server. Do not add `crossorigin`, fetch preview bytes with JS,
+   or draw preview frames into readable canvases without separately configuring
+   CORS. Never expose originals GET URLs. R2 credentials need read/write/delete
+   on both buckets and server-side CopyObject access from private to public. Public optimized media
    continues using the existing images domain; preserve Range support and MIME.
 4. Configure GitHub Actions secrets `SUPABASE_SERVICE_ROLE_KEY` (new, server-only),
    `VITE_SUPABASE_URL`, and existing `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
@@ -151,8 +153,12 @@ The Vault `github_deploy_token` used by existing site rebuilds can be reused if 
 can dispatch Actions on this repository; no additional Cloudflare API token is
 needed for processing or server-side CopyObject.
 
-In Cloudflare Dashboard → R2 → the **private originals bucket** → Settings → CORS
-policy, merge this rule with existing image rules (do not blindly replace them):
+**Optional CORS, not a deployment prerequisite:** native video/poster previews
+work without `Access-Control-Allow-Origin`; the release browser test verifies this
+with a signed cross-origin URL and an actual no-CORS media request. If future
+features need JavaScript byte access or canvas frames, Cloudflare Dashboard → R2
+→ private originals bucket → Settings → CORS can merge this rule with existing
+image rules (do not blindly replace them):
 
 ```json
 {
@@ -179,6 +185,52 @@ and explicit discard deletes the draft keys in both buckets. A token restricted
 to only the public bucket must be updated. An Object Read & Write S3 token is
 not necessarily authorized to change bucket CORS; use the authenticated Dashboard
 for settings rather than assuming that object credentials are management tokens.
+
+Bounded storage verification (no product/database changes):
+
+```powershell
+# Set the exact existing private bucket name, not credentials, in this process:
+$env:R2_ORIGINALS_BUCKET = '<existing-private-originals-bucket-name>'
+node --env-file=.env.r2.local scripts\verify-r2-video-storage.mjs
+```
+
+This reads private CORS and, only with `R2_CONFIGURE_PREVIEW_CORS=true`, merges the
+production GET/HEAD rule preserving existing rules when permitted. It performs byte-verified private→public and
+public→private CopyObject using three uniquely named `making-video-smoke/<uuid>/`
+objects. It deletes only those exact keys after success or failure and confirms HEAD 404.
+Object-only tokens may return `403 AccessDenied` for GetBucketCors; this does not
+block native preview or server-side object operations. CORS modification is
+opt-in via `R2_CONFIGURE_PREVIEW_CORS=true` and only needed for future JS/canvas
+features; use the Dashboard if management permission is denied.
+Without `R2_ORIGINALS_BUCKET`, it checks
+only public-object PUT/GET/delete and explicitly reports private checks skipped.
+It does not alter bucket public-access settings or apply retention rules.
+
+To use the exact existing bucket names and credentials already stored in GitHub,
+run the workflow's bounded **storage_check** mode instead of exporting secrets:
+
+```powershell
+gh workflow run process-product-videos.yml --repo singhalgoru/croche-catalogue --ref main -f storage_check=true
+gh run list --repo singhalgoru/croche-catalogue --workflow process-product-videos.yml --limit 5
+```
+
+This mode requires the private-bucket secret, skips Supabase queue queries and all
+job processing, skips FFmpeg installation, and runs only the three-object
+permission/copy/cleanup check under a five-minute step timeout. It sets
+`R2_OBJECT_CHECK_ONLY=true`, so it does not even read/write CORS and cannot be
+blocked by CORS-management 403 responses. All objects use a unique smoke prefix
+and no-store cache policy; only exact created keys are deleted and HEAD-verified.
+
+A real processor smoke must use a dedicated unpublished test product/job in the
+target database, explicit server-only worker credentials and the private bucket.
+It must never run the queue worker against an uncontrolled live queue: the worker
+claims up to three pending jobs, not a supplied test ID. Prefer a separate test
+Supabase project/queue; on a production project first ensure there are **no queued
+or processing jobs**, create only the synthetic fixture, run once without invoking
+Publish, verify `review` plus private assets and unchanged public metadata, then
+explicitly discard the fixture and confirm R2 removal before deleting SQL fixtures.
+Rollback-only SQL tests are not an end-to-end worker smoke because worker HTTP
+requests cannot see an uncommitted transaction.
 
 Manual smoke route: `https://luviacreations.com/#admin`, sign in and complete MFA,
 open **Manage products → Edit → Making video (optional)**. The controls are

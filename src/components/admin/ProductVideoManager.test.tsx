@@ -43,6 +43,7 @@ it('provides a playable private branded preview with duration/size before explic
   await waitFor(() => expect(container.querySelector('video')?.getAttribute('src')).toContain('/private/'));
   expect(container.querySelector('video')!.autoplay).toBe(false);
   expect(container.querySelector('video')!.preload).toBe('none');
+  expect(container.querySelector('video')!.getAttribute('crossorigin')).toBeNull();
   expect(screen.getByText(/20.0 seconds · 2.0 MB/)).toBeTruthy();
   getJob.mockResolvedValue({ id: 'j1', status: 'ready', error: null });
   fireEvent.click(button);

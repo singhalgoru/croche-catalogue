@@ -10,6 +10,9 @@ it('dispatches only actual user-created work with no recurring idle workflow bud
   expect(workflow).not.toContain('cron:');
   expect(workflow).toContain('timeout-minutes: 14');
   expect(workflow).toContain('has_work');
+  expect(workflow).toContain('storage_check:');
+  expect(workflow).toContain("R2_OBJECT_CHECK_ONLY: 'true'");
+  expect(workflow).toContain('timeout-minutes: 5');
   expect(workflow).toContain('test -f public/images/luvia-logo-480.webp');
   expect(dispatch).toContain("name='github_deploy_token'");
   expect(dispatch).toContain("from public,anon,authenticated");

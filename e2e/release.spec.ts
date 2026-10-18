@@ -85,6 +85,46 @@ test('making-video playback errors offer retry while purchase actions remain usa
     .toBeVisible();
 });
 
+test('private signed native video preview plays cross-origin without any bucket CORS headers', async ({ page }) => {
+  const privateUrl = 'https://private-fixture.r2.cloudflarestorage.com/private/making-videos/review/video.mp4?X-Amz-Expires=300&X-Amz-Signature=fixture';
+  const posterUrl = privateUrl.replace('video.mp4', 'poster.webp');
+  const requests: string[] = [];
+  await page.route(privateUrl, route => {
+    requests.push(route.request().url());
+    return route.fulfill({
+      status: 200, contentType: 'video/mp4', body: makingVideoBytes,
+      // Intentionally no Access-Control-Allow-Origin or other CORS headers.
+      headers: { 'Cache-Control': 'private, no-store', 'Accept-Ranges': 'bytes' },
+    });
+  });
+  await page.route(posterUrl, route => route.fulfill({
+    status: 200, contentType: 'image/png',
+    body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=', 'base64'),
+  }));
+  // Match ProductVideoManager's native preview attributes; do not add crossorigin,
+  // fetch media bytes in JS, or draw frames into a readable canvas.
+  await page.evaluate(({ privateUrl, posterUrl }) => {
+    const region = document.createElement('section');
+    region.setAttribute('aria-label', 'Private preview CORS verification');
+    const video = document.createElement('video');
+    video.src = privateUrl; video.poster = posterUrl;
+    video.controls = true; video.playsInline = true; video.preload = 'none';
+    video.width = 320; video.height = 180;
+    const play = document.createElement('button');
+    play.textContent = 'Play private preview fixture';
+    play.addEventListener('click', () => { void video.play(); });
+    region.append(video, play); document.body.prepend(region);
+  }, { privateUrl, posterUrl });
+  const region = page.getByRole('region', { name: 'Private preview CORS verification' });
+  const video = region.locator('video');
+  await expect(video).not.toHaveAttribute('crossorigin');
+  await region.getByRole('button', { name: 'Play private preview fixture' }).click();
+  await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  expect(requests.length).toBeGreaterThan(0);
+  expect(await video.evaluate(element => (element as HTMLVideoElement).crossOrigin)).toBeNull();
+});
+
 test('cart drawer opens from the catalogue and starts the delivery flow', async ({ page }) => {
   const card = page.getByRole('article', { name: 'Product: Rose Charm' });
   await card.getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
