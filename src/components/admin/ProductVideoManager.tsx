@@ -70,7 +70,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
       {job?.error && job.status !== 'failed' && <p role="alert" className="my-2 text-sm text-red-700">{job.error}</p>}
       <label className="block text-sm font-semibold">Upload or replace making video
         <input ref={input} type="file" accept="video/mp4,.mp4" disabled={busy || draft || checking}
-          className="my-2 block w-full text-sm"
+          className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (!file) return;
@@ -81,6 +81,11 @@ export default function ProductVideoManager({ product }: { product: Product }) {
             }).finally(() => { if (input.current) input.current.value = ''; });
           }} />
       </label>
+      <button type="button" disabled={busy || draft || checking}
+        onClick={() => input.current?.click()}
+        className="my-2 min-h-11 text-sm font-semibold text-cocoa underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa disabled:cursor-not-allowed disabled:opacity-50">
+        Browse video
+      </button>
       {job?.status === 'review' && <div className="my-3 flex flex-wrap gap-2">
         <button type="button" disabled={busy} className="rounded-full border border-cocoa/30 px-4 py-2 text-sm"
           onClick={() => void action(async () => { setPreview(await previewProductVideo(job.id)); })}>

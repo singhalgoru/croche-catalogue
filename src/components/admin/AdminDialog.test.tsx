@@ -26,3 +26,13 @@ it('opens a labelled modal, restores focus and scrolling, and prevents closing w
   expect(document.activeElement).toBe(trigger);
   trigger.remove();
 });
+
+it('ignores a file picker cancellation without closing the edit dialog', () => {
+  const onClose = vi.fn();
+  render(<AdminDialog title="Edit product" onClose={onClose}><input type="file" aria-label="Video" /></AdminDialog>);
+  fireEvent(screen.getByLabelText('Video'), new Event('cancel', { bubbles: true }));
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog')).toHaveProperty('open', true);
+  fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
+  expect(onClose).toHaveBeenCalledOnce();
+});

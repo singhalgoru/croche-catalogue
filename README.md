@@ -243,7 +243,7 @@ requests cannot see an uncommitted transaction.
 
 Manual smoke route: `https://luviacreations.com/#admin`, sign in and complete MFA,
 open **Manage products → Edit → Making video (optional)**. The controls are
-**Upload or replace making video**, **Preview processed video**,
+**Browse video** (under **Upload or replace making video**), **Preview processed video**,
 **Refresh private preview**, **Publish video**,
 **Discard draft (delete original and processed files)**, **Retry discard cleanup**,
 and **Remove published video**. Review must show the real branded video/poster,

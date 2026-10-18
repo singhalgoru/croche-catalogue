@@ -28,6 +28,7 @@ export default function AdminDialog({ title, children, onClose, busy = false }: 
   return (
     <dialog ref={ref} aria-labelledby={titleId}
       onCancel={event => {
+        if (event.target !== event.currentTarget) return;
         event.preventDefault();
         if (!busy) onClose();
       }}

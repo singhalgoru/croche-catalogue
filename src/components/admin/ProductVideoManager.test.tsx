@@ -22,6 +22,17 @@ beforeEach(() => {
     durationSeconds: 20, videoBytes: 2097152, width: 1280, height: 720, expiresAt: '' });
 });
 afterEach(cleanup);
+it('opens the video picker from the Browse video control', async () => {
+  render(<ProductVideoManager product={product} />);
+  const button = screen.getByRole('button', { name: 'Browse video' }) as HTMLButtonElement;
+  await waitFor(() => expect(button.disabled).toBe(false));
+  const input = screen.getByLabelText('Upload or replace making video');
+  const click = vi.spyOn(input, 'click');
+  fireEvent.click(button);
+  expect(click).toHaveBeenCalledOnce();
+  fireEvent(input, new Event('cancel', { bubbles: true }));
+  expect(upload).not.toHaveBeenCalled();
+});
 it('shows upload processing as private work, not automatic publication', async () => {
   render(<ProductVideoManager product={product} />);
   const input = screen.getByLabelText('Upload or replace making video') as HTMLInputElement;
