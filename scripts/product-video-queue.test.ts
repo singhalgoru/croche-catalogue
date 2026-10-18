@@ -13,7 +13,7 @@ const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE
   R2_BUCKET: 'public', R2_ORIGINALS_BUCKET: 'private', R2_PUBLIC_URL: 'https://images.example.test' };
 let jobs: { id: string; lease: string; source_bytes: number; music_bytes?: number; music_type?: string; music_mode?: string }[];
 let publish = true;
-let discarded: { id: string; writer_active: boolean }[] = [];
+let discarded: { id: string; writer_active: boolean; original_upload_id?: string }[] = [];
 const encode = vi.fn(async (_input: string, output: string, poster: string, _run?: unknown, _music?: unknown) => {
   await writeFile(output, 'encoded');
   await writeFile(poster, 'poster');
@@ -27,7 +27,8 @@ beforeEach(() => {
   discarded = [];
   jobs = [{ id, lease: id, source_bytes: 3 }];
   rpc.mockImplementation(async (name: string, args: { p_error?: string }) => ({
-    data: name === 'claim_product_video' ? jobs.splice(0, 1) : args?.p_error ? false : publish, error: null,
+    data: name === 'claim_product_video' ? jobs.splice(0, 1)
+      : name === 'finish_product_video_discard' ? !args?.p_error : args?.p_error ? false : publish, error: null,
   }));
   let filter = '';
   const query = { select: () => query, eq: (_column: string, value: string) => { filter = value; return query; },
@@ -129,4 +130,35 @@ it('rejects a changed track size without processing or deleting retained music',
   await expect(processQueue(env, { encode })).rejects.toThrow('One or more video jobs failed');
   expect(encode).not.toHaveBeenCalled();
   expect(rpc.mock.calls.find(call => call[0] === 'finish_product_video')![1].p_error).toContain('music size changed');
+});
+it('aborts the exact multipart upload before deleting a quiescent discarded draft', async () => {
+  jobs = [];
+  discarded = [{ id, writer_active: false, original_upload_id: 'opaque/id+value=' }];
+  await processQueue(env, { encode });
+  const first = storageFetch.mock.calls[0];
+  expect(first[1].method).toBe('DELETE');
+  expect(new URL(first[0]).searchParams.get('uploadId')).toBe('opaque/id+value=');
+  expect(new URL(first[0]).pathname).toBe(`/private/making-videos/${id}/original.mp4`);
+  expect(storageFetch.mock.calls[1][0]).toMatch(/original.mp4$/);
+  expect(rpc).toHaveBeenCalledWith('finish_product_video_discard', { p_job_id: id });
+});
+it('records a multipart abort failure without deleting objects or confirming discard', async () => {
+  jobs = [];
+  discarded = [{ id, writer_active: false, original_upload_id: 'upload-fixture' }];
+  storageFetch.mockResolvedValue(new Response(null, { status: 503 }));
+  await expect(processQueue(env, { encode })).rejects.toThrow('Multipart abort failed');
+  expect(storageFetch).toHaveBeenCalledTimes(1);
+  expect(rpc).not.toHaveBeenCalledWith('finish_product_video_discard', { p_job_id: id });
+  expect(rpc).toHaveBeenCalledWith('finish_product_video_discard', {
+    p_job_id: id, p_error: expect.stringContaining('Multipart abort failed'),
+  });
+});
+it('does not report successful cleanup when its final tombstone acknowledgement is false', async () => {
+  jobs = [];
+  discarded = [{ id, writer_active: false }];
+  rpc.mockImplementation(async (name: string) => ({ data: name === 'claim_product_video' ? [] : false }));
+  await expect(processQueue(env, { encode })).rejects.toThrow('cleanup was not confirmed');
+  expect(rpc).toHaveBeenCalledWith('finish_product_video_discard', {
+    p_job_id: id, p_error: expect.stringContaining('cleanup was not confirmed'),
+  });
 });

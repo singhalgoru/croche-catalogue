@@ -36,8 +36,8 @@ export function validateVideoFile(file: File) {
     throw new Error(`"${file.name}" is not a supported MP4 upload (reported type: ${file.type || 'unknown'}). Export as MP4 with H.264 video and AAC audio; renaming the file is not enough.`);
   }
   if (file.size < 1) throw new Error(`"${file.name}" is empty. Choose a non-empty MP4 video.`);
-  if (file.size > 60 * 1024 * 1024) {
-    throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. The MP4 upload limit is 60 MB before processing. Export a shorter or lower-resolution copy and try again.`);
+  if (file.size > 500 * 1024 * 1024) {
+    throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. Originals can be up to 500 MB (clips must still be 1–60 seconds). Choose a smaller MP4 and try again.`);
   }
 }
 
@@ -69,14 +69,25 @@ export async function uploadProductVideo(productId: string, file: File, music?: 
       rightsConfirmed: music.rightsConfirmed } } : {}),
   });
   if (typeof jobId !== 'string' || !/^[0-9a-f-]{36}$/i.test(jobId)) throw new Error('Invalid video upload response.');
-  // Authenticated bounded edge upload, not a revocable-looking presigned PUT that
-  // could recreate an original after an explicit discard.
-  const { data, error } = await (await client()).functions.invoke(`product-videos?jobId=${jobId}`, {
-    body: music ? new Blob([file, music.file], { type: 'application/octet-stream' }) : file,
-    headers: { 'Content-Type': music ? 'application/octet-stream' : 'video/mp4' },
-  });
-  if (error) throw new Error(await getImageStorageErrorMessage(error));
-  if (data?.queued !== true) throw new Error(data?.error || 'Video upload did not complete. Discard the draft and retry.');
+  const started = await invoke({ action: 'start', jobId });
+  if (started.started !== true) throw new Error('Video upload did not start. Discard the draft and retry.');
+  const upload = async (action: 'part' | 'music', body: Blob, part?: number) => {
+    const { data, error } = await (await client()).functions.invoke(
+      `product-videos?jobId=${jobId}&action=${action}${part ? `&part=${part}` : ''}`, {
+        body, headers: { 'Content-Type': 'application/octet-stream' },
+      });
+    if (error) throw new Error(await getImageStorageErrorMessage(error));
+    if (data?.uploaded !== true) throw new Error(data?.error || 'Video upload did not complete. Discard the draft and retry.');
+  };
+  // File slices are sent sequentially: no whole-original read/concatenation and
+  // no R2 browser CORS configuration or revocation-unsafe signed PUTs.
+  const partBytes = 8 * 1024 * 1024;
+  for (let offset = 0, part = 1; offset < file.size; offset += partBytes, part++) {
+    await upload('part', file.slice(offset, Math.min(offset + partBytes, file.size)), part);
+  }
+  if (music) await upload('music', music.file);
+  const completed = await invoke({ action: 'complete', jobId });
+  if (completed.queued !== true) throw new Error(completed.error || 'Video upload did not complete. Discard the draft and retry.');
   return jobId as string;
 }
 

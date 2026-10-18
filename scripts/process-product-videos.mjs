@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
@@ -7,7 +7,7 @@ import { AwsClient } from 'aws4fetch';
 import { createVideoWatermark } from './video-watermark.mjs';
 import { deleteVideoDraftAssets } from '../supabase/functions/_shared/productVideoStorage.js';
 
-export const MAX_SOURCE_BYTES = 60 * 1024 * 1024;
+export const MAX_SOURCE_BYTES = 500 * 1024 * 1024;
 export const MAX_MUSIC_BYTES = 20 * 1024 * 1024;
 const UUID = /^[0-9a-f-]{36}$/;
 const MAX_OUTPUT_BYTES = 40 * 1024 * 1024;
@@ -140,6 +140,47 @@ export async function readBoundedBody(response, maxBytes) {
   return Buffer.concat(chunks);
 }
 
+export async function downloadToFile(response, path, maxBytes, expectedBytes, label = 'video') {
+  if (!Number.isSafeInteger(expectedBytes) || expectedBytes < 1 || expectedBytes > maxBytes) {
+    await response.body?.cancel();
+    throw new Error(`Invalid stored ${label} size.`);
+  }
+  const declared = response.headers.get('content-length');
+  if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > maxBytes)) {
+    await response.body?.cancel();
+    throw new Error('Video exceeds the storage size limit.');
+  }
+  if (!response.body) throw new Error('Video download returned an empty body.');
+  const reader = response.body.getReader();
+  let file;
+  let bytes = 0;
+  let complete = false;
+  try {
+    file = await open(path, 'w');
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) throw new Error('Video exceeds the storage size limit.');
+      if (bytes > expectedBytes) throw new Error(`Uploaded ${label} size changed. Please upload again.`);
+      // Await disk writes before pulling again; only the current network chunk
+      // is retained, even for a 500 MB original.
+      await file.writeFile(value);
+    }
+    if (bytes !== expectedBytes || (declared !== null && Number(declared) !== bytes)) {
+      throw new Error(`Uploaded ${label} size changed. Please upload again.`);
+    }
+    complete = true;
+    return bytes;
+  } finally {
+    try { await reader.cancel(); } finally {
+      try { await file?.close(); } finally {
+        if (!complete) await rm(path, { force: true });
+      }
+    }
+  }
+}
+
 export async function processQueue(env = process.env, { encode = encodeVideo } = {}) {
   const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'R2_ACCOUNT_ID',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_ORIGINALS_BUCKET', 'R2_PUBLIC_URL'];
@@ -174,9 +215,7 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
     try {
       const response = await checked(await r2.fetch(objectUrl(env.R2_ORIGINALS_BUCKET,
         `making-videos/${job.id}/original.mp4`), { signal: AbortSignal.timeout(90_000) }), 'Private video download');
-      const source = await readBoundedBody(response, MAX_SOURCE_BYTES);
-      if (source.length !== job.source_bytes) throw new Error('Uploaded video size changed. Please upload again.');
-      await writeFile(input, source);
+      await downloadToFile(response, input, MAX_SOURCE_BYTES, job.source_bytes);
       let music;
       if (job.music_bytes != null) {
         if (!Number.isSafeInteger(job.music_bytes) || job.music_bytes < 1 || job.music_bytes > MAX_MUSIC_BYTES) {
@@ -184,10 +223,8 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
         }
         const musicResponse = await checked(await r2.fetch(objectUrl(env.R2_ORIGINALS_BUCKET,
           `making-videos/${job.id}/music.bin`), { signal: AbortSignal.timeout(90_000) }), 'Private music download');
-        const track = await readBoundedBody(musicResponse, MAX_MUSIC_BYTES);
-        if (track.length !== job.music_bytes) throw new Error('Uploaded music size changed. Please upload again.');
         const path = join(dir, 'music.bin');
-        await writeFile(path, track);
+        await downloadToFile(musicResponse, path, MAX_MUSIC_BYTES, job.music_bytes, 'music');
         music = { path, type: job.music_type, mode: job.music_mode };
       }
       const info = await encode(input, output, poster, runMediaTool, music);
@@ -213,15 +250,17 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
     }
   }
   // Only explicit user discard tombstones authorize remote deletion. No retention policy.
-  const { data: discarded, error } = await db.from('product_video_jobs').select('id,writer_active')
+  const { data: discarded, error } = await db.from('product_video_jobs').select('id,writer_active,original_upload_id')
     .eq('status', 'discarding').limit(30);
   if (error) throw error;
   for (const job of discarded) {
     if (job.writer_active) continue;
     try {
       await deleteVideoDraftAssets(r2, objectUrl(env.R2_ORIGINALS_BUCKET, '').replace(/\/$/, ''),
-        objectUrl(env.R2_BUCKET, '').replace(/\/$/, ''), job.id);
-      await rpc('finish_product_video_discard', { p_job_id: job.id });
+        objectUrl(env.R2_BUCKET, '').replace(/\/$/, ''), job.id, job.original_upload_id);
+      if (!await rpc('finish_product_video_discard', { p_job_id: job.id })) {
+        throw new Error('Draft cleanup was not confirmed. Retry discard cleanup.');
+      }
     } catch (cleanupError) {
       await rpc('finish_product_video_discard', { p_job_id: job.id, p_error: cleanupError.message });
       throw cleanupError;

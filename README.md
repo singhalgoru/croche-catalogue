@@ -24,7 +24,9 @@ offers a refresh-only retry while keeping the saved product's video manager.
 For an existing product, open **Manage products → Edit → Making video**.
 Upload/replace or remove its optional making video independently of the product form.
 Use an MP4 with H.264 video and optional AAC audio: ideally 15–30 seconds, 720p,
-at most 30 fps; hard input limits are 60 MB, 1–60 seconds and 4096px per axis.
+at most 30 fps; hard input limits are 500 MB, 1–60 seconds and 4096px per axis.
+The previous 60 MB original-upload cap no longer applies. Processed videos remain
+limited to 40 MB; increasing original size does not relax codec or duration checks.
 Invalid media, upload failures and processing failures are shown explicitly.
 To add background music, choose **Music file before Browse video** and confirm that
 you own or have permission to use the track. Only admin-supplied tracks are supported;
@@ -44,16 +46,23 @@ from R2 while preserving the current public video. **Remove published video** de
 only the public clip; drafts and retained originals are unchanged.
 Photos, variants, zoom and sharing are unchanged.
 
-Originals are uploaded through an authenticated, size-bounded edge request to the
-existing **private** R2 originals bucket. This intentionally does not issue reusable
-presigned PUT URLs, which cannot be revoked safely during discard. No browser or
-edge FFmpeg runs.
-Music is uploaded with the video under one leased, bounded upload. Its private
+Originals use sequential 8 MB file slices through authenticated edge requests,
+bridging R2 multipart upload into the existing **private** originals bucket.
+The browser never reads/concatenates the entire original. Only the authenticated
+edge can complete the multipart upload, after all parts and optional music arrive.
+This needs no bucket CORS changes and issues no reusable presigned PUT URLs,
+which cannot be revoked safely during discard. Each transfer owns a bounded
+writer lease; discard aborts the exact multipart upload before deleting its keys,
+and waits for in-flight writers before confirming cleanup. Interrupted uploads
+are not resumable: discard the draft and retry. No browser or edge FFmpeg runs.
+The worker streams originals to its per-job working directory with backpressure,
+byte-count validation and partial-file cleanup, rather than buffering a 500 MB source.
+Music uses a separate authenticated upload bounded to 20 MB. Its private
 `making-videos/<job-id>/music.bin` source is retained after publication/removal
 alongside the original video; no automatic retention/deletion policy is added.
 Private review plays the actual mixed MP4; publication never mixes a different copy.
 
-Music rollout (after updating the processor on `main`; no new secrets required):
+Music/multipart rollout (after updating the processor on `main`; no new secrets required):
 ```powershell
 Set-Location 'C:\AEM\Projects\Personal Projects\croche-catalogue'
 npx.cmd --no-install supabase db push --linked
@@ -61,10 +70,14 @@ npx.cmd --no-install supabase functions deploy product-videos --project-ref bbls
 # Once the frontend/processor changes are on main:
 gh workflow run deploy.yml --repo singhalgoru/croche-catalogue --ref main
 ```
-The database command applies `20261018160000_product_video_music.sql` on the linked
-project. Deploy the storefront through the existing production release workflow.
-Deploy the worker code before enabling music in the UI, so older processors cannot
-silently omit a supplied track. Existing no-music jobs remain compatible.
+The database command applies `20261018160000_product_video_music.sql` and
+`20261018173000_product_video_multipart.sql` on the linked project. Deploy the new
+worker, migration and edge function before releasing the frontend: older workers
+reject originals over 60 MB, and older edge functions do not understand multipart
+requests. Existing completed/no-music jobs remain compatible. Older open admin
+tabs retain a bounded legacy upload path for originals no larger than 60 MB and
+must reload to use larger uploads. Deploy the storefront through the existing
+production release workflow.
 The Supabase queue is admin-only (including existing MFA checks); an event-triggered
 GitHub Actions worker starts when an upload queues or an admin requests/retries
 discard. There is no recurring polling schedule or idle Actions-minute budget.

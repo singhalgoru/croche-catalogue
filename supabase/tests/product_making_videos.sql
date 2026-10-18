@@ -23,6 +23,8 @@ do $$ begin
     or has_function_privilege('anon','public.reserve_product_video_with_music(uuid,bigint,bigint,text,text,boolean)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video(uuid,uuid,bigint,numeric,integer,integer,text)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video_publish(uuid,uuid,text,text,text)','EXECUTE')
+    or has_function_privilege('anon','public.claim_product_video_transfer(uuid,text,integer)','EXECUTE')
+    or has_function_privilege('authenticated','public.finish_product_video_transfer(uuid,uuid,text,text,text,text)','EXECUTE')
     or has_function_privilege('authenticated','public.finish_product_video_discard(uuid,text)','EXECUTE') then
     raise exception 'FAIL: restricted RPC permissions';
   end if;
@@ -118,6 +120,101 @@ begin
   if public.finish_product_video_upload(j.id,j.lease) then raise exception 'FAIL: late upload resurrected discarded draft'; end if;
   -- The service calls this only AFTER R2 deletions; edge/worker tests verify that ordering.
   if not public.finish_product_video_discard(j.id) then raise exception 'FAIL: quiescent cleanup not confirmed'; end if;
+end $$;
+reset role;
+-- Multipart: the exact original-size boundary, sequential parts, lease fencing
+-- and a discard racing the final authenticated completion.
+set local role authenticated;
+do $$
+declare p uuid := (select product_id from video_fixture); j uuid;
+begin
+  begin
+    perform public.reserve_product_video(p,524288001);
+    raise exception 'FAIL: original over 500 MB accepted';
+  exception when check_violation then null;
+  end;
+  j := public.reserve_product_video(p,524288000);
+  perform public.begin_product_video_upload(j);
+end $$;
+reset role;
+set local role service_role;
+do $$
+declare j public.product_video_jobs;
+begin
+  select * into j from public.product_video_jobs where product_id=(select product_id from video_fixture) and status='receiving';
+  if public.finish_product_video_transfer(j.id,gen_random_uuid(),'start','test-multipart-id') then
+    raise exception 'FAIL: stale initiation lease accepted';
+  end if;
+  if not public.finish_product_video_transfer(j.id,j.lease,'start','test-multipart-id') then
+    raise exception 'FAIL: initiation not registered';
+  end if;
+end $$;
+reset role;
+set local role authenticated;
+do $$
+declare j public.product_video_jobs;
+begin
+  select * into j from public.product_video_jobs where product_id=(select product_id from video_fixture) and status='receiving';
+  begin
+    perform public.claim_product_video_transfer(j.id,'part',2);
+    raise exception 'FAIL: out-of-order part accepted';
+  exception when raise_exception then if sqlerrm<>'Unexpected video upload part.' then raise; end if; end;
+  begin
+    perform public.claim_product_video_transfer(j.id,'complete');
+    raise exception 'FAIL: incomplete upload accepted';
+  exception when raise_exception then if sqlerrm<>'Upload is incomplete.' then raise; end if; end;
+  perform public.claim_product_video_transfer(j.id,'part',1);
+  begin
+    perform public.claim_product_video_transfer(j.id,'part',1);
+    raise exception 'FAIL: concurrent writer accepted';
+  exception when raise_exception then
+    if sqlerrm<>'Upload is unavailable, expired or was discarded. Discard the draft and retry.' then raise; end if;
+  end;
+end $$;
+reset role;
+set local role service_role;
+do $$
+declare j public.product_video_jobs;
+begin
+  select * into j from public.product_video_jobs where product_id=(select product_id from video_fixture) and status='receiving';
+  if not public.finish_product_video_transfer(j.id,j.lease,'part',null,'"0123456789abcdef0123456789abcdef"') then
+    raise exception 'FAIL: part not recorded';
+  end if;
+  if public.finish_product_video_transfer(j.id,j.lease,'part',null,'"0123456789abcdef0123456789abcdef"') then
+    raise exception 'FAIL: duplicate part completion accepted';
+  end if;
+  -- Edge tests verify exact streamed bytes/ETags; simulate all 63 verified parts.
+  update public.product_video_jobs set original_parts=(
+    select jsonb_agg('"0123456789abcdef0123456789abcdef"'::text) from generate_series(1,63)
+  ) where id=j.id;
+end $$;
+reset role;
+set local role authenticated;
+do $$
+declare j public.product_video_jobs;
+begin
+  select * into j from public.product_video_jobs where product_id=(select product_id from video_fixture) and status='receiving';
+  perform public.claim_product_video_transfer(j.id,'complete');
+  perform public.discard_product_video(j.product_id);
+  begin
+    perform public.claim_product_video_transfer(j.id,'part',1);
+    raise exception 'FAIL: transfer restarted after discard';
+  exception when raise_exception then
+    if sqlerrm<>'Upload is unavailable, expired or was discarded. Discard the draft and retry.' then raise; end if;
+  end;
+end $$;
+reset role;
+set local role service_role;
+do $$
+declare j public.product_video_jobs;
+begin
+  select * into j from public.product_video_jobs where product_id=(select product_id from video_fixture) and status='discarding';
+  if public.finish_product_video_discard(j.id) then raise exception 'FAIL: multipart writer ignored'; end if;
+  if public.finish_product_video_upload(j.id,j.lease) then raise exception 'FAIL: late multipart completion queued'; end if;
+  if not public.finish_product_video_discard(j.id) then raise exception 'FAIL: multipart cleanup not confirmed'; end if;
+  if not exists(select 1 from public.product_making_videos where product_id=j.product_id and video_url='https://example.com/live.mp4') then
+    raise exception 'FAIL: multipart discard changed published video';
+  end if;
 end $$;
 reset role;
 select set_config('request.jwt.claims','{"role":"authenticated","aal":"aal1"}',true);

@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import { deleteVideoDraftAssets } from '../_shared/productVideoStorage.js';
+import { abortVideoMultipart, completeMultipartXml, MAX_VIDEO_SOURCE_BYTES,
+  multipartUploadId, multipartUrl, VIDEO_PART_BYTES } from '../_shared/productVideoMultipart.js';
 
 const cors = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
@@ -51,7 +53,9 @@ Deno.serve(async (request) => {
     };
     const contentType = request.headers.get('content-type')?.split(';')[0];
     const binary = contentType === 'video/mp4' || contentType === 'application/octet-stream';
-    const body = binary ? { action: 'upload', jobId: new URL(request.url).searchParams.get('jobId') } : await request.json();
+    const query = new URL(request.url).searchParams;
+    const body = binary ? { action: query.get('action') || 'upload',
+      jobId: query.get('jobId'), part: Number(query.get('part')) } : await request.json();
     if (body.action === 'remove') {
       if (!uuid.test(body.productId)) return json({ error: 'Invalid product ID.' }, 400);
       await rpc('remove_product_video', { p_product_id: body.productId });
@@ -79,7 +83,11 @@ Deno.serve(async (request) => {
     const publicEndpoint = `${endpoint}/${publicBucket}`;
     const cleanup = async (id: string) => {
       try {
-        await deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoint, id);
+        const { data: job, error } = await service.from('product_video_jobs')
+          .select('status,writer_active,original_upload_id').eq('id', id).single();
+        if (error) throw error;
+        if (job?.status !== 'discarding' || job.writer_active) return false;
+        await deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoint, id, job.original_upload_id);
         return await serviceRpc('finish_product_video_discard', { p_job_id: id });
       } catch (error) {
         await serviceRpc('finish_product_video_discard', { p_job_id: id, p_error: errorMessage(error) });
@@ -93,8 +101,8 @@ Deno.serve(async (request) => {
     };
     if (body.action === 'prepare') {
       if (!uuid.test(body.productId) || body.type !== 'video/mp4' || !Number.isSafeInteger(body.size) ||
-        body.size < 1 || body.size > 60 * 1024 * 1024) {
-        return json({ error: 'Choose an MP4 video no larger than 60 MB.' }, 400);
+        body.size < 1 || body.size > MAX_VIDEO_SOURCE_BYTES) {
+        return json({ error: 'Choose an MP4 video no larger than 500 MB. Clips must still be 1–60 seconds.' }, 400);
       }
       const music = body.music;
       if (music !== undefined && (!music || !Number.isSafeInteger(music.size) || music.size < 1 ||
@@ -109,6 +117,94 @@ Deno.serve(async (request) => {
         } : {}) });
       return json({ jobId });
     }
+    if (body.action === 'start') {
+      if (binary || !uuid.test(body.jobId)) return json({ error: 'Invalid video upload.' }, 400);
+      const [job] = await rpc('begin_product_video_upload', { p_job_id: body.jobId });
+      let uploadId: string | undefined;
+      const finish = (error?: string) => serviceRpc('finish_product_video_transfer', {
+        p_job_id: job.id, p_lease: job.lease, p_operation: 'start',
+        p_upload_id: uploadId ?? null, p_error: error ?? null,
+      });
+      try {
+        const response = await r2.fetch(`${privateEndpoint}/making-videos/${job.id}/original.mp4?uploads`, {
+          method: 'POST', headers: { 'Content-Type': 'video/mp4', 'Cache-Control': 'private, no-store' },
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!response.ok) throw new Error(`Private multipart initiation failed (HTTP ${response.status}).`);
+        uploadId = multipartUploadId(await response.text());
+        if (!await finish()) throw new Error('Upload was discarded. No video was queued.');
+        return json({ started: true });
+      } catch (error) {
+        // Initiation may have raced discard, or registration may have committed
+        // despite a lost response. Abort the exact locally known ID before release.
+        let failure = error;
+        try {
+          if (uploadId) await abortVideoMultipart(r2, `${privateEndpoint}/making-videos/${job.id}/original.mp4`, uploadId);
+        } catch (abortError) { failure = new Error(`${errorMessage(error)} ${errorMessage(abortError)}`); }
+        await finish(errorMessage(failure));
+        await cleanupIfDiscarded(job.id);
+        throw failure;
+      }
+    }
+    if (['part', 'music', 'complete'].includes(body.action)) {
+      const operation = body.action as 'part' | 'music' | 'complete';
+      if (!uuid.test(body.jobId) || (operation === 'complete' ? binary : !binary) ||
+        (operation === 'part' && (!Number.isInteger(body.part) || body.part < 1 || body.part > 63))) {
+        return json({ error: 'Invalid video upload operation.' }, 400);
+      }
+      const [job] = await rpc('claim_product_video_transfer', {
+        p_job_id: body.jobId, p_operation: operation, p_part: operation === 'part' ? body.part : null,
+      });
+      const finish = (error?: string, etag?: string) => operation === 'complete'
+        ? serviceRpc('finish_product_video_upload', { p_job_id: job.id, p_lease: job.lease, p_error: error ?? null })
+        : serviceRpc('finish_product_video_transfer', { p_job_id: job.id, p_lease: job.lease,
+          p_operation: operation, p_etag: etag ?? null, p_error: error ?? null });
+      try {
+        const original = `${privateEndpoint}/making-videos/${job.id}/original.mp4`;
+        if (operation === 'complete') {
+          const response = await r2.fetch(multipartUrl(original, job.original_upload_id), {
+            method: 'POST', body: completeMultipartXml(job.original_parts),
+            headers: { 'Content-Type': 'application/xml' }, signal: AbortSignal.timeout(60_000),
+          });
+          const result = await response.text();
+          if (!response.ok || /<Error(?:\s|>)/.test(result) || !result.includes('<CompleteMultipartUploadResult')) {
+            throw new Error(`Private video completion failed (HTTP ${response.status}). Discard the draft and retry.`);
+          }
+        } else {
+          const expected = operation === 'music' ? Number(job.music_bytes)
+            : Math.min(VIDEO_PART_BYTES, Number(job.source_bytes) - (body.part - 1) * VIDEO_PART_BYTES);
+          if (!Number.isSafeInteger(expected) || expected < 1 ||
+            expected > (operation === 'music' ? 20 * 1024 * 1024 : VIDEO_PART_BYTES)) {
+            throw new Error('Invalid reserved upload size.');
+          }
+          const bytes = await readUpload(request, expected);
+          const response = await r2.fetch(operation === 'music'
+            ? `${privateEndpoint}/making-videos/${job.id}/music.bin`
+            : multipartUrl(original, job.original_upload_id, body.part), {
+            method: 'PUT', body: bytes, headers: {
+              'Content-Type': operation === 'music' ? job.music_type : 'application/octet-stream',
+              'Cache-Control': 'private, no-store',
+            }, signal: AbortSignal.timeout(60_000),
+          });
+          if (!response.ok) throw new Error(`Private ${operation} upload failed (HTTP ${response.status}).`);
+          const etag = response.headers.get('etag');
+          if (operation === 'part' && (!etag || !/^"[a-f0-9]{32}"$/i.test(etag))) {
+            throw new Error('Private video part upload returned an invalid ETag.');
+          }
+          if (!await finish(undefined, etag ?? undefined)) throw new Error('Upload was discarded. No video was queued.');
+          await cleanupIfDiscarded(job.id);
+          return json({ uploaded: true });
+        }
+        const queued = await finish();
+        await cleanupIfDiscarded(job.id);
+        if (!queued) throw new Error('Upload was discarded. No video was queued.');
+        return json({ queued: true, jobId: job.id });
+      } catch (error) {
+        await finish(errorMessage(error));
+        await cleanupIfDiscarded(job.id);
+        throw error;
+      }
+    }
     if (body.action === 'upload') {
       if (!binary || !uuid.test(body.jobId)) return json({ error: 'Invalid video upload.' }, 400);
       const [job] = await rpc('begin_product_video_upload', { p_job_id: body.jobId });
@@ -116,6 +212,11 @@ Deno.serve(async (request) => {
         p_job_id: job.id, p_lease: job.lease, p_error: error ?? null,
       });
       try {
+        // Compatibility for older open admin tabs only. New uploads always use
+        // bounded multipart requests; never allocate a large original here.
+        if (Number(job.source_bytes) > 60 * 1024 * 1024) {
+          throw new Error('Reload the admin to upload videos up to 500 MB in bounded parts.');
+        }
         const hasMusic = job.music_bytes != null;
         if (contentType !== (hasMusic ? 'application/octet-stream' : 'video/mp4')) {
           throw new Error('Upload content type does not match the reserved media.');

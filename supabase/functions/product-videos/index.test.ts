@@ -14,6 +14,7 @@ let env: Record<string, string>;
 let status = 'review';
 let writer = false;
 let music: Record<string, unknown> = {};
+let transfer: Record<string, unknown> = {};
 const request = (body: unknown, authorized = true) => new Request('https://example.test/product-videos', {
   method: 'POST', headers: { 'Content-Type': 'application/json', ...(authorized ? { Authorization: 'Bearer fixture' } : {}) },
   body: JSON.stringify(body),
@@ -23,7 +24,7 @@ const uploadRequest = () => new Request(`https://example.test/product-videos?job
   body: new Uint8Array(1000),
 });
 const row = () => ({ id, lease: id, status, writer_active: writer, source_bytes: 1000,
-  ...music,
+  ...music, ...transfer,
   duration_seconds: 20, video_bytes: 2000, width: 1280, height: 720 });
 beforeAll(async () => {
   vi.stubGlobal('Deno', { env: { get: (key: string) => env[key] },
@@ -32,24 +33,45 @@ beforeAll(async () => {
 });
 afterAll(() => vi.unstubAllGlobals());
 beforeEach(() => {
-  vi.clearAllMocks(); status = 'review'; writer = false; music = {};
+  vi.clearAllMocks(); status = 'review'; writer = false; music = {}; transfer = { original_parts: [] };
   env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'fixture', SUPABASE_SERVICE_ROLE_KEY: 'service-fixture',
     R2_ACCOUNT_ID: 'account', R2_ACCESS_KEY_ID: 'key', R2_SECRET_ACCESS_KEY: 'secret', R2_PUBLIC_URL: 'https://images.example.test',
     R2_BUCKET: 'public', R2_ORIGINALS_BUCKET: 'private' };
   getUser.mockResolvedValue({ data: { user: { id: 'admin' } } });
-  rpc.mockImplementation(async (name: string) => {
+  rpc.mockImplementation(async (name: string, args?: { p_operation?: string; p_part?: number }) => {
     if (name === 'is_catalogue_admin') return { data: true };
     if (name === 'reserve_product_video') return { data: id };
     if (name === 'reserve_product_video_with_music') return { data: id };
     if (name === 'begin_product_video_upload') { status = 'receiving'; writer = true; }
+    if (name === 'claim_product_video_transfer') {
+      if (status !== 'receiving' || writer || !transfer.original_upload_id ||
+        (args?.p_operation === 'part' && args.p_part !== (transfer.original_parts as string[]).length + 1) ||
+        (args?.p_operation === 'complete' && ((transfer.original_parts as string[]).length !==
+          Math.ceil(Number(row().source_bytes) / (8 * 1024 * 1024)) || (music.music_bytes && !transfer.music_uploaded)))) {
+        return { error: { message: 'Upload is unavailable or incomplete.' } };
+      }
+      writer = true;
+    }
     if (name === 'begin_product_video_publish') { status = 'publishing'; writer = true; }
     if (name === 'discard_product_video') status = 'discarding';
     return { data: [row()] };
   });
-  serviceRpc.mockImplementation(async (name: string, args: { p_error?: string }) => {
+  serviceRpc.mockImplementation(async (name: string, args: {
+    p_error?: string; p_operation?: string; p_upload_id?: string; p_etag?: string;
+  }) => {
     if (name === 'finish_product_video_discard') {
       if (writer || args.p_error) return { data: false };
       status = 'cancelled'; return { data: true };
+    }
+    if (name === 'finish_product_video_transfer') {
+      if (!writer) return { data: false };
+      writer = false;
+      if (args.p_upload_id) transfer.original_upload_id = args.p_upload_id;
+      if (status !== 'receiving') return { data: false };
+      if (args.p_error) { status = 'failed'; return { data: false }; }
+      if (args.p_operation === 'part') (transfer.original_parts as string[]).push(args.p_etag!);
+      if (args.p_operation === 'music') transfer.music_uploaded = true;
+      return { data: true };
     }
     writer = false;
     if (status === 'discarding' || status === 'cancelled') return { data: false };
@@ -60,8 +82,11 @@ beforeEach(() => {
   const query = { select: () => query, eq: () => query, single: async () => ({ data: row() }) };
   from.mockReturnValue(query);
   sign.mockImplementation(async (url: URL) => ({ url: `${url.toString()}&signature=fixture` }));
-  storageFetch.mockImplementation(async (_url: string, options: { method: string }) =>
-    new Response(options.method === 'PUT' ? '<CopyObjectResult/>' : null, { status: 200 }));
+  storageFetch.mockImplementation(async (url: string, options: { method: string }) =>
+    new Response(url.endsWith('?uploads') ? '<InitiateMultipartUploadResult><UploadId>upload-fixture</UploadId></InitiateMultipartUploadResult>'
+      : options.method === 'POST' ? '<CompleteMultipartUploadResult/>'
+      : options.method === 'PUT' ? '<CopyObjectResult/>' : null,
+    { status: 200, headers: { etag: '"0123456789abcdef0123456789abcdef"' } }));
 });
 it('rejects unauthenticated and non-admin access before any storage operation', async () => {
   expect((await handler(request({}, false))).status).toBe(401);
@@ -70,7 +95,7 @@ it('rejects unauthenticated and non-admin access before any storage operation', 
   expect(sign).not.toHaveBeenCalled(); expect(storageFetch).not.toHaveBeenCalled();
 });
 it('validates MIME, exact bounds and IDs before reserving jobs, and requires separate private storage', async () => {
-  for (const patch of [{ size: 62914561 }, { size: 0 }, { size: 1.5 }, { type: 'video/quicktime' }, { productId: '../../public' }]) {
+  for (const patch of [{ size: 524288001 }, { size: 0 }, { size: 1.5 }, { type: 'video/quicktime' }, { productId: '../../public' }]) {
     expect((await handler(request({ action: 'prepare', productId: id, size: 1000, type: 'video/mp4', ...patch }))).status).toBe(400);
   }
   env.R2_ORIGINALS_BUCKET = 'public';
@@ -160,7 +185,7 @@ it('fences a concurrent original upload and confirms discard only after that wri
   release(new Response(null));
   expect((await uploading).status).toBe(400);
   expect(status).toBe('cancelled');
-  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(12);
+  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(6);
 });
 
 it('fences publication racing with discard and cleans late public copies before confirming removal', async () => {
@@ -177,7 +202,7 @@ it('fences publication racing with discard and cleans late public copies before 
   release(new Response('<CopyObjectResult/>'));
   expect((await publishing).status).toBe(400);
   expect(status).toBe('cancelled');
-  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(14);
+  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(8);
   expect(serviceRpc).not.toHaveBeenCalledWith('finish_product_video_publish', expect.objectContaining({ p_error: null }));
 });
 const musicUploadRequest = () => new Request(`https://example.test/product-videos?jobId=${id}`, {
@@ -219,5 +244,150 @@ it('cleans a late music PUT before confirming a concurrent discard', async () =>
   release(new Response(null));
   expect((await uploading).status).toBe(400);
   expect(status).toBe('cancelled');
-  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(12);
+  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(6);
+});
+
+const etag = '"0123456789abcdef0123456789abcdef"';
+function receiving(parts: string[] = []) {
+  status = 'receiving';
+  transfer = { original_upload_id: 'upload-fixture', original_parts: [...parts] };
+}
+function partRequest(chunks: number[], part = 1, action = 'part') {
+  return new Request(`https://example.test/product-videos?jobId=${id}&action=${action}&part=${part}`, {
+    method: 'POST', headers: { Authorization: '******', 'Content-Type': 'application/octet-stream' },
+    body: new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const length = chunks.shift();
+        if (length === undefined) controller.close();
+        else controller.enqueue(new Uint8Array(length));
+      },
+    }), duplex: 'half',
+  } as RequestInit);
+}
+it('accepts originals above the old cap through the exact 500 MB boundary', async () => {
+  for (const size of [60 * 1024 * 1024 + 1, 500 * 1024 * 1024]) {
+    expect((await handler(request({ action: 'prepare', productId: id, type: 'video/mp4', size }))).status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('reserve_product_video', { p_product_id: id, p_bytes: size });
+  }
+});
+it('initiates a private multipart upload and persists its ID without granting browser upload credentials', async () => {
+  expect(await (await handler(request({ action: 'start', jobId: id }))).json()).toEqual({ started: true });
+  expect(transfer.original_upload_id).toBe('upload-fixture');
+  expect(status).toBe('receiving'); expect(writer).toBe(false);
+  expect(sign).not.toHaveBeenCalled();
+  expect(serviceRpc).toHaveBeenCalledWith('finish_product_video_transfer', expect.objectContaining({
+    p_operation: 'start', p_upload_id: 'upload-fixture', p_error: null,
+  }));
+});
+it('reads a real streamed 8 MB part exactly, and persists its R2 ETag for ordered completion', async () => {
+  receiving();
+  transfer.source_bytes = 500 * 1024 * 1024;
+  expect(await (await handler(partRequest(Array(64).fill(128 * 1024)))).json()).toEqual({ uploaded: true });
+  const [url, options] = storageFetch.mock.calls[0];
+  expect(new URL(url).searchParams.get('partNumber')).toBe('1');
+  expect(new URL(url).searchParams.get('uploadId')).toBe('upload-fixture');
+  expect(options.body.byteLength).toBe(8 * 1024 * 1024);
+  expect(transfer.original_parts).toEqual([etag]);
+  expect(writer).toBe(false); expect(status).toBe('receiving');
+});
+it('rejects truncated/oversized streamed parts and releases failed writers without touching storage', async () => {
+  for (const chunks of [[999], [500, 501]]) {
+    receiving();
+    const response = await handler(partRequest(chunks));
+    expect(response.status).toBe(400); expect(writer).toBe(false); expect(status).toBe('failed');
+  }
+  expect(storageFetch).not.toHaveBeenCalled();
+});
+it('releases a failed part writer when storage fails or returns no usable ETag', async () => {
+  for (const response of [new Response(null, { status: 503 }), new Response(null)]) {
+    receiving();
+    storageFetch.mockResolvedValueOnce(response);
+    expect((await handler(partRequest([1000]))).status).toBe(400);
+    expect(writer).toBe(false); expect(status).toBe('failed');
+    expect(transfer.original_parts).toEqual([]);
+  }
+});
+it('preserves the exact upload ID and releases initiation after registration and abort failures so discard can retry', async () => {
+  serviceRpc.mockRejectedValueOnce(new Error('Registration unavailable'));
+  storageFetch.mockResolvedValueOnce(new Response('<InitiateMultipartUploadResult><UploadId>upload-fixture</UploadId></InitiateMultipartUploadResult>'))
+    .mockResolvedValueOnce(new Response(null, { status: 503 }));
+  expect((await handler(request({ action: 'start', jobId: id }))).status).toBe(400);
+  expect(status).toBe('failed'); expect(writer).toBe(false);
+  expect(transfer.original_upload_id).toBe('upload-fixture');
+  expect(await (await handler(request({ action: 'discard', productId: id }))).json())
+    .toEqual({ discarded: true, pending: false });
+});
+it('rejects duplicate/out-of-order parts, incomplete completion and late transfers before storage writes', async () => {
+  receiving();
+  expect((await handler(partRequest([1000], 2))).status).toBe(400);
+  expect((await handler(request({ action: 'complete', jobId: id }))).status).toBe(400);
+  receiving([etag]); music = { music_bytes: 3 };
+  expect((await handler(request({ action: 'complete', jobId: id }))).status).toBe(400);
+  status = 'discarding';
+  expect((await handler(partRequest([1000]))).status).toBe(400);
+  expect(storageFetch).not.toHaveBeenCalled();
+});
+it('uploads optional music separately and completes only the server-stored ordered ETags before queueing', async () => {
+  receiving([etag]); music = { music_bytes: 3, music_type: 'audio/mpeg', music_mode: 'mix' };
+  expect((await handler(partRequest([1, 2], 1, 'music'))).status).toBe(200);
+  expect(transfer.music_uploaded).toBe(true);
+  expect(await (await handler(request({ action: 'complete', jobId: id, parts: ['untrusted'] }))).json())
+    .toEqual({ queued: true, jobId: id });
+  expect(storageFetch.mock.calls[1][1].body).toContain(`<PartNumber>1</PartNumber><ETag>${etag}</ETag>`);
+  expect(storageFetch.mock.calls[1][1].body).not.toContain('untrusted');
+  expect(status).toBe('queued'); expect(writer).toBe(false);
+});
+it('does not queue a 200 response containing a multipart completion error', async () => {
+  receiving([etag]);
+  storageFetch.mockResolvedValueOnce(new Response('<Error><Code>InvalidPart</Code></Error>'));
+  expect((await handler(request({ action: 'complete', jobId: id }))).status).toBe(400);
+  expect(status).toBe('failed'); expect(writer).toBe(false);
+  expect(serviceRpc).not.toHaveBeenCalledWith('finish_product_video_upload', expect.objectContaining({ p_error: null }));
+});
+it.each(['part', 'complete', 'start'])('fences discard during a late multipart %s and deletes only after its writer returns', async (operation) => {
+  receiving(operation === 'complete' ? [etag] : []);
+  let release!: (value: Response) => void;
+  const pending = new Promise<Response>(resolve => { release = resolve; });
+  storageFetch.mockImplementation(async (_url: string, options: { method: string }) =>
+    options.method === 'DELETE' ? new Response(null) : pending);
+  const uploading = handler(operation === 'part' ? partRequest([1000]) : request({ action: operation, jobId: id }));
+  await vi.waitFor(() => expect(storageFetch).toHaveBeenCalledTimes(1));
+  expect(await (await handler(request({ action: 'discard', productId: id }))).json())
+    .toEqual({ discarded: false, pending: true });
+  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(0);
+  release(new Response(operation === 'complete' ? '<CompleteMultipartUploadResult/>' : operation === 'start'
+    ? '<InitiateMultipartUploadResult><UploadId>upload-fixture</UploadId></InitiateMultipartUploadResult>' : null,
+  { headers: { etag } }));
+  expect((await uploading).status).toBe(400);
+  expect(status).toBe('cancelled'); expect(writer).toBe(false);
+  const deletes = storageFetch.mock.calls.filter(call => call[1].method === 'DELETE');
+  expect(new URL(deletes[0][0]).searchParams.get('uploadId')).toBe('upload-fixture');
+  expect(deletes.some(call => call[0].endsWith(`/making-videos/${id}/original.mp4`))).toBe(true);
+  expect(deletes.every(call => new URL(call[0]).pathname.includes(`/making-videos/${id}/`))).toBe(true);
+});
+it.each([503, 404])('keeps discard retryable on multipart abort HTTP %s and never falsely confirms deletion', async (httpStatus) => {
+  receiving();
+  storageFetch.mockResolvedValueOnce(new Response('<Error><Code>NoSuchBucket</Code></Error>', { status: httpStatus }));
+  const response = await handler(request({ action: 'discard', productId: id }));
+  expect(response.status).toBe(400); expect(status).toBe('discarding');
+  expect(storageFetch).toHaveBeenCalledTimes(1);
+  expect(await (await handler(request({ action: 'discard', productId: id }))).json())
+    .toEqual({ discarded: true, pending: false });
+});
+it('allows an already completed/aborted multipart ID only on an explicit NoSuchUpload response', async () => {
+  receiving([etag]); status = 'review';
+  storageFetch.mockResolvedValueOnce(new Response('<Error><Code>NoSuchUpload</Code></Error>', { status: 404 }));
+  expect(await (await handler(request({ action: 'discard', productId: id }))).json())
+    .toEqual({ discarded: true, pending: false });
+  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE')).toHaveLength(7);
+});
+it('rejects unknown object deletion 404 errors instead of claiming successful cleanup', async () => {
+  storageFetch.mockResolvedValueOnce(new Response('<Error><Code>NoSuchBucket</Code></Error>', { status: 404 }));
+  expect((await handler(request({ action: 'discard', productId: id }))).status).toBe(400);
+  expect(status).toBe('discarding');
+});
+it('refuses a large legacy one-shot upload before allocating or sending its body', async () => {
+  transfer.source_bytes = 500 * 1024 * 1024;
+  expect((await handler(uploadRequest())).status).toBe(400);
+  expect(storageFetch).not.toHaveBeenCalled(); expect(writer).toBe(false);
 });

@@ -6,6 +6,19 @@ const edge = readFileSync(new URL('../supabase/functions/product-videos/index.ts
 const dispatch = readFileSync(new URL('../supabase/migrations/20261018142000_dispatch_product_video_processing.sql', import.meta.url), 'utf8');
 const workflow = readFileSync(new URL('../.github/workflows/process-product-videos.yml', import.meta.url), 'utf8');
 const music = readFileSync(new URL('../supabase/migrations/20261018160000_product_video_music.sql', import.meta.url), 'utf8');
+const multipart = readFileSync(new URL('../supabase/migrations/20261018173000_product_video_multipart.sql', import.meta.url), 'utf8');
+it('bounds multipart originals to 500 MB, serializes writers and restricts transfer completion to the service role', () => {
+  expect(multipart).toContain('source_bytes between 1 and 524288000');
+  expect(multipart).toContain('if not public.is_catalogue_admin()');
+  expect(multipart).toContain('where id=p_job_id for update');
+  expect(multipart).toContain("j.status <> 'receiving' or j.writer_active");
+  expect(multipart).toContain("interval '20 minutes'");
+  expect(multipart).toContain('p_part <> jsonb_array_length(j.original_parts)+1');
+  expect(multipart).toContain('j.music_bytes is not null and not j.music_uploaded');
+  expect(multipart).toContain('lease=p_lease and writer_active for update');
+  expect(multipart).toContain('from public,anon,authenticated');
+  expect(multipart).toContain('grant execute on function public.finish_product_video_transfer(uuid,uuid,text,text,text,text) to service_role');
+});
 it('restricts music reservation to admins, requires acknowledged rights and constrains nullable metadata', () => {
   expect(music).toContain('if not public.is_catalogue_admin()');
   expect(music).toContain('p_music_rights is distinct from true');

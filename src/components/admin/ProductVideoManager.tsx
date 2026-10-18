@@ -58,7 +58,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   return (
     <section aria-label="Manage making video" className="rounded-xl border border-cocoa/20 p-3 sm:col-span-2">
       <h4 className="font-semibold text-cocoa">Making video (optional)</h4>
-      <p className="my-2 text-sm text-cocoa/75">MP4, H.264 / optional AAC audio, up to 60 MB and 60 seconds.
+      <p className="my-2 text-sm text-cocoa/75">MP4, H.264 / optional AAC audio, originals up to 500 MB and 60 seconds.
         Ideally 15–30 seconds, 720p, up to 30 fps. Upload triggers background processing with the Luvia watermark.
         Preview the actual encoded video privately, then explicitly publish it.
         Your existing public video remains unchanged until publication.</p>
