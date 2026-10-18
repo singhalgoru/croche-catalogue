@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Product } from '../types/product';
-import ProductMakingVideo from './ProductMakingVideo';
+import ProductMakingVideo, { WatchMakingVideoLink } from './ProductMakingVideo';
 
 const { trackEvent } = vi.hoisted(() => ({ trackEvent: vi.fn() }));
 vi.mock('../services/analytics', () => ({ trackEvent }));
@@ -54,4 +54,15 @@ it('shows an explicit error and retries without changing product photos', () => 
   expect(container.querySelector('video')).toBeNull();
   expect(screen.getByRole('button', { name: 'Play making video for Rose' })).toBeTruthy();
   expect(product.image).toBe('/photo.webp');
+});
+
+it('offers a link near the top that scrolls to the video and starts it', () => {
+  const scroll = vi.fn();
+  Element.prototype.scrollIntoView = scroll;
+  const { container } = render(<><WatchMakingVideoLink product={product} /><ProductMakingVideo product={product} /></>);
+  fireEvent.click(screen.getByRole('link', { name: /Watch how it.s made/ }));
+  expect(scroll).toHaveBeenCalled();
+  expect(container.querySelector('video')).not.toBeNull();
+  cleanup();
+  expect(render(<WatchMakingVideoLink product={{ ...product, makingVideo: undefined }} />).container.innerHTML).toBe('');
 });

@@ -2,6 +2,26 @@ import { useRef, useState } from 'react';
 import type { Product } from '../types/product';
 import { trackEvent } from '../services/analytics';
 
+export const MAKING_VIDEO_ID = 'making-video';
+
+export function WatchMakingVideoLink({ product }: { product: Product }) {
+  if (!product.makingVideo) return null;
+  return (
+    <a
+      href={`#${MAKING_VIDEO_ID}`}
+      className="mt-2 inline-flex items-center gap-2 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold text-cocoa underline"
+      onClick={(event) => {
+        event.preventDefault();
+        const section = document.getElementById(MAKING_VIDEO_ID);
+        section?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        section?.querySelector<HTMLButtonElement>('button[data-making-play]')?.click();
+      }}
+    >
+      ▶ Watch how it’s made (video)
+    </a>
+  );
+}
+
 export default function ProductMakingVideo({ product }: { product: Product }) {
   const [requested, setRequested] = useState(false);
   const [error, setError] = useState(false);
@@ -11,7 +31,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   if (!video) return null;
   const event = (name: string) => trackEvent(name, { product_id: product.id });
   return (
-    <section aria-label="Making video" className="my-5 rounded-xl border border-cocoa/15 p-3">
+    <section id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-4 rounded-xl border border-cocoa/15 p-3">
       <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">See how it’s made</h3>
       {requested ? (
         <video
@@ -39,7 +59,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           onError={() => { setError(true); event('making_video_error'); }}
         />
       ) : (
-        <button type="button" className="relative block w-full overflow-hidden rounded-lg bg-cream"
+        <button type="button" data-making-play className="relative block w-full overflow-hidden rounded-lg bg-cream"
           onClick={() => { setRequested(true); event('making_video_request'); }}
           aria-label={`Play making video for ${product.name}`}>
           <img src={video.posterUrl} alt="" loading="lazy" width={video.width} height={video.height}
