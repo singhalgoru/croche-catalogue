@@ -64,6 +64,10 @@ jobs:
         if: steps.verified.outputs.cache-hit != 'true'
         run: npx tsc -b
 
+      - name: Install FFmpeg for video processing tests
+        if: steps.verified.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Unit tests
         if: steps.verified.outputs.cache-hit != 'true'
         run: npm test
