@@ -22,6 +22,9 @@ the existing `R2_BUCKET`/`R2_PUBLIC_URL` image bucket is used. Already-published
 videos keep their stored URLs, and discard/cleanup removes objects from both buckets.
 Create the bucket and enable its public domain in the Cloudflare dashboard first
 (the object-only R2 token cannot create buckets).
+The site CSP must allow the public video domain in both `media-src` (MP4) and
+`img-src` (posters). The release browser tests exercise `videos.luviacreations.com`
+and verify poster loading as well as actual playback.
 
 In **Add product**, the visible **Making video (optional)** section offers
 **Publish product then add video**. Complete the required product details/photos

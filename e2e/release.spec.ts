@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 import { execFileSync } from 'node:child_process';
 
-const makingVideoUrl = 'https://images.luviacreations.com/making-videos/release/video.mp4';
-const makingPosterUrl = 'https://images.luviacreations.com/making-videos/release/poster.webp';
+const makingVideoUrl = 'https://videos.luviacreations.com/making-videos/release/video.mp4';
+const makingPosterUrl = 'https://videos.luviacreations.com/making-videos/release/poster.webp';
 let makingVideoBytes: Buffer;
 test.beforeAll(() => {
   // Entirely local synthetic H.264 fixture; no remote reads, writes or scratch files.
@@ -50,6 +50,7 @@ test('optional making video requests no media before a tap and plays inline with
   await expect(making).toBeVisible();
   await expect(making.locator('video,source')).toHaveCount(0);
   await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
+  await expect.poll(() => making.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
   await page.evaluate(() => Object.defineProperty(navigator, 'share', {
     configurable: true,
     value: async (data: ShareData) => document.body.setAttribute('data-video-share-url', data.url ?? ''),
