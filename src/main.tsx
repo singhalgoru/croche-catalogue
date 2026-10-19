@@ -6,7 +6,9 @@ import { initializeAnalytics, initializePageTracking } from './services/analytic
 import { initializeMetaPixel } from './services/meta'
 import { captureCampaign } from './utils/campaign'
 import { captureInternalTrafficPreference } from './utils/internalTraffic'
+import { installChunkLoadRecovery } from './utils/chunkLoadRecovery'
 
+installChunkLoadRecovery()
 captureCampaign()
 captureInternalTrafficPreference()
 initializeAnalytics()

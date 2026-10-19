@@ -54,6 +54,7 @@ import {
 } from './utils/cataloguePrice';
 import { getProductMetaDescription } from './utils/productMetaDescription';
 import { collectionPath } from './utils/collectionLink.js';
+import { reloadWithFreshAssets } from './utils/chunkLoadRecovery';
 
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const ProductModal = lazy(() => import('./components/ProductModal'));
@@ -71,6 +72,7 @@ function App() {
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
   const [checkoutStep, setCheckoutStep] = useState(readCheckoutStep);
   const [isCartOpen, setCartOpen] = useState(() => Boolean(readCheckoutStep()));
+  const [chunkLoadFailed, setChunkLoadFailed] = useState(false);
   const navigateCheckout = useCallback((step: 'cart' | 'delivery' | 'review' | 'confirmation', requestId?: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set('checkout', step);
@@ -116,6 +118,12 @@ function App() {
   // a new deploy activates and reloads the page; requestPageReload defers that
   // while the install dialog is open.
   useRegisterSW({ immediate: true, onNeedReload: requestPageReload });
+
+  useEffect(() => {
+    const showRecovery = () => setChunkLoadFailed(true);
+    window.addEventListener('vite:preloadErrorExhausted', showRecovery);
+    return () => window.removeEventListener('vite:preloadErrorExhausted', showRecovery);
+  }, []);
 
   useEffect(() => {
     const updateRoute = () => setIsAdminPage(window.location.hash === '#admin');
@@ -540,6 +548,13 @@ function App() {
 
   const cartNotifications = <>
       <CartCaptcha />
+      {chunkLoadFailed && <div role="alert" className="fixed left-1/2 top-24 z-[130] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 shadow-lg">
+        <p>The page could not load an app update. Please reload to try again.</p>
+        <button type="button" onClick={reloadWithFreshAssets}
+          className="mt-3 min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream">
+          Reload page
+        </button>
+      </div>}
       {cart.error && !isCartOpen && (
         <div className="fixed left-1/2 top-24 z-[120] w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
           <CartNotice message={cart.error} onDismiss={cart.dismissError} />
