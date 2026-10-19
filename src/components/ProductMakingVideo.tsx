@@ -99,11 +99,8 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
       setSharing(false);
     }
   };
-  const portrait = video.width / video.height < 0.9;
-  const frameClass = portrait
-    ? 'aspect-[4/5] w-full rounded-lg bg-cocoa/10 object-cover object-bottom'
-    : 'w-full rounded-lg bg-cocoa/10 object-cover';
-  const frameStyle = portrait ? undefined : { aspectRatio: `${video.width} / ${video.height}` };
+  const frameClass = 'block h-auto w-full rounded-lg bg-cocoa/10 object-contain';
+  const frameStyle = { aspectRatio: `${video.width} / ${video.height}` };
   return (
     <section ref={sectionRef} id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-24 rounded-xl border border-cocoa/15 p-3">
       <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">See how it’s made</h3>

@@ -23,6 +23,20 @@ it('renders nothing for products without a video', () => {
   expect(container.innerHTML).toBe('');
 });
 
+it.each([[404, 720], [1280, 720]])('preserves the full %i x %i frame in both the poster and player', (width, height) => {
+  const { container } = render(<ProductMakingVideo product={{
+    ...product, makingVideo: { ...product.makingVideo!, width, height },
+  }} />);
+  const poster = container.querySelector('img')!;
+  expect(poster.style.aspectRatio).toBe(`${width} / ${height}`);
+  expect(poster.className).toContain('object-contain');
+  expect(poster.className).not.toContain('object-cover');
+  fireEvent.click(screen.getByRole('button', { name: 'Play making video for Rose' }));
+  const video = container.querySelector('video')!;
+  expect(video.style.aspectRatio).toBe(`${width} / ${height}`);
+  expect(video.className).toBe(poster.className);
+});
+
 it('does not create any media source or request playback until the shopper taps', () => {
   const { container } = render(<ProductMakingVideo product={product} />);
   expect(container.querySelector('video,source')).toBeNull();

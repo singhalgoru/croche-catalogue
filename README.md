@@ -59,6 +59,8 @@ Older `mix` jobs are encoded the same way (source audio removed).
 Videos are never upscaled or cropped: output fits within 1280×720 (portrait at most
 720px tall, e.g. 1080×1920 → 404×720) with the original aspect ratio; smaller
 sources keep their size (rounded to even pixels).
+The storefront player and poster also use the video's natural aspect ratio at
+full available width; portrait clips are not forced into a cropped 4:5 frame.
 After processing, use **Preview processed video** to review the actual branded MP4
 and WebP poster privately (shown at its natural aspect ratio), with duration, dimensions
 and file size. **Uploaded originals are automatically deleted only after successful
