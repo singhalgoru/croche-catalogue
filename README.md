@@ -890,6 +890,12 @@ The admin Add product form includes Price discovery in Step 2, before the
 optional product specifications. Enter time and costs, suggest a GST-inclusive
 price, and use it in the product editor. The estimated GST rate defaults to 5%
 and remains editable; the recommended minimum quantity can also be overridden.
+Manage products also exposes **Default product GST (%)** under **Price discovery
+defaults**, initially 5%, alongside labour and gateway rates. It applies during
+the current admin session to product calculators without saved GST rates or
+edited inputs; saved rates (including 0%) are preserved. **Reset defaults**
+restores 5%. This estimate is separate from GST on the gateway fee; confirm the
+applicable product classification before applying and saving a price.
 Pricing inputs survive draft restoration and are saved privately when the
 product is published. The profit margin is recalculated from the final Price
 field, including any override made after applying the suggestion.

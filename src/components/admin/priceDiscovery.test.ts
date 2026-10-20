@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
+  createDefaultPriceInputs,
   calculatePriceAtSellingPrice,
   calculateMinimumOrderQuantity,
   estimateProductPrice,
@@ -10,6 +11,15 @@ import {
 } from './priceDiscovery';
 
 describe('price discovery calculations', () => {
+  it('uses the configurable default GST while preserving saved rates and calculator inputs', () => {
+    const defaults = { ...DEFAULT_PRICE_DISCOVERY_DEFAULTS, gstPercent: 12 };
+    expect(createDefaultPriceInputs().gstPercent).toBe('5');
+    expect(createDefaultPriceInputs({}, defaults).gstPercent).toBe('12');
+    expect(createDefaultPriceInputs({ gstPercent: 0 }, defaults).gstPercent).toBe('0');
+    expect(createDefaultPriceInputs({ gstPercent: 18 }, defaults).gstPercent).toBe('18');
+    const saved = { ...createDefaultPriceInputs(), gstPercent: '3' };
+    expect(createDefaultPriceInputs({ priceDiscoveryInputs: saved }, defaults)).toBe(saved);
+  });
   it.each([0, 5, 18])('suggests a whole-rupee price achieving at least 35 percent at %s GST', gstPercent => {
     const inputs: PriceDiscoveryInputs = {
       timeSpent: '1', timeUnit: 'hours', materialCost: '50',

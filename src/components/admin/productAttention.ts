@@ -28,7 +28,7 @@ export function getProductAttention(
   return {
     margin: hasMargin && margin < GOOD_MARGIN_PERCENT,
     negativeMargin: hasMargin && margin < 0,
-    costs: suggestGoodMarginPrice(createDefaultPriceInputs(product), defaults) === null,
+    costs: suggestGoodMarginPrice(createDefaultPriceInputs(product, defaults), defaults) === null,
     stock: !product.inStock || outOfStock.length > 0 || lowStock.length > 0,
     lowStockCount: lowStock.length,
     outOfStockCount: outOfStock.length,

@@ -229,7 +229,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
     setMessage(null);
     try {
       const currentPriceInputs =
-        priceInputs[product.id] ?? product.priceDiscoveryInputs ?? createDefaultPriceInputs(product);
+        priceInputs[product.id] ?? product.priceDiscoveryInputs ?? createDefaultPriceInputs(product, priceDefaults);
       const currentPriceOutcome = calculatePriceAtSellingPrice(
         currentPriceInputs,
         priceDefaults,
@@ -470,12 +470,14 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             <p className="mb-3 text-xs text-cocoa/65">
               Shared by every product calculator during this admin session. The payment gateway
               charges GST on its fee; this estimate includes that fee GST.
+              Default product GST prefills calculators without a saved GST rate; saved product rates and edited inputs stay unchanged.
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {([
                 ['labourRate', 'Labour rate (₹/hour)', 0, 10000, 1],
                 ['gatewayFeePercent', 'Gateway fee (%)', 0, 100, 0.1],
                 ['gatewayFeeGstPercent', 'GST on gateway fee (%)', 0, 100, 0.1],
+                ['gstPercent', 'Default product GST (%)', 0, 100, 0.1],
               ] as const).map(([field, label, min, max, step]) => (
                 <label key={field} className="text-sm font-semibold text-cocoa">
                   {label}
@@ -567,7 +569,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             const isEditing = editingId === product.id && draft;
             const isDeleting = deleteId === product.id;
             const isBusy = busyId === product.id;
-            const inputsForProduct = priceInputs[product.id] ?? createDefaultPriceInputs(product);
+            const inputsForProduct = priceInputs[product.id] ?? createDefaultPriceInputs(product, priceDefaults);
             const goodMarginPrice = suggestGoodMarginPrice(inputsForProduct, priceDefaults);
             const editorPriceOutcome = isEditing
               ? calculatePriceAtSellingPrice(inputsForProduct, priceDefaults, draft.price)

@@ -71,6 +71,22 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('prefills unset product GST from session defaults and supports resetting them', async () => {
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Price discovery defaults' }));
+    expect(screen.getByLabelText('Default product GST (%)')).toHaveProperty('value', '5');
+    fireEvent.change(screen.getByLabelText('Default product GST (%)'), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Price discoveryEstimate/ }));
+    expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '12');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset defaults' }));
+    expect(screen.getByLabelText('Default product GST (%)')).toHaveProperty('value', '5');
+    expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '5');
+    fireEvent.change(screen.getByLabelText('Coaster GST rate for estimate'), { target: { value: '18' } });
+    fireEvent.change(screen.getByLabelText('Default product GST (%)'), { target: { value: '12' } });
+    expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '18');
+  });
   it('saves a changed product price and displays the confirmed value', async () => {
     vi.mocked(updateProduct).mockResolvedValue({ ...product, price: 120 });
     render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);

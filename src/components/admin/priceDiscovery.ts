@@ -2,6 +2,7 @@ export interface PriceDiscoveryDefaults {
   labourRate: number;
   gatewayFeePercent: number;
   gatewayFeeGstPercent: number;
+  gstPercent: number;
 }
 
 export interface PriceDiscoveryInputs {
@@ -36,6 +37,7 @@ export const DEFAULT_PRICE_DISCOVERY_DEFAULTS: PriceDiscoveryDefaults = {
   labourRate: 100,
   gatewayFeePercent: 2,
   gatewayFeeGstPercent: 18,
+  gstPercent: 5,
 };
 
 export const DEFAULT_TARGET_MARGIN_PERCENT = 45;
@@ -45,13 +47,13 @@ export const createDefaultPriceInputs = (product: {
   priceDiscoveryInputs?: PriceDiscoveryInputs | null;
   gstPercent?: number | null;
   profitMarginPercent?: number | null;
-} = {}): PriceDiscoveryInputs => product.priceDiscoveryInputs ?? {
+} = {}, defaults: PriceDiscoveryDefaults = DEFAULT_PRICE_DISCOVERY_DEFAULTS): PriceDiscoveryInputs => product.priceDiscoveryInputs ?? {
   timeSpent: '',
   timeUnit: 'hours',
   materialCost: '',
   shippingCost: '100',
   packagingCost: '10',
-  gstPercent: String(product.gstPercent ?? 5),
+  gstPercent: String(product.gstPercent ?? defaults.gstPercent),
   targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
 };
 
