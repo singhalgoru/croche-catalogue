@@ -87,9 +87,10 @@ export default function CustomerSummary() {
           <div className="text-xs">
             <p className="font-semibold">{customer.verified ? 'Verified' : 'Awaiting activation'}</p>
             <p className={customer.suspended ? 'font-semibold text-red-700' : ''}>Account access: {customer.suspended ? 'Temporarily disabled' : 'Active'}</p>
-            <p>Registered: {dateLabel(customer.registeredAt)}</p>
+            <p>{customer.verified ? 'Registered' : 'Signup submitted'}: {dateLabel(customer.registeredAt)}</p>
             <p>Last sign-in: {customer.lastSignInAt ? dateLabel(customer.lastSignInAt) : 'Not yet'}</p>
-            <p>Welcome email: {welcomeLabels[customer.welcomeStatus]}</p>
+            <p>Welcome email: {!customer.verified && customer.welcomeStatus === 'not_queued'
+              ? 'Waiting for email verification' : welcomeLabels[customer.welcomeStatus]}</p>
             {customer.canManageAccount && <button type="button" disabled={saving || loading}
               className="mt-2 min-h-11 text-sm font-semibold underline disabled:opacity-50"
               onClick={() => { clearAction(); setMessage(''); setSelected(customer); }}>

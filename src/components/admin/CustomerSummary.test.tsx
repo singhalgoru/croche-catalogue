@@ -29,6 +29,17 @@ it('shows an empty summary', async () => {
   render(<CustomerSummary />);
   expect(await screen.findByText('No registered customers yet.')).toBeTruthy();
 });
+it('distinguishes signup submission from guest visits and explains why welcome email is not queued', async () => {
+  vi.mocked(fetchAdminCustomerSummary).mockResolvedValue({ ...summary, customers: [{
+    ...summary.customers[0], verified: false, welcomeStatus: 'not_queued',
+    registeredAt: '2026-10-20T08:39:33Z', lastSignInAt: null,
+  }] });
+  render(<CustomerSummary />);
+  expect(await screen.findByText('Signup submitted: 20 Oct 2026')).toBeTruthy();
+  expect(screen.getByText('Last sign-in: Not yet')).toBeTruthy();
+  expect(screen.getByText('Welcome email: Waiting for email verification')).toBeTruthy();
+  expect(screen.queryByText('Welcome email: Not queued')).toBeNull();
+});
 it('shows access failures and lets admins retry', async () => {
   vi.mocked(fetchAdminCustomerSummary).mockRejectedValueOnce(new Error('Admin access required.'));
   render(<CustomerSummary />);

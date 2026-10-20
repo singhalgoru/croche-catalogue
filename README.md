@@ -1095,6 +1095,12 @@ Product-wise display ordering is unchanged.
 The database, images, published processed videos and posters are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
 
+The admin customer list shows the latest signup submission date for accounts
+awaiting activation, and the activation date for registered accounts. Anonymous
+guest-session creation/sign-in dates are not customer registration or account
+sign-ins. Welcome emails are queued only after email verification activates the
+customer profile; pending signups show "Waiting for email verification".
+
 Before any new product, variant, gallery or AI-generated image is published,
 an unwatermarked, processed WebP is archived in a separate private R2 bucket
 (up to 6 MB), configured through the server-side `R2_ORIGINALS_BUCKET`.
