@@ -25,10 +25,8 @@ interface TokenStore {
   write: (token: string, expiresAt: string) => Promise<void>;
 }
 
-const API = 'https://apiv2.shiprocket.in/v1/external';
 const MIN_BILLABLE_GRAMS = 500;
 const WEIGHT_STEP_GRAMS = 100;
-const TOKEN_LIFETIME_MS = 9 * 86400_000;
 // Showing the cheapest few couriers gives a realistic range without letting
 // express air options inflate the "approx" charge.
 const QUOTED_COURIERS = 3;
@@ -98,21 +96,6 @@ export const parseServiceability = (value: unknown, weightGrams: number): RateQu
   };
 };
 
-const login = async (config: ShiprocketConfig, tokens: TokenStore) => {
-  const response = await fetch(`${API}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: config.email, password: config.password }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error(`Shiprocket login responded HTTP ${response.status}.`);
-  const payload: unknown = await response.json();
-  const token = payload && typeof payload === 'object' ? (payload as { token?: unknown }).token : undefined;
-  if (typeof token !== 'string' || !token) throw new Error('Shiprocket login returned no token.');
-  await tokens.write(token, new Date(Date.now() + TOKEN_LIFETIME_MS).toISOString());
-  return token;
-};
-
 export const fetchRateQuote = async (
   config: ShiprocketConfig,
   tokens: TokenStore,
@@ -125,18 +108,7 @@ export const fetchRateQuote = async (
     weight: (weightGrams / 1000).toString(),
     cod: '0',
   });
-  const request = (token: string) => fetch(`${API}/courier/serviceability/?${query}`, {
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(8000),
-  });
-  let token = await tokens.read() ?? await login(config, tokens);
-  let response = await request(token);
-  if (response.status === 401) {
-    token = await login(config, tokens);
-    response = await request(token);
-  }
-  // Shiprocket answers routes with no courier using HTTP 404.
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Shiprocket serviceability responded HTTP ${response.status}.`);
-  return parseServiceability(await response.json(), weightGrams);
+  return parseServiceability(await createShiprocketClient(config.email,config.password,tokens)(
+    `/courier/serviceability/?${query}`),weightGrams);
 };
+import { createShiprocketClient } from '../_shared/shiprocket.ts';

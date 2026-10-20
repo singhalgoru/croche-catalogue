@@ -589,7 +589,8 @@ npx supabase db query --linked --file supabase\tests\razorpay_checkout.sql
 
 Before enabling live checkout, complete Razorpay onboarding and the production
 configuration and validation below. Live checkout is gated separately from test
-checkout; refunds and dispatch/delivery tracking remain manual.
+checkout; refunds remain manual. Optional Shiprocket booking and tracking are
+available from the paid-order admin controls described below.
 The hosted-link foundation has its own `create-razorpay-payment-link` and
 `razorpay-payment-webhook` functions; its webhook uses the separate backend
 `RAZORPAY_WEBHOOK_SECRET` and the `payment_link.paid`, `payment_link.expired`
@@ -672,6 +673,17 @@ refresh; they do not modify payment status or perform refunds.
 Changing to Shipped or Delivered queues a branded customer email using the
 existing order email worker. Tracking-only edits and repeated status saves do
 not resend it. Concurrent status changes require refreshing before saving.
+Paid live orders also offer **Shiprocket shipping**: enter the final packed
+weight and dimensions, check available prepaid couriers, confirm the order is
+ready to ship, and approve a courier and estimated charge before booking.
+Generate the shipping label and request pickup separately. Booking is never
+automatic after payment and does not change the customer's paid shipping fee.
+Courier tracking updates the existing customer order status and shipment/delivery
+email queue; creating an AWB alone does not mark an order shipped.
+Expired quotes require a new approval. Interrupted or ambiguous bookings are
+blocked for operator reconciliation rather than automatically retried.
+This optional integration requires backend Shiprocket configuration; manual
+fulfilment remains available when it is not configured.
 Order emails use Luvia's cream/cocoa/mustard theme with item images and product
 links from the saved purchase snapshot, a payment summary, delivery details and
 dispatch/support guidance. Email clients may require enabling remote images.
