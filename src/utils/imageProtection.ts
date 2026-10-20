@@ -6,7 +6,7 @@ import type { MouseEvent } from 'react';
  * find the image URL) — it only raises the bar for the common case of a
  * visitor right-clicking or dragging a product photo off the page.
  */
-export const preventImageContextMenu = (event: MouseEvent<HTMLImageElement>) => {
+export const preventImageContextMenu = (event: MouseEvent<HTMLElement>) => {
   event.preventDefault();
 };
 

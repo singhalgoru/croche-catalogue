@@ -3,6 +3,7 @@ import type { Product } from '../types/product';
 import { trackEvent } from '../services/analytics';
 import { toProductPageUrl } from '../utils/productLink';
 import { ShareIcon } from './SocialIcons';
+import { productImageProtection } from '../utils/imageProtection';
 
 export const MAKING_VIDEO_ID = 'making-video';
 const isVideoLink = () => window.location.hash === `#${MAKING_VIDEO_ID}`
@@ -36,6 +37,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   const [sharing, setSharing] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
   const started = useRef(false);
+  const watchedMilestones = useRef(new Set<number>());
   const video = product.makingVideo;
   useEffect(() => {
     if (!video) return;
@@ -100,12 +102,13 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
     }
   };
   const frameClass = 'block h-auto w-full rounded-lg bg-cocoa/10 object-contain';
-  const frameStyle = { aspectRatio: `${video.width} / ${video.height}` };
+  const frameStyle = { ...productImageProtection.style, aspectRatio: `${video.width} / ${video.height}` };
   return (
     <section ref={sectionRef} id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-24 rounded-xl border border-cocoa/15 p-3">
       <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">See how it’s made</h3>
       {requested ? (
         <video
+          {...productImageProtection}
           key={video.videoUrl}
           ref={(element) => {
             if (element && !started.current) {
@@ -129,6 +132,22 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           className={frameClass}
           style={frameStyle}
           onPlay={() => { setNeedsPlayTap(false); event('making_video_play'); }}
+          onTimeUpdate={({ currentTarget }) => {
+            if (currentTarget.currentTime <= 0 || currentTarget.paused || currentTarget.seeking) return;
+            if (!watchedMilestones.current.has(0)) {
+              watchedMilestones.current.add(0);
+              event('making_video_view');
+            }
+            const duration = currentTarget.duration;
+            if (!Number.isFinite(duration) || duration <= 0) return;
+            const progress = currentTarget.currentTime / duration * 100;
+            for (const milestone of [25, 50, 75]) {
+              if (progress >= milestone && !watchedMilestones.current.has(milestone)) {
+                watchedMilestones.current.add(milestone);
+                trackEvent('making_video_progress', { product_id: product.id, percent: milestone });
+              }
+            }
+          }}
           onEnded={() => event('making_video_complete')}
           onError={() => { setError(true); event('making_video_error'); }}
         />
@@ -136,7 +155,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
         <button type="button" data-making-play className="relative block w-full overflow-hidden rounded-lg bg-cream"
           onClick={() => { setRequested(true); event('making_video_request'); }}
           aria-label={`Play making video for ${product.name}`}>
-          <img src={video.posterUrl} alt="" loading="lazy" width={video.width} height={video.height}
+          <img {...productImageProtection} src={video.posterUrl} alt="" loading="lazy" width={video.width} height={video.height}
             className={frameClass} style={frameStyle} />
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="rounded-full bg-cocoa px-5 py-3 font-semibold text-white">▶ Watch making video</span>

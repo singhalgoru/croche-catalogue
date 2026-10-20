@@ -23,6 +23,54 @@ it('renders nothing for products without a video', () => {
   expect(container.innerHTML).toBe('');
 });
 
+it('deters right-click saving and dragging for the poster and video without disabling playback controls', () => {
+  const { container } = render(<ProductMakingVideo product={product} />);
+  const poster = container.querySelector('img')!;
+  expect(fireEvent.contextMenu(poster)).toBe(false);
+  expect(poster.draggable).toBe(false);
+  expect(poster.style.userSelect).toBe('none');
+  fireEvent.click(screen.getByRole('button', { name: 'Play making video for Rose' }));
+  const video = container.querySelector('video')!;
+  expect(fireEvent.contextMenu(video)).toBe(false);
+  expect(video.draggable).toBe(false);
+  expect(video.style.userSelect).toBe('none');
+  expect(video.getAttribute('controlsList')).toBe('nodownload');
+  expect(video.controls).toBe(true);
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+});
+
+it('tracks actual playback and watch milestones once, excluding paused and seeking updates', () => {
+  const { container } = render(<ProductMakingVideo product={product} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Play making video for Rose' }));
+  const video = container.querySelector('video')!;
+  Object.defineProperty(video, 'duration', { configurable: true, value: 20 });
+  Object.defineProperty(video, 'paused', { configurable: true, value: false });
+  video.currentTime = 1;
+  fireEvent.timeUpdate(video);
+  fireEvent.timeUpdate(video);
+  video.currentTime = 5;
+  fireEvent.timeUpdate(video);
+  Object.defineProperty(video, 'seeking', { configurable: true, value: true });
+  video.currentTime = 15;
+  fireEvent.timeUpdate(video);
+  expect(trackEvent.mock.calls.filter(([name]) => name === 'making_video_progress')).toHaveLength(1);
+  Object.defineProperty(video, 'seeking', { configurable: true, value: false });
+  Object.defineProperty(video, 'paused', { configurable: true, value: true });
+  fireEvent.timeUpdate(video);
+  expect(trackEvent.mock.calls.filter(([name]) => name === 'making_video_progress')).toHaveLength(1);
+  Object.defineProperty(video, 'paused', { configurable: true, value: false });
+  fireEvent.timeUpdate(video);
+  fireEvent.timeUpdate(video);
+  expect(trackEvent.mock.calls.filter(([name]) => name === 'making_video_view')).toEqual([
+    ['making_video_view', { product_id: 'p1' }],
+  ]);
+  expect(trackEvent.mock.calls.filter(([name]) => name === 'making_video_progress')).toEqual([
+    ['making_video_progress', { product_id: 'p1', percent: 25 }],
+    ['making_video_progress', { product_id: 'p1', percent: 50 }],
+    ['making_video_progress', { product_id: 'p1', percent: 75 }],
+  ]);
+});
+
 it.each([[404, 720], [1280, 720]])('preserves the full %i x %i frame in both the poster and player', (width, height) => {
   const { container } = render(<ProductMakingVideo product={{
     ...product, makingVideo: { ...product.makingVideo!, width, height },

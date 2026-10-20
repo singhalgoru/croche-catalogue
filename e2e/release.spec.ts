@@ -51,6 +51,9 @@ test('optional making video requests no media before a tap and plays inline with
   await expect(making.locator('video,source')).toHaveCount(0);
   await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
   await expect.poll(() => making.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  expect(await making.locator('img').evaluate(element =>
+    element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(false);
+  await expect(making.locator('img')).toHaveAttribute('draggable', 'false');
   await page.evaluate(() => Object.defineProperty(navigator, 'share', {
     configurable: true,
     value: async (data: ShareData) => document.body.setAttribute('data-video-share-url', data.url ?? ''),
@@ -65,6 +68,10 @@ test('optional making video requests no media before a tap and plays inline with
   const video = making.locator('video');
   await expect(video).toHaveAttribute('src', makingVideoUrl);
   await expect(video).toHaveAttribute('preload', 'none');
+  await expect(video).toHaveAttribute('controlslist', 'nodownload');
+  await expect(video).toHaveAttribute('draggable', 'false');
+  expect(await video.evaluate(element =>
+    element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(false);
   await expect(video).not.toHaveAttribute('autoplay', '');
   await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), { timeout: 15_000 })
     .toBeGreaterThan(0);

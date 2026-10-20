@@ -168,7 +168,17 @@ playback, with **Turn sound on** available. Browser-blocked playback shows a pla
 Ordinary product links still load no video until a tap.
 Sharing errors show a selectable manual link; cancelling native sharing is harmless.
 Only product ID and playback events go through the existing consent/privacy-aware
-analytics helper. `nodownload` is a UI hint, not DRM; optimized media is public.
+analytics helper. The player hides the download option in supporting browsers,
+and the video/poster use the same right-click, drag and mobile-callout deterrents
+as product photos. Playback controls and sharing remain available. These are UI
+deterrents, not DRM: optimized media is public and screen recording or direct
+network downloads cannot be prevented.
+GA4 events include `making_video_play`, `making_video_view` (once playback
+advances), `making_video_progress` (`percent`: 25, 50, 75, each once per mounted
+player), `making_video_complete`, `making_video_share`, and `making_video_error`.
+All include `product_id` and use the existing analytics exclusions. Progress is
+position-based, not proof of uninterrupted watch time; paused/seeking updates are
+excluded. Ad blockers and analytics filtering can prevent reporting.
 No adaptive streaming is used.
 
 **Deployment order (do not deploy the frontend before the migration):**
