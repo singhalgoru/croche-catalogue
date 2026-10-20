@@ -1,9 +1,9 @@
 /**
- * Copies every object in the R2 image bucket to a local folder.
+ * Copies every object in an R2 bucket to a local folder (images or videos).
  *
  *   node --env-file=.env.r2.local scripts/backup-r2-images.mjs [destination] [manifest]
  *
- * R2_BACKUP_BUCKET overrides R2_BUCKET to back up the separate private bucket.
+ * R2_BACKUP_BUCKET overrides R2_BUCKET to select another media/private bucket.
  *
  * Destination defaults to `r2-image-backup/` (gitignored). Point it at a
  * OneDrive or Google Drive folder to keep an off-site copy. Image keys are

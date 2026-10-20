@@ -1092,7 +1092,7 @@ legacy products. The logo and hamburger Home/collection links navigate within
 the loaded shop, preserving real link destinations for modified/new-tab clicks.
 Product-wise display ordering is unchanged.
 
-The database and images are backed up daily, and the backup is test-restored
+The database, images, published processed videos and posters are backed up daily, and the backup is test-restored
 monthly. Setup and restore steps are kept in the private operations notes.
 
 Before any new product, variant, gallery or AI-generated image is published,
@@ -1119,6 +1119,17 @@ requires the GitHub secret `R2_ORIGINALS_BUCKET` and R2 credentials with access
 to both buckets. A manifest records the private originals for restore checks.
 Neither backup deletes images that disappear from live storage. The existing
 pre-watermark originals remain in the older `r2-images/` backup paths.
+
+Published MP4s and WebP posters from `R2_VIDEO_BUCKET` are also copied daily to
+`r2-videos/`, with a size manifest checked during the monthly restore drill.
+The R2 credentials must have read/list access to that bucket. Legacy videos in
+the image bucket remain in `r2-images/`. Both locations are additive: removing
+or replacing a storefront video does not delete an already backed-up copy.
+The schedule is 21:00 UTC (02:30 IST); run **Backup Supabase Database and R2 Media**
+manually after publication if a copy is needed before the next daily run.
+Media failures mark the workflow failed without preventing the database backup
+from being pushed; fix the reported step and rerun. This does not change the
+post-publication deletion policy for source-video originals.
 
 ## Google Merchant Center
 

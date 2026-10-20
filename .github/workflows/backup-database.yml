@@ -1,4 +1,4 @@
-name: Backup Supabase Database and R2 Images
+name: Backup Supabase Database and R2 Media
 
 # Daily encrypted backup of the Supabase Postgres database, pushed to a
 # separate private repo (singhalgoru/croche-catalogue-backups). Only the
@@ -7,6 +7,8 @@ name: Backup Supabase Database and R2 Images
 # mirrored into r2-images/; only new images are downloaded, and images deleted
 # in admin stay in the backup. Private unwatermarked originals are preserved
 # separately in image-originals/.
+# Published processed videos and posters are preserved in r2-videos/ with the
+# same additive retention; legacy videos remain covered by r2-images/.
 on:
   schedule:
     - cron: '0 21 * * *' # 21:00 UTC = ~02:30 IST, daily
@@ -63,7 +65,7 @@ jobs:
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
         run: git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/singhalgoru/croche-catalogue-backups.git" backup-repo
 
-      # An image failure must not stop the database backup from being pushed;
+      # A media failure must not stop the database backup from being pushed;
       # the last step fails the run afterwards so it is still noticed.
       - name: Mirror R2 images
         id: images
@@ -74,6 +76,18 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: node scripts/backup-r2-images.mjs backup-repo/r2-images
+
+      - name: Back up processed videos and posters
+        id: videos
+        continue-on-error: true
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_VIDEO_BUCKET }}
+        run: |
+          mkdir -p backup-repo/r2-videos
+          node scripts/backup-r2-images.mjs backup-repo/r2-videos backup-repo/r2-videos/manifest.json
 
       - name: Back up private image originals
         id: originals
@@ -104,8 +118,8 @@ jobs:
           git commit -m "Daily backup $(date -u +%Y-%m-%d)" || echo "No changes to commit"
           git push
 
-      - name: Report image backup failure
-        if: steps.images.outcome == 'failure' || steps.originals.outcome == 'failure'
+      - name: Report media backup failure
+        if: steps.images.outcome == 'failure' || steps.originals.outcome == 'failure' || steps.videos.outcome == 'failure'
         run: |
-          echo "::error::Image backup failed (R2 images or private originals); the database backup was still pushed."
+          echo "::error::Media backup failed (R2 images, private originals, or processed videos/posters); the database backup was still pushed. Check the failed step and rerun."
           exit 1

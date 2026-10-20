@@ -6,6 +6,7 @@ name: Verify Backup Restore
 #   - every public table that exists in production was restored;
 #   - catalogue and account row counts match production;
 #   - every image the restored catalogue references is in the image backup.
+#   - private originals and published video objects match their backup manifests.
 # Production is only read (row counts), never written. Logs show counts and
 # error messages only, never row data, because this repository is public.
 on:
@@ -130,17 +131,18 @@ jobs:
           [ "$not_r2" -eq 0 ] || echo "::warning::$not_r2 images are not in R2, so the image backup does not cover them."
           [ "$missing" -eq 0 ]
 
-      - name: Check private originals are in the image backup
+      - name: Check originals and processed videos against backup manifests
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import json
           from pathlib import Path
-          root = Path("backup-repo/image-originals").resolve()
-          objects = json.loads((root / "manifest.json").read_text())
-          for item in objects:
-              file = (root / item["key"]).resolve()
-              if not file.is_relative_to(root) or not file.is_file() or file.stat().st_size != item["size"]:
-                  raise SystemExit("A private original is missing or has an incorrect backup size.")
-          print(f"Verified {len(objects)} private R2 originals against the backup manifest.")
+          for directory in ("image-originals", "r2-videos"):
+              root = Path("backup-repo", directory).resolve()
+              objects = json.loads((root / "manifest.json").read_text())
+              for item in objects:
+                  file = (root / item["key"]).resolve()
+                  if not file.is_relative_to(root) or not file.is_file() or file.stat().st_size != item["size"]:
+                      raise SystemExit(f"A {directory} object is missing or has an incorrect backup size.")
+              print(f"Verified {len(objects)} {directory} objects against the backup manifest.")
           PY
