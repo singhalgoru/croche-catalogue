@@ -155,7 +155,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
         <button type="button" data-making-play className="relative block w-full overflow-hidden rounded-lg bg-cream"
           onClick={() => { setRequested(true); event('making_video_request'); }}
           aria-label={`Play making video for ${product.name}`}>
-          <img {...productImageProtection} src={video.posterUrl} alt="" loading="lazy" width={video.width} height={video.height}
+          <img {...productImageProtection} src={video.posterUrl} alt={`Preview of ${product.name} being made`} loading="lazy" width={video.width} height={video.height}
             className={frameClass} style={frameStyle} />
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="rounded-full bg-cocoa px-5 py-3 font-semibold text-white">▶ Watch making video</span>

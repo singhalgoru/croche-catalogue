@@ -79,6 +79,19 @@ const variantImageProduct: Product = {
   ],
 };
 
+it('describes meaningful angle thumbnails and hides decorative duplicate variant photos', () => {
+  const { container } = render(<ProductModal product={product} currentIndex={0} totalProducts={1}
+    onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
+  expect(screen.getByRole('img', { name: 'Crochet Rose — Red, main photo' })).toBeTruthy();
+  expect(screen.getByRole('img', { name: 'Crochet Rose — Red, additional photo 2' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Show product image 2' }).getAttribute('aria-description'))
+    .toBe('Crochet Rose — Red');
+  const decorative = container.querySelectorAll('img[aria-hidden="true"]');
+  expect(decorative.length).toBeGreaterThanOrEqual(3);
+  decorative.forEach(image => expect(image.getAttribute('alt')).toBe(''));
+  cleanup();
+});
+
 it('counts one product view per open, not per rotated or selected image', () => {
   vi.useFakeTimers();
   trackProductViewed.mockClear();

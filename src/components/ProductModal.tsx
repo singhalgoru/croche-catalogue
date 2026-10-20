@@ -532,13 +532,16 @@ export default function ProductModal({
                 onClick={() => selectGalleryImage(item)}
                 aria-pressed={item.id === activeThumbnailId}
                 aria-label={index === 0 ? 'Show main product image' : `Show product image ${index + 1}`}
+                aria-description={`${product.name}${selectedVariant ? ` — ${selectedVariant.name}` : ''}`}
                 className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
                   item.id === activeThumbnailId
                     ? 'border-cocoa'
                     : 'border-mustard/30 hover:border-mustard'
                 }`}
               >
-                <img src={getProductImageUrl(item.image, 160)} alt="" className="h-full w-full object-cover" {...productImageProtection} />
+                <img src={getProductImageUrl(item.image, 160)}
+                  alt={`${product.name}${selectedVariant ? ` — ${selectedVariant.name}` : ''}, ${index === 0 ? 'main photo' : `additional photo ${index + 1}`}`}
+                  className="h-full w-full object-cover" {...productImageProtection} />
               </button>
             ))}
           </div>
@@ -584,6 +587,7 @@ export default function ProductModal({
                       <img
                         src={getProductImageUrl(variant.image, 160)}
                         alt=""
+                        aria-hidden="true"
                         className="aspect-square w-full rounded-lg bg-cream object-cover"
                         {...productImageProtection}
                       />

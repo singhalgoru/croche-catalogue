@@ -61,6 +61,9 @@ Videos are never upscaled or cropped: output fits within 1280×720 (portrait at 
 sources keep their size (rounded to even pixels).
 The storefront player and poster also use the video's natural aspect ratio at
 full available width; portrait clips are not forced into a cropped 4:5 frame.
+Product angle thumbnails describe the product, variant and photo number; the
+making-video poster describes its product. Blurred image backdrops and variant
+thumbnails that repeat the adjacent variant name are explicitly decorative.
 After processing, use **Preview processed video** to review the actual branded MP4
 and WebP poster privately (shown at its natural aspect ratio), with duration, dimensions
 and file size. **Uploaded originals are automatically deleted only after successful

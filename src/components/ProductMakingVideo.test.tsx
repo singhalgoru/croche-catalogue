@@ -23,6 +23,12 @@ it('renders nothing for products without a video', () => {
   expect(container.innerHTML).toBe('');
 });
 
+it('describes the making-video poster while keeping a concise play button label', () => {
+  render(<ProductMakingVideo product={product} />);
+  expect(screen.getByRole('img', { name: 'Preview of Rose being made' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Play making video for Rose' })).toBeTruthy();
+});
+
 it('deters right-click saving and dragging for the poster and video without disabling playback controls', () => {
   const { container } = render(<ProductMakingVideo product={product} />);
   const poster = container.querySelector('img')!;
