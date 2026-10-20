@@ -74,7 +74,8 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
       {deliveryDays ? <span className="font-normal"> · usually {deliveryDays}</span> : null}
     </p>}
     {!showEditor && deliveryDays && <p className="mt-1 text-xs text-cocoa/75">
-      Estimated courier transit time only; order preparation time is additional. Delivery dates are not guaranteed.
+      Provisional courier transit estimate; the courier is selected after packing. Order preparation time is additional.
+      Check My orders for the selected courier's estimate after booking. Delivery dates are not guaranteed.
     </p>}
     {!showEditor && isDeliveryEstimateOutdated(cart) && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-cocoa/75">
       Your cart changed since the delivery estimate.

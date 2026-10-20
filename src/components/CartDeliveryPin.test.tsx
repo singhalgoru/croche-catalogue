@@ -73,7 +73,8 @@ it('shows the Shiprocket estimate and offers a refresh after the cart changes', 
   const { rerender } = render(<CartDeliveryPin cart={estimated} busy={false} onSave={onSave} />);
   expect(screen.getByText(/Approx\. delivery charge: \u20B970/)).toBeTruthy();
   expect(screen.getByText(/usually 3\u20135 days after dispatch/)).toBeTruthy();
-  expect(screen.getByText(/order preparation time is additional/)).toBeTruthy();
+  expect(screen.getByText(/Order preparation time is additional/)).toBeTruthy();
+  expect(screen.getByText(/courier is selected after packing/)).toBeTruthy();
   rerender(<CartDeliveryPin cart={{ ...estimated, items: [{ ...item, quantity: 3 }] }} busy={false} onSave={onSave} />);
   expect(screen.queryByText(/Approx\. delivery charge/)).toBeNull();
   expect(screen.queryByText(/order preparation time is additional/)).toBeNull();

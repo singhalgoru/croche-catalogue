@@ -29,3 +29,15 @@ it.each([null,{}, { ...state,quotes: [{ id: 1,charge: -10 }] },{ ...state,fulfil
     invoke.mockResolvedValueOnce({ data });
     await expect(requestOrderShipping('order','status')).rejects.toThrow('Invalid shipping response');
   });
+it('validates selected courier estimate fields',async () => {
+  invoke.mockResolvedValueOnce({ data: { ...state,fulfilment: { ...state.fulfilment,deliveryEstimate: {
+    courierName: 'Courier',transitDays: 4,expectedDate: '2026-10-25',updatedAt: null,
+  } } } });
+  await expect(requestOrderShipping('order','status')).resolves.toMatchObject({
+    fulfilment: { deliveryEstimate: { transitDays: 4,expectedDate: '2026-10-25' } },
+  });
+  invoke.mockResolvedValueOnce({ data: { ...state,fulfilment: { ...state.fulfilment,deliveryEstimate: {
+    courierName: 'Courier',transitDays: -1,expectedDate: null,updatedAt: null,
+  } } } });
+  await expect(requestOrderShipping('order','status')).rejects.toThrow('Invalid shipping response');
+});

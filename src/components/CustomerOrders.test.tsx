@@ -17,6 +17,19 @@ beforeEach(() => {
   vi.mocked(updateOrderFulfilment).mockReset();
   vi.mocked(setCustomerOrderHidden).mockReset().mockResolvedValue();
 });
+it('shows the booked courier estimate to customers and replaces transit days with tracking ETA',async () => {
+  const fulfilment = { status: 'processing' as const,courierName: '',trackingNumber: '',trackingUrl: '',updatedAt: null,
+    deliveryEstimate: { courierName: 'Shadowfax Surface',transitDays: 4,expectedDate: null,updatedAt: null } };
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order,fulfilment }]);
+  render(<CustomerOrders />);
+  expect(await screen.findByText('Estimated transit: about 4 days after courier pickup.')).toBeTruthy();
+  vi.mocked(fetchCustomerOrders).mockResolvedValue([{ ...order,fulfilment: {
+    ...fulfilment,deliveryEstimate: { ...fulfilment.deliveryEstimate,expectedDate: '2026-10-25' },
+  } }]);
+  fireEvent.click(screen.getByRole('button',{ name: 'Refresh orders' }));
+  expect(await screen.findByText("Courier's expected delivery: 25 Oct 2026")).toBeTruthy();
+  expect(screen.queryByText(/Estimated transit:/)).toBeNull();
+});
 it('puts current paid orders ahead of newer failed and delivered orders', async () => {
   vi.mocked(fetchCustomerOrders).mockResolvedValue([
     { ...order, id: 'failed', reference: 'FAILED', status: 'link_failed', paidAt: null, createdAt: '2026-10-11T12:00:00Z' },

@@ -38,8 +38,9 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
       if (action === 'book') setNotice('Shipment and AWB created. Generate the label and request pickup when packed.');
       if (action === 'pickup') setNotice('Pickup request confirmed by Shiprocket.');
       if (action === 'quote' && !saved.quotes.length) setNotice('No available courier for this package and delivery pincode. Arrange shipping manually.');
-      if (saved.fulfilment.status !== fulfilment.status || saved.fulfilment.updatedAt !== fulfilment.updatedAt) {
-        onSaved(saved.fulfilment,'Shipment tracking updated. Status-change emails are queued automatically.');
+      if (saved.fulfilment.status !== fulfilment.status || saved.fulfilment.updatedAt !== fulfilment.updatedAt
+        || JSON.stringify(saved.fulfilment.deliveryEstimate) !== JSON.stringify(fulfilment.deliveryEstimate)) {
+        onSaved(saved.fulfilment,'Shipping details updated. Status-change emails are queued automatically.');
       }
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Shipping request failed.');
@@ -51,7 +52,9 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
   const button = 'min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold disabled:opacity-50';
   return <section aria-label="Shiprocket shipping" className="mt-4 rounded-xl border border-cocoa/20 bg-white p-3">
     <h5 className="font-semibold">Shiprocket shipping</h5>
-    <p className="mt-1 text-xs text-cocoa/70">Prepaid orders only. Confirm the packed weight and dimensions, then approve a courier. Booking does not mark the order shipped; courier tracking does.</p>
+    <p className="mt-1 text-xs text-cocoa/70">Prepaid orders only. Confirm the packed weight and dimensions, then approve a courier. Booking does not mark the order shipped; courier tracking does.
+      {' '}Compare transit days as well as cost: the selected courier may differ from the provisional checkout estimate.
+      A recommendation is not a guarantee of delivery speed or reliability.</p>
     <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void run('status')}>
       {busy ? 'Working...' : state ? 'Refresh shipping status' : 'Manage Shiprocket shipping'}
     </button>

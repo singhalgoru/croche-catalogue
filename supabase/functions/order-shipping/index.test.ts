@@ -194,6 +194,17 @@ it('generates labels and syncs tracking through the authoritative database trans
   expect((await handle(request({ action: 'sync',orderId: id }))).status).toBe(200);
   expect(rpc).toHaveBeenCalledWith('sync_order_shipping',{ p_order_id: id,p_status: 'IN TRANSIT' });
 });
+it('returns the booked courier transit estimate and updates its tracking ETA',async () => {
+  shipping={ ...shipping,shipment_id: 222,awb: 'AWB123',updated_at: quotedAt };
+  const response=await handle(request({ action: 'status',orderId: id }));
+  expect(await response.json()).toMatchObject({ fulfilment: { deliveryEstimate: {
+    courierName: 'Courier',transitDays: 3,expectedDate: null,updatedAt: quotedAt,
+  } } });
+  api.mockResolvedValueOnce({ tracking_data: { track_status: 1,etd: '2026-10-25 18:00:00',
+    shipment_track: [{ current_status: 'IN TRANSIT' }] } });
+  expect((await handle(request({ action: 'sync',orderId: id }))).status).toBe(200);
+  expect(updates).toContainEqual({ estimated_delivery_date: '2026-10-25' });
+});
 it('polls due shipments with the private worker secret without granting booking access',async () => {
   jobs=[{ order_id: id,shipment_id: 222 }];
   const response=await handle(request({ action: 'sync-due' },'Bearer worker-fixture'));

@@ -5,6 +5,7 @@ import { formatINR } from '../utils/currency';
 import { deliveryAddressText, fulfilmentLabels } from '../utils/customer';
 import OrderFulfilmentForm from './admin/OrderFulfilmentForm';
 import OrderShippingPanel from './admin/OrderShippingPanel';
+import OrderDeliveryEstimate from './OrderDeliveryEstimate';
 import { trackEvent } from '../services/analytics';
 
 const statusLabels: Record<CustomerOrder['status'], string> = {
@@ -177,13 +178,17 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
               <div className="flex justify-between font-bold"><dt>Total</dt><dd>{formatINR(order.total)}</dd></div>
             </dl>
             {order.status === 'paid' && order.fulfilment && <div className="mt-3 break-words text-sm">
+              <OrderDeliveryEstimate fulfilment={order.fulfilment} />
               {order.fulfilment.courierName && <p>Courier: {order.fulfilment.courierName}</p>}
               {order.fulfilment.trackingNumber && <p>Tracking number: {order.fulfilment.trackingNumber}</p>}
               {order.fulfilment.trackingUrl.startsWith('https://') && <a href={order.fulfilment.trackingUrl}
                 target="_blank" rel="noopener noreferrer" className="inline-block min-h-11 py-2 underline">Track shipment</a>}
               {admin && <OrderFulfilmentForm key={`${order.id}-${order.fulfilment.updatedAt}`} orderId={order.id}
                 reference={order.reference} fulfilment={order.fulfilment} onSaved={(fulfilment, message) => {
-                  setOrders(current => current.map(value => value.id === order.id ? { ...value, fulfilment } : value));
+                  setOrders(current => current.map(value => value.id === order.id ? { ...value, fulfilment: {
+                    ...fulfilment,deliveryEstimate: fulfilment.trackingNumber === value.fulfilment?.trackingNumber
+                      ? value.fulfilment.deliveryEstimate : null,
+                  } } : value));
                   setActionMessage(`${order.reference}: ${message}`);
                 }} />}
               {admin && <OrderShippingPanel orderId={order.id} fulfilment={order.fulfilment}

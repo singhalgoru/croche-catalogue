@@ -55,6 +55,22 @@ export function trackingStatus(value: unknown): string {
   if (typeof status !== 'string' || !status.trim()) throw new Error('Tracking status missing.');
   return status.trim().toUpperCase();
 }
+export function trackingDeliveryDate(value: unknown): string | null {
+  const data = record(record(value).tracking_data);
+  const first = Array.isArray(data.shipment_track) && data.shipment_track.length
+    ? record(data.shipment_track[0]) : null;
+  const raw = data.etd || first?.edd;
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:[ T].*)?$/.test(raw)) {
+    throw new Error('Shiprocket returned an invalid expected delivery date.');
+  }
+  const date = raw.slice(0,10);
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date) {
+    throw new Error('Shiprocket returned an invalid expected delivery date.');
+  }
+  return date;
+}
 export function createOrderPayload(order: Record<string, unknown>, items: Record<string, unknown>[],
   parcel: PackageDetails, pickupLocation: string) {
   const address = record(order.delivery_details);

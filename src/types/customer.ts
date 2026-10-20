@@ -43,6 +43,12 @@ export interface CampaignCoupon {
   reserved_count: number;
 }
 export interface OrderFulfilment {
+  deliveryEstimate?: {
+    courierName: string;
+    transitDays: number | null;
+    expectedDate: string | null;
+    updatedAt: string | null;
+  } | null;
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered';
   courierName: string;
   trackingNumber: string;

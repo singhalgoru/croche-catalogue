@@ -53,6 +53,8 @@ it('shows the courier transit window for the selected address pincode after disp
   expect(deliveryWindow).toContain('courier transit of 3–5 days after dispatch');
   expect(deliveryWindow).toContain('1–5 days for preparation and dispatch');
   expect(deliveryWindow).toContain('dates are approximate and not guaranteed');
+  expect(deliveryWindow).toContain('Provisional estimate before courier selection');
+  expect(deliveryWindow).toContain("selected courier's transit estimate");
 });
 it('explains when the selected address has no courier transit estimate', () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details, deliveryPinCode: details.pincode }}

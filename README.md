@@ -680,6 +680,13 @@ Generate the shipping label and request pickup separately. Booking is never
 automatic after payment and does not change the customer's paid shipping fee.
 Courier tracking updates the existing customer order status and shipment/delivery
 email queue; creating an AWB alone does not mark an order shipped.
+Checkout delivery dates are provisional, combining preparation time and an
+indicative courier range rather than a selected service. After booking, My orders
+shows the chosen courier's quoted transit days after pickup. When courier tracking
+provides an expected delivery date, it replaces that transit-only display.
+Booking day is not treated as pickup day; missing dates are not invented, and
+delivery estimates remain non-guaranteed. Refresh orders for the latest estimate.
+ETA-only updates do not resend shipment/delivery emails.
 Expired quotes require a new approval. Interrupted or ambiguous bookings are
 blocked for operator reconciliation rather than automatically retried.
 This optional integration requires backend Shiprocket configuration; manual

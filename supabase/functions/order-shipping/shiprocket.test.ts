@@ -1,8 +1,15 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
-import { createOrderPayload, createShiprocketClient, parseCouriers, parsePackage, safeLabel, trackingStatus } from './shiprocket';
+import { createOrderPayload, createShiprocketClient, parseCouriers, parsePackage, safeLabel, trackingStatus, trackingDeliveryDate } from './shiprocket';
 const parcel = { weight: 0.75,length: 20,breadth: 15,height: 10 };
 afterEach(() => vi.unstubAllGlobals());
+it('reads tracking ETA dates without using booking day or parsing ambiguous formats',() => {
+  expect(trackingDeliveryDate({ tracking_data: { etd: '2026-10-25 18:00:00',shipment_track: [{ edd: '2026-10-24' }] } })).toBe('2026-10-25');
+  expect(trackingDeliveryDate({ tracking_data: { shipment_track: [{ edd: '2026-10-24T18:00:00' }] } })).toBe('2026-10-24');
+  expect(trackingDeliveryDate({ tracking_data: { shipment_track: [] } })).toBeNull();
+  expect(() => trackingDeliveryDate({ tracking_data: { etd: '2026-02-31' } })).toThrow('invalid expected');
+  expect(() => trackingDeliveryDate({ tracking_data: { etd: '24/10/2026' } })).toThrow('invalid expected');
+});
 it('validates measured package weight and dimensions without defaults',() => {
   expect(parsePackage(parcel)).toEqual(parcel);
   for (const value of [0,-1,NaN,Infinity,51]) expect(() => parsePackage({ ...parcel,weight: value })).toThrow();

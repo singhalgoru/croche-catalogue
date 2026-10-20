@@ -29,6 +29,11 @@ const validParcel = (value: unknown): value is ShippingPackage => object(value)
 function validState(value: unknown): value is ShippingState {
   if (!object(value) || !object(value.fulfilment) || !Array.isArray(value.quotes)) return false;
   const f = value.fulfilment;
+  const estimate = f.deliveryEstimate;
+  if (estimate !== undefined && estimate !== null && (!object(estimate)
+    || typeof estimate.courierName !== 'string'
+    || !(estimate.transitDays === null || positive(estimate.transitDays))
+    || !nullableString(estimate.expectedDate) || !nullableString(estimate.updatedAt))) return false;
   return ['confirmed','processing','shipped','delivered'].includes(String(f.status))
     && ['courierName','trackingNumber','trackingUrl'].every(key => typeof f[key] === 'string')
     && nullableString(f.updatedAt)

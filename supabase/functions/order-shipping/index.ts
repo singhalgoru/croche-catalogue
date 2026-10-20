@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createOrderPayload, createShiprocketClient, identifier, parseCouriers, parsePackage,
-  record, safeLabel, trackingStatus } from './shiprocket.ts';
+  record, safeLabel, trackingStatus, trackingDeliveryDate } from './shiprocket.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -67,13 +67,18 @@ Deno.serve(async request => {
   const state = async (id: string) => {
     const order = await readOrder(id);
     const shipping = await readShipping(id);
+    const quotes = Array.isArray(shipping?.quotes) ? shipping.quotes : [];
+    const selected = quotes.find((q: { id: number }) => q.id === shipping?.courier_id);
     return { parcel: shipping?.package ?? null, quotes: shipping?.quotes ?? [], quotedAt: shipping?.quoted_at ?? null,
       shipmentId: shipping?.shipment_id ?? null, awb: shipping?.awb ?? null, courierName: shipping?.courier_name ?? null,
       labelUrl: shipping?.label_url ?? null, pickupRequested: shipping?.pickup_requested ?? false,
       reviewRequired: shipping?.review_required ?? false, busy: Boolean(shipping?.operation),
       lastError: shipping?.last_error ?? shipping?.tracking_error ?? null,
       trackingStatus: shipping?.tracking_status ?? null, syncedAt: shipping?.synced_at ?? null,
-      fulfilment: { status: order.fulfilment_status, courierName: order.courier_name,
+      fulfilment: { deliveryEstimate: shipping?.awb && (!order.tracking_number || order.tracking_number === shipping.awb) ? {
+        courierName: shipping.courier_name,transitDays: selected?.days ?? null,
+        expectedDate: shipping.estimated_delivery_date ?? null,updatedAt: shipping.synced_at ?? shipping.updated_at ?? null,
+      } : null,status: order.fulfilment_status, courierName: order.courier_name,
         trackingNumber: order.tracking_number, trackingUrl: order.tracking_url, updatedAt: order.fulfilment_updated_at } };
   };
   try {
@@ -104,7 +109,12 @@ Deno.serve(async request => {
     }
     const sync = async (id: string, shipmentId: number) => {
       try {
-        const status = trackingStatus(await api(`/courier/track/shipment/${identifier(shipmentId)}`));
+        const tracking = await api(`/courier/track/shipment/${identifier(shipmentId)}`);
+        const status = trackingStatus(tracking);
+        const { error: estimateError } = await db.from('order_shipping').update({
+          estimated_delivery_date: trackingDeliveryDate(tracking),
+        }).eq('order_id',id);
+        if (estimateError) throw new Error('Unable to save courier delivery estimate.');
         await rpc('sync_order_shipping',{ p_order_id: id,p_status: status });
       } catch (failure) {
         const { error } = await db.from('order_shipping').update({

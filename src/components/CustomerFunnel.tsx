@@ -199,6 +199,8 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         <p className="break-words">{deliveryAddressText(reviewed)}</p>
         <section aria-label="Delivery window" className="rounded-xl border border-mustard/30 bg-cream/60 p-3">
           <h4 className="font-semibold">Estimated delivery</h4>
+          <p className="mt-1 text-sm">Provisional estimate before courier selection. After packing and booking,
+            My orders shows the selected courier's transit estimate and, when available, its latest expected delivery date.</p>
           {deliveryDays && deliveryDates
             ? <><p className="mt-1 font-semibold">Around {deliveryDates}</p>
               <p className="mt-1 text-sm">For pincode {reviewed.pincode}, this estimate combines courier transit of {deliveryDays} with 1–5 days for preparation and dispatch after order confirmation. This range assumes you order today; dates are approximate and not guaranteed.</p></>

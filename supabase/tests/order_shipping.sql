@@ -9,7 +9,7 @@ select order_id,'SHIPPING-'||order_id,gen_random_uuid(),actor_id,actor_id,
   '{"name":"Shipping Test","phone":"9876543210","email":"shipping@example.invalid","addressLine1":"12 Test Street","city":"Delhi","state":"Delhi","pincode":"110001"}',
   50000,0,50000,'paid',now(),now()+interval '1 day',true,'order_shipping_'||order_id from shipping_fixture;
 do $$
-declare f record; quoted timestamptz; claimed jsonb; rejected boolean; operation_id uuid:=gen_random_uuid();
+declare f record; quoted timestamptz; claimed jsonb; estimate jsonb; rejected boolean; operation_id uuid:=gen_random_uuid();
 begin
   select * into f from shipping_fixture;
   if has_table_privilege('authenticated','public.order_shipping','select')
@@ -56,6 +56,20 @@ begin
   if not rejected then raise exception 'FAIL: ambiguous booking automatically retried.'; end if;
   update public.order_shipping set review_required=false,shipment_id=123,provider_order_id=456,awb='AWB123'
     where order_id=f.order_id;
+  estimate:=public.with_courier_delivery_estimate(jsonb_build_array(jsonb_build_object(
+    'id',f.order_id,'fulfilment',jsonb_build_object('status','confirmed'))))->0->'fulfilment'->'deliveryEstimate';
+  if estimate->>'courierName'<>'Courier' or (estimate->>'transitDays')::integer<>3
+    or estimate->>'expectedDate' is not null then
+    raise exception 'FAIL: booked courier estimate missing or a delivery date was invented.';
+  end if;
+  update public.order_shipping set estimated_delivery_date='2026-10-25' where order_id=f.order_id;
+  estimate:=public.with_courier_delivery_estimate(jsonb_build_array(jsonb_build_object(
+    'id',f.order_id,'fulfilment',jsonb_build_object('status','confirmed'))))->0->'fulfilment'->'deliveryEstimate';
+  if estimate->>'expectedDate'<>'2026-10-25' then raise exception 'FAIL: latest tracking ETA not exposed.'; end if;
+  if has_function_privilege('authenticated','public.with_courier_delivery_estimate(jsonb)','execute')
+    or has_function_privilege('anon','public.get_customer_orders_before_courier_estimates(integer,boolean)','execute') then
+    raise exception 'FAIL: private estimate enrichment or original history can be called directly.';
+  end if;
   rejected:=false;
   begin perform public.claim_order_shipping(f.order_id,gen_random_uuid(),'book',f.actor_id,10,quoted);
   exception when others then rejected:=true; end;
@@ -74,6 +88,11 @@ begin
     and tracking_number='AWB123' and tracking_url='https://shiprocket.co/tracking/AWB123') then
     raise exception 'FAIL: tracking did not update customer fulfilment.';
   end if;
+  update public.payment_orders set tracking_number='MANUAL-OTHER' where id=f.order_id;
+  estimate:=public.with_courier_delivery_estimate(jsonb_build_array(jsonb_build_object(
+    'id',f.order_id,'fulfilment',jsonb_build_object('status','shipped'))))->0->'fulfilment'->'deliveryEstimate';
+  if estimate is distinct from 'null'::jsonb then raise exception 'FAIL: another shipment retained the old courier ETA.'; end if;
+  update public.payment_orders set tracking_number='AWB123' where id=f.order_id;
   perform public.sync_order_shipping(f.order_id,'IN TRANSIT');
   if (select count(*) from public.order_confirmation_emails where order_id=f.order_id and kind='shipped')<>1 then
     raise exception 'FAIL: shipment email missing or duplicated.';

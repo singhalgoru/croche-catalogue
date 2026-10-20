@@ -29,7 +29,10 @@ test('admin approves a packed parcel before booking, then generates a label, req
         quotes: [{ id: 10,name: 'Test courier',charge: 85,days: 3,recommended: true }] };
     } else if (body.action === 'book') {
       expect(body).toMatchObject({ courierId: 10,readyToShip: true,quotedAt: shipping.quotedAt });
-      shipping = { ...shipping,shipmentId: 123,awb: 'AWB123',courierName: 'Test courier' };
+      shipping = { ...shipping,shipmentId: 123,awb: 'AWB123',courierName: 'Test courier',
+        fulfilment: { ...fulfilment,deliveryEstimate: {
+          courierName: 'Test courier',transitDays: 3,expectedDate: null,updatedAt: new Date().toISOString(),
+        } } };
     } else if (body.action === 'label') {
       shipping = { ...shipping,labelUrl: 'https://labels.example/shipping.pdf' };
     } else if (body.action === 'pickup') {
@@ -38,6 +41,8 @@ test('admin approves a packed parcel before booking, then generates a label, req
       shipping = { ...shipping,trackingStatus: 'IN TRANSIT',syncedAt: new Date().toISOString(),fulfilment: {
         status: 'shipped',courierName: 'Test courier',trackingNumber: 'AWB123',
         trackingUrl: 'https://shiprocket.co/tracking/AWB123',updatedAt: new Date().toISOString(),
+        deliveryEstimate: { courierName: 'Test courier',transitDays: 3,expectedDate: '2026-10-25',
+          updatedAt: new Date().toISOString() },
       } };
     } else expect(body.action).toBe('status');
     await route.fulfill({ json: shipping });
@@ -67,6 +72,7 @@ test('admin approves a packed parcel before booking, then generates a label, req
   await booking.click();
   await expect(shippingPanel.getByText(/AWB: AWB123/)).toBeVisible();
   await expect(article.getByText('Order: Confirmed',{ exact: true })).toBeVisible();
+  await expect(article.getByText('Estimated transit: about 3 days after courier pickup.')).toBeVisible();
   await expect(booking).toHaveCount(0);
   await shippingPanel.getByRole('button',{ name: 'Generate label' }).click();
   await expect(shippingPanel.getByRole('link',{ name: 'Open shipping label' })).toHaveAttribute('href','https://labels.example/shipping.pdf');
@@ -74,6 +80,7 @@ test('admin approves a packed parcel before booking, then generates a label, req
   await expect(shippingPanel.getByRole('button',{ name: 'Pickup requested' })).toBeDisabled();
   await shippingPanel.getByRole('button',{ name: 'Sync courier tracking' }).click();
   await expect(article.getByText('Order: Shipped',{ exact: true })).toBeVisible();
+  await expect(article.getByText("Courier's expected delivery: 25 Oct 2026")).toBeVisible();
   await expect(article.getByRole('link',{ name: 'Track shipment' })).toHaveAttribute('href','https://shiprocket.co/tracking/AWB123');
   expect(actions).toEqual(['status','quote','book','label','pickup','sync']);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
