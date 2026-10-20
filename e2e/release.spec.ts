@@ -50,6 +50,7 @@ test('optional making video requests no media before a tap and plays inline with
   await expect(making).toBeVisible();
   await expect(making.locator('video,source')).toHaveCount(0);
   await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
+  await expect(making.getByRole('img', { name: 'Preview of Rose Charm being made' })).toBeVisible();
   await expect.poll(() => making.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
   expect(await making.locator('img').evaluate(element =>
     element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(false);
@@ -62,7 +63,7 @@ test('optional making video requests no media before a tap and plays inline with
   await expect(page.locator('body')).toHaveAttribute('data-video-share-url', /\/p\/[^/]+\/\?watch=making-video#making-video$/);
   await expect(making.locator('video,source')).toHaveCount(0);
   expect(requests).toHaveLength(0);
-  const photos = await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
+  const photos = await page.locator('img[alt^="Rose Charm"]').evaluateAll(images =>
     images.map(image => image.getAttribute('src')));
   await making.getByRole('button', { name: 'Play making video for Rose Charm' }).click();
   const video = making.locator('video');
@@ -77,7 +78,7 @@ test('optional making video requests no media before a tap and plays inline with
     .toBeGreaterThan(0);
   expect(requests.length).toBeGreaterThan(0);
   expect(await video.evaluate(element => (element as HTMLVideoElement).playsInline)).toBe(true);
-  expect(await page.locator('img[alt*="Rose Charm"]').evaluateAll(images =>
+  expect(await page.locator('img[alt^="Rose Charm"]').evaluateAll(images =>
     images.map(image => image.getAttribute('src')))).toEqual(photos);
   const sharedUrl = await page.locator('body').getAttribute('data-video-share-url');
   await page.goto(sharedUrl!);
