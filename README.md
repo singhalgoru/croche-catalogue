@@ -838,6 +838,20 @@ npx supabase db query --linked --file supabase\tests\campaign_coupons.sql
 npx playwright test customer-funnel.spec.ts
 ```
 
+## Supabase Data API grants
+
+The migration `supabase/migrations/20261021080000_explicit_data_api_grants.sql`
+adds explicit table grants for older public-schema tables that relied on
+Supabase's default grants. It grants anonymous reads only for catalogue and
+active ticker data, and grants authenticated access according to the tables'
+existing RLS policies. Private tables retain their separate, restricted grants.
+
+Apply this migration when updating a database or rebuilding from migrations.
+For future tables, include the minimum required `GRANT` statements alongside
+table creation and keep row-level security enabled where client access is
+intended. `supabase/tests/explicit_data_api_grants.sql` checks the role grants
+inside a rollback-only transaction against a migrated database.
+
 ## Local development
 
 ```bash
