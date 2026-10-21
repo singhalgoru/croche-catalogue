@@ -22,28 +22,11 @@ test('admin saves incomplete drafts with photos, resumes after reload and update
   await form.getByLabel('Product name', { exact: false }).fill('Second idea');
   await form.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Drafts (2)', exact: true })).toBeVisible();
-  // Explicit saves survive the automatic recovery draft's seven-day expiry.
-  await page.evaluate(async () => {
-    await new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open('luvia-admin', 1);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        const db = request.result;
-        const tx = db.transaction('drafts', 'readwrite');
-        const store = tx.objectStore('drafts');
-        const cursor = store.openCursor();
-        cursor.onsuccess = () => {
-          const row = cursor.result;
-          if (!row) return;
-          row.update({ ...row.value, savedAt: Date.now() - 30 * 86400000 });
-          row.continue();
-        };
-        tx.oncomplete = () => { db.close(); resolve(); };
-        tx.onabort = () => { db.close(); reject(tx.error); };
-      };
-    });
-
-  });
+  // A different device has no local browser storage but still sees shared drafts.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    const request = indexedDB.deleteDatabase('luvia-admin');
+    request.onsuccess = request.onerror = request.onblocked = () => resolve();
+  }));
   await page.reload();
   await page.getByRole('button', { name: 'Drafts (2)', exact: true }).click();
   await page.getByRole('button', { name: 'Continue Unfinished bunny', exact: true }).click();
@@ -58,7 +41,7 @@ test('admin saves incomplete drafts with photos, resumes after reload and update
   await expect(page.getByRole('button', { name: 'Continue Second idea', exact: true })).toHaveCount(0);
 });
 
-test('aborted storage writes do not report draft success or discard the form', async ({ page }) => {
+test('failed shared draft saves do not report success or discard the form', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('./#admin');
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
@@ -67,16 +50,12 @@ test('aborted storage writes do not report draft success or discard the form', a
   await page.getByRole('button', { name: /Add product/ }).click();
   const form = page.getByRole('dialog', { name: 'Add product', exact: true });
   await form.getByLabel('Product name', { exact: false }).fill('Keep this work');
-  await page.evaluate(() => {
-    const original = IDBObjectStore.prototype.put;
-    IDBObjectStore.prototype.put = function (value, key) {
-      const request = original.call(this, value, key);
-      if (typeof key === 'string' && key.startsWith('saved:')) this.transaction.abort();
-      return request;
-    };
-  });
+  await page.route('http://supabase.test/rest/v1/product_drafts*', (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Database offline' }) })
+      : route.fallback());
   await form.getByRole('button', { name: 'Save draft', exact: true }).click();
-  await expect(form.getByRole('alert')).toBeVisible();
+  await expect(form.getByRole('alert')).toContainText('Database offline');
   await expect(form.getByLabel('Product name', { exact: false })).toHaveValue('Keep this work');
-  await expect(page.getByText('Draft saved on this browser. Open Drafts to continue.')).toHaveCount(0);
+  await expect(page.getByText(/Draft saved for all admins/)).toHaveCount(0);
 });

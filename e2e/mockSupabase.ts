@@ -313,6 +313,8 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
   let customerProfile: Record<string, unknown> | null = null;
   let customerAddresses: { id: string; details: Record<string, unknown>; is_default: boolean }[] = [];
   let nextAddressId = 2;
+  const draftRows = new Map<string, { id: string; version: number; payload: unknown; updated_at: string }>();
+  const draftFiles = new Map<string, { body: Buffer; contentType: string }>();
   const sessionFor = (user: typeof adminUser, refreshToken: string) => ({
     access_token: createAccessToken(user), token_type: 'bearer', expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: refreshToken, user,
@@ -1060,6 +1062,69 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
               : '@cf/black-forest-labs/flux-2-klein-9b',
       });
       return;
+    }
+
+    if (pathname === '/rest/v1/product_drafts') {
+      const idFilter = url.searchParams.get('id')?.replace('eq.', '');
+      const versionFilter = url.searchParams.get('version')?.replace('eq.', '');
+      const single = (request.headers().accept ?? '').includes('vnd.pgrst.object');
+      const method = request.method();
+      if (method === 'GET') {
+        const rows = [...draftRows.values()].filter((row) => !idFilter || row.id === idFilter)
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+        await json(route, rows);
+        return;
+      }
+      if (method === 'POST') {
+        const body = getRequestBody<{ id: string; payload: unknown; updated_at: string }>(route);
+        const row = { id: body.id, version: 1, payload: body.payload, updated_at: body.updated_at };
+        draftRows.set(row.id, row);
+        await json(route, single ? row : [row], 201);
+        return;
+      }
+      if (method === 'PATCH') {
+        const body = getRequestBody<{ payload: unknown; version: number; updated_at: string }>(route);
+        const current = idFilter ? draftRows.get(idFilter) : undefined;
+        if (!current || String(current.version) !== versionFilter) {
+          await json(route, []);
+          return;
+        }
+        const row = { ...current, payload: body.payload, version: body.version, updated_at: body.updated_at };
+        draftRows.set(row.id, row);
+        await json(route, [row]);
+        return;
+      }
+      if (method === 'DELETE') {
+        if (idFilter) draftRows.delete(idFilter);
+        await route.fulfill({ status: 204 });
+        return;
+      }
+    }
+
+    if (pathname.startsWith('/storage/v1/object/product-drafts')) {
+      const path = decodeURIComponent(pathname.replace('/storage/v1/object/product-drafts', '').replace(/^\//, ''));
+      if (request.method() === 'POST') {
+        draftFiles.set(path, {
+          body: request.postDataBuffer() ?? Buffer.alloc(0),
+          contentType: request.headers()['content-type'] ?? 'application/octet-stream',
+        });
+        await json(route, { Key: `product-drafts/${path}` });
+        return;
+      }
+      if (request.method() === 'GET') {
+        const file = draftFiles.get(path);
+        if (!file) {
+          await json(route, { message: 'Object not found' }, 404);
+          return;
+        }
+        await route.fulfill({ status: 200, contentType: 'image/png', body: imageBuffer });
+        return;
+      }
+      if (request.method() === 'DELETE') {
+        for (const removed of getRequestBody<{ prefixes: string[] }>(route).prefixes) draftFiles.delete(removed);
+        await json(route, []);
+        return;
+      }
     }
 
     if (

@@ -19,12 +19,16 @@ products for continued editing or deletion. Saving an opened draft updates it
 instead of creating a duplicate; publishing removes its saved draft.
 
 Drafts retain photos, gallery images, variants, specifications and price
-discovery inputs using IndexedDB on the current browser/device. They do not
-sync between devices and are lost if the browser's site data is cleared.
-Explicitly saved drafts do not expire; the existing seven-day automatic
-recovery draft remains separate. Draft saving reports storage failures and
-leaves the form available to retry. Videos/music are attached after publishing,
-not included in a product draft.
+discovery inputs in Supabase, so every catalogue admin sees the same drafts on
+any device. Photos are stored in the private `product-drafts` bucket; only
+catalogue admins can read or change drafts (migration
+`20261021150000_shared_product_drafts.sql`). Saves are version-checked: if
+another admin changed or deleted a draft meanwhile, the save is refused with a
+message instead of overwriting their work. Drafts previously saved in a
+browser are uploaded automatically the next time an admin opens Products. The
+seven-day automatic recovery draft stays browser-local. Draft saving reports
+failures and leaves the form available to retry. Videos/music are attached
+after publishing, not included in a product draft.
 
 ### Optional product making videos
 

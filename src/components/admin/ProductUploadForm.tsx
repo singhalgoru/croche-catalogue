@@ -25,12 +25,16 @@ import {
   isProductDraftEmpty,
   loadProductDraft,
   saveProductDraft,
-  listSavedProductDrafts,
-  saveNamedProductDraft,
-  deleteSavedProductDraft,
-  type SavedProductDraft,
   type ProductDraft,
 } from './productDraftStore';
+import {
+  deleteSharedProductDraft,
+  hydrateSharedProductDraft,
+  listSharedProductDrafts,
+  migrateLocalSavedDrafts,
+  saveSharedProductDraft,
+  type SharedProductDraft,
+} from './sharedProductDrafts';
 
 interface Props {
   categories: Category[];
@@ -54,7 +58,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [createdProduct, setCreatedProduct] = useState<Product | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
-  const [savedDrafts, setSavedDrafts] = useState<SavedProductDraft[]>([]);
+  const [savedDrafts, setSavedDrafts] = useState<SharedProductDraft[]>([]);
   const [savedDraftId, setSavedDraftId] = useState<string>();
   const savedDraftIdRef = useRef(savedDraftId);
   const [showDrafts, setShowDrafts] = useState(false);
@@ -63,7 +67,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    void listSavedProductDrafts().then(
+    void migrateLocalSavedDrafts().catch(() => undefined).then(listSharedProductDrafts).then(
       saved => { if (!cancelled) setSavedDrafts(saved); },
       error => { if (!cancelled) setDraftError(error instanceof Error ? error.message : 'Unable to load saved drafts.'); },
     );
@@ -131,17 +135,17 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     void clearProductDraft();
   };
 
-  const rememberDraft = (saved: SavedProductDraft) =>
+  const rememberDraft = (saved: SharedProductDraft) =>
     setSavedDrafts(current => [saved, ...current.filter(item => item.id !== saved.id)]);
 
   const saveExplicitDraft = async () => {
     setDraftBusy(true);
     setErrorMessage(null);
     try {
-      const saved = await saveNamedProductDraft(draft, variants, savedDraftId);
+      const saved = await saveSharedProductDraft(draft, variants, savedDraftId);
       rememberDraft(saved);
       discardDraft();
-      setSuccessMessage('Draft saved on this browser. Open Drafts to continue.');
+      setSuccessMessage('Draft saved for all admins on every device. Open Drafts to continue.');
       setIsExpanded(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to save the draft.');
@@ -150,17 +154,17 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     }
   };
 
-  const openSavedDraft = async (saved: SavedProductDraft) => {
+  const openSavedDraft = async (saved: SharedProductDraft) => {
     setDraftBusy(true);
     setDraftError(null);
     try {
       let target = saved;
       if (!createdProduct && !isProductDraftEmpty(draft, variants)) {
-        const current = await saveNamedProductDraft(draft, variants, savedDraftId);
+        const current = await saveSharedProductDraft(draft, variants, savedDraftId);
         rememberDraft(current);
         if (savedDraftId === saved.id) target = current;
       }
-      const restored = fromStoredProductDraft(target);
+      const restored = fromStoredProductDraft(await hydrateSharedProductDraft(target));
       try {
         await saveProductDraft(restored.draft, restored.variants, true, saved.id);
       } catch (error) {
@@ -247,7 +251,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       setCreatedProduct(product);
       if (savedDraftId) {
         try {
-          await deleteSavedProductDraft(savedDraftId);
+          await deleteSharedProductDraft(savedDraftId);
           setSavedDrafts(current => current.filter(item => item.id !== savedDraftId));
         } catch (error) {
           setDraftError(`Product was published, but its saved draft could not be removed: ${error instanceof Error ? error.message : 'Storage unavailable.'} Delete it from Drafts; do not publish it again.`);
@@ -289,13 +293,13 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         className="min-h-11 w-full text-left font-heading text-xl font-bold text-cocoa">
         Drafts ({savedDrafts.length})
       </button>
-      <p className="text-sm text-cocoa/70">Saved products to finish later. Stored on this browser/device only, including photos.</p>
+      <p className="text-sm text-cocoa/70">Saved products to finish later. Shared with all admins on every device, including photos.</p>
       {!isExpanded && successMessage && !createdProduct && <p role="status" className="mt-2 text-sm text-green-800">{successMessage}</p>}
       {draftError && <p role="alert" className="mt-2 text-sm text-red-700">{draftError}</p>}
     </section>
     {showDrafts && <AdminDialog title="Product drafts" busy={draftBusy} onClose={() => setShowDrafts(false)}>
       <div className="space-y-3 p-4">
-        <p className="text-sm text-cocoa/70">Incomplete drafts are private and never appear in the catalogue. Keep this browser's site data to retain them.</p>
+        <p className="text-sm text-cocoa/70">Incomplete drafts are private to catalogue admins and never appear in the catalogue.</p>
         {draftError && <p role="alert" className="text-sm text-red-700">{draftError}</p>}
         {savedDrafts.length === 0 && <p>No saved drafts yet. Choose Save draft when adding a product.</p>}
         {savedDrafts.map(saved => <div key={saved.id} className="rounded-xl border border-mustard/40 p-3">
@@ -307,7 +311,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             <button type="button" disabled={draftBusy} className="min-h-11 px-3 text-red-700"
               onClick={() => {
                 setDraftBusy(true);
-                void deleteSavedProductDraft(saved.id).then(() => {
+                void deleteSharedProductDraft(saved.id).then(() => {
                   setSavedDrafts(current => current.filter(item => item.id !== saved.id));
                   if (savedDraftId === saved.id) setSavedDraftId(undefined);
                 }).catch(error => setDraftError(error instanceof Error ? error.message : 'Unable to delete the draft.'))
@@ -380,7 +384,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         className="min-h-11 rounded-full border border-cocoa/30 px-5 py-2 font-semibold text-cocoa disabled:opacity-60">
         {draftBusy ? 'Saving draft…' : 'Save draft'}
       </button>
-      <p className="text-sm text-cocoa/70">Save incomplete details and photos without publishing. Continue later from the Drafts tile on this browser.</p>
+      <p className="text-sm text-cocoa/70">Save incomplete details and photos without publishing. Continue later from the Drafts tile on any device.</p>
       {restoredDraftAt !== null && (
         <div
           role="status"

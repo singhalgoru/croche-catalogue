@@ -16,7 +16,7 @@ begin
   foreach table_name in array array[
     'products', 'categories', 'product_variants', 'product_variant_images',
     'ticker_messages', 'carts', 'cart_items', 'seller_sales',
-    'business_expenses'
+    'business_expenses', 'product_drafts'
   ] loop
     foreach privilege_name in array array['select', 'insert', 'update', 'delete'] loop
       if not has_table_privilege(
@@ -44,6 +44,9 @@ begin
       raise exception 'Service-role % is missing on public.catalogue_admins', privilege_name;
     end if;
   end loop;
+  if has_table_privilege('anon', 'public.product_drafts', 'select') then
+    raise exception 'Anonymous users must not read product drafts';
+  end if;
 end;
 $$;
 rollback;
