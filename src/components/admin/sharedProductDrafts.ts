@@ -210,6 +210,7 @@ export const migrateLocalSavedDrafts = async (): Promise<void> => {
     return;
   }
   const db = await client();
+  let firstError: unknown;
   for (const saved of local) {
     try {
       const { data } = await db.from('product_drafts').select('id').eq('id', saved.id);
@@ -221,8 +222,13 @@ export const migrateLocalSavedDrafts = async (): Promise<void> => {
         await saveSharedProductDraft(draft, variants, undefined, saved.id);
       }
       await deleteLocalDraft(saved.id);
-    } catch {
+    } catch (error) {
       // Keep the local copy and retry on the next visit.
+      firstError ??= error;
     }
+  }
+  if (firstError) {
+    const reason = firstError instanceof Error ? firstError.message : 'Request failed.';
+    throw new Error(`Some drafts saved on this browser could not be shared yet (${reason}). Sign in with your authenticator code again and reopen Products to retry.`);
   }
 };

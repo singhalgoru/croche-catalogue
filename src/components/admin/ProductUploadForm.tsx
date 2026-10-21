@@ -67,11 +67,32 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    void migrateLocalSavedDrafts().catch(() => undefined).then(listSharedProductDrafts).then(
-      saved => { if (!cancelled) setSavedDrafts(saved); },
-      error => { if (!cancelled) setDraftError(error instanceof Error ? error.message : 'Unable to load saved drafts.'); },
-    );
+    let migrationError: string | null = null;
+    void migrateLocalSavedDrafts()
+      .catch((error: unknown) => { migrationError = error instanceof Error ? error.message : 'Unable to share local drafts.'; })
+      .then(listSharedProductDrafts)
+      .then(
+        saved => {
+          if (cancelled) return;
+          setSavedDrafts(saved);
+          setDraftError(migrationError);
+        },
+        error => { if (!cancelled) setDraftError(error instanceof Error ? error.message : 'Unable to load saved drafts.'); },
+      );
     return () => { cancelled = true; };
+  }, []);
+
+  // Drafts saved on another device appear without a full page reload.
+  const refreshDrafts = () => {
+    void listSharedProductDrafts().then(
+      saved => setSavedDrafts(saved),
+      error => setDraftError(error instanceof Error ? error.message : 'Unable to load saved drafts.'),
+    );
+  };
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshDrafts(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   useEffect(() => {
@@ -289,7 +310,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     <>
     <section className="rounded-2xl border border-mustard/40 bg-white p-4 shadow-sm">
       <button type="button" disabled={isPublishing || isAnalyzing || draftBusy}
-        onClick={() => setShowDrafts(true)}
+        onClick={() => { refreshDrafts(); setShowDrafts(true); }}
         className="min-h-11 w-full text-left font-heading text-xl font-bold text-cocoa">
         Drafts ({savedDrafts.length})
       </button>
