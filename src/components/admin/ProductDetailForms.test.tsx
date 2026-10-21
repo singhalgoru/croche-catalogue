@@ -92,6 +92,17 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('reports a failed local draft migration while still loading shared drafts', async () => {
+    vi.mocked(migrateLocalSavedDrafts).mockRejectedValueOnce(new Error('Local drafts could not be shared'));
+    vi.mocked(listSharedProductDrafts).mockResolvedValueOnce([{
+      id: 'shared-draft', version: 1, savedAt: Date.now(),
+      draft: { name: 'Already shared' }, variants: [],
+    }]);
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    expect(await screen.findByText('Local drafts could not be shared')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Drafts (1)' })).toBeTruthy();
+  });
+
   it('saves an incomplete product without publishing and reopens it from the drafts tile', async () => {
     render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));

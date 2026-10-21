@@ -1,5 +1,47 @@
 import { expect, test } from '@playwright/test';
-import { installMockSupabase } from './mockSupabase';
+import { createMockDraftStorage, installMockSupabase } from './mockSupabase';
+
+test('drafts and photos are shared between isolated browser sessions without reloading', async ({ page, browser, baseURL }) => {
+  const storage = createMockDraftStorage();
+  const otherContext = await browser.newContext({ baseURL });
+  try {
+    const otherPage = await otherContext.newPage();
+    for (const device of [page, otherPage]) {
+      await installMockSupabase(device, storage);
+      await device.goto('./#admin');
+      await device.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
+      await device.getByLabel('Password').fill('test-password');
+      await device.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(device.getByRole('button', { name: 'Drafts (0)', exact: true })).toBeVisible();
+    }
+
+    await page.getByRole('button', { name: /Add product/ }).click();
+    const form = page.getByRole('dialog', { name: 'Add product', exact: true });
+    await form.getByLabel('Product name', { exact: false }).fill('Shared bunny');
+    await form.locator('input[type=file]').first().setInputFiles({
+      name: 'bunny.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=', 'base64'),
+    });
+    await form.getByRole('button', { name: 'Save draft', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Drafts (1)', exact: true })).toBeVisible();
+
+    await otherPage.getByRole('button', { name: 'Drafts (0)', exact: true }).click();
+    await otherPage.getByRole('button', { name: 'Continue Shared bunny', exact: true }).click();
+    const otherForm = otherPage.getByRole('dialog', { name: 'Add product', exact: true });
+    await expect(otherForm.getByLabel('Product name', { exact: false })).toHaveValue('Shared bunny');
+    await expect(otherForm.locator('img[src^="blob:"]').first()).toBeVisible();
+    await otherForm.getByLabel('Product name', { exact: false }).fill('Finished bunny');
+    await otherForm.getByRole('button', { name: 'Save draft', exact: true }).click();
+    await expect(otherPage.getByRole('button', { name: 'Drafts (1)', exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Drafts (1)', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Continue Finished bunny', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue Shared bunny', exact: true })).toHaveCount(0);
+  } finally {
+    await otherContext.close();
+  }
+});
 
 test('admin saves incomplete drafts with photos, resumes after reload and updates without duplicates', async ({ page }) => {
   await installMockSupabase(page);
@@ -22,7 +64,7 @@ test('admin saves incomplete drafts with photos, resumes after reload and update
   await form.getByLabel('Product name', { exact: false }).fill('Second idea');
   await form.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Drafts (2)', exact: true })).toBeVisible();
-  // A different device has no local browser storage but still sees shared drafts.
+  // Shared drafts survive clearing this browser's recovery data.
   await page.evaluate(() => new Promise<void>((resolve) => {
     const request = indexedDB.deleteDatabase('luvia-admin');
     request.onsuccess = request.onerror = request.onblocked = () => resolve();

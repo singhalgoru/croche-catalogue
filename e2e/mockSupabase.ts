@@ -272,7 +272,15 @@ const defaultProducts = (): ProductRow[] => [
 
 const getRequestBody = <T>(route: Route) => route.request().postDataJSON() as T;
 
-export async function installMockSupabase(page: Page): Promise<MockCatalogueState> {
+export const createMockDraftStorage = () => ({
+  rows: new Map<string, { id: string; version: number; payload: unknown; updated_at: string }>(),
+  files: new Map<string, { body: Buffer; contentType: string }>(),
+});
+
+export async function installMockSupabase(
+  page: Page,
+  draftStorage = createMockDraftStorage(),
+): Promise<MockCatalogueState> {
   const state: MockCatalogueState = {
     categories: ['Charms', 'Home Decor', 'Empty Category'],
     categorySettings: {
@@ -313,8 +321,8 @@ export async function installMockSupabase(page: Page): Promise<MockCatalogueStat
   let customerProfile: Record<string, unknown> | null = null;
   let customerAddresses: { id: string; details: Record<string, unknown>; is_default: boolean }[] = [];
   let nextAddressId = 2;
-  const draftRows = new Map<string, { id: string; version: number; payload: unknown; updated_at: string }>();
-  const draftFiles = new Map<string, { body: Buffer; contentType: string }>();
+  const draftRows = draftStorage.rows;
+  const draftFiles = draftStorage.files;
   const sessionFor = (user: typeof adminUser, refreshToken: string) => ({
     access_token: createAccessToken(user), token_type: 'bearer', expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: refreshToken, user,
