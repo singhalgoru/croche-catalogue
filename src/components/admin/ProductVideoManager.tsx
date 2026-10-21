@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../types/product';
 import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo, removeProductVideo,
-  reprocessProductVideo, uploadProductVideo, validateMusicFile, type VideoJob, type VideoMusic,
+  renameProductVideo, reprocessProductVideo, uploadProductVideo, validateMusicFile, type VideoJob, type VideoMusic,
   type VideoPreview } from '../../services/productVideos';
 
 type MusicChoice = 'brand' | 'custom' | 'none';
@@ -11,6 +11,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   const [job, setJob] = useState<VideoJob | null>(null);
   const [preview, setPreview] = useState<VideoPreview | null>(null);
   const [hasPublished, setHasPublished] = useState(Boolean(product.makingVideo));
+  const [videoTitle, setVideoTitle] = useState(product.makingVideo?.title ?? '');
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
@@ -80,6 +81,22 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         {message && ` ${message}`}
       </p>
       {job?.error && job.status !== 'failed' && <p role="alert" className="my-2 text-sm text-red-700">{job.error}</p>}
+      {hasPublished && <fieldset disabled={busy || checking} className="my-3 space-y-2">
+        <label className="block text-sm font-semibold">
+          Video title
+          <input type="text" value={videoTitle} maxLength={120}
+            onChange={event => setVideoTitle(event.target.value)}
+            className="mt-1 block w-full rounded-lg border border-cocoa/30 px-3 py-2 font-normal" />
+        </label>
+        <p className="text-xs text-cocoa/70">Shown above this product's video. Leave blank to use the default heading.
+          Renaming does not change the video file or its playback and sharing links.</p>
+        <button type="button" className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm"
+          onClick={() => void action(async () => {
+            await renameProductVideo(product.id, videoTitle);
+            setVideoTitle(videoTitle.trim());
+            setMessage('Video title saved. Reload the catalogue to see it.');
+          })}>Save video title</button>
+      </fieldset>}
       <fieldset disabled={busy || checking || (draft && !reviewing)} className="my-3 space-y-2 text-sm">
         <legend className="font-semibold">Background music (choose before Browse video)</legend>
         <p>The original sound of every video (speech, room or background noise) is always removed.

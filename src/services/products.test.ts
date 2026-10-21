@@ -108,7 +108,7 @@ describe('product detail loading', () => {
     expect((await fetchPublishedProducts())[0].makingVideo).toEqual({
       videoUrl: video.video_url, posterUrl: video.poster_url, durationSeconds: 20, width: 1280, height: 720,
     });
-    expect(PRODUCT_COLUMNS).toContain('product_making_videos(video_url, poster_url, duration_seconds, width, height)');
+    expect(PRODUCT_COLUMNS).toContain('product_making_videos(video_url, poster_url, duration_seconds, width, height, title)');
     expect(PRODUCT_COLUMNS).not.toContain('product_video_jobs');
   });
   it('maps regular prices and applies validated discounts only through the admin RPC', async () => {

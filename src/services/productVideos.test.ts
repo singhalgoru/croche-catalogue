@@ -1,10 +1,26 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo,
-  removeProductVideo, reprocessProductVideo, uploadProductVideo, validateVideoFile, validateMusicFile } from './productVideos';
-const { invoke, from } = vi.hoisted(() => ({ invoke: vi.fn(), from: vi.fn() }));
-vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke }, from }) }));
+  removeProductVideo, renameProductVideo, reprocessProductVideo, uploadProductVideo, validateVideoFile, validateMusicFile } from './productVideos';
+const { invoke, from, rpc } = vi.hoisted(() => ({ invoke: vi.fn(), from: vi.fn(), rpc: vi.fn() }));
+vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ functions: { invoke }, from, rpc }) }));
 const id = '11111111-1111-4111-8111-111111111111';
 beforeEach(() => vi.clearAllMocks());
+it('renames video metadata through the admin RPC and supports resetting the title', async () => {
+  rpc.mockResolvedValue({ error: null });
+  await renameProductVideo(id, '  Handcrafting a rose  ');
+  expect(rpc).toHaveBeenCalledWith('rename_product_video', {
+    p_product_id: id, p_title: 'Handcrafting a rose',
+  });
+  await renameProductVideo(id, '   ');
+  expect(rpc).toHaveBeenLastCalledWith('rename_product_video', { p_product_id: id, p_title: '' });
+  expect(invoke).not.toHaveBeenCalled();
+});
+it('rejects long titles and surfaces server failures', async () => {
+  await expect(renameProductVideo(id, 'a'.repeat(121))).rejects.toThrow('120');
+  expect(rpc).not.toHaveBeenCalled();
+  rpc.mockResolvedValue({ error: { message: 'Admin access required' } });
+  await expect(renameProductVideo(id, 'A rose')).rejects.toThrow('Admin access required');
+});
 const file = () => new File(['mp4'], 'unsafe;$(command).mp4', { type: 'video/mp4' });
 function mockUpload() {
   invoke.mockImplementation(async (_name: string, options: { body: { action?: string } }) => ({

@@ -96,6 +96,15 @@ export async function removeProductVideo(productId: string) {
   if (data.removed !== true) throw new Error('Video removal was not confirmed. Reload the status before retrying.');
 }
 
+export async function renameProductVideo(productId: string, title: string): Promise<void> {
+  const trimmed = title.trim();
+  if ([...trimmed].length > 120) throw new Error('Video title must be at most 120 characters.');
+  const { error } = await (await client()).rpc('rename_product_video', {
+    p_product_id: productId, p_title: trimmed,
+  });
+  if (error) throw new Error(`Unable to rename the video: ${error.message}`);
+}
+
 export async function discardProductVideo(productId: string): Promise<{ discarded: boolean; pending?: boolean }> {
   const data = await invoke({ action: 'discard', productId });
   if (data.discarded !== true && data.pending !== true) throw new Error('Draft deletion was not confirmed. Retry discard cleanup.');

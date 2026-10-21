@@ -28,6 +28,14 @@ not included in a product draft.
 
 ### Optional product making videos
 
+After publishing a video, admins can edit **Video title** and choose
+**Save video title** in its video manager. The title (up to 120 characters)
+appears above the customer-facing player and in the native share title.
+Leave it blank to restore the default heading. This saves independently of
+the product form and changes metadata only, not media files or sharing URLs.
+Apply migration `20261021130000_product_video_titles.sql` before deploying
+the frontend; only catalogue admins can rename a published video.
+
 **Dedicated public video bucket (optional).** Set the GitHub secrets
 `R2_VIDEO_BUCKET` and `R2_VIDEO_PUBLIC_URL` (HTTPS public/custom domain of that
 bucket, e.g. `https://videos.<your-domain>`) and the same two Supabase function

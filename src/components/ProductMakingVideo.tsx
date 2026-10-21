@@ -79,7 +79,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
     try {
       if (typeof navigator.share === 'function') {
         await navigator.share({
-          title: `${product.name} | Luvia Creations`,
+          title: `${video.title || product.name} | Luvia Creations`,
           text: `Watch how ${product.name} is made by Luvia Creations.`,
           url: shareUrl,
         });
@@ -105,7 +105,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   const frameStyle = { ...productImageProtection.style, aspectRatio: `${video.width} / ${video.height}` };
   return (
     <section ref={sectionRef} id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-24 rounded-xl border border-cocoa/15 p-3">
-      <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">See how it’s made</h3>
+      <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">{video.title || 'See how it’s made'}</h3>
       {requested ? (
         <video
           {...productImageProtection}
@@ -128,7 +128,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           preload="none"
           width={video.width}
           height={video.height}
-          aria-label={`Making ${product.name}`}
+          aria-label={video.title || `Making ${product.name}`}
           className={frameClass}
           style={frameStyle}
           onPlay={() => { setNeedsPlayTap(false); event('making_video_play'); }}

@@ -32,7 +32,7 @@ const FALLBACK_WHATSAPP_NUMBER = '919205907350';
 
 const PRODUCT_SELECT =
   'id,public_slug,name,category,description,seo_description,materials,dimensions,included_items,care_instructions,price,regular_price,discount_percent,show_price,color,in_stock,featured,image_url,image_path,published,published_at,updated_at,sort_order,created_at,' +
-  'product_variants(id,public_slug,name,color,price,regular_price,in_stock,available_quantity,image_url,image_path,sort_order,product_variant_images(id,image_url,image_path,sort_order)),product_making_videos(video_url,poster_url,duration_seconds,width,height)';
+  'product_variants(id,public_slug,name,color,price,regular_price,in_stock,available_quantity,image_url,image_path,sort_order,product_variant_images(id,image_url,image_path,sort_order)),product_making_videos(video_url,poster_url,duration_seconds,width,height,title)';
 
 // --- helpers mirrored from src/ (scripts/prerender.test.ts asserts parity) ---
 
@@ -162,6 +162,7 @@ const toProduct = (row) => {
     includedItems: row.included_items?.trim() || undefined,
     careInstructions: row.care_instructions?.trim() || undefined,
     makingVideo: video ? {
+      title: video.title,
       videoUrl: video.video_url,
       posterUrl: video.poster_url,
       durationSeconds: Number(video.duration_seconds),

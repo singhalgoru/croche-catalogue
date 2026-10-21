@@ -4,14 +4,14 @@ import ProductVideoManager from './ProductVideoManager';
 import AdminDialog from './AdminDialog';
 import { mockNativeDialog } from './dialogTestSupport';
 import type { Product } from '../../types/product';
-const { getJob, upload, remove, discard, preview, publish, reprocess } = vi.hoisted(() => ({
+const { getJob, upload, remove, discard, preview, publish, reprocess, rename } = vi.hoisted(() => ({
   getJob: vi.fn(), upload: vi.fn(), remove: vi.fn(), discard: vi.fn(), preview: vi.fn(), publish: vi.fn(),
-  reprocess: vi.fn(),
+  reprocess: vi.fn(), rename: vi.fn(),
 }));
 vi.mock('../../services/productVideos', () => ({
   getProductVideoJob: getJob, uploadProductVideo: upload, removeProductVideo: remove,
   discardProductVideo: discard, previewProductVideo: preview, publishProductVideo: publish,
-  reprocessProductVideo: reprocess, validateMusicFile: vi.fn(),
+  reprocessProductVideo: reprocess, renameProductVideo: rename, validateMusicFile: vi.fn(),
 }));
 const product: Product = {
   id: 'p1', name: 'Rose', category: 'Flowers', price: 200, description: 'Rose',
@@ -26,6 +26,35 @@ beforeEach(() => {
     durationSeconds: 20, videoBytes: 2097152, width: 1280, height: 720, expiresAt: '' });
 });
 afterEach(cleanup);
+it('saves an individual video title independently of uploading or publishing', async () => {
+  rename.mockResolvedValue(undefined);
+  render(<ProductVideoManager product={{ ...product, makingVideo: { ...product.makingVideo!, title: 'Old title' } }} />);
+  const save = screen.getByRole('button', { name: 'Save video title' });
+  await waitFor(() => expect(save).toHaveProperty('disabled', false));
+  expect(screen.getByLabelText('Video title')).toHaveProperty('value', 'Old title');
+  fireEvent.change(screen.getByLabelText('Video title'), { target: { value: '  Making a rose  ' } });
+  fireEvent.click(save);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Video title saved'));
+  expect(rename).toHaveBeenCalledWith('p1', '  Making a rose  ');
+  expect(screen.getByLabelText('Video title')).toHaveProperty('value', 'Making a rose');
+  expect(upload).not.toHaveBeenCalled();
+  expect(publish).not.toHaveBeenCalled();
+});
+it('retains the edited title and shows errors if renaming fails', async () => {
+  rename.mockRejectedValueOnce(new Error('Rename unavailable'));
+  render(<ProductVideoManager product={product} />);
+  const save = screen.getByRole('button', { name: 'Save video title' });
+  await waitFor(() => expect(save).toHaveProperty('disabled', false));
+  fireEvent.change(screen.getByLabelText('Video title'), { target: { value: 'My video' } });
+  fireEvent.click(save);
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Rename unavailable');
+  expect(screen.getByLabelText('Video title')).toHaveProperty('value', 'My video');
+});
+it('does not offer renaming before a video is published', async () => {
+  render(<ProductVideoManager product={{ ...product, makingVideo: undefined }} />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Browse video' })).toHaveProperty('disabled', false));
+  expect(screen.queryByLabelText('Video title')).toBeNull();
+});
 it('opens the video picker from the Browse video control', async () => {
   render(<ProductVideoManager product={product} />);
   const button = screen.getByRole('button', { name: 'Browse video' }) as HTMLButtonElement;

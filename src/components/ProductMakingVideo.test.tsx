@@ -23,6 +23,16 @@ it('renders nothing for products without a video', () => {
   expect(container.innerHTML).toBe('');
 });
 
+it('shows the saved video title without changing playback URLs', () => {
+  const { container } = render(<ProductMakingVideo product={{
+    ...product, makingVideo: { ...product.makingVideo!, title: 'Handcrafting a crochet rose' },
+  }} />);
+  expect(screen.getByRole('heading', { name: 'Handcrafting a crochet rose' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Play making video for Rose' }));
+  expect(container.querySelector('video')?.getAttribute('src')).toBe(product.makingVideo?.videoUrl);
+  expect(container.querySelector('video')?.getAttribute('aria-label')).toBe('Handcrafting a crochet rose');
+});
+
 it('describes the making-video poster while keeping a concise play button label', () => {
   render(<ProductMakingVideo product={product} />);
   expect(screen.getByRole('img', { name: 'Preview of Rose being made' })).toBeTruthy();

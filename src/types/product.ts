@@ -60,6 +60,7 @@ export interface ProductPricingInputs {
 }
 
 export interface MakingVideo {
+  title?: string;
   videoUrl: string;
   posterUrl: string;
   durationSeconds: number;
