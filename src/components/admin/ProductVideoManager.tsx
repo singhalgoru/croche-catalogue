@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../types/product';
+import { compressProductVideo, supportsVideoCompression } from '../../services/videoCompression';
 import { discardProductVideo, getProductVideoJob, previewProductVideo, publishProductVideo, removeProductVideo,
   renameProductVideo, reprocessProductVideo, uploadProductVideo, validateMusicFile, type VideoJob, type VideoMusic,
-  type VideoPreview } from '../../services/productVideos';
+  type VideoPreview, type VideoUploadProgress } from '../../services/productVideos';
 
 type MusicChoice = 'brand' | 'custom' | 'none';
 const browseClass = 'min-h-11 text-sm font-semibold text-cocoa underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa disabled:cursor-not-allowed disabled:opacity-50';
@@ -13,6 +14,10 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   const [hasPublished, setHasPublished] = useState(Boolean(product.makingVideo));
   const [videoTitle, setVideoTitle] = useState(product.makingVideo?.title ?? '');
   const [busy, setBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<VideoUploadProgress | null>(null);
+  const [optimize, setOptimize] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState<number | null>(null);
+  const [compressionResult, setCompressionResult] = useState('');
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -25,6 +30,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
   const previousStatus = useRef('');
   const draft = Boolean(job && !['ready', 'replaced', 'cancelled'].includes(job.status));
   const reviewing = job?.status === 'review';
+  const uploading = job?.status === 'uploading' || job?.status === 'receiving';
   const musicBlocked = musicChoice === 'custom' && !(music && musicRights);
   const selectedMusic = (): VideoMusic | undefined => musicChoice === 'brand' ? { source: 'brand' }
     : musicChoice === 'custom' && music ? { file: music, rightsConfirmed: musicRights } : undefined;
@@ -62,7 +68,7 @@ export default function ProductVideoManager({ product }: { product: Product }) {
     catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Video action failed.');
       try { await refresh(); } catch { /* Keep the original actionable error visible. */ }
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setUploadProgress(null); setCompressionProgress(null); }
   };
   return (
     <section aria-label="Manage making video" className="rounded-xl border border-cocoa/20 p-3 sm:col-span-2">
@@ -72,14 +78,30 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         Preview the actual encoded video privately, then explicitly publish it.
         Your existing public video remains unchanged until publication.</p>
       <p role="status" className="my-2 text-sm">
-        {busy ? 'Saving video action…' : checking ? 'Checking video status…' :
+        {compressionProgress !== null ? `Optimizing video: ${compressionProgress}%. Keep this tab visible. Nothing has been uploaded yet.` :
+          uploadProgress ? uploadProgress.stage === 'preparing' ? 'Preparing private video upload…' :
+          uploadProgress.stage === 'music' ? 'Video transferred. Uploading the selected music…' :
+          uploadProgress.stage === 'finalizing' ? 'Video transferred. Finalizing upload before background processing…' :
+          `Uploading video: ${Math.floor(uploadProgress.uploadedBytes / uploadProgress.totalBytes * 100)}% confirmed. Keep this tab open and connected.` :
+          busy ? 'Saving video action…' : checking ? 'Checking video status…' :
           job?.status === 'review' ? 'Ready for private review. This draft is not public.' :
           job?.status === 'discarding' ? 'Discard pending. Waiting for active writers and confirmed R2 deletion.' :
           job?.status === 'failed' ? `Video processing failed: ${job.error || 'Discard this draft and retry.'}` :
+          uploading ? 'Video upload is incomplete. Keep the uploading tab open and connected until the upload finishes. Processing has not started.' :
+          job?.status === 'cancelled' ? 'The last video draft was cancelled. Browse video to start a new upload. The published video is unchanged.' :
           draft ? `Video ${job?.status}. You can leave this editor; background work continues.` :
           hasPublished ? 'A published making video is attached.' : 'No published making video attached.'}
         {message && ` ${message}`}
       </p>
+      {compressionProgress !== null && <progress className="w-full" aria-label="Video optimization progress"
+        value={compressionProgress} max={100} />}
+      {compressionResult && <p className="my-2 text-sm">{compressionResult}</p>}
+      {uploadProgress && <div className="my-2 text-sm">
+        <progress className="w-full" aria-label="Video upload progress"
+          value={uploadProgress.uploadedBytes} max={uploadProgress.totalBytes} />
+        <p>{(uploadProgress.uploadedBytes / 1024 / 1024).toFixed(1)} of {(uploadProgress.totalBytes / 1024 / 1024).toFixed(1)} MB confirmed.
+          {' '}Progress updates after each 8 MB chunk. Large files can take several minutes before processing starts.</p>
+      </div>}
       {job?.error && job.status !== 'failed' && <p role="alert" className="my-2 text-sm text-red-700">{job.error}</p>}
       {hasPublished && <fieldset disabled={busy || checking} className="my-3 space-y-2">
         <label className="block text-sm font-semibold">
@@ -144,6 +166,17 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         <p>A supplied track is retained privately with the original video, including after publication
           or removal. Explicitly discarding a draft deletes its track too. No automatic deletion policy.</p>
       </fieldset>
+      <label className="my-2 flex min-h-11 items-center gap-2 text-sm">
+        <input type="checkbox" checked={optimize}
+          disabled={busy || checking || draft || !supportsVideoCompression()}
+          onChange={event => setOptimize(event.target.checked)} />
+        Optimize before upload (720p MP4)
+      </label>
+      <p className="my-2 text-xs text-cocoa/75">
+        {supportsVideoCompression()
+          ? 'Optional: reduce large files on this device before uploading. Takes roughly the clip length and may reduce fine detail. Keep this tab visible. Source audio is removed; your music choice still applies. The original file on your device is unchanged.'
+          : 'Optimization is unavailable in this browser. Original MP4 upload is still supported.'}
+      </p>
       <label className="block text-sm font-semibold">Upload or replace making video
         <input ref={input} type="file" accept="video/mp4,.mp4" disabled={busy || draft || checking || musicBlocked}
           className="sr-only"
@@ -151,7 +184,17 @@ export default function ProductVideoManager({ product }: { product: Product }) {
             const file = event.target.files?.[0];
             if (!file || musicBlocked) return;
             void action(async () => {
-              await uploadProductVideo(product.id, file, selectedMusic());
+              setCompressionResult('');
+              let uploadFile = file;
+              if (optimize) {
+                setCompressionProgress(0);
+                uploadFile = await compressProductVideo(file, setCompressionProgress);
+                setCompressionProgress(null);
+                setCompressionResult(uploadFile === file
+                  ? 'The original is already smaller than the optimized version. Uploading the original.'
+                  : `Optimized ${(file.size / 1024 / 1024).toFixed(1)} MB to ${(uploadFile.size / 1024 / 1024).toFixed(1)} MB before upload.`);
+              }
+              await uploadProductVideo(product.id, uploadFile, selectedMusic(), setUploadProgress);
               setPreview(null); await refresh();
               setMessage('Upload received. Processing will create a private review draft, not publish automatically.');
             }).finally(() => { if (input.current) input.current.value = ''; });
@@ -214,8 +257,12 @@ export default function ProductVideoManager({ product }: { product: Product }) {
         No automatic file-retention/deletion policy is enabled. Discard explicitly deletes only the draft’s
         original, supplied music and processed assets, never the current published video. Watermarking is a deterrent, not DRM.</p>
       {delayed && <p role="alert" className="mt-2 text-sm text-red-700">
-        Processing is taking longer than expected. Check the “Process product making videos” GitHub workflow
-        for errors, or retry draft discard cleanup. The existing published video is unchanged.
+        {uploading
+          ? 'The upload has not advanced for over 20 minutes. Processing has not started. If the uploading tab is no longer running, discard this incomplete draft and upload again while keeping the tab open.'
+          : job?.status === 'discarding'
+            ? 'Draft deletion is taking longer than expected. Retry discard cleanup to confirm deletion.'
+            : 'Processing is taking longer than expected. Check the “Process product making videos” GitHub workflow for errors.'}
+        {' '}The existing published video is unchanged.
       </p>}
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
     </section>

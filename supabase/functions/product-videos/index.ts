@@ -13,6 +13,21 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const errorMessage = (error: unknown) => error && typeof error === 'object' && 'message' in error
   ? String(error.message) : 'Video request failed.';
 
+async function uploadBytesWithRetry(send: (signal: AbortSignal) => Promise<Response>) {
+  const signal = AbortSignal.timeout(60_000);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      signal.throwIfAborted();
+      const response = await send(signal);
+      if (attempt === 2 || ![408, 429].includes(response.status) && response.status < 500) return response;
+      await response.body?.cancel();
+    } catch (error) {
+      if (attempt === 2 || signal.aborted) throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, 500 * 2 ** attempt));
+  }
+}
+
 async function readUpload(request: Request, expected: number) {
   const declared = request.headers.get('content-length');
   if (declared && Number(declared) !== expected) throw new Error('Video size does not match the reserved upload.');
@@ -269,14 +284,16 @@ Deno.serve(async (request) => {
             throw new Error('Invalid reserved upload size.');
           }
           const bytes = await readUpload(request, expected);
-          const response = await r2.fetch(operation === 'music'
+          // Repeating the same PUT is safe while holding this transfer's lease.
+          // Never retry multipart completion or advance the part counter here.
+          const response = await uploadBytesWithRetry(signal => r2.fetch(operation === 'music'
             ? `${privateEndpoint}/making-videos/${job.id}/music.bin`
             : multipartUrl(original, job.original_upload_id, body.part), {
             method: 'PUT', body: bytes, headers: {
               'Content-Type': operation === 'music' ? job.music_type : 'application/octet-stream',
               'Cache-Control': 'private, no-store',
-            }, signal: AbortSignal.timeout(60_000),
-          });
+            }, signal,
+          }));
           if (!response.ok) throw new Error(`Private ${operation} upload failed (HTTP ${response.status}).`);
           const etag = response.headers.get('etag');
           if (operation === 'part' && (!etag || !/^"[a-f0-9]{32}"$/i.test(etag))) {

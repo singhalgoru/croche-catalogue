@@ -56,7 +56,18 @@ export function validateMusicFile(file: File) {
   }
 }
 
-export async function uploadProductVideo(productId: string, file: File, music?: VideoMusic) {
+export interface VideoUploadProgress {
+  stage: 'preparing' | 'video' | 'music' | 'finalizing';
+  uploadedBytes: number;
+  totalBytes: number;
+}
+
+export async function uploadProductVideo(
+  productId: string,
+  file: File,
+  music?: VideoMusic,
+  onProgress?: (progress: VideoUploadProgress) => void,
+) {
   validateVideoFile(file);
   const custom = music && 'file' in music ? music : undefined;
   if (music && !custom && !('source' in music && music.source === 'brand')) throw new Error('Choose a valid music option.');
@@ -64,6 +75,9 @@ export async function uploadProductVideo(productId: string, file: File, music?: 
     validateMusicFile(custom.file);
     if (!custom.rightsConfirmed) throw new Error('Confirm that you own or have permission to use this music.');
   }
+  const report = (stage: VideoUploadProgress['stage'], uploadedBytes: number) =>
+    onProgress?.({ stage, uploadedBytes, totalBytes: file.size });
+  report('preparing', 0);
   const { jobId } = await invoke({ action: 'prepare', productId, size: file.size, type: 'video/mp4',
     ...(custom ? { music: { size: custom.file.size, type: custom.file.type, mode: 'replace',
       rightsConfirmed: custom.rightsConfirmed } } : music ? { music: { source: 'brand' } } : {}),
@@ -83,9 +97,15 @@ export async function uploadProductVideo(productId: string, file: File, music?: 
   // no R2 browser CORS configuration or revocation-unsafe signed PUTs.
   const partBytes = 8 * 1024 * 1024;
   for (let offset = 0, part = 1; offset < file.size; offset += partBytes, part++) {
+    report('video', offset);
     await upload('part', file.slice(offset, Math.min(offset + partBytes, file.size)), part);
+    report('video', Math.min(offset + partBytes, file.size));
   }
-  if (custom) await upload('music', custom.file);
+  if (custom) {
+    report('music', file.size);
+    await upload('music', custom.file);
+  }
+  report('finalizing', file.size);
   const completed = await invoke({ action: 'complete', jobId });
   if (completed.queued !== true) throw new Error(completed.error || 'Video upload did not complete. Discard the draft and retry.');
   return jobId as string;

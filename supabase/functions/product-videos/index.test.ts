@@ -388,13 +388,34 @@ it('rejects truncated/oversized streamed parts and releases failed writers witho
   expect(storageFetch).not.toHaveBeenCalled();
 });
 it('releases a failed part writer when storage fails or returns no usable ETag', async () => {
-  for (const response of [new Response(null, { status: 503 }), new Response(null)]) {
+  for (const httpStatus of [503, 200]) {
     receiving();
-    storageFetch.mockResolvedValueOnce(response);
+    for (let attempt = 0; attempt < (httpStatus === 503 ? 3 : 1); attempt++) {
+      storageFetch.mockResolvedValueOnce(new Response(null, { status: httpStatus }));
+    }
     expect((await handler(partRequest([1000]))).status).toBe(400);
     expect(writer).toBe(false); expect(status).toBe('failed');
     expect(transfer.original_parts).toEqual([]);
   }
+});
+it.each([408, 429, 503, 'network'])('retries transient part PUT failure %s without advancing or releasing its lease early', async failure => {
+  receiving();
+  if (failure === 'network') storageFetch.mockRejectedValueOnce(new TypeError('Network unavailable'));
+  else storageFetch.mockResolvedValueOnce(new Response(null, { status: Number(failure) }));
+  expect(await (await handler(partRequest([1000]))).json()).toEqual({ uploaded: true });
+  expect(storageFetch).toHaveBeenCalledTimes(2);
+  expect(storageFetch.mock.calls[1][0]).toBe(storageFetch.mock.calls[0][0]);
+  expect(storageFetch.mock.calls[1][1].body).toBe(storageFetch.mock.calls[0][1].body);
+  expect(transfer.original_parts).toEqual([etag]);
+  expect(serviceRpc.mock.calls.filter(([name]) => name === 'finish_product_video_transfer')).toHaveLength(1);
+  expect(writer).toBe(false);
+});
+it('does not retry permanent storage authorization failures', async () => {
+  receiving();
+  storageFetch.mockResolvedValueOnce(new Response(null, { status: 403 }));
+  expect((await handler(partRequest([1000]))).status).toBe(400);
+  expect(storageFetch).toHaveBeenCalledTimes(1);
+  expect(status).toBe('failed');
 });
 it('preserves the exact upload ID and releases initiation after registration and abort failures so discard can retry', async () => {
   serviceRpc.mockRejectedValueOnce(new Error('Registration unavailable'));

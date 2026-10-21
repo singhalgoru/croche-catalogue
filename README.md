@@ -120,8 +120,25 @@ edge can complete the multipart upload, after all parts and optional music arriv
 This needs no bucket CORS changes and issues no reusable presigned PUT URLs,
 which cannot be revoked safely during discard. Each transfer owns a bounded
 writer lease; discard aborts the exact multipart upload before deleting its keys,
-and waits for in-flight writers before confirming cleanup. Interrupted uploads
+and waits for in-flight writers before confirming cleanup. The admin shows
+confirmed video bytes and percentage after each chunk, with separate preparation,
+music-upload and finalization stages. Keep the uploading tab open and connected;
+only queued processing runs in the background. Transient private-storage PUT
+failures (network errors, HTTP 408/429/5xx) are retried up to twice under the same
+writer lease, without advancing the chunk counter until storage confirms success.
+Browser-to-edge interruptions are not automatically retried. Interrupted uploads
 are not resumable: discard the draft and retry. No browser or edge FFmpeg runs.
+Admins can optionally select **Optimize before upload (720p MP4)** in browsers
+with native H.264 MP4 recording and canvas capture support. Optimization runs
+locally at up to 1280x720 (portrait videos fit within those bounds), 30 fps and
+a target 4 Mbps, without upscaling. It takes roughly the clip duration; keep
+the tab visible. Source audio is omitted, matching the existing audio policy;
+selected music is still added by the server. Optimization never modifies the
+device's original file and uses the original if re-encoding would increase
+its size. Errors stop before upload; turn the option off to upload the original.
+Unsupported browsers retain original upload. No codec download or third-party
+media upload is needed. This is optional lossy compression, not a guarantee of
+a particular output size or encoding quality.
 The worker streams originals to its per-job working directory with backpressure,
 byte-count validation and partial-file cleanup, rather than buffering a 500 MB source.
 Music uses a separate authenticated upload bounded to 20 MB. Its private

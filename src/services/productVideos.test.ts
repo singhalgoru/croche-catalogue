@@ -115,13 +115,33 @@ it('sends an exact 500 MB boundary file as sequential bounded slices without rea
   const slice = vi.fn((start: number, end: number) => ({ size: end - start }));
   const video = { name: 'large.mp4', type: 'video/mp4', size: 500 * 1024 * 1024,
     slice, arrayBuffer: vi.fn(() => { throw new Error('Whole original must not be read'); }) } as unknown as File;
-  await uploadProductVideo('p1', video);
+  const progress = vi.fn();
+  await uploadProductVideo('p1', video, undefined, progress);
   expect(slice).toHaveBeenCalledTimes(63);
   expect(slice).toHaveBeenLastCalledWith(496 * 1024 * 1024, 500 * 1024 * 1024);
   const parts = invoke.mock.calls.filter(call => call[0].includes('action=part'));
   expect(parts.every(call => call[1].body.size <= 8 * 1024 * 1024)).toBe(true);
   expect(parts.reduce((sum, call) => sum + call[1].body.size, 0)).toBe(video.size);
   expect(video.arrayBuffer).not.toHaveBeenCalled();
+  expect(progress).toHaveBeenNthCalledWith(1, {
+    stage: 'preparing', uploadedBytes: 0, totalBytes: video.size,
+  });
+  expect(progress).toHaveBeenCalledWith({
+    stage: 'video', uploadedBytes: 8 * 1024 * 1024, totalBytes: video.size,
+  });
+  expect(progress).toHaveBeenLastCalledWith({
+    stage: 'finalizing', uploadedBytes: video.size, totalBytes: video.size,
+  });
+});
+it('does not report failed chunks as transferred', async () => {
+  mockUpload();
+  invoke.mockResolvedValueOnce({ data: { jobId: id } })
+    .mockResolvedValueOnce({ data: { started: true } })
+    .mockResolvedValueOnce({ data: { error: 'Storage unavailable' } });
+  const progress = vi.fn();
+  await expect(uploadProductVideo('p1', file(), undefined, progress)).rejects.toThrow('Storage unavailable');
+  expect(progress.mock.calls.every(([value]) => value.uploadedBytes === 0)).toBe(true);
+  expect(progress.mock.calls.some(([value]) => value.stage === 'finalizing')).toBe(false);
 });
 it('does not upload later parts or complete after a failed part', async () => {
   mockUpload();

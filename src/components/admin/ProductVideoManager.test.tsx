@@ -8,6 +8,12 @@ const { getJob, upload, remove, discard, preview, publish, reprocess, rename } =
   getJob: vi.fn(), upload: vi.fn(), remove: vi.fn(), discard: vi.fn(), preview: vi.fn(), publish: vi.fn(),
   reprocess: vi.fn(), rename: vi.fn(),
 }));
+const { compress, compressionSupported } = vi.hoisted(() => ({
+  compress: vi.fn(), compressionSupported: vi.fn(),
+}));
+vi.mock('../../services/videoCompression', () => ({
+  compressProductVideo: compress, supportsVideoCompression: compressionSupported,
+}));
 vi.mock('../../services/productVideos', () => ({
   getProductVideoJob: getJob, uploadProductVideo: upload, removeProductVideo: remove,
   discardProductVideo: discard, previewProductVideo: preview, publishProductVideo: publish,
@@ -20,12 +26,91 @@ const product: Product = {
 };
 beforeEach(() => {
   vi.clearAllMocks(); getJob.mockResolvedValue(null);
+  compressionSupported.mockReturnValue(false);
   remove.mockResolvedValue(undefined); publish.mockResolvedValue(undefined);
   preview.mockResolvedValue({ videoUrl: 'https://account.r2.cloudflarestorage.com/private/video.mp4?signed',
     posterUrl: 'https://account.r2.cloudflarestorage.com/private/poster.webp?signed',
     durationSeconds: 20, videoBytes: 2097152, width: 1280, height: 720, expiresAt: '' });
 });
 afterEach(cleanup);
+it('uploads the optimized file with the selected music rather than the original', async () => {
+  compressionSupported.mockReturnValue(true);
+  const optimized = new File(['small'], 'optimized.mp4', { type: 'video/mp4' });
+  compress.mockResolvedValueOnce(optimized);
+  upload.mockResolvedValueOnce('j1');
+  render(<ProductVideoManager product={product} />);
+  const option = screen.getByLabelText('Optimize before upload (720p MP4)');
+  await waitFor(() => expect(option).toHaveProperty('disabled', false));
+  fireEvent.click(option);
+  const original = new File(['larger original'], 'original.mp4', { type: 'video/mp4' });
+  fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [original] } });
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', optimized, { source: 'brand' }, expect.any(Function)));
+  expect(compress).toHaveBeenCalledWith(original, expect.any(Function));
+  expect(screen.getByText(/Optimized .* before upload/)).toBeTruthy();
+});
+
+it('does not upload after compression fails and lets the admin explicitly choose the original', async () => {
+  compressionSupported.mockReturnValue(true);
+  compress.mockRejectedValueOnce(new Error('Encoding unavailable; upload the original'));
+  upload.mockResolvedValueOnce('j1');
+  render(<ProductVideoManager product={product} />);
+  const option = screen.getByLabelText('Optimize before upload (720p MP4)');
+  await waitFor(() => expect(option).toHaveProperty('disabled', false));
+  fireEvent.click(option);
+  const original = new File(['original'], 'original.mp4', { type: 'video/mp4' });
+  const input = screen.getByLabelText('Upload or replace making video');
+  fireEvent.change(input, { target: { files: [original] } });
+  expect((await screen.findByRole('alert')).textContent).toContain('Encoding unavailable');
+  expect(upload).not.toHaveBeenCalled();
+  await waitFor(() => expect(option).toHaveProperty('disabled', false));
+  fireEvent.click(option);
+  fireEvent.change(input, { target: { files: [original] } });
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', original, { source: 'brand' }, expect.any(Function)));
+});
+
+it('shows confirmed bytes and percentage while a large video uploads, then clears progress', async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>(resolve => { finish = resolve; });
+  upload.mockImplementationOnce(async (_productId, _file, _music,
+    report: Parameters<typeof import('../../services/productVideos').uploadProductVideo>[3]) => {
+    report?.({ stage: 'video', uploadedBytes: 8 * 1024 * 1024, totalBytes: 32 * 1024 * 1024 });
+    await pending;
+    return 'j1';
+  });
+  render(<ProductVideoManager product={product} />);
+  const input = screen.getByLabelText('Upload or replace making video');
+  await waitFor(() => expect(input).toHaveProperty('disabled', false));
+  fireEvent.change(input, { target: { files: [new File(['video'], 'large.mp4', { type: 'video/mp4' })] } });
+  expect((await screen.findByRole('progressbar')).getAttribute('value')).toBe(String(8 * 1024 * 1024));
+  expect(screen.getByRole('status').textContent).toContain('25% confirmed');
+  expect(screen.getByText(/8.0 of 32.0 MB confirmed/)).toBeTruthy();
+  finish();
+  await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
+});
+
+it('identifies a stalled upload without blaming the processing worker', async () => {
+  getJob.mockResolvedValue({
+    id: 'j1', status: 'receiving', error: null,
+    updated_at: new Date(Date.now() - 21 * 60_000).toISOString(),
+  });
+  render(<ProductVideoManager product={product} />);
+  expect((await screen.findByRole('alert')).textContent).toContain('Processing has not started');
+  expect(screen.getByRole('status').textContent).toContain('Keep the uploading tab open');
+  expect(screen.getByRole('status').textContent).not.toContain('background work continues');
+  expect(screen.getByRole('alert').textContent).not.toContain('GitHub workflow');
+});
+
+it('shows cancellation instead of a processing delay and allows a new upload', async () => {
+  getJob.mockResolvedValue({
+    id: 'j1', status: 'cancelled', error: null,
+    updated_at: new Date(Date.now() - 21 * 60_000).toISOString(),
+  });
+  render(<ProductVideoManager product={product} />);
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('was cancelled'));
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Browse video' })).toHaveProperty('disabled', false);
+});
+
 it('saves an individual video title independently of uploading or publishing', async () => {
   rename.mockResolvedValue(undefined);
   render(<ProductVideoManager product={{ ...product, makingVideo: { ...product.makingVideo!, title: 'Old title' } }} />);
@@ -86,11 +171,11 @@ it('defaults every new upload to the Luvia track and supports explicit No music'
   expect(screen.queryByLabelText('Music mode')).toBeNull();
   const video = new File(['video'], 'a.mp4', { type: 'video/mp4' });
   fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
-  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, { source: 'brand' }));
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, { source: 'brand' }, expect.any(Function)));
   await waitFor(() => expect(browse.disabled).toBe(false));
   fireEvent.click(screen.getByRole('radio', { name: /No music/ }));
   fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
-  await waitFor(() => expect(upload).toHaveBeenLastCalledWith('p1', video, undefined));
+  await waitFor(() => expect(upload).toHaveBeenLastCalledWith('p1', video, undefined, expect.any(Function)));
 });
 it('uses a styled Browse audio control; cancelling keeps the dialog and uploads nothing', async () => {
   const onClose = vi.fn();
@@ -129,10 +214,10 @@ it('shows the chosen custom audio, requires permission, supports change/remove a
   expect(browse.disabled).toBe(false);
   const video = new File(['video'], 'a.mp4', { type: 'video/mp4' });
   fireEvent.change(screen.getByLabelText('Upload or replace making video'), { target: { files: [video] } });
-  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, { file: track, rightsConfirmed: true }));
+  await waitFor(() => expect(upload).toHaveBeenCalledWith('p1', video, { file: track, rightsConfirmed: true }, expect.any(Function)));
   await waitFor(() => expect(browse.disabled).toBe(false));
   fireEvent.click(screen.getByRole('button', { name: 'Remove audio' }));
-  expect(screen.queryByRole('checkbox')).toBeNull();
+  expect(screen.queryByRole('checkbox', { name: /I own this music/ })).toBeNull();
   expect(screen.queryByText('track.mp3')).toBeNull();
   expect(browse.disabled).toBe(true);
 });
