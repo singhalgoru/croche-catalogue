@@ -10,7 +10,10 @@ import {
 } from '../../services/products';
 import type { ManagedProduct } from '../../services/products';
 import { suggestProductGstRate } from '../../services/productAnalysis';
-import { loadProductDraft, saveProductDraft, clearProductDraft, EMPTY_PRODUCT_DRAFT } from './productDraftStore';
+import {
+  loadProductDraft, saveProductDraft, clearProductDraft, EMPTY_PRODUCT_DRAFT,
+  listSavedProductDrafts, saveNamedProductDraft, deleteSavedProductDraft, toStoredProductDraft,
+} from './productDraftStore';
 import { getProductVideoJob, uploadProductVideo } from '../../services/productVideos';
 import { createDefaultPriceInputs } from './priceDiscovery';
 import { createEmptyVariant } from './variantDraft';
@@ -35,6 +38,9 @@ vi.mock('./productDraftStore', async (original) => ({
   ...await original<typeof import('./productDraftStore')>(),
   loadProductDraft: vi.fn().mockResolvedValue(null),
   saveProductDraft: vi.fn(), clearProductDraft: vi.fn(),
+  listSavedProductDrafts: vi.fn().mockResolvedValue([]),
+  saveNamedProductDraft: vi.fn(),
+  deleteSavedProductDraft: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('./ProductVariantManager', () => ({ default: () => null }));
 vi.mock('./VariantDraftFields', () => ({
@@ -60,6 +66,11 @@ beforeEach(() => {
   restoreDialog = mockNativeDialog();
   vi.mocked(loadProductDraft).mockResolvedValue(null);
   vi.mocked(saveProductDraft).mockResolvedValue(undefined);
+  vi.mocked(listSavedProductDrafts).mockResolvedValue([]);
+  vi.mocked(saveNamedProductDraft).mockImplementation(async (draft, variants, id = 'saved-draft') => ({
+    ...toStoredProductDraft(draft, variants), id,
+  }));
+  vi.mocked(deleteSavedProductDraft).mockResolvedValue(undefined);
   vi.mocked(fetchManagedProducts).mockResolvedValue([product]);
   vi.mocked(publishProduct).mockResolvedValue(product);
   vi.mocked(updateProduct).mockResolvedValue(product);
@@ -71,6 +82,74 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('saves an incomplete product without publishing and reopens it from the drafts tile', async () => {
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Work in progress' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save draft' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    expect(await screen.findByText('Draft saved on this browser. Open Drafts to continue.')).toBeTruthy();
+    expect(publishProduct).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue Work in progress' }));
+    await waitFor(() => expect(screen.getByLabelText('Product name')).toHaveProperty('value', 'Work in progress'));
+    expect(saveProductDraft).toHaveBeenCalledWith(expect.objectContaining({ name: 'Work in progress' }), expect.any(Array), true, 'saved-draft');
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Updated work' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await waitFor(() => expect(saveNamedProductDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'Updated work' }), expect.any(Array), 'saved-draft',
+    ));
+    expect(await screen.findByRole('button', { name: 'Drafts (1)' })).toBeTruthy();
+  });
+
+  it('keeps form values and displays explicit storage errors on failed draft save', async () => {
+    vi.mocked(saveNamedProductDraft).mockRejectedValueOnce(new Error('Draft storage full'));
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Keep me' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save draft' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    expect(await screen.findByText('Draft storage full')).toBeTruthy();
+    expect(screen.getByLabelText('Product name')).toHaveProperty('value', 'Keep me');
+    expect(publishProduct).not.toHaveBeenCalled();
+  });
+
+  it('deletes a saved draft from the quick-access list', async () => {
+    vi.mocked(listSavedProductDrafts).mockResolvedValue([{
+      ...toStoredProductDraft({ ...EMPTY_PRODUCT_DRAFT, name: 'Old draft' }, [createEmptyVariant('Standard')]),
+      id: 'old-draft',
+    }]);
+    render(<ProductUploadForm categories={['Home']} onPublished={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Drafts (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Old draft' }));
+    await waitFor(() => expect(deleteSavedProductDraft).toHaveBeenCalledWith('old-draft'));
+    expect(await screen.findByText(/No saved drafts yet/)).toBeTruthy();
+  });
+
+  it('removes the saved draft after publishing and does not recreate it on catalogue refresh failure', async () => {
+    vi.mocked(loadProductDraft).mockResolvedValue({
+      ...toStoredProductDraft({
+        ...EMPTY_PRODUCT_DRAFT, name: 'Coaster', description: 'A handmade coaster.',
+        materials: 'Cotton yarn', includedItems: 'One coaster',
+      }, [{ ...createEmptyVariant('Standard'), imageFile: new File(['photo'], 'photo.webp', { type: 'image/webp' }) }]),
+      savedDraftId: 'published-draft',
+    });
+    const refresh = vi.fn().mockRejectedValue(new Error('Offline'));
+    const original = URL.createObjectURL;
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:draft');
+    try {
+      render(<ProductUploadForm categories={['Home']} onPublished={refresh} />);
+      await screen.findByDisplayValue('Coaster');
+      fireEvent.submit(screen.getByRole('button', { name: 'Publish product with 1 variant' }).closest('form')!);
+      await screen.findByRole('button', { name: 'Retry catalogue refresh' });
+      expect(deleteSavedProductDraft).toHaveBeenCalledWith('published-draft');
+      expect(publishProduct).toHaveBeenCalledTimes(1);
+      expect(saveNamedProductDraft).not.toHaveBeenCalled();
+    } finally {
+      URL.createObjectURL = original;
+    }
+  });
+
   it('prefills unset product GST from session defaults and supports resetting them', async () => {
     render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));

@@ -50,6 +50,12 @@ describe('isProductDraftEmpty', () => {
       ]),
     ).toBe(false);
   });
+
+  it('retains category-only and inventory-only changes', () => {
+    expect(isProductDraftEmpty({ ...EMPTY_PRODUCT_DRAFT, category: 'Other' }, [createEmptyVariant('Standard')])).toBe(false);
+    expect(isProductDraftEmpty(EMPTY_PRODUCT_DRAFT, [{ ...createEmptyVariant('Standard'), availableQuantity: 5 }])).toBe(false);
+    expect(isProductDraftEmpty(EMPTY_PRODUCT_DRAFT, [{ ...createEmptyVariant('Standard'), inStock: false }])).toBe(false);
+  });
 });
 
 describe('stored product drafts', () => {
@@ -105,6 +111,8 @@ describe('stored product drafts', () => {
     const stored = toStoredProductDraft(EMPTY_PRODUCT_DRAFT, [createEmptyVariant('Standard')], 0);
     expect(isStoredDraftUsable(stored, DRAFT_MAX_AGE_MS)).toBe(true);
     expect(isStoredDraftUsable(stored, DRAFT_MAX_AGE_MS + 1)).toBe(false);
+    expect(isStoredDraftUsable(stored, DRAFT_MAX_AGE_MS + 1, Infinity)).toBe(true);
+    expect(isStoredDraftUsable({ ...stored, savedAt: NaN }, 0, Infinity)).toBe(false);
     expect(isStoredDraftUsable({ ...stored, variants: [] }, 0)).toBe(false);
     expect(isStoredDraftUsable(null, 0)).toBe(false);
     expect(isStoredDraftUsable('draft', 0)).toBe(false);

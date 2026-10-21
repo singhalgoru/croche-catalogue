@@ -25,6 +25,10 @@ import {
   isProductDraftEmpty,
   loadProductDraft,
   saveProductDraft,
+  listSavedProductDrafts,
+  saveNamedProductDraft,
+  deleteSavedProductDraft,
+  type SavedProductDraft,
   type ProductDraft,
 } from './productDraftStore';
 
@@ -50,11 +54,27 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [createdProduct, setCreatedProduct] = useState<Product | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
+  const [savedDrafts, setSavedDrafts] = useState<SavedProductDraft[]>([]);
+  const [savedDraftId, setSavedDraftId] = useState<string>();
+  const savedDraftIdRef = useRef(savedDraftId);
+  const [showDrafts, setShowDrafts] = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listSavedProductDrafts().then(
+      saved => { if (!cancelled) setSavedDrafts(saved); },
+      error => { if (!cancelled) setDraftError(error instanceof Error ? error.message : 'Unable to load saved drafts.'); },
+    );
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     variantsRef.current = variants;
     draftRef.current = draft;
-  }, [draft, variants]);
+    savedDraftIdRef.current = savedDraftId;
+  }, [draft, variants, savedDraftId]);
   useEffect(() => () => releaseVariantPreviews(variantsRef.current), []);
 
   useEffect(() => {
@@ -69,6 +89,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         setVariants(restored.variants);
         setIsExpanded(true);
         setRestoredDraftAt(stored.savedAt);
+        setSavedDraftId(stored.savedDraftId);
       }
       setIsDraftLoaded(true);
     });
@@ -81,10 +102,10 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     if (!isDraftLoaded) return;
     const timer = window.setTimeout(() => {
       if (isProductDraftEmpty(draft, variants)) void clearProductDraft();
-      else void saveProductDraft(draft, variants);
+      else void saveProductDraft(draft, variants, false, savedDraftId);
     }, DRAFT_SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [draft, variants, isDraftLoaded]);
+  }, [draft, variants, isDraftLoaded, savedDraftId]);
 
   // The debounce above can be cut short when the admin switches apps, so
   // save straight away as the page is hidden.
@@ -93,7 +114,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     const saveNow = () => {
       if (document.visibilityState !== 'hidden') return;
       if (isProductDraftEmpty(draftRef.current, variantsRef.current)) return;
-      void saveProductDraft(draftRef.current, variantsRef.current);
+      void saveProductDraft(draftRef.current, variantsRef.current, false, savedDraftIdRef.current);
     };
     document.addEventListener('visibilitychange', saveNow);
     return () => document.removeEventListener('visibilitychange', saveNow);
@@ -105,13 +126,68 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     setPricingDraftVersion(current => current + 1);
     setVariants([createEmptyVariant('Standard')]);
     setRestoredDraftAt(null);
+    setSavedDraftId(undefined);
     setErrorMessage(null);
     void clearProductDraft();
   };
 
+  const rememberDraft = (saved: SavedProductDraft) =>
+    setSavedDrafts(current => [saved, ...current.filter(item => item.id !== saved.id)]);
+
+  const saveExplicitDraft = async () => {
+    setDraftBusy(true);
+    setErrorMessage(null);
+    try {
+      const saved = await saveNamedProductDraft(draft, variants, savedDraftId);
+      rememberDraft(saved);
+      discardDraft();
+      setSuccessMessage('Draft saved on this browser. Open Drafts to continue.');
+      setIsExpanded(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to save the draft.');
+    } finally {
+      setDraftBusy(false);
+    }
+  };
+
+  const openSavedDraft = async (saved: SavedProductDraft) => {
+    setDraftBusy(true);
+    setDraftError(null);
+    try {
+      let target = saved;
+      if (!createdProduct && !isProductDraftEmpty(draft, variants)) {
+        const current = await saveNamedProductDraft(draft, variants, savedDraftId);
+        rememberDraft(current);
+        if (savedDraftId === saved.id) target = current;
+      }
+      const restored = fromStoredProductDraft(target);
+      try {
+        await saveProductDraft(restored.draft, restored.variants, true, saved.id);
+      } catch (error) {
+        releaseVariantPreviews(restored.variants);
+        throw error;
+      }
+      releaseVariantPreviews(variants);
+      setDraft(restored.draft);
+      setVariants(restored.variants);
+      setSavedDraftId(saved.id);
+      setRestoredDraftAt(saved.savedAt);
+      setPricingDraftVersion(current => current + 1);
+      setCreatedProduct(null);
+      setSuccessMessage(null);
+      setErrorMessage(null);
+      setShowDrafts(false);
+      setIsExpanded(true);
+    } catch (error) {
+      setDraftError(error instanceof Error ? error.message : 'Unable to open the draft.');
+    } finally {
+      setDraftBusy(false);
+    }
+  };
+
   const submitProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isAnalyzing || isPublishing || createdProduct) return;
+    if (isAnalyzing || isPublishing || draftBusy || createdProduct) return;
     const category = categories.includes(draft.category) ? draft.category : categories[0];
     if (!category) {
       setErrorMessage('Create at least one category before publishing a product.');
@@ -169,6 +245,15 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       // Keep the persisted ID before refreshing the catalogue: retrying a refresh
       // must never publish a second product or lose the video handoff.
       setCreatedProduct(product);
+      if (savedDraftId) {
+        try {
+          await deleteSavedProductDraft(savedDraftId);
+          setSavedDrafts(current => current.filter(item => item.id !== savedDraftId));
+        } catch (error) {
+          setDraftError(`Product was published, but its saved draft could not be removed: ${error instanceof Error ? error.message : 'Storage unavailable.'} Delete it from Drafts; do not publish it again.`);
+        }
+      }
+      setSavedDraftId(undefined);
       releaseVariantPreviews(variants);
       setDraft(EMPTY_DRAFT);
       setPricingDraftVersion(current => current + 1);
@@ -197,6 +282,41 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
     : (categories[0] ?? '');
 
   return (
+    <>
+    <section className="rounded-2xl border border-mustard/40 bg-white p-4 shadow-sm">
+      <button type="button" disabled={isPublishing || isAnalyzing || draftBusy}
+        onClick={() => setShowDrafts(true)}
+        className="min-h-11 w-full text-left font-heading text-xl font-bold text-cocoa">
+        Drafts ({savedDrafts.length})
+      </button>
+      <p className="text-sm text-cocoa/70">Saved products to finish later. Stored on this browser/device only, including photos.</p>
+      {!isExpanded && successMessage && !createdProduct && <p role="status" className="mt-2 text-sm text-green-800">{successMessage}</p>}
+      {draftError && <p role="alert" className="mt-2 text-sm text-red-700">{draftError}</p>}
+    </section>
+    {showDrafts && <AdminDialog title="Product drafts" busy={draftBusy} onClose={() => setShowDrafts(false)}>
+      <div className="space-y-3 p-4">
+        <p className="text-sm text-cocoa/70">Incomplete drafts are private and never appear in the catalogue. Keep this browser's site data to retain them.</p>
+        {draftError && <p role="alert" className="text-sm text-red-700">{draftError}</p>}
+        {savedDrafts.length === 0 && <p>No saved drafts yet. Choose Save draft when adding a product.</p>}
+        {savedDrafts.map(saved => <div key={saved.id} className="rounded-xl border border-mustard/40 p-3">
+          <h3 className="font-semibold">{saved.draft.name?.trim() || 'Untitled product'}</h3>
+          <p className="text-xs text-cocoa/70">Saved {new Date(saved.savedAt).toLocaleString()} · {saved.variants.length} variant(s)</p>
+          <div className="mt-2 flex gap-3">
+            <button type="button" disabled={draftBusy} className="min-h-11 rounded-full bg-cocoa px-4 text-cream"
+              onClick={() => void openSavedDraft(saved)}>Continue {saved.draft.name?.trim() || 'untitled draft'}</button>
+            <button type="button" disabled={draftBusy} className="min-h-11 px-3 text-red-700"
+              onClick={() => {
+                setDraftBusy(true);
+                void deleteSavedProductDraft(saved.id).then(() => {
+                  setSavedDrafts(current => current.filter(item => item.id !== saved.id));
+                  if (savedDraftId === saved.id) setSavedDraftId(undefined);
+                }).catch(error => setDraftError(error instanceof Error ? error.message : 'Unable to delete the draft.'))
+                  .finally(() => setDraftBusy(false));
+              }}>Delete {saved.draft.name?.trim() || 'untitled draft'}</button>
+          </div>
+        </div>)}
+      </div>
+    </AdminDialog>}
     <section className="rounded-2xl border border-mustard/40 bg-white shadow-sm">
       <button
         type="button"
@@ -224,7 +344,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
         </span>
       </button>
       {isExpanded && (
-        <AdminDialog title="Add product" busy={isAnalyzing || isPublishing} onClose={() => setIsExpanded(false)}>
+        <AdminDialog title="Add product" busy={isAnalyzing || isPublishing || draftBusy} onClose={() => setIsExpanded(false)}>
         {createdProduct ? <div id="add-product-panel" className="space-y-4 p-3 sm:p-5">
           <p role="status" className="text-sm text-green-800">{successMessage}</p>
           <h2 className="font-heading text-xl font-bold text-cocoa">Add a making video for {createdProduct.name}</h2>
@@ -253,7 +373,14 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           className="space-y-4 border-t border-mustard/30 p-3 sm:space-y-6 sm:p-5"
           onSubmit={submitProduct}
         >
+      <fieldset disabled={draftBusy} className="contents">
       <p className="text-sm text-cocoa/70"><RequiredMark /> Required fields. Price is required only when shown in the catalogue. Closing keeps your draft.</p>
+      <button type="button" disabled={!isDraftLoaded || draftBusy || isAnalyzing || isPublishing || isProductDraftEmpty(draft, variants)}
+        onClick={() => void saveExplicitDraft()}
+        className="min-h-11 rounded-full border border-cocoa/30 px-5 py-2 font-semibold text-cocoa disabled:opacity-60">
+        {draftBusy ? 'Saving draft…' : 'Save draft'}
+      </button>
+      <p className="text-sm text-cocoa/70">Save incomplete details and photos without publishing. Continue later from the Drafts tile on this browser.</p>
       {restoredDraftAt !== null && (
         <div
           role="status"
@@ -407,7 +534,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             onSaveInputs={async inputs => {
               const nextDraft = { ...draft, priceDiscoveryInputs: inputs };
               setDraft(nextDraft);
-              await saveProductDraft(nextDraft, variants, true);
+              await saveProductDraft(nextDraft, variants, true, savedDraftId);
             }}
             onApplyPrice={(price, _margin, _gst, minimumOrderQuantity) => setDraft(current => ({
               ...current, price: String(price), showPrice: true,
@@ -484,9 +611,11 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
           }`}
         </button>
       </section>
+      </fieldset>
         </form>}
         </AdminDialog>
       )}
     </section>
+    </>
   );
 }

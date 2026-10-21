@@ -11,6 +11,21 @@ licensed for reuse — see [LICENSE](./LICENSE).
 
 ## Features
 
+### Admin product drafts
+
+In **Admin > Products > Add product**, choose **Save draft** to keep an
+incomplete product without publishing it. The **Drafts** tile opens saved
+products for continued editing or deletion. Saving an opened draft updates it
+instead of creating a duplicate; publishing removes its saved draft.
+
+Drafts retain photos, gallery images, variants, specifications and price
+discovery inputs using IndexedDB on the current browser/device. They do not
+sync between devices and are lost if the browser's site data is cleared.
+Explicitly saved drafts do not expire; the existing seven-day automatic
+recovery draft remains separate. Draft saving reports storage failures and
+leaves the form available to retry. Videos/music are attached after publishing,
+not included in a product draft.
+
 ### Optional product making videos
 
 **Dedicated public video bucket (optional).** Set the GitHub secrets
