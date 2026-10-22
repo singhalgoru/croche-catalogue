@@ -17,6 +17,23 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it.each([
+    ['/collections/', ['Home', 'Explore our handmade collections'], ['/', '/collections/']],
+    ['/collections/toys/', ['Home', 'Collections', 'Handmade Toys'], ['/', '/collections/', '/collections/toys/']],
+  ])('matches visible breadcrumbs and structured data at %s', (pathname, names, paths) => {
+    const doc = documentFor(pathname);
+    const nav = doc.querySelector('nav[aria-label="Breadcrumb"]')!;
+    expect([...nav.children].map(item => item.textContent)).toEqual(names);
+    expect([...nav.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual(paths.slice(0, -1));
+    const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(schema.breadcrumb).toEqual({
+      '@type': 'BreadcrumbList',
+      itemListElement: names.map((name, index) => ({
+        '@type': 'ListItem', position: index + 1, name, item: `https://luviacreations.com${paths[index]}`,
+      })),
+    });
+  });
+
   it('publishes regular category covers, product hotspots and category-specific social preview images', () => {
     const cover = 'https://images.luviacreations.com/products/admin/look.webp';
     const categories = [{ name: 'Toys', priority: 1, coverImage: cover, imageHotspots: [

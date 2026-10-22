@@ -303,7 +303,7 @@ describe('renderShell', () => {
     expect(shell).toContain('href="mailto:orders@luviacreations.com"');
     expect(shell).toContain('href="/return-policy/"');
     expect(shell.match(/href="\/return-policy\/"/g)).toHaveLength(1);
-    expect(shell).toContain('<footer><a href="/return-policy/">');
+    expect(shell).toMatch(/<footer>[\s\S]*?<a href="\/return-policy\/">/);
     expect(shell.indexOf('ordering-guide-title')).toBeGreaterThan(shell.indexOf('Ivory Rose Gajra'));
   });
 
@@ -358,6 +358,31 @@ describe('renderShell', () => {
 
 describe('injectShell', () => {
   const html = '<html><head></head><body><div id="root"><!--shell-->old<!--/shell--></div></body></html>';
+
+  it('injects visible non-empty regular and seasonal collection links and store navigation without JavaScript', async () => {
+    const { JSDOM } = await import('jsdom');
+    const result = injectShell(html, [product], undefined, [
+      { name: 'Hair Accessories', priority: 1 },
+      { name: 'Festive & Gifts', priority: 99, isSeasonal: true, productIds: [product.id] },
+      { name: 'Hidden', priority: 2, isSeasonal: true, visible: false, productIds: [product.id] },
+      { name: 'Empty', priority: 3, isSeasonal: true, productIds: ['unpublished'] },
+      { name: 'Toys', priority: 4 },
+    ]);
+    const doc = new JSDOM(result).window.document;
+    const links = [...doc.querySelectorAll('nav[aria-label="Explore collections"] a')];
+    expect(links.map(link => link.textContent)).toEqual(['Festive & Gifts', 'Hair Accessories']);
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/collections/festive-gifts/', '/collections/hair-accessories/',
+    ]);
+    for (const selector of ['nav[aria-label="Main navigation"]', 'footer']) {
+      for (const path of ['/collections/', '/about/', '/faq/']) {
+        expect(doc.querySelector(`${selector} a[href="${path}"]`)).not.toBeNull();
+      }
+    }
+    expect(renderShell([product])).toContain('href="/collections/hair-accessories/"');
+    expect(renderShell([product], [{ name: 'Hair Accessories', priority: 1, visible: false }]))
+      .not.toContain('href="/collections/hair-accessories/"');
+  });
 
   it('replaces the placeholder and adds the catalogue schema', () => {
     const result = injectShell(html, [product]);

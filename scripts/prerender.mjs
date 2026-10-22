@@ -385,11 +385,22 @@ const compareInitialProducts = (left, right, now = Date.now()) => {
     || (left.sortOrder ?? 0) - (right.sortOrder ?? 0);
 };
 
-const renderShell = (products) => {
+const renderShell = (products, categorySettings = []) => {
   const orderedProducts = [...products].sort(compareInitialProducts);
   const firstProductId = orderedProducts[0]?.id;
   const groups = groupByCategory(orderedProducts);
   const categories = groups.map(([category]) => category);
+  const collectionNames = [...new Set([
+    ...[...categorySettings]
+      .sort((a, b) => Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority)
+      .map(category => category.name),
+    ...categories,
+  ])].filter(name => {
+    const settings = categorySettings.find(category => category.name === name);
+    return settings?.visible !== false && (settings?.isSeasonal
+      ? products.some(product => settings.productIds?.includes(product.id))
+      : categories.includes(name));
+  });
 
   const sections = groups
     .map(([category, items]) => {
@@ -419,11 +430,15 @@ const renderShell = (products) => {
     '<h1>Premium Handmade Crochet Creations</h1>',
     "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide.</p>",
     '</header>',
+    '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/collections/">Collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
     '<main>',
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
     )}</p>`,
     sections,
+    '<section aria-labelledby="collections-heading"><h2 id="collections-heading">Explore collections</h2>',
+    `<nav aria-label="Explore collections"><ul>${collectionNames.map(name =>
+      `<li><a href="${collectionPath(name)}">${escapeHtml(name)}</a></li>`).join('')}</ul></nav></section>`,
     '<section aria-labelledby="ordering-guide-title">',
     '<h2 id="ordering-guide-title">How ordering and delivery work</h2>',
     '<ol><li>Choose your items: select an available product and colour or variant, then add it to your cart.</li>',
@@ -439,7 +454,7 @@ const renderShell = (products) => {
     `<p>${escapeHtml(bulkOrders.invitation)}</p>`,
     `<p><a href="${bulkOrders.path}">${escapeHtml(bulkOrders.invitationCta)}</a></p></section>`,
     '</main>',
-    '<footer><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></footer>',
+    '<footer><a href="/collections/">Explore collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></footer>',
   ].join('');
 };
 
@@ -769,7 +784,7 @@ export const writeSocialImage = async (product, dir, pathname) => {
   }
 };
 
-const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
+const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, categories = []) => {
   const shell = /<!--shell-->[\s\S]*?<!--\/shell-->/;
   if (!shell.test(html)) {
     throw new Error('index.html is missing the <!--shell--> markers');
@@ -781,7 +796,7 @@ const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER) 
       (_, before, after) => `${before}${escapeHtml(description)}${after}`)
     .replace(/("description":\s*")[^"]*(")/,
       () => `"description":${JSON.stringify(description).replace(/</g, '\\u003c')}`)
-    .replace(shell, () => `<!--shell-->${renderShell(products)}<!--/shell-->`)
+    .replace(shell, () => `<!--shell-->${renderShell(products, categories)}<!--/shell-->`)
     .replaceAll('{{WHATSAPP_PHONE}}', display)
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };
@@ -832,7 +847,7 @@ const main = async () => {
 
   const indexPath = path.join(DIST, 'index.html');
   const template = injectCatalogueBootstrap(await readFile(indexPath, 'utf8'), rows, categories, homepage, bestsellers);
-  await writeFile(indexPath, injectImagePreloads(injectShell(template, products, whatsappNumber),
+  await writeFile(indexPath, injectImagePreloads(injectShell(template, products, whatsappNumber, categories),
     firstBestsellerImageUrls(rows, bestsellers)));
 
   for (const product of products) {

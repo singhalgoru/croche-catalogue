@@ -1285,6 +1285,11 @@ without leaving the collection; cart errors and confirmations appear on these
 pages too. Additions are disabled until current availability is confirmed.
 The homepage also offers direct collection links below the product grid without
 changing product-wise ordering. Empty collections are never promoted.
+The generated homepage HTML includes the same collection discovery links,
+including visible seasonal collections, plus Collections, About and FAQ navigation
+for visitors and crawlers without JavaScript. Collection landing pages use
+Home > Collections > category breadcrumbs with matching structured data before
+and after the app loads. Existing product and collection URLs remain unchanged.
 Compact collection and information headers keep the logo left-aligned on mobile,
 consistent with product-detail pages.
 Mobile headers use matching 48px logo, menu and cart circles; the larger desktop

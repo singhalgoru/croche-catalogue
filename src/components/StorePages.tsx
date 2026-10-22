@@ -11,7 +11,7 @@ import storeContent from '../content/storeContent.json';
 import policies from '../content/policies.json';
 import bulkOrders from '../content/bulkOrders.json';
 import BulkOrders from './BulkOrders';
-import { collectionPath } from '../utils/collectionLink.js';
+import { collectionBreadcrumbList, collectionPath } from '../utils/collectionLink.js';
 import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
 import { formatWhatsAppNumber, getGeneralWhatsAppLink } from '../utils/whatsapp';
@@ -114,6 +114,7 @@ export default function StorePages({
       })) : visibleCategories.map(item => ({ name: item.name, url: `${window.location.origin}${collectionPath(item.name)}` }));
       schema.textContent = JSON.stringify({
         '@context': 'https://schema.org', '@type': 'CollectionPage', name: title, url: `${window.location.origin}${requestedPath}`,
+        breadcrumb: collectionBreadcrumbList(requestedPath, title, window.location.origin),
         mainEntity: { '@type': 'ItemList', numberOfItems: listed.length, itemListElement: listed.map((item, index) => ({
           '@type': 'ListItem', position: index + 1, ...item,
         })) },

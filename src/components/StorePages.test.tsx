@@ -15,6 +15,30 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it.each([
+    ['/collections/', ['Home', 'Explore our handmade collections'], ['/', '/collections/']],
+    ['/collections/toys/', ['Home', 'Collections', 'Handmade Toys'], ['/', '/collections/', '/collections/toys/']],
+  ])('preserves matching collection breadcrumbs and schema after app mount at %s', (pathname, names, paths) => {
+    window.history.replaceState(null, '', pathname);
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    document.head.append(script);
+    try {
+      render(<StorePages {...initial} />);
+      const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+      expect([...nav.children].map(item => item.textContent)).toEqual(names);
+      expect([...nav.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual(paths.slice(0, -1));
+      expect(JSON.parse(script.textContent!).breadcrumb).toEqual({
+        '@type': 'BreadcrumbList',
+        itemListElement: names.map((name, index) => ({
+          '@type': 'ListItem', position: index + 1, name, item: `${window.location.origin}${paths[index]}`,
+        })),
+      });
+    } finally {
+      script.remove();
+    }
+  });
+
   it('opens a dedicated bulk gifting page with an immediately available enquiry form', () => {
     window.history.replaceState(null, '', '/bulk-orders/');
     render(<StorePages {...initial} />);

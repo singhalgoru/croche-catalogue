@@ -2,7 +2,7 @@ import { escapeHtml, getProductImageUrl, priceRange, renderSitemap, toProductSlu
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import policies from '../src/content/policies.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
-import { collectionPath } from '../src/utils/collectionLink.js';
+import { collectionBreadcrumbList, collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
 export { collectionPath };
@@ -23,7 +23,7 @@ const page = (pathname, title, description, body, schema, socialImage = `${ORIGI
 <meta name="twitter:image" content="${escapeHtml(socialImage)}">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(title)} | Luvia Creations">
 <meta name="twitter:description" content="${escapeHtml(description)}">
-<script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
+<script type="application/ld+json">${JSON.stringify({ ...schema, ...(pathname.startsWith('/collections/') ? { breadcrumb: collectionBreadcrumbList(pathname, title, ORIGIN) } : {}) }).replace(/</g, '\\u003c')}</script>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#fffaf0;color:#604239;font:16px/1.65 system-ui,sans-serif}
 .hotspot-links{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.hotspot-links:focus-within{position:static;width:auto;height:auto;margin:0;overflow:visible;clip-path:none;white-space:normal}
@@ -37,7 +37,7 @@ nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:7
 .collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-tile{display:block;height:100%;color:inherit;text-decoration:none}.collection-tile:hover h2{text-decoration:underline}.collection-photo{position:relative;display:block;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.collection-photo img{position:relative;width:100%;height:100%;object-fit:contain}.collection-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}@media(min-width:640px){.collection-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1024px){.collection-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .button{display:inline-block;background:#604239;color:white;padding:10px 18px;border-radius:24px;text-decoration:none;margin:8px 0}.note{font-size:.9rem}details{margin:12px 0}summary{cursor:pointer;font-weight:600}footer{border-top:1px solid #edc357;margin-top:32px}main{min-height:50vh}
 </style></head><body><a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-320.webp" width="64" height="64" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation}</nav></header>
-<main id="main"><nav aria-label="Breadcrumb"><a href="/">Home</a><span aria-current="page">${escapeHtml(title)}</span></nav><h1>${escapeHtml(title)}</h1>${body}</main>
+<main id="main"><nav aria-label="Breadcrumb"><a href="/">Home</a>${pathname.startsWith('/collections/') && pathname !== '/collections/' ? '<a href="/collections/">Collections</a>' : ''}<span aria-current="page">${escapeHtml(title)}</span></nav><h1>${escapeHtml(title)}</h1>${body}</main>
 <footer><nav aria-label="Footer navigation">${navigation}<a href="/return-policy/">Return and refund policy</a></nav><p>Handmade crochet accessories, toys, gifts and decor, crafted with love in India.</p><p>Gurugram, Haryana, India</p><section aria-label="Payment methods"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px"><span>We accept</span><img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy"><img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy"><img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy"><img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy"><span style="display:inline-flex;align-items:center;gap:8px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8"/><path d="M20 12h-5a2 2 0 0 0 0 4h5z"/></svg>Wallet</span></div><p class="note">Secure payments via Razorpay. Available payment methods are shown at checkout.</p></section><p>Orders: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a> · General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p></footer></body></html>`;
 
 export const buildContentPages = (products, whatsappNumber, categories = []) => {
