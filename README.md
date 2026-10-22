@@ -1834,15 +1834,18 @@ The build fetches published products from Supabase and generates a crawlable
 every push to `main`, about a minute after any catalogue change in admin (via a
 database trigger), and daily at 01:23 UTC as a safety net.
 
-Each run first verifies the code: lint, type checks, unit tests and the
+Each run verifies the code: lint, type checks, unit tests and the
 release-path Playwright suite on desktop and mobile Chromium
 (`e2e/release.spec.ts`). Nothing is deployed unless all of them pass. A passing
 commit is remembered (an Actions cache entry keyed by the commit), so
-catalogue-change and scheduled rebuilds of already-verified code skip straight
-to the build. After deploying, the `smoke` job waits until the live site serves
-the new entry script, then runs the read-only live smoke tests on desktop and
-mobile. A failed run uploads the Playwright report as an artifact and GitHub
-emails the repository owner. The broader `npm run test:e2e:full` suite remains
+catalogue-change and scheduled rebuilds of already-verified code reuse that pass.
+Building and verification run in parallel; deployment still waits for both to
+succeed. After deployment, a lightweight HTTP check confirms that the homepage
+references the new entry script and that the script is accessible, without
+installing dependencies or browsers again. Full live browser checks remain
+available manually with `npm run test:smoke`; they are not run automatically
+on every deployment. Failed release browser tests upload their report as an
+artifact. The broader `npm run test:e2e:full` suite remains
 available for refreshing older specs without slowing routine deployments.
 Check the deploy workflow if an update
 has not appeared. GitHub Pages and browsers may cache the sitemap briefly.

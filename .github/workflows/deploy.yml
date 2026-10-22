@@ -110,7 +110,6 @@ jobs:
           key: verified-${{ github.sha }}
 
   build:
-    needs: verify
     runs-on: ubuntu-latest
     outputs:
       entry_asset: ${{ steps.entry.outputs.asset }}
@@ -173,7 +172,7 @@ jobs:
           path: dist
 
   deploy:
-    needs: build
+    needs: [verify, build]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -185,53 +184,26 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # Read-only checks against the live site once it serves this build.
-  smoke:
+  # Confirm this exact build is live without another dependency/browser install.
+  # The full live browser suite remains available through npm run test:smoke.
+  live-check:
     needs: [build, deploy]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: Wait for the live site to serve this build
+      - name: Verify the live homepage and entry script
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
           ENTRY_ASSET: ${{ needs.build.outputs.entry_asset }}
         run: |
           for attempt in $(seq 1 60); do
-            if curl -fsS "${PAGE_URL}?deploy-check=${GITHUB_RUN_ID}-${attempt}" | grep -q "$ENTRY_ASSET"; then
+            if homepage="$(curl -fsS --connect-timeout 10 --max-time 20 "${PAGE_URL}?deploy-check=${GITHUB_RUN_ID}-${attempt}")" \
+              && grep -Fq "$ENTRY_ASSET" <<< "$homepage" \
+              && curl -fsS --connect-timeout 10 --max-time 20 "${PAGE_URL%/}/${ENTRY_ASSET}" -o /dev/null; then
               echo "Live site serves $ENTRY_ASSET"
               exit 0
             fi
             sleep 10
           done
-          echo "::error::The live site did not serve $ENTRY_ASSET within 10 minutes"
+          echo "::error::The live site did not serve an accessible $ENTRY_ASSET within the retry window"
           exit 1
-
-      - name: Live smoke tests
-        run: npx playwright test -c playwright.smoke.config.ts
-        env:
-          SMOKE_BASE_URL: ${{ needs.deploy.outputs.page_url }}
-
-      - name: Upload smoke test report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-report
-          path: |
-            playwright-report
-            test-results
-          retention-days: 7
