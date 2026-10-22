@@ -709,6 +709,9 @@ capture requiring review, makes the entry visible again.
 After verified payment, checkout displays a prominent order-success panel with
 payment confirmation, the order reference and separate email-delivery guidance.
 The panel does not claim that the email has reached the customer's inbox.
+It also provides an optional WhatsApp link with the verified order reference
+and item summary. The buyer reviews the prefilled draft and taps Send; it is
+not sent automatically and does not include delivery details.
 For paid live orders, Admin → Orders → Show details includes fulfilment controls:
 Confirmed → Processing → Shipped → Delivered. Progress cannot move backwards.
 Courier name, tracking number and a public HTTPS tracking link are optional for

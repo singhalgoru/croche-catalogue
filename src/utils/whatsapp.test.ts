@@ -50,6 +50,26 @@ it('does not include a cart identifier in checkout support messages', async () =
   expect(text).not.toMatch(/CRT-|Cart reference|cart id/i);
 });
 
+it('creates a buyer-sent WhatsApp message for an already verified order without exposing delivery details', async () => {
+  const { getConfirmedOrderWhatsAppLink } = await import('./whatsapp');
+  const link = new URL(getConfirmedOrderWhatsAppLink({
+    id: 'cart', reference: 'cart-reference', status: 'active', updatedAt: '', expiresAt: '',
+    whatsappStartedAt: null,
+    items: [{ id: 'item', productId: 'product', variantId: 'variant', productName: 'Rose Clip',
+      variantName: 'Red', image: '', unitPrice: 250, quantity: 2 }],
+    deliveryDetails: { name: 'Buyer Name', phone: '9876543210', email: 'buyer@example.test',
+      addressLine1: 'Private Street', addressLine2: '', city: 'Delhi', state: 'Delhi', pincode: '110001' },
+  }, 'LUV-2026-001'));
+  const message = link.searchParams.get('text')!;
+  expect(link.origin).toBe('https://wa.me');
+  expect(message).toContain('Online order paid — Luvia Creations');
+  expect(message).toContain('Order reference: LUV-2026-001');
+  expect(message).toContain('Payment status: Verified');
+  expect(message).toContain('Rose Clip — Red × 2');
+  expect(message).not.toContain('Private Street');
+  expect(message).not.toContain('9876543210');
+});
+
 it('includes the selected variant even for a single-variant product and links to that variant', async () => {
   const { getProductWhatsAppLink } = await import('./whatsapp');
   const text = new URL(getProductWhatsAppLink(product, product.variants[0])).searchParams.get('text')!;

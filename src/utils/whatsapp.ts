@@ -45,6 +45,23 @@ export const getProductWhatsAppLink = (product: Product, variant?: ProductVarian
 export const getCartWhatsAppLink = (cart: Cart) =>
   whatsappLink(buildWhatsAppCartMessage(cart));
 
+export const getConfirmedOrderWhatsAppLink = (cart: Cart, orderReference: string) => {
+  const items = cart.items.map(item =>
+    `• ${item.productName}${item.variantName ? ` — ${item.variantName}` : ''} × ${item.quantity}`,
+  );
+  const message = [
+    '*Online order paid — Luvia Creations*',
+    `Order reference: ${orderReference}`,
+    'Payment status: Verified',
+    '',
+    'Items:',
+    ...items,
+    '',
+    'Please check the order confirmation email for the paid amount and delivery details. Kindly confirm receipt.',
+  ].join('\n');
+  return whatsappLink(message);
+};
+
 export const getCheckoutSupportWhatsAppLink = () =>
   whatsappLink('Hi Luvia, I need help with online checkout.');
 

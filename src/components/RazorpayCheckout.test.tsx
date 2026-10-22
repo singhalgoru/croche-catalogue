@@ -78,6 +78,9 @@ it('uses saved delivery details and confirms a real order only after backend ver
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Order confirmed — LUV-LIVE'));
   expect(screen.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeTruthy();
   expect(screen.getByText(/Please check your inbox and Spam folder/)).toBeTruthy();
+  const whatsapp = screen.getByRole('link', { name: 'Send order to seller on WhatsApp' });
+  expect(whatsapp.getAttribute('href')).toContain('wa.me/919205907350');
+  expect(new URL(whatsapp.getAttribute('href')!).searchParams.get('text')).toContain('Order reference: LUV-LIVE');
   expect(screen.queryByText(/Close any earlier payment windows/)).toBeNull();
   expect(verify).toHaveBeenCalledWith(response, true);
   expect(screen.queryByRole('button', { name: 'Proceed to payment' })).toBeNull();

@@ -6,7 +6,7 @@ import { formatINR } from '../utils/currency';
 import { trackCartStep, trackEvent } from '../services/analytics';
 import { trackVerifiedPurchase } from '../services/purchaseAnalytics';
 import { calculateEstimatedDeliveryDate, renderGoogleCustomerReviewsOptIn } from '../services/googleCustomerReviews';
-import { getCheckoutSupportWhatsAppLink } from '../utils/whatsapp';
+import { getCheckoutSupportWhatsAppLink, getConfirmedOrderWhatsAppLink } from '../utils/whatsapp';
 
 interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string }
 
@@ -274,6 +274,13 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         <h3 className="font-heading text-xl font-bold text-green-800">Thank you! Your order is confirmed.</h3>
         <p className="mt-2 text-sm text-green-900">Payment received successfully. Do not pay again.</p>
         <p className="mt-2 text-sm text-cocoa">Your order confirmation is sent separately by email. Please check your inbox and Spam folder. Contact orders@luviacreations.com if it does not arrive.</p>
+        {confirmedOrderId && <div className="mt-3">
+          <a href={getConfirmedOrderWhatsAppLink(cart, confirmedOrderId)} target="_blank" rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-green-800 px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+            Send order to seller on WhatsApp
+          </a>
+          <p className="mt-1 text-xs text-cocoa/70">WhatsApp opens with the order summary ready. Review it and tap Send to notify the seller.</p>
+        </div>}
       </div>}
       {showRecovery && <div role="status" aria-live="polite" aria-atomic="true">
         {interruption !== 'blocked' && <p className="mb-2 inline-flex rounded-full bg-amber-200 px-3 py-1 text-xs font-bold uppercase tracking-wide text-cocoa">
