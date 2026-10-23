@@ -241,7 +241,7 @@ it('renews an expired checkout even when cart details have not changed', async (
   await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
   const original = createOrder.mock.calls[0][0].requestKey;
   options.modal.ondismiss();
-  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('closed'));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('confirmation has not arrived'));
   status.mockResolvedValue({ status: 'expired', reference: 'LUV-EXPIRED' });
   fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
   await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
@@ -261,10 +261,10 @@ it.each(['closed', 'failed'] as const)('prominently recovers a %s live payment w
   options.modal.ondismiss();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Resume secure payment' })).toBeTruthy());
   expect(screen.getByRole('heading', { name: interruption === 'failed'
-    ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.' })).toBeTruthy();
+    ? "Payment didn't go through. Let's get you back on track." : 'Waiting for your payment confirmation.' })).toBeTruthy();
   expect(screen.getByRole('status').textContent).toContain('If money was debited');
-  expect(screen.getByText('Payment incomplete')).toBeTruthy();
-  expect(screen.getByText('Your handmade favourites are one step away. Complete your payment to make them yours.')).toBeTruthy();
+  expect(screen.getByText(interruption === 'failed' ? 'Payment incomplete' : 'Awaiting payment confirmation')).toBeTruthy();
+  if (interruption === 'failed') expect(screen.getByText('Your handmade favourites are one step away. Complete your payment to make them yours.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Resume secure payment' }).className).toContain('bg-mustard');
   expect(screen.getByRole('link', { name: 'Get payment help on WhatsApp' }).getAttribute('href')).toContain('https://wa.me/');
   fireEvent.click(screen.getByRole('button', { name: 'Resume secure payment' }));
@@ -284,6 +284,32 @@ it('never offers resume payment when a failed attempt later needs verification',
   await waitFor(() => expect(screen.getByRole('button', { name: 'Retry payment verification' })).toBeTruthy());
   expect(screen.queryByRole('button', { name: 'Resume secure payment' })).toBeNull();
   expect(screen.queryByText(/Let's get you back on track/)).toBeNull();
+});
+
+it('does not show abandonment or failure recovery while the payment window is active', async () => {
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await proceed();
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  failed({ error: { description: 'One method declined; another can be selected' } });
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('One method declined'));
+  expect(screen.queryByText('Payment incomplete')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Resume secure payment' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Payment in progress…' }).hasAttribute('disabled')).toBe(true);
+});
+
+it('treats dismissal during a UPI handoff as unconfirmed, then accepts a delayed successful callback', async () => {
+  render(<RazorpayCheckout cart={cart} disabled={false} live />);
+  await proceed();
+  await waitFor(() => expect(open).toHaveBeenCalled());
+  options.modal.ondismiss();
+  await waitFor(() => expect(screen.getByText('Awaiting payment confirmation')).toBeTruthy());
+  expect(screen.getByRole('status').textContent).toContain('bank or UPI app');
+  expect(screen.queryByText('Payment incomplete')).toBeNull();
+  expect(screen.queryByText(/Not ready just yet/)).toBeNull();
+  options.handler({ razorpay_order_id: 'order_test', razorpay_payment_id: 'pay_test', razorpay_signature: 'signature' });
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Thank you! Your order is confirmed.' })).toBeTruthy());
+  expect(screen.queryByText('Awaiting payment confirmation')).toBeNull();
+  expect(createOrder).toHaveBeenCalledTimes(1);
 });
 it('verifies all response fields and never reports a real purchase', async () => {
   render(<RazorpayCheckout cart={cart} disabled={false} />);

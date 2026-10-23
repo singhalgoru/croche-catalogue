@@ -68,7 +68,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
     const sync = async () => {
       try {
         const latest = await fetchLiveCheckoutRecovery(cart.id);
-        if (!current || paid.current) return;
+        if (!current || paid.current || locked.current) return;
         if (!latest) { setMessage(''); return; }
         if (request.current?.key !== latest.requestKey) {
           request.current = { fingerprint: latest.cartMatches ? cartFingerprint : '', key: latest.requestKey };
@@ -160,6 +160,8 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
 
   const verify = async (payment: PaymentResponse) => {
     paid.current = true;
+    setInterruption(null);
+    setMessage('Checking your payment with Razorpay. Please wait; do not pay again.');
     setPending(payment);
     setBusy(true);
     try { saveCheckoutRecovery(cart.id, { request: request.current, pending: payment, verified: false }, live); }
@@ -236,7 +238,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
             if (live) {
               if (!paymentFailed.current) {
                 setInterruption('closed');
-                setMessage('Payment window closed. Your order is not confirmed yet. Your cart and delivery details are still here, so you can pick up where you left off.');
+                setMessage('Payment confirmation has not arrived yet. If you are approving payment in your bank or UPI app, finish there and wait here. Your cart and delivery details are saved. Do not start another payment while one is in progress.');
               }
             } else setMessage('Test checkout closed. No order was placed.');
           },
@@ -264,7 +266,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       setMessage(failureMessage);
     }
   };
-  const showRecovery = live && interruption !== null && !verified && !pending;
+  const showRecovery = live && interruption !== null && !verified && !pending && !busy;
   return (
     <section className={live && verified
       ? 'mt-3 rounded-xl border border-green-200 bg-green-50 p-4'
@@ -284,20 +286,20 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       </div>}
       {showRecovery && <div role="status" aria-live="polite" aria-atomic="true">
         {interruption !== 'blocked' && <p className="mb-2 inline-flex rounded-full bg-amber-200 px-3 py-1 text-xs font-bold uppercase tracking-wide text-cocoa">
-          Payment incomplete
+          {interruption === 'failed' ? 'Payment incomplete' : 'Awaiting payment confirmation'}
         </p>}
         <h3 className="font-heading text-xl font-bold text-cocoa">
           {interruption === 'blocked' ? 'An earlier payment needs checking.'
-            : interruption === 'failed' ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.'}
+            : interruption === 'failed' ? "Payment didn't go through. Let's get you back on track." : 'Waiting for your payment confirmation.'}
         </h3>
-        {interruption !== 'blocked' && <p className="mt-2 text-base font-bold text-cocoa">
+        {interruption === 'failed' && <p className="mt-2 text-base font-bold text-cocoa">
           Your handmade favourites are one step away. Complete your payment to make them yours.
         </p>}
         <p className="mt-2 break-words text-sm text-cocoa">{message || 'Your saved checkout is available. Your order is not confirmed yet.'}</p>
         <p className="mt-2 text-sm font-semibold text-cocoa">
           {interruption === 'blocked'
             ? 'We cannot safely start another payment from this checkout. Contact Luvia to check the earlier payment and help you continue. '
-            : busy ? 'Close the payment window to resume here, or try another method within it. ' : 'Resume securely and choose your preferred payment method. '}
+            : interruption === 'closed' ? 'Only resume if you have stopped the earlier payment and no money was debited. ' : 'Resume securely and choose your preferred payment method. '}
           If money was debited, contact Luvia before paying again.
         </p>
       </div>}
