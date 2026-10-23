@@ -19,10 +19,15 @@ begin
   perform set_config('request.jwt.claim.sub', customer_id::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
   insert into public.carts(user_id) values(customer_id) returning id into test_cart_id;
+  perform set_config('request.jwt.claim.role','service_role',true);
+  update public.carts set delivery_pin_code='110001',delivery_pin_location='{"city":"Delhi"}',
+    delivery_pin_checked_at=now(),delivery_pin_lookup_at=now(),
+    delivery_estimate='{"provider":"shiprocket","minCharge":75}' where id=test_cart_id;
+  perform set_config('request.jwt.claim.role','authenticated',true);
   insert into public.payment_orders(reference,request_key,created_by,customer_user_id,customer_name,customer_contact,
     customer_email,subtotal_paise,shipping_paise,total_paise,expires_at,status,is_live_checkout,delivery_details,created_at)
     values ('TEST-CANCEL-' || customer_id,gen_random_uuid(),customer_id,customer_id,'Test Buyer','+919876543210',
-      customer_id::text || '@orders.test',10000,0,10000,now()-interval '1 hour','cancelled',true,'{}',now())
+      customer_id::text || '@orders.test',10000,0,10000,now()-interval '1 hour','cancelled',true,'{"email":"buyer@example.test"}',now())
     returning id into cancelled_id;
   insert into public.payment_order_items(order_id,product_id,variant_id,product_name,variant_name,image_url,unit_price_paise,quantity)
     values(cancelled_id,product_id,variant_id,'Old product name','Old variant name','https://example.test/photo.jpg',10000,2),
@@ -31,7 +36,7 @@ begin
     customer_email,subtotal_paise,shipping_paise,total_paise,expires_at,status,is_live_checkout,delivery_details,
     razorpay_order_id,paid_at,created_at)
     values ('TEST-PAID-' || customer_id,gen_random_uuid(),customer_id,customer_id,'Test Buyer','+919876543210',
-      customer_id::text || '@orders.test',10000,0,10000,now()-interval '1 hour','paid',true,'{}',
+      customer_id::text || '@orders.test',10000,0,10000,now()-interval '1 hour','paid',true,'{"email":"buyer@example.test"}',
       'order_test_' || customer_id,now()-interval '2 days',now()-interval '2 days')
     returning id into paid_id;
   insert into public.payment_order_items(order_id,product_id,variant_id,product_name,variant_name,image_url,unit_price_paise,quantity)
@@ -41,7 +46,7 @@ begin
       customer_email,subtotal_paise,shipping_paise,total_paise,expires_at,status,is_live_checkout,delivery_details)
       values ('TEST-OLD-' || customer_id || '-' || i,gen_random_uuid(),customer_id,customer_id,'Test Buyer','+919876543210',
         customer_id::text || '@orders.test',10000,0,10000,now()-interval '1 hour',
-        case when i=1 then 'expired' when i=2 then 'link_failed' else 'cancelled' end,true,'{}')
+        case when i=1 then 'expired' when i=2 then 'link_failed' else 'cancelled' end,true,'{"email":"buyer@example.test"}')
       returning id into expired_id;
     if i=2 then failed_id := expired_id; end if;
   end loop;
@@ -50,6 +55,19 @@ begin
     raise exception 'Active orders must sort before pagination.';
   end if;
   result := public.reorder_customer_order(cancelled_id,test_cart_id);
+  if not exists(select 1 from public.carts where id=test_cart_id and delivery_pin_code='110001'
+    and delivery_pin_location='{"city":"Delhi"}'::jsonb and delivery_pin_checked_at is not null
+    and delivery_pin_lookup_at is not null and delivery_estimate is null) then
+    raise exception 'Reorder must preserve the verified destination and discard stale courier rates.';
+  end if;
+  denied := false;
+  begin update public.carts set delivery_estimate='{"minCharge":1}' where id=test_cart_id;
+  exception when raise_exception then denied := true; end;
+  if not denied then raise exception 'Customer forged a courier estimate.'; end if;
+  denied := false;
+  begin update public.carts set delivery_pin_code='400001' where id=test_cart_id;
+  exception when raise_exception then denied := true; end;
+  if not denied then raise exception 'Customer bypassed PIN verification.'; end if;
   if (result->>'added')::int <> 1 or jsonb_array_length(result->'skipped') <> 1 then
     raise exception 'Reorder must add available items and report deleted items.';
   end if;

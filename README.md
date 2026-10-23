@@ -455,6 +455,10 @@ src/components/admin/ProductVideoManager.test.tsx src/services/productVideos.tes
 scripts/process-product-videos.test.ts scripts/product-video-queue.test.ts
 scripts/product-video-permissions.test.ts supabase/functions/product-videos/index.test.ts`.
 The processor test uses local FFmpeg/FFprobe and synthetic media, not remote storage.
+Deployment CI reuses FFmpeg and FFprobe already on the runner. Only when either
+is missing does it install the package, with bounded network retries/timeouts
+and a five-minute step limit. Both binaries are verified before tests; missing
+tools fail verification rather than skipping video tests.
 `supabase/tests/product_making_videos.sql` is a rollback-only database integration
 test for a migrated test database with a published fixture product; execute with
 `psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/product_making_videos.sql`.
@@ -523,6 +527,7 @@ transactional `supabase/tests/cron_run_history.sql` test after deployment.
 - Cart Price breakdown is expanded by default and can still be collapsed by the shopper.
 - Signed-in customers can open a full-page My orders view from their header name icon or hamburger menu. Confirmed/processing/shipped orders sort first before pagination; delivered, cancelled and failed orders follow. Cancelled or expired unpaid orders can be hidden in a separate paginated Hidden orders view and restored without changing admin or payment records.
 - Reorder copies available order variants into the customer's existing cart at current prices and minimum quantities. Deleted/unpublished variants, insufficient stock (including live payment reservations), unavailable prices and cart limits are reported explicitly. Successful and failed/cancelled/expired orders can be reordered; pending or under-review payments are blocked to avoid duplicate payment attempts. Reorder never pays automatically. Apply `20261011040000_customer_order_actions.sql` before deploying the frontend.
+- Reorder invalidates the old courier quote while retaining an unchanged verified delivery PIN. Migration `20261023183000_allow_cart_estimate_invalidation.sql` permits clearing a stale estimate without bypassing destination verification; only the verification service can supply a new estimate.
 - Saved addresses are selectable in both delivery and review, including when only one is available. Choosing another address saves its pincode and recalculates shipping before review; live checkout requires a contact email.
 - Cart additions and quantity updates validate variant inventory in the database, subtracting other carts' active payment reservations without double-counting the same cart's reservation. Cart and product-page quantity controls stop at displayed stock; previously saved excess quantities block checkout with a reduction message. Adding to a cart does not reserve stock, so payment preparation and settlement still recheck inventory. Deploy `20261014223500_check_cart_item_inventory.sql` before the frontend.
 - Stock-limit rejections use a shared cream/mustard/cocoa notice with customer-facing available-quantity copy in the catalogue and cart. Other errors retain their original details and error styling.
