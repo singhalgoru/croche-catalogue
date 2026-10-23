@@ -9,8 +9,8 @@ vi.mock('../services/customer', () => ({ fetchWelcomeOffer: vi.fn() }));
 
 vi.mock('../services/checkout', () => ({ fetchLiveCheckoutEnabled: vi.fn().mockResolvedValue(false) }));
 vi.mock('./RazorpayCheckout', () => ({
-  default: ({ cart, onConfirmed }: { cart: Cart; onConfirmed: (request: string, cart: Cart) => void }) =>
-    <button onClick={() => onConfirmed('verified-request', cart)}>Simulate verified payment</button>,
+  default: ({ cart, live, onConfirmed }: { cart: Cart; live?: boolean; onConfirmed?: (request: string, cart: Cart) => void }) =>
+    live ? <button onClick={() => onConfirmed?.('verified-request', cart)}>Simulate verified payment</button> : null,
 }));
 const cart: Cart = {
   id: 'cart', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '', whatsappStartedAt: null,
