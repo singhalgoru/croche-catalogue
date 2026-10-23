@@ -23,6 +23,19 @@ begin
   if not exists(select 1 from public.seller_orders where id=target and reference ~ '^LUV-OFFLINE-[A-F0-9]{8}$') then
     raise exception 'Offline order reference must use LUV-OFFLINE-XXXXXXXX.';
   end if;
+  declare
+    manual_id uuid;
+    sale_channel text;
+  begin
+    foreach sale_channel in array array['whatsapp','instagram','online','other'] loop
+      manual_id=public.create_seller_order(
+        jsonb_set(jsonb_set(items,'{0,channel}',to_jsonb(sale_channel)),'{1,channel}',to_jsonb(sale_channel)),0,0);
+      if not exists(select 1 from public.seller_orders where id=manual_id and reference ~ '^LUV-OFFLINE-[A-F0-9]{8}$') then
+        raise exception 'Manually recorded % orders must use LUV-OFFLINE references.',sale_channel;
+      end if;
+      perform public.delete_seller_order(manual_id);
+    end loop;
+  end;
   if (select count(*) from public.seller_sales where order_id=target)<>2
     or exists(select 1 from public.seller_sales where order_id=target and (shipping_cost<>0 or packaging_cost<>0))
     or not exists(select 1 from public.seller_orders where id=target and shipping_cost=100 and packaging_cost=30) then
