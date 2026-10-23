@@ -24,6 +24,7 @@ interface Props {
   onCreateAccount?: () => void;
   pageStep?: 'cart' | 'delivery' | 'review' | 'confirmation';
   onNavigateStep?: (step: 'cart' | 'delivery' | 'review' | 'confirmation', requestId?: string) => void;
+  onPaymentConfirmed?: () => void;
   confirmationRequest?: string;
   onSaveDeliveryDetails?: (value: DeliveryDetails) => Promise<Cart | null>;
   onSelectWelcomeCoupon?: (code: string) => Promise<Cart | null>;
@@ -58,14 +59,17 @@ export default function CartDrawer({
   onSaveDeliveryPin,
   onSaveDeliveryDetails,
   onSelectWelcomeCoupon,
-  pageStep,
+  pageStep: requestedPageStep,
   onNavigateStep,
+  onPaymentConfirmed,
   confirmationRequest,
   accountName,
   onCreateAccount,
 }: Props) {
-  const isPage = Boolean(pageStep);
   const [paidCart, setPaidCart] = useState<Cart | null>(null);
+  const pageStep = paidCart && requestedPageStep ? 'confirmation' : requestedPageStep;
+  const isPage = Boolean(pageStep);
+  const confirmedRequest = useRef<string | null>(null);
   // Desktop browsers with no mail client registered silently ignore mailto:
   // links, so reveal webmail and copy fallbacks once Email has been tried.
   const [hasTriedEmail, setHasTriedEmail] = useState(false);
@@ -483,9 +487,14 @@ export default function CartDrawer({
             {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live
               confirmationOnly={pageStep === 'confirmation'}
               confirmationRequest={confirmationRequest}
-              onConfirmed={(requestId, purchasedCart) => { if (isPage && pageStep !== 'confirmation') {
-                setPaidCart(purchasedCart.items.length ? purchasedCart : null); onNavigateStep?.('confirmation', requestId);
-              } }}
+              onConfirmed={(requestId, purchasedCart) => {
+                const key = requestId ?? purchasedCart.id;
+                if (confirmedRequest.current === key) return;
+                confirmedRequest.current = key;
+                setPaidCart(purchasedCart.items.length ? purchasedCart : null);
+                if (isPage && requestedPageStep !== 'confirmation') onNavigateStep?.('confirmation', requestId);
+                onPaymentConfirmed?.();
+              }}
               disabled={pageStep === 'confirmation' || isBusy || !checkoutCart.deliveryDetails || !checkoutCart.deliveryDetails.email?.trim() || hasUnpricedItems || unavailableItemIds.size > 0
                 || belowMinimumItemIds.size > 0 || Boolean(totals?.couponShortfall)} />}
             {!liveCheckout && pageStep !== 'confirmation' && <div className="mt-2 grid grid-cols-2 gap-2">

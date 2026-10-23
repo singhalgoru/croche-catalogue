@@ -50,6 +50,24 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it('refreshes the settled server cart and badge without clearing newly added items', async () => {
+  const { result } = renderHook(() => useCart());
+  await act(async () => {});
+  const remaining = { ...cart, items: [{
+    id: 'new-item', productId: product.id, variantId: variant.id, productName: product.name,
+    variantName: variant.name, image: variant.image, unitPrice: 200, quantity: 2,
+  }] };
+  fetchCart.mockResolvedValueOnce(remaining);
+  await act(async () => { await result.current.refresh(); });
+  expect(result.current.cart).toEqual(remaining);
+  expect(result.current.itemCount).toBe(2);
+  expect(clear).not.toHaveBeenCalled();
+  expect(trackCartChanges).not.toHaveBeenCalled();
+  fetchCart.mockResolvedValueOnce(cart);
+  await act(async () => { await result.current.refresh(); });
+  expect(result.current.itemCount).toBe(0);
+});
+
 it('publishes the confirmed cart and feedback before running analytics after paint', async () => {
   const { result } = renderHook(() => useCart());
   await act(async () => { await result.current.addItem(product, variant); });

@@ -4,15 +4,41 @@ import CartDrawer from './CartDrawer';
 import type { Cart } from '../types/cart';
 import { getCartTotals, getFreeDeliveryShortfall } from '../utils/cartMessage';
 import { fetchWelcomeOffer } from '../services/customer';
+import { fetchLiveCheckoutEnabled } from '../services/checkout';
 vi.mock('../services/customer', () => ({ fetchWelcomeOffer: vi.fn() }));
 
 vi.mock('../services/checkout', () => ({ fetchLiveCheckoutEnabled: vi.fn().mockResolvedValue(false) }));
+vi.mock('./RazorpayCheckout', () => ({
+  default: ({ cart, onConfirmed }: { cart: Cart; onConfirmed: (request: string, cart: Cart) => void }) =>
+    <button onClick={() => onConfirmed('verified-request', cart)}>Simulate verified payment</button>,
+}));
 const cart: Cart = {
   id: 'cart', reference: 'CRT-TEST', status: 'active', updatedAt: '', expiresAt: '', whatsappStartedAt: null,
   items: [{ id: 'item', productId: 'product', variantId: 'variant', productName: 'Flower', variantName: '',
     image: '', quantity: 1, unitPrice: 499 }],
 };
 afterEach(cleanup);
+
+it('immediately replaces the editable cart with confirmation and refreshes server cart after verified payment', async () => {
+  vi.mocked(fetchLiveCheckoutEnabled).mockResolvedValueOnce(true);
+  const navigate = vi.fn();
+  const refresh = vi.fn();
+  render(<CartDrawer cart={cart} pageStep="review" products={[]} isLoading={false} isBusy={false} error={null}
+    onClose={vi.fn()} onUpdateQuantity={vi.fn()} onRemove={vi.fn()} onClear={vi.fn()}
+    onWhatsAppStarted={vi.fn()} onEmailStarted={vi.fn()} onOpenProduct={vi.fn()} onSaveDeliveryPin={vi.fn()}
+    onNavigateStep={navigate} onPaymentConfirmed={refresh} />);
+  const confirm = await screen.findByRole('button', { name: 'Simulate verified payment' });
+  expect(refresh).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Remove Flower from cart' })).toBeTruthy();
+  fireEvent.click(confirm);
+  expect(screen.getByRole('heading', { name: 'Order confirmation' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Remove Flower from cart' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Continue shopping' })).toBeTruthy();
+  expect(navigate).toHaveBeenCalledExactlyOnceWith('confirmation', 'verified-request');
+  expect(refresh).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Simulate verified payment' }));
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
 const renderCart = (value: Cart, onClose = vi.fn(), onCreateAccount?: () => void, accountName?: string) => render(<CartDrawer cart={value} pageStep="cart" products={[]}
   onCreateAccount={onCreateAccount} accountName={accountName}
   isLoading={false} isBusy={false} error={null} onClose={onClose} onUpdateQuantity={vi.fn()}

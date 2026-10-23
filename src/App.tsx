@@ -578,6 +578,7 @@ function App() {
       pageStep={checkoutStep ?? 'cart'}
       confirmationRequest={checkoutStep === 'confirmation' ? new URLSearchParams(window.location.search).get('checkoutRequest') ?? undefined : undefined}
       onNavigateStep={navigateCheckout}
+      onPaymentConfirmed={() => { void cart.refresh(); }}
       cart={cart.cart}
       products={products}
       isLoading={cart.isLoading}

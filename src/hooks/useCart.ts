@@ -150,6 +150,7 @@ export function useCart(enabled = true) {
       runCartAction(() => updateCartItemQuantity(itemId, quantity, minimumQuantity), false, true),
     removeItem: (itemId: string) => runCartAction(() => removeCartItem(itemId), false, true),
     clear: () => runCartAction(clearCart, false, true),
+    refresh: () => runCartAction(fetchCart),
     saveDeliveryPin: (value: string) => runCartAction(() => updateCartDeliveryPin(value), true),
     saveDeliveryDetails: (value: DeliveryDetails) => runCartAction(() => saveCartDeliveryDetails(value), true),
     selectWelcomeCoupon: (code: string) => runCartAction(() => selectCartWelcomeCoupon(code), true),
