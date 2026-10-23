@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../types/product';
 import { trackEvent } from '../services/analytics';
-import { toProductPageUrl } from '../utils/productLink';
+import { toProductPageUrl, toPublicProductSlug } from '../utils/productLink';
 import { ShareIcon } from './SocialIcons';
 import { productImageProtection } from '../utils/imageProtection';
 
@@ -106,12 +106,12 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
   return (
     <section ref={sectionRef} id={MAKING_VIDEO_ID} aria-label="Making video" className="my-5 scroll-mt-24 rounded-xl border border-cocoa/15 p-3">
       <h3 className="mb-2 font-heading text-lg font-semibold text-cocoa">{video.title || 'See how it’s made'}</h3>
-      {requested ? (
+      <div className="relative">
         <video
           {...productImageProtection}
           key={video.videoUrl}
           ref={(element) => {
-            if (element && !started.current) {
+            if (element && requested && !started.current) {
               started.current = true;
               void element.play().catch(() => {
                 setNeedsPlayTap(true);
@@ -151,8 +151,8 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           onEnded={() => event('making_video_complete')}
           onError={() => { setError(true); event('making_video_error'); }}
         />
-      ) : (
-        <button type="button" data-making-play className="relative block w-full overflow-hidden rounded-lg bg-cream"
+      {!requested && (
+        <button type="button" data-making-play className="absolute inset-0 block w-full overflow-hidden rounded-lg bg-cream"
           onClick={() => { setRequested(true); event('making_video_request'); }}
           aria-label={`Play making video for ${product.name}`}>
           <img {...productImageProtection} src={video.posterUrl} alt={`Preview of ${product.name} being made`} loading="lazy" width={video.width} height={video.height}
@@ -162,6 +162,9 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
           </span>
         </button>
       )}
+      </div>
+      <a href={`/watch/${toPublicProductSlug(product)}/`}
+        className="mt-2 inline-block text-sm text-cocoa underline">Open making video page</a>
       <button type="button" aria-label="Share making video" title="Share making video" disabled={sharing} onClick={() => void share()}
         className="mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/30 text-cocoa disabled:opacity-50">
         <ShareIcon className="h-5 w-5" />
@@ -177,6 +180,7 @@ export default function ProductMakingVideo({ product }: { product: Product }) {
       {error && <p role="alert" className="mt-2 text-sm text-red-700">
         This making video could not be played. Please try again.
         <button type="button" className="ml-2 underline" onClick={() => {
+          sectionRef.current?.querySelector('video')?.load();
           started.current = false; setRequested(false); setError(false); setNeedsPlayTap(false);
         }}>Retry video</button>
       </p>}

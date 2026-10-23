@@ -276,7 +276,7 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
   }
   // Only successfully published jobs qualify; private review drafts retain sources.
   const { data: processed, error: cleanupQueryError } = await db.from('product_video_jobs')
-    .select('id').in('status', ['ready', 'replaced'])
+    .select('id').in('status', ['ready'])
     .is('original_deleted_at', null).limit(30);
   if (cleanupQueryError) throw cleanupQueryError;
   for (const job of processed) {
@@ -294,7 +294,26 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
     console.log(`Video job ${job.id}: original deleted; processed video and poster retained`);
   }
   // Discard still authorizes deletion of the other private/public draft assets.
-  const { data: discarded, error } = await db.from('product_video_jobs').select('id,writer_active,original_upload_id')
+  const { data: replaced, error: replacedError } = await db.from('product_video_jobs')
+    .select('id,writer_active,original_upload_id,public_asset_name')
+    .eq('status', 'replaced').is('assets_deleted_at', null).limit(30);
+  if (replacedError) throw replacedError;
+  for (const job of replaced) {
+    if (job.writer_active) throw new Error(`Replaced video ${job.id} still has an active writer; cleanup was deferred.`);
+    const { data: live, error: liveError } = await db.from('product_making_videos')
+      .select('job_id').eq('job_id', job.id).limit(1);
+    if (liveError) throw liveError;
+    if (live.length) throw new Error(`Refusing to delete published video ${job.id}.`);
+    await deleteVideoDraftAssets(r2, objectUrl(env.R2_ORIGINALS_BUCKET, '').replace(/\/$/, ''),
+      [...new Set([env.R2_VIDEO_BUCKET || env.R2_BUCKET, env.R2_BUCKET])]
+        .map(bucket => objectUrl(bucket, '').replace(/\/$/, '')), job.id, job.original_upload_id,
+      job.public_asset_name, true);
+    if (!await rpc('finish_replaced_product_video_cleanup', { p_job_id: job.id })) {
+      throw new Error('Replaced video cleanup was not confirmed. Retry the processing workflow.');
+    }
+    console.log(`Video job ${job.id}: replaced assets deleted and verified`);
+  }
+  const { data: discarded, error } = await db.from('product_video_jobs').select('id,writer_active,original_upload_id,public_asset_name')
     .eq('status', 'discarding').limit(30);
   if (error) throw error;
   for (const job of discarded) {
@@ -302,7 +321,7 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
     try {
       await deleteVideoDraftAssets(r2, objectUrl(env.R2_ORIGINALS_BUCKET, '').replace(/\/$/, ''),
         [...new Set([env.R2_VIDEO_BUCKET || env.R2_BUCKET, env.R2_BUCKET])]
-          .map(bucket => objectUrl(bucket, '').replace(/\/$/, '')), job.id, job.original_upload_id);
+          .map(bucket => objectUrl(bucket, '').replace(/\/$/, '')), job.id, job.original_upload_id, job.public_asset_name);
       if (!await rpc('finish_product_video_discard', { p_job_id: job.id })) {
         throw new Error('Draft cleanup was not confirmed. Retry discard cleanup.');
       }
@@ -316,7 +335,7 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
   if (remainingError) throw remainingError;
   // GitHub keeps one pending run per concurrency group. Chain only actual queued
   // work so bursts above three uploads drain without any recurring idle schedule.
-  if (remaining.length || processed.length === 30) await rpc('request_product_video_processing');
+  if (remaining.length || processed.length === 30 || replaced.length === 30) await rpc('request_product_video_processing');
   if (failed) throw new Error('One or more video jobs failed; details are visible in the admin and workflow log.');
 }
 

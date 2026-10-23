@@ -8,6 +8,16 @@ const workflow = readFileSync(new URL('../.github/workflows/process-product-vide
 const music = readFileSync(new URL('../supabase/migrations/20261018160000_product_video_music.sql', import.meta.url), 'utf8');
 const audioPolicy = readFileSync(new URL('../supabase/migrations/20261018190000_product_video_audio_policy.sql', import.meta.url), 'utf8');
 const multipart = readFileSync(new URL('../supabase/migrations/20261018173000_product_video_multipart.sql', import.meta.url), 'utf8');
+it('persists product-readable asset names and restricts verified replacement cleanup to retired jobs', () => {
+  const cleanup = readFileSync(new URL('../supabase/migrations/20261023140000_product_video_asset_cleanup.sql', import.meta.url), 'utf8');
+  expect(cleanup).toContain('public_asset_name=coalesce(j.public_asset_name');
+  expect(cleanup).toContain('if not public.is_catalogue_admin()');
+  expect(cleanup).toContain("j.status='replaced' and not j.writer_active");
+  expect(cleanup).toContain('not exists(select 1 from product_making_videos v where v.job_id=j.id)');
+  expect(cleanup).toContain('from public,anon,authenticated');
+  expect(cleanup).toContain('grant execute on function public.finish_replaced_product_video_cleanup(uuid) to service_role');
+  expect(workflow).toContain('and(status.eq.replaced,assets_deleted_at.is.null)');
+});
 it('bounds multipart originals to 500 MB, serializes writers and restricts transfer completion to the service role', () => {
   expect(multipart).toContain('source_bytes between 1 and 524288000');
   expect(multipart).toContain('if not public.is_catalogue_admin()');

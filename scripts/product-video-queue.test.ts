@@ -16,6 +16,8 @@ let jobs: { id: string; lease: string; source_bytes: number; music_bytes?: numbe
 let publish = true;
 let discarded: { id: string; writer_active: boolean; original_upload_id?: string }[] = [];
 let processed: { id: string }[] = [];
+let replaced: { id: string; writer_active: boolean; public_asset_name?: string }[] = [];
+let live: { job_id: string }[] = [];
 const encode = vi.fn(async (_input: string, output: string, poster: string, _run?: unknown, _music?: unknown) => {
   await writeFile(output, 'encoded');
   await writeFile(poster, 'poster');
@@ -28,18 +30,20 @@ beforeEach(() => {
   publish = true;
   discarded = [];
   processed = [];
+  replaced = []; live = [];
   jobs = [{ id, lease: id, source_bytes: 3 }];
   rpc.mockImplementation(async (name: string, args: { p_error?: string }) => ({
     data: name === 'claim_product_video' ? jobs.splice(0, 1)
       : name === 'finish_product_video_discard' ? !args?.p_error : args?.p_error ? false : publish, error: null,
   }));
   let filter = '';
-  const query = { select: () => query, eq: (_column: string, value: string) => { filter = value; return query; },
+  const query = { select: () => query, eq: (column: string, value: string) => { filter = column === 'job_id' ? 'live' : value; return query; },
     in: (_column: string, statuses: string[]) => {
-      expect(statuses).toEqual(['ready', 'replaced']);
+      expect(statuses).toEqual(['ready']);
       filter = 'processed'; return query;
     }, is: () => query,
-    limit: async () => ({ data: filter === 'processed' ? processed : filter === 'discarding' ? discarded : jobs.filter(() => true), error: null }) };
+    limit: async () => ({ data: filter === 'processed' ? processed : filter === 'discarding' ? discarded
+      : filter === 'replaced' ? replaced : filter === 'live' ? live : jobs.filter(() => true), error: null }) };
   from.mockReturnValue(query);
   storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
     new Response(options?.method ? null : 'mp4', { status: 200 }));
@@ -90,6 +94,35 @@ it('keeps the original after processing into a private review draft', async () =
   expect(rpc).toHaveBeenCalledWith('finish_product_video', expect.objectContaining({ p_duration: 20 }));
   expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE')).toHaveLength(0);
   expect(rpc.mock.calls.some(call => call[0] === 'finish_product_video_original_cleanup')).toBe(false);
+});
+
+it.each([undefined, 'rose-charm'])('deletes and verifies replaced assets in private and both public buckets (%s)', async publicName => {
+  jobs = []; replaced = [{ id, writer_active: false, public_asset_name: publicName }];
+  storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
+    new Response(null, { status: options?.method === 'HEAD' ? 404 : 204 }));
+  await processQueue({ ...env, R2_VIDEO_BUCKET: 'videos' }, { encode });
+  const deletes = storageFetch.mock.calls.filter(call => call[1]?.method === 'DELETE').map(call => call[0]);
+  expect(deletes).toContain(`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/music.bin`);
+  for (const bucket of ['public', 'videos']) {
+    expect(deletes).toContain(`https://account.r2.cloudflarestorage.com/${bucket}/making-videos/${id}/${publicName || 'video'}.mp4`);
+    expect(deletes).toContain(`https://account.r2.cloudflarestorage.com/${bucket}/making-videos/${id}/${publicName ? `${publicName}-poster` : 'poster'}.webp`);
+  }
+  expect(storageFetch.mock.calls.filter(call => call[1]?.method === 'HEAD')).toHaveLength(deletes.length);
+  expect(rpc).toHaveBeenCalledWith('finish_replaced_product_video_cleanup', { p_job_id: id });
+});
+
+it('never deletes a video still referenced by published metadata', async () => {
+  jobs = []; replaced = [{ id, writer_active: false }]; live = [{ job_id: id }];
+  await expect(processQueue(env, { encode })).rejects.toThrow('Refusing to delete published video');
+  expect(storageFetch).not.toHaveBeenCalled();
+});
+
+it.each([['DELETE', 503], ['HEAD', 200], ['HEAD', 403]])('leaves replaced cleanup retryable after %s HTTP %i', async (method, status) => {
+  jobs = []; replaced = [{ id, writer_active: false }];
+  storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
+    new Response(null, { status: options?.method === method ? status : 204 }));
+  await expect(processQueue(env, { encode })).rejects.toThrow(/cleanup failed|could not be verified/);
+  expect(rpc).not.toHaveBeenCalledWith('finish_replaced_product_video_cleanup', { p_job_id: id });
 });
 
 it.each([['DELETE', 503], ['HEAD', 200], ['HEAD', 403]])(

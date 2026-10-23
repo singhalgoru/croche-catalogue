@@ -142,8 +142,9 @@ a particular output size or encoding quality.
 The worker streams originals to its per-job working directory with backpressure,
 byte-count validation and partial-file cleanup, rather than buffering a 500 MB source.
 Music uses a separate authenticated upload bounded to 20 MB. Its private
-`making-videos/<job-id>/music.bin` source is retained after publication/removal;
-only the original video is automatically deleted after successful publication.
+`making-videos/<job-id>/music.bin` source is retained for the current published clip
+and private drafts; it is deleted with the other assets when the clip is replaced or removed.
+The original video is automatically deleted after successful publication.
 Private review plays the actual processed MP4; publication never re-encodes a different copy.
 
 Audio policy rollout: apply `20261018190000_product_video_audio_policy.sql`, deploy
@@ -192,27 +193,53 @@ Aspect ratio and camera rotation are preserved; the source is never modified.
 Watermarks deter casual reuse but can be cropped/removed; this is not DRM.
 
 Published originals are automatically deleted and their deletion is tracked in
-`original_deleted_at`. Other replaced and removed assets are retained unless an
-admin explicitly discards a draft. Discard
+`original_deleted_at`. New publications use product-readable public filenames:
+`making-videos/<job-id>/<product-name>.mp4` and `<product-name>-poster.webp`.
+The immutable job directory prevents collisions and stale cached replacements;
+the name is captured on the first publish attempt and does not change on retries.
+Existing clips keep their working legacy URLs until replaced.
+
+After a successful replacement (or explicit removal), the old job becomes
+`replaced`. The dispatched worker deletes its original, private processed video,
+poster and uploaded music, plus public copies in both the video and legacy image
+buckets. It checks that no published metadata references the old job, verifies
+each object is absent with HEAD and only then records `assets_deleted_at`.
+Failed cleanup remains pending and fails the workflow visibly; rerun
+**Process product making videos** to retry. Existing `replaced` jobs are included.
+Deploy `20261023140000_product_video_asset_cleanup.sql`, then the updated
+`product-videos` function and worker/workflow before relying on this policy.
+The shared brand music track and unrelated drafts are never deleted.
+
+Discard
 sets a persistent tombstone before attempting R2 deletion, fences in-flight upload/
 processing/publication writers, and confirms success only after all writers finish
 and deletion succeeds. Late writers clean up their own output; interrupted writers
 are recovered after a bounded 15-minute lease by a subsequent upload/discard/manual
 run. Cleanup errors remain visible and retryable; workers retry only explicitly
-authorized discard tombstones and published-original cleanup.
+authorized discard/replacement tombstones and published-original cleanup.
 It does not delete unrelated failed/old/orphan assets automatically. Enable GitHub
 Actions failure notifications for processing or cleanup failures.
 Partial public copies from a failed explicit publication are rolled back; private
 review assets are retained so publication can be retried without an original.
 
 Shoppers see a separate **See how it’s made** poster and play button on product
-pages/modals. No video element/source exists before an explicit tap; videos do not
-autoplay on page load. Native controls, inline playback and retry errors are provided.
+pages/modals. The native player and its source are present for crawler discovery,
+with `preload="none"` and no autoplay on ordinary page loads. Native controls,
+inline playback and retry errors are provided.
 The **share icon** beside the video opens native sharing, or copies a product-page
 link with `?watch=making-video#making-video`. Opening that link (or an older
 `#making-video` link) scrolls to the video after layout settles and starts muted
 playback, with **Turn sound on** available. Browser-blocked playback shows a play prompt.
-Ordinary product links still load no video until a tap.
+Ordinary product links request no MP4 until a tap.
+Published videos also have standalone `/watch/<product-slug>/` pages, linked from
+their products, with the video as the main content and no JavaScript requirement.
+Product/watch pages include `VideoObject` metadata; the sitemap includes watch URLs
+and video entries. Build-time HEAD requests read the immutable MP4's `Last-Modified`
+as its upload date without downloading it; missing/invalid dates fail the build
+rather than inventing dates. Videos removed/unpublished disappear on the next rebuild.
+This improves discovery, not a guarantee of Google video indexing: use Search Console
+URL Inspection and Video indexing reports to check the watch URLs. Merchant Center's
+product feed is unchanged; no unsupported video attributes are added.
 Sharing errors show a selectable manual link; cancelling native sharing is harmless.
 Only product ID and playback events go through the existing consent/privacy-aware
 analytics helper. The player hides the download option in supporting browsers,

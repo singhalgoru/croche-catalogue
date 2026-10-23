@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
-import { deleteVideoDraftAssets } from '../_shared/productVideoStorage.js';
+import { deleteVideoDraftAssets, videoPublicFiles } from '../_shared/productVideoStorage.js';
 import { abortVideoMultipart, completeMultipartXml, MAX_VIDEO_SOURCE_BYTES,
   multipartUploadId, multipartUrl, VIDEO_PART_BYTES } from '../_shared/productVideoMultipart.js';
 
@@ -187,10 +187,10 @@ Deno.serve(async (request) => {
     const cleanup = async (id: string) => {
       try {
         const { data: job, error } = await service.from('product_video_jobs')
-          .select('status,writer_active,original_upload_id').eq('id', id).single();
+          .select('status,writer_active,original_upload_id,public_asset_name').eq('id', id).single();
         if (error) throw error;
         if (job?.status !== 'discarding' || job.writer_active) return false;
-        await deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoints, id, job.original_upload_id);
+        await deleteVideoDraftAssets(r2, privateEndpoint, publicEndpoints, id, job.original_upload_id, job.public_asset_name);
         return await serviceRpc('finish_product_video_discard', { p_job_id: id });
       } catch (error) {
         await serviceRpc('finish_product_video_discard', { p_job_id: id, p_error: errorMessage(error) });
@@ -380,19 +380,20 @@ Deno.serve(async (request) => {
       if (!uuid.test(body.jobId)) return json({ error: 'Invalid video draft ID.' }, 400);
       const [job] = await rpc('begin_product_video_publish', { p_job_id: body.jobId });
       const base = `${publicUrl}/making-videos/${job.id}`;
+      const files = videoPublicFiles(job.public_asset_name);
       const finish = (error?: string) => serviceRpc('finish_product_video_publish', {
-        p_job_id: job.id, p_lease: job.lease, p_video_url: `${base}/video.mp4`,
-        p_poster_url: `${base}/poster.webp`, p_error: error ?? null,
+        p_job_id: job.id, p_lease: job.lease, p_video_url: `${base}/${files[0][1]}`,
+        p_poster_url: `${base}/${files[1][1]}`, p_error: error ?? null,
       });
       let published = false;
       let publicationRequested = false;
       try {
         // Server-side R2 copies: no FFmpeg or large video download in the edge request.
-        for (const [file, type] of [['video.mp4', 'video/mp4'], ['poster.webp', 'image/webp']]) {
+        for (const [source, file] of files) {
           const response = await r2.fetch(`${publicEndpoint}/making-videos/${job.id}/${file}`, {
             method: 'PUT', signal: AbortSignal.timeout(30_000),
-            headers: { 'x-amz-copy-source': `/${bucket}/making-videos/${job.id}/${file}`,
-              'x-amz-metadata-directive': 'REPLACE', 'Content-Type': type,
+            headers: { 'x-amz-copy-source': `/${bucket}/making-videos/${job.id}/${source}`,
+              'x-amz-metadata-directive': 'REPLACE', 'Content-Type': source.endsWith('.mp4') ? 'video/mp4' : 'image/webp',
               'Cache-Control': 'public, max-age=31536000, immutable' },
           });
           const result = await response.text();
@@ -412,7 +413,7 @@ Deno.serve(async (request) => {
           let failure = errorMessage(error);
           // Roll back only this failed publication's public copies, never retained
           // originals/private previews or the previously published job's assets.
-          for (const file of publicationRequested ? [] : ['video.mp4', 'poster.webp']) {
+          for (const file of publicationRequested ? [] : files.map(([, file]) => file)) {
             try {
               const response = await r2.fetch(`${publicEndpoint}/making-videos/${job.id}/${file}`, {
                 method: 'DELETE', signal: AbortSignal.timeout(30_000),

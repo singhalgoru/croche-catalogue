@@ -146,6 +146,31 @@ it('publishes to the dedicated video bucket and URL when configured', async () =
     p_poster_url: `https://videos.example.test/making-videos/${id}/poster.webp`,
   }));
 });
+
+it('publishes product-named immutable files from private review assets', async () => {
+  transfer.public_asset_name = 'rose-charm';
+  expect((await handler(request({ action: 'publish', jobId: id }))).status).toBe(200);
+  expect(storageFetch).toHaveBeenCalledWith(`https://account.r2.cloudflarestorage.com/public/making-videos/${id}/rose-charm.mp4`,
+    expect.objectContaining({ method: 'PUT', headers: expect.objectContaining({
+      'x-amz-copy-source': `/private/making-videos/${id}/video.mp4`,
+    }) }));
+  expect(serviceRpc).toHaveBeenCalledWith('finish_product_video_publish', expect.objectContaining({
+    p_video_url: `https://images.example.test/making-videos/${id}/rose-charm.mp4`,
+    p_poster_url: `https://images.example.test/making-videos/${id}/rose-charm-poster.webp`,
+  }));
+});
+
+it('rolls back product-named copies on failed replacement without deleting another job', async () => {
+  transfer.public_asset_name = 'rose-charm';
+  storageFetch.mockImplementation(async (url: string, options: { method: string }) =>
+    new Response(options.method === 'PUT' && url.endsWith('-poster.webp') ? '<Error/>' : '<CopyObjectResult/>'));
+  expect((await handler(request({ action: 'publish', jobId: id }))).status).toBe(400);
+  expect(storageFetch.mock.calls.filter(call => call[1].method === 'DELETE').map(call => call[0])).toEqual([
+    `https://account.r2.cloudflarestorage.com/public/making-videos/${id}/rose-charm.mp4`,
+    `https://account.r2.cloudflarestorage.com/public/making-videos/${id}/rose-charm-poster.webp`,
+  ]);
+  expect(status).toBe('review');
+});
 it('returns a failed publication to private review without switching the existing public metadata', async () => {
   storageFetch.mockResolvedValueOnce(new Response('<CopyObjectResult/>'))
     .mockResolvedValueOnce(new Response('<Error>copy failed</Error>'));

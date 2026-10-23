@@ -61,7 +61,9 @@ describe('fetchProducts', () => {
     expect(mapped.makingVideo).toEqual({ videoUrl: video.video_url, posterUrl: video.poster_url,
       durationSeconds: 20.5, width: 1280, height: 720 });
     expect(toProduct({ ...row, product_making_videos: [video] }).makingVideo).toEqual(mapped.makingVideo);
-    expect(renderProductPage(mapped)).not.toContain('<video');
+    expect(renderProductPage(mapped)).toContain('<video controls');
+    expect(renderProductPage(mapped)).toContain('preload="none"');
+    expect(renderProductPage(mapped)).toContain('"@type":"VideoObject"');
   });
   it('keeps offer prices and regular-price messaging in the initial page', () => {
     const discounted = toProduct({ ...row, price: 320, regular_price: 400, discount_percent: 20,

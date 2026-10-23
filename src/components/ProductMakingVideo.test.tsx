@@ -15,6 +15,7 @@ const product: Product = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 
@@ -101,9 +102,11 @@ it.each([[404, 720], [1280, 720]])('preserves the full %i x %i frame in both the
   expect(video.className).toBe(poster.className);
 });
 
-it('does not create any media source or request playback until the shopper taps', () => {
+it('exposes a crawlable player without requesting playback until the shopper taps', () => {
   const { container } = render(<ProductMakingVideo product={product} />);
-  expect(container.querySelector('video,source')).toBeNull();
+  expect(container.querySelector('video')?.getAttribute('src')).toBe(product.makingVideo!.videoUrl);
+  expect(container.querySelector('video')?.preload).toBe('none');
+  expect(screen.getByRole('link', { name: 'Open making video page' }).getAttribute('href')).toBe('/watch/rose/');
   expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   expect(container.querySelector('img')?.getAttribute('src')).toBe(product.makingVideo!.posterUrl);
   fireEvent.click(screen.getByRole('button', { name: 'Play making video for Rose' }));
@@ -129,7 +132,7 @@ it('shows an explicit error and retries without changing product photos', () => 
   fireEvent.error(container.querySelector('video')!);
   expect(screen.getByRole('alert').textContent).toContain('could not be played');
   fireEvent.click(screen.getByRole('button', { name: 'Retry video' }));
-  expect(container.querySelector('video')).toBeNull();
+  expect(container.querySelector('video')?.preload).toBe('none');
   expect(screen.getByRole('button', { name: 'Play making video for Rose' })).toBeTruthy();
   expect(product.image).toBe('/photo.webp');
 });
@@ -144,7 +147,7 @@ it('shares a clean product link anchored to the making video without fetching or
     text: 'Watch how Rose is made by Luvia Creations.',
     url: `${window.location.origin}/p/rose/?watch=making-video#making-video`,
   }));
-  expect(container.querySelector('video')).toBeNull();
+  expect(container.querySelector('video')?.preload).toBe('none');
   expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
 });
 

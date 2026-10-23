@@ -48,7 +48,8 @@ test('optional making video requests no media before a tap and plays inline with
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
   const making = page.getByRole('region', { name: 'Making video', exact: true });
   await expect(making).toBeVisible();
-  await expect(making.locator('video,source')).toHaveCount(0);
+  await expect(making.locator('video')).toHaveCount(1);
+  await expect(making.locator('video')).toHaveAttribute('preload', 'none');
   await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
   await expect(making.getByRole('img', { name: 'Preview of Rose Charm being made' })).toBeVisible();
   await expect.poll(() => making.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
@@ -61,7 +62,7 @@ test('optional making video requests no media before a tap and plays inline with
   }));
   await making.getByRole('button', { name: 'Share making video' }).click();
   await expect(page.locator('body')).toHaveAttribute('data-video-share-url', /\/p\/[^/]+\/\?watch=making-video#making-video$/);
-  await expect(making.locator('video,source')).toHaveCount(0);
+  await expect(making.locator('video')).toHaveCount(1);
   expect(requests).toHaveLength(0);
   const photos = await page.locator('img[alt^="Rose Charm"]').evaluateAll(images =>
     images.map(image => image.getAttribute('src')));
@@ -114,7 +115,7 @@ test('making-video playback errors offer retry while purchase actions remain usa
   await making.getByRole('button', { name: 'Play making video for Rose Charm' }).click();
   await expect(making.getByRole('alert')).toContainText('could not be played');
   await making.getByRole('button', { name: 'Retry video' }).click();
-  await expect(making.locator('video')).toHaveCount(0);
+  await expect(making.locator('video')).toHaveCount(1);
   await expect(making.getByRole('button', { name: 'Play making video for Rose Charm' })).toBeVisible();
   await expect(page.getByLabel('Product purchase actions', { exact: true }).getByRole('link', { name: 'Ask on WhatsApp' }))
     .toBeVisible();

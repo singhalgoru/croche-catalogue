@@ -24,6 +24,7 @@ import storeContent from '../src/content/storeContent.json' with { type: 'json' 
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { getCategoryImage } from '../src/utils/categoryImage.js';
+import { fetchVideoUploadDate, renderVideoPage, videoPath, videoPlayer, videoSchema, videoSitemapEntry } from './video-pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -271,6 +272,7 @@ const productJsonLd = (product) => {
     '@context': 'https://schema.org',
     '@graph': [
       data,
+      ...(product.makingVideo ? [videoSchema(product)] : []),
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
@@ -598,6 +600,7 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
       <p>Free shipping on items worth ₹500 or more after coupon discounts.</p>
       <p>${escapeHtml(product.description)}</p>
       ${details}
+      ${product.makingVideo ? `<section id="making-video"><h2>See how it is made</h2>${videoPlayer(product)}<p><a href="${videoPath(product)}">Open making video page</a></p></section>` : ''}
       ${
         variantNames.length > 1
           ? `<h2>Available colours and variants</h2><ul class="variants">${variantNames
@@ -661,12 +664,14 @@ const renderSitemap = (products, today, additionalPaths = []) => {
         sitemapImages(product),
       ),
     ),
+    ...products.filter(product => product.makingVideo).map(product =>
+      `  <url><loc>${ORIGIN}${videoPath(product)}</loc>${videoSitemapEntry(product)}</url>`),
     ...additionalPaths.map(page => typeof page === 'string'
       ? entry(`${ORIGIN}${page}`, null)
       : entry(`${ORIGIN}${page.pathname}`, null, page.images)),
   ];
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${urls.join('\n')}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n${urls.join('\n')}\n</urlset>\n`;
 };
 
 // --- build step ---
@@ -839,6 +844,9 @@ const main = async () => {
     fetchBootstrapBestsellers(supabaseUrl, anonKey),
   ]);
   const products = rows.map(toProduct);
+  await Promise.all(products.filter(product => product.makingVideo).map(async product => {
+    product.makingVideo.uploadDate = await fetchVideoUploadDate(product);
+  }));
   const homepage = {
     title: 'Premium Handmade Crochet in India | Luvia Creations',
     description: catalogueDescription(products),
@@ -854,6 +862,11 @@ const main = async () => {
     const slug = toProductSlug(product);
     const dir = path.join(DIST, 'p', slug);
     await mkdir(dir, { recursive: true });
+    if (product.makingVideo) {
+      const watchDir = path.join(DIST, 'watch', slug);
+      await mkdir(watchDir, { recursive: true });
+      await writeFile(path.join(watchDir, 'index.html'), renderVideoPage(product));
+    }
     const socialImage = await writeSocialImage(product, dir, `/p/${slug}/`);
     await writeFile(
       path.join(dir, 'index.html'),
