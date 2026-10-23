@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { fetchVideoUploadDate, renderVideoPage, videoSchema } from './video-pages.mjs';
 import { renderProductPage, renderSitemap, toProduct } from './prerender.mjs';
+import { renderSiteHeader, renderSiteFooter } from './content-pages.mjs';
 
 const product = {
   ...toProduct({ id: 'p1', name: 'Rose & ribbon', public_slug: 'rose', category: 'Decor',
@@ -13,6 +14,18 @@ const product = {
   },
 };
 afterEach(() => vi.unstubAllGlobals());
+
+it('shares the branded header and full store footer with static content pages', () => {
+  const html = renderVideoPage(product);
+  expect(html).toContain(renderSiteHeader());
+  expect(html).toContain(renderSiteFooter());
+  const doc = new JSDOM(html).window.document;
+  expect(doc.querySelector('header .brand img')?.getAttribute('src')).toBe('/images/luvia-logo-320.webp');
+  expect(doc.querySelector('a.skip')?.getAttribute('href')).toBe('#main');
+  expect(doc.querySelector('main#main')).not.toBeNull();
+  expect(doc.querySelector('footer img[alt="American Express"]')?.getAttribute('src')).toBe('/images/payments/amex.png');
+  expect(doc.querySelector('footer a[href="mailto:orders@luviacreations.com"]')).not.toBeNull();
+});
 
 it('renders a self-canonical watch page with a prominent native player and matching metadata without JavaScript', () => {
   const doc = new JSDOM(renderVideoPage(product)).window.document;

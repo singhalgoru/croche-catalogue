@@ -1,4 +1,5 @@
 import { escapeHtml, toProductSlug } from './prerender.mjs';
+import { renderSiteHeader, renderSiteFooter } from './content-pages.mjs';
 
 const ORIGIN = 'https://luviacreations.com';
 export const videoPath = product => `/watch/${toProductSlug(product)}/`;
@@ -30,17 +31,18 @@ export const renderVideoPage = product => `<!doctype html>
 <meta name="description" content="${escapeHtml(videoDescription(product))}">
 <meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1">
 <link rel="canonical" href="${ORIGIN}${videoPath(product)}">
+<link rel="icon" href="/images/favicon-96.png">
 <meta property="og:type" content="video.other"><meta property="og:title" content="${escapeHtml(videoTitle(product))}">
 <meta property="og:description" content="${escapeHtml(videoDescription(product))}">
 <meta property="og:url" content="${ORIGIN}${videoPath(product)}"><meta property="og:image" content="${escapeHtml(product.makingVideo.posterUrl)}">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; media-src https:; style-src 'unsafe-inline'; script-src 'none'; base-uri 'none'; form-action 'none'">
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: videoTitle(product), url: `${ORIGIN}${videoPath(product)}`, mainEntity: videoSchema(product) }).replace(/</g, '\\u003c')}</script>
-<style>body{margin:0;background:#fffaf0;color:#604239;font:16px/1.6 system-ui,sans-serif}header,main,footer{max-width:960px;margin:auto;padding:20px}a{color:inherit}a:focus-visible{outline:3px solid #604239;outline-offset:4px}h1{line-height:1.2}video{background:#eee;border-radius:12px}</style>
-</head><body><header><a href="/">Luvia Creations</a> · <a href="/collections/">Collections</a></header>
-<main><h1>${escapeHtml(videoTitle(product))}</h1>${videoPlayer(product)}
+<style>*{box-sizing:border-box}body{margin:0;background:#fffaf0;color:#604239;font:16px/1.6 system-ui,sans-serif}header,main,footer{max-width:960px;margin:auto;padding:20px}header{border-bottom:3px solid #edc357}.brand{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none}.brand img{border-radius:50%}.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:8px;background:white;padding:8px}nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}footer{border-top:1px solid #edc357;margin-top:32px;overflow-wrap:anywhere}.note{font-size:.9rem}a{color:inherit}a:focus-visible{outline:3px solid #604239;outline-offset:4px}h1{line-height:1.2}video{background:#eee;border-radius:12px}</style>
+</head><body>${renderSiteHeader()}
+<main id="main"><h1>${escapeHtml(videoTitle(product))}</h1>${videoPlayer(product)}
 <p>${escapeHtml(videoDescription(product))}</p>
 <p><a href="/p/${toProductSlug(product)}/">View ${escapeHtml(product.name)} — photos, options and ordering</a></p>
-</main><footer><a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a></footer></body></html>`;
+</main>${renderSiteFooter()}</body></html>`;
 
 export const videoSitemapEntry = product => {
   const video = product.makingVideo;
