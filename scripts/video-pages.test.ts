@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { fetchVideoUploadDate, renderVideoPage, videoSchema } from './video-pages.mjs';
-import { renderProductPage, renderSitemap, toProduct } from './prerender.mjs';
+import { attachProductApp, renderProductPage, renderSitemap, toProduct } from './prerender.mjs';
 import { renderSiteHeader, renderSiteFooter } from './content-pages.mjs';
 
 const product = {
@@ -14,6 +14,17 @@ const product = {
   },
 };
 afterEach(() => vi.unstubAllGlobals());
+
+it('attaches the shared application with its CSP while preserving crawlable video content and metadata', () => {
+  const template = `<html><head><meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <link rel="stylesheet" href="/assets/app.css"><script type="module" src="/assets/app.js"></script></head></html>`;
+  const doc = new JSDOM(attachProductApp(renderVideoPage(product), template)).window.document;
+  expect(doc.querySelectorAll('meta[http-equiv="Content-Security-Policy"]')).toHaveLength(1);
+  expect(doc.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content')).toBe("default-src 'self'");
+  expect(doc.querySelector('#root main video[preload="none"]')).not.toBeNull();
+  expect(doc.querySelector('script[type="module"]')?.getAttribute('src')).toBe('/assets/app.js');
+  expect(JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!).mainEntity).toEqual(videoSchema(product));
+});
 
 it('shares the branded header and full store footer with static content pages', () => {
   const html = renderVideoPage(product);

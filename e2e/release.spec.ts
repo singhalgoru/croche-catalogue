@@ -31,6 +31,38 @@ test('home page opens a product page with current purchase actions', async ({ pa
   await expect(page.getByRole('region', { name: 'Making video', exact: true })).toHaveCount(0);
 });
 
+test('watch pages match homepage responsive header and footer and keep video deferred', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].product_making_videos = {
+    video_url: makingVideoUrl, poster_url: makingPosterUrl, duration_seconds: 2, width: 320, height: 180,
+  };
+  const headerStyle = await page.locator('header').evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    logoWidth: element.querySelector('img')!.getBoundingClientRect().width,
+  }));
+  const footerStyle = await page.locator('footer').evaluate(element => getComputedStyle(element).backgroundColor);
+  const requests: string[] = [];
+  page.on('request', request => { if (request.url() === makingVideoUrl) requests.push(request.url()); });
+  await page.goto('/watch/rose-charm/', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('heading', { name: 'Making Rose Charm', level: 1 })).toBeVisible();
+  expect(await page.locator('header').evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    logoWidth: element.querySelector('img')!.getBoundingClientRect().width,
+  }))).toEqual(headerStyle);
+  expect(await page.locator('footer').evaluate(element => getComputedStyle(element).backgroundColor)).toBe(footerStyle);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close navigation' }).click();
+  const information = page.getByRole('button', { name: 'Help & information' });
+  if (await information.isVisible()) {
+    await information.click();
+    await expect(information).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(page.locator('footer').getByRole('link', { name: 'Contact on Instagram' })).toBeVisible();
+  await expect(page.locator('main video')).toHaveAttribute('preload', 'none');
+  expect(requests).toHaveLength(0);
+});
+
 test('optional making video requests no media before a tap and plays inline without changing product photos', async ({ page }) => {
   const state = await installMockSupabase(page);
   state.products[0].product_making_videos = {

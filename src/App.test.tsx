@@ -60,6 +60,27 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('renders watch pages with the homepage header and interactive footer, not the catalogue', () => {
+    catalogueProducts = [{ ...product, makingVideo: {
+      title: 'Handcrafting a coaster', videoUrl: 'https://videos.luviacreations.com/making-videos/test/video.mp4',
+      posterUrl: 'https://videos.luviacreations.com/making-videos/test/poster.webp',
+      durationSeconds: 20, width: 848, height: 478,
+    } }];
+    window.history.replaceState(null, '', '/watch/test-coaster/');
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'Handcrafting a coaster', level: 1 })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Premium Handmade Crochet Creations' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign in or create account' })).toBeTruthy();
+    const footer = screen.getByRole('contentinfo');
+    fireEvent.click(within(footer).getByRole('button', { name: 'Help & information' }));
+    expect(within(footer).getByRole('link', { name: 'Contact on Instagram' })).toBeTruthy();
+    expect(screen.queryByLabelText('Filtered products')).toBeNull();
+    expect(screen.getByRole('link', { name: /View Test Coaster/ }).getAttribute('href')).toContain('/p/test-coaster/');
+    expect(document.querySelector('main video')?.getAttribute('preload')).toBe('none');
+    expect(window.location.pathname).toBe('/watch/test-coaster/');
+  });
+
   it('opens feedback as a dedicated page without requiring sign-in', async () => {
     window.history.replaceState(null, '', '/?page=feedback');
     render(<App />);

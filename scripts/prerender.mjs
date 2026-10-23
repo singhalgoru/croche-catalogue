@@ -865,7 +865,7 @@ const main = async () => {
     if (product.makingVideo) {
       const watchDir = path.join(DIST, 'watch', slug);
       await mkdir(watchDir, { recursive: true });
-      await writeFile(path.join(watchDir, 'index.html'), renderVideoPage(product));
+      await writeFile(path.join(watchDir, 'index.html'), attachProductApp(renderVideoPage(product), template));
     }
     const socialImage = await writeSocialImage(product, dir, `/p/${slug}/`);
     await writeFile(

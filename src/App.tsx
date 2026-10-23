@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { requestPageReload } from './utils/pageReload';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ProductMakingVideo from './components/ProductMakingVideo';
 import OrderingGuide from './components/OrderingGuide';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
@@ -44,6 +45,7 @@ import {
   toProductHash,
   findProductVariantByReference,
   toPublicVariantSlug,
+  toPublicProductSlug,
 } from './utils/productLink';
 import { matchesProductSearch } from './utils/productSearch';
 import {
@@ -67,6 +69,7 @@ const readCheckoutStep = () => {
 };
 
 function App() {
+  const watchReference = window.location.pathname.match(/^\/watch\/([^/]+)\/?$/)?.[1];
   const { products, categorySettings, isLoading, loadError, refreshProducts, hasCatalogueSnapshot, homepageMetadata, initialBestsellerIds } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
@@ -605,7 +608,7 @@ function App() {
       onOpenProduct={(productId, variantId) => {
         const product = products.find((candidate) => candidate.id === productId);
         if (!product) return;
-        if (isStorePage()) {
+        if (isStorePage() || watchReference) {
           const url = new URL(toProductPageUrl(product));
           const variant = product.variants.find((item) => item.id === variantId);
           if (variant) url.searchParams.set('variant', toPublicVariantSlug(variant));
@@ -730,12 +733,32 @@ function App() {
         seasonalAnnouncement={seasonalAnnouncement}
         seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
         categories={categories}
-        onNavigateCatalogue={navigateCatalogue}
+        onNavigateCatalogue={watchReference ? undefined : navigateCatalogue}
         onOpenAccount={openAccount}
         onOpenOrders={openOrders}
         accountName={customerName}
       />
-      {pageReference ? (
+      {watchReference ? (
+        <main id="main" className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 py-4 sm:py-8">
+          {(() => {
+            const product = products.find(item => toPublicProductSlug(item) === watchReference);
+            if (!product?.makingVideo) return <CatalogueNotice
+              message={isLoading ? 'Loading making video...' : loadError || 'This making video is no longer available.'}
+              onRetry={refreshProducts} />;
+            return <>
+              <h1 className="font-heading text-2xl font-bold text-cocoa sm:text-3xl">
+                {product.makingVideo.title?.trim() || `Making ${product.name}`}
+              </h1>
+              <ProductMakingVideo key={product.makingVideo.videoUrl} product={product} />
+              <p className="text-cocoa">Watch {product.name} being made by Luvia Creations.
+                A behind-the-scenes look at our handmade crochet work.</p>
+              <a href={toProductPageUrl(product)} className="inline-block py-2 font-semibold text-cocoa underline">
+                View {product.name} — photos, options and ordering
+              </a>
+            </>;
+          })()}
+        </main>
+      ) : pageReference ? (
         <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 py-4 sm:py-8">
           <a
             href={import.meta.env.BASE_URL}

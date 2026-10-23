@@ -233,8 +233,10 @@ playback, with **Turn sound on** available. Browser-blocked playback shows a pla
 Ordinary product links request no MP4 until a tap.
 Published videos also have standalone `/watch/<product-slug>/` pages, linked from
 their products, with the video as the main content and no JavaScript requirement.
-Watch pages share the static site header logo, navigation and full store footer,
-including contact details, policies and payment logos.
+Watch pages use the homepage's responsive Header and Footer components, including
+the mobile menu, account/cart controls, shipping ticker, collapsible mobile footer,
+contact details, policies and payment logos. Initial HTML retains a static branded
+fallback and crawlable player/metadata when JavaScript is unavailable.
 Product/watch pages include `VideoObject` metadata; the sitemap includes watch URLs
 and video entries. Build-time HEAD requests read the immutable MP4's `Last-Modified`
 as its upload date without downloading it; missing/invalid dates fail the build
