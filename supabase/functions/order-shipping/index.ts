@@ -72,8 +72,11 @@ Deno.serve(async request => {
       .select('quantity,line_total_paise,seller_sales(quantity,gst_percent,material_cost,labour_cost,packaging_cost,gateway_fee_percent,gateway_fee_gst_percent)')
       .eq('order_id',id);
     if (marginError) throw new Error('Unable to read saved order costs for courier margin estimates.');
-    const marginBasis = orderMarginBasis(Number(order.subtotal_paise),Number(order.discount_paise),
-      Number(order.shipping_paise),marginItems ?? []);
+    const { data: ledgerOrder,error: ledgerError } = await db.from('seller_orders')
+      .select('packaging_cost').eq('payment_order_id',id).maybeSingle();
+    if (ledgerError) throw new Error('Unable to read whole-order packaging cost.');
+    const marginBasis = ledgerOrder ? orderMarginBasis(Number(order.subtotal_paise),Number(order.discount_paise),
+      Number(order.shipping_paise),marginItems ?? [],Number(ledgerOrder.packaging_cost)) : null;
     const quotes = Array.isArray(shipping?.quotes) ? shipping.quotes : [];
     const selected = quotes.find((q: { id: number }) => q.id === shipping?.courier_id);
     return { marginBasis, parcel: shipping?.package ?? null, quotes: shipping?.quotes ?? [], quotedAt: shipping?.quoted_at ?? null,

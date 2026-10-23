@@ -1699,7 +1699,7 @@ as an **Online** sale automatically (migration
 
 - the price actually paid, with any coupon discount split across lines by value;
 - the product's saved GST, material, packaging and labour (₹100/hour) costs;
-- the saved shipping cost on one line per order, since the order ships once;
+- shipping and packaging on the shared order, with zero item-level charges;
 - a 2% payment fee with 18% GST on the fee;
 - the paid date in IST, and a note with the order reference and shipping charged.
 
@@ -1707,8 +1707,46 @@ Each line is recorded once, so repeat updates don't create duplicates. Test
 checkouts, unpaid/expired orders and older payment-link orders are not recorded.
 Recording never blocks payment confirmation; a failure is logged as a database
 warning. Automatic sales count towards homepage bestsellers and can be edited or
-deleted like manual entries. Orders paid before this change were not added
+edited inside their order; deletion removes the whole ledger order, not the
+customer payment or shipment. Orders paid before this change were not added
 automatically; enter them manually if they are missing.
+
+### Multi-product orders and shared costs
+
+Migration `20261023170000_order_level_sales_costs.sql` groups website sale lines
+using their payment-order relationship (not their notes). Existing manual rows
+remain separate orders. Historical packaging totals and shipping estimates are
+preserved at order level; item shipping and packaging become zero. Verify and
+replace these estimates with the actual parcel costs.
+
+**Record sale** supports one or more products in a manual/offline/WhatsApp order.
+Fill the current product and click **Add product to order** for another; **Save
+sale** saves all queued products and any completed current product atomically.
+Enter shipping and packaging once for the whole order. Product materials and
+labour remain per piece. All items share the order date and channel.
+
+Each order shows combined revenue, estimated profit and margin. Item estimates
+include a revenue-weighted allocation of shared order costs and customer shipping
+collected, so item, monthly, snapshot and exported totals reconcile without
+double-counting. GST and payment fees also include the allocated shipping
+collected, using saved item rates; margin is on revenue before GST.
+
+Successful Shiprocket AWB booking synchronizes the approved courier charge into
+the order ledger. Selecting or quoting a courier alone does not change recorded
+shipping. **Edit whole-order costs** accepts a manual shipping amount and total
+packaging amount, or switches back to the server-owned booked courier charge.
+Manual overrides survive later courier updates. Refresh the sales dashboard
+after booking to see the latest totals. Packaging estimates are editable,
+including zero; verify them before relying on margins.
+
+Sales CSVs append order ID/reference, shared costs, shipping source and customer
+shipping collected for context. These columns are read-only during import:
+retain record/order IDs, zero item packaging/shipping and unchanged date/channel
+when editing linked rows. Edit shared costs in the dashboard. New CSV rows
+without order IDs remain separate orders; use **Record sale** for multi-product
+entry. Legacy per-piece packaging in new unlinked CSV rows is converted into
+one order packaging total. Order deletion does not refund payment, cancel a
+courier booking or delete the customer's order history.
 
 ### Business expenses
 

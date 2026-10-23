@@ -42,6 +42,7 @@ class Query {
       return { data: { order_id: id },error: null };
     }
     return { data: this.table === 'payment_orders' ? currentOrder
+      : this.table === 'seller_orders' ? { packaging_cost: 10 }
       : this.table === 'payment_order_items' ? [{ product_name: 'Rose',variant_name: 'Pink',variant_id: 'variant',quantity: 1,unit_price_paise: 50000,
         line_total_paise: 50000,seller_sales: [{ quantity: 1,gst_percent: 5,material_cost: 100,labour_cost: 50,
           packaging_cost: 10,gateway_fee_percent: 2,gateway_fee_gst_percent: 18 }] }]

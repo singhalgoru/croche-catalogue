@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSellerSale, fetchSellerSales, updateSellerSale, type SellerSaleInput } from './sellerSales';
+import { createSellerOrder, saveSellerOrderCosts, createSellerSale, fetchSellerSales, updateSellerSale, type SellerSaleInput } from './sellerSales';
 
-const { from } = vi.hoisted(() => ({ from: vi.fn() }));
+const { from, rpc } = vi.hoisted(() => ({ from: vi.fn(),rpc: vi.fn() }));
 vi.mock('../lib/supabaseConfig', () => ({
-  loadSupabase: async () => ({ from }),
+  loadSupabase: async () => ({ from,rpc }),
 }));
 
 const sale: SellerSaleInput = {
@@ -44,18 +44,19 @@ const row = {
   created_at: '2026-10-06T10:00:00Z',
 };
 
-beforeEach(() => from.mockReset());
+beforeEach(() => { from.mockReset(); rpc.mockReset().mockResolvedValue({ data: 'order',error: null }); });
 
 describe('seller sales persistence', () => {
   it.each(['create', 'update'])('persists zero GST only in the sales ledger on %s', async operation => {
     const query = {
       insert: vi.fn(), update: vi.fn(), eq: vi.fn(), select: vi.fn(),
-      single: vi.fn().mockResolvedValue({ data: { ...row, gst_percent: '0.00' }, error: null }),
+      single: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: { ...row, gst_percent: '0.00' }, error: null }),
     };
     query.insert.mockReturnValue(query);
     query.update.mockReturnValue(query);
     query.eq.mockReturnValue(query);
     query.select.mockReturnValue(query);
+    query.single.mockReturnValue(query);
     from.mockReturnValue(query);
     const input = { ...sale, gstPercent: 0 };
     const saved = operation === 'create'
@@ -72,10 +73,14 @@ describe('seller sales persistence', () => {
     const query = {
       select: vi.fn(),
       order: vi.fn(),
-      range: vi.fn().mockResolvedValue({ data: [row], error: null }),
+      range: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: [{ ...row,order: {
+        id: 'order',reference: 'LUV-1',payment_order_id: 'payment',packaging_cost: '25.00',shipping_cost: '100.00',
+        shipping_collected: '50.00',shipping_source: 'courier',items: [{ quantity: 2,unit_price: '105.00' },{ quantity: 1,unit_price: '200.00' }],
+      } }], error: null }),
     };
     query.select.mockReturnValue(query);
     query.order.mockReturnValue(query);
+    query.range.mockReturnValue(query);
     from.mockReturnValue(query);
 
     expect(await fetchSellerSales()).toMatchObject([{
@@ -85,6 +90,7 @@ describe('seller sales persistence', () => {
       gstPercent: 5,
       materialCost: 20,
       channel: 'online',
+      order: { id: 'order',packagingCost: 25,shippingCost: 100,shippingCollected: 50,itemRevenue: 410 },
     }]);
     expect(from).toHaveBeenCalledWith('seller_sales');
   });
@@ -92,15 +98,16 @@ describe('seller sales persistence', () => {
   it('loads all sales pages so quarterly and yearly totals are not truncated', async () => {
     const query = {
       select: vi.fn(), order: vi.fn(),
-      range: vi.fn().mockResolvedValueOnce({ data: Array.from({ length: 500 }, () => row), error: null })
+      range: vi.fn(),overrideTypes: vi.fn().mockResolvedValueOnce({ data: Array.from({ length: 500 }, () => row), error: null })
         .mockResolvedValueOnce({ data: [row], error: null }),
     };
     query.select.mockReturnValue(query); query.order.mockReturnValue(query);
+    query.range.mockReturnValue(query);
     from.mockReturnValue(query);
     expect(await fetchSellerSales()).toHaveLength(501);
     expect(query.range).toHaveBeenNthCalledWith(1, 0, 499);
     expect(query.range).toHaveBeenNthCalledWith(2, 500, 999);
-    query.range.mockResolvedValueOnce({ data: null, error: { message: 'network failed' } });
+    query.overrideTypes.mockResolvedValueOnce({ data: null, error: { message: 'network failed' } });
     await expect(fetchSellerSales()).rejects.toThrow('network failed');
   });
 
@@ -108,10 +115,11 @@ describe('seller sales persistence', () => {
     const query = {
       insert: vi.fn(),
       select: vi.fn(),
-      single: vi.fn().mockResolvedValue({ data: row, error: null }),
+      single: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: row, error: null }),
     };
     query.insert.mockReturnValue(query);
     query.select.mockReturnValue(query);
+    query.single.mockReturnValue(query);
     from.mockReturnValue(query);
 
     expect(await createSellerSale(sale)).toMatchObject({
@@ -134,5 +142,22 @@ describe('seller sales persistence', () => {
       .rejects.toThrow('sales channel');
     await expect(createSellerSale({ ...sale, gstPercent: 101 })).rejects.toThrow('cannot exceed');
     expect(from).not.toHaveBeenCalled();
+  });
+  it('creates all order lines atomically with zero item packaging and shipping',async () => {
+    await createSellerOrder([sale,{ ...sale,productName: 'Bunny' }],40,125);
+    expect(rpc).toHaveBeenCalledWith('create_seller_order',{
+      p_packaging: 40,p_shipping: 125,p_items: [
+        expect.objectContaining({ product_name: sale.productName,packaging_cost: 0,shipping_cost: 0 }),
+        expect.objectContaining({ product_name: 'Bunny',packaging_cost: 0,shipping_cost: 0 }),
+      ],
+    });
+    expect(from).not.toHaveBeenCalled();
+  });
+  it('saves manual or server-owned courier costs and surfaces persistence errors',async () => {
+    await saveSellerOrderCosts('order',25,100,'manual');
+    expect(rpc).toHaveBeenCalledWith('save_seller_order_costs',{ p_order_id: 'order',p_packaging: 25,p_shipping: 100,p_source: 'manual' });
+    rpc.mockResolvedValueOnce({ error: { message: 'No AWB yet' } });
+    await expect(saveSellerOrderCosts('order',25,0,'courier')).rejects.toThrow('No AWB yet');
+    await expect(createSellerOrder([],0,0)).rejects.toThrow('Add between');
   });
 });

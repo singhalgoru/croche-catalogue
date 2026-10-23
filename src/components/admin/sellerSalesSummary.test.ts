@@ -23,6 +23,23 @@ const sale: SellerSale = {
 };
 
 describe('seller sales profit calculations', () => {
+  it('counts one multi-product order and allocates shared costs and shipping collected exactly once', () => {
+    const order = { id: 'order',reference: 'LUV-1',paymentOrderId: 'payment',packagingCost: 30,shippingCost: 100,
+      shippingCollected: 50,shippingSource: 'courier' as const,itemRevenue: 315 };
+    const first = { ...sale,order,packagingCost: 0,shippingCost: 0 };
+    const second = { ...first,id: 'sale-2',quantity: 1 };
+    const total = summarizeSellerSales([first,second]);
+    expect(total.salesCount).toBe(1);
+    expect(total.revenue).toBeCloseTo(365);
+    expect(total.costs).toBeCloseTo(90+30+100);
+    expect(total.gst).toBeCloseTo(365*5/105);
+    expect(total.gatewayFee).toBeCloseTo(365*0.02*1.18);
+    expect(total.profit).toBeCloseTo(365/1.05 - 365*0.02*1.18 - 220);
+    const manual = summarizeSellerSales([first,second].map(item => ({
+      ...item,order: { ...order,shippingSource: 'manual' as const,shippingCost: 200,packagingCost: 10 },
+    })));
+    expect(manual.profit).toBeCloseTo(total.profit-80);
+  });
   it('extracts GST from the GST-inclusive revenue and subtracts transaction fees and costs', () => {
     const totals = calculateSaleFinancials(sale);
     expect(totals.revenue).toBe(210);

@@ -26,3 +26,8 @@ it('does not invent a zero-cost profit when snapshots are missing, changed or in
   expect(orderMarginBasis(100000,100001,0,[item])).toBeNull();
   expect(orderMarginBasis(100000,0,0,[{ ...item,seller_sales: [{ ...item.seller_sales[0],material_cost: NaN }] }])).toBeNull();
 });
+it('uses packaging once for the entire parcel instead of product packaging multiplied by quantity', () => {
+  const basis = orderMarginBasis(100000,0,0,[item],25)!;
+  expect(basis.productCosts).toBe(325);
+  expect(orderMarginBasis(100000,0,0,[item],NaN)).toBeNull();
+});

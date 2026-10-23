@@ -25,8 +25,12 @@ export function summarizeSalesPeriod(
   const saleCosts = periodSales.reduce((totals, sale) => ({
     materialCost: totals.materialCost + sale.materialCost * sale.quantity,
     labourCost: totals.labourCost + sale.labourCost * sale.quantity,
-    packagingCost: totals.packagingCost + sale.packagingCost * sale.quantity,
-    shippingCost: totals.shippingCost + sale.shippingCost,
+    packagingCost: totals.packagingCost + (sale.order
+      ? sale.order.packagingCost * sale.unitPrice * sale.quantity / sale.order.itemRevenue
+      : sale.packagingCost * sale.quantity),
+    shippingCost: totals.shippingCost + (sale.order
+      ? sale.order.shippingCost * sale.unitPrice * sale.quantity / sale.order.itemRevenue
+      : sale.shippingCost),
   }), { materialCost: 0, labourCost: 0, packagingCost: 0, shippingCost: 0 });
   const overheads = expenses.filter(expense => inPeriod(expense.expenseDate))
     .reduce((total, expense) => total + expense.amount, 0);

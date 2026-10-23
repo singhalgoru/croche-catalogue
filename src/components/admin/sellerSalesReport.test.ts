@@ -23,6 +23,20 @@ const sale: SellerSale = {
 };
 
 describe('seller sales report CSV', () => {
+  it('exports shared order context with zero item charges and matching allocated totals', () => {
+    const order = { id: 'order',reference: 'LUV-ORDER',paymentOrderId: 'payment',packagingCost: 25,shippingCost: 100,
+      shippingCollected: 50,shippingSource: 'courier' as const,itemRevenue: 400 };
+    const csv = buildSellerSalesCsv('2026-10',[
+      { ...sale,order,packagingCost: 0,shippingCost: 0 },
+      { ...sale,id: 'second',order,packagingCost: 0,shippingCost: 0 },
+    ]);
+    const parsed = parseSellerSalesCsv(csv,'2026-10',new Set(['product-1']));
+    expect(parsed.orderIds).toEqual(['order','order']);
+    expect(parsed.sales.every(item => item.shippingCost === 0 && item.packagingCost === 0)).toBe(true);
+    expect(csv).toContain('Order Packaging Cost');
+    expect(csv).toContain('LUV-ORDER,25,100,courier,50');
+    expect(csv).toContain('1 sales · 4 pieces');
+  });
   it('exports only the selected month with its summary and round-trips sale inputs', () => {
     const csv = buildSellerSalesCsv('2026-10', [
       sale,

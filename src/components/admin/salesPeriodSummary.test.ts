@@ -14,6 +14,18 @@ const expense: BusinessExpense = {
 };
 
 describe('period sales snapshots', () => {
+  it('includes whole-order costs once in annual and quarterly cost breakdowns', () => {
+    const order = { id: 'order',reference: 'LUV-1',paymentOrderId: 'payment',packagingCost: 25,shippingCost: 100,
+      shippingCollected: 0,shippingSource: 'courier' as const,itemRevenue: 315 };
+    const items = [{ ...sale,quantity: 2,order,shippingCost: 0,packagingCost: 0 },
+      { ...sale,id: 'second',order,shippingCost: 0,packagingCost: 0 }];
+    for (const result of [summarizeSalesPeriod(items,[],'2026'),summarizeSalesPeriod(items,[],'2026',1,3)]) {
+      expect(result.salesCount).toBe(1);
+      expect(result.shippingCost).toBeCloseTo(100);
+      expect(result.packagingCost).toBeCloseTo(25);
+      expect(result.costs).toBeCloseTo(result.materialCost+result.labourCost+result.packagingCost+result.shippingCost);
+    }
+  });
   it('assigns calendar boundaries exactly once using sale and expense dates', () => {
     const dates = ['2026-01-01', '2026-03-31', '2026-04-01', '2026-06-30',
       '2026-07-01', '2026-09-30', '2026-10-01', '2026-12-31', '2025-12-31', '2027-01-01'];

@@ -3,6 +3,7 @@ import RequiredMark from './RequiredMark';
 import MarginLabel from './MarginLabel';
 import {
   createSellerSale,
+  createSellerOrder,
   deleteSellerSale,
   fetchSellerSales,
   SALE_CHANNELS,
@@ -20,6 +21,7 @@ import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSumm
 import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
 import BusinessExpensesPanel from './BusinessExpensesPanel';
 import { fetchBusinessExpenses, type BusinessExpense } from '../../services/businessExpenses';
+import SellerOrderSummary from './SellerOrderSummary';
 
 interface Props {
   refreshKey: number;
@@ -150,6 +152,9 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
   const reportFileInput = useRef<HTMLInputElement>(null);
   const saleFormRef = useRef<HTMLFormElement>(null);
   const [recordSaleRequest, setRecordSaleRequest] = useState(0);
+  const [orderItems,setOrderItems] = useState<SellerSaleInput[]>([]);
+  const [orderPackaging,setOrderPackaging] = useState('0');
+  const [orderShipping,setOrderShipping] = useState('0');
 
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
@@ -165,8 +170,10 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
       setExpenses(loadedExpenses);
       setFinancialsLoaded(true);
       setError(null);
+      return true;
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load the sales dashboard.');
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -181,6 +188,8 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
     [month, sales],
   );
   const editingSaleVisible = !isLoading && editingId !== null && monthSales.some((sale) => sale.id === editingId);
+  const editingOrderId = sales.find(sale => sale.id === editingId)?.order?.id;
+  const editingMultiOrder = Boolean(editingOrderId && sales.filter(sale => sale.order?.id === editingOrderId).length > 1);
 
   useEffect(() => {
     if (!editingId && !recordSaleRequest) return;
@@ -190,6 +199,14 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
     form.querySelector<HTMLElement>('select, input')?.focus({ preventScroll: true });
   }, [editingId, recordSaleRequest]);
   const summary = useMemo(() => summarizeSellerSales(monthSales), [monthSales]);
+  const orderGroups = useMemo(() => {
+    const groups = new Map<string,SellerSale[]>();
+    for (const sale of monthSales) {
+      const key = sale.order?.id ?? sale.id;
+      groups.set(key,[...(groups.get(key) ?? []),sale]);
+    }
+    return [...groups.values()];
+  },[monthSales]);
   const monthExpenses = useMemo(
     () => expenses.filter(expense => expense.expenseDate.startsWith(`${month}-`)),
     [expenses, month],
@@ -265,18 +282,23 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
     setError(null);
     setMessage(null);
     try {
-      const input = toSaleInput(draft);
-      const saved = editingId
-        ? await updateSellerSale(editingId, input)
-        : await createSellerSale(input);
-      setSales((current) => [
-        saved,
-        ...current.filter((sale) => sale.id !== saved.id),
-      ].sort((left, right) => right.saleDate.localeCompare(left.saleDate)));
+      const input = editingId || draft.productName.trim() || draft.productId || draft.unitPrice.trim() || !orderItems.length
+        ? toSaleInput({ ...draft,packagingCost: '0',shippingCost: '0' }) : null;
+      if (editingId && input) {
+        await updateSellerSale(editingId,input);
+      } else {
+        await createSellerOrder([...orderItems,...(input ? [input] : [])],
+          parseAmount(orderPackaging,'Whole-order packaging'),parseAmount(orderShipping,'Whole-order shipping'));
+      }
+      setOrderItems([]);
       setDraft(null);
       setEditingId(null);
-      setMessage(editingId ? 'Sale updated.' : 'Sale recorded.');
       onSalesChanged?.();
+      try { setSales(await fetchSellerSales()); }
+      catch (refreshError) {
+        throw new Error(`Sale saved, but refresh failed. Do not record it again; refresh the dashboard. ${refreshError instanceof Error ? refreshError.message : ''}`);
+      }
+      setMessage(editingId ? 'Sale updated.' : 'Sale recorded.');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save this sale.');
     } finally {
@@ -334,6 +356,17 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         month,
         new Set(products.map((product) => product.id)),
       );
+      for (let index = 0; index < parsed.sales.length; index++) {
+        const existing = sales.find(sale => sale.id === parsed.existingIds[index]);
+        if (parsed.orderIds[index] && existing?.order?.id !== parsed.orderIds[index]) {
+          throw new Error('Order-linked rows must retain their existing record and order IDs. Add new multi-product orders using Record sale.');
+        }
+        const multiOrder = existing?.order && sales.filter(sale => sale.order?.id === existing.order?.id).length > 1;
+        if (existing?.order && (parsed.sales[index].packagingCost !== 0 || parsed.sales[index].shippingCost !== 0
+          || (multiOrder && (parsed.sales[index].saleDate !== existing.saleDate || parsed.sales[index].channel !== existing.channel)))) {
+          throw new Error('For order-linked rows keep item packaging/shipping at zero and date/channel unchanged. Edit whole-order costs in the dashboard.');
+        }
+      }
       for (let index = 0; index < parsed.sales.length; index += 1) {
         const saleId = parsed.existingIds[index];
         if (saleId && sales.some((existing) => existing.id === saleId)) {
@@ -364,6 +397,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
 
   const renderSaleForm = (draft: SaleDraft) => (
       <form
+        noValidate
         ref={saleFormRef}
         aria-label={editingId ? 'Edit sale' : 'Record a sale'}
         onSubmit={(event) => void saveSale(event)}
@@ -375,7 +409,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           </h3>
           <button
             type="button"
-            onClick={() => { setDraft(null); setEditingId(null); }}
+            onClick={() => { setDraft(null); setEditingId(null); setOrderItems([]); }}
             className="rounded-full border border-cocoa/20 px-3 py-1 text-sm font-semibold text-cocoa"
           >
             Cancel
@@ -384,6 +418,19 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         <p className="mt-2 text-xs text-cocoa/70">
           <RequiredMark /> Required fields. Enter 0 for costs or fees that do not apply.
         </p>
+        {!editingId && <>
+          <p className="mt-2 text-sm">Add one or more products to a single order. Packaging and shipping are entered once for the entire order.</p>
+          {orderItems.map((item,index) => <p key={index} className="mt-2 text-sm">
+            {item.productName}{item.variantName ? ` · ${item.variantName}` : ''} · Qty {item.quantity} · {formatINR(item.unitPrice)} each
+            <button type="button" className="ml-3 min-h-11 underline" onClick={() => setOrderItems(current => current.filter((_,i) => i !== index))}>Remove product {index+1}</button>
+          </p>)}
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label>Packaging for entire order (₹) <RequiredMark /><input aria-label="Whole-order packaging" required type="number" min="0" max="1000000" step="0.01"
+              className="mt-1 block w-full rounded-lg border p-2" value={orderPackaging} onChange={event => setOrderPackaging(event.target.value)} /></label>
+            <label>Shipping for entire order (₹) <RequiredMark /><input aria-label="Whole-order shipping" required type="number" min="0" max="1000000" step="0.01"
+              className="mt-1 block w-full rounded-lg border p-2" value={orderShipping} onChange={event => setOrderShipping(event.target.value)} /></label>
+          </div>
+        </>}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="text-sm font-semibold text-cocoa">
             Product
@@ -430,6 +477,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
             Sale date <RequiredMark />
             <DateInput
               aria-label="Sale date"
+              disabled={editingMultiOrder || orderItems.length > 0}
               value={draft.saleDate}
               onChange={(saleDate) => updateDraft({ saleDate })}
               required
@@ -440,6 +488,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
             Sales channel <RequiredMark />
             <select
               aria-label="Sales channel"
+              disabled={editingMultiOrder || orderItems.length > 0}
               value={draft.channel}
               onChange={(event) => {
                 const channel = event.target.value as SaleChannel;
@@ -496,8 +545,6 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           {([
             ['materialCost', 'Materials per piece (₹)'],
             ['labourCost', 'Labour per piece (₹)'],
-            ['packagingCost', 'Packaging per piece (₹)'],
-            ['shippingCost', 'Shipping cost for this sale (₹)'],
             ['gatewayFeePercent', 'Payment processing fee (%)'],
             ['gatewayFeeGstPercent', 'GST on payment fee (%)'],
           ] as const).map(([field, label]) => (
@@ -529,8 +576,18 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           </label>
         </div>
         <p className="mt-3 text-xs text-cocoa/65">
-          Product price and saved GST/cost values are prefilled when available and can be changed for this sale. Material, labour and packaging are per piece; shipping is one cost for this sale. Labour defaults to the price calculator&apos;s ₹100/hour rate. Online payment fees default to 2%; all figures are editable.
+          Materials and labour are per piece. Item packaging and shipping are zero; edit those costs on the whole order. Labour defaults to ₹100/hour. Online payment fees default to 2%. Order date and channel are shared by all products.
         </p>
+        {!editingId && <button type="button" disabled={busy || orderItems.length >= 99} className="mt-3 mr-3 min-h-11 rounded-full border px-4 font-semibold"
+          onClick={() => {
+          try {
+            const item = toSaleInput({ ...draft,packagingCost: '0',shippingCost: '0' });
+            if (!item.productName || item.unitPrice <= 0) throw new Error('Enter a product name and selling price.');
+            setOrderItems(current => [...current,item]);
+            setDraft({ ...blankDraft(),saleDate: draft.saleDate,channel: draft.channel,gatewayFeePercent: draft.gatewayFeePercent });
+            setError(null);
+          } catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to add product.'); }
+          }}>Add product to order</button>}
         <button
           type="submit"
           disabled={busy}
@@ -619,6 +676,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
             type="button"
             onClick={() => {
               setDraft(blankDraft());
+              setOrderItems([]); setOrderPackaging('0'); setOrderShipping('0');
               setRecordSaleRequest(current => current + 1);
               setEditingId(null);
               setError(null);
@@ -721,7 +779,12 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         </p>
       ) : (
         <div className="mt-3 space-y-3">
-          {monthSales.map((sale) => {
+          {orderGroups.map(group => <section key={group[0].order?.id ?? group[0].id} className="space-y-3 rounded-xl border border-mustard/30 p-2">
+            {group[0].order && <SellerOrderSummary key={JSON.stringify(group[0].order)} sales={group} onChanged={async () => {
+              if (!await loadDashboard()) throw new Error('Order saved, but refresh failed. Refresh the dashboard to check saved totals.');
+              onSalesChanged?.();
+            }} />}
+          {group.map((sale) => {
             const financials = calculateSaleFinancials(sale);
             const deleting = deleteId === sale.id;
             const editing = editingSaleVisible && editingId === sale.id;
@@ -757,13 +820,13 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
                     >
                       {editing ? 'Close edit' : 'Edit'}
                     </button>
-                    <button
+                    {!sale.order && <button
                       type="button"
                       onClick={() => setDeleteId(deleting ? null : sale.id)}
                       className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700"
                     >
                       {deleting ? 'Cancel delete' : 'Delete'}
-                    </button>
+                    </button>}
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 border-t border-cocoa/10 pt-3 text-sm sm:grid-cols-4">
@@ -788,7 +851,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
                 {editing && draft && renderSaleForm(draft)}
               </article>
             );
-          })}
+          })}</section>)}
         </div>
       )}
       <p className="mt-4 text-xs text-cocoa/55">

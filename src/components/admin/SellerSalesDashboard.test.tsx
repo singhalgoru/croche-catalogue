@@ -4,7 +4,7 @@ import SellerSalesDashboard from './SellerSalesDashboard';
 import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
 import type { SellerSale, SellerSaleInput } from '../../services/sellerSales';
 import type { ManagedProduct } from '../../services/products';
-import { createSellerSale, fetchSellerSales, updateSellerSale } from '../../services/sellerSales';
+import { createSellerOrder, createSellerSale, fetchSellerSales, updateSellerSale } from '../../services/sellerSales';
 import { fetchManagedProducts } from '../../services/products';
 import { fetchBusinessExpenses, saveBusinessExpense, deleteBusinessExpense } from '../../services/businessExpenses';
 import { buildSellerSalesCsv } from './sellerSalesReport';
@@ -20,6 +20,7 @@ vi.mock('../../services/businessExpenses', () => ({
 vi.mock('../../services/sellerSales', () => ({
   SALE_CHANNELS: ['online', 'offline', 'whatsapp', 'instagram', 'other'],
   createSellerSale: vi.fn(),
+  createSellerOrder: vi.fn(),
   deleteSellerSale: vi.fn(),
   fetchSellerSales: vi.fn(),
   updateSellerSale: vi.fn(),
@@ -88,6 +89,7 @@ const sale: SellerSale = {
 };
 
 beforeEach(() => {
+  vi.mocked(createSellerOrder).mockResolvedValue(undefined);
   vi.mocked(fetchBusinessExpenses).mockResolvedValue([]);
   vi.mocked(saveBusinessExpense).mockImplementation(async (input, id) => ({ ...input, id: id ?? 'expense-1' }));
   vi.mocked(deleteBusinessExpense).mockResolvedValue(undefined);
@@ -107,6 +109,48 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('records multiple offline products atomically with packaging and shipping only on the order',async () => {
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button',{ name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Whole-order packaging'),{ target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('Whole-order shipping'),{ target: { value: '150' } });
+    fireEvent.change(screen.getByLabelText('Sale product'),{ target: { value: product.id } });
+    fireEvent.change(screen.getByLabelText('Sale quantity'),{ target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button',{ name: 'Add product to order' }));
+    expect(screen.getByLabelText('Sales channel')).toHaveProperty('disabled',true);
+    fireEvent.change(screen.getByLabelText('Sale product'),{ target: { value: product.id } });
+    fireEvent.click(screen.getByRole('button',{ name: 'Save sale' }));
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalledWith([
+      expect.objectContaining({ quantity: 2,channel: 'offline',shippingCost: 0,packagingCost: 0 }),
+      expect.objectContaining({ quantity: 1,channel: 'offline',shippingCost: 0,packagingCost: 0 }),
+    ],25,150));
+    expect(createSellerSale).not.toHaveBeenCalled();
+  });
+  it('saves queued products with a blank final entry without adding a phantom line',async () => {
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button',{ name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'),{ target: { value: product.id } });
+    fireEvent.click(screen.getByRole('button',{ name: 'Add product to order' }));
+    fireEvent.click(screen.getByRole('button',{ name: 'Save sale' }));
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalledWith([expect.objectContaining({ productId: product.id })],0,0));
+  });
+  it('groups website products by real order identity and shows their combined margin',async () => {
+    const order = { id: 'order',reference: 'LUV-MULTI',paymentOrderId: 'payment',packagingCost: 20,shippingCost: 80,
+      shippingCollected: 0,shippingSource: 'courier' as const,itemRevenue: 500 };
+    vi.mocked(fetchSellerSales).mockResolvedValue([
+      { ...sale,order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
+      { ...sale,id: 'second',order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
+    ]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
+    await screen.findByLabelText('Order LUV-MULTI');
+    expect(screen.getByText(/Estimated order profit:/).textContent).toContain('₹250 · margin 50.0%');
+    expect(screen.queryByRole('button',{ name: 'Delete' })).toBeNull();
+  });
   it('scrolls to and focuses the sale form on every Record sale click', async () => {
     const scroll = vi.fn();
     const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
@@ -271,9 +315,9 @@ describe('SellerSalesDashboard', () => {
     expect(screen.getByLabelText('Sale GST rate')).toHaveProperty('value', '5');
     fireEvent.change(screen.getByLabelText('Sale GST rate'), { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save sale' }));
-    await waitFor(() => expect(createSellerSale).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalledWith([expect.objectContaining({
       productId: product.id, gstPercent: 0,
-    })));
+    })],0,0));
     expect(await screen.findByText('Sale recorded.')).toBeTruthy();
     expect(product).toEqual(originalProduct);
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
@@ -288,7 +332,7 @@ describe('SellerSalesDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     for (const label of ['Sale product name', 'Sale date', 'Sales channel', 'Sale quantity',
       'Unit selling price', 'Sale GST rate', 'Materials per piece (₹)', 'Labour per piece (₹)',
-      'Packaging per piece (₹)', 'Shipping cost for this sale (₹)', 'Payment processing fee (%)',
+      'Whole-order packaging', 'Whole-order shipping', 'Payment processing fee (%)',
       'GST on payment fee (%)']) {
       expect(screen.getByLabelText(label).closest('label')?.querySelector('.text-red-600')).toBeTruthy();
     }
@@ -335,7 +379,7 @@ describe('SellerSalesDashboard', () => {
     expect(screen.getByLabelText('Payment processing fee (%)')).toHaveProperty('value', '2');
     fireEvent.click(screen.getByRole('button', { name: 'Save sale' }));
 
-    await waitFor(() => expect(createSellerSale).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalledWith([expect.objectContaining({
       productId: product.id,
       productName: product.name,
       variantName: 'Pink',
@@ -343,12 +387,12 @@ describe('SellerSalesDashboard', () => {
       gstPercent: 5,
       materialCost: 25,
       labourCost: 50,
-      packagingCost: 8,
-      shippingCost: 60,
+      packagingCost: 0,
+      shippingCost: 0,
       channel: 'online',
       gatewayFeePercent: 2,
       gatewayFeeGstPercent: 18,
-    })));
+    })],0,0));
     expect(await screen.findByText('Sale recorded.')).toBeTruthy();
   });
 
@@ -368,8 +412,8 @@ describe('SellerSalesDashboard', () => {
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
     expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '42');
     expect(screen.getByLabelText('Materials per piece (₹)')).toHaveProperty('value', '21');
-    expect(screen.getByLabelText('Packaging per piece (₹)')).toHaveProperty('value', '9');
-    expect(screen.getByLabelText('Shipping cost for this sale (₹)')).toHaveProperty('value', '100');
+    expect(screen.getByLabelText('Whole-order packaging')).toHaveProperty('value', '0');
+    expect(screen.getByLabelText('Whole-order shipping')).toHaveProperty('value', '0');
     expect(Number.isInteger(Number((screen.getByLabelText('Unit selling price') as HTMLInputElement).value))).toBe(true);
   });
 
@@ -394,9 +438,11 @@ describe('SellerSalesDashboard', () => {
   it('opens sale edits inside the selected record and saves them there', async () => {
     const secondSale = { ...sale, id: 'sale-2', productName: 'Crochet bag', variantName: '', saleDate: '2026-10-05' };
     vi.mocked(fetchSellerSales).mockResolvedValue([sale, secondSale]);
-    vi.mocked(updateSellerSale).mockImplementation(async (id: string, input: SellerSaleInput) => ({
-      ...secondSale, ...input, id,
-    }));
+    vi.mocked(updateSellerSale).mockImplementation(async (id: string, input: SellerSaleInput) => {
+      const saved = { ...secondSale,...input,id };
+      vi.mocked(fetchSellerSales).mockResolvedValue([sale,saved]);
+      return saved;
+    });
     render(<SellerSalesDashboard refreshKey={0} />);
     fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-10' } });

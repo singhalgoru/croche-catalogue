@@ -11,14 +11,16 @@ export interface SaleFinancials {
 }
 
 export const calculateSaleFinancials = (sale: SellerSale): SaleFinancials => {
-  const revenue = sale.unitPrice * sale.quantity;
+  const itemRevenue = sale.unitPrice * sale.quantity;
+  const share = sale.order && sale.order.itemRevenue > 0 ? itemRevenue / sale.order.itemRevenue : 0;
+  const revenue = itemRevenue + (sale.order?.shippingCollected ?? 0) * share;
   const gst = revenue * sale.gstPercent / (100 + sale.gstPercent);
   const taxableRevenue = revenue - gst;
   const gatewayFee =
     revenue * sale.gatewayFeePercent / 100 * (1 + sale.gatewayFeeGstPercent / 100);
   const costs = sale.quantity
-    * (sale.materialCost + sale.labourCost + sale.packagingCost)
-    + sale.shippingCost;
+    * (sale.materialCost + sale.labourCost + (sale.order ? 0 : sale.packagingCost))
+    + (sale.order ? (sale.order.packagingCost + sale.order.shippingCost) * share : sale.shippingCost);
   const profit = taxableRevenue - gatewayFee - costs;
   return {
     revenue,
@@ -40,7 +42,7 @@ export const summarizeSellerSales = (sales: SellerSale[]) => {
   const taxableRevenue = financials.reduce((sum, sale) => sum + sale.taxableRevenue, 0);
   const profit = financials.reduce((sum, sale) => sum + sale.profit, 0);
   return {
-    salesCount: sales.length,
+    salesCount: new Set(sales.map(sale => sale.order?.id ?? sale.id)).size,
     piecesSold: sales.reduce((sum, sale) => sum + sale.quantity, 0),
     revenue,
     gst,

@@ -2,8 +2,19 @@ import { loadSupabase } from '../lib/supabaseConfig';
 
 export const SALE_CHANNELS = ['online', 'offline', 'whatsapp', 'instagram', 'other'] as const;
 export type SaleChannel = (typeof SALE_CHANNELS)[number];
+export interface SellerOrder {
+  id: string;
+  reference: string;
+  paymentOrderId: string | null;
+  packagingCost: number;
+  shippingCost: number;
+  shippingCollected: number;
+  shippingSource: 'manual' | 'courier' | 'estimate';
+  itemRevenue: number;
+}
 
 export interface SellerSale {
+  order?: SellerOrder;
   id: string;
   productId: string | null;
   productName: string;
@@ -23,9 +34,14 @@ export interface SellerSale {
   createdAt: string;
 }
 
-export type SellerSaleInput = Omit<SellerSale, 'id' | 'createdAt'>;
+export type SellerSaleInput = Omit<SellerSale, 'id' | 'createdAt' | 'order'>;
 
 interface SellerSaleRow {
+  order?: {
+    id: string; reference: string; payment_order_id: string | null; packaging_cost: number; shipping_cost: number;
+    shipping_collected: number; shipping_source: SellerOrder['shippingSource'];
+    items: { unit_price: number; quantity: number }[];
+  };
   id: string;
   product_id: string | null;
   product_name: string;
@@ -46,7 +62,7 @@ interface SellerSaleRow {
 }
 
 const SALE_COLUMNS =
-  'id, product_id, product_name, variant_name, sale_date, channel, quantity, unit_price, gst_percent, material_cost, labour_cost, packaging_cost, shipping_cost, gateway_fee_percent, gateway_fee_gst_percent, notes, created_at';
+  'id, product_id, product_name, variant_name, sale_date, channel, quantity, unit_price, gst_percent, material_cost, labour_cost, packaging_cost, shipping_cost, gateway_fee_percent, gateway_fee_gst_percent, notes, created_at, order:seller_orders!seller_sales_order_id_fkey(id,reference,payment_order_id,packaging_cost,shipping_cost,shipping_collected,shipping_source,items:seller_sales!seller_sales_order_id_fkey(unit_price,quantity))';
 
 const requireSupabase = async () => {
   const client = await loadSupabase();
@@ -55,6 +71,12 @@ const requireSupabase = async () => {
 };
 
 const mapSale = (row: SellerSaleRow): SellerSale => ({
+  ...(row.order ? { order: {
+    id: row.order.id, reference: row.order.reference, paymentOrderId: row.order.payment_order_id,
+    packagingCost: Number(row.order.packaging_cost), shippingCost: Number(row.order.shipping_cost),
+    shippingCollected: Number(row.order.shipping_collected), shippingSource: row.order.shipping_source,
+    itemRevenue: row.order.items.reduce((sum,item) => sum + Number(item.unit_price) * item.quantity,0),
+  } } : {}),
   id: row.id,
   productId: row.product_id,
   productName: row.product_name,
@@ -143,9 +165,11 @@ export async function fetchSellerSales(): Promise<SellerSale[]> {
       .order('sale_date', { ascending: false })
       .order('created_at', { ascending: false })
       .order('id')
-      .range(offset, offset + 499);
+      .range(offset, offset + 499)
+      .overrideTypes<SellerSaleRow[], { merge: false }>();
     if (error) throw new Error(`Unable to load sales: ${error.message}`);
-    const rows = data as SellerSaleRow[];
+    if (!data) throw new Error('Unable to load sales: missing response.');
+    const rows = data;
     sales.push(...rows.map(mapSale));
     if (rows.length < 500) return sales;
   }
@@ -158,9 +182,10 @@ export async function createSellerSale(sale: SellerSaleInput): Promise<SellerSal
     .from('seller_sales')
     .insert(values)
     .select(SALE_COLUMNS)
-    .single();
+    .single().overrideTypes<SellerSaleRow, { merge: false }>();
   if (error) throw new Error(`Unable to save sale: ${error.message}`);
-  return mapSale(data as SellerSaleRow);
+  if (!data) throw new Error('Unable to save sale: missing response.');
+  return mapSale(data);
 }
 
 export async function updateSellerSale(
@@ -174,13 +199,43 @@ export async function updateSellerSale(
     .update(values)
     .eq('id', saleId)
     .select(SALE_COLUMNS)
-    .single();
+    .single().overrideTypes<SellerSaleRow, { merge: false }>();
   if (error) throw new Error(`Unable to update sale: ${error.message}`);
-  return mapSale(data as SellerSaleRow);
+  if (!data) throw new Error('Unable to update sale: missing response.');
+  return mapSale(data);
 }
 
 export async function deleteSellerSale(saleId: string): Promise<void> {
   const client = await requireSupabase();
   const { error } = await client.from('seller_sales').delete().eq('id', saleId);
   if (error) throw new Error(`Unable to delete sale: ${error.message}`);
+}
+
+export async function createSellerOrder(items: SellerSaleInput[], packagingCost: number, shippingCost: number): Promise<void> {
+  if (!items.length || items.length > 100) throw new Error('Add between 1 and 100 products to the order.');
+  if (![packagingCost,shippingCost].every(cost => Number.isFinite(cost) && cost >= 0 && cost <= 1000000)) {
+    throw new Error('Enter valid whole-order costs between 0 and 1,000,000.');
+  }
+  const values = items.map(item => saleColumns({ ...item,packagingCost: 0,shippingCost: 0 }));
+  const client = await requireSupabase();
+  const { error } = await client.rpc('create_seller_order',{ p_items: values,p_packaging: packagingCost,p_shipping: shippingCost });
+  if (error) throw new Error(`Unable to save order: ${error.message}`);
+}
+
+export async function saveSellerOrderCosts(orderId: string, packagingCost: number, shippingCost: number,
+  source: 'manual' | 'courier'): Promise<void> {
+  if (![packagingCost,shippingCost].every(cost => Number.isFinite(cost) && cost >= 0 && cost <= 1000000)) {
+    throw new Error('Enter valid whole-order costs between 0 and 1,000,000.');
+  }
+  const client = await requireSupabase();
+  const { error } = await client.rpc('save_seller_order_costs',{
+    p_order_id: orderId,p_packaging: packagingCost,p_shipping: shippingCost,p_source: source,
+  });
+  if (error) throw new Error(`Unable to save order costs: ${error.message}`);
+}
+
+export async function deleteSellerOrder(orderId: string): Promise<void> {
+  const client = await requireSupabase();
+  const { error } = await client.rpc('delete_seller_order',{ p_order_id: orderId });
+  if (error) throw new Error(`Unable to delete order: ${error.message}`);
 }

@@ -17,7 +17,7 @@ begin
     status, is_live_checkout, delivery_details)
     values ('TEST-SALES-' || owner_id, gen_random_uuid(), owner_id, owner_id, 'order_sales_' || owner_id, 'Buyer',
       '+919876543210', 'buyer@example.test', 100000, 10000, 5000, 95000, now() + interval '30 minutes',
-      'link_created', true, '{}') returning id into paid_order;
+      'link_created', true, '{"email":"buyer@example.test"}') returning id into paid_order;
   insert into public.payment_order_items(order_id, product_id, variant_id, product_name, variant_name, image_url, unit_price_paise, quantity)
     values (paid_order, target_product, gen_random_uuid(), 'Ledger Rose', 'Standard', 'https://example.test/a.jpg', 25000, 3),
       (paid_order, gen_random_uuid(), gen_random_uuid(), 'Removed Product', 'Blue', 'https://example.test/b.jpg', 12500, 2);
@@ -34,12 +34,15 @@ begin
   where i.order_id = paid_order and i.product_name = 'Ledger Rose';
   if ledger.channel <> 'online' or ledger.product_id <> target_product or ledger.quantity <> 3
     or ledger.unit_price <> 225 or ledger.variant_name <> '' or ledger.gst_percent <> 12
-    or ledger.material_cost <> 40 or ledger.labour_cost <> 150 or ledger.packaging_cost <> 10
-    or ledger.shipping_cost <> 60 or ledger.gateway_fee_percent <> 2 or ledger.gateway_fee_gst_percent <> 18
+    or ledger.material_cost <> 40 or ledger.labour_cost <> 150 or ledger.packaging_cost <> 0
+    or ledger.shipping_cost <> 0 or ledger.gateway_fee_percent <> 2 or ledger.gateway_fee_gst_percent <> 18
     or ledger.sale_date <> (now() at time zone 'Asia/Kolkata')::date
     or ledger.notes not like '%Customer paid ₹50.00 shipping%' then
     raise exception 'Paid line was recorded with wrong values: %', row_to_json(ledger);
   end if;
+  if not exists(select 1 from public.seller_orders where id=ledger.order_id
+    and payment_order_id=paid_order and packaging_cost=30 and shipping_cost=60 and shipping_collected=50)
+    then raise exception 'Website shared costs not moved to the whole order.'; end if;
 
   select s.* into ledger from public.seller_sales s join public.payment_order_items i on i.id = s.payment_order_item_id
   where i.order_id = paid_order and i.product_name = 'Removed Product';

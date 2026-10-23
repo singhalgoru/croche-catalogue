@@ -25,6 +25,12 @@ const REPORT_HEADERS = [
   'Total Costs',
   'Estimated Profit',
   'Margin Percent',
+  'Order ID',
+  'Order Reference',
+  'Order Packaging Cost',
+  'Order Shipping Cost',
+  'Order Shipping Source',
+  'Customer Shipping Collected',
 ] as const;
 
 const csvCell = (value: string | number) => {
@@ -62,6 +68,12 @@ export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
       financials.costs.toFixed(2),
       financials.profit.toFixed(2),
       financials.marginPercent?.toFixed(2) ?? '',
+      sale.order?.id ?? '',
+      sale.order?.reference ?? '',
+      sale.order?.packagingCost ?? '',
+      sale.order?.shippingCost ?? '',
+      sale.order?.shippingSource ?? '',
+      sale.order?.shippingCollected ?? '',
     ]);
   });
   const summary = summarizeSellerSales(monthly);
@@ -140,6 +152,7 @@ const channelSet = new Set<string>(SALE_CHANNELS);
 export interface ParsedSalesImport {
   sales: SellerSaleInput[];
   existingIds: Array<string | null>;
+  orderIds: Array<string | null>;
 }
 
 export const parseSellerSalesCsv = (
@@ -159,6 +172,7 @@ export const parseSellerSalesCsv = (
 
   const sales: SellerSaleInput[] = [];
   const existingIds: Array<string | null> = [];
+  const orderIds: Array<string | null> = [];
   const seenIds = new Set<string>();
   const errors: string[] = [];
   rows.slice(1).forEach((row, rowIndex) => {
@@ -214,10 +228,11 @@ export const parseSellerSalesCsv = (
       notes,
     });
     existingIds.push(normalizedId);
+    orderIds.push(row[headers.indexOf('order id')]?.trim() || null);
   });
   if (errors.length > 0) {
     throw new Error(`Import cancelled; no rows were saved.\n${errors.slice(0, 8).join('\n')}${errors.length > 8 ? `\n…and ${errors.length - 8} more row errors.` : ''}`);
   }
   if (sales.length === 0) throw new Error('No sale rows were found in the selected month.');
-  return { sales, existingIds };
+  return { sales, existingIds, orderIds };
 };
