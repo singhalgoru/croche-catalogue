@@ -172,7 +172,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = fals
               <img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy" className="max-w-11 md:max-w-none" />
             </li>
             <li className="flex h-7 items-center justify-center md:h-10">
-              <img src="/images/payments/amex.svg" alt="American Express" width="36" height="36" loading="lazy" className="h-7 w-auto max-w-11 md:h-9 md:max-w-none" />
+              <img src="/images/payments/amex.png" alt="American Express" width="50" height="50" loading="lazy" className="h-9 w-auto max-w-11 md:h-[50px] md:max-w-none" />
             </li>
             <li className="flex h-7 items-center justify-center md:h-10">
               <img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy" className="max-w-11 brightness-0 invert md:max-w-none" />

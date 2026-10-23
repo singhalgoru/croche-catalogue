@@ -97,7 +97,7 @@ describe('Footer', () => {
     expect(screen.getByRole('region', { name: 'Payment methods' })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Visa' }).getAttribute('src')).toBe('/images/payments/visa.svg');
     expect(screen.getByRole('img', { name: 'Mastercard' }).getAttribute('src')).toBe('/images/payments/mastercard.svg');
-    expect(screen.getByRole('img', { name: 'American Express' }).getAttribute('src')).toBe('/images/payments/amex.svg');
+    expect(screen.getByRole('img', { name: 'American Express' }).getAttribute('src')).toBe('/images/payments/amex.png');
     expect(screen.getByRole('img', { name: 'American Express' }).className).not.toMatch(/brightness-0|invert/);
     expect(screen.getByRole('img', { name: 'UPI' }).getAttribute('src')).toBe('/images/payments/upi.svg');
     expect(screen.getByRole('img', { name: 'RuPay' }).getAttribute('src')).toBe('/images/payments/rupay.svg');

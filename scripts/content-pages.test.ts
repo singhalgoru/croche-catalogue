@@ -21,7 +21,7 @@ describe('collection and information pages', () => {
     for (const html of pages.values()) {
       const doc = new JSDOM(html).window.document;
       expect(doc.querySelector('footer img[alt="American Express"]')?.getAttribute('src'))
-        .toBe('/images/payments/amex.svg');
+        .toBe('/images/payments/amex.png');
     }
   });
   it.each([
