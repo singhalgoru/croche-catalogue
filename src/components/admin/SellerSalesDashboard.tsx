@@ -14,7 +14,7 @@ import {
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import { formatINR } from '../../utils/currency';
 import { getVariantPrice } from '../../utils/productPrice';
-import { formatDate } from '../../utils/date';
+import { formatDate, localDate } from '../../utils/date';
 import DateInput from './DateInput';
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
 import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
@@ -43,13 +43,6 @@ interface SaleDraft {
   gatewayFeeGstPercent: string;
   notes: string;
 }
-
-const localDate = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const currentMonth = () => localDate().slice(0, 7);
 
@@ -156,6 +149,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
   const [isImporting, setIsImporting] = useState(false);
   const reportFileInput = useRef<HTMLInputElement>(null);
   const saleFormRef = useRef<HTMLFormElement>(null);
+  const [recordSaleRequest, setRecordSaleRequest] = useState(0);
 
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
@@ -189,12 +183,12 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
   const editingSaleVisible = !isLoading && editingId !== null && monthSales.some((sale) => sale.id === editingId);
 
   useEffect(() => {
-    if (!editingId) return;
+    if (!editingId && !recordSaleRequest) return;
     const form = saleFormRef.current;
     if (!form) return;
-    form.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+    form.scrollIntoView?.({ behavior: 'smooth', block: editingId ? 'nearest' : 'start' });
     form.querySelector<HTMLElement>('select, input')?.focus({ preventScroll: true });
-  }, [editingId]);
+  }, [editingId, recordSaleRequest]);
   const summary = useMemo(() => summarizeSellerSales(monthSales), [monthSales]);
   const monthExpenses = useMemo(
     () => expenses.filter(expense => expense.expenseDate.startsWith(`${month}-`)),
@@ -625,6 +619,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
             type="button"
             onClick={() => {
               setDraft(blankDraft());
+              setRecordSaleRequest(current => current + 1);
               setEditingId(null);
               setError(null);
               setMessage(null);

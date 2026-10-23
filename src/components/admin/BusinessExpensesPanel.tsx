@@ -6,7 +6,7 @@ import {
 import { formatINR } from '../../utils/currency';
 import RequiredMark from './RequiredMark';
 import DateInput from './DateInput';
-import { formatDate } from '../../utils/date';
+import { formatDate, localDate } from '../../utils/date';
 
 interface Props {
   month: string;
@@ -88,7 +88,7 @@ export default function BusinessExpensesPanel({ month, expenses, loading, onSave
         {message && <p role="status" className="mt-3 text-sm text-green-800">{message}</p>}
         <button type="button" disabled={busy || loading || draft !== null}
           onClick={() => {
-            setDraft({ description: '', expenseDate: `${month}-01`, category: 'Advertising', amount: '', notes: '' });
+            setDraft({ description: '', expenseDate: localDate(), category: 'Advertising', amount: '', notes: '' });
             setError(null); setMessage(null); setDeleteId(null);
           }} className="mt-3 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">
           Add expense

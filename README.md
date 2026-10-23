@@ -1696,6 +1696,10 @@ automatically; enter them manually if they are missing.
 
 ### Business expenses
 
+New expenses default to today's local date, regardless of the selected report
+month. The date remains editable; editing an existing expense keeps its saved date.
+**Record sale** scrolls to the sale form and focuses its first field.
+
 Sale and expense dates are entered and displayed as **DD/MM/YYYY**, independently
 of browser locale. Enter a complete valid calendar date (for example, `08/10/2026`).
 Sales CSV exports use the same format; imports accept both this format and older

@@ -8,6 +8,7 @@ import { createSellerSale, fetchSellerSales, updateSellerSale } from '../../serv
 import { fetchManagedProducts } from '../../services/products';
 import { fetchBusinessExpenses, saveBusinessExpense, deleteBusinessExpense } from '../../services/businessExpenses';
 import { buildSellerSalesCsv } from './sellerSalesReport';
+import { formatDate, localDate } from '../../utils/date';
 
 vi.mock('../../services/businessExpenses', () => ({
   EXPENSE_CATEGORIES: ['Advertising', 'Tools & equipment', 'Subscriptions', 'Rent & utilities', 'Travel', 'Other'],
@@ -106,6 +107,28 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('scrolls to and focuses the sale form on every Record sale click', async () => {
+    const scroll = vi.fn();
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scroll });
+    try {
+      render(<SellerSalesDashboard refreshKey={0} />);
+      fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+      await waitFor(() => expect(fetchBusinessExpenses).toHaveBeenCalled());
+      for (let click = 1; click <= 2; click++) {
+        fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+        const form = screen.getByRole('form', { name: 'Record a sale' });
+        expect(scroll).toHaveBeenCalledTimes(click);
+        expect(scroll).toHaveBeenLastCalledWith({ behavior: 'smooth', block: 'start' });
+        expect(scroll.mock.contexts[click - 1]).toBe(form);
+        expect(document.activeElement).toBe(form.querySelector('select, input'));
+      }
+    } finally {
+      if (original) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', original);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    }
+  });
+
   it.each([false, true])('refreshes product sold counts after CSV imports, including partial success: %s', async partial => {
     const onSalesChanged = vi.fn();
     const { container } = render(<SellerSalesDashboard refreshKey={0} onSalesChanged={onSalesChanged} />);
@@ -163,7 +186,7 @@ describe('SellerSalesDashboard', () => {
     expect(saveBusinessExpense).toHaveBeenCalledWith(expect.objectContaining({ amount: 20, description: 'Ads' }), undefined);
     expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹87');
     fireEvent.click(screen.getByRole('button', { name: 'Edit expense Ads' }));
-    expect(screen.getByLabelText('Expense date')).toHaveProperty('value', '01/10/2026');
+    expect(screen.getByLabelText('Expense date')).toHaveProperty('value', formatDate(localDate()));
     fireEvent.change(screen.getByLabelText('Expense amount'), { target: { value: '120' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save expense' }));
     await waitFor(() => expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹13'));
