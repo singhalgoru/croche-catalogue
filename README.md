@@ -752,6 +752,8 @@ UPI and RuPay artwork is from Wikimedia Commons ([UPI](https://commons.wikimedia
 The live footer uses a compact, wrapping "We accept" logo strip, plus a generic
 Wallet icon (without implying support for a particular wallet provider), on the cocoa
 background rather than individual payment cards.
+American Express is included alongside the other supported payment networks,
+using a locally hosted Simple Icons mark (CC0).
 Customer communication uses the confirmed order's `LUV-...` order ID; internal
 cart UUIDs and cart references are not included in customer email, enquiry
 subjects/bodies or WhatsApp support messages. Cart identifiers remain internal

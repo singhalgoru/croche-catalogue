@@ -97,10 +97,11 @@ describe('Footer', () => {
     expect(screen.getByRole('region', { name: 'Payment methods' })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Visa' }).getAttribute('src')).toBe('/images/payments/visa.svg');
     expect(screen.getByRole('img', { name: 'Mastercard' }).getAttribute('src')).toBe('/images/payments/mastercard.svg');
+    expect(screen.getByRole('img', { name: 'American Express' }).getAttribute('src')).toBe('/images/payments/amex.svg');
     expect(screen.getByRole('img', { name: 'UPI' }).getAttribute('src')).toBe('/images/payments/upi.svg');
     expect(screen.getByRole('img', { name: 'RuPay' }).getAttribute('src')).toBe('/images/payments/rupay.svg');
     expect(screen.getByRole('region', { name: 'Payment methods' }).className).not.toContain('hidden');
-    for (const name of ['UPI', 'Visa', 'Mastercard', 'RuPay']) {
+    for (const name of ['UPI', 'Visa', 'Mastercard', 'American Express', 'RuPay']) {
       expect(screen.getByRole('img', { name }).className).toContain('max-w-11');
       expect(screen.getByRole('img', { name }).className).toContain('md:max-w-none');
     }

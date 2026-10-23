@@ -17,6 +17,13 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('includes the locally hosted American Express logo in every generated footer', () => {
+    for (const html of pages.values()) {
+      const doc = new JSDOM(html).window.document;
+      expect(doc.querySelector('footer img[alt="American Express"]')?.getAttribute('src'))
+        .toBe('/images/payments/amex.svg');
+    }
+  });
   it.each([
     ['/collections/', ['Home', 'Explore our handmade collections'], ['/', '/collections/']],
     ['/collections/toys/', ['Home', 'Collections', 'Handmade Toys'], ['/', '/collections/', '/collections/toys/']],
