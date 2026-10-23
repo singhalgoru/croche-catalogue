@@ -1729,6 +1729,9 @@ Fill the current product and click **Add product to order** for another; **Save
 sale** saves all queued products and any completed current product atomically.
 Enter shipping and packaging once for the whole order. Product materials and
 labour remain per piece. All items share the order date and channel.
+Offline order references use `LUV-OFFLINE-XXXXXXXX` with a unique eight-character
+uppercase hexadecimal suffix. Existing offline references are migrated to this
+format; internal order IDs, items and website order references remain unchanged.
 
 Each order shows combined revenue, estimated profit and margin. Item estimates
 include a revenue-weighted allocation of shared order costs and customer shipping
