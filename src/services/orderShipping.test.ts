@@ -41,3 +41,11 @@ it('validates selected courier estimate fields',async () => {
   } } } });
   await expect(requestOrderShipping('order','status')).rejects.toThrow('Invalid shipping response');
 });
+it('validates optional admin margin basis and preserves missing-ledger state',async () => {
+  invoke.mockResolvedValueOnce({ data: { ...state,marginBasis: { revenue: 500,gst: 25,gatewayFee: 11.8,productCosts: 100 } } });
+  await expect(requestOrderShipping('order','status')).resolves.toMatchObject({ marginBasis: { revenue: 500 } });
+  invoke.mockResolvedValueOnce({ data: { ...state,marginBasis: null } });
+  await expect(requestOrderShipping('order','status')).resolves.toMatchObject({ marginBasis: null });
+  invoke.mockResolvedValueOnce({ data: { ...state,marginBasis: { revenue: 500,gst: -1,gatewayFee: 0,productCosts: 0 } } });
+  await expect(requestOrderShipping('order','status')).rejects.toThrow('Invalid shipping response');
+});

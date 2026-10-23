@@ -5,6 +5,7 @@ import type { OrderFulfilment } from '../types/customer';
 export interface ShippingPackage { weight: number; length: number; breadth: number; height: number }
 export interface ShippingQuote { id: number; name: string; charge: number; days: number | null; recommended: boolean }
 export interface ShippingState {
+  marginBasis?: { revenue: number; gst: number; gatewayFee: number; productCosts: number } | null;
   parcel: ShippingPackage | null;
   quotes: ShippingQuote[];
   quotedAt: string | null;
@@ -30,6 +31,10 @@ function validState(value: unknown): value is ShippingState {
   if (!object(value) || !object(value.fulfilment) || !Array.isArray(value.quotes)) return false;
   const f = value.fulfilment;
   const estimate = f.deliveryEstimate;
+  const basis = value.marginBasis;
+  if (basis !== undefined && basis !== null
+    && (!object(basis) || !['revenue','gst','gatewayFee','productCosts'].every(key =>
+      typeof basis[key] === 'number' && Number.isFinite(basis[key]) && basis[key] >= 0))) return false;
   if (estimate !== undefined && estimate !== null && (!object(estimate)
     || typeof estimate.courierName !== 'string'
     || !(estimate.transitDays === null || positive(estimate.transitDays))

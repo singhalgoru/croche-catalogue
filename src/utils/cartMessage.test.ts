@@ -25,6 +25,10 @@ const buildItem = (overrides: Partial<Cart['items'][number]> = {}) => ({
 });
 
 describe('getCartTotals', () => {
+  it('never charges shipping on an empty cart, including after settlement with a saved address', () => {
+    const cart = { ...buildCart([]), deliveryPinCode: '110001' };
+    expect(getCartTotals(cart)).toMatchObject({ subtotal: 0, discount: 0, shipping: 0, total: 0 });
+  });
   it('sums quantity times unit price', () => {
     const totals = getCartTotals(
       buildCart([buildItem(), buildItem({ id: 'i2', unitPrice: 400, quantity: 1 })]),

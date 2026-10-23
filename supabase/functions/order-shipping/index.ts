@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { orderMarginBasis } from './margin.ts';
 import { createOrderPayload, createShiprocketClient, identifier, parseCouriers, parsePackage,
   record, safeLabel, trackingStatus, trackingDeliveryDate } from './shiprocket.ts';
 
@@ -67,9 +68,15 @@ Deno.serve(async request => {
   const state = async (id: string) => {
     const order = await readOrder(id);
     const shipping = await readShipping(id);
+    const { data: marginItems,error: marginError } = await db.from('payment_order_items')
+      .select('quantity,line_total_paise,seller_sales(quantity,gst_percent,material_cost,labour_cost,packaging_cost,gateway_fee_percent,gateway_fee_gst_percent)')
+      .eq('order_id',id);
+    if (marginError) throw new Error('Unable to read saved order costs for courier margin estimates.');
+    const marginBasis = orderMarginBasis(Number(order.subtotal_paise),Number(order.discount_paise),
+      Number(order.shipping_paise),marginItems ?? []);
     const quotes = Array.isArray(shipping?.quotes) ? shipping.quotes : [];
     const selected = quotes.find((q: { id: number }) => q.id === shipping?.courier_id);
-    return { parcel: shipping?.package ?? null, quotes: shipping?.quotes ?? [], quotedAt: shipping?.quoted_at ?? null,
+    return { marginBasis, parcel: shipping?.package ?? null, quotes: shipping?.quotes ?? [], quotedAt: shipping?.quoted_at ?? null,
       shipmentId: shipping?.shipment_id ?? null, awb: shipping?.awb ?? null, courierName: shipping?.courier_name ?? null,
       labelUrl: shipping?.label_url ?? null, pickupRequested: shipping?.pickup_requested ?? false,
       reviewRequired: shipping?.review_required ?? false, busy: Boolean(shipping?.operation),

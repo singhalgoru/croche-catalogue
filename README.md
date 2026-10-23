@@ -757,6 +757,19 @@ weight and dimensions, check available prepaid couriers, confirm the order is
 ready to ship, and approve a courier and estimated charge before booking.
 Generate the shipping label and request pickup separately. Booking is never
 automatic after payment and does not change the customer's paid shipping fee.
+Each courier option shows estimated order profit and margin using saved sales
+cost/rate snapshots: paid revenue after discounts (including customer shipping),
+less estimated GST, gateway fees including fee GST, materials, labour, packaging,
+and that courier's quoted charge. Collected shipping and discounts are allocated
+by item value; margin uses revenue before GST. Saved shipping costs are replaced,
+not added again. Missing or inconsistent sales snapshots show margin unavailable.
+Verify saved costs, especially zero values. These estimates exclude overheads,
+refunds and later courier adjustments and are not final accounting profit.
+Selecting a courier or ticking approval alone never books it. Clicking Book
+creates a Shiprocket order and requests an AWB; wallet balance is not checked in
+advance. Recharge first. Insufficient funds may leave a provider order without
+an AWB; reconcile that existing order in Shiprocket before attempting another
+booking. Label generation and pickup remain separate explicit actions.
 Courier tracking updates the existing customer order status and shipment/delivery
 email queue; creating an AWB alone does not mark an order shipped.
 Checkout delivery dates are provisional, combining preparation time and an

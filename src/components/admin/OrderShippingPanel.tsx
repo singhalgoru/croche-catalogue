@@ -22,6 +22,13 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
   const unshipped = ['confirmed','processing'].includes(fulfilment.status);
   const blocked = busy || Boolean(state?.busy || state?.reviewRequired);
   const quote = !quoteInvalid ? state?.quotes.find(q => String(q.id) === selected) : undefined;
+  const basis = state?.marginBasis;
+  const marginLabel = (charge: number) => {
+    if (!basis) return 'Est. margin unavailable';
+    const netRevenue = basis.revenue - basis.gst;
+    const profit = netRevenue - basis.gatewayFee - basis.productCosts - charge;
+    return `Est. profit ${formatINR(profit)} · margin ${netRevenue > 0 ? `${(profit / netRevenue * 100).toFixed(1)}%` : 'unavailable'}`;
+  };
   const expired = !state?.quotedAt || Date.parse(state.quotedAt) < now-15*60*1000;
   async function run(action: Parameters<typeof requestOrderShipping>[1]) {
     setBusy(true); setError(''); setNotice('');
@@ -55,6 +62,8 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
     <p className="mt-1 text-xs text-cocoa/70">Prepaid orders only. Confirm the packed weight and dimensions, then approve a courier. Booking does not mark the order shipped; courier tracking does.
       {' '}Compare transit days as well as cost: the selected courier may differ from the provisional checkout estimate.
       A recommendation is not a guarantee of delivery speed or reliability.</p>
+    <p className="mt-1 text-xs text-cocoa/70">Selecting or approving a courier does not book it. Book creates a Shiprocket order and requests an AWB.
+      {' '}Recharge your Shiprocket wallet first; balance is not checked here. If AWB assignment fails, check the existing order in Shiprocket before retrying. Label and pickup are separate steps.</p>
     <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void run('status')}>
       {busy ? 'Working...' : state ? 'Refresh shipping status' : 'Manage Shiprocket shipping'}
     </button>
@@ -93,10 +102,21 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
               onChange={event => { setSelected(event.target.value); setReady(false); }}>
               <option value="">Select a courier</option>
               {state.quotes.map(q => <option key={q.id} value={q.id}>
-                {q.name} — {formatINR(q.charge)}{q.days ? ` · ${q.days} days` : ''}{q.recommended ? ' · Shiprocket recommended' : ''}
+                {q.name} — {formatINR(q.charge)}{q.days ? ` · ${q.days} days` : ''}{q.recommended ? ' · Shiprocket recommended' : ''} · {marginLabel(q.charge)}
               </option>)}
             </select>
           </label>
+          {quote && <p className="mt-2 text-sm font-semibold" role="status">{marginLabel(quote.charge)}</p>}
+          {basis ? <p className="mt-2 text-xs text-cocoa/70">
+            Paid revenue {formatINR(basis.revenue)} (after discounts, including customer shipping);
+            estimated GST {formatINR(basis.gst)}, payment fees including fee GST {formatINR(basis.gatewayFee)},
+            materials/labour/packaging {formatINR(basis.productCosts)}. Each estimate subtracts that courier&apos;s charge instead of saved shipping costs.
+            Margin is on revenue before GST. Tax and fees use saved sales rates; collected shipping is allocated by item value.
+            Verify saved costs, including any zero values. Excludes overheads, refunds and later courier adjustments; not final accounting profit.
+          </p> : <p className="mt-2 text-sm text-cocoa/70">
+            Estimated margins unavailable: complete, valid saved sales cost records are required for every order item.
+            Check the sales ledger before relying on profit estimates.
+          </p>}
           <label className="mt-3 flex items-start gap-2 text-sm">
             <input type="checkbox" checked={ready} disabled={blocked} className="mt-1"
               onChange={event => setReady(event.target.checked)} />

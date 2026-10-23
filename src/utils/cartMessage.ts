@@ -29,7 +29,7 @@ export interface CartTotals {
 
 export const getCouponDiscount = (cart: Cart, subtotal: number) => {
   const coupon = cart.coupon;
-  if (!coupon || subtotal < coupon.minimumSubtotalRupees) return 0;
+  if (!cart.items.length || !coupon || subtotal < coupon.minimumSubtotalRupees) return 0;
   return Math.min(Math.floor((subtotal * coupon.percent) / 100), coupon.maxDiscountRupees);
 };
 
@@ -41,13 +41,13 @@ export const getCartTotals = (cart: Cart): CartTotals => {
   const shippingSource: CartTotals['shippingSource'] = subtotal - discount >= FREE_SHIPPING_THRESHOLD
     ? 'free'
     : estimate ? 'estimate' : 'flat';
-  const shipping = shippingSource === 'free'
+  const shipping = !cart.items.length || shippingSource === 'free'
     ? 0
     : shippingSource === 'estimate' && estimate ? getEstimatedShippingCharge(estimate) : INDICATIVE_SHIPPING_CHARGE;
   return {
     subtotal,
     discount,
-    couponShortfall: cart.coupon ? Math.max(0, cart.coupon.minimumSubtotalRupees - subtotal) : 0,
+    couponShortfall: cart.items.length && cart.coupon ? Math.max(0, cart.coupon.minimumSubtotalRupees - subtotal) : 0,
     shipping,
     shippingSource,
     total: subtotal - discount + shipping,

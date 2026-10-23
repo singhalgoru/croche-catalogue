@@ -23,6 +23,21 @@ it('loads on demand and never books immediately after payment',() => {
   expect(requestOrderShipping).not.toHaveBeenCalled();
   expect(screen.queryByLabelText('Packed weight (kg)')).toBeNull();
 });
+it('shows profit and margin for every courier, including loss-making options, before approval',async () => {
+  await open({ ...quoted,marginBasis: { revenue: 1050,gst: 50,gatewayFee: 24.78,productCosts: 600 },
+    quotes: [...quoted.quotes,{ id: 11,name: 'Expensive courier',charge: 500,days: 2,recommended: false }] });
+  expect(screen.getByRole('option',{ name: /Courier.*Est. profit ₹290.*margin 29.0%/ })).toBeTruthy();
+  expect(screen.getByRole('option',{ name: /Expensive courier.*Est. profit -₹125.*margin -12.5%/ })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Approve courier'),{ target: { value: '11' } });
+  expect(screen.getByRole('status').textContent).toContain('margin -12.5%');
+  expect(screen.getByText(/Verify saved costs/)).toBeTruthy();
+  expect(requestOrderShipping).toHaveBeenCalledTimes(1);
+});
+it('explicitly reports unavailable margin instead of assuming missing costs are zero',async () => {
+  await open(quoted);
+  expect(screen.getByRole('option',{ name: /Est. margin unavailable/ })).toBeTruthy();
+  expect(screen.getByText(/Estimated margins unavailable:/).textContent).toContain('saved sales cost records');
+});
 it('requires packed dimensions, courier approval and ready-to-ship confirmation',async () => {
   await open(quoted);
   fireEvent.change(screen.getByLabelText('Approve courier'),{ target: { value: '10' } });

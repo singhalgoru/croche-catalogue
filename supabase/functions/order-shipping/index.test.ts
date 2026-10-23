@@ -42,7 +42,9 @@ class Query {
       return { data: { order_id: id },error: null };
     }
     return { data: this.table === 'payment_orders' ? currentOrder
-      : this.table === 'payment_order_items' ? [{ product_name: 'Rose',variant_name: 'Pink',variant_id: 'variant',quantity: 1,unit_price_paise: 50000 }]
+      : this.table === 'payment_order_items' ? [{ product_name: 'Rose',variant_name: 'Pink',variant_id: 'variant',quantity: 1,unit_price_paise: 50000,
+        line_total_paise: 50000,seller_sales: [{ quantity: 1,gst_percent: 5,material_cost: 100,labour_cost: 50,
+          packaging_cost: 10,gateway_fee_percent: 2,gateway_fee_gst_percent: 18 }] }]
       : this.many ? jobs : shipping,error: null };
   }
   single() { return this.result(); } maybeSingle() { return this.result(); }
@@ -107,6 +109,15 @@ it('loads status without requiring provider configuration or calling Shiprocket'
   const response=await handle(request({ action: 'status',orderId: id }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ parcel,quotes: shipping?.quotes,awb: null,fulfilment: { status: 'confirmed' } });
+  expect(api).not.toHaveBeenCalled();
+});
+it('returns admin-only saved cost basis without creating a provider shipment',async () => {
+  const response = await handle(request({ action: 'status',orderId: id }));
+  const data = await response.json();
+  expect(data).toMatchObject({ marginBasis: {
+    revenue: 500,gst: 500 * 5 / 105,productCosts: 160,
+  } });
+  expect(data.marginBasis.gatewayFee).toBeCloseTo(11.8);
   expect(api).not.toHaveBeenCalled();
 });
 it('rejects unpaid, test and non-live orders before provider calls',async () => {
