@@ -30,13 +30,13 @@ it('immediately replaces the editable cart with confirmation and refreshes serve
   const confirm = await screen.findByRole('button', { name: 'Simulate verified payment' });
   expect(refresh).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Remove Flower from cart' })).toBeTruthy();
-  fireEvent.click(confirm);
+  await act(async () => { fireEvent.click(confirm); });
   expect(screen.getByRole('heading', { name: 'Order confirmation' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Remove Flower from cart' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Continue shopping' })).toBeTruthy();
   expect(navigate).toHaveBeenCalledExactlyOnceWith('confirmation', 'verified-request');
   expect(refresh).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole('button', { name: 'Simulate verified payment' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Simulate verified payment' })); });
   expect(refresh).toHaveBeenCalledTimes(1);
 });
 const renderCart = (value: Cart, onClose = vi.fn(), onCreateAccount?: () => void, accountName?: string) => render(<CartDrawer cart={value} pageStep="cart" products={[]}
