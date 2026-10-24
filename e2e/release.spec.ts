@@ -63,6 +63,32 @@ test('watch pages match homepage responsive header and footer and keep video def
   expect(requests).toHaveLength(0);
 });
 
+test('video badges navigate to the video section and start muted playback after a tap', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].product_making_videos = {
+    video_url: makingVideoUrl, poster_url: state.products[0].image_url, duration_seconds: 2, width: 320, height: 180,
+  };
+  await page.route(makingVideoUrl, route => route.fulfill({
+    contentType: 'video/mp4', body: makingVideoBytes,
+  }));
+  for (const route of ['/', '/featured/', '/collections/charms/']) {
+    await page.goto(route);
+    const card = page.getByRole('article', { name: 'Product: Rose Charm' });
+    await card.getByRole('link', { name: 'Watch making video for Rose Charm' }).click();
+    await expect(page).toHaveURL(/\/p\/rose-charm\/\?watch=making-video#making-video$/);
+    const section = page.getByRole('region', { name: 'Making video', exact: true });
+    await expect(section).toBeInViewport();
+    await expect.poll(() => section.locator('video').evaluate(video => ({
+      muted: video.muted, played: video.currentTime > 0,
+    }))).toEqual({ muted: true, played: true });
+  }
+  await page.goto('/');
+  await page.getByRole('region', { name: 'Featured products', exact: true })
+    .getByRole('link', { name: 'Watch making video for Rose Charm' }).click();
+  await expect(page.getByRole('region', { name: 'Making video', exact: true })).toBeInViewport();
+  await expect.poll(() => page.locator('video').evaluate(video => video.currentTime)).toBeGreaterThan(0);
+});
+
 test('optional making video requests no media before a tap and plays inline without changing product photos', async ({ page }) => {
   const state = await installMockSupabase(page);
   state.products[0].product_making_videos = {

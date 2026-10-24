@@ -17,6 +17,15 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('marks video products above the photo watermark in prerendered cards only', () => {
+    const withVideo = { ...toy, makingVideo: { title: 'Making Bunny' } };
+    const doc = new JSDOM(buildContentPages([withVideo, hair], '919205907350').get('/collections/toys/')).window.document;
+    const badge = doc.querySelector('[aria-label="Watch making video for Bunny"]');
+    expect(badge?.getAttribute('style')).toContain('top:8px;right:8px');
+    expect(badge?.getAttribute('href')).toBe('/p/bunny/?watch=making-video#making-video');
+    expect(badge?.parentElement?.closest('a')).toBeNull();
+    expect(documentFor('/collections/hair-accessories/').querySelector('[title="Watch making video"]')).toBeNull();
+  });
   it('publishes curated pages with ranked product links, shared chrome, metadata, schema and sitemap entries', () => {
     const available = toProduct({
       id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',

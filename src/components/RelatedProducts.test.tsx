@@ -22,8 +22,8 @@ describe('RelatedProducts', () => {
     expect(screen.getByRole('heading', { name: 'You May Also Like' })).toBeTruthy();
     const link = screen.getByRole('link', { name: /Flower Coaster/ });
     expect(link.getAttribute('href')).toContain('/p/flower-coaster/');
-    expect(link.parentElement?.className).toContain('grid-cols-2');
-    expect(link.parentElement?.className).toContain('lg:grid-cols-4');
+    expect(link.parentElement?.parentElement?.className).toContain('grid-cols-2');
+    expect(link.parentElement?.parentElement?.className).toContain('lg:grid-cols-4');
     expect(screen.getByText('₹100')).toBeTruthy();
     fireEvent.click(link);
     expect(onSelect).toHaveBeenCalledWith(related);

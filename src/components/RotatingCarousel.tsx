@@ -26,7 +26,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
   const measure = () => {
     const element = track.current;
     if (element) {
-      const first = element.querySelector('a');
+      const first = element.querySelector<HTMLElement>(':scope > a, :scope > div:not([data-pinned])');
       const gap = parseFloat(getComputedStyle(element).columnGap || '0');
       loopWidth.current = first ? (first.getBoundingClientRect().width + gap) * cards.length : 0;
       if (first) element.parentElement?.style.setProperty('--carousel-image-center', `${first.getBoundingClientRect().width / 2}px`);
@@ -104,7 +104,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
         )}
         {cards}
         {looping && cards.map(card => isValidElement<HTMLAttributes<HTMLElement>>(card)
-          ? cloneElement(card, { key: `loop-${card.key}`, 'aria-hidden': true, tabIndex: -1 }) : null)}
+          ? cloneElement(card, { key: `loop-${card.key}`, 'aria-hidden': true, tabIndex: -1, inert: true }) : null)}
       </Track>
       <button type="button" aria-label={`Previous ${label}s`} aria-controls={`${id}-track`}
         disabled={edges.start} onClick={() => scroll(-1)}

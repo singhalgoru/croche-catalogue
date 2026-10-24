@@ -1,6 +1,34 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('making-video badges stay above the watermark and do not request media', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].product_making_videos = {
+    title: 'Making Rose Charm', video_url: 'https://videos.luviacreations.com/badge-test.mp4',
+    poster_url: state.products[0].image_url, duration_seconds: 20, width: 720, height: 720,
+  };
+  const requests: string[] = [];
+  page.on('request', request => { if (request.url().endsWith('badge-test.mp4')) requests.push(request.url()); });
+  await page.goto('/');
+  const card = page.getByRole('article', { name: `Product: ${state.products[0].name}` });
+  const badge = card.getByRole('link', { name: `Watch making video for ${state.products[0].name}` });
+  await expect(badge).toBeVisible();
+  const photo = await card.getByRole('button', { name: `View ${state.products[0].name}`, exact: true }).boundingBox();
+  const box = await badge.boundingBox();
+  expect(box!.y).toBeGreaterThanOrEqual(photo!.y);
+  expect(box!.y + box!.height).toBeLessThan(photo!.y + photo!.height / 2);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(photo!.x + photo!.width);
+  await expect(page.getByRole('article', { name: `Product: ${state.products[1].name}` })
+    .getByRole('link', { name: /^Watch making video for/ })).toHaveCount(0);
+  const featured = page.getByRole('region', { name: 'Featured products', exact: true });
+  await expect(featured.getByRole('link', { name: /^Watch making video for/ })).toHaveCount(1);
+  expect(requests).toEqual([]);
+  await card.getByRole('button', { name: `View ${state.products[0].name}`, exact: true }).click();
+  await expect(page).toHaveURL(/\/p\//);
+  await expect(page.getByRole('heading', { name: 'Making Rose Charm' })).toBeVisible();
+  expect(requests).toEqual([]);
+});
+
 test('featured products sit below bestsellers and link to the dedicated pages', async ({ page }) => {
   const state = await installMockSupabase(page);
   for (const [index, product] of state.products.entries()) {

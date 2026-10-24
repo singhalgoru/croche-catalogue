@@ -14,6 +14,7 @@ import { trackEvent } from '../services/analytics';
 import CartIconButton from './CartIconButton';
 import ShareIconButton from './ShareIconButton';
 import ProductDiscount from './ProductDiscount';
+import MakingVideoBadge from './MakingVideoBadge';
 
 interface Props {
   product: Product;
@@ -221,6 +222,7 @@ export default function ProductCard({
             {...productImageProtection}
           />
         </button>
+        {product.makingVideo && <MakingVideoBadge product={product} belowStockLabel={!product.inStock} />}
         {cardImages.length > 1 && (
           <div
             className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1"

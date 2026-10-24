@@ -46,10 +46,10 @@ ${renderSiteFooter()}</body></html>`;
 const productCards = items => items.map((product, index) => {
   const range = priceRange(product);
   const price = range ? `${range.low !== range.high ? 'From ' : ''}₹${range.low.toLocaleString('en-IN')}` : 'Price on request';
-  return `<li class="card product-card"><a class="product-photo" href="/p/${toProductSlug(product)}/" aria-label="View ${escapeHtml(product.name)}">
+  return `<li class="card product-card" style="position:relative"><a class="product-photo" href="/p/${toProductSlug(product)}/" aria-label="View ${escapeHtml(product.name)}">
   ${product.image ? `<img class="photo-backdrop" src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="" aria-hidden="true" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">
   <img src="${escapeHtml(getProductImageUrl(product.image, 480))}" width="480" height="480" alt="${escapeHtml(product.name)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">` : ''}
-  </a><div class="product-copy"><h2><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h2><p class="product-price">${price}</p>
+  </a>${product.makingVideo ? `<a href="/p/${toProductSlug(product)}/?watch=making-video#making-video" aria-label="Watch making video for ${escapeHtml(product.name)}" title="Watch making video" style="position:absolute;top:8px;right:8px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:1px solid #60423933;background:#fffaf0f2;color:#604239;box-shadow:0 1px 2px #0002"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5a1 1 0 0 1 1.5-.86l10 6.5a1 1 0 0 1 0 1.72l-10 6.5A1 1 0 0 1 8 18.5z"/></svg></a>` : ''}<div class="product-copy"><h2><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h2><p class="product-price">${price}</p>
   <p>View photos, product details and current availability.</p>
   <a class="button" href="/p/${toProductSlug(product)}/">Choose options &amp; add to cart</a>
   <a class="button" href="https://wa.me/?text=${encodeURIComponent(`${product.name} — ${ORIGIN}/p/${toProductSlug(product)}/`)}" aria-label="Share ${escapeHtml(product.name)}">Share</a></div></li>`;
