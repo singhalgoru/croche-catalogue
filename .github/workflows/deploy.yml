@@ -64,20 +64,10 @@ jobs:
         if: steps.verified.outputs.cache-hit != 'true'
         run: npx tsc -b
 
-      - name: Install FFmpeg for video processing tests
+      # Real encoding tests run independently in video-tests.yml.
+      - name: Unit tests (excluding FFmpeg integration tests)
         if: steps.verified.outputs.cache-hit != 'true'
-        timeout-minutes: 5
-        run: |
-          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
-            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
-            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends ffmpeg
-          fi
-          ffmpeg -version
-          ffprobe -version
-
-      - name: Unit tests
-        if: steps.verified.outputs.cache-hit != 'true'
-        run: npm test
+        run: npm test -- --exclude scripts/process-product-videos.test.ts
         env:
           VITE_SUPABASE_URL: http://supabase.test
           VITE_SUPABASE_ANON_KEY: test-anon-key
