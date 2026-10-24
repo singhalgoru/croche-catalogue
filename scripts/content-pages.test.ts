@@ -17,6 +17,42 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('publishes curated pages with ranked product links, shared chrome, metadata, schema and sitemap entries', () => {
+    const available = toProduct({
+      id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
+      featured: true, price: 500, product_variants: [{ id: 'v1', in_stock: true, available_quantity: 2 }],
+    });
+    const second = { ...available, id: 'second', publicSlug: 'second', name: 'Second', sortOrder: 2 };
+    const sold = { ...available, id: 'sold', publicSlug: 'sold', variants: [{ inStock: true, availableQuantity: 0 }] };
+    const result = buildContentPages([available, second, sold, hair], '919205907350', [], ['second', 'p1', 'missing', 'sold']);
+    for (const [pathname, title, slugs] of [
+      ['/bestsellers/', 'Bestsellers', ['second', 'bunny']],
+      ['/featured/', 'Featured products', ['bunny', 'second']],
+    ] as const) {
+      const doc = new JSDOM(result.get(pathname)).window.document;
+      expect(doc.querySelector('h1')?.textContent).toBe(title);
+      expect(doc.querySelector('header .brand')?.textContent).toBe('Luvia Creations');
+      expect(doc.querySelector(`footer a[href="${pathname}"]`)).not.toBeNull();
+      expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${pathname}`);
+      expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')).toBeTruthy();
+      expect([...doc.querySelectorAll('main h2 a')].map(link => link.getAttribute('href'))).toEqual(slugs.map(slug => `/p/${slug}/`));
+      const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
+      expect(schema['@type']).toBe('CollectionPage');
+      expect(schema.mainEntity.numberOfItems).toBe(2);
+      expect(schema.mainEntity.itemListElement.map((item: { url: string }) => item.url))
+        .toEqual(slugs.map(slug => `https://luviacreations.com/p/${slug}/`));
+      expect(schema.breadcrumb.itemListElement.map((item: { name: string }) => item.name)).toEqual(['Home', title]);
+      expect(renderContentSitemap([available], '2026-10-24', result)).toContain(`https://luviacreations.com${pathname}`);
+    }
+  });
+  it('keeps curated pages discoverable and honest when no products qualify', () => {
+    for (const pathname of ['/bestsellers/', '/featured/']) {
+      const doc = documentFor(pathname);
+      expect(doc.querySelector('main ul.grid')).toBeNull();
+      expect(doc.querySelector('main')?.textContent).toContain('available right now.');
+      expect(doc.querySelector('meta[name="robots"]')).toBeNull();
+    }
+  });
   it('includes the locally hosted American Express logo in every generated footer', () => {
     for (const html of pages.values()) {
       const doc = new JSDOM(html).window.document;
@@ -139,7 +175,7 @@ describe('collection and information pages', () => {
     }
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/collections/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');

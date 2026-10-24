@@ -193,6 +193,7 @@ const toProduct = (row) => {
       price: variant.price ?? null,
       regularPrice: variant.regular_price ?? null,
       inStock: variant.in_stock !== false && variant.available_quantity > 0,
+      availableQuantity: variant.available_quantity ?? 0,
     })),
   };
 };
@@ -895,7 +896,7 @@ const main = async () => {
 
   const today = new Date().toISOString().slice(0, 10);
   const { buildContentPages, renderContentSitemap } = await import('./content-pages.mjs');
-  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories);
+  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers);
   for (const [pathname, html] of contentPages) {
     const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
     await mkdir(dir, { recursive: true });

@@ -15,6 +15,28 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('renders featured products with shared chrome and excludes sold out and unfeatured items', () => {
+    window.history.replaceState(null, '', '/featured/');
+    render(<StorePages {...initial} products={[
+      { ...products[0], featured: true },
+      { ...products[0], id: 'sold', name: 'Sold out', featured: true, variants: [] },
+      { ...products[0], id: 'plain', name: 'Not featured' },
+    ]} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Featured products' })).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    expect(screen.queryByRole('article', { name: 'Product: Sold out' })).toBeNull();
+    expect(screen.queryByRole('article', { name: 'Product: Not featured' })).toBeNull();
+    expect(screen.getByRole('banner')).toBeTruthy();
+    expect(screen.getByRole('contentinfo')).toBeTruthy();
+    expect(document.title).toBe('Featured products | Luvia Creations');
+  });
+  it('renders a single bootstrap bestseller on its dedicated page without inventing more products', () => {
+    window.history.replaceState(null, '', '/bestsellers/');
+    render(<StorePages {...initial} initialBestsellerIds={['p1', 'missing']} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Bestsellers' })).toBeTruthy();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+  });
   it.each([
     ['/collections/', ['Home', 'Explore our handmade collections'], ['/', '/collections/']],
     ['/collections/toys/', ['Home', 'Collections', 'Handmade Toys'], ['/', '/collections/', '/collections/toys/']],

@@ -171,7 +171,7 @@ test('photo-led collections hub and homepage links lead directly to published co
 
 test('store headers keep the logo left and product details offer a contextual customisation enquiry', async ({ page }) => {
   await installMockSupabase(page);
-  for (const path of ['/collections/', '/collections/charms/', '/about/', '/faq/']) {
+  for (const path of ['/collections/', '/collections/charms/', '/bestsellers/', '/featured/', '/about/', '/faq/']) {
     await page.goto(path);
     const logo = page.getByRole('link', { name: 'Luvia Creations — home' });
     const menu = page.getByRole('button', { name: 'Open navigation' });
@@ -185,7 +185,7 @@ test('store headers keep the logo left and product details offer a contextual cu
     expect(Math.abs(logoBox!.y - menuBox!.y)).toBeLessThan(2);
   }
   await page.goto('/collections/charms/');
-  await page.getByRole('link', { name: 'View Rose Charm', exact: true }).click();
+  await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
   const request = page.getByRole('link', { name: 'Request a different colour or customisation' });
   await expect(request).toBeVisible();
   const text = new URL((await request.getAttribute('href'))!).searchParams.get('text');

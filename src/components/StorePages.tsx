@@ -20,6 +20,8 @@ import { compareCategorySettings, getSeasonalAnnouncement, matchesCategory } fro
 import { limitCategoryOverview } from '../utils/categoryOverview.js';
 import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePriceRange } from '../utils/cataloguePrice';
 import { getCategoryShareImageUrl } from '../utils/categoryShare';
+import { useBestsellerIds } from '../hooks/useBestsellerIds';
+import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../utils/productCollections.js';
 
 interface Props {
   products: Product[];
@@ -37,18 +39,23 @@ interface Props {
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
   onOpenOrders?: () => void;
   accountName?: string | null;
+  initialBestsellerIds?: string[];
 }
 
 export default function StorePages({
   products, categorySettings, isLoading, loadError, hasCatalogueSnapshot,
   onAddToCart, isCartBusy, getCartQuantity, cartItemCount, cartUpdateCount, onOpenCart, onOpenAccount, accountName,
-  onOpenOrders, onRetry,
+  onOpenOrders, onRetry, initialBestsellerIds = [],
 }: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
+  const productCollection = productCollections.find(item => item.path === requestedPath);
+  const bestsellers = useBestsellerIds(initialBestsellerIds, requestedPath === '/bestsellers/');
+  const curatedProducts = useMemo(() => requestedPath === '/bestsellers/'
+    ? getBestsellerProducts(products, bestsellers.ids) : getFeaturedProducts(products), [products, requestedPath, bestsellers.ids]);
   const policy = policies.find(item => item.path === requestedPath);
   const isBulkOrders = requestedPath === bulkOrders.path;
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
@@ -74,7 +81,7 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
-  const title = policy?.title ?? (isBulkOrders ? bulkOrders.title : pathname.startsWith('/about') ? 'About Luvia & contact'
+  const title = productCollection?.title ?? policy?.title ?? (isBulkOrders ? bulkOrders.title : pathname.startsWith('/about') ? 'About Luvia & contact'
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -89,8 +96,8 @@ export default function StorePages({
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
-    if (policy || isBulkOrders) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = policy?.description ?? bulkOrders.description;
+    if (productCollection || policy || isBulkOrders) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? bulkOrders.description;
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -108,20 +115,27 @@ export default function StorePages({
       if (!robots.isConnected) document.head.append(robots);
     }
     const schema = document.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
-    if (schema && requestedPath.startsWith('/collections/')) {
-      const listed = isCollection ? collectionProducts.map(product => ({
+    if (schema && (productCollection || requestedPath.startsWith('/collections/'))) {
+      const listed = productCollection ? curatedProducts.map(product => ({
+        name: product.name, url: toProductPageUrl(product),
+      })) : isCollection ? collectionProducts.map(product => ({
         name: product.name, url: toProductPageUrl(product),
       })) : visibleCategories.map(item => ({ name: item.name, url: `${window.location.origin}${collectionPath(item.name)}` }));
       schema.textContent = JSON.stringify({
         '@context': 'https://schema.org', '@type': 'CollectionPage', name: title, url: `${window.location.origin}${requestedPath}`,
-        breadcrumb: collectionBreadcrumbList(requestedPath, title, window.location.origin),
+        breadcrumb: productCollection ? {
+          '@type': 'BreadcrumbList', itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
+            { '@type': 'ListItem', position: 2, name: title, item: `${window.location.origin}${requestedPath}` },
+          ],
+        } : collectionBreadcrumbList(requestedPath, title, window.location.origin),
         mainEntity: { '@type': 'ItemList', numberOfItems: listed.length, itemListElement: listed.map((item, index) => ({
           '@type': 'ListItem', position: index + 1, ...item,
         })) },
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isBulkOrders, isCollection, isLoading, policy, requestedPath, title]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -153,7 +167,26 @@ export default function StorePages({
       </article>}
       {loadError && <CatalogueNotice message={loadError} onRetry={onRetry} />}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
-      {policy ? null : isBulkOrders ? <BulkOrders presentation="page" /> : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
+      {policy ? null : productCollection ? <>
+        <p className="max-w-3xl">{productCollection.description}</p>
+        {requestedPath === '/bestsellers/' && bestsellers.error && <CatalogueNotice message={bestsellers.error} onRetry={bestsellers.retry} />}
+        {requestedPath === '/bestsellers/' && bestsellers.isLoading && <p role="status">Checking the latest bestsellers…</p>}
+        {showCatalogue && curatedProducts.length === 0 && !loadError &&
+          (requestedPath !== '/bestsellers/' || (!bestsellers.isLoading && !bestsellers.error)) && <p>{productCollection.empty}</p>}
+        {showCatalogue && <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {curatedProducts.map((product, index) => <li key={product.id}>
+            <ProductCard product={product} isFirstProduct={index === 0}
+              onSelect={selected => window.location.assign(toProductPageUrl(selected))}
+              onAddToCart={onAddToCart} isCartBusy={isCartBusy || isLoading || Boolean(loadError)}
+              cartQuantity={getCartQuantity(product.id)} />
+          </li>)}
+        </ul>}
+        <nav aria-label="More products" className="flex flex-wrap gap-4">
+          <a href="/" className="min-h-11 underline">Shop all products</a>
+          {productCollections.filter(item => item.path !== requestedPath).map(item =>
+            <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
+        </nav>
+      </> : isBulkOrders ? <BulkOrders presentation="page" /> : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>

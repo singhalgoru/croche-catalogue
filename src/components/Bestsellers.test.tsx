@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Product } from '../types/product';
 import Bestsellers from './Bestsellers';
@@ -27,7 +27,8 @@ it('preserves server ranking, links to products and supports selection', async (
   const onSelect = vi.fn();
   render(<Bestsellers products={[product('a'), product('b')]} onSelect={onSelect} />);
   await screen.findByRole('heading', { name: 'Bestsellers' });
-  const links = screen.getAllByRole('link');
+  const links = within(screen.getByRole('group', { name: 'Bestsellers' })).getAllByRole('link');
+  expect(screen.getByRole('link', { name: 'View all' }).getAttribute('href')).toBe('/bestsellers/');
   expect(links[0].textContent).toContain('Product b');
   expect(links[0].getAttribute('href')).toContain('/p/');
   fireEvent.click(links[0], { ctrlKey: true });
@@ -57,7 +58,7 @@ it('shows exactly six distinct ranked products without inventing additional best
   rpc.mockResolvedValue({ data: ['b', 'b', 'a', 'f', 'c', 'd', 'e', 'g'].map(product_id => ({ product_id })), error: null });
   render(<Bestsellers products={items} onSelect={vi.fn()} />);
   await screen.findByRole('heading', { name: 'Bestsellers' });
-  expect(screen.getAllByRole('link').map(link => link.textContent?.split('₹')[0])).toEqual([
+  expect(within(screen.getByRole('group', { name: 'Bestsellers' })).getAllByRole('link').map(link => link.textContent?.split('₹')[0])).toEqual([
     'Product b', 'Product a', 'Product f', 'Product c', 'Product d', 'Product e',
   ]);
   expect(screen.getByRole('button', { name: 'Next bestsellers' })).toBeTruthy();
@@ -89,6 +90,6 @@ it('keeps the build-time ranking when the live refresh fails', async () => {
   rpc.mockResolvedValue({ data: null, error: { message: 'Unavailable' } });
   render(<Bestsellers products={[product('a'), product('b')]} initialIds={['b', 'a']} onSelect={vi.fn()} />);
   await waitFor(() => expect(log).toHaveBeenCalled());
-  expect(screen.getAllByRole('link')[0].textContent).toContain('Product b');
+  expect(within(screen.getByRole('group', { name: 'Bestsellers' })).getAllByRole('link')[0].textContent).toContain('Product b');
   log.mockRestore();
 });

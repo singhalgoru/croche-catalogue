@@ -7,6 +7,8 @@ import ProductMakingVideo from './components/ProductMakingVideo';
 import OrderingGuide from './components/OrderingGuide';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
+import ProductCarousel from './components/ProductCarousel';
+import { getFeaturedProducts, productCollections } from './utils/productCollections.js';
 import CategoryTiles from './components/CategoryTiles';
 import ProductDetailPreview from './components/ProductDetailPreview';
 import StorePages from './components/StorePages';
@@ -705,6 +707,7 @@ function App() {
     return <>
       {cartNotifications}
       <StorePages products={products} categorySettings={categorySettings} isLoading={isLoading}
+        initialBestsellerIds={initialBestsellerIds}
         loadError={loadError} hasCatalogueSnapshot={hasCatalogueSnapshot} onRetry={refreshProducts}
         onAddToCart={async (product, variant) => Boolean(await cart.addItem(product, variant))}
         isCartBusy={cart.isBusy} getCartQuantity={productId => cart.cart?.items
@@ -836,6 +839,9 @@ function App() {
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} initialIds={initialBestsellerIds} onSelect={selectProduct} />}
+        {effectiveActiveCategory === 'All' && !query.trim() && <ProductCarousel products={getFeaturedProducts(products)}
+          onSelect={selectProduct} title={productCollections[1].title} label="featured product"
+          viewAll={productCollections[1].path} description={productCollections[1].description} />}
         <div id="products" ref={catalogueToolsSentinelRef} className="h-px scroll-mt-24" aria-hidden="true" />
         {areCatalogueToolsSticky ? (
           <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
