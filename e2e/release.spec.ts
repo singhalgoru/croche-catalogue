@@ -1,17 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const makingVideoUrl = 'https://videos.luviacreations.com/making-videos/release/video.mp4';
 const makingPosterUrl = 'https://videos.luviacreations.com/making-videos/release/poster.webp';
-let makingVideoBytes: Buffer;
-test.beforeAll(() => {
-  // Entirely local synthetic H.264 fixture; no remote reads, writes or scratch files.
-  makingVideoBytes = execFileSync('ffmpeg', ['-nostdin', '-v', 'error',
-    '-f', 'lavfi', '-i', 'color=c=red:s=320x180:r=24', '-t', '2',
-    '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
-    '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1']);
-});
+// Locally generated two-second H.264 colour fixture; release tests need no encoder.
+const makingVideoBytes = readFileSync(new URL('./fixtures/making-video.mp4', import.meta.url));
 
 test.beforeEach(async ({ page }) => {
   await installMockSupabase(page);

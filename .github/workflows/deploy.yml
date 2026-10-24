@@ -67,7 +67,7 @@ jobs:
       # Real encoding tests run independently in video-tests.yml.
       - name: Unit tests (excluding FFmpeg integration tests)
         if: steps.verified.outputs.cache-hit != 'true'
-        run: npm test -- --exclude scripts/process-product-videos.test.ts
+        run: npm test -- --exclude scripts/process-product-videos.test.ts --exclude scripts/verify-video-processor.test.ts
         env:
           VITE_SUPABASE_URL: http://supabase.test
           VITE_SUPABASE_ANON_KEY: test-anon-key

@@ -52,4 +52,4 @@ jobs:
           ffmpeg -version
           ffprobe -version
       - name: Test real video processing
-        run: npx vitest run scripts/process-product-videos.test.ts
+        run: npx vitest run scripts/process-product-videos.test.ts scripts/verify-video-processor.test.ts
