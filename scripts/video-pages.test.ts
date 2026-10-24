@@ -57,6 +57,27 @@ it('renders a self-canonical watch page with a prominent native player and match
   expect(detail.querySelector('a[href="/watch/rose/"]')).not.toBeNull();
 });
 
+it.each([product, { ...product, makingVideo: { ...product.makingVideo, title: '' } }])(
+  'preserves matching escaped social previews before and after app attachment',
+  item => {
+    const template = `<html><head><meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+      <link rel="stylesheet" href="/assets/app.css"><script type="module" src="/assets/app.js"></script></head></html>`;
+    for (const html of [renderVideoPage(item), attachProductApp(renderVideoPage(item), template)]) {
+      const doc = new JSDOM(html).window.document;
+      expect(doc.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary_large_image');
+      for (const field of ['title', 'description', 'image']) {
+        const twitter = doc.querySelectorAll(`meta[name="twitter:${field}"]`);
+        expect(twitter).toHaveLength(1);
+        expect(twitter[0].getAttribute('content'))
+          .toBe(doc.querySelector(`meta[property="og:${field}"]`)?.getAttribute('content'));
+      }
+      expect(doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content'))
+        .toBe(item.makingVideo.title || `Making ${item.name}`);
+      expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://luviacreations.com/watch/rose/');
+    }
+  },
+);
+
 it('includes only published product videos in valid namespaced sitemap XML', () => {
   const xml = renderSitemap([product, { ...product, id: 'p2', publicSlug: 'no-video', makingVideo: undefined }], '2026-10-23');
   const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;

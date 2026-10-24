@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { buildContentPages, collectionPath, renderContentSitemap } from './content-pages.mjs';
 import { toProduct } from './prerender.mjs';
 import storeContent from '../src/content/storeContent.json';
@@ -17,6 +19,22 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('provides matching social previews on the standalone return policy without changing indexing', () => {
+    const doc = new JSDOM(readFileSync(resolve('public', 'return-policy', 'index.html'), 'utf8')).window.document;
+    const content = (selector: string) => doc.querySelector(selector)?.getAttribute('content');
+    expect(content('meta[property="og:type"]')).toBe('website');
+    expect(content('meta[property="og:title"]')).toBe(doc.title);
+    expect(content('meta[property="og:description"]')).toBe(content('meta[name="description"]'));
+    expect(content('meta[property="og:url"]')).toBe(doc.querySelector('link[rel="canonical"]')?.getAttribute('href'));
+    expect(content('meta[property="og:image"]')).toBe('https://luviacreations.com/images/luvia-logo.jpg');
+    expect(content('meta[name="twitter:card"]')).toBe('summary_large_image');
+    for (const field of ['title', 'description', 'image']) {
+      expect(doc.querySelectorAll(`meta[name="twitter:${field}"]`)).toHaveLength(1);
+      expect(content(`meta[name="twitter:${field}"]`)).toBe(content(`meta[property="og:${field}"]`));
+    }
+    expect(content('meta[name="robots"]')).toBe('index, follow');
+    expect(doc.querySelectorAll('h1')).toHaveLength(1);
+  });
   it('marks video products above the photo watermark in prerendered cards only', () => {
     const withVideo = { ...toy, makingVideo: { title: 'Making Bunny' } };
     const doc = new JSDOM(buildContentPages([withVideo, hair], '919205907350').get('/collections/toys/')).window.document;
