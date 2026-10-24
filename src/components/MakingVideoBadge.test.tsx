@@ -43,6 +43,9 @@ it('marks carousel and related product images without adding nested controls', (
   const badge = screen.getByRole('link', { name: 'Watch making video for Rose' });
   expect(badge.getAttribute('href')).toContain('/p/rose/?watch=making-video#making-video');
   expect(badge.parentElement?.closest('a')).toBeNull();
+  expect(badge.className).toContain('h-11 w-11');
+  expect(badge.querySelector('span')?.className).toContain('h-7 w-7');
+  expect(badge.querySelector('svg')?.getAttribute('width')).toBe('12');
   unmount();
   render(<RelatedProducts product={{ ...product, id: 'other' }} products={[videoProduct]} onSelect={vi.fn()} />);
   expect(screen.getByRole('link', { name: 'Watch making video for Rose' }).getAttribute('href')).toContain('/p/rose/?watch=making-video#making-video');

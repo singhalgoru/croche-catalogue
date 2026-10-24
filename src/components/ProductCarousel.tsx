@@ -39,7 +39,7 @@ export default function ProductCarousel({ products, onSelect, title, label, view
             {price !== null && <p className="text-sm font-semibold">{formatINR(price)}</p>}
           </div>
         </a>
-        {product.makingVideo && <MakingVideoBadge product={product} />}
+        {product.makingVideo && <MakingVideoBadge product={product} compact />}
         </div>;
       })}
   </RotatingCarousel>;
