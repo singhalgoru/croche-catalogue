@@ -297,6 +297,12 @@ export default function Header({
           }`}
           />
           </a>
+          <a href={`${import.meta.env.BASE_URL}search/`} aria-label="Search products" title="Search products"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-cocoa shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" />
+            </svg>
+          </a>
         </div>
         {showHeading && <h1
           className={`font-heading font-extrabold text-cocoa ${

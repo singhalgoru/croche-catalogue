@@ -12,6 +12,10 @@ beforeAll(() => vi.stubGlobal('ResizeObserver', class {
 afterAll(() => vi.unstubAllGlobals());
 
 describe('Header', () => {
+  it('offers an accessible search link without opening the navigation menu', () => {
+    render(<Header showInstallPrompt={false} />);
+    expect(screen.getByRole('link', { name: 'Search products' }).getAttribute('href')).toBe('/search/');
+  });
   it('opens a separate My orders entry from the signed-in name icon', () => {
     const orders = vi.fn();
     const account = vi.fn();

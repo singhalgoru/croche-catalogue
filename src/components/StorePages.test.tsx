@@ -16,6 +16,22 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('opens keyword search URLs, filters live and exposes an explicit empty state', () => {
+    window.history.replaceState(null, '', '/search/?q=white%20bunny');
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Search products' })).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
+    const input = screen.getByRole('searchbox', { name: 'Search products' });
+    fireEvent.change(input, { target: { value: 'not-present' } });
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('not-present');
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(screen.getByText(/No matching products/)).toBeTruthy();
+    fireEvent.change(input, { target: { value: '' } });
+    expect(window.location.search).toBe('');
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    expect(screen.getByRole('search').getAttribute('method')).toBe('get');
+  });
   it('renders the complete founder story with shared chrome and retains contact and ordering information', () => {
     window.history.replaceState(null, '', '/about/');
     const metas = ['description', 'og:description', 'twitter:description', 'og:title', 'twitter:title'].map(name => {

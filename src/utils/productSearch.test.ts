@@ -44,4 +44,12 @@ describe('matchesProductSearch', () => {
   it('does not match unrelated terms', () => {
     expect(matchesProductSearch(product, 'anklet')).toBe(false);
   });
+  it('matches multiple keywords in any order across product fields', () => {
+    expect(matchesProductSearch(product, 'pink bunny')).toBe(true);
+    expect(matchesProductSearch(product, 'bunny   crochet')).toBe(true);
+    expect(matchesProductSearch(product, 'bunny anklet')).toBe(false);
+  });
+  it('uses confirmed material and SEO descriptions as searchable content', () => {
+    expect(matchesProductSearch({ ...product, materials: 'Cotton yarn', seoDescription: 'Amigurumi gift' }, 'cotton amigurumi')).toBe(true);
+  });
 });

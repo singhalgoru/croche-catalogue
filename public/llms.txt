@@ -19,6 +19,7 @@ Luvia Creations designs and handcrafts crochet products in India with thoughtful
 - [Home / catalogue](https://luviacreations.com/): Browse current handmade crochet products, featured items and new arrivals.
 - [Bestsellers](https://luviacreations.com/bestsellers/): Purchasable products ranked by popularity over the last 90 days.
 - [Featured products](https://luviacreations.com/featured/): Handpicked, purchasable handmade favourites.
+- [Product search](https://luviacreations.com/search/): Search the current catalogue by product name, category, description, material or variant name.
 - [Return and refund policy](https://luviacreations.com/return-policy/): Terms for defective, damaged or incorrect items delivered in India.
 
 ## Contact

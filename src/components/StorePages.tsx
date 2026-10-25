@@ -22,6 +22,7 @@ import { getCataloguePriceBands, matchesCataloguePriceRange, type CataloguePrice
 import { getCategoryShareImageUrl } from '../utils/categoryShare';
 import { useBestsellerIds } from '../hooks/useBestsellerIds';
 import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../utils/productCollections.js';
+import { matchesProductSearch } from '../utils/productSearch';
 
 interface Props {
   products: Product[];
@@ -49,6 +50,7 @@ export default function StorePages({
 }: Props) {
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
+  const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
@@ -59,6 +61,8 @@ export default function StorePages({
   const policy = policies.find(item => item.path === requestedPath);
   const isBulkOrders = requestedPath === bulkOrders.path;
   const isAbout = requestedPath === '/about/';
+  const isSearch = requestedPath === '/search/';
+  const searchProducts = products.filter(product => matchesProductSearch(product, searchQuery));
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
@@ -82,7 +86,7 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
-  const title = productCollection?.title ?? policy?.title ?? (isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
+  const title = productCollection?.title ?? policy?.title ?? (isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -97,6 +101,12 @@ export default function StorePages({
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
+    if (isSearch) {
+      const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement('meta');
+      robots.name = 'robots';
+      robots.content = 'noindex,follow';
+      if (!robots.isConnected) document.head.append(robots);
+    }
     if (productCollection || policy || isBulkOrders || isAbout) {
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isAbout ? storeContent.brandStory.description : bulkOrders.description);
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
@@ -136,7 +146,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isSearch, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -168,7 +178,36 @@ export default function StorePages({
       </article>}
       {loadError && <CatalogueNotice message={loadError} onRetry={onRetry} />}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
-      {policy ? null : productCollection ? <>
+      {policy ? null : isSearch ? <>
+        <p>Find handmade favourites by name, category, description or colour.</p>
+        <form role="search" action="/search/" method="get" className="flex flex-wrap items-end gap-3">
+          <label className="min-w-0 flex-1 space-y-2">
+            <span className="block font-semibold">Search products</span>
+            <input type="search" name="q" value={searchQuery} placeholder="Try keychain, gajra or bunny"
+              onChange={event => {
+                const value = event.target.value;
+                setSearchQuery(value);
+                const url = new URL(window.location.href);
+                if (value.trim()) url.searchParams.set('q', value); else url.searchParams.delete('q');
+                window.history.replaceState(window.history.state, '', url);
+              }}
+              className="min-h-11 w-full rounded-xl border-2 border-mustard bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-mustard" />
+          </label>
+          <button type="submit" className="min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream">Search</button>
+          {searchQuery && <a href="/search/" className="inline-flex min-h-11 items-center underline">Clear search</a>}
+        </form>
+        {showCatalogue && <><p role="status">{searchProducts.length} {searchProducts.length === 1 ? 'product' : 'products'}{searchQuery.trim() ? ` found for "${searchQuery.trim()}"` : ' to explore'}</p>
+          {searchProducts.length === 0 ? <p>No matching products. Try a different name, category or colour.</p> :
+            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {searchProducts.map((product, index) => <li key={product.id}>
+                <ProductCard product={product} isFirstProduct={index === 0}
+                  onSelect={selected => window.location.assign(toProductPageUrl(selected))}
+                  onAddToCart={onAddToCart} isCartBusy={isCartBusy || isLoading || Boolean(loadError)}
+                  cartQuantity={getCartQuantity(product.id)} />
+              </li>)}
+            </ul>}
+        </>}
+      </> : productCollection ? <>
         <p className="max-w-3xl">{productCollection.description}</p>
         {requestedPath === '/bestsellers/' && bestsellers.error && <CatalogueNotice message={bestsellers.error} onRetry={bestsellers.retry} />}
         {requestedPath === '/bestsellers/' && bestsellers.isLoading && <p role="status">Checking the latest bestsellers…</p>}

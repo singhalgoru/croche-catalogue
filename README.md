@@ -6,6 +6,9 @@ an India-based handmade crochet brand.
 ## Features
 
 - Browse products and collections, search the catalogue, and filter by price.
+- Open `/search/` from the header search icon and share keyword searches using
+  `?q=...`. Search matches names, categories, descriptions, materials and variants;
+  multiple keywords can appear in any order.
 - Discover bestsellers and featured products in homepage carousels and on
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
 - View product details, available variants, angle photos, image zoom and optional
