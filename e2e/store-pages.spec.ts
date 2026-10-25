@@ -162,7 +162,25 @@ test('about and ordering FAQ retain accessible content and current category navi
   expect(overflow).toBe(false);
 });
 
-test('mobile About page aligns policy links and evenly sizes collection buttons', async ({ page }) => {
+test('About page uses the desktop width and preserves stacked mobile content', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const width of [390, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/about/');
+    const story = page.getByRole('article', { name: "Luvia's founder story" });
+    const storyBox = (await story.boundingBox())!;
+    const detailsBox = (await story.locator('xpath=following-sibling::div').boundingBox())!;
+    if (width >= 1024) {
+      expect(detailsBox.x).toBeGreaterThan(storyBox.x + storyBox.width);
+      expect(Math.abs(detailsBox.y - storyBox.y)).toBeLessThan(1);
+      const mainBox = (await page.getByRole('main').boundingBox())!;
+      expect(mainBox.x + mainBox.width - detailsBox.x - detailsBox.width).toBeLessThan(20);
+    } else expect(detailsBox.y).toBeGreaterThanOrEqual(storyBox.y + storyBox.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  }
+});
+
+test('mobile About page links to ordering help without repeating it and evenly sizes collection buttons', async ({ page }) => {
   const state = await installMockSupabase(page);
   state.products[0].category = 'Charms & Keychains';
   state.categories.push('Charms & Keychains');
@@ -170,15 +188,11 @@ test('mobile About page aligns policy links and evenly sizes collection buttons'
   for (const width of [320, 360, 414]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/about/');
-    const policies = page.getByRole('navigation', { name: 'Ordering policies' });
-    const faq = await policies.getByRole('link', { name: 'Read the ordering FAQ' }).boundingBox();
-    const returns = await policies.getByRole('link', { name: 'Return and refund policy' }).boundingBox();
+    const faq = await page.getByRole('link', { name: 'Read our FAQ', exact: true }).boundingBox();
     expect(faq).not.toBeNull();
-    expect(returns).not.toBeNull();
-    expect(Math.abs(faq!.x - returns!.x)).toBeLessThan(1);
-    expect(returns!.y).toBeGreaterThanOrEqual(faq!.y + faq!.height);
     expect(faq!.height).toBeGreaterThanOrEqual(44);
-    expect(returns!.height).toBeGreaterThanOrEqual(44);
+    await expect(page.getByRole('heading', { name: 'Ordering across India', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Before you order', exact: true })).toHaveCount(0);
     const collections = page.getByRole('navigation', { name: 'Explore collections' });
     const boxes = await collections.getByRole('link').evaluateAll(links =>
       links.map(link => { const box = link.getBoundingClientRect(); return { width: box.width, height: box.height }; }));
@@ -186,7 +200,7 @@ test('mobile About page aligns policy links and evenly sizes collection buttons'
     expect(Math.max(...boxes.map(box => box.width)) - Math.min(...boxes.map(box => box.width))).toBeLessThan(1);
     expect(boxes.every(box => box.height >= 44)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-    await expect(page.getByText(/Never share your card PIN/)).toBeVisible();
+    await expect(page.getByText(/Never share your card PIN/)).toHaveCount(0);
   }
 });
 

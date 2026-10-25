@@ -264,6 +264,14 @@ test('checkout signup with password activates the same cart owner, shows the nam
   const mobile = page.viewportSize()!.width < 640;
   const identity = mobile ? page.getByRole('button', { name: 'My account, signed in as Customer', exact: true }) : navigation;
   if (!mobile) await expect(identity).toHaveAccessibleDescription('Signed in as Customer');
+  if (page.viewportSize()!.width >= 1024) {
+    const greeting = page.getByText('Hello, Customer', { exact: true });
+    await expect(greeting).toBeVisible();
+    const greetingBox = (await greeting.boundingBox())!;
+    const searchBox = (await page.getByRole('link', { name: 'Search products', exact: true }).boundingBox())!;
+    expect(greetingBox.x + greetingBox.width).toBeLessThanOrEqual(searchBox.x);
+  }
+  else await expect(page.getByText('Hello, Customer', { exact: true })).toBeHidden();
   await expect(identity.locator('span[aria-hidden="true"]')).toHaveText('C');
   expect((await page.getByRole('banner').boundingBox())!.height).toBe(signedOutHeaderHeight);
   await expect(navigation).toBeInViewport({ ratio: 1 });

@@ -164,6 +164,10 @@ export default function Header({
         </div>
       )}
       <div className="relative z-[80] mx-auto h-0 w-full max-w-6xl">
+        {accountName && <p title={`Hello, ${accountName}`}
+          className={`absolute top-3 hidden h-12 max-w-40 items-center text-sm font-semibold text-cocoa lg:flex ${onOpenCart ? 'right-48' : 'right-36'}`}>
+          <span className="truncate">Hello, {accountName}</span>
+        </p>}
         <div ref={menuRef}>
           <a href={`${import.meta.env.BASE_URL}search/`} aria-label="Search products" title="Search products"
             className={`absolute top-3 hidden h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:inline-flex ${onOpenCart ? 'right-[7.5rem] sm:right-32' : 'right-[4.25rem] sm:right-[4.75rem]'}`}>

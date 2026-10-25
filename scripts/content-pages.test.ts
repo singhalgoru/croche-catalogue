@@ -51,7 +51,9 @@ describe('collection and information pages', () => {
     }
     expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://luviacreations.com/about/');
     expect(doc.querySelector('a[href="mailto:hello@luviacreations.com"]')).toBeTruthy();
-    expect(doc.body.textContent).toContain(storeContent.dispatch);
+    expect(doc.body.textContent).not.toContain(storeContent.dispatch);
+    expect(doc.body.textContent).not.toContain('Ordering across India');
+    expect([...doc.querySelectorAll('a')].find(link => link.textContent === 'Read our FAQ')?.getAttribute('href')).toBe('/faq/');
     expect(renderContentSitemap([toy], '2026-10-25', pages)).toContain('https://luviacreations.com/about/');
     const llms = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     expect(llms).toContain('https://luviacreations.com/about/');
@@ -227,7 +229,7 @@ describe('collection and information pages', () => {
     expect(hidden.get('/collections/toys/')).toContain('Bunny');
   });
   it('discloses the actual catalogue payment model and additional shipping in crawlable pages', () => {
-    for (const pathname of ['/about/', '/faq/']) {
+    for (const pathname of ['/faq/']) {
       const text = documentFor(pathname).body.textContent;
       expect(text).toContain(pathname === '/about/'
         ? 'does not take payment or confirm an order'

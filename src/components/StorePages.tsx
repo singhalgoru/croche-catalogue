@@ -298,7 +298,7 @@ export default function StorePages({
           {productCollections.filter(item => item.path !== requestedPath).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
         </nav>
-      </> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="max-w-3xl space-y-6 leading-relaxed">
+      </> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="grid items-start gap-6 leading-relaxed lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
         <article aria-label="Luvia's founder story" className="space-y-6 rounded-2xl border border-mustard/30 bg-white/70 p-5 sm:p-8">
           <figure className="mx-auto w-full max-w-[240px]">
             <img {...productImageProtection} src={storeContent.brandStory.portrait.src} alt={storeContent.brandStory.portrait.alt}
@@ -320,6 +320,7 @@ export default function StorePages({
           <p className="border-l-4 border-mustard pl-4 font-semibold">{storeContent.brandStory.closing}</p>
           <a href="/collections/" className="inline-flex min-h-11 items-center rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">{storeContent.brandStory.shopLabel}</a>
         </article>
+        <div className="min-w-0 space-y-6 lg:rounded-2xl lg:border lg:border-mustard/30 lg:bg-white/70 lg:p-6">
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
@@ -330,18 +331,8 @@ export default function StorePages({
         <p>Orders: <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a></p>
         <p>General enquiries: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a></p>
         <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-block underline">Follow Luvia on Instagram</a>
-        <h2 className="font-heading text-xl font-bold">Ordering across India</h2><p>{storeContent.about[3]}</p>
-        <p>{storeContent.dispatch}</p><p>{storeContent.shipping}</p>
-        <section aria-labelledby="about-ordering-title" className="space-y-3 rounded-2xl border border-mustard/30 bg-white/70 p-4 text-sm leading-relaxed sm:p-5 sm:text-base">
-          <h2 id="about-ordering-title" className="font-heading text-xl font-bold">{storeContent.orderingDisclosure.title}</h2>
-          <p>{storeContent.orderingDisclosure.request}</p>
-          <p>{storeContent.orderingDisclosure.price}</p>
-          <p>{storeContent.orderingDisclosure.payment}</p>
-          <nav aria-label="Ordering policies" className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:gap-x-5">
-            <a href="/faq/" className="inline-flex min-h-11 items-center underline underline-offset-4">Read the ordering FAQ</a>
-            <a href="/return-policy/" className="inline-flex min-h-11 items-center underline underline-offset-4">Return and refund policy</a>
-          </nav>
-        </section>
+        <p>Questions about ordering? <a href="/faq/" className="inline-flex min-h-11 items-center underline underline-offset-4">Read our FAQ</a>.</p>
+        </div>
       </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
         <p>Answers about ordering, custom colours, shipping across India, care and returns.</p>
         {storeContent.questions.map(([question, answer]) => <details key={question} className="rounded-xl border border-mustard/40 bg-white p-4">

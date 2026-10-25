@@ -13,6 +13,15 @@ beforeAll(() => vi.stubGlobal('ResizeObserver', class {
 afterAll(() => vi.unstubAllGlobals());
 
 describe('Header', () => {
+  it('shows a separate desktop greeting for signed-in customers and removes it after logout', () => {
+    const view = render(<Header accountName="Asha" showInstallPrompt={false} />);
+    const greeting = screen.getByText('Hello, Asha');
+    expect(greeting.parentElement?.className).toContain('hidden');
+    expect(greeting.parentElement?.className).toContain('lg:flex');
+    expect(greeting.className).toContain('truncate');
+    view.rerender(<Header accountName={null} showInstallPrompt={false} />);
+    expect(screen.queryByText('Hello, Asha')).toBeNull();
+  });
   it('offers an accessible search link without opening the navigation menu', () => {
     render(<Header showInstallPrompt={false} />);
     expect(screen.getByRole('link', { name: 'Search products' }).getAttribute('href')).toBe('/search/');

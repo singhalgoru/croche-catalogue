@@ -158,13 +158,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <h2>Contact Luvia</h2><p>Luvia Creations<br>Gurugram, Haryana, India</p><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>
     <p>Order enquiries: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a><br>General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p>
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
-    <h2>Ordering across India</h2><p>${escapeHtml(storeContent.about[3])}</p>
-    <p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p>
-    <h2>${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
-    <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
-    <p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>
-    <p>${escapeHtml(storeContent.orderingDisclosure.payment)}</p>
-    <p>Read the <a href="/faq/">ordering FAQ</a> and <a href="/return-policy/">return and refund policy</a>.</p></section>`,
+    <p>Questions about ordering? <a href="/faq/">Read our FAQ</a>.</p></section>`,
     baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription)));
   const faqTitle = 'Ordering, delivery & care FAQ';
   const faqDescription = 'Answers to Luvia Creations ordering questions: secure Razorpay checkout, custom colours, shipping across India, product care and returns.';

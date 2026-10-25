@@ -103,7 +103,10 @@ describe('live store pages', () => {
       }
       expect(within(story).getByRole('link', { name: storeContent.brandStory.shopLabel }).getAttribute('href')).toBe('/collections/');
       expect(screen.getByRole('heading', { name: 'Contact Luvia' })).toBeTruthy();
-      expect(screen.getByText(storeContent.dispatch)).toBeTruthy();
+      expect(screen.queryByText(storeContent.dispatch)).toBeNull();
+      expect(screen.queryByRole('heading', { name: 'Ordering across India' })).toBeNull();
+      expect(screen.queryByRole('heading', { name: storeContent.orderingDisclosure.title })).toBeNull();
+      expect(screen.getByRole('link', { name: 'Read our FAQ' }).getAttribute('href')).toBe('/faq/');
       expect(screen.getByRole('banner')).toBeTruthy();
       expect(screen.getByRole('contentinfo')).toBeTruthy();
       expect(document.title).toBe(`${storeContent.brandStory.title} | Luvia Creations`);
@@ -253,15 +256,14 @@ describe('live store pages', () => {
     expect(document.querySelector('img[src*="season"]')).toBeNull();
     expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
   });
-  it('shows the business phone, order model and policy links on the About page', () => {
+  it('shows the business phone and links to ordering help without repeating the order model on About', () => {
     window.history.replaceState(null, '', '/about/');
     render(<StorePages {...initial} />);
-    const orderingCopy = screen.getByText(/then pay securely through Razorpay/);
-    expect(orderingCopy.textContent).toContain('Your online order is confirmed after payment verification.');
-    expect(orderingCopy.textContent).toContain('Adding items to a cart or sending a WhatsApp message does not take payment or confirm an order.');
-    expect(screen.getByText(/Prices are in Indian rupees/)).toBeTruthy();
+    expect(screen.queryByText(/then pay securely through Razorpay/)).toBeNull();
+    expect(screen.queryByText(/Prices are in Indian rupees/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Read our FAQ' }).getAttribute('href')).toBe('/faq/');
     expect(screen.getByRole('link', { name: '+91 92059 07350' }).getAttribute('href')).toContain('https://wa.me/');
-    expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
+    expect(screen.getByRole('contentinfo')).toBeTruthy();
   });
   it('shows a compact photo-led hub with live product counts and no duplicate category section', () => {
     window.history.replaceState(null, '', '/collections/');
