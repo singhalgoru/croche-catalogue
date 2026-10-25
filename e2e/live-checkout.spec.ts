@@ -115,6 +115,14 @@ test(scenario === 'remote' ? 'restores the same payment request without browser 
   await expect(page.getByRole('navigation', { name: 'Checkout steps' }).getByRole('button', { name: '2. Delivery' })).toHaveAttribute('aria-current', 'step');
   await expect(page.getByRole('heading', { name: 'Delivery details', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/checkout=delivery/);
+  if (page.viewportSize()!.width < 640) {
+    const headerCart = page.getByRole('banner').getByRole('button', { name: 'Open cart with 1 item', exact: true });
+    await expect(headerCart).toBeHidden();
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Open navigation', exact: true })).toBeHidden();
+    await page.getByRole('contentinfo').scrollIntoViewIfNeeded();
+    await expect(headerCart).not.toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Continue to address', exact: true })).toBeInViewport({ ratio: 1 });
+  }
   await page.goBack();
   await expect(page).toHaveURL(/checkout=cart/);
   await page.goForward();

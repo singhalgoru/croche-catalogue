@@ -21,7 +21,6 @@ interface Props {
   categories?: string[];
   seasonalCategories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
-  mobileCartInToolbar?: boolean;
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
   onOpenOrders?: () => void;
   accountName?: string | null;
@@ -43,7 +42,6 @@ export default function Header({
   categories = [],
   seasonalCategories = [],
   onNavigateCatalogue,
-  mobileCartInToolbar = false,
   onOpenAccount,
   onOpenOrders,
   accountName,
@@ -182,7 +180,7 @@ export default function Header({
             aria-expanded={isMenuOpen}
             aria-controls={menuId}
             onClick={() => setIsMenuOpen(open => !open)}
-            className={`absolute right-4 top-3 ${isCheckout ? 'flex' : 'hidden sm:flex'} h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:right-6`}
+            className="absolute right-4 top-3 hidden h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:right-6 sm:flex"
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               {isMenuOpen ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
@@ -247,19 +245,17 @@ export default function Header({
         </div>
       </div>
       {onOpenCart && (
-        <div className={`relative z-50 mx-auto ${isCheckout ? '' : 'hidden sm:block'} h-0 max-w-6xl`}>
+        <div className="relative z-50 mx-auto hidden h-0 max-w-6xl sm:block">
           <CartMenuButton itemCount={cartItemCount} updateCount={cartUpdateCount}
             onClick={() => {
               setIsMenuOpen(false);
               onOpenCart();
             }}
             className={`${cartItemCount > 0
-              ? mobileCartInToolbar
-                ? 'right-[4.25rem] sm:right-[max(4.75rem,calc((100vw-72rem)/2+4.75rem))]'
-                : 'right-[max(4.25rem,calc((100vw-72rem)/2+4.25rem))] sm:right-[max(4.75rem,calc((100vw-72rem)/2+4.75rem))]'
+              ? 'right-[4.25rem] sm:right-[max(4.75rem,calc((100vw-72rem)/2+4.75rem))]'
               : 'right-[4.25rem] sm:right-[4.75rem]'} ${
               cartItemCount > 0
-                ? mobileCartInToolbar ? 'absolute top-3 sm:fixed sm:top-12 sm:z-[70]' : 'fixed top-12 z-[70]'
+                ? 'absolute top-3 sm:fixed sm:top-12 sm:z-[70]'
                 : 'absolute top-3'
             }`}
           />
@@ -268,7 +264,7 @@ export default function Header({
       <div
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
-            ? `flex-col gap-3 py-3 sm:flex-row sm:pr-44 ${alignLogoLeft ? 'sm:justify-start sm:text-left' : 'sm:justify-center'}`
+            ? `flex-row justify-start gap-3 py-3 text-left sm:pr-44 ${alignLogoLeft ? 'sm:justify-start' : 'sm:justify-center sm:text-center'}`
             : 'flex-col gap-3 py-3 sm:py-8'
         }`}
       >
@@ -284,13 +280,13 @@ export default function Header({
           srcSet={[160, 320, 480]
             .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
             .join(', ')}
-          sizes={compact ? '(min-width: 640px) 48px, 80px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 80px'}
+          sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 80px'}
           width={320}
           height={320}
           alt="Luvia — Crochet, Accessories & More, made with love"
           className={`rounded-full object-cover shadow-lg ring-white ${
             compact
-              ? 'h-20 w-20 ring-2 ring-inset sm:h-12 sm:w-12'
+              ? 'h-12 w-12 ring-2 ring-inset'
               : 'h-20 w-20 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
           }`}
           />

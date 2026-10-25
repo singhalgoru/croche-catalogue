@@ -46,7 +46,7 @@ export default function MobileNavigation({ cartItemCount, accountName, onOpenCar
     className="mobile-navigation fixed inset-x-0 bottom-0 z-[80] h-[calc(4rem+env(safe-area-inset-bottom))] border-t border-mustard/30 bg-cream px-2 pt-1 pb-[env(safe-area-inset-bottom)] shadow-lg sm:hidden">
     <div className="grid grid-cols-5 gap-1">
       <a href="/" aria-current={pathname === '/' && !window.location.search ? 'page' : undefined} className={itemClass}>{icon('m3 10 9-7 9 7v11h-6v-7H9v7H3z')}Home</a>
-      <a href="/collections/" aria-current={pathname.startsWith('/collections/') ? 'page' : undefined} className={itemClass}>{icon('M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z')}Collections</a>
+      <a href="/collections/" aria-current={!checkout && pathname.startsWith('/collections/') ? 'page' : undefined} className={itemClass}>{icon('M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z')}Collections</a>
       <button type="button" onClick={onOpenCart} disabled={!onOpenCart} aria-current={checkout === 'cart' ? 'page' : undefined} aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`} className={itemClass}>
         {icon('M3 4h2l3 12h11l2-8H6M9 20h.01M18 20h.01')}
         {cartItemCount > 0 && <span className="absolute right-2 top-0 rounded-full bg-mustard px-1.5 text-[10px]">{cartItemCount}</span>}Cart

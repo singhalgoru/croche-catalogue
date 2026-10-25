@@ -40,6 +40,13 @@ an India-based handmade crochet brand.
   navigation when present, from delivery details through secure payment.
   The running total is also shown at the top of cart and checkout steps;
   shipping remains estimated until an address is saved.
+  Header cart icons never float on mobile: the bottom bar provides cart access
+  while shopping, and only the primary checkout action stays fixed in checkout.
+  Mobile checkout hides the desktop hamburger and header cart controls.
+  The homepage keeps its large centred logo; other pages use compact,
+  left-aligned branding on mobile.
+  Payment or assisted-order actions appear at review, after checkout settings
+  load; a settings failure is shown explicitly rather than switching flows.
 - Mobile catalogue filters open from an icon beside sticky search. Seasonal
   collections stay in collection navigation and the filter panel; active-filter
   chips scroll with the product grid rather than occupying another sticky row.

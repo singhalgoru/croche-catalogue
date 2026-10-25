@@ -87,6 +87,7 @@ test('store pages reflect added, renamed and removed admin categories without ha
   state.categorySettings['Gift Sets'] = { priority: 1 };
   await expect(page.getByRole('button', { name: 'Refresh catalogue' })).toHaveCount(0);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForLoadState('networkidle');
   await expect(collections.getByRole('link', { name: 'Gift Sets', exact: true })).toHaveCount(0);
   state.products[0].category = 'Gift Sets';
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -182,7 +183,7 @@ test('photo-led collections hub and homepage links lead directly to published co
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
 
-test('store headers keep the logo left and product details offer a contextual customisation enquiry', async ({ page }) => {
+test('store headers use responsive branding and product details offer a contextual customisation enquiry', async ({ page }) => {
   await installMockSupabase(page);
   for (const path of ['/collections/', '/collections/charms/', '/bestsellers/', '/featured/', '/about/', '/faq/']) {
     await page.goto(path);
@@ -192,10 +193,16 @@ test('store headers keep the logo left and product details offer a contextual cu
     const menuBox = await menu.boundingBox();
     expect(logoBox).not.toBeNull();
     expect(menuBox).not.toBeNull();
-    expect(logoBox!.x + logoBox!.width).toBeLessThan(menuBox!.x);
-    expect(logoBox!.x).toBeLessThan(150);
-    expect(logoBox!.width).toBe(menuBox!.width);
-    expect(Math.abs(logoBox!.y - menuBox!.y)).toBeLessThan(2);
+    if (page.viewportSize()!.width < 640) {
+      expect(logoBox!.x).toBe(16);
+      expect(logoBox!.width).toBe(48);
+      expect(logoBox!.y + logoBox!.height).toBeLessThan(menuBox!.y);
+    } else {
+      expect(logoBox!.x + logoBox!.width).toBeLessThan(menuBox!.x);
+      expect(logoBox!.x).toBeLessThan(150);
+      expect(logoBox!.width).toBe(menuBox!.width);
+      expect(Math.abs(logoBox!.y - menuBox!.y)).toBeLessThan(2);
+    }
   }
   await page.goto('/collections/charms/');
   await page.getByRole('button', { name: 'View Rose Charm', exact: true }).click();
@@ -213,9 +220,9 @@ test('store headers keep the logo left and product details offer a contextual cu
   const logoBox = await logo.boundingBox();
   const cartBox = await cart.boundingBox();
   if (page.viewportSize()!.width < 640) {
-    expect(logoBox!.width).toBe(cartBox!.width);
-    expect(logoBox!.height).toBe(cartBox!.height);
-    expect(Math.abs(logoBox!.y - cartBox!.y)).toBeLessThan(2);
+    expect(logoBox!.width).toBe(80);
+    expect(logoBox!.y + logoBox!.height).toBeLessThan(cartBox!.y);
+    await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toBeInViewport({ ratio: 1 });
   }
 });
 

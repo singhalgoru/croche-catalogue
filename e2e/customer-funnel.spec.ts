@@ -88,7 +88,7 @@ test('cart uses a full-width page with products before the summary on short scre
   expect((await cart.boundingBox())!.width).toBe(390);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   await expect(cart.getByRole('button', { name: 'Continue with delivery details' })).toBeVisible();
-  await expect(cart.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toBeVisible();
+  await expect(cart.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toBeHidden();
   await expect(cart.getByText('Items subtotal', { exact: true })).toBeVisible();
   await expect(cart.getByText('Save or select your delivery address to calculate shipping. The current shipping amount is an estimate.', { exact: true })).toBeVisible();
   await cart.getByText('Price breakdown', { exact: true }).click();
@@ -201,8 +201,8 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
   await expect(page.getByRole('region', { name: 'Free delivery' })).toContainText('Add ₹55 more in items for free delivery!');
   await expect(page.getByText('₹100', { exact: true })).toBeVisible();
   await expect(page.getByText(/Free shipping on items worth ₹500 or more after coupon discounts/)).toBeVisible();
-  const whatsapp = await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href');
-  expect(decodeURIComponent(whatsapp!)).toContain('Indicative shipping: ₹100');
+  await expect(page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toBeHidden();
+  await expect(page.getByLabel('Checkout total', { exact: true })).toContainText('Estimated total: ₹550');
 });
 
 test('checkout signup with password activates the same cart owner, shows the name in the menu and signs back in', async ({ page }) => {
@@ -505,8 +505,9 @@ test('header actions stay separate with touch-sized controls on narrow and wide 
       }
       const logo = (await header.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
       if (mobile) {
-        expect(logo.width).toBe(80);
-        expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(1);
+        expect(logo.width).toBe(pathname === './' ? 80 : 48);
+        if (pathname === './') expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(1);
+        else expect(logo.x).toBe(16);
         expect(logo.y + logo.height).toBeLessThanOrEqual((await bottomNav.boundingBox())!.y);
         await expect(header.getByRole('button', { name: 'Open navigation', exact: true })).toBeHidden();
         await expect(header.getByRole('button', { name: 'Open cart with 0 items', exact: true })).toBeHidden();
@@ -593,6 +594,14 @@ test('mobile sticky search and bottom navigation work without covering dialogs, 
   await expect(navigation).toBeVisible();
   await navigation.getByRole('link', { name: 'Collections', exact: true }).click();
   await expect(navigation.getByRole('link', { name: 'Collections', exact: true })).toHaveAttribute('aria-current', 'page');
+  await navigation.getByRole('button', { name: 'Open cart with 0 items', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=cart/);
+  await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
+  await expect(navigation.getByRole('button', { name: 'Open cart with 0 items', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(navigation.getByRole('link', { name: 'Collections', exact: true })).not.toHaveAttribute('aria-current', 'page');
+  const cartLogo = (await page.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
+  expect(cartLogo.width).toBe(48);
+  expect(cartLogo.x).toBe(16);
   await page.goto('./p/rose-charm/');
   const purchaseActions = page.getByLabel('Product purchase actions', { exact: true });
   await expect(purchaseActions).toBeInViewport({ ratio: 1 });

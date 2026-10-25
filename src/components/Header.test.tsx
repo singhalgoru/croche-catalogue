@@ -100,11 +100,18 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'Open navigation' }).querySelector('span')).toBeNull();
     expect(screen.queryByRole('button', { name: /My account, signed in as/ })).toBeNull();
   });
+  it('never floats the header cart on mobile', () => {
+    render(<Header showInstallPrompt={false} cartItemCount={1} onOpenCart={vi.fn()} />);
+    const button = screen.getByRole('button', { name: 'Open cart with 1 item' });
+    expect(button.className.split(/\s+/)).not.toContain('fixed');
+    expect(button.className).toContain('sm:fixed');
+  });
   it('keeps the top cart for desktop rather than duplicating the mobile bottom cart', () => {
-    render(<Header mobileCartInToolbar cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
+    render(<Header cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
     const button = screen.getByRole('button', { name: 'Open cart with 1 item' });
     expect(button.className).toContain('absolute top-3 sm:fixed');
-    expect(button.parentElement?.className).toContain('hidden sm:block');
+    expect(button.parentElement?.classList.contains('hidden')).toBe(true);
+    expect(button.parentElement?.classList.contains('sm:block')).toBe(true);
   });
   it('uses in-app home navigation but leaves collection page links to the browser', () => {
     const onNavigateCatalogue = vi.fn();
@@ -193,30 +200,29 @@ describe('Header', () => {
 
   it('preserves the compact header without adding the mobile introduction', () => {
     render(<Header compact showInstallPrompt={false} />);
-    expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('(min-width: 640px) 48px, 80px');
+    expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
     expect(screen.queryByText('Luvia Creations')).toBeNull();
     expect(screen.queryByText('Thoughtfully made. Delivered across India.')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
   });
 
-  it('centres the larger product-page logo on mobile and preserves desktop left alignment', () => {
+  it('uses a small left-aligned product-page logo on mobile and desktop', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
       onOpenCart={vi.fn()} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
-    expect(row?.className).toContain('flex-col');
+    expect(row?.className).toContain('flex-row justify-start');
     expect(row?.className).toContain('items-center');
-    expect(row?.className).toContain('sm:pr-44 sm:justify-start sm:text-left');
-    expect(logo.className).toContain('h-20 w-20');
-    expect(logo.className).toContain('sm:h-12 sm:w-12');
+    expect(row?.className).toContain('text-left sm:pr-44 sm:justify-start');
+    expect(logo.className).toContain('h-12 w-12');
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();
   });
-  it('centres compact mobile branding without changing desktop alignment, even without a cart', () => {
+  it('left-aligns compact mobile branding even without a cart', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
-    expect(row?.className).toContain('flex-col');
+    expect(row?.className).toContain('flex-row justify-start');
     expect(row?.className).toContain('items-center');
     expect(row?.className).toContain('sm:justify-start');
   });

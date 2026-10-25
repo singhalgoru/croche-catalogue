@@ -113,7 +113,6 @@ function App() {
     window.location.assign(`${import.meta.env.BASE_URL}?account=orders`);
   }, []);
   const customerName = useCustomerName();
-  const [returnToCartOnProductClose, setReturnToCartOnProductClose] = useState(false);
   const cart = useCart(!isAdminPage);
   const tickerMessages = useTickerMessages(!isAdminPage);
 
@@ -302,7 +301,6 @@ function App() {
     const checkout = readCheckoutStep();
     setCheckoutStep(checkout);
     setCartOpen(Boolean(checkout));
-    setReturnToCartOnProductClose(false);
     setActiveCategory(category ?? 'All');
     setQuery('');
     restoreHomepageMetadata();
@@ -318,7 +316,6 @@ function App() {
       const checkout = readCheckoutStep();
       setCheckoutStep(checkout);
       setCartOpen(Boolean(checkout));
-      setReturnToCartOnProductClose(false);
       setSelectedVariantId(readProductVariantReference());
       const requested = reference ?? readProductReferenceFromHash();
       setSelectedProduct(requested && !isLoading ? findProductByReference(products, requested) : null);
@@ -381,14 +378,12 @@ function App() {
     setSelectedProduct(product);
     setSelectedVariantId(null);
     setPageReference(toProductReference(product));
-    setReturnToCartOnProductClose(false);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const selectProduct = (product: Product) => {
     trackProductSelected(product);
     productReturnScrollY.current = window.scrollY;
-    setReturnToCartOnProductClose(false);
     setSelectedVariantId(null);
     setSelectedProduct(product);
     const url = new URL(toProductPageUrl(product));
@@ -404,11 +399,6 @@ function App() {
   const closeSelectedProduct = () => {
     setSelectedProduct(null);
     setSelectedVariantId(null);
-    if (returnToCartOnProductClose) {
-      setReturnToCartOnProductClose(false);
-      setIsCartOpen(true);
-      return;
-    }
     const returnScrollY = productReturnScrollY.current;
     productReturnScrollY.current = null;
     if (returnScrollY !== null) {
@@ -585,7 +575,6 @@ function App() {
         }
         trackProductSelected(product);
         productReturnScrollY.current = null;
-        setReturnToCartOnProductClose(false);
         setSelectedVariantId(variantId);
         setSelectedProduct(product);
         const url = new URL(toProductPageUrl(product));
@@ -689,14 +678,13 @@ function App() {
     <div className={`min-h-screen flex flex-col ${pageReference && selectedProduct ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : ''}`}>
       {cartNotifications}
       <Header
-        compact={Boolean(pageReference)}
-        alignLogoLeft={Boolean(pageReference)}
-        showHeading={!pageReference}
-        showInstallPrompt={!pageReference}
+        compact={Boolean(pageReference || watchReference)}
+        alignLogoLeft={Boolean(pageReference || watchReference)}
+        showHeading={!pageReference && !watchReference}
+        showInstallPrompt={!pageReference && !watchReference}
         cartItemCount={cart.itemCount}
         cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
-        mobileCartInToolbar={!pageReference}
         tickerMessages={tickerMessages}
         seasonalAnnouncement={seasonalAnnouncement}
         seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}

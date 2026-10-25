@@ -70,7 +70,7 @@ describe('Hybrid product navigation', () => {
     expect(within(teaser).getByRole('link', { name: storeContent.brandStory.teaser.linkLabel }).getAttribute('href')).toBe('/about/');
     expect(teaser.parentElement?.firstElementChild).toBe(teaser);
   });
-  it('renders watch pages with the homepage header and interactive footer, not the catalogue', () => {
+  it('renders watch pages with compact branding and the interactive footer, not the catalogue', () => {
     catalogueProducts = [{ ...product, makingVideo: {
       title: 'Handcrafting a coaster', videoUrl: 'https://videos.luviacreations.com/making-videos/test/video.mp4',
       posterUrl: 'https://videos.luviacreations.com/making-videos/test/poster.webp',
@@ -79,7 +79,8 @@ describe('Hybrid product navigation', () => {
     window.history.replaceState(null, '', '/watch/test-coaster/');
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Handcrafting a coaster', level: 1 })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Premium Handmade Crochet Creations' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Premium Handmade Crochet Creations' })).toBeNull();
+    expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
     expect(screen.getByRole('button', { name: 'Open navigation' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy();

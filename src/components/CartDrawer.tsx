@@ -73,8 +73,9 @@ export default function CartDrawer({
   // Desktop browsers with no mail client registered silently ignore mailto:
   // links, so reveal webmail and copy fallbacks once Email has been tried.
   const [hasTriedEmail, setHasTriedEmail] = useState(false);
-  const [liveCheckout, setLiveCheckout] = useState(false);
+  const [liveCheckout, setLiveCheckout] = useState<boolean | null>(null);
   const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutAttempt, setCheckoutAttempt] = useState(0);
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeOffer | null>(null);
   const [welcomeError, setWelcomeError] = useState('');
   const canCreateAccount = Boolean(onCreateAccount);
@@ -90,7 +91,7 @@ export default function CartDrawer({
     void fetchLiveCheckoutEnabled().then(value => { if (current) setLiveCheckout(value); })
       .catch(failure => { if (current) setCheckoutError(failure instanceof Error ? failure.message : 'Unable to check online payments.'); });
     return () => { current = false; };
-  }, []);
+  }, [checkoutAttempt]);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const checkoutCart = useMemo(
     () =>
@@ -427,12 +428,12 @@ export default function CartDrawer({
                 </div>
               </details>
               {!isPage && <CartDeliveryPin key={cart.id} cart={cart} busy={isBusy} onSave={onSaveDeliveryPin} />}
-              {(!isPage || pageStep === 'delivery' || pageStep === 'review') && onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}-${pageStep ?? ''}`}
+              {liveCheckout !== null && (!isPage || pageStep === 'delivery' || pageStep === 'review') && onSaveDeliveryDetails && onSelectWelcomeCoupon && <CustomerFunnel key={`details-${cart.id}-${pageStep ?? ''}`}
                 pageStep={pageStep === 'delivery' || pageStep === 'review' ? pageStep : undefined}
                 onReview={() => onNavigateStep?.('review')}
                 onEdit={isPage ? () => onNavigateStep?.('delivery') : undefined}
                 onBack={isPage ? () => onNavigateStep?.('cart') : undefined}
-                cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} onlineCheckout={liveCheckout} />}
+                cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} onlineCheckout={liveCheckout === true} />}
               {pageStep === 'cart' && <div className={isPage ? 'checkout-step-actions' : undefined}><button type="button" disabled={isBusy || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0}
                 onClick={() => onNavigateStep?.('delivery')} className="min-h-11 w-full rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50">
                 Continue with delivery details
@@ -486,8 +487,13 @@ export default function CartDrawer({
             {isPage && pageStep !== 'confirmation' && !cart?.deliveryDetails && <p className="mt-3 text-xs text-cocoa/70">
               Save or select your delivery address in the next step to calculate shipping.
             </p>}
-            {checkoutError && <p role="alert" className="mt-2 text-xs text-red-700">{checkoutError}</p>}
-            <div hidden={liveCheckout && isPage && pageStep !== 'review' && pageStep !== 'confirmation'}>
+            {checkoutError && <div className="mt-2">
+              <p role="alert" className="text-xs text-red-700">{checkoutError}</p>
+              <button type="button" onClick={() => { setCheckoutError(''); setCheckoutAttempt(attempt => attempt + 1); }}
+                className="min-h-11 text-sm font-semibold underline">Retry checkout options</button>
+            </div>}
+            {liveCheckout === null && !checkoutError && <p role="status" className="mt-2 text-xs text-cocoa/70">Loading checkout options…</p>}
+            <div hidden={isPage && pageStep !== 'review' && pageStep !== 'confirmation'}>
             {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live
               stickyActions={isPage && pageStep === 'review'}
               confirmationOnly={pageStep === 'confirmation'}
@@ -502,7 +508,7 @@ export default function CartDrawer({
               }}
               disabled={pageStep === 'confirmation' || isBusy || !checkoutCart.deliveryDetails || !checkoutCart.deliveryDetails.email?.trim() || hasUnpricedItems || unavailableItemIds.size > 0
                 || belowMinimumItemIds.size > 0 || Boolean(totals?.couponShortfall)} />}
-            {!liveCheckout && pageStep !== 'confirmation' && <div className={isPage && pageStep === 'review' ? 'checkout-step-actions' : 'mt-2 grid grid-cols-2 gap-2'}>
+            {liveCheckout === false && pageStep !== 'confirmation' && <div className={isPage && pageStep === 'review' ? 'checkout-step-actions' : 'mt-2 grid grid-cols-2 gap-2'}>
               <a
                 href={unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 ? whatsappLink : undefined}
                 target="_blank"
@@ -550,7 +556,7 @@ export default function CartDrawer({
             </div>}
             {liveCheckout && checkoutCart && <a href={getCheckoutSupportWhatsAppLink()} target="_blank" rel="noopener noreferrer"
               className="mt-2 block text-center text-xs underline">Need help? Contact Luvia on WhatsApp</a>}
-            {!liveCheckout && hasTriedEmail && unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 && (
+            {liveCheckout === false && hasTriedEmail && unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 && (
               <div className="mt-2 rounded-xl border border-mustard/50 bg-mustard/10 px-3 py-2 text-xs text-cocoa">
                 <p className="font-semibold">Mail app didn&apos;t open?</p>
                 <p className="mt-0.5 text-cocoa/70">
@@ -581,7 +587,7 @@ export default function CartDrawer({
                 )}
               </div>
             )}
-            {!liveCheckout && checkoutCart && import.meta.env.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT === 'true' && (
+            {liveCheckout === false && checkoutCart && import.meta.env.VITE_ENABLE_RAZORPAY_TEST_CHECKOUT === 'true' && (
               <RazorpayCheckout key={checkoutCart.id} cart={checkoutCart}
                 disabled={isBusy || hasUnpricedItems || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0} />
             )}
