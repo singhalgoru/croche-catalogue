@@ -16,13 +16,14 @@ interface Props {
   onGuest?: () => void;
   onContinue?: (profile: DeliveryDetails | null) => void;
   onModeChange?: (mode: 'signup' | 'signin') => void;
+  signedIn?: boolean;
 }
-export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange }: Props) {
+export default function CustomerAccount({ initialEmail = '', initialDetails, canSignUp, initialMode, onGuest, onContinue, onModeChange, signedIn = false }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [details, setDetails] = useState(() => initialDetails ?? emptyDeliveryDetails());
   const [profile, setProfile] = useState<DeliveryDetails | null>(null);
   const [token, setToken] = useState('');
-  const [account, setAccount] = useState<string | null>(null);
+  const [account, setAccount] = useState<string | null>();
   const [offer, setOffer] = useState<WelcomeOffer | null>(null);
   const [sent, setSent] = useState(false);
   const [mode, setMode] = useState<'signup' | 'signin'>(canSignUp ? initialMode ?? 'signup' : 'signin');
@@ -61,6 +62,11 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
     catch (error) { setError(error instanceof Error ? error.message : 'Unable to complete account request.'); }
     finally { setBusy(false); }
   };
+  if (signedIn && account === undefined) return (
+    <section className="rounded-xl border border-cocoa/20 bg-white p-3 text-sm text-cocoa" aria-label="Customer account">
+      {error ? <p role="alert">{error}</p> : <p role="status">Loading your account…</p>}
+    </section>
+  );
   return (
     <section className="rounded-xl border border-cocoa/20 bg-white p-3 text-sm text-cocoa" aria-label="Customer account">
       <h3 className="font-semibold">{account ? 'Your addresses' : 'Optional email account'}</h3>

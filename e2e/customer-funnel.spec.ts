@@ -6,6 +6,7 @@ test('empty-cart Shop now lands at the collection heading below mobile search', 
   await installMockSupabase(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'Open cart with 0 items', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toBeInViewport({ ratio: 1 });
   await page.getByRole('link', { name: 'Shop now', exact: true }).click();
   await expect(page).toHaveURL(/\/#products$/);
   const heading = page.getByRole('heading', { name: 'Shop the Collection', exact: true });
@@ -264,8 +265,12 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(identity.locator('span[aria-hidden="true"]')).toHaveText('C');
   expect((await page.getByRole('banner').boundingBox())!.height).toBe(signedOutHeaderHeight);
   await expect(navigation).toBeInViewport({ ratio: 1 });
-  await navigation.click();
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  if (mobile) {
+    await identity.click();
+  } else {
+    await navigation.click();
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  }
   await expect(accountDialog.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
@@ -571,7 +576,17 @@ test('mobile sticky search and bottom navigation work without covering dialogs, 
   await purchaseActions.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
   await navigation.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   await expect(page).toHaveURL(/checkout=cart/);
-  await expect(navigation).toHaveCount(0);
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  await expect(navigation.getByRole('button', { name: 'Open cart with 1 item', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(searchLink).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Close cart', exact: true })).toBeVisible();
+  await page.getByRole('contentinfo').scrollIntoViewIfNeeded();
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  await navigation.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  await expect(more).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(navigation.getByRole('button', { name: 'Open navigation', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Continue with delivery details', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=delivery/);
+  await expect(navigation).toHaveCount(0);
 });

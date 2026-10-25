@@ -30,9 +30,11 @@ an India-based handmade crochet brand.
   account actions stay inside the menu without adding another header row.
 - On phones, larger centred branding sits above sticky search, and a fixed
   bottom bar offers Home, Collections, Cart, Account and More;
-  the Account icon shows the signed-in initial. More includes store information,
+  the Account icon shows the signed-in initial and opens account details with a
+  loading state rather than briefly showing sign-in controls. More includes store information,
   contact and policies. Navigation respects safe areas and hides behind dialogs
-  and while the on-screen keyboard is open; checkout stays focused without it.
+  and while the on-screen keyboard is open. The bar stays fixed on the cart;
+  delivery, review and confirmation stay focused without it.
 - Mobile catalogue filters open from an icon beside sticky search. Seasonal
   collections stay in collection navigation and the filter panel; active-filter
   chips scroll with the product grid rather than occupying another sticky row.

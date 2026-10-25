@@ -16,10 +16,17 @@ it('offers five destinations, current collection and working cart, account and m
   expect(account).toHaveBeenCalledWith('signin');
   expect(more).toHaveBeenCalledOnce();
 });
-it('keeps checkout free of bottom navigation', () => {
-  window.history.replaceState(null, '', '/?checkout=delivery');
+it.each(['delivery', 'review', 'confirmation'])('keeps %s checkout free of bottom navigation', step => {
+  window.history.replaceState(null, '', `/?checkout=${step}`);
   render(<MobileNavigation cartItemCount={0} onOpenMore={vi.fn()} moreOpen={false} moreControls="menu" />);
   expect(screen.queryByRole('navigation')).toBeNull();
+});
+it('retains bottom navigation on the cart with the Cart destination selected', () => {
+  window.history.replaceState(null, '', '/?checkout=cart');
+  render(<MobileNavigation cartItemCount={0} onOpenMore={vi.fn()} moreOpen={false} moreControls="menu" />);
+  expect(screen.getByRole('navigation', { name: 'Mobile navigation' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Open cart with 0 items' }).getAttribute('aria-current')).toBe('page');
+  expect(screen.getByRole('link', { name: 'Home' }).hasAttribute('aria-current')).toBe(false);
 });
 it('hides for a focused on-screen keyboard, including browsers resizing the layout viewport', () => {
   vi.stubGlobal('innerHeight', 800);

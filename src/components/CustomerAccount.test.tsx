@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerAccount from './CustomerAccount';
 import { fetchCustomerAccount, registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, fetchWelcomeOffer, fetchCustomerProfile,
@@ -25,6 +25,24 @@ beforeEach(() => {
   vi.mocked(setCustomerPassword).mockResolvedValue(undefined);
 });
 afterEach(cleanup);
+
+it('does not flash sign-in controls while opening an already signed-in account', async () => {
+  let resolveAccount!: (value: string | null) => void;
+  vi.mocked(fetchCustomerAccount).mockReturnValue(new Promise(resolve => { resolveAccount = resolve; }));
+  render(<CustomerAccount canSignUp signedIn initialMode="signin" />);
+  expect(screen.getByRole('status').textContent).toContain('Loading your account');
+  expect(screen.queryByRole('form', { name: 'Customer sign in' })).toBeNull();
+  await act(async () => { resolveAccount('buyer@example.test'); });
+  expect(await screen.findByText('Your addresses')).toBeTruthy();
+  expect(screen.queryByRole('form', { name: 'Customer sign in' })).toBeNull();
+});
+
+it('shows session-loading failures instead of a sign-in form for a known signed-in customer', async () => {
+  vi.mocked(fetchCustomerAccount).mockRejectedValue(new Error('Unable to restore account.'));
+  render(<CustomerAccount canSignUp signedIn />);
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Unable to restore account.');
+  expect(screen.queryByRole('form', { name: 'Customer signup' })).toBeNull();
+});
 
 it('emails a password reset link with visible confirmation', async () => {
   render(<CustomerAccount canSignUp={false} />);

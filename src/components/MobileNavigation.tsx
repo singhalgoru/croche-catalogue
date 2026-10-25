@@ -38,8 +38,8 @@ export default function MobileNavigation({ cartItemCount, accountName, onOpenCar
     };
   }, []);
   const pathname = window.location.pathname;
-  const checkout = new URLSearchParams(window.location.search).has('checkout');
-  if (checkout) return null;
+  const checkout = new URLSearchParams(window.location.search).get('checkout');
+  if (checkout && checkout !== 'cart') return null;
   const itemClass = 'relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-semibold text-cocoa focus-visible:outline-2 focus-visible:outline-cocoa';
   const icon = (path: string) => <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d={path} /></svg>;
   return <nav aria-label="Mobile navigation" hidden={keyboardOpen}
@@ -47,7 +47,7 @@ export default function MobileNavigation({ cartItemCount, accountName, onOpenCar
     <div className="grid grid-cols-5 gap-1">
       <a href="/" aria-current={pathname === '/' && !window.location.search ? 'page' : undefined} className={itemClass}>{icon('m3 10 9-7 9 7v11h-6v-7H9v7H3z')}Home</a>
       <a href="/collections/" aria-current={pathname.startsWith('/collections/') ? 'page' : undefined} className={itemClass}>{icon('M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z')}Collections</a>
-      <button type="button" onClick={onOpenCart} disabled={!onOpenCart} aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`} className={itemClass}>
+      <button type="button" onClick={onOpenCart} disabled={!onOpenCart} aria-current={checkout === 'cart' ? 'page' : undefined} aria-label={`Open cart with ${cartItemCount} item${cartItemCount === 1 ? '' : 's'}`} className={itemClass}>
         {icon('M3 4h2l3 12h11l2-8H6M9 20h.01M18 20h.01')}
         {cartItemCount > 0 && <span className="absolute right-2 top-0 rounded-full bg-mustard px-1.5 text-[10px]">{cartItemCount}</span>}Cart
       </button>

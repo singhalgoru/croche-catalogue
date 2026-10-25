@@ -42,7 +42,7 @@ export default function AccountDialog({ mode, accountName, onClose }: Props) {
           <button ref={closeButton} type="button" onClick={onClose} aria-label="Close account"
             className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-2xl text-cocoa">×</button>
         </div>
-        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp initialMode={mode} onModeChange={setView} />}
+        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp signedIn={Boolean(accountName)} initialMode={mode} onModeChange={setView} />}
       </div>
     </div>
   );

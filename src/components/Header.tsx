@@ -50,7 +50,8 @@ export default function Header({
   showCollaborationLink = true,
   mobileSearchAction,
 }: Props) {
-  const isCheckout = new URLSearchParams(window.location.search).has('checkout');
+  const checkoutStep = new URLSearchParams(window.location.search).get('checkout');
+  const isCheckout = Boolean(checkoutStep && checkoutStep !== 'cart');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState('');
