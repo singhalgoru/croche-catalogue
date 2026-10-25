@@ -9,6 +9,13 @@ test('founder portrait loads in the homepage introduction and full About story',
     await expect(portrait).toBeVisible();
     await expect.poll(() => portrait.evaluate(image => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)).toBe(true);
     await expect(portrait).toHaveAttribute('src', path === '/' ? '/tanushree-mithal-small.webp' : '/tanushree-mithal.webp');
+    await expect(portrait).toHaveAttribute('draggable', 'false');
+    expect(await portrait.evaluate(image => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      image.dispatchEvent(event);
+      return event.defaultPrevented;
+    })).toBe(true);
+    expect(await portrait.evaluate(image => getComputedStyle(image).userSelect)).toBe('none');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width);
   }
 });

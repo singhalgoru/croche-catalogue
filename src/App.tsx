@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import ProductMakingVideo from './components/ProductMakingVideo';
 import OrderingGuide from './components/OrderingGuide';
 import storeContent from './content/storeContent.json';
+import { productImageProtection } from './utils/imageProtection';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
 import ProductCarousel from './components/ProductCarousel';
@@ -794,7 +795,7 @@ function App() {
       ) : (
       <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
         {effectiveActiveCategory === 'All' && !query.trim() && <section aria-labelledby="brand-story-teaser-title" className="grid grid-cols-[80px_minmax(0,1fr)] items-start gap-x-4 gap-y-2 rounded-2xl border border-mustard/40 bg-white/70 p-4 text-cocoa sm:grid-cols-[128px_minmax(0,1fr)] sm:p-6">
-          <img src={storeContent.brandStory.portrait.thumbnail} alt={storeContent.brandStory.portrait.alt} width={150} height={200}
+          <img {...productImageProtection} src={storeContent.brandStory.portrait.thumbnail} alt={storeContent.brandStory.portrait.alt} width={150} height={200}
             className="row-span-2 w-full rounded-xl sm:row-span-4" decoding="async" />
           <p className="text-xs font-semibold uppercase tracking-wider">Meet Luvia &amp; our founder</p>
           <h2 id="brand-story-teaser-title" className="font-heading text-xl font-bold sm:text-2xl">{storeContent.brandStory.teaser.title}</h2>

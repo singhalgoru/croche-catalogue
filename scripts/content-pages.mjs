@@ -144,7 +144,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   const aboutDescription = story.description;
   pages.set('/about/', page('/about/', aboutTitle, aboutDescription, `
     <section class="intro"><article aria-label="Luvia's founder story" class="card">
-    <figure><img src="${escapeHtml(story.portrait.src)}" alt="${escapeHtml(story.portrait.alt)}" width="${story.portrait.width}" height="${story.portrait.height}" style="display:block;width:100%;max-width:240px;height:auto;border-radius:1rem"><figcaption>${escapeHtml(story.founderNote.signature)} — ${escapeHtml(story.founderNote.role)}</figcaption></figure>
+    <figure><img src="${escapeHtml(story.portrait.src)}" alt="${escapeHtml(story.portrait.alt)}" width="${story.portrait.width}" height="${story.portrait.height}" draggable="false" style="display:block;width:100%;max-width:240px;height:auto;border-radius:1rem;pointer-events:none;user-select:none;-webkit-touch-callout:none"><figcaption>${escapeHtml(story.founderNote.signature)} — ${escapeHtml(story.founderNote.role)}</figcaption></figure>
     <p><strong>${escapeHtml(story.subtitle)}</strong></p><p>${escapeHtml(story.intro)}</p>
     ${story.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2>${section.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}</section>`).join('')}
     <section aria-labelledby="founder-note-title" class="card"><h2 id="founder-note-title">${escapeHtml(story.founderNote.title)}</h2>
