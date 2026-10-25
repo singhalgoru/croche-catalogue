@@ -215,15 +215,22 @@ describe('collection and information pages', () => {
   it('discloses the actual catalogue payment model and additional shipping in crawlable pages', () => {
     for (const pathname of ['/about/', '/faq/']) {
       const text = documentFor(pathname).body.textContent;
-      expect(text).toContain('does not take payment or confirm an order');
-      expect(text).toContain('Prices are in Indian rupees');
+      expect(text).toContain(pathname === '/about/'
+        ? 'does not take payment or confirm an order'
+        : 'Adding items or sending a message does not confirm an order');
+      expect(text).toContain(pathname === '/about/' ? 'Prices are in Indian rupees' : 'Product prices are in Indian rupees');
       expect(text).not.toContain('include GST');
-      expect(text).toContain('Shipping charges, if applicable, are shown before payment.');
+      expect(text).toContain(pathname === '/about/'
+        ? 'Shipping charges, if applicable, are shown before payment.'
+        : 'Any shipping charge is shown in your checkout total before payment.');
       expect(text).toContain('Never share your card PIN, OTP or passwords');
       expect(text).not.toContain('Admin Razorpay');
       expect(text).not.toContain('sandbox demonstration');
       expect(text).not.toContain('when online checkout is available');
     }
+    expect(documentFor('/faq/').body.textContent).not.toContain('Does this website take payment or complete checkout?');
+    expect(documentFor('/collections/toys/').body.textContent).not.toContain('confirm shipping and dispatch before paying');
+    expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
     expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/']);

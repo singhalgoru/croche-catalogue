@@ -76,14 +76,14 @@ it('does not claim verification succeeded when the account is still unverified',
 it('motivates signup with a short reward message', async () => {
   vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: true, percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500, validDays: 30 });
   render(<CustomerAccount canSignUp />);
-  expect(await screen.findByText('Sign up and get an additional 10% discount on your first order.')).toBeTruthy();
+  expect(await screen.findByText('Sign up and get 10% off your first order. Minimum spend, discount cap and expiry apply; review the welcome offer at checkout.')).toBeTruthy();
   expect(screen.queryByText(/minimum items subtotal/)).toBeNull();
 });
 
 it('does not promise a signup reward when the offer is disabled', async () => {
   render(<CustomerAccount canSignUp />);
   await screen.findByText('Optional email account');
-  expect(screen.queryByText(/Sign up and get an additional/)).toBeNull();
+  expect(screen.queryByText(/Sign up and get/)).toBeNull();
 });
 
 const signupDetails = { name: 'Buyer', phone: '9876543210', email: 'buyer@example.test', addressLine1: '12 Test Street',

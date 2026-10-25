@@ -90,7 +90,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       </div><ol class="hotspot-links" aria-label="Products in this look">${hotspots.map(spot => `<li><a href="/p/${toProductSlug(spot.product)}/">${escapeHtml(spot.product.name)}</a></li>`).join('')}</ol>
       </section>` : '';
     const description = limitCategoryOverview(categories.find(item => item.name === category)?.overview || (Object.hasOwn(descriptions, category) ? descriptions[category]
-      : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.`));
+      : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.`));
     const cards = productCards(items);
     const schema = { ...baseSchema('CollectionPage', pathname, title, description), mainEntity: {
       '@type': 'ItemList', numberOfItems: items.length, itemListElement: items.map((product, index) => ({
@@ -99,7 +99,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     } };
     const collectionHtml = page(pathname, title, description, `<p class="intro">${escapeHtml(description)}</p>
       ${look}
-      <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability; confirm shipping and dispatch before paying.</p>
+      <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability. Shipping is shown at checkout.</p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
       <p>Need help choosing? <a href="${contact}">Ask us on WhatsApp</a> or read the <a href="/faq/">ordering FAQ</a>.</p>`, schema, socialImage);
     pages.set(pathname, items.length ? collectionHtml

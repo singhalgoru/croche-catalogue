@@ -4,7 +4,7 @@
     "Hair Accessories": "Explore handmade crochet hair accessories, including gajras, clips, scrunchies and headbands. Check each product for available colours and styling details.",
     "Toys": "Meet the handmade crochet toys in the Luvia collection. Check each product for materials, dimensions and care instructions; ask us about any details you need confirmed.",
     "Festive Decor": "Explore handmade crochet decorations for festive styling and thoughtful gifting. View individual pieces for sizes, materials and available designs.",
-    "Anklets": "Browse handmade anklets from Luvia Creations. View the individual designs and confirm sizing, materials and availability before ordering.",
+    "Anklets": "Browse handmade anklets from Luvia Creations. View each design for sizing, materials and available variants.",
     "Brooches": "Explore handmade crochet brooches for adding a decorative touch to your outfit. View product photos, dimensions and available designs."
   },
   "orderingDisclosure": {
@@ -61,7 +61,7 @@
     "Luvia Creations brings a premium touch to handmade crochet accessories, toys, gifts and decor, thoughtfully crafted in India.",
     "Explore the collections and individual product pages for photos, materials, dimensions and care information where provided. If a detail is missing, ask us before ordering rather than assuming.",
     "Interested in a particular colour or a customised piece? Send the product link and your preferences. Customisation depends on the product and must be confirmed with us, including price and dispatch timing.",
-    "We ship across India. Review availability, shipping charges and the order total before payment. Online orders are confirmed after payment verification. A cart or WhatsApp message is an order request, not a confirmed purchase."
+    "Guest checkout is available; creating an account is optional."
   ],
   "questions": [
     ["Are your product images generated using AI?", "Some lifestyle and styled images are generated or enhanced using AI, using photographs of our actual handmade products as references. AI helps illustrate different settings and use cases, such as gifting, styling or hanging a product; it is not how the physical product is made. These images are illustrative and may not reproduce every stitch, colour or proportion exactly. People, backgrounds and props in styled scenes are not necessarily real or included with your order. Please refer to the selected product's description, materials, dimensions and What's included details rather than judging size from a styled scene. Handmade pieces can have small variations, and screen colours can differ. If you would like to see an actual product photograph or clarify a detail before ordering, ask us on WhatsApp."],
@@ -70,8 +70,7 @@
     ["Do you ship across India, and how much does shipping cost?", "We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay. Delivery time after dispatch depends on your location."],
     ["When will my order be dispatched?", "Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window."],
     ["How do I pay?", "Use Proceed to payment after reviewing your delivery address, coupon, shipping and total. Razorpay processes the payment, and your online order is confirmed after payment verification. If online checkout is unavailable, contact Luvia for assisted ordering and confirm payment instructions before sending money. Never share your card PIN, OTP or passwords in a message."],
-    ["Does this website take payment or complete checkout?", "Yes. Online checkout uses Razorpay, and your order is confirmed after payment verification. You do not need to confirm a paid online order on WhatsApp. Adding items to a cart or sending a message does not take payment or confirm an order. If online checkout is unavailable, contact Luvia for assisted ordering."],
-    ["Are shipping charges included in the displayed price?", "Prices are in Indian rupees. Shipping charges, if applicable, are shown before payment. Confirm the selected variant, quantity and final total including shipping before paying. Variant prices can differ; the price shown for your selected variant applies."],
+    ["Are shipping charges included in the displayed price?", "Product prices are in Indian rupees and exclude shipping. Any shipping charge is shown in your checkout total before payment. Variant prices can differ; the price shown for your selected variant applies."],
     ["What materials and sizes are used?", "Check the individual product details for confirmed materials and dimensions. Information varies by product; ask us to confirm any missing details, suitability or sizing before ordering."],
     ["How should I care for my crochet product?", "Follow the care instructions on the individual product page where provided. If instructions are missing or you are unsure, contact us before washing; care depends on the materials and construction."]
   ]

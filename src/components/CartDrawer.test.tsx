@@ -99,7 +99,8 @@ it('shows the configured guest welcome discount and opens signup without closing
   const close = vi.fn();
   renderCart(cart, close, signup);
   const banner = await screen.findByRole('region', { name: 'Welcome discount' });
-  expect(banner.textContent).toContain('additional 15% off your first order');
+  expect(banner.textContent).toContain('15% off your first order');
+  expect(banner.textContent).not.toContain('additional');
   expect(banner.textContent).toContain('₹80');
   expect(banner.textContent).toContain('₹600');
   expect(banner.textContent).toContain('7 days');

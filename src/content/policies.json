@@ -39,7 +39,7 @@
     "path": "/privacy-policy/",
     "title": "Privacy Policy",
     "description": "How Luvia Creations uses customer information for accounts, orders, payments, delivery, support and website analytics.",
-    "updated": "14 October 2026",
+    "updated": "25 October 2026",
     "sections": [
       {
         "title": "Who we are and how to contact us",
@@ -59,7 +59,7 @@
       },
       {
         "title": "Cookies and browser storage",
-        "text": "The website uses browser storage and caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. Analytics and advertising services may use cookies or similar technologies. Our security and bot-protection services process browser signals when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
+        "text": "The website uses browser storage and caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. The latest eight submitted search keywords are saved in this browser on this device, not synced to an account. You can remove individual recent searches or clear them all from the search page. Analytics and advertising services may use cookies or similar technologies. Our security and bot-protection services process browser signals when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
       },
       {
         "title": "Messaging, reviews and external services",

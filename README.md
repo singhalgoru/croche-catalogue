@@ -6,19 +6,36 @@ an India-based handmade crochet brand.
 ## Features
 
 - Browse products and collections, search the catalogue, and filter by price.
-- Open `/search/` from the header search icon and share keyword searches using
+- Open `/search/` from the desktop header icon or mobile sticky search bar and share keyword searches using
   `?q=...`. Results update as you type; press Enter to save the search URL. Search matches names,
   categories, descriptions, materials and variants;
   multiple keywords can appear in any order.
+- Tapping mobile search opens a focused screen with a top search field, back
+  arrow and automatic input focus. The mobile header and bottom bar stay hidden
+  on this screen; clearing a query keeps focus for the next search.
+- Search remembers the latest eight submitted keywords in this browser only,
+  without an account or cross-device syncing. Tap a recent keyword to reuse it,
+  remove individual entries, or clear the history.
 - Discover bestsellers and featured products in homepage carousels and on
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
+- Meet the founder in the homepage story card above collections, with a link to
+  the full About page. Empty-cart “Shop now” opens the product-grid heading.
 - View product details, available variants, angle photos, image zoom and optional
   making videos. Tap the top-right play badge on a product image to jump to its
   making video and start muted playback (subject to browser autoplay settings).
 - Save a cart, check delivery availability, place orders and view order history.
 - Use the header for search, cart and navigation; sign in, account details and
   order history are available inside the navigation menu.
-- Signed-in customers see a small personalised header greeting that opens their account.
+- Signed-in customers see an initial badge on the menu button; their name and
+  account actions stay inside the menu without adding another header row.
+- On phones, larger centred branding sits above sticky search, and a fixed
+  bottom bar offers Home, Collections, Cart, Account and More;
+  the Account icon shows the signed-in initial. More includes store information,
+  contact and policies. Navigation respects safe areas and hides behind dialogs
+  and while the on-screen keyboard is open; checkout stays focused without it.
+- Mobile catalogue filters open from an icon beside sticky search. Seasonal
+  collections stay in collection navigation and the filter panel; active-filter
+  chips scroll with the product grid rather than occupying another sticky row.
 - Contact Luvia by WhatsApp or email for product and customisation enquiries.
 - Install the catalogue as a home-screen app on supported browsers.
 - Authorised administrators can manage products, drafts, media and orders.

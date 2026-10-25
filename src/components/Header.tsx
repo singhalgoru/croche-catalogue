@@ -1,7 +1,9 @@
-import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import InstallAppButton from './InstallAppButton';
 import CartMenuButton from './CartMenuButton';
 import { collectionPath } from '../utils/collectionLink.js';
+import MobileNavigation from './MobileNavigation';
+import { getGeneralWhatsAppLink } from '../utils/whatsapp';
 
 const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
 
@@ -20,11 +22,11 @@ interface Props {
   seasonalCategories?: string[];
   onNavigateCatalogue?: (category?: string) => void;
   mobileCartInToolbar?: boolean;
-  hideMobileCart?: boolean;
   onOpenAccount?: (mode: 'signin' | 'signup') => void;
   onOpenOrders?: () => void;
   accountName?: string | null;
   showCollaborationLink?: boolean;
+  mobileSearchAction?: ReactNode;
 }
 
 export default function Header({
@@ -42,12 +44,13 @@ export default function Header({
   seasonalCategories = [],
   onNavigateCatalogue,
   mobileCartInToolbar = false,
-  hideMobileCart = false,
   onOpenAccount,
   onOpenOrders,
   accountName,
   showCollaborationLink = true,
+  mobileSearchAction,
 }: Props) {
+  const isCheckout = new URLSearchParams(window.location.search).has('checkout');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState('');
@@ -57,7 +60,7 @@ export default function Header({
     if (signOutPending.current) return;
     signOutPending.current = true;
     setIsMenuOpen(true);
-    menuButtonRef.current?.focus();
+    focusMenuTrigger();
     setIsSigningOut(true); setSignOutError(''); setSignOutMessage('');
     try {
       const { signOutCustomer } = await import('../services/customer');
@@ -72,7 +75,14 @@ export default function Header({
   };
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const focusMenuTrigger = useCallback(() => {
+    const trigger = window.innerWidth < 640 && !isCheckout
+      ? mobileNavRef.current?.querySelector<HTMLButtonElement>('button[aria-controls]')
+      : menuButtonRef.current;
+    trigger?.focus({ preventScroll: true });
+  }, [isCheckout]);
   const [tickerIndex, setTickerIndex] = useState(0);
   const [tickerFocused, setTickerFocused] = useState(false);
   const [tickerHovered, setTickerHovered] = useState(false);
@@ -102,13 +112,16 @@ export default function Header({
 
   useEffect(() => {
     if (!isMenuOpen) return;
+    if (window.innerWidth < 640 && !isCheckout) {
+      menuRef.current?.querySelector<HTMLAnchorElement>('nav a')?.focus({ preventScroll: true });
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setIsMenuOpen(false);
-      menuButtonRef.current?.focus();
+      focusMenuTrigger();
     };
     const onPointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target) && !mobileNavRef.current?.contains(event.target)) {
         setIsMenuOpen(false);
       }
     };
@@ -118,7 +131,7 @@ export default function Header({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isCheckout, focusMenuTrigger]);
 
   useEffect(() => {
     if (messages.length < 2 || tickerFocused || tickerHovered) return;
@@ -130,7 +143,7 @@ export default function Header({
   }, [messages.length, tickerFocused, tickerHovered, tickerDuration]);
 
   return (
-    <header className="bg-cream border-b-4 border-mustard">
+    <><header className="bg-cream border-b-4 border-mustard">
       {showShippingTicker && (
         <div
           className="shipping-ticker overflow-hidden bg-cocoa py-2 text-sm font-bold text-cream"
@@ -154,7 +167,7 @@ export default function Header({
       <div className="relative z-[80] mx-auto h-0 w-full max-w-6xl">
         <div ref={menuRef}>
           <a href={`${import.meta.env.BASE_URL}search/`} aria-label="Search products" title="Search products"
-            className={`absolute top-3 inline-flex h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${onOpenCart ? 'right-[7.5rem] sm:right-32' : 'right-[4.25rem] sm:right-[4.75rem]'}`}>
+            className={`absolute top-3 hidden h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:inline-flex ${onOpenCart ? 'right-[7.5rem] sm:right-32' : 'right-[4.25rem] sm:right-[4.75rem]'}`}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" />
             </svg>
@@ -163,14 +176,20 @@ export default function Header({
             ref={menuButtonRef}
             type="button"
             aria-label={isMenuOpen ? 'Close navigation' : 'Open navigation'}
+            aria-describedby={accountName && onOpenAccount ? `${menuId}-account` : undefined}
+            title={accountName && onOpenAccount ? `Signed in as ${accountName}` : undefined}
             aria-expanded={isMenuOpen}
             aria-controls={menuId}
             onClick={() => setIsMenuOpen(open => !open)}
-            className="absolute right-4 top-3 flex h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:right-6"
+            className={`absolute right-4 top-3 ${isCheckout ? 'flex' : 'hidden sm:flex'} h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:right-6`}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               {isMenuOpen ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
             </svg>
+            {accountName && onOpenAccount && <>
+              <span aria-hidden="true" className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-cream bg-mustard text-[10px] font-bold uppercase text-cocoa">{accountName.trim().charAt(0)}</span>
+              <span id={`${menuId}-account`} className="sr-only">Signed in as {accountName}</span>
+            </>}
           </button>
           {isMenuOpen && (
             <nav
@@ -180,9 +199,9 @@ export default function Header({
                 if (event.target instanceof Element && event.target.closest('a')) setIsMenuOpen(false);
               }}
               onBlur={(event) => {
-                if (!event.currentTarget.parentElement?.contains(event.relatedTarget)) setIsMenuOpen(false);
+                if (!event.currentTarget.parentElement?.contains(event.relatedTarget) && !mobileNavRef.current?.contains(event.relatedTarget)) setIsMenuOpen(false);
               }}
-              className="absolute right-4 top-16 max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:right-6"
+              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-h-[65vh] overflow-y-auto rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-6 sm:top-16 sm:max-h-[70vh] sm:w-72"
             >
               <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
               {onOpenAccount && (accountName ? <div className="px-1 py-2">
@@ -217,13 +236,17 @@ export default function Header({
               <a href={`${import.meta.env.BASE_URL}collections/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Explore collection pages</a>
               <a href={`${import.meta.env.BASE_URL}about/`} className="block rounded-lg px-3 py-3 hover:bg-cream">About &amp; contact</a>
               <a href={`${import.meta.env.BASE_URL}faq/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Ordering FAQ</a>
+              <a href={getGeneralWhatsAppLink()} className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Contact on WhatsApp</a>
+              <a href="/bulk-orders/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Bulk orders &amp; gifting</a>
+              <a href="/privacy-policy/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Privacy policy</a>
+              <a href="/terms-and-conditions/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Terms &amp; conditions</a>
               {showCollaborationLink && <a href="#collaborate" className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">Collaborate with us</a>}
             </nav>
           )}
         </div>
       </div>
       {onOpenCart && (
-        <div className={`relative z-50 mx-auto h-0 max-w-6xl ${hideMobileCart ? 'hidden sm:block' : ''}`}>
+        <div className={`relative z-50 mx-auto ${isCheckout ? '' : 'hidden sm:block'} h-0 max-w-6xl`}>
           <CartMenuButton itemCount={cartItemCount} updateCount={cartUpdateCount}
             onClick={() => {
               setIsMenuOpen(false);
@@ -244,11 +267,11 @@ export default function Header({
       <div
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
-            ? `flex-row gap-3 py-3 ${alignLogoLeft ? 'justify-start pr-44 text-left' : 'justify-start pr-44 text-left sm:justify-center'}`
+            ? `flex-col gap-3 py-3 sm:flex-row sm:pr-44 ${alignLogoLeft ? 'sm:justify-start sm:text-left' : 'sm:justify-center'}`
             : 'flex-col gap-3 py-3 sm:py-8'
         }`}
       >
-        <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-44 text-left sm:contents'}>
+        <div className={compact ? 'contents' : 'flex w-full items-center justify-center gap-3 sm:contents'}>
           <a
             href={import.meta.env.BASE_URL}
             onClick={event => navigateCatalogue(event)}
@@ -260,14 +283,14 @@ export default function Header({
           srcSet={[160, 320, 480]
             .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
             .join(', ')}
-          sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 48px'}
+          sizes={compact ? '(min-width: 640px) 48px, 80px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 80px'}
           width={320}
           height={320}
           alt="Luvia — Crochet, Accessories & More, made with love"
           className={`rounded-full object-cover shadow-lg ring-white ${
             compact
-              ? 'h-12 w-12 ring-2 ring-inset'
-              : 'h-12 w-12 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
+              ? 'h-20 w-20 ring-2 ring-inset sm:h-12 sm:w-12'
+              : 'h-20 w-20 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
           }`}
           />
           </a>
@@ -290,15 +313,20 @@ export default function Header({
         )}
         {showInstallPrompt && <InstallAppButton />}
       </div>
-      {accountName && onOpenAccount && <div className="mx-auto w-full max-w-6xl px-4 pb-3 sm:px-6">
-        <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
-          aria-label={`My account, signed in as ${accountName}`}
-          className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl px-3 text-sm text-cocoa hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
-          <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mustard/25 text-xs font-bold uppercase">{accountName.charAt(0)}</span>
-          <span className="min-w-0 truncate">Hi, <span className="font-semibold">{accountName}</span></span>
-          <span aria-hidden="true" className="shrink-0 text-cocoa/60">›</span>
-        </button>
-      </div>}
     </header>
+    {window.location.pathname.replace(/\/?$/, '/') !== '/search/' && !new URLSearchParams(window.location.search).has('checkout') &&
+      <div className="mobile-search sticky top-0 z-50 flex items-center gap-2 border-b border-mustard/30 bg-cream px-4 py-2 sm:hidden">
+        <a href="/search/" className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-full border border-mustard bg-white px-4 text-sm text-cocoa">
+          <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+          <span className="truncate">Search handmade favourites</span>
+        </a>
+        {mobileSearchAction}
+      </div>}
+    <div ref={mobileNavRef}><MobileNavigation cartItemCount={cartItemCount} accountName={accountName}
+      onOpenCart={onOpenCart ? () => { setIsMenuOpen(false); onOpenCart(); } : undefined}
+      onOpenAccount={onOpenAccount ? mode => { setIsMenuOpen(false); onOpenAccount(mode); } : undefined}
+      moreOpen={isMenuOpen} moreControls={menuId}
+      onOpenMore={() => setIsMenuOpen(open => !open)} /></div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { CatalogueFilter, Category } from '../types/product';
 import { getCataloguePriceRangeLabel, type CataloguePriceBand, type CataloguePriceRange } from '../utils/cataloguePrice';
 
@@ -14,6 +14,7 @@ interface Props {
   priceBandsByCategory: ReadonlyMap<CatalogueFilter, CataloguePriceBand[]>;
   seasonalCategories?: Category[];
   showNew?: boolean;
+  presentation?: 'default' | 'icon' | 'chips';
 }
 
 export default function MobileCatalogueFilters({
@@ -27,7 +28,9 @@ export default function MobileCatalogueFilters({
   priceBandsByCategory,
   seasonalCategories = [],
   showNew = true,
+  presentation = 'default',
 }: Props) {
+  const dialogId = useId();
   const [open, setOpen] = useState(false);
   const [draftCategory, setDraftCategory] = useState(activeCategory);
   const [minimum, setMinimum] = useState(activePriceRange?.minimum?.toString() ?? '');
@@ -122,9 +125,9 @@ export default function MobileCatalogueFilters({
   };
 
   return (
-    <div className="relative w-full min-w-0 sm:hidden">
-      <div className="flex w-full flex-wrap items-center gap-2 pb-1">
-        {seasonalCategories.filter(category => categories.includes(category)).map(category => (
+    <div className={`relative min-w-0 sm:hidden ${presentation === 'icon' ? 'shrink-0' : 'w-full'}`}>
+      {presentation !== 'chips' && <div className={`flex items-center gap-2 ${presentation === 'icon' ? '' : 'w-full flex-wrap pb-1'}`}>
+        {presentation === 'default' && seasonalCategories.filter(category => categories.includes(category)).map(category => (
           <button key={category} type="button" aria-pressed={activeCategory === category}
             onClick={() => onSelectCategory(category)}
             className={`badge-glow min-h-10 shrink-0 truncate rounded-full border px-3 py-2 text-sm font-semibold ${
@@ -133,20 +136,26 @@ export default function MobileCatalogueFilters({
             {category}
           </button>
         ))}
-        <button type="button" aria-expanded={open} aria-controls="mobile-catalogue-filters"
+        <button type="button" aria-expanded={open} aria-controls={dialogId}
+          aria-label={presentation === 'icon' ? `Filters${activeCount ? `, ${activeCount} active` : ''}` : undefined}
           onClick={() => open ? closeFilters() : openFilters()}
-          className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${
+          className={`relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border text-sm font-semibold ${presentation === 'icon' ? 'h-11 w-11' : 'min-h-10 px-4 py-2'} ${
             activeCount ? 'border-cocoa bg-cocoa text-cream' : 'border-mustard bg-white text-cocoa'
           }`}>
-          Filters{activeCount > 0 && <span aria-label={`${activeCount} active`}>({activeCount})</span>}
+          {presentation === 'icon' ? <>
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6" /></svg>
+            {activeCount > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 rounded-full bg-mustard px-1.5 text-xs text-cocoa">{activeCount}</span>}
+          </> : <>Filters{activeCount > 0 && <span aria-label={`${activeCount} active`}>({activeCount})</span>}</>}
         </button>
-        {activeCount > 0 && <button type="button" aria-label="Clear all filters" title="Clear all filters"
+        {presentation === 'default' && activeCount > 0 && <button type="button" aria-label="Clear all filters" title="Clear all filters"
           onClick={clearFilters}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cocoa/25 bg-white text-xl text-cocoa">
           ×
         </button>}
-      </div>
-      {activeCount > 0 && <div className="flex flex-wrap items-center gap-2 pb-1">
+      </div>}
+      {presentation !== 'icon' && activeCount > 0 && <div className="flex flex-wrap items-center gap-2 pb-1">
+        {presentation === 'chips' && <button type="button" onClick={clearFilters} aria-label="Clear all filters"
+          className="min-h-11 rounded-full border border-cocoa/25 bg-white px-3 text-xs font-semibold text-cocoa">Clear all</button>}
         {activeCategory !== 'All' && <button type="button"
           aria-label={`Clear category filter: ${activeCategory}`}
           onClick={() => onSelectCategory('All')}
@@ -166,7 +175,7 @@ export default function MobileCatalogueFilters({
             if (event.target === event.currentTarget) closeFilters();
           }}
           className="fixed inset-0 z-[130] flex items-end justify-center bg-cocoa/50 backdrop-blur-[2px] sm:items-center sm:p-6">
-          <section id="mobile-catalogue-filters" ref={dialogRef} role="dialog" aria-modal="true"
+          <section id={dialogId} ref={dialogRef} role="dialog" aria-modal="true"
             aria-labelledby="mobile-catalogue-filters-title"
             className="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white text-cocoa shadow-2xl sm:rounded-2xl">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-mustard/30 px-4 py-3">

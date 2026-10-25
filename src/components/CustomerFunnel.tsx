@@ -99,9 +99,6 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
         className="w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white disabled:opacity-50">
         {cart.deliveryDetails ? 'Review delivery details' : 'Continue with delivery details'}
       </button>
-      {!cart.deliveryDetails && <p className="text-center text-xs text-cocoa/65">
-        Ordering as a guest? Guest orders do not receive the one-time welcome reward. Use Sign in at the top to use your account.
-      </p>}
     </div>
   );
   return (

@@ -109,7 +109,7 @@ test('store pages reflect added, renamed and removed admin categories without ha
 test('about and ordering FAQ retain accessible content and current category navigation', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('/about/');
-  await expect(page.getByRole('heading', { name: 'About Luvia & contact', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The Story Behind Luvia', exact: true })).toBeVisible();
   await expect(page.getByText(/does not take payment or confirm an order/)).toBeVisible();
   await expect(page.getByText(/Prices are in Indian rupees/)).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Charms', exact: true })).toBeVisible();
@@ -117,8 +117,9 @@ test('about and ordering FAQ retain accessible content and current category navi
   await expect(page.getByRole('heading', { name: 'Ordering, delivery & care FAQ', exact: true })).toBeVisible();
   await page.getByText('How do I place an order?', { exact: true }).click();
   await expect(page.getByText(/Adding items or sending a message does not confirm an order/)).toBeVisible();
-  await page.getByText('Does this website take payment or complete checkout?', { exact: true }).click();
-  await expect(page.getByText(/does not take payment or confirm an order/)).toBeVisible();
+  await expect(page.getByText('Does this website take payment or complete checkout?', { exact: true })).toHaveCount(0);
+  await page.getByText('Are shipping charges included in the displayed price?', { exact: true }).click();
+  await expect(page.getByText(/Any shipping charge is shown in your checkout total before payment/)).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(overflow).toBe(false);
 });

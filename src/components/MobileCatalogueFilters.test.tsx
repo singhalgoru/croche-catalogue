@@ -4,6 +4,31 @@ import MobileCatalogueFilters from './MobileCatalogueFilters';
 
 afterEach(cleanup);
 
+it('offers an icon-only trigger with an active count and keeps seasonal choices inside its panel', () => {
+  render(<MobileCatalogueFilters presentation="icon" activeCategory="Toys" activePriceRange={null}
+    categories={['Toys', 'Navratri Specials']} seasonalCategories={['Navratri Specials']} priceBands={bands}
+    priceBandsByCategory={priceBandsByCategory} onApplyFilters={vi.fn()}
+    onApplyPriceRange={vi.fn()} onSelectCategory={vi.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Navratri Specials' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Clear category/ })).toBeNull();
+  const trigger = screen.getByRole('button', { name: 'Filters, 1 active' });
+  fireEvent.click(trigger);
+  expect(screen.getByRole('button', { name: 'Navratri Specials' })).toBeTruthy();
+  expect(trigger.getAttribute('aria-controls')).toBe(screen.getByRole('dialog').id);
+});
+
+it('renders scrolling active chips without another trigger or seasonal shortcuts', () => {
+  const onSelectCategory = vi.fn();
+  render(<MobileCatalogueFilters presentation="chips" activeCategory="Toys" activePriceRange={null}
+    categories={['Toys', 'Navratri Specials']} seasonalCategories={['Navratri Specials']} priceBands={bands}
+    priceBandsByCategory={priceBandsByCategory} onApplyFilters={vi.fn()}
+    onApplyPriceRange={vi.fn()} onSelectCategory={onSelectCategory} />);
+  expect(screen.queryByRole('button', { name: /Filters/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Navratri Specials' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear category filter: Toys' }));
+  expect(onSelectCategory).toHaveBeenCalledWith('All');
+});
+
 const bands = [
   { minimum: 0, maximum: 250, label: 'Up to ₹250' },
   { minimum: 251, maximum: 450, label: '₹251–₹450' },

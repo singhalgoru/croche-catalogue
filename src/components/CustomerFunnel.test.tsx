@@ -149,7 +149,7 @@ it('goes straight to delivery details with a guest reward note and prefills a si
   vi.mocked(fetchCustomerProfile).mockResolvedValue({ name: 'Saved Buyer', phone: '9123456780', email: 'saved@example.test',
     addressLine1: '9 Saved Road', addressLine2: '', city: 'Pune', state: 'Maharashtra', pincode: '411001' });
   render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: '411002' }} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
-  expect(screen.getByText(/Guest orders do not receive the one-time welcome reward/)).toBeTruthy();
+  expect(screen.queryByText(/Guest orders do not receive the one-time welcome reward/)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
   expect(await screen.findByDisplayValue('Saved Buyer')).toBeTruthy();

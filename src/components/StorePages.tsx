@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ProductCard from './ProductCard';
 import CatalogueNotice from './CatalogueNotice';
 import PriceFilter from './PriceFilter';
@@ -23,6 +23,7 @@ import { getCategoryShareImageUrl } from '../utils/categoryShare';
 import { useBestsellerIds } from '../hooks/useBestsellerIds';
 import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../utils/productCollections.js';
 import { matchesProductSearch } from '../utils/productSearch';
+import { addRecentSearch, readRecentSearches, writeRecentSearches } from '../utils/recentSearches';
 
 interface Props {
   products: Product[];
@@ -51,6 +52,15 @@ export default function StorePages({
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
   const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
+  const [{ terms: recentSearches, error: searchHistoryError }, setSearchHistory] = useState<{ terms: string[]; error: string }>(() => {
+    if (window.location.pathname.replace(/\/?$/, '/') !== '/search/') return { terms: [], error: '' };
+    try {
+      return { terms: readRecentSearches(), error: '' };
+    } catch (error) {
+      console.error('Unable to read recent searches:', error);
+      return { terms: [], error: 'Recent searches could not be loaded on this device.' };
+    }
+  });
   const pathname = window.location.pathname;
   const incomingCollection = new URLSearchParams(window.location.search).get('collectionPage');
   const requestedPath = incomingCollection ? `/collections/${encodeURIComponent(incomingCollection)}/` : pathname.replace(/\/?$/, '/');
@@ -62,6 +72,29 @@ export default function StorePages({
   const isBulkOrders = requestedPath === bulkOrders.path;
   const isAbout = requestedPath === '/about/';
   const isSearch = requestedPath === '/search/';
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (isSearch && window.innerWidth < 640) searchInputRef.current?.focus({ preventScroll: true });
+  }, [isSearch]);
+  const updateRecentSearches = (terms: string[]) => {
+    try {
+      writeRecentSearches(terms);
+      setSearchHistory({ terms, error: '' });
+    } catch (error) {
+      console.error('Unable to save recent searches:', error);
+      setSearchHistory({ terms, error: 'Changes to recent searches could not be saved on this device.' });
+    }
+  };
+  const submitSearch = (query: string) => {
+    const value = query.trim().replace(/\s+/g, ' ');
+    setSearchQuery(value);
+    const url = new URL(window.location.href);
+    if (value) {
+      url.searchParams.set('q', value);
+      updateRecentSearches(addRecentSearch(recentSearches, value));
+    } else url.searchParams.delete('q');
+    window.history.replaceState(window.history.state, '', url);
+  };
   const searchTerm = searchQuery.trim();
   const searchProducts = products.filter(product => matchesProductSearch(product, searchTerm));
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
@@ -86,7 +119,7 @@ export default function StorePages({
   );
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
-    : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
+    : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
   const title = productCollection?.title ?? policy?.title ?? (isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
@@ -155,15 +188,15 @@ export default function StorePages({
         className={`flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-mustard px-3 py-2 text-center text-sm leading-snug underline underline-offset-4 sm:rounded-full sm:px-4 ${item.isSeasonal ? 'badge-glow bg-mustard/20' : ''}`}>{item.name}</a>)}
     </nav>
   );
-  return <div className="flex min-h-screen flex-col">
+  return <div className={`flex min-h-screen flex-col ${isSearch ? 'mobile-search-page' : ''}`}>
     <Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} categories={showCatalogue ? visibleCategories.map(item => item.name) : []}
       seasonalAnnouncement={getSeasonalAnnouncement(categories, products)}
       seasonalCategories={categories.filter(item => item.isSeasonal).map(item => item.name)}
       cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} onOpenOrders={onOpenOrders} accountName={accountName} />
-    <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 py-6 text-cocoa">
-      <nav aria-label="Breadcrumb" className="flex flex-wrap gap-3 text-sm"><a href="/" className="underline">Home</a>
+    <main className={`mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 text-cocoa ${isSearch ? 'pb-6 sm:py-6' : 'py-6'}`}>
+      <nav aria-label="Breadcrumb" className={`${isSearch ? 'hidden sm:flex' : 'flex'} flex-wrap gap-3 text-sm`}><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
-      <h1 className="font-heading text-3xl font-bold">{title}</h1>
+      <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>{title}</h1>
       {policy && <article className="max-w-3xl space-y-5">
         <p className="text-sm">Last updated: {policy.updated}</p>
         {policy.sections.map(section => <section key={section.title} className="space-y-2">
@@ -180,24 +213,58 @@ export default function StorePages({
       {loadError && <CatalogueNotice message={loadError} onRetry={onRetry} />}
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
       {policy ? null : isSearch ? <>
-        <p>Find handmade favourites by name, category, description or colour.</p>
-        <form role="search" action="/search/" method="get" className="flex flex-wrap items-end gap-3"
+        <p className="hidden sm:block">Find handmade favourites by name, category, description or colour.</p>
+        <form role="search" action="/search/" method="get" className="mobile-search sticky top-0 z-50 -mx-4 !mt-0 flex flex-wrap items-end gap-2 border-b border-mustard/30 bg-cream px-3 py-2 sm:static sm:mx-0 sm:gap-3 sm:border-0 sm:p-0"
           onSubmit={event => {
             event.preventDefault();
-            const value = searchQuery.trim();
-            const url = new URL(window.location.href);
-            if (value) url.searchParams.set('q', value); else url.searchParams.delete('q');
-            window.history.replaceState(window.history.state, '', url);
+            submitSearch(searchQuery);
           }}>
-          <label className="min-w-0 flex-1 space-y-2">
-            <span className="block font-semibold">Search products</span>
-            <input type="search" name="q" value={searchQuery} placeholder="Try keychain, gajra or bunny"
+          <a href="/" aria-label="Back from search" onClick={event => {
+            if (document.referrer && new URL(document.referrer).origin === window.location.origin
+              && new URL(document.referrer).pathname.replace(/\/?$/, '/') !== '/search/') {
+              event.preventDefault();
+              window.history.back();
+            }
+          }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cocoa focus-visible:outline-2 sm:hidden">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 5-7 7 7 7M5 12h15" /></svg>
+          </a>
+          <label className="min-w-0 flex-1 sm:space-y-2">
+            <span className="sr-only font-semibold sm:not-sr-only sm:block">Search products</span>
+            <input ref={searchInputRef} type="search" name="q" value={searchQuery} placeholder="Try keychain, gajra or bunny"
               enterKeyHint="search" aria-describedby="search-help"
               onChange={event => setSearchQuery(event.target.value)}
               className="min-h-11 w-full rounded-xl border-2 border-mustard bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-mustard" />
           </label>
-          {searchQuery && <a href="/search/" className="inline-flex min-h-11 items-center underline">Clear search</a>}
+          {searchQuery && <button type="button" aria-label="Clear search" onClick={() => {
+            setSearchQuery('');
+            const url = new URL(window.location.href);
+            url.searchParams.delete('q');
+            window.history.replaceState(window.history.state, '', url);
+            searchInputRef.current?.focus();
+          }} className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-sm underline">
+            <span className="sm:hidden" aria-hidden="true">×</span><span className="hidden sm:inline">Clear search</span>
+          </button>}
         </form>
+        {searchHistoryError && <p role="status" className="text-sm text-cocoa/80">{searchHistoryError}</p>}
+        {!searchTerm && recentSearches.length > 0 && <section aria-labelledby="recent-searches-heading" className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="recent-searches-heading" className="font-heading text-xl font-bold">Recent searches</h2>
+            <button type="button" onClick={() => updateRecentSearches([])} className="min-h-11 px-2 text-sm underline">Clear all searches</button>
+          </div>
+          <p className="text-xs text-cocoa/70">Saved only in this browser on this device.</p>
+          <ul className="divide-y divide-mustard/30">
+            {recentSearches.map(term => <li key={term} className="flex items-center gap-2">
+              <button type="button" onClick={() => { submitSearch(term); searchInputRef.current?.focus(); }}
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2 text-left">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="shrink-0"><path d="M3 5v5h5M3 10a9 9 0 1 1 2 8M12 7v5l3 2" /></svg>
+                <span className="truncate">{term}</span>
+              </button>
+              <button type="button" aria-label={`Remove recent search: ${term}`}
+                onClick={() => updateRecentSearches(recentSearches.filter(value => value !== term))}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl">×</button>
+            </li>)}
+          </ul>
+        </section>}
         <p id="search-help" className="text-sm text-cocoa/70">Results update as you type. Press Enter to save a shareable search URL.</p>
         {!searchTerm && <p>Search for a product to see matching results.</p>}
         {showCatalogue && searchTerm && <><p role="status">{searchProducts.length} {searchProducts.length === 1 ? 'product' : 'products'} found for "{searchTerm}"</p>
@@ -309,7 +376,6 @@ export default function StorePages({
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
       {showCatalogue && !isCollectionsHub && !policy && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
-      <p className="text-sm">Confirm the final price, shipping charges and dispatch estimate with us before paying.</p>
     </main><Footer />
   </div>;
 }

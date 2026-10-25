@@ -438,12 +438,12 @@ const renderShell = (products, categorySettings = []) => {
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
     )}</p>`,
-    sections,
+    `<section aria-labelledby="brand-story-teaser-title"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}</h2>`,
+    `<p>${escapeHtml(storeContent.brandStory.teaser.text)}</p><a href="/about/">${escapeHtml(storeContent.brandStory.teaser.linkLabel)}</a></section>`,
     '<section aria-labelledby="collections-heading"><h2 id="collections-heading">Explore collections</h2>',
     `<nav aria-label="Explore collections"><ul>${collectionNames.map(name =>
       `<li><a href="${collectionPath(name)}">${escapeHtml(name)}</a></li>`).join('')}</ul></nav></section>`,
-    `<section aria-labelledby="brand-story-teaser-title"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}</h2>`,
-    `<p>${escapeHtml(storeContent.brandStory.teaser.text)}</p><a href="/about/">${escapeHtml(storeContent.brandStory.teaser.linkLabel)}</a></section>`,
+    sections,
     '<section aria-labelledby="ordering-guide-title">',
     '<h2 id="ordering-guide-title">How ordering and delivery work</h2>',
     '<ol><li>Choose your items: select an available product and colour or variant, then add it to your cart.</li>',

@@ -36,8 +36,8 @@ export default function OrderingGuide() {
           <h3 className="font-semibold">3. Proceed to payment</h3>
           <p className="mt-1 text-cocoa/80">
             Pay securely through Razorpay.
-            Your order is confirmed only after payment verification, and confirmation emails are queued
-            for you and Luvia. If checkout is unavailable, contact us to confirm your order and payment instructions.
+            Your order is confirmed only after payment verification. A confirmation email is sent separately.
+            If checkout is unavailable, contact us for assisted ordering and payment instructions.
           </p>
         </li>
       </ol>
@@ -47,7 +47,6 @@ export default function OrderingGuide() {
       <p className="mt-2 text-sm text-cocoa/80">
         {storeContent.shipping}
       </p>
-      <p className="mt-3 text-sm text-cocoa/80">{storeContent.orderingDisclosure.request}</p>
       <p className="mt-2 text-sm text-cocoa/80">{storeContent.orderingDisclosure.price}</p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
         <a href="/faq/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Read the ordering FAQ</a>

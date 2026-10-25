@@ -84,7 +84,7 @@ export default function CartDeliveryPin({ cart, busy, onSave }: {
     </p>}
     <details className="mt-1 text-xs text-cocoa/75">
       <summary className="flex min-h-11 cursor-pointer items-center underline">How we use your pincode</summary>
-      <p id="cart-delivery-pin-help">Optional, for shipping enquiries. Your pincode is sent to our courier partner Shiprocket to check its city/state and, with an approximate parcel weight, estimate delivery charges. The result is shared with Luvia and stored with this cart for up to 30 days. This does not verify your address or guarantee delivery availability; Luvia confirms the final delivery charge.</p>
+      <p id="cart-delivery-pin-help">Optional, for shipping enquiries. Your pincode is sent to our courier partner Shiprocket to check its city/state and, with an approximate parcel weight, estimate delivery charges. The result is shared with Luvia and stored with this cart for up to 30 days. This does not verify your address or guarantee delivery availability. The shipping charge for an online order is shown at checkout before payment.</p>
     </details>
     {showEditor && draft.trim() !== (cart.deliveryPinCode ?? '') && <p className="mt-1 text-xs">Unsaved pincode changes are not shared.</p>}
     {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}

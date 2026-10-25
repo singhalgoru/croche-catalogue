@@ -40,10 +40,10 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
   const [syncAttempt, setSyncAttempt] = useState(0);
   const [message, setMessage] = useState(recovery.error
     ? 'Unable to restore checkout. Contact Luvia before paying again.'
-    : recovery.verified ? live ? 'Your order is confirmed. View it in My Account. Do not pay again.' : 'Test payment already verified. No real order was placed.'
+    : recovery.verified ? live ? 'Your order is confirmed. Signed-in customers can view it in My orders. Do not pay again.' : 'Test payment already verified. No real order was placed.'
     : recovery.pending ? 'Payment needs verification. Retry verification; do not pay again.'
     : confirmationOnly ? recovery.request ? 'Checking your saved order. Do not pay again.'
-      : 'No saved payment was found in this browser. If you paid, contact Luvia or check My Account. Do not pay again.' : '');
+      : 'No saved payment was found in this browser. If you paid, contact Luvia or check My orders if signed in. Do not pay again.' : '');
   const [pending, setPending] = useState<PaymentResponse | null>(recovery.pending);
   const [verified, setVerified] = useState(recovery.verified);
   const [interruption, setInterruption] = useState<'closed' | 'failed' | 'blocked' | null>(null);
@@ -88,7 +88,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
           setVerified(true);
           setPending(null);
           setInterruption(null);
-          setMessage(`Order confirmed — ${latest.reference}. Payment received. Save this reference; signed-in customers can view it in My Account.`);
+          setMessage(`Order confirmed — ${latest.reference}. Payment received. Save this reference; signed-in customers can view it in My orders.`);
           return;
         }
         if (latest.status === 'review_required') {
@@ -148,7 +148,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
         if (!confirmationRequest) saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: true }, true);
         setConfirmedOrderId(result.reference);
         setVerified(true); setPending(null); setBusy(false);
-        setMessage(`Order confirmed — ${result.reference}. Payment received. Save this reference; signed-in customers can view it in My Account.`);
+        setMessage(`Order confirmed — ${result.reference}. Payment received. Save this reference; signed-in customers can view it in My orders.`);
       } catch (failure) {
         if (current) setMessage(failure instanceof Error ? failure.message : 'Unable to confirm order status. Do not pay again.');
       }
@@ -173,7 +173,7 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
       setPending(null);
       try { saveCheckoutRecovery(cart.id, { request: request.current, pending: null, verified: true }, live); }
       catch (error) { console.error('Unable to save verified checkout recovery:', error); }
-      setMessage(live ? `Order confirmed — ${id}. Payment received. Save this reference; signed-in customers can view the order in My Account.`
+      setMessage(live ? `Order confirmed — ${id}. Payment received. Save this reference; signed-in customers can view the order in My orders.`
         : `Test payment verified (${id}). No real money was charged and no order was placed. Your cart is unchanged.`);
     } catch (error) {
       if (live) trackEvent('payment_verification_pending', { payment_type: 'Razorpay' });

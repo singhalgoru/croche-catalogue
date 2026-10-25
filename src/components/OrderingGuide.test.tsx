@@ -30,7 +30,8 @@ describe('OrderingGuide', () => {
     expect(screen.getByText(/Orders are dispatched within 5 days/)).toBeTruthy();
     expect(screen.getByText(/Delivery time after dispatch depends on the destination/)).toBeTruthy();
     expect(screen.getByText(/items subtotal after coupon discounts is at least ₹500/)).toBeTruthy();
-    expect(screen.getByText(/does not take payment or confirm an order/)).toBeTruthy();
+    expect(screen.queryByText(/does not take payment or confirm an order/)).toBeNull();
+    expect(screen.getAllByText(/payment verification/)).toHaveLength(1);
     expect(screen.getByText(/Prices are in Indian rupees/)).toBeTruthy();
   });
 

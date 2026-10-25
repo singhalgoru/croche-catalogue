@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from './types/product';
 import App from './App';
 import storeContent from './content/storeContent.json';
+vi.mock('./components/MobileNavigation', () => ({ default: () => null }));
 
 const product: Product = {
   id: 'test-product', name: 'Test Coaster', category: 'Home', price: 100,
@@ -66,6 +67,7 @@ describe('Hybrid product navigation', () => {
     const teaser = screen.getByRole('region', { name: storeContent.brandStory.teaser.title });
     expect(within(teaser).getByText(storeContent.brandStory.teaser.text)).toBeTruthy();
     expect(within(teaser).getByRole('link', { name: storeContent.brandStory.teaser.linkLabel }).getAttribute('href')).toBe('/about/');
+    expect(teaser.parentElement?.firstElementChild).toBe(teaser);
   });
   it('renders watch pages with the homepage header and interactive footer, not the catalogue', () => {
     catalogueProducts = [{ ...product, makingVideo: {

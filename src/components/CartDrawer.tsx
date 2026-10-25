@@ -229,7 +229,7 @@ export default function CartDrawer({
         {isPage && pageStep !== 'confirmation' && !accountName && onCreateAccount && welcomeOffer?.enabled && <section
           aria-label="Welcome discount" className="mb-6 rounded-2xl border-2 border-mustard bg-mustard/15 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-5">
           <div>
-            <h3 className="font-heading text-xl font-bold text-cocoa">Sign up and get an additional {welcomeOffer.percent}% off your first order!</h3>
+            <h3 className="font-heading text-xl font-bold text-cocoa">Sign up and get {welcomeOffer.percent}% off your first order!</h3>
             <p className="mt-1 text-sm text-cocoa">Up to {formatINR(welcomeOffer.maxDiscountRupees)} off on items worth {formatINR(welcomeOffer.minimumSubtotalRupees)} or more.</p>
             <p className="mt-2 text-xs text-cocoa/70">Activate your account and apply ILOVELUVIA at review. One-time welcome reward; valid for {welcomeOffer.validDays} days. Guest checkout remains available.</p>
           </div>
@@ -433,7 +433,7 @@ export default function CartDrawer({
                 onClick={() => onNavigateStep?.('delivery')} className="min-h-11 w-full rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50">
                 Continue with delivery details
               </button>}
-              {pageStep === 'cart' && <p className="text-center text-xs text-cocoa/65">Guest orders do not receive the one-time welcome reward. Sign in to use your account.</p>}
+              {pageStep === 'cart' && !accountName && welcomeOffer?.enabled && <p className="text-center text-xs text-cocoa/65">The welcome reward requires an activated account. Guest checkout remains available.</p>}
             </div>
           )}
         </div>

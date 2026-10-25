@@ -1,6 +1,24 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('empty-cart Shop now lands at the collection heading below mobile search', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMockSupabase(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open cart with 0 items', exact: true }).click();
+  await page.getByRole('link', { name: 'Shop now', exact: true }).click();
+  await expect(page).toHaveURL(/\/#products$/);
+  const heading = page.getByRole('heading', { name: 'Shop the Collection', exact: true });
+  const search = page.locator('.mobile-search');
+  await expect.poll(async () => {
+    const headingBox = (await heading.boundingBox())!;
+    const searchBox = (await search.boundingBox())!;
+    return headingBox.y - searchBox.y - searchBox.height;
+  }).toBeGreaterThanOrEqual(10);
+  await expect.poll(async () => (await heading.boundingBox())!.y).toBeLessThan(90);
+  await expect(page.getByRole('article', { name: 'Product: Rose Charm', exact: true })).toBeInViewport();
+});
+
 test('guest checkout prominently offers signup without leaving the current checkout step', async ({ page }) => {
   await installMockSupabase(page);
   await page.route('**/rest/v1/welcome_offer*', route => route.fulfill({ json: {
@@ -10,7 +28,8 @@ test('guest checkout prominently offers signup without leaving the current check
   await page.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   const banner = page.getByRole('region', { name: 'Welcome discount' });
-  await expect(banner).toContainText('additional 10% off your first order');
+  await expect(banner).toContainText('10% off your first order');
+  await expect(banner).not.toContainText('additional');
   await expect(banner).toContainText('Up to ₹100 off on items worth ₹500');
   await expect(banner).toContainText('Guest checkout remains available');
   await banner.getByRole('button', { name: 'Create account & save', exact: true }).click();
@@ -103,7 +122,7 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
-  await expect(page.getByText(/Guest orders do not receive the one-time welcome reward/)).toBeVisible();
+  await expect(page.getByText('The welcome reward requires an activated account. Guest checkout remains available.')).toBeVisible();
   await expect(page.getByRole('main').getByRole('button', { name: 'Create account' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
   await page.getByLabel('Recipient name').fill('Guest Buyer');
@@ -206,6 +225,7 @@ test('checkout signup with password activates the same cart owner, shows the nam
   });
   await page.goto('./');
   await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible();
+  const signedOutHeaderHeight = (await page.getByRole('banner').boundingBox())!.height;
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
@@ -237,10 +257,15 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await page.getByLabel('Email verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify email', exact: true }).click();
   await expect(accountDialog).toHaveCount(0);
-  const greeting = page.getByRole('button', { name: 'My account, signed in as Customer', exact: true });
-  await expect(greeting).toContainText('Hi, Customer');
-  await expect(greeting).toBeInViewport({ ratio: 1 });
-  await greeting.click();
+  const navigation = page.getByRole('button', { name: 'Open navigation', exact: true });
+  const mobile = page.viewportSize()!.width < 640;
+  const identity = mobile ? page.getByRole('button', { name: 'My account, signed in as Customer', exact: true }) : navigation;
+  if (!mobile) await expect(identity).toHaveAccessibleDescription('Signed in as Customer');
+  await expect(identity.locator('span[aria-hidden="true"]')).toHaveText('C');
+  expect((await page.getByRole('banner').boundingBox())!.height).toBe(signedOutHeaderHeight);
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  await navigation.click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
   await expect(accountDialog.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
@@ -319,7 +344,8 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(menu).toContainText('Signed in as Customer');
   await menu.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(menu.getByRole('status')).toContainText('Signed out successfully.');
-  await expect(greeting).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close navigation', exact: true })).not.toHaveAttribute('aria-describedby');
+  if (mobile) await expect(page.getByRole('button', { name: 'Sign in or create account', exact: true })).toBeVisible();
   await expect(menu.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   await expect(menu.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close navigation' }).click();
@@ -390,12 +416,16 @@ test('header account options open sign in and signup on mobile', async ({ page }
   await page.setViewportSize({ width: 360, height: 740 });
   await installMockSupabase(page);
   await page.goto('./');
-  const search = page.getByRole('link', { name: 'Search products', exact: true });
+  const search = page.getByRole('link', { name: 'Search handmade favourites', exact: true });
   const menu = page.getByRole('button', { name: 'Open navigation' });
   await expect(search).toBeInViewport({ ratio: 1 });
   const searchBox = (await search.boundingBox())!;
   const menuBox = (await menu.boundingBox())!;
-  expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(menuBox.x);
+  expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(menuBox.y);
+  await page.getByRole('button', { name: 'Sign in or create account', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Sign in to Luvia' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toBeHidden();
+  await page.keyboard.press('Escape');
   await menu.click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Create account' }).click();
   const dialog = page.getByRole('dialog', { name: 'Create your Luvia account' });
@@ -410,8 +440,25 @@ test('header actions stay separate with touch-sized controls on narrow and wide 
     await page.setViewportSize({ width, height: 900 });
     for (const pathname of ['./', './search/', './p/rose-charm/']) {
       await page.goto(pathname);
+      if (width < 640 && pathname === './search/') {
+        await expect(page.getByRole('banner')).toBeHidden();
+        await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toBeHidden();
+        await expect(page.getByRole('link', { name: 'Back from search', exact: true })).toBeInViewport({ ratio: 1 });
+        const input = page.getByRole('searchbox', { name: 'Search products', exact: true });
+        await expect(input).toBeFocused();
+        expect((await input.boundingBox())!.y).toBe(8);
+        continue;
+      }
       const header = page.getByRole('banner');
-      const controls = [
+      const mobile = width < 640;
+      const bottomNav = page.getByRole('navigation', { name: 'Mobile navigation', exact: true });
+      const controls = mobile ? [
+        bottomNav.getByRole('link', { name: 'Home', exact: true }),
+        bottomNav.getByRole('link', { name: 'Collections', exact: true }),
+        bottomNav.getByRole('button', { name: 'Open cart with 0 items', exact: true }),
+        bottomNav.getByRole('button', { name: 'Sign in or create account', exact: true }),
+        bottomNav.getByRole('button', { name: 'Open navigation', exact: true }),
+      ] : [
         header.getByRole('link', { name: 'Search products', exact: true }),
         header.getByRole('button', { name: 'Open cart with 0 items', exact: true }),
         header.getByRole('button', { name: 'Open navigation', exact: true }),
@@ -426,9 +473,105 @@ test('header actions stay separate with touch-sized controls on narrow and wide 
         right = box.x + box.width;
       }
       const logo = (await header.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
-      const search = (await controls[0].boundingBox())!;
-      expect(logo.x + logo.width).toBeLessThanOrEqual(search.x);
+      if (mobile) {
+        expect(logo.width).toBe(80);
+        expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(1);
+        expect(logo.y + logo.height).toBeLessThanOrEqual((await bottomNav.boundingBox())!.y);
+        await expect(header.getByRole('button', { name: 'Open navigation', exact: true })).toBeHidden();
+        await expect(header.getByRole('button', { name: 'Open cart with 0 items', exact: true })).toBeHidden();
+        const search = pathname === './search/' ? page.getByRole('searchbox', { name: 'Search products', exact: true })
+          : page.getByRole('link', { name: 'Search handmade favourites', exact: true });
+        await expect(search).toBeVisible();
+        expect((await search.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      } else {
+        expect(logo.width).toBe(pathname === './' ? 176 : 48);
+        const search = (await controls[0].boundingBox())!;
+        expect(logo.x + logo.width).toBeLessThanOrEqual(search.x);
+        await expect(bottomNav).toBeHidden();
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     }
   }
+});
+
+test('mobile sticky search and bottom navigation work without covering dialogs, checkout or product actions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installMockSupabase(page);
+  state.categories.push('Festive Specials');
+  state.categorySettings['Festive Specials'] = { priority: 1, isSeasonal: true, productIds: ['product-1'] };
+  await page.goto('./');
+  await expect(page.getByRole('navigation', { name: 'Explore collections' }).getByRole('link', { name: 'Festive Specials', exact: true })).toBeVisible();
+  const navigation = page.getByRole('navigation', { name: 'Mobile navigation', exact: true });
+  const searchLink = page.getByRole('link', { name: 'Search handmade favourites', exact: true });
+  await expect(navigation.getByRole('link', { name: 'Home', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('heading', { name: 'Shop the Collection', exact: true }).scrollIntoViewIfNeeded();
+  await expect.poll(async () => (await searchLink.boundingBox())!.y).toBe(8);
+  const filters = page.getByRole('button', { name: 'Filters', exact: true });
+  await expect(filters).toBeInViewport({ ratio: 1 });
+  const searchBox = (await searchLink.boundingBox())!;
+  const filterBox = (await filters.boundingBox())!;
+  expect(filterBox.y).toBe(searchBox.y);
+  expect(filterBox.height).toBe(44);
+  expect(searchBox.x + searchBox.width).toBeLessThan(filterBox.x);
+  await filters.click();
+  const filterPanel = page.getByRole('dialog', { name: 'Filter products', exact: true });
+  await expect(filterPanel).toBeVisible();
+  await expect(filterPanel.getByRole('button', { name: 'Festive Specials', exact: true })).toBeVisible();
+  await filterPanel.getByRole('button', { name: 'Charms', exact: true }).click();
+  await filterPanel.getByRole('button', { name: 'Show results', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Filters, 1 active', exact: true })).toBeVisible();
+  const activeChip = page.getByRole('button', { name: 'Clear category filter: Charms', exact: true });
+  await expect(activeChip).toHaveCount(1);
+  expect(await activeChip.evaluate(element => Boolean(element.closest('.mobile-search')))).toBe(false);
+  await page.getByRole('button', { name: 'Clear all filters', exact: true }).click();
+  await expect(filters).toBeVisible();
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  await navigation.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  const more = page.getByRole('navigation', { name: 'Main navigation', exact: true });
+  for (const label of ['About & contact', 'Ordering FAQ', 'Contact on WhatsApp', 'Bulk orders & gifting', 'Privacy policy', 'Terms & conditions']) {
+    await expect(more.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', /.+/);
+  }
+  await page.keyboard.press('Escape');
+  await expect(navigation.getByRole('button', { name: 'Open navigation', exact: true })).toBeFocused();
+  await searchLink.click();
+  await expect(page.getByRole('searchbox', { name: 'Search products', exact: true })).toBeFocused();
+  await expect(page.getByRole('banner')).toBeHidden();
+  await expect(navigation).toBeHidden();
+  await page.getByRole('searchbox', { name: 'Search products', exact: true }).fill('rose');
+  await expect(page.getByRole('status').filter({ hasText: '1 product found' })).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Search products', exact: true }).press('Enter');
+  await expect(page).toHaveURL(/search\/\?q=rose$/);
+  await page.setViewportSize({ width: 390, height: 500 });
+  await expect(navigation).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(navigation).toBeHidden();
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+  await expect(page.getByRole('searchbox', { name: 'Search products', exact: true })).toBeEmpty();
+  await expect(page.getByRole('searchbox', { name: 'Search products', exact: true })).toBeFocused();
+  await expect(page.getByRole('region', { name: 'Recent searches', exact: true }).getByRole('button', { name: 'rose', exact: true })).toBeVisible();
+  await page.reload();
+  const recent = page.getByRole('region', { name: 'Recent searches', exact: true });
+  await recent.getByRole('button', { name: 'rose', exact: true }).click();
+  await expect(page.getByRole('searchbox', { name: 'Search products', exact: true })).toHaveValue('rose');
+  await expect(page.getByRole('status').filter({ hasText: '1 product found' })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+  await recent.getByRole('button', { name: 'Remove recent search: rose', exact: true }).click();
+  await expect(recent).toHaveCount(0);
+  await page.getByRole('link', { name: 'Back from search', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/search\//);
+  await expect(navigation).toBeVisible();
+  await navigation.getByRole('link', { name: 'Collections', exact: true }).click();
+  await expect(navigation.getByRole('link', { name: 'Collections', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.goto('./p/rose-charm/');
+  const purchaseActions = page.getByLabel('Product purchase actions', { exact: true });
+  await expect(purchaseActions).toBeInViewport({ ratio: 1 });
+  const purchaseBox = (await purchaseActions.boundingBox())!;
+  const navBox = (await navigation.boundingBox())!;
+  expect(purchaseBox.y + purchaseBox.height).toBeLessThanOrEqual(navBox.y);
+  await purchaseActions.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
+  await navigation.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
+  await expect(page).toHaveURL(/checkout=cart/);
+  await expect(navigation).toHaveCount(0);
+  await expect(searchLink).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close cart', exact: true })).toBeVisible();
 });

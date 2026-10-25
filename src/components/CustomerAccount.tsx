@@ -78,9 +78,9 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
         {onContinue && <button type="button" disabled={busy} className="mt-3 block w-full rounded-full bg-cocoa px-4 py-3 font-semibold text-white"
           onClick={() => onContinue(profile)}>Continue to delivery details</button>}
       </> : <>
-        <p className="mt-1 text-xs text-cocoa/70">Guest ordering is always available. Verify an email to keep this cart linked to your account.</p>
+        <p className="mt-1 text-xs text-cocoa/70">Creating an account is optional. Sign in for saved addresses and order history, or verify your email to activate a new account.</p>
         {offer?.enabled && canSignUp && <p className="mt-3 rounded-xl border border-mustard/40 bg-mustard/10 p-3 font-semibold">
-          Sign up and get an additional {offer.percent}% discount on your first order.
+          Sign up and get {offer.percent}% off your first order. Minimum spend, discount cap and expiry apply; review the welcome offer at checkout.
         </p>}
         {canSignUp ? <div className="mt-2 flex gap-3" aria-label="Account options">
           <button type="button" disabled={busy} aria-pressed={mode === 'signup'}

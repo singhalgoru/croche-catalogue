@@ -17,8 +17,6 @@ import { isStorePage } from './utils/storePageRoute';
 import CategoryFilter from './components/CategoryFilter';
 import PriceFilter from './components/PriceFilter';
 import MobileCatalogueFilters from './components/MobileCatalogueFilters';
-import CartMenuButton from './components/CartMenuButton';
-import BrandMark from './components/BrandMark';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
 import CartDrawer from './components/CartDrawer';
@@ -160,14 +158,10 @@ function App() {
     readProductVariantReference());
   const [catalogueTime, setCatalogueTime] = useState(Date.now);
   const [categoryScrollRequest, setCategoryScrollRequest] = useState(0);
-  const [areCatalogueToolsSticky, setAreCatalogueToolsSticky] = useState(false);
-  const [catalogueToolsHeight, setCatalogueToolsHeight] = useState(0);
   const pendingProductReference = useRef(readProductPageReference() ?? readProductReferenceFromHash());
   const promotedFromCatalogue = useRef(false);
   const productReturnScrollY = useRef<number | null>(null);
-  const catalogueToolsSentinelRef = useRef<HTMLDivElement>(null);
   const catalogueToolsRef = useRef<HTMLDivElement>(null);
-  const stickyCatalogueToolsRef = useRef<HTMLDivElement>(null);
   const productGridRef = useRef<HTMLDivElement>(null);
   const initialMetadata = useRef({
     title: document.title,
@@ -220,35 +214,6 @@ function App() {
       return [category, getCataloguePriceBands(matchingProducts)];
     }));
   }, [categories, hasNewProducts, catalogueTime, categorySettings, products]);
-
-  useEffect(() => {
-    const tools = catalogueToolsRef.current;
-    if (!tools) return;
-    const observer = new ResizeObserver(() => setCatalogueToolsHeight(tools.offsetHeight));
-    setCatalogueToolsHeight(tools.offsetHeight);
-    observer.observe(tools);
-    return () => observer.disconnect();
-  }, [areCatalogueToolsSticky, pageReference]);
-
-  useEffect(() => {
-    const updateStickyState = () => {
-      const sentinel = catalogueToolsSentinelRef.current;
-      setAreCatalogueToolsSticky(
-        Boolean(
-          window.innerWidth < 640 &&
-            sentinel &&
-            sentinel.getBoundingClientRect().top < 0,
-        ),
-      );
-    };
-    updateStickyState();
-    window.addEventListener('scroll', updateStickyState, { passive: true });
-    window.addEventListener('resize', updateStickyState);
-    return () => {
-      window.removeEventListener('scroll', updateStickyState);
-      window.removeEventListener('resize', updateStickyState);
-    };
-  }, []);
 
   // Campaign links such as #product=rose-charm--<id> open the advertised product
   // as soon as the catalogue has loaded.
@@ -396,7 +361,6 @@ function App() {
     window.history.pushState({ catalogueDepth: 1 }, '', url);
     setSelectedVariantId(variantId || null);
     setPageReference(toProductReference(selectedProduct));
-    setAreCatalogueToolsSticky(false);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -507,7 +471,7 @@ function App() {
       if (!productGrid) return;
       const stickyOffset =
         window.innerWidth < 640
-          ? (stickyCatalogueToolsRef.current?.offsetHeight ?? 112) + 12
+          ? 61 + 12
           : (catalogueToolsRef.current?.offsetHeight ?? 0) + 16;
       const top = productGrid.getBoundingClientRect().top + window.scrollY - stickyOffset;
       window.scrollTo({
@@ -733,12 +697,16 @@ function App() {
         cartUpdateCount={cart.cartUpdateCount}
         onOpenCart={() => setIsCartOpen(true)}
         mobileCartInToolbar={!pageReference}
-        hideMobileCart={!pageReference && areCatalogueToolsSticky}
         tickerMessages={tickerMessages}
         seasonalAnnouncement={seasonalAnnouncement}
         seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
         categories={categories}
         onNavigateCatalogue={watchReference ? undefined : navigateCatalogue}
+        mobileSearchAction={!pageReference && !watchReference && <MobileCatalogueFilters presentation="icon"
+          activeCategory={effectiveActiveCategory} activePriceRange={activePriceRange} categories={categories}
+          seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
+          showNew={hasNewProducts} priceBands={priceBands} priceBandsByCategory={priceBandsByCategory}
+          onApplyFilters={applyCatalogueFilters} onSelectCategory={selectCategory} onApplyPriceRange={setActivePriceRange} />}
         onOpenAccount={openAccount}
         onOpenOrders={openOrders}
         accountName={customerName}
@@ -837,21 +805,23 @@ function App() {
         </main>
       ) : (
       <main className="max-w-6xl w-full mx-auto px-4 py-3 sm:py-8 flex-1 space-y-3 sm:space-y-6">
+        {effectiveActiveCategory === 'All' && !query.trim() && <section aria-labelledby="brand-story-teaser-title" className="space-y-2 rounded-2xl border border-mustard/40 bg-white/70 p-4 text-cocoa sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-wider">Meet Luvia &amp; our founder</p>
+          <h2 id="brand-story-teaser-title" className="font-heading text-xl font-bold sm:text-2xl">{storeContent.brandStory.teaser.title}</h2>
+          <p className="text-sm leading-relaxed">{storeContent.brandStory.teaser.text}</p>
+          <a href="/about/" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{storeContent.brandStory.teaser.linkLabel}</a>
+        </section>}
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} initialIds={initialBestsellerIds} onSelect={selectProduct} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <ProductCarousel products={getFeaturedProducts(products)}
           onSelect={selectProduct} title={productCollections[1].title} label="featured product"
           viewAll={productCollections[1].path} description={productCollections[1].description} />}
-        <div id="products" ref={catalogueToolsSentinelRef} className="h-px scroll-mt-24" aria-hidden="true" />
-        {areCatalogueToolsSticky ? (
-          <div style={{ height: catalogueToolsHeight }} aria-hidden="true" />
-        ) : (
           <div
             ref={catalogueToolsRef}
             className="space-y-3 sm:sticky sm:top-0 sm:z-30 sm:-mx-4 sm:border-b sm:border-mustard/30 sm:bg-cream/95 sm:px-4 sm:py-3 sm:backdrop-blur-md"
           >
-            <SearchBar
+            <div className="hidden sm:block"><SearchBar
               value={query}
               onChange={setQuery}
               onSearch={(searchQuery) =>
@@ -860,9 +830,9 @@ function App() {
                   result_count: filteredProducts.length,
                 })
               }
-            />
+            /></div>
             <div className="flex items-center justify-center gap-2">
-              <MobileCatalogueFilters activeCategory={effectiveActiveCategory}
+              <MobileCatalogueFilters presentation="chips" activeCategory={effectiveActiveCategory}
                 activePriceRange={activePriceRange} categories={categories}
                 seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
                 showNew={hasNewProducts} priceBands={priceBands}
@@ -893,38 +863,7 @@ function App() {
               </div>
             </div>
           </div>
-        )}
-        {areCatalogueToolsSticky && (
-          <div
-            ref={stickyCatalogueToolsRef}
-            className="fixed inset-x-0 top-0 z-40 space-y-3 border-b border-mustard/30 bg-cream/95 px-4 py-3 shadow-sm backdrop-blur-md sm:hidden"
-          >
-            <div className="flex items-center gap-2">
-              <BrandMark className="h-10 w-10" />
-              <div className="min-w-0 flex-1">
-                <SearchBar
-                  value={query}
-                  onChange={setQuery}
-                  onSearch={(searchQuery) =>
-                    trackEvent('catalogue_search', {
-                      query_length: searchQuery.trim().length,
-                      result_count: filteredProducts.length,
-                    })
-                  }
-                />
-              </div>
-              <CartMenuButton itemCount={cart.itemCount} updateCount={cart.cartUpdateCount} onClick={() => setIsCartOpen(true)} />
-            </div>
-            <MobileCatalogueFilters activeCategory={effectiveActiveCategory}
-              activePriceRange={activePriceRange} categories={categories}
-              seasonalCategories={categorySettings.filter(item => item.isSeasonal).map(item => item.name)}
-              showNew={hasNewProducts} priceBands={priceBands}
-              priceBandsByCategory={priceBandsByCategory}
-              onApplyFilters={applyCatalogueFilters}
-              onSelectCategory={selectCategory} onApplyPriceRange={setActivePriceRange} />
-          </div>
-        )}
-        <div className="text-center">
+        <div id="products" className="scroll-mt-[73px] text-center sm:scroll-mt-40">
           <h2 className="font-heading text-2xl md:text-3xl font-bold text-cocoa">
             Shop the Collection
           </h2>
@@ -954,12 +893,6 @@ function App() {
             />
           )}
         </div>
-        <section aria-labelledby="brand-story-teaser-title" className="mx-auto max-w-3xl space-y-3 rounded-2xl border border-mustard/30 bg-white/70 p-5 text-cocoa sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-wider">The people behind the stitches</p>
-          <h2 id="brand-story-teaser-title" className="font-heading text-2xl font-bold">{storeContent.brandStory.teaser.title}</h2>
-          <p className="leading-relaxed">{storeContent.brandStory.teaser.text}</p>
-          <a href="/about/" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{storeContent.brandStory.teaser.linkLabel}</a>
-        </section>
         <OrderingGuide />
       </main>
       )}

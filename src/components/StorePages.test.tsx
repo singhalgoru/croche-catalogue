@@ -13,9 +13,46 @@ const products: Product[] = [{ id: 'p1', name: 'Bunny', category: 'Toys', descri
 const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], isLoading: false,
   loadError: null, hasCatalogueSnapshot: true, onAddToCart: vi.fn().mockResolvedValue(true),
   isCartBusy: false, getCartQuantity: () => 0, cartItemCount: 0, cartUpdateCount: 0, onOpenCart: vi.fn() };
-afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('retains submitted searches, reuses them and supports individual and complete removal', async () => {
+    window.history.replaceState(null, '', '/search/');
+    const view = render(<StorePages {...initial} />);
+    const input = screen.getByRole('searchbox', { name: 'Search products' });
+    fireEvent.change(input, { target: { value: '  white   bunny  ' } });
+    expect(localStorage.getItem('luvia:recent-searches')).toBeNull();
+    fireEvent.submit(screen.getByRole('search'));
+    expect(JSON.parse(localStorage.getItem('luvia:recent-searches')!)).toEqual(['white bunny']);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    fireEvent.change(input, { target: { value: 'gajra' } });
+    fireEvent.submit(screen.getByRole('search'));
+    view.unmount();
+    window.history.replaceState(null, '', '/search/');
+    render(<StorePages {...initial} />);
+    const recent = await screen.findByRole('region', { name: 'Recent searches' });
+    expect(within(recent).getAllByRole('listitem').map(item => item.textContent)).toEqual(['gajra×', 'white bunny×']);
+    fireEvent.click(within(recent).getByRole('button', { name: 'white bunny' }));
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('white bunny');
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove recent search: white bunny' }));
+    expect(screen.queryByRole('button', { name: 'white bunny' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all searches' }));
+    expect(screen.queryByRole('region', { name: 'Recent searches' })).toBeNull();
+    expect(localStorage.getItem('luvia:recent-searches')).toBeNull();
+  });
+  it('keeps live search usable and reports when recent searches cannot be saved', () => {
+    window.history.replaceState(null, '', '/search/');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<StorePages {...initial} />);
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'bunny' } });
+    fireEvent.submit(screen.getByRole('search'));
+    expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    expect(screen.getByText('Changes to recent searches could not be saved on this device.')).toBeTruthy();
+    expect(log).toHaveBeenCalledWith('Unable to save recent searches:', expect.any(Error));
+  });
   it('updates results as keywords are typed and saves the URL on Enter submission without a search button', () => {
     window.history.replaceState(null, '', '/search/?q=white%20bunny');
     render(<StorePages {...initial} />);
@@ -41,6 +78,7 @@ describe('live store pages', () => {
     expect(screen.queryByRole('article')).toBeNull();
     expect(screen.getByText('Search for a product to see matching results.')).toBeTruthy();
     expect(screen.getByRole('search').getAttribute('method')).toBe('get');
+    expect(screen.queryByText('Confirm the final price, shipping charges and dispatch estimate with us before paying.')).toBeNull();
   });
   it('renders the complete founder story with shared chrome and retains contact and ordering information', () => {
     window.history.replaceState(null, '', '/about/');
@@ -137,7 +175,10 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     expect(screen.getByRole('heading', { name: title, level: 1 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: section })).toBeTruthy();
-    expect(screen.getByText('Last updated: 14 October 2026')).toBeTruthy();
+    expect(screen.getByText(`Last updated: ${path === '/privacy-policy/' ? '25' : '14'} October 2026`)).toBeTruthy();
+    if (path === '/privacy-policy/') {
+      expect(screen.getByText(/latest eight submitted search keywords/)).toBeTruthy();
+    }
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
     expect(screen.queryByText('Find your favourites by collection, then open a product for photos and details.')).toBeNull();
   });

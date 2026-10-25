@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import Header from './Header';
 import { signOutCustomer } from '../services/customer';
 vi.mock('../services/customer', () => ({ signOutCustomer: vi.fn() }));
+vi.mock('./MobileNavigation', () => ({ default: () => null }));
 
 afterEach(cleanup);
 beforeAll(() => vi.stubGlobal('ResizeObserver', class {
@@ -74,10 +75,9 @@ describe('Header', () => {
   it('shows the signed-in customer name and an account entry instead of sign-in buttons', () => {
     const onOpenAccount = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} accountName="Asha" />);
-    const greeting = screen.getByRole('button', { name: 'My account, signed in as Asha' });
-    expect(greeting.textContent).toContain('Hi, Asha');
-    fireEvent.click(greeting);
-    expect(onOpenAccount).toHaveBeenCalledWith('signin');
+    const menu = screen.getByRole('button', { name: 'Open navigation', description: 'Signed in as Asha' });
+    expect(menu.querySelector('span[aria-hidden="true"]')?.textContent).toBe('A');
+    expect(screen.queryByRole('button', { name: 'My account, signed in as Asha' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     expect(screen.getByRole('navigation', { name: 'Main navigation' }).textContent).toContain('Signed in as Asha');
     expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
@@ -88,20 +88,22 @@ describe('Header', () => {
     render(<Header showInstallPrompt={false} />);
     expect(screen.queryByRole('button', { name: 'Sign in or create account' })).toBeNull();
   });
-  it('updates the greeting after login and removes it after logout in compact headers', () => {
+  it('adds an initial badge after login and removes it after logout in compact headers', () => {
     const props = { compact: true, showInstallPrompt: false, onOpenAccount: vi.fn() };
     const view = render(<Header {...props} accountName={null} />);
     expect(screen.queryByRole('button', { name: /My account, signed in as/ })).toBeNull();
     view.rerender(<Header {...props} accountName="Tanushree" />);
-    expect(screen.getByRole('button', { name: 'My account, signed in as Tanushree' }).textContent).toContain('Hi, Tanushree');
+    const menu = screen.getByRole('button', { name: 'Open navigation', description: 'Signed in as Tanushree' });
+    expect(menu.querySelector('span[aria-hidden="true"]')?.textContent).toBe('T');
     view.rerender(<Header {...props} accountName={null} />);
+    expect(screen.getByRole('button', { name: 'Open navigation' }).getAttribute('aria-describedby')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open navigation' }).querySelector('span')).toBeNull();
     expect(screen.queryByRole('button', { name: /My account, signed in as/ })).toBeNull();
   });
-  it('hands the mobile cart to the catalogue toolbar instead of floating over categories', () => {
-    const { rerender } = render(<Header mobileCartInToolbar cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
+  it('keeps the top cart for desktop rather than duplicating the mobile bottom cart', () => {
+    render(<Header mobileCartInToolbar cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
     const button = screen.getByRole('button', { name: 'Open cart with 1 item' });
     expect(button.className).toContain('absolute top-3 sm:fixed');
-    rerender(<Header mobileCartInToolbar hideMobileCart cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);
     expect(button.parentElement?.className).toContain('hidden sm:block');
   });
   it('uses in-app home navigation but leaves collection page links to the browser', () => {
@@ -180,8 +182,8 @@ describe('Header', () => {
     render(<Header showInstallPrompt={false} onOpenCart={onOpenCart} cartItemCount={2} />);
     expect(screen.queryByText('Luvia Creations')).toBeNull();
     const logo = screen.getByRole('img', { name: /Luvia/ });
-    expect(logo.className).toContain('h-12 w-12');
-    expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 48px');
+    expect(logo.className).toContain('h-20 w-20');
+    expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 80px');
     expect(screen.getByText('Thoughtfully made. Delivered across India.').className).toContain('sm:hidden');
     expect(screen.getByText(/Discover thoughtfully crafted crochet accessories/).className).toContain('hidden sm:inline');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Premium Handmade Crochet Creations');
@@ -191,27 +193,31 @@ describe('Header', () => {
 
   it('preserves the compact header without adding the mobile introduction', () => {
     render(<Header compact showInstallPrompt={false} />);
-    expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
+    expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('(min-width: 640px) 48px, 80px');
     expect(screen.queryByText('Luvia Creations')).toBeNull();
     expect(screen.queryByText('Thoughtfully made. Delivered across India.')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
   });
 
-  it('places the product-page logo left with space reserved for the cart', () => {
+  it('centres the larger product-page logo on mobile and preserves desktop left alignment', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
       onOpenCart={vi.fn()} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
-    expect(row?.className).toContain('justify-start pr-44 text-left');
-    expect(row?.className).not.toContain('justify-center');
+    expect(row?.className).toContain('flex-col');
+    expect(row?.className).toContain('items-center');
+    expect(row?.className).toContain('sm:pr-44 sm:justify-start sm:text-left');
+    expect(logo.className).toContain('h-20 w-20');
+    expect(logo.className).toContain('sm:h-12 sm:w-12');
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();
   });
-  it('keeps compact store-page branding left-aligned without a cart', () => {
+  it('centres compact mobile branding without changing desktop alignment, even without a cart', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
-    expect(row?.className).toContain('justify-start');
-    expect(row?.className).not.toContain('justify-center');
+    expect(row?.className).toContain('flex-col');
+    expect(row?.className).toContain('items-center');
+    expect(row?.className).toContain('sm:justify-start');
   });
 });
