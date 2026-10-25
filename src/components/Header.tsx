@@ -290,6 +290,15 @@ export default function Header({
         )}
         {showInstallPrompt && <InstallAppButton />}
       </div>
+      {accountName && onOpenAccount && <div className="mx-auto w-full max-w-6xl px-4 pb-3 sm:px-6">
+        <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
+          aria-label={`My account, signed in as ${accountName}`}
+          className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl px-3 text-sm text-cocoa hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+          <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mustard/25 text-xs font-bold uppercase">{accountName.charAt(0)}</span>
+          <span className="min-w-0 truncate">Hi, <span className="font-semibold">{accountName}</span></span>
+          <span aria-hidden="true" className="shrink-0 text-cocoa/60">›</span>
+        </button>
+      </div>}
     </header>
   );
 }

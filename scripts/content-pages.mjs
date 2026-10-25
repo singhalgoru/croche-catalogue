@@ -137,7 +137,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     baseSchema('CollectionPage', '/collections/', title, description)));
   const story = storeContent.brandStory;
   pages.set('/search/', page('/search/', 'Search products', 'Search Luvia Creations handmade crochet products by name, category, description or colour.',
-    '<form role="search" action="/search/" method="get"><label for="product-search">Search products</label><input id="product-search" name="q" type="search" placeholder="Try keychain, gajra or bunny"><button type="submit">Search</button></form><p>Enable JavaScript for search results, or <a href="/collections/">browse our collections</a>.</p>',
+    '<form role="search" action="/search/" method="get"><label for="product-search">Search products</label><input id="product-search" name="q" type="search" enterkeyhint="search" aria-describedby="search-help" placeholder="Try keychain, gajra or bunny"></form><p id="search-help">Results update as you type. Press Enter to save a shareable search URL.</p><p>Enable JavaScript for search results, or <a href="/collections/">browse our collections</a>.</p>',
     baseSchema('WebPage', '/search/', 'Search products', 'Find handmade crochet products.'))
     .replace("form-action 'none'", "form-action 'self'").replace('</head>', '<meta name="robots" content="noindex,follow"></head>'));
   const aboutTitle = story.title;

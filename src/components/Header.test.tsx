@@ -74,9 +74,12 @@ describe('Header', () => {
   it('shows the signed-in customer name and an account entry instead of sign-in buttons', () => {
     const onOpenAccount = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} accountName="Asha" />);
-    expect(screen.queryByRole('button', { name: 'My account, signed in as Asha' })).toBeNull();
+    const greeting = screen.getByRole('button', { name: 'My account, signed in as Asha' });
+    expect(greeting.textContent).toContain('Hi, Asha');
+    fireEvent.click(greeting);
+    expect(onOpenAccount).toHaveBeenCalledWith('signin');
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
-    expect(screen.getByText('Asha')).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: 'Main navigation' }).textContent).toContain('Signed in as Asha');
     expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'My account' }));
     expect(onOpenAccount).toHaveBeenCalledWith('signin');
@@ -84,6 +87,15 @@ describe('Header', () => {
   it('keeps account controls opt-in', () => {
     render(<Header showInstallPrompt={false} />);
     expect(screen.queryByRole('button', { name: 'Sign in or create account' })).toBeNull();
+  });
+  it('updates the greeting after login and removes it after logout in compact headers', () => {
+    const props = { compact: true, showInstallPrompt: false, onOpenAccount: vi.fn() };
+    const view = render(<Header {...props} accountName={null} />);
+    expect(screen.queryByRole('button', { name: /My account, signed in as/ })).toBeNull();
+    view.rerender(<Header {...props} accountName="Tanushree" />);
+    expect(screen.getByRole('button', { name: 'My account, signed in as Tanushree' }).textContent).toContain('Hi, Tanushree');
+    view.rerender(<Header {...props} accountName={null} />);
+    expect(screen.queryByRole('button', { name: /My account, signed in as/ })).toBeNull();
   });
   it('hands the mobile cart to the catalogue toolbar instead of floating over categories', () => {
     const { rerender } = render(<Header mobileCartInToolbar cartItemCount={1} onOpenCart={vi.fn()} showInstallPrompt={false} />);

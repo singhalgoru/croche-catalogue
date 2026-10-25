@@ -237,8 +237,10 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await page.getByLabel('Email verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify email', exact: true }).click();
   await expect(accountDialog).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open navigation' }).click();
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  const greeting = page.getByRole('button', { name: 'My account, signed in as Customer', exact: true });
+  await expect(greeting).toContainText('Hi, Customer');
+  await expect(greeting).toBeInViewport({ ratio: 1 });
+  await greeting.click();
   await expect(accountDialog.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
@@ -317,6 +319,7 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(menu).toContainText('Signed in as Customer');
   await menu.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(menu.getByRole('status')).toContainText('Signed out successfully.');
+  await expect(greeting).toHaveCount(0);
   await expect(menu.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   await expect(menu.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close navigation' }).click();

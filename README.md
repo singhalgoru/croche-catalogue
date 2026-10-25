@@ -7,7 +7,8 @@ an India-based handmade crochet brand.
 
 - Browse products and collections, search the catalogue, and filter by price.
 - Open `/search/` from the header search icon and share keyword searches using
-  `?q=...`. Search matches names, categories, descriptions, materials and variants;
+  `?q=...`. Results update as you type; press Enter to save the search URL. Search matches names,
+  categories, descriptions, materials and variants;
   multiple keywords can appear in any order.
 - Discover bestsellers and featured products in homepage carousels and on
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
@@ -17,6 +18,7 @@ an India-based handmade crochet brand.
 - Save a cart, check delivery availability, place orders and view order history.
 - Use the header for search, cart and navigation; sign in, account details and
   order history are available inside the navigation menu.
+- Signed-in customers see a small personalised header greeting that opens their account.
 - Contact Luvia by WhatsApp or email for product and customisation enquiries.
 - Install the catalogue as a home-screen app on supported browsers.
 - Authorised administrators can manage products, drafts, media and orders.

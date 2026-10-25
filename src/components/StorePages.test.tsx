@@ -16,7 +16,7 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
-  it('opens keyword search URLs, filters live and exposes an explicit empty state', () => {
+  it('updates results as keywords are typed and saves the URL on Enter submission without a search button', () => {
     window.history.replaceState(null, '', '/search/?q=white%20bunny');
     render(<StorePages {...initial} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Search products' })).toBeTruthy();
@@ -24,12 +24,22 @@ describe('live store pages', () => {
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
     const input = screen.getByRole('searchbox', { name: 'Search products' });
     fireEvent.change(input, { target: { value: 'not-present' } });
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('white bunny');
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(screen.getByText(/No matching products/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+    fireEvent.submit(screen.getByRole('search'));
     expect(new URLSearchParams(window.location.search).get('q')).toBe('not-present');
     expect(screen.queryByRole('article')).toBeNull();
     expect(screen.getByText(/No matching products/)).toBeTruthy();
-    fireEvent.change(input, { target: { value: '' } });
-    expect(window.location.search).toBe('');
+    fireEvent.change(input, { target: { value: 'bun' } });
     expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('not-present');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.submit(screen.getByRole('search'));
+    expect(window.location.search).toBe('');
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(screen.getByText('Search for a product to see matching results.')).toBeTruthy();
     expect(screen.getByRole('search').getAttribute('method')).toBe('get');
   });
   it('renders the complete founder story with shared chrome and retains contact and ordering information', () => {

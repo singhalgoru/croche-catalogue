@@ -62,7 +62,8 @@ export default function StorePages({
   const isBulkOrders = requestedPath === bulkOrders.path;
   const isAbout = requestedPath === '/about/';
   const isSearch = requestedPath === '/search/';
-  const searchProducts = products.filter(product => matchesProductSearch(product, searchQuery));
+  const searchTerm = searchQuery.trim();
+  const searchProducts = products.filter(product => matchesProductSearch(product, searchTerm));
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
@@ -180,23 +181,26 @@ export default function StorePages({
       {isLoading && <p role="status">Checking the latest collections and availability…</p>}
       {policy ? null : isSearch ? <>
         <p>Find handmade favourites by name, category, description or colour.</p>
-        <form role="search" action="/search/" method="get" className="flex flex-wrap items-end gap-3">
+        <form role="search" action="/search/" method="get" className="flex flex-wrap items-end gap-3"
+          onSubmit={event => {
+            event.preventDefault();
+            const value = searchQuery.trim();
+            const url = new URL(window.location.href);
+            if (value) url.searchParams.set('q', value); else url.searchParams.delete('q');
+            window.history.replaceState(window.history.state, '', url);
+          }}>
           <label className="min-w-0 flex-1 space-y-2">
             <span className="block font-semibold">Search products</span>
             <input type="search" name="q" value={searchQuery} placeholder="Try keychain, gajra or bunny"
-              onChange={event => {
-                const value = event.target.value;
-                setSearchQuery(value);
-                const url = new URL(window.location.href);
-                if (value.trim()) url.searchParams.set('q', value); else url.searchParams.delete('q');
-                window.history.replaceState(window.history.state, '', url);
-              }}
+              enterKeyHint="search" aria-describedby="search-help"
+              onChange={event => setSearchQuery(event.target.value)}
               className="min-h-11 w-full rounded-xl border-2 border-mustard bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-mustard" />
           </label>
-          <button type="submit" className="min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream">Search</button>
           {searchQuery && <a href="/search/" className="inline-flex min-h-11 items-center underline">Clear search</a>}
         </form>
-        {showCatalogue && <><p role="status">{searchProducts.length} {searchProducts.length === 1 ? 'product' : 'products'}{searchQuery.trim() ? ` found for "${searchQuery.trim()}"` : ' to explore'}</p>
+        <p id="search-help" className="text-sm text-cocoa/70">Results update as you type. Press Enter to save a shareable search URL.</p>
+        {!searchTerm && <p>Search for a product to see matching results.</p>}
+        {showCatalogue && searchTerm && <><p role="status">{searchProducts.length} {searchProducts.length === 1 ? 'product' : 'products'} found for "{searchTerm}"</p>
           {searchProducts.length === 0 ? <p>No matching products. Try a different name, category or colour.</p> :
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {searchProducts.map((product, index) => <li key={product.id}>
