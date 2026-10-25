@@ -31,7 +31,8 @@ it('shares the branded header and full store footer with static content pages', 
   expect(html).toContain(renderSiteHeader());
   expect(html).toContain(renderSiteFooter());
   const doc = new JSDOM(html).window.document;
-  expect(doc.querySelector('header .brand img')?.getAttribute('src')).toBe('/images/luvia-logo-320.webp');
+  expect(doc.querySelector('header .brand img')?.getAttribute('src')).toBe('/images/luvia-logo-160.webp');
+  expect(doc.querySelector('header .brand img')?.getAttribute('width')).toBe('48');
   expect(doc.querySelector('a.skip')?.getAttribute('href')).toBe('#main');
   expect(doc.querySelector('main#main')).not.toBeNull();
   expect(doc.querySelector('footer img[alt="American Express"]')?.getAttribute('src')).toBe('/images/payments/amex.png');
