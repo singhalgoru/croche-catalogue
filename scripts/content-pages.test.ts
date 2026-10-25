@@ -22,6 +22,8 @@ describe('collection and information pages', () => {
   it('prerenders the full founder story with matching social metadata, contact details and sitemap discovery', () => {
     const doc = documentFor('/about/');
     const story = doc.querySelector('article');
+    expect(story?.querySelector('img')?.getAttribute('src')).toBe(storeContent.brandStory.portrait.src);
+    expect(story?.querySelector('img')?.getAttribute('alt')).toBe(storeContent.brandStory.portrait.alt);
     expect(doc.querySelector('h1')?.textContent).toBe(storeContent.brandStory.title);
     expect(story?.textContent).toContain(storeContent.brandStory.intro);
     expect(story?.textContent).toContain(storeContent.brandStory.founderNote.title);

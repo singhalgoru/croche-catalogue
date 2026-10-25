@@ -180,12 +180,12 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
           </label>)}
           <p className="text-xs">Delivery country: India. These details are saved with your cart for up to 30 days and visible to Luvia for order fulfilment.</p>
         </>}
-        <div className="flex gap-3">
+        <div className={`flex gap-3 ${pageStep ? 'checkout-step-actions' : ''}`}>
           <button type="button" disabled={busy || saving} onClick={() => {
             if (step === 'contact' && onBack) onBack();
             else setStep(step === 'contact' ? 'cart' : 'contact');
-          }} className="underline">Back</button>
-          <button disabled={busy || saving} className="rounded-full bg-cocoa px-4 py-2 text-white">
+          }} className="min-h-11 px-3 underline">Back</button>
+          <button disabled={busy || saving} className="min-h-11 rounded-full bg-cocoa px-4 py-2 text-white disabled:opacity-50">
             {saving ? 'Saving…' : step === 'contact' ? 'Continue to address' : 'Save and review'}
           </button>
         </div>

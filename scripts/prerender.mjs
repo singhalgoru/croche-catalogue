@@ -438,7 +438,7 @@ const renderShell = (products, categorySettings = []) => {
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
     )}</p>`,
-    `<section aria-labelledby="brand-story-teaser-title"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}</h2>`,
+    `<section aria-labelledby="brand-story-teaser-title"><img src="${escapeHtml(storeContent.brandStory.portrait.thumbnail)}" alt="${escapeHtml(storeContent.brandStory.portrait.alt)}" width="150" height="200"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}</h2>`,
     `<p>${escapeHtml(storeContent.brandStory.teaser.text)}</p><a href="/about/">${escapeHtml(storeContent.brandStory.teaser.linkLabel)}</a></section>`,
     '<section aria-labelledby="collections-heading"><h2 id="collections-heading">Explore collections</h2>',
     `<nav aria-label="Explore collections"><ul>${collectionNames.map(name =>

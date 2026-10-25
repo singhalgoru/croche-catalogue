@@ -9,6 +9,7 @@ interface Props {
 }
 export default function AccountDialog({ mode, accountName, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [openedSignedIn] = useState(Boolean(accountName));
   const signedInDuringDialog = !openedSignedIn && Boolean(accountName) && mode !== 'reset';
   const [view, setView] = useState(mode);
@@ -19,30 +20,40 @@ export default function AccountDialog({ mode, accountName, onClose }: Props) {
   }, [signedInDuringDialog, onClose]);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButton.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    closeButton.current?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Tab') return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]') ?? [])
+        .filter(element => element.getClientRects().length > 0);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus({ preventScroll: true }); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus({ preventScroll: true }); }
+    };
     document.addEventListener('keydown', onKeyDown);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = overflow;
-      previous?.focus();
+      previous?.focus({ preventScroll: true });
     };
   }, [onClose]);
   if (signedInDuringDialog) return null;
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-cocoa/40 sm:items-center sm:p-6">
-      <div role="dialog" aria-modal="true" aria-labelledby="account-dialog-title"
-        className={`max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-cream p-4 shadow-xl sm:rounded-2xl sm:p-6 lg:p-8 ${accountName ? 'sm:max-w-3xl lg:max-w-4xl' : 'sm:max-w-xl lg:max-w-2xl'}`}>
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="account-dialog-title"
+        className={`flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-cream p-4 shadow-xl sm:rounded-2xl sm:p-6 lg:p-8 ${accountName ? 'h-[85dvh] sm:h-[min(80dvh,42rem)] sm:max-w-3xl lg:max-w-4xl' : 'sm:max-w-xl lg:max-w-2xl'}`}>
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <h2 id="account-dialog-title" className="font-heading text-xl font-bold text-cocoa">
             {mode === 'reset' ? 'Set a new password' : accountName ? 'My account' : view === 'signup' ? 'Create your Luvia account' : 'Sign in to Luvia'}
           </h2>
           <button ref={closeButton} type="button" onClick={onClose} aria-label="Close account"
             className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-2xl text-cocoa">×</button>
         </div>
-        {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp signedIn={Boolean(accountName)} initialMode={mode} onModeChange={setView} />}
+        <div className="min-h-0 overflow-y-auto overscroll-contain">
+          {mode === 'reset' ? <PasswordResetForm onDone={onClose} /> : <CustomerAccount key={mode} canSignUp signedIn={Boolean(accountName)} initialMode={mode} onModeChange={setView} />}
+        </div>
       </div>
     </div>
   );

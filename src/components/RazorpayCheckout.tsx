@@ -8,9 +8,9 @@ import { trackVerifiedPurchase } from '../services/purchaseAnalytics';
 import { calculateEstimatedDeliveryDate, renderGoogleCustomerReviewsOptIn } from '../services/googleCustomerReviews';
 import { getCheckoutSupportWhatsAppLink, getConfirmedOrderWhatsAppLink } from '../utils/whatsapp';
 
-interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string }
+interface Props { cart: Cart; disabled: boolean; live?: boolean; onConfirmed?: (requestId: string | undefined, purchasedCart: Cart) => void; confirmationOnly?: boolean; confirmationRequest?: string; stickyActions?: boolean }
 
-export default function RazorpayCheckout({ cart, disabled, live = false, onConfirmed, confirmationOnly = false, confirmationRequest }: Props) {
+export default function RazorpayCheckout({ cart, disabled, live = false, onConfirmed, confirmationOnly = false, confirmationRequest, stickyActions = false }: Props) {
   const fingerprintForCart = () => JSON.stringify([cart.id, cart.items.map(item => [item.variantId, item.quantity, item.unitPrice]),
     cart.deliveryPinCode, cart.deliveryEstimate, cart.deliveryDetails, cart.welcomeCouponCode,
     cart.deliveryDetails?.name.trim() ?? '', cart.deliveryDetails?.phone ?? '']);
@@ -324,21 +324,23 @@ export default function RazorpayCheckout({ cart, disabled, live = false, onConfi
               value={phone} disabled={busy || disabled} onChange={event => setPhone(event.target.value)}
               autoComplete="tel-national" className="mt-1 w-full rounded border border-cocoa/20 bg-white p-2" />
           </label></>}
+          <div className={stickyActions ? 'checkout-step-actions' : undefined}>
           <button type="submit" disabled={busy || disabled || syncingRecovery || syncError}
             className={showRecovery
-              ? 'min-h-12 rounded-full border-2 border-cocoa bg-mustard px-4 py-3 text-base font-bold text-cocoa shadow-sm hover:bg-mustard/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa disabled:opacity-50'
-              : 'min-h-11 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50'}>
+              ? 'min-h-12 w-full rounded-full border-2 border-cocoa bg-mustard px-4 py-3 text-base font-bold text-cocoa shadow-sm hover:bg-mustard/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa disabled:opacity-50'
+              : 'min-h-11 w-full rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50'}>
             {busy ? live ? 'Payment in progress…' : 'Test checkout in progress…' : live ? showRecovery ? 'Resume secure payment' : 'Proceed to payment' : 'Try Razorpay test checkout'}
           </button>
+          </div>
           {showRecovery && !busy && <p className="text-center text-xs text-cocoa">
             No need to start over. Review your saved details and finish securely.
           </p>}
         </form>
       )}
-      {pending && <button type="button" disabled={busy} onClick={() => { void verify(pending); }}
+      {pending && <div className={stickyActions ? 'checkout-step-actions' : undefined}><button type="button" disabled={busy} onClick={() => { void verify(pending); }}
         className="mt-2 rounded-full bg-cocoa px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
         {busy ? 'Verifying…' : 'Retry payment verification'}
-      </button>}
+      </button></div>}
       {showRecovery && <a href={getCheckoutSupportWhatsAppLink()} target="_blank" rel="noopener noreferrer"
         className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-cocoa underline underline-offset-4">
         Get payment help on WhatsApp

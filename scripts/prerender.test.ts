@@ -339,7 +339,7 @@ describe('renderShell', () => {
   it('preloads the first catalogue product image in the initial HTML', () => {
     const escapedImage = prerenderImageUrl(product.image, 480).replace(/&/g, '&amp;');
     expect(shell).toContain(`<img src="${escapedImage}" width="480" height="480" loading="eager" fetchpriority="high"`);
-    expect(shell.match(/<img\b/g)).toHaveLength(1);
+    expect(shell.match(/fetchpriority="high"/g)).toHaveLength(1);
   });
 
   it('renders the initially featured product first, matching the hydrated catalogue', () => {
@@ -354,7 +354,8 @@ describe('renderShell', () => {
   });
 
   it('does not add image requests for every catalogue item', () => {
-    expect(shell.match(/<img\b/g)).toHaveLength(1);
+    expect(shell.match(/<img\b/g)).toHaveLength(2);
+    expect(shell).toContain('src="/tanushree-mithal-small.webp"');
   });
 });
 

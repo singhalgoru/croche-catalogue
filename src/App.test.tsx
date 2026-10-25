@@ -66,6 +66,7 @@ describe('Hybrid product navigation', () => {
     render(<App />);
     const teaser = screen.getByRole('region', { name: storeContent.brandStory.teaser.title });
     expect(within(teaser).getByText(storeContent.brandStory.teaser.text)).toBeTruthy();
+    expect(within(teaser).getByRole('img', { name: storeContent.brandStory.portrait.alt }).getAttribute('src')).toBe(storeContent.brandStory.portrait.thumbnail);
     expect(within(teaser).getByRole('link', { name: storeContent.brandStory.teaser.linkLabel }).getAttribute('href')).toBe('/about/');
     expect(teaser.parentElement?.firstElementChild).toBe(teaser);
   });

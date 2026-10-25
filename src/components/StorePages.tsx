@@ -299,6 +299,12 @@ export default function StorePages({
         </nav>
       </> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="max-w-3xl space-y-6 leading-relaxed">
         <article aria-label="Luvia's founder story" className="space-y-6 rounded-2xl border border-mustard/30 bg-white/70 p-5 sm:p-8">
+          <figure className="mx-auto w-full max-w-[240px]">
+            <img src={storeContent.brandStory.portrait.src} alt={storeContent.brandStory.portrait.alt}
+              width={storeContent.brandStory.portrait.width} height={storeContent.brandStory.portrait.height}
+              className="w-full rounded-2xl" decoding="async" />
+            <figcaption className="mt-2 text-center text-sm font-semibold">{storeContent.brandStory.founderNote.signature}<span className="block font-normal">{storeContent.brandStory.founderNote.role}</span></figcaption>
+          </figure>
           <p className="font-heading text-xl font-semibold sm:text-2xl">{storeContent.brandStory.subtitle}</p>
           <p>{storeContent.brandStory.intro}</p>
           {storeContent.brandStory.sections.map(section => <section key={section.title} className="space-y-3">

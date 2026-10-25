@@ -1,6 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('founder portrait loads in the homepage introduction and full About story', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const path of ['/', '/about/']) {
+    await page.goto(path);
+    const portrait = page.getByRole('img', { name: 'Tanushree Mithal, founder of Luvia Creations', exact: true });
+    await expect(portrait).toBeVisible();
+    await expect.poll(() => portrait.evaluate(image => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)).toBe(true);
+    await expect(portrait).toHaveAttribute('src', path === '/' ? '/tanushree-mithal-small.webp' : '/tanushree-mithal.webp');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width);
+  }
+});
+
 test('FAQ explains AI imagery and offers actual product photo clarification', async ({ page }) => {
   await installMockSupabase(page);
   await page.goto('/faq/');

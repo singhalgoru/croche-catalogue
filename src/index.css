@@ -27,6 +27,37 @@
   body:has(.mobile-navigation) [aria-label="Go to top"] {
     margin-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
+  body:has(.checkout-step-actions) {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+  body:has(.checkout-step-actions):has(.mobile-navigation) {
+    padding-bottom: calc(9.5rem + env(safe-area-inset-bottom));
+  }
+  .checkout-step-actions {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 70;
+    display: flex;
+    gap: 0.75rem;
+    border-top: 1px solid var(--color-mustard);
+    background: var(--color-cream);
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 8px #0000000d;
+  }
+  .checkout-step-actions > button:last-child {
+    flex: 1;
+  }
+  body:has(.mobile-navigation) .checkout-step-actions {
+    bottom: calc(4rem + env(safe-area-inset-bottom));
+    padding-bottom: 0.75rem;
+  }
+  body:has(.checkout-step-actions) [aria-label="Go to top"] {
+    margin-bottom: calc(9.5rem + env(safe-area-inset-bottom));
+  }
+  body:has([role="dialog"][aria-modal="true"]) .checkout-step-actions {
+    visibility: hidden;
+  }
 }
 
 @font-face {

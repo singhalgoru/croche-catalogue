@@ -95,7 +95,8 @@ describe('live store pages', () => {
       expect(within(story).getByText(storeContent.brandStory.intro)).toBeTruthy();
       expect(within(story).getByRole('heading', { name: storeContent.brandStory.founderNote.title })).toBeTruthy();
       expect(within(story).getByText(storeContent.brandStory.founderNote.text)).toBeTruthy();
-      expect(within(story).getByText(storeContent.brandStory.founderNote.role)).toBeTruthy();
+      expect(within(screen.getByRole('region', { name: storeContent.brandStory.founderNote.title })).getByText(storeContent.brandStory.founderNote.role)).toBeTruthy();
+      expect(within(story).getByRole('img', { name: storeContent.brandStory.portrait.alt }).getAttribute('src')).toBe(storeContent.brandStory.portrait.src);
       for (const section of storeContent.brandStory.sections) {
         expect(within(story).getByRole('heading', { name: section.title })).toBeTruthy();
         for (const paragraph of section.paragraphs) expect(within(story).getByText(paragraph)).toBeTruthy();

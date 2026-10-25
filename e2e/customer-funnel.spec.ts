@@ -123,7 +123,7 @@ test('guest address is saved, reviewed, shared and restored without showing paym
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
-  await expect(page.getByText('The welcome reward requires an activated account. Guest checkout remains available.')).toBeVisible();
+  await expect(page.getByText('The welcome reward requires an activated account. Guest checkout remains available.')).toHaveCount(0);
   await expect(page.getByRole('main').getByRole('button', { name: 'Create account' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Continue with delivery details' }).click();
   await page.getByLabel('Recipient name').fill('Guest Buyer');
@@ -265,7 +265,33 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(identity.locator('span[aria-hidden="true"]')).toHaveText('C');
   expect((await page.getByRole('banner').boundingBox())!.height).toBe(signedOutHeaderHeight);
   await expect(navigation).toBeInViewport({ ratio: 1 });
+  const accountScroll = await page.evaluate(() => window.scrollY);
+  let finishAccountLoad!: () => void;
+  const accountLoad = new Promise<void>(resolve => { finishAccountLoad = resolve; });
+  await page.route('**/auth/v1/user', async route => { await accountLoad; await route.fallback(); });
   if (mobile) {
+    await identity.click();
+  } else {
+    await navigation.click();
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  }
+  await expect(accountDialog.getByRole('status')).toContainText('Loading your account');
+  const openingBox = (await accountDialog.boundingBox())!;
+  finishAccountLoad();
+  await expect(accountDialog.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
+  await expect(accountDialog.getByText('Loading addresses…', { exact: true })).toHaveCount(0);
+  const loadedBox = (await accountDialog.boundingBox())!;
+  expect(Math.abs(loadedBox.y - openingBox.y)).toBeLessThan(1);
+  expect(Math.abs(loadedBox.height - openingBox.height)).toBeLessThan(1);
+  await page.unroute('**/auth/v1/user');
+  await accountDialog.getByRole('link', { name: 'Share feedback', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(accountDialog.getByRole('button', { name: 'Close account', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(accountDialog).toHaveCount(0);
+  expect(Math.abs(await page.evaluate(() => window.scrollY) - accountScroll)).toBeLessThan(1);
+  if (mobile) {
+    await expect(identity).toBeFocused();
     await identity.click();
   } else {
     await navigation.click();

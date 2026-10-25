@@ -17,6 +17,25 @@ test(scenario === 'remote' ? 'restores the same payment request without browser 
     target.fbq = Object.assign((...args: unknown[]) => { void target.recordAnalytics('meta', args); }, { queue: [] as unknown[][] });
   });
   const state = await installMockSupabase(page);
+  const expectPinnedAction = async (name: string) => {
+    const action = page.getByRole('button', { name, exact: true });
+    if (page.viewportSize()!.width >= 640) return;
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(action).toBeInViewport({ ratio: 1 });
+    const before = (await action.boundingBox())!;
+    const footer = action.locator('..');
+    expect(await footer.evaluate(node => getComputedStyle(node).position)).toBe('fixed');
+    const navigation = page.getByRole('navigation', { name: 'Mobile navigation', exact: true });
+    if (await navigation.count()) {
+      expect(before.y + before.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+    } else {
+      expect(before.y + before.height).toBeGreaterThan(page.viewportSize()!.height - 32);
+    }
+    await page.getByRole('contentinfo').scrollIntoViewIfNeeded();
+    await expect(action).toBeInViewport({ ratio: 1 });
+    expect(Math.abs((await action.boundingBox())!.y - before.y)).toBeLessThan(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width);
+  };
   await page.route('**/rest/v1/checkout_settings*', route => route.fulfill({ json: { id: true, live_enabled: true } }));
   await page.route('**/rest/v1/rpc/save_cart_delivery_details', async route => {
     const body = route.request().postDataJSON();
@@ -85,6 +104,8 @@ test(scenario === 'remote' ? 'restores the same payment request without browser 
   const pay = page.getByRole('button', { name: /^(Proceed to payment|Resume secure payment)$/ });
   await expect(page.getByRole('navigation', { name: 'Checkout steps' })).toBeVisible();
   await expect(pay).toHaveCount(0);
+  await expect(page.getByLabel('Checkout total', { exact: true })).toContainText('Estimated total: ₹449');
+  await expectPinnedAction('Continue with delivery details');
   await page.getByRole('main').getByRole('button', { name: 'Rose Charm', exact: true }).click();
   await expect(page).toHaveURL(/\/p\/rose-charm\/\?variant=rose-pink/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -101,15 +122,19 @@ test(scenario === 'remote' ? 'restores the same payment request without browser 
   await page.getByLabel('Recipient name').fill('Live Buyer');
   await page.getByLabel('Mobile number', { exact: true }).fill('9876543210');
   await page.getByLabel('Contact email', { exact: true }).fill('buyer@example.test');
+  await expectPinnedAction('Continue to address');
   await page.getByRole('button', { name: 'Continue to address' }).click();
   await page.getByLabel('House / building and street').fill('12 Live Street');
   await page.getByLabel('City', { exact: true }).fill('Delhi');
   await page.getByLabel('State', { exact: true }).fill('Delhi');
   await page.getByRole('region', { name: 'Order details' }).getByLabel('Pincode', { exact: true }).fill('110001');
+  await expectPinnedAction('Save and review');
   await page.getByRole('button', { name: 'Save and review' }).click();
   await expect(page.getByText('3. Review order', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Apply coupon', exact: true })).toBeVisible();
   await expect(pay).toBeEnabled();
+  await expect(page.getByLabel('Checkout total', { exact: true })).toContainText('Total: ₹449');
+  await expectPinnedAction('Proceed to payment');
   expect(events.filter(event => event.args[1] === 'purchase')).toHaveLength(0);
   await page.getByRole('button', { name: 'Edit details', exact: true }).click();
   await expect(page).toHaveURL(/checkout=delivery/);
@@ -145,12 +170,13 @@ test(scenario === 'remote' ? 'restores the same payment request without browser 
   }
   if (replace) {
     const recovery = page.getByRole('region', { name: 'Secure online checkout' });
-    await expect(recovery.getByRole('status')).toContainText(scenario === 'failed' ? 'Card declined' : 'Payment window closed');
+    await expect(recovery.getByRole('status')).toContainText(scenario === 'failed' ? 'Card declined' : 'Payment confirmation has not arrived yet');
     await expect(page.getByRole('heading', { name: scenario === 'failed'
-      ? "Payment didn't go through. Let's get you back on track." : 'Not ready just yet? Your cart is waiting.' })).toBeVisible();
+      ? "Payment didn't go through. Let's get you back on track." : 'Waiting for your payment confirmation.' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Resume secure payment' })).toBeEnabled();
-    await expect(page.getByText('Payment incomplete', { exact: true })).toBeVisible();
-    await expect(page.getByText('Your handmade favourites are one step away. Complete your payment to make them yours.')).toBeVisible();
+    await expectPinnedAction('Resume secure payment');
+    await expect(page.getByText(scenario === 'failed' ? 'Payment incomplete' : 'Awaiting payment confirmation', { exact: true })).toBeVisible();
+    if (scenario === 'failed') await expect(page.getByText('Your handmade favourites are one step away. Complete your payment to make them yours.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Get payment help on WhatsApp' })).toBeVisible();
     await page.getByRole('button', { name: /Increase quantity of Rose Charm/ }).click();
     await expect(page.getByRole('button', { name: /Increase quantity of Rose Charm/ })).toBeEnabled();

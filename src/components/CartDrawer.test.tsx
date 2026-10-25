@@ -61,11 +61,14 @@ it('expands the cart price breakdown by default', () => {
   renderCart(cart);
   expect(screen.getByText('Price breakdown', { exact: true }).closest('details')?.open).toBe(true);
   expect(screen.getByText('Items subtotal')).toBeTruthy();
+  expect(screen.getByLabelText('Checkout total').textContent).toContain(`Estimated total: ₹${getCartTotals(cart).total.toLocaleString('en-IN')}`);
+  expect(screen.getByLabelText('Checkout total').closest('div')?.querySelector('h2')?.textContent).toBe('Your cart');
 });
 it('links the empty cart directly to homepage products', () => {
   renderCart({ ...cart, items: [] });
   expect(screen.getByText('Your cart is empty')).toBeTruthy();
   expect(screen.queryByLabelText('Cart order actions')).toBeNull();
+  expect(screen.queryByLabelText('Checkout total')).toBeNull();
   expect(screen.queryByRole('region', { name: 'Free delivery' })).toBeNull();
   expect(screen.getByRole('link', { name: 'Shop now' }).getAttribute('href'))
     .toBe(`${import.meta.env.BASE_URL}#products`);

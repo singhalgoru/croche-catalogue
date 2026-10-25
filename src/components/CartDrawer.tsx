@@ -199,6 +199,10 @@ export default function CartDrawer({
           <div>
             <h2 className="font-heading text-2xl font-bold text-cocoa">{pageStep === 'delivery' ? 'Delivery details'
               : pageStep === 'review' ? 'Review & payment' : pageStep === 'confirmation' ? 'Order confirmation' : 'Your cart'}</h2>
+            {isPage && cart && cart.items.length > 0 && pageStep !== 'confirmation' && <p aria-label="Checkout total" className="text-sm font-semibold text-cocoa">
+              {hasUnpricedItems ? 'Estimated total*' : liveCheckout && cart.deliveryDetails ? 'Total' : 'Estimated total'}: {formatINR(total)}
+              {hasUnpricedItems && <span className="block text-xs font-normal text-cocoa/70">Unpriced items excluded</span>}
+            </p>}
           </div>
           <button
             type="button"
@@ -429,10 +433,10 @@ export default function CartDrawer({
                 onEdit={isPage ? () => onNavigateStep?.('delivery') : undefined}
                 onBack={isPage ? () => onNavigateStep?.('cart') : undefined}
                 cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} onlineCheckout={liveCheckout} />}
-              {pageStep === 'cart' && <button type="button" disabled={isBusy || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0}
+              {pageStep === 'cart' && <div className={isPage ? 'checkout-step-actions' : undefined}><button type="button" disabled={isBusy || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0}
                 onClick={() => onNavigateStep?.('delivery')} className="min-h-11 w-full rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50">
                 Continue with delivery details
-              </button>}
+              </button></div>}
               {pageStep === 'cart' && !accountName && welcomeOffer?.enabled && <p className="text-center text-xs text-cocoa/65">The welcome reward requires an activated account. Guest checkout remains available.</p>}
             </div>
           )}
@@ -485,6 +489,7 @@ export default function CartDrawer({
             {checkoutError && <p role="alert" className="mt-2 text-xs text-red-700">{checkoutError}</p>}
             <div hidden={liveCheckout && isPage && pageStep !== 'review' && pageStep !== 'confirmation'}>
             {liveCheckout && checkoutCart && <RazorpayCheckout key={`live-${checkoutCart.id}`} cart={checkoutCart} live
+              stickyActions={isPage && pageStep === 'review'}
               confirmationOnly={pageStep === 'confirmation'}
               confirmationRequest={confirmationRequest}
               onConfirmed={(requestId, purchasedCart) => {
@@ -497,7 +502,7 @@ export default function CartDrawer({
               }}
               disabled={pageStep === 'confirmation' || isBusy || !checkoutCart.deliveryDetails || !checkoutCart.deliveryDetails.email?.trim() || hasUnpricedItems || unavailableItemIds.size > 0
                 || belowMinimumItemIds.size > 0 || Boolean(totals?.couponShortfall)} />}
-            {!liveCheckout && pageStep !== 'confirmation' && <div className="mt-2 grid grid-cols-2 gap-2">
+            {!liveCheckout && pageStep !== 'confirmation' && <div className={isPage && pageStep === 'review' ? 'checkout-step-actions' : 'mt-2 grid grid-cols-2 gap-2'}>
               <a
                 href={unavailableItemIds.size === 0 && belowMinimumItemIds.size === 0 ? whatsappLink : undefined}
                 target="_blank"

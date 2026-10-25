@@ -19,7 +19,8 @@ an India-based handmade crochet brand.
 - Discover bestsellers and featured products in homepage carousels and on
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
 - Meet the founder in the homepage story card above collections, with a link to
-  the full About page. Empty-cart “Shop now” opens the product-grid heading.
+  the full About page. Both use a cropped, optimised founder portrait.
+  Empty-cart “Shop now” opens the product-grid heading.
 - View product details, available variants, angle photos, image zoom and optional
   making videos. Tap the top-right play badge on a product image to jump to its
   making video and start muted playback (subject to browser autoplay settings).
@@ -35,6 +36,10 @@ an India-based handmade crochet brand.
   contact and policies. Navigation respects safe areas and hides behind dialogs
   and while the on-screen keyboard is open. The bar stays fixed on the cart;
   delivery, review and confirmation stay focused without it.
+- On phones, checkout's primary actions stay fixed at the bottom, above cart
+  navigation when present, from delivery details through secure payment.
+  The running total is also shown at the top of cart and checkout steps;
+  shipping remains estimated until an address is saved.
 - Mobile catalogue filters open from an icon beside sticky search. Seasonal
   collections stay in collection navigation and the filter panel; active-filter
   chips scroll with the product grid rather than occupying another sticky row.

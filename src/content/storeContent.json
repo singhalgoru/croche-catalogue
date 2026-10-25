@@ -16,6 +16,13 @@
   "dispatch": "Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window.",
   "shipping": "We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay.",
   "brandStory": {
+    "portrait": {
+      "src": "/tanushree-mithal.webp",
+      "thumbnail": "/tanushree-mithal-small.webp",
+      "alt": "Tanushree Mithal, founder of Luvia Creations",
+      "width": 450,
+      "height": 600
+    },
     "title": "The Story Behind Luvia",
     "subtitle": "From corporate leadership to a life rooted in craft.",
     "description": "Meet Tanushree Mithal, the founder of Luvia Creations, and discover her journey from 20 years in corporate leadership to a passion for handmade craft.",
