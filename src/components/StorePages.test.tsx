@@ -271,7 +271,7 @@ describe('live store pages', () => {
     expect(toyLink.querySelectorAll('img')).toHaveLength(2);
     expect(toyLink.textContent).toContain('1 product');
     expect(screen.queryByRole('heading', { name: 'Explore collections' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Shop all products' }).getAttribute('href')).toBe('/');
+    expect(screen.getByRole('link', { name: 'Shop all products' }).getAttribute('href')).toBe('/#products');
     rerender(<StorePages {...initial} products={[...products, { ...products[0], id: 'p2' }]} />);
     expect(toyLink.textContent).toContain('2 products');
   });

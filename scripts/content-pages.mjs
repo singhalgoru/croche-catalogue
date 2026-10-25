@@ -134,7 +134,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   const title = 'Explore our handmade collections';
   const description = 'Browse Luvia Creations collections of handmade crochet accessories, toys, gifts and decor. Explore product details and request orders across India.';
   pages.set('/collections/', page('/collections/', title, description,
-    `<p class="intro">Find your favourites by collection, then open a product for photos and details.</p><a class="button" href="/">Shop all products</a>
+    `<p class="intro">Find your favourites by collection, then open a product for photos and details.</p><a class="button" href="/#products">Shop all products</a>
     <nav aria-label="Explore collections"><ul class="grid collection-grid">${collectionLinks.join('')}</ul></nav>`,
     baseSchema('CollectionPage', '/collections/', title, description)));
   const story = storeContent.brandStory;

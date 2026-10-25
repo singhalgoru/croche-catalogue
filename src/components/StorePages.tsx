@@ -294,7 +294,7 @@ export default function StorePages({
           </li>)}
         </ul>}
         <nav aria-label="More products" className="flex flex-wrap gap-4">
-          <a href="/" className="min-h-11 underline">Shop all products</a>
+          <a href="/#products" className="min-h-11 underline">Shop all products</a>
           {productCollections.filter(item => item.path !== requestedPath).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
         </nav>
@@ -379,7 +379,7 @@ export default function StorePages({
           </ul>}
         </>}
       </> : <><p>Find your favourites by collection, then open a product for photos and details.</p>
-        <a href="/" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
+        <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
       {showCatalogue && !isCollectionsHub && !policy && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}

@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
-test('empty-cart Shop now lands at the collection heading below mobile search', async ({ page }) => {
+for (const source of ['empty cart', 'Collections']) {
+test(`${source} shop link lands at the collection heading below mobile search`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installMockSupabase(page);
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Open cart with 0 items', exact: true }).click();
+  await page.goto(source === 'Collections' ? '/collections/' : '/');
+  if (source === 'empty cart') await page.getByRole('button', { name: 'Open cart with 0 items', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'Mobile navigation', exact: true })).toBeInViewport({ ratio: 1 });
-  await page.getByRole('link', { name: 'Shop now', exact: true }).click();
+  await page.getByRole('link', { name: source === 'Collections' ? 'Shop all products' : 'Shop now', exact: true }).click();
   await expect(page).toHaveURL(/\/#products$/);
   const heading = page.getByRole('heading', { name: 'Shop the Collection', exact: true });
   const search = page.locator('.mobile-search');
@@ -19,6 +20,7 @@ test('empty-cart Shop now lands at the collection heading below mobile search', 
   await expect.poll(async () => (await heading.boundingBox())!.y).toBeLessThan(90);
   await expect(page.getByRole('article', { name: 'Product: Rose Charm', exact: true })).toBeInViewport();
 });
+}
 
 test('guest checkout prominently offers signup without leaving the current checkout step', async ({ page }) => {
   await installMockSupabase(page);

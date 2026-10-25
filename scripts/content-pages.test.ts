@@ -24,6 +24,7 @@ describe('collection and information pages', () => {
     const logo = doc.querySelector('header .brand');
     expect(logo?.textContent).toBe('Luvia Creations');
     expect(logo?.querySelector('img')?.getAttribute('width')).toBe('48');
+    expect([...doc.querySelectorAll('a')].find(link => link.textContent === 'Shop all products')?.getAttribute('href')).toBe('/#products');
     const navigation = doc.querySelector('nav[aria-label="Mobile navigation"]');
     expect(navigation?.querySelector('[aria-current="page"]')?.textContent).toBe('Collections');
     expect(navigation?.querySelector('a[href="/?checkout=cart"]')).toBeTruthy();
@@ -292,7 +293,7 @@ describe('collection and information pages', () => {
     expect(nav?.querySelector('a[href="/collections/toys/"] img')?.getAttribute('src')).toContain('bunny-w480.webp');
     expect(nav?.querySelector('a[href="/collections/toys/"]')?.textContent).toContain('1 product');
     expect(nav?.textContent).not.toContain('Meet the handmade crochet toys');
-    expect(doc.querySelector('a.button[href="/"]')?.textContent).toBe('Shop all products');
+    expect(doc.querySelector('a.button[href="/#products"]')?.textContent).toBe('Shop all products');
   });
   it('uses variant prices rather than an obsolete base price', () => {
     const adjusted = { ...toy, price: 100, variants: [{ price: 600 }, { price: 800 }] };
