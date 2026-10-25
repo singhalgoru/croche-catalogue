@@ -15,6 +15,8 @@ an India-based handmade crochet brand.
   making videos. Tap the top-right play badge on a product image to jump to its
   making video and start muted playback (subject to browser autoplay settings).
 - Save a cart, check delivery availability, place orders and view order history.
+- Use the header for search, cart and navigation; sign in, account details and
+  order history are available inside the navigation menu.
 - Contact Luvia by WhatsApp or email for product and customisation enquiries.
 - Install the catalogue as a home-screen app on supported browsers.
 - Authorised administrators can manage products, drafts, media and orders.

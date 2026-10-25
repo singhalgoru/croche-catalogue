@@ -185,7 +185,7 @@ test('charges shipping when the coupon reduces the items subtotal below ₹500',
   expect(decodeURIComponent(whatsapp!)).toContain('Indicative shipping: ₹100');
 });
 
-test('checkout signup with password activates the same cart owner, shows the name in the header and signs back in', async ({ page }) => {
+test('checkout signup with password activates the same cart owner, shows the name in the menu and signs back in', async ({ page }) => {
   const state = await installMockSupabase(page);
   const feedbackSubmissions: Record<string, unknown>[] = [];
   await page.route('**/rest/v1/rpc/store_feedback_delivery_status', route => route.fulfill({ json: 'sent' }));
@@ -205,14 +205,15 @@ test('checkout signup with password activates the same cart owner, shows the nam
     await route.fulfill({ json: body.delivery });
   });
   await page.goto('./');
-  await expect(page.getByRole('button', { name: 'Sign in or create account' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible();
   await page.getByRole('article', { name: 'Product: Rose Charm' })
     .getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
   await page.getByRole('button', { name: 'Open cart with 1 item', exact: true }).click();
   const originalOwner = state.carts[0].user_id;
   const originalCart = state.carts[0].id;
   await page.getByRole('button', { name: 'Close cart' }).click();
-  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Sign in', exact: true }).click();
   const accountDialog = page.getByRole('dialog');
   await accountDialog.getByRole('button', { name: 'Create account', exact: true }).first().click();
   const signup = page.getByRole('form', { name: 'Customer signup' });
@@ -235,6 +236,9 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByRole('alert')).toContainText('invalid verification code');
   await page.getByLabel('Email verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify email', exact: true }).click();
+  await expect(accountDialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
   await expect(accountDialog.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
@@ -254,8 +258,8 @@ test('checkout signup with password activates the same cart owner, shows the nam
   expect(state.carts[0].id).toBe(originalCart);
   expect(state.carts[0].user_id).toBe(originalOwner);
   await page.getByRole('main').getByRole('link', { name: 'Back to shop' }).click();
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
   await accountDialog.getByRole('button', { name: 'Change password', exact: true }).click();
   const passwordForm = accountDialog.getByRole('form', { name: 'Change account password' });
   await expect(passwordForm.getByLabel('Current password', { exact: true })).toHaveAttribute('type', 'password');
@@ -308,17 +312,18 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByText('5 Office Park, New Delhi, Delhi, 110001, India', { exact: true })).toBeVisible();
   expect(decodeURIComponent((await page.getByRole('link', { name: 'Send cart to Luvia on WhatsApp' }).getAttribute('href'))!)).toContain('5 Office Park');
   await page.getByRole('button', { name: 'Close cart' }).click();
-  await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
   await page.getByRole('button', { name: 'Open navigation' }).click();
   const menu = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(menu).toContainText('Signed in as Customer');
   await menu.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(menu.getByRole('status')).toContainText('Signed out successfully.');
   await expect(menu.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   await expect(menu.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close navigation' }).click();
-  await expect(page.getByRole('button', { name: 'Sign in or create account' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await menu.getByRole('button', { name: 'Sign in', exact: true }).click();
   const signIn = page.getByRole('dialog', { name: 'Sign in to Luvia' }).getByRole('form', { name: 'Customer sign in' });
   await signIn.getByLabel('Account email').fill('buyer@example.test');
   await signIn.getByLabel('Password', { exact: true }).fill('wrong-password1');
@@ -326,12 +331,16 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await expect(page.getByRole('alert')).toContainText('Email or password is incorrect');
   await signIn.getByLabel('Password', { exact: true }).fill('Crochet2028');
   await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await menu.getByRole('button', { name: 'My account', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'My account', exact: true })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Close account' }).click();
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await menu.getByRole('button', { name: 'Sign out', exact: true }).click();
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await menu.getByRole('button', { name: 'Sign in', exact: true }).click();
   await signIn.getByLabel('Account email').fill('buyer@example.test');
   await page.getByRole('dialog', { name: 'Sign in to Luvia' }).getByRole('button', { name: 'Forgot password?' }).click();
   const recoveryRequest = page.getByRole('form', { name: 'Forgot password', exact: true });
@@ -352,39 +361,71 @@ test('checkout signup with password activates the same cart owner, shows the nam
   await reset.getByRole('button', { name: 'Save new password' }).click();
   await expect(reset.getByRole('status')).toContainText('password has been updated');
   await reset.getByRole('button', { name: 'Continue shopping' }).click();
-  await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(menu).toContainText('Signed in as Customer');
+  await menu.getByRole('button', { name: 'My account', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Close account' }).click();
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await menu.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('status')).toContainText('Signed out');
   await page.keyboard.press('Escape');
 
-  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await menu.getByRole('button', { name: 'Sign in', exact: true }).click();
   await signIn.getByLabel('Account email').fill('buyer@example.test');
   await signIn.getByLabel('Password', { exact: true }).fill('Crochet2026');
   await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Email or password is incorrect');
   await signIn.getByLabel('Password', { exact: true }).fill('Crochet2030');
   await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'My account, signed in as Customer' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(menu).toContainText('Signed in as Customer');
 });
 
 test('header account options open sign in and signup on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await installMockSupabase(page);
   await page.goto('./');
-  const account = page.getByRole('button', { name: 'Sign in or create account' });
+  const search = page.getByRole('link', { name: 'Search products', exact: true });
   const menu = page.getByRole('button', { name: 'Open navigation' });
-  await expect(account).toBeInViewport({ ratio: 1 });
-  const accountBox = (await account.boundingBox())!;
+  await expect(search).toBeInViewport({ ratio: 1 });
+  const searchBox = (await search.boundingBox())!;
   const menuBox = (await menu.boundingBox())!;
-  expect(accountBox.x + accountBox.width).toBeLessThanOrEqual(menuBox.x);
+  expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(menuBox.x);
   await menu.click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Create account' }).click();
   const dialog = page.getByRole('dialog', { name: 'Create your Luvia account' });
   await expect(dialog.getByLabel('Confirm password')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
+});
+
+test('header actions stay separate with touch-sized controls on narrow and wide screens', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const width of [320, 390, 768, 1280, 1600]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const pathname of ['./', './search/', './p/rose-charm/']) {
+      await page.goto(pathname);
+      const header = page.getByRole('banner');
+      const controls = [
+        header.getByRole('link', { name: 'Search products', exact: true }),
+        header.getByRole('button', { name: 'Open cart with 0 items', exact: true }),
+        header.getByRole('button', { name: 'Open navigation', exact: true }),
+      ];
+      let right = 0;
+      for (const control of controls) {
+        await expect(control).toBeInViewport({ ratio: 1 });
+        const box = (await control.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.x).toBeGreaterThanOrEqual(right);
+        right = box.x + box.width;
+      }
+      const logo = (await header.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
+      const search = (await controls[0].boundingBox())!;
+      expect(logo.x + logo.width).toBeLessThanOrEqual(search.x);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    }
+  }
 });

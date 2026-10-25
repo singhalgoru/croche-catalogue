@@ -49,7 +49,6 @@ export default function Header({
   showCollaborationLink = true,
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState('');
   const [signOutMessage, setSignOutMessage] = useState('');
@@ -57,7 +56,6 @@ export default function Header({
   const signOut = async () => {
     if (signOutPending.current) return;
     signOutPending.current = true;
-    setIsAccountMenuOpen(false);
     setIsMenuOpen(true);
     menuButtonRef.current?.focus();
     setIsSigningOut(true); setSignOutError(''); setSignOutMessage('');
@@ -103,17 +101,15 @@ export default function Header({
   };
 
   useEffect(() => {
-    if (!isMenuOpen && !isAccountMenuOpen) return;
+    if (!isMenuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setIsMenuOpen(false);
-      setIsAccountMenuOpen(false);
       menuButtonRef.current?.focus();
     };
     const onPointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
         setIsMenuOpen(false);
-        setIsAccountMenuOpen(false);
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -122,7 +118,7 @@ export default function Header({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [isMenuOpen, isAccountMenuOpen]);
+  }, [isMenuOpen]);
 
   useEffect(() => {
     if (messages.length < 2 || tickerFocused || tickerHovered) return;
@@ -157,51 +153,25 @@ export default function Header({
       )}
       <div className="relative z-[80] mx-auto h-0 w-full max-w-6xl">
         <div ref={menuRef}>
+          <a href={`${import.meta.env.BASE_URL}search/`} aria-label="Search products" title="Search products"
+            className={`absolute top-3 inline-flex h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${onOpenCart ? 'right-[7.5rem] sm:right-32' : 'right-[4.25rem] sm:right-[4.75rem]'}`}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" />
+            </svg>
+          </a>
           <button
             ref={menuButtonRef}
             type="button"
             aria-label={isMenuOpen ? 'Close navigation' : 'Open navigation'}
             aria-expanded={isMenuOpen}
             aria-controls={menuId}
-            onClick={() => { setIsAccountMenuOpen(false); setIsMenuOpen(open => !open); }}
-            className={`absolute top-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-cocoa shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${
-              onOpenCart ? 'right-20 sm:right-24' : 'right-4 sm:right-6'
-            }`}
+            onClick={() => setIsMenuOpen(open => !open)}
+            className="absolute right-4 top-3 flex h-12 w-12 items-center justify-center rounded-xl text-cocoa transition-colors hover:bg-mustard/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:right-6"
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               {isMenuOpen ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
             </svg>
           </button>
-          {onOpenAccount && (
-            <button
-              type="button"
-              aria-label={accountName ? `My account, signed in as ${accountName}` : 'Sign in or create account'}
-              title={accountName ? `Signed in as ${accountName}` : 'Sign in or create account'}
-              aria-expanded={accountName ? isAccountMenuOpen : undefined}
-              onClick={() => { setIsMenuOpen(false); if (accountName) setIsAccountMenuOpen(open => !open); else onOpenAccount('signin'); }}
-              className={`absolute top-3 flex h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-white text-cocoa shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa ${
-                accountName ? 'sm:max-w-56 sm:px-4' : ''} ${onOpenCart ? 'right-36 sm:right-[10.5rem]' : 'right-20 sm:right-24'
-              }`}
-            >
-              {accountName ? <>
-                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cocoa font-bold uppercase text-white sm:h-7 sm:w-7 sm:text-sm">
-                  {accountName.charAt(0)}
-                </span>
-                <span aria-hidden="true" className="hidden truncate font-semibold sm:inline">Hi, {accountName}</span>
-              </> : <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
-              </svg>}
-            </button>
-          )}
-          {isAccountMenuOpen && accountName && onOpenAccount && <nav aria-label="Account navigation"
-            className="absolute right-4 top-16 w-64 rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:right-6">
-            <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left hover:bg-cream"
-              onClick={() => { setIsAccountMenuOpen(false); onOpenAccount('signin'); }}>My account</button>
-            {onOpenOrders && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left hover:bg-cream"
-              onClick={() => { setIsAccountMenuOpen(false); onOpenOrders(); }}>My orders</button>}
-            <button type="button" disabled={isSigningOut} className="block min-h-11 w-full rounded-lg px-3 text-left hover:bg-cream"
-              onClick={() => { setIsAccountMenuOpen(false); void signOut(); }}>Sign out</button>
-          </nav>}
           {isMenuOpen && (
             <nav
               id={menuId}
@@ -259,7 +229,11 @@ export default function Header({
               setIsMenuOpen(false);
               onOpenCart();
             }}
-            className={`right-4 sm:right-6 ${
+            className={`${cartItemCount > 0
+              ? mobileCartInToolbar
+                ? 'right-[4.25rem] sm:right-[max(4.75rem,calc((100vw-72rem)/2+4.75rem))]'
+                : 'right-[max(4.25rem,calc((100vw-72rem)/2+4.25rem))] sm:right-[max(4.75rem,calc((100vw-72rem)/2+4.75rem))]'
+              : 'right-[4.25rem] sm:right-[4.75rem]'} ${
               cartItemCount > 0
                 ? mobileCartInToolbar ? 'absolute top-3 sm:fixed sm:top-12 sm:z-[70]' : 'fixed top-12 z-[70]'
                 : 'absolute top-3'
@@ -270,11 +244,11 @@ export default function Header({
       <div
         className={`max-w-6xl mx-auto px-4 flex items-center text-center ${
           compact
-            ? `flex-row gap-3 py-3 ${alignLogoLeft ? `justify-start ${accountName ? 'pr-52 sm:pr-96' : onOpenAccount ? 'pr-52' : 'pr-36'} text-left` : 'justify-center'}`
+            ? `flex-row gap-3 py-3 ${alignLogoLeft ? 'justify-start pr-44 text-left' : 'justify-start pr-44 text-left sm:justify-center'}`
             : 'flex-col gap-3 py-3 sm:py-8'
         }`}
       >
-        <div className={compact ? 'contents' : `flex w-full items-center gap-3 ${onOpenAccount ? 'pr-52' : 'pr-32'} text-left sm:contents`}>
+        <div className={compact ? 'contents' : 'flex w-full items-center gap-3 pr-44 text-left sm:contents'}>
           <a
             href={import.meta.env.BASE_URL}
             onClick={event => navigateCatalogue(event)}
@@ -296,12 +270,6 @@ export default function Header({
               : 'h-12 w-12 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
           }`}
           />
-          </a>
-          <a href={`${import.meta.env.BASE_URL}search/`} aria-label="Search products" title="Search products"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-cocoa shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" />
-            </svg>
           </a>
         </div>
         {showHeading && <h1

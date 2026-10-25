@@ -78,7 +78,9 @@ describe('Hybrid product navigation', () => {
     expect(screen.getByRole('heading', { name: 'Handcrafting a coaster', level: 1 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Premium Handmade Crochet Creations' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Open navigation' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Sign in or create account' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
     const footer = screen.getByRole('contentinfo');
     fireEvent.click(within(footer).getByRole('button', { name: 'Help & information' }));
     expect(within(footer).getByRole('link', { name: 'Contact on Instagram' })).toBeTruthy();

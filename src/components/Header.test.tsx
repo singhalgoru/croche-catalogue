@@ -16,12 +16,12 @@ describe('Header', () => {
     render(<Header showInstallPrompt={false} />);
     expect(screen.getByRole('link', { name: 'Search products' }).getAttribute('href')).toBe('/search/');
   });
-  it('opens a separate My orders entry from the signed-in name icon', () => {
+  it('opens My orders from the main menu for signed-in customers', () => {
     const orders = vi.fn();
     const account = vi.fn();
     render(<Header showInstallPrompt={false} accountName="Asha" onOpenAccount={account} onOpenOrders={orders} />);
-    fireEvent.click(screen.getByRole('button', { name: 'My account, signed in as Asha' }));
-    expect(screen.getByRole('navigation', { name: 'Account navigation' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'My orders' }));
     expect(orders).toHaveBeenCalledOnce();
     expect(account).not.toHaveBeenCalled();
@@ -59,10 +59,12 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'My account' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign out' }).hasAttribute('disabled')).toBe(false);
   });
-  it('offers sign in and create account from the header and navigation menu when enabled', () => {
+  it('keeps sign in and create account in the menu without a separate header icon', () => {
     const onOpenAccount = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in or create account' }));
+    expect(screen.queryByRole('button', { name: 'Sign in or create account' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(onOpenAccount).toHaveBeenLastCalledWith('signin');
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
@@ -72,8 +74,7 @@ describe('Header', () => {
   it('shows the signed-in customer name and an account entry instead of sign-in buttons', () => {
     const onOpenAccount = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={vi.fn()} onOpenAccount={onOpenAccount} accountName="Asha" />);
-    const account = screen.getByRole('button', { name: 'My account, signed in as Asha' });
-    expect(account.textContent).toContain('Hi, Asha');
+    expect(screen.queryByRole('button', { name: 'My account, signed in as Asha' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     expect(screen.getByText('Asha')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
@@ -189,7 +190,7 @@ describe('Header', () => {
       onOpenCart={vi.fn()} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
     const row = logo.parentElement?.parentElement?.parentElement;
-    expect(row?.className).toContain('justify-start pr-36 text-left');
+    expect(row?.className).toContain('justify-start pr-44 text-left');
     expect(row?.className).not.toContain('justify-center');
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open cart with 0 items' })).toBeTruthy();

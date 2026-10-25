@@ -63,8 +63,9 @@ test('admin name edits refresh the shop greeting without signing in again', asyn
   await page.getByRole('button', { name: 'Save admin account' }).click();
   await expect(page.getByText('Admin name updated.', { exact: true })).toBeVisible();
   await page.goto('./', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('button', { name: 'My account, signed in as Gourav', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'My account, signed in as admin', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toContainText('Signed in as Gourav');
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).not.toContainText('Signed in as admin');
   await expectNoHorizontalOverflow(page);
 });
 

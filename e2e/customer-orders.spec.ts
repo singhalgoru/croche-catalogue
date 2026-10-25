@@ -6,7 +6,8 @@ test('My orders is a full page with active-first history, reorder and restorable
   const state = await installMockSupabase(page);
   await page.goto('./');
   await page.getByRole('article', { name: 'Product: Rose Charm' }).getByRole('button', { name: 'Add to cart — Rose Charm' }).click();
-  await page.getByRole('button', { name: 'Sign in or create account' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Create account', exact: true }).first().click();
   const signup = page.getByRole('form', { name: 'Customer signup' });
   await signup.getByLabel('Full name').fill('Customer Buyer');
@@ -21,6 +22,9 @@ test('My orders is a full page with active-first history, reorder and restorable
   await signup.getByRole('button', { name: 'Create account' }).click();
   await page.getByLabel('Email verification code').fill('123456');
   await page.getByRole('button', { name: 'Verify email', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   await page.getByRole('button', { name: 'Close account' }).click();
 
@@ -52,15 +56,15 @@ test('My orders is a full page with active-first history, reorder and restorable
     cart.cart_items[0].quantity += 2;
     return route.fulfill({ json: { added: 1, skipped: [{ productName: 'Deleted product', variantName: '', reason: 'No longer available' }] } });
   });
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My account', exact: true }).click();
   const account = page.getByRole('dialog', { name: 'My account', exact: true });
   await expect(account.getByRole('group', { name: 'Saved addresses' })).toBeVisible();
   await expect(account.getByRole('region', { name: 'Your orders' })).toHaveCount(0);
   await account.getByRole('link', { name: 'My orders', exact: true }).click();
   await expect(page).toHaveURL(/account=orders/);
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'My orders' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'My orders' }).click();
   await expect(page).toHaveURL(/account=orders/);
   await expect(page.getByRole('heading', { name: 'My orders', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -89,8 +93,8 @@ test('My orders is a full page with active-first history, reorder and restorable
   await expect(page.getByRole('heading', { name: 'Your cart', exact: true })).toBeVisible();
   expect(state.carts[0].cart_items[0].quantity).toBe(5);
   await page.goto('./?account=orders');
-  await page.getByRole('button', { name: 'My account, signed in as Customer' }).click();
-  await page.getByRole('navigation', { name: 'Account navigation' }).getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('button', { name: 'Sign in to view orders' })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Order LUV-ACTIVE' })).toHaveCount(0);
   await page.keyboard.press('Escape');
