@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from './types/product';
 import App from './App';
+import storeContent from './content/storeContent.json';
 
 const product: Product = {
   id: 'test-product', name: 'Test Coaster', category: 'Home', price: 100,
@@ -60,6 +61,12 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('introduces the founder story on the catalogue with a crawlable about link', () => {
+    render(<App />);
+    const teaser = screen.getByRole('region', { name: storeContent.brandStory.teaser.title });
+    expect(within(teaser).getByText(storeContent.brandStory.teaser.text)).toBeTruthy();
+    expect(within(teaser).getByRole('link', { name: storeContent.brandStory.teaser.linkLabel }).getAttribute('href')).toBe('/about/');
+  });
   it('renders watch pages with the homepage header and interactive footer, not the catalogue', () => {
     catalogueProducts = [{ ...product, makingVideo: {
       title: 'Handcrafting a coaster', videoUrl: 'https://videos.luviacreations.com/making-videos/test/video.mp4',

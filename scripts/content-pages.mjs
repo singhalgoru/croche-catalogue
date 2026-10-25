@@ -135,10 +135,17 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     `<p class="intro">Find your favourites by collection, then open a product for photos and details.</p><a class="button" href="/">Shop all products</a>
     <nav aria-label="Explore collections"><ul class="grid collection-grid">${collectionLinks.join('')}</ul></nav>`,
     baseSchema('CollectionPage', '/collections/', title, description)));
-  const aboutTitle = 'About Luvia & contact';
-  const aboutDescription = 'Discover Luvia Creations handmade crochet accessories, toys, gifts and decor. Contact us about products, customisation and orders shipped across India.';
+  const story = storeContent.brandStory;
+  const aboutTitle = story.title;
+  const aboutDescription = story.description;
   pages.set('/about/', page('/about/', aboutTitle, aboutDescription, `
-    <section class="intro"><h2>Handmade crochet, made with love</h2><p>${escapeHtml(storeContent.about[0])}</p>
+    <section class="intro"><article aria-label="Luvia's founder story" class="card">
+    <p><strong>${escapeHtml(story.subtitle)}</strong></p><p>${escapeHtml(story.intro)}</p>
+    ${story.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2>${section.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}</section>`).join('')}
+    <section aria-labelledby="founder-note-title" class="card"><h2 id="founder-note-title">${escapeHtml(story.founderNote.title)}</h2>
+    <p>${escapeHtml(story.founderNote.text)}</p><p><strong>${escapeHtml(story.founderNote.signature)}</strong><br>${escapeHtml(story.founderNote.role)}</p></section>
+    <p><strong>${escapeHtml(story.closing)}</strong></p><a class="button" href="/collections/">${escapeHtml(story.shopLabel)}</a></article>
+    <h2>Thoughtfully crafted crochet, made to be treasured</h2><p>${escapeHtml(storeContent.about[0])}</p>
     <p>${escapeHtml(storeContent.about[1])}</p>
     <h2>Personal touches, confirmed with you</h2><p>${escapeHtml(storeContent.about[2])}</p>
     <h2>Contact Luvia</h2><p>Luvia Creations<br>Gurugram, Haryana, India</p><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>

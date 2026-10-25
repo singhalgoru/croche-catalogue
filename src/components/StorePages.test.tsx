@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorePages from './StorePages';
+import storeContent from '../content/storeContent.json';
 import type { Product } from '../types/product';
 
 vi.mock('./Header', () => ({ default: ({ categories }: { categories: string[] }) => <header>{categories.join(', ')}</header> }));
@@ -15,6 +16,38 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('renders the complete founder story with shared chrome and retains contact and ordering information', () => {
+    window.history.replaceState(null, '', '/about/');
+    const metas = ['description', 'og:description', 'twitter:description', 'og:title', 'twitter:title'].map(name => {
+      const meta = document.createElement('meta');
+      meta.setAttribute(name.startsWith('og:') ? 'property' : 'name', name);
+      document.head.append(meta);
+      return meta;
+    });
+    try {
+      render(<StorePages {...initial} />);
+      expect(screen.getByRole('heading', { level: 1, name: storeContent.brandStory.title })).toBeTruthy();
+      const story = screen.getByRole('article', { name: "Luvia's founder story" });
+      expect(within(story).getByText(storeContent.brandStory.intro)).toBeTruthy();
+      expect(within(story).getByRole('heading', { name: storeContent.brandStory.founderNote.title })).toBeTruthy();
+      expect(within(story).getByText(storeContent.brandStory.founderNote.text)).toBeTruthy();
+      expect(within(story).getByText(storeContent.brandStory.founderNote.role)).toBeTruthy();
+      for (const section of storeContent.brandStory.sections) {
+        expect(within(story).getByRole('heading', { name: section.title })).toBeTruthy();
+        for (const paragraph of section.paragraphs) expect(within(story).getByText(paragraph)).toBeTruthy();
+      }
+      expect(within(story).getByRole('link', { name: storeContent.brandStory.shopLabel }).getAttribute('href')).toBe('/collections/');
+      expect(screen.getByRole('heading', { name: 'Contact Luvia' })).toBeTruthy();
+      expect(screen.getByText(storeContent.dispatch)).toBeTruthy();
+      expect(screen.getByRole('banner')).toBeTruthy();
+      expect(screen.getByRole('contentinfo')).toBeTruthy();
+      expect(document.title).toBe(`${storeContent.brandStory.title} | Luvia Creations`);
+      for (const meta of metas) expect(meta.content).toBe(
+        (meta.getAttribute('property') || meta.name).endsWith('title') ? document.title : storeContent.brandStory.description);
+    } finally {
+      metas.forEach(meta => meta.remove());
+    }
+  });
   it('renders featured products with shared chrome and excludes sold out and unfeatured items', () => {
     window.history.replaceState(null, '', '/featured/');
     render(<StorePages {...initial} products={[

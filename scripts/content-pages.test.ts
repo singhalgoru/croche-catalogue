@@ -19,6 +19,30 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('prerenders the full founder story with matching social metadata, contact details and sitemap discovery', () => {
+    const doc = documentFor('/about/');
+    const story = doc.querySelector('article');
+    expect(doc.querySelector('h1')?.textContent).toBe(storeContent.brandStory.title);
+    expect(story?.textContent).toContain(storeContent.brandStory.intro);
+    expect(story?.textContent).toContain(storeContent.brandStory.founderNote.title);
+    expect(story?.textContent).toContain(storeContent.brandStory.founderNote.text);
+    expect(story?.textContent).toContain(storeContent.brandStory.founderNote.role);
+    for (const section of storeContent.brandStory.sections) {
+      expect([...story!.querySelectorAll('h2')].map(heading => heading.textContent)).toContain(section.title);
+      for (const paragraph of section.paragraphs) expect(story?.textContent).toContain(paragraph);
+    }
+    expect(story?.querySelector('a')?.getAttribute('href')).toBe('/collections/');
+    for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
+      expect(doc.querySelector(selector)?.getAttribute('content')).toBe(storeContent.brandStory.description);
+    }
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://luviacreations.com/about/');
+    expect(doc.querySelector('a[href="mailto:hello@luviacreations.com"]')).toBeTruthy();
+    expect(doc.body.textContent).toContain(storeContent.dispatch);
+    expect(renderContentSitemap([toy], '2026-10-25', pages)).toContain('https://luviacreations.com/about/');
+    const llms = readFileSync(resolve('public', 'llms.txt'), 'utf8');
+    expect(llms).toContain('https://luviacreations.com/about/');
+    expect(llms).toContain('Tanushree Mithal');
+  });
   it('provides matching social previews on the standalone return policy without changing indexing', () => {
     const doc = new JSDOM(readFileSync(resolve('public', 'return-policy', 'index.html'), 'utf8')).window.document;
     const content = (selector: string) => doc.querySelector(selector)?.getAttribute('content');

@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import ProductMakingVideo from './components/ProductMakingVideo';
 import OrderingGuide from './components/OrderingGuide';
+import storeContent from './content/storeContent.json';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
 import ProductCarousel from './components/ProductCarousel';
@@ -953,6 +954,12 @@ function App() {
             />
           )}
         </div>
+        <section aria-labelledby="brand-story-teaser-title" className="mx-auto max-w-3xl space-y-3 rounded-2xl border border-mustard/30 bg-white/70 p-5 text-cocoa sm:p-8">
+          <p className="text-sm font-semibold uppercase tracking-wider">The people behind the stitches</p>
+          <h2 id="brand-story-teaser-title" className="font-heading text-2xl font-bold">{storeContent.brandStory.teaser.title}</h2>
+          <p className="leading-relaxed">{storeContent.brandStory.teaser.text}</p>
+          <a href="/about/" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{storeContent.brandStory.teaser.linkLabel}</a>
+        </section>
         <OrderingGuide />
       </main>
       )}

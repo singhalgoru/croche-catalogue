@@ -58,6 +58,7 @@ export default function StorePages({
     ? getBestsellerProducts(products, bestsellers.ids) : getFeaturedProducts(products), [products, requestedPath, bestsellers.ids]);
   const policy = policies.find(item => item.path === requestedPath);
   const isBulkOrders = requestedPath === bulkOrders.path;
+  const isAbout = requestedPath === '/about/';
   const isCollection = requestedPath.startsWith('/collections/') && requestedPath !== '/collections/';
   const isCollectionsHub = requestedPath === '/collections/';
   const showCatalogue = hasCatalogueSnapshot || (!isLoading && !loadError);
@@ -81,7 +82,7 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade product designs and confirm details and availability before ordering.` : ''));
-  const title = productCollection?.title ?? policy?.title ?? (isBulkOrders ? bulkOrders.title : pathname.startsWith('/about') ? 'About Luvia & contact'
+  const title = productCollection?.title ?? policy?.title ?? (isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -96,8 +97,8 @@ export default function StorePages({
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
-    if (productCollection || policy || isBulkOrders) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? bulkOrders.description;
+    if (productCollection || policy || isBulkOrders || isAbout) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isAbout ? storeContent.brandStory.description : bulkOrders.description);
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -135,7 +136,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -186,7 +187,22 @@ export default function StorePages({
           {productCollections.filter(item => item.path !== requestedPath).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
         </nav>
-      </> : isBulkOrders ? <BulkOrders presentation="page" /> : pathname.startsWith('/about') ? <section className="max-w-3xl space-y-4">
+      </> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="max-w-3xl space-y-6 leading-relaxed">
+        <article aria-label="Luvia's founder story" className="space-y-6 rounded-2xl border border-mustard/30 bg-white/70 p-5 sm:p-8">
+          <p className="font-heading text-xl font-semibold sm:text-2xl">{storeContent.brandStory.subtitle}</p>
+          <p>{storeContent.brandStory.intro}</p>
+          {storeContent.brandStory.sections.map(section => <section key={section.title} className="space-y-3">
+            <h2 className="font-heading text-xl font-bold">{section.title}</h2>
+            {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+          </section>)}
+          <section aria-labelledby="founder-note-title" className="space-y-3 rounded-xl border-l-4 border-mustard bg-cream p-5">
+            <h2 id="founder-note-title" className="font-heading text-xl font-bold">{storeContent.brandStory.founderNote.title}</h2>
+            <p>{storeContent.brandStory.founderNote.text}</p>
+            <p className="font-semibold">{storeContent.brandStory.founderNote.signature}<span className="block text-sm font-normal">{storeContent.brandStory.founderNote.role}</span></p>
+          </section>
+          <p className="border-l-4 border-mustard pl-4 font-semibold">{storeContent.brandStory.closing}</p>
+          <a href="/collections/" className="inline-flex min-h-11 items-center rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">{storeContent.brandStory.shopLabel}</a>
+        </article>
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>

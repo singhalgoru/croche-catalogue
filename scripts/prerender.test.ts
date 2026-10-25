@@ -438,7 +438,8 @@ describe('renderLlms', () => {
     expect(text).toContain('mailto:hello@luviacreations.com');
     expect(text).toContain('Collection: [Hair Accessories](https://luviacreations.com/collections/hair-accessories/)');
     expect(text).toContain('Collection image: https://');
-    expect(text).not.toMatch(/luviacreations\.com\/(?:products|about|contact)\b/);
+    expect(text).toContain('[The Story Behind Luvia](https://luviacreations.com/about/)');
+    expect(text).not.toMatch(/luviacreations\.com\/(?:products|contact)\b/);
     expect(text).not.toMatch(/made to order|<!--catalogue-->|AI image generation/i);
   });
 

@@ -15,6 +15,48 @@
   },
   "dispatch": "Orders are dispatched within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window.",
   "shipping": "We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay.",
+  "brandStory": {
+    "title": "The Story Behind Luvia",
+    "subtitle": "From corporate leadership to a life rooted in craft.",
+    "description": "Meet Tanushree Mithal, the founder of Luvia Creations, and discover her journey from 20 years in corporate leadership to a passion for handmade craft.",
+    "intro": "After 20 years in the corporate world, including several leadership roles, Tanushree Mithal chose a new direction: following her creative passion and building a brand with local artisans at its heart.",
+    "founderNote": {
+      "title": "A note from our founder",
+      "text": "I wanted to give my passion a purpose: to create something meaningful while celebrating the skill of local artisans. Luvia is my way of bringing those hopes together. My wish is that every piece you choose brings a little of the care behind it into your everyday life.",
+      "signature": "Tanushree Mithal",
+      "role": "Founder, Luvia Creations"
+    },
+    "teaser": {
+      "title": "From leadership to a labour of love",
+      "text": "After a 20-year corporate career, Tanushree Mithal chose to follow her creative passion. Discover how that new chapter became Luvia, a brand rooted in handmade craft and a purpose to support local artisans.",
+      "linkLabel": "Read the story behind Luvia"
+    },
+    "sections": [
+      {
+        "title": "A new chapter, shaped by passion",
+        "paragraphs": [
+          "For 20 years, Tanushree built her career in the corporate world, holding several leadership positions along the way. It was a journey of responsibility, dedication and working with people. But alongside that career was a desire to make room for something more personal: her passion for creativity.",
+          "She decided to take that passion seriously and give it a purpose beyond herself. She wanted to build something that would celebrate handmade work and support local artisans. That decision marked the beginning of Luvia."
+        ]
+      },
+      {
+        "title": "Handmade, with people at its heart",
+        "paragraphs": [
+          "Luvia was born from a simple belief: things made by hand deserve to be valued, and so do the people who make them. Tanushree envisioned a brand that could bring thoughtful design and the skill of local artisans together, with care at the centre of every creation.",
+          "Crochet asks us to slow down. Every stitch takes time, patience and attention. The small variations in a handmade piece are part of its character, a reminder that it was made by a person, not simply produced in a line."
+        ]
+      },
+      {
+        "title": "Little creations, meaningful connections",
+        "paragraphs": [
+          "From a cheerful accessory to a thoughtful gift or a little detail for your home, Luvia's pieces are made to bring the warmth of handmade craft into everyday life. They invite us to choose with care, give with thought and find joy in the details.",
+          "For Tanushree, Luvia is a new way to bring passion and purpose together: following a creative calling while working towards opportunities for local artisans. This is the journey we are building, one handmade creation at a time."
+        ]
+      }
+    ],
+    "closing": "Luvia Creations - Made with love. Rooted in craft. Created to connect.",
+    "shopLabel": "Explore our handmade collections"
+  },
   "about": [
     "Luvia Creations brings a premium touch to handmade crochet accessories, toys, gifts and decor, thoughtfully crafted in India.",
     "Explore the collections and individual product pages for photos, materials, dimensions and care information where provided. If a detail is missing, ask us before ordering rather than assuming.",
