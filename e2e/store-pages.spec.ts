@@ -1,5 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
+import { buildContentPages } from '../scripts/content-pages.mjs';
+
+test('initial Collections HTML keeps compact branding and fixed mobile navigation before JavaScript', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  const html = buildContentPages([], '919205907350').get('/collections/')!;
+  await page.route('**/collections/', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto('/collections/');
+  await expect(page.locator('header .brand')).toHaveText('Luvia Creations');
+  expect((await page.locator('header img').boundingBox())!.width).toBe(48);
+  await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true })).toBeHidden();
+  const navigation = page.getByRole('navigation', { name: 'Mobile navigation', exact: true });
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  await expect(navigation.getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('contentinfo').scrollIntoViewIfNeeded();
+  await expect(navigation).toBeInViewport({ ratio: 1 });
+  expect(await navigation.evaluate(element => getComputedStyle(element).position)).toBe('fixed');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+});
 
 test('founder portrait loads in the homepage introduction and full About story', async ({ page }) => {
   await installMockSupabase(page);
@@ -195,6 +213,7 @@ test('store headers use responsive branding and product details offer a contextu
   for (const path of ['/collections/', '/collections/charms/', '/bestsellers/', '/featured/', '/about/', '/faq/']) {
     await page.goto(path);
     const logo = page.getByRole('link', { name: 'Luvia Creations — home' });
+    await expect(logo).toContainText('Luvia Creations');
     const menu = page.getByRole('button', { name: 'Open navigation' });
     const logoBox = await logo.boundingBox();
     const menuBox = await menu.boundingBox();
@@ -202,12 +221,12 @@ test('store headers use responsive branding and product details offer a contextu
     expect(menuBox).not.toBeNull();
     if (page.viewportSize()!.width < 640) {
       expect(logoBox!.x).toBe(16);
-      expect(logoBox!.width).toBe(48);
+      expect((await logo.getByRole('img').boundingBox())!.width).toBe(48);
       expect(logoBox!.y + logoBox!.height).toBeLessThan(menuBox!.y);
     } else {
       expect(logoBox!.x + logoBox!.width).toBeLessThan(menuBox!.x);
       expect(logoBox!.x).toBeLessThan(150);
-      expect(logoBox!.width).toBe(menuBox!.width);
+      expect((await logo.getByRole('img').boundingBox())!.width).toBe(menuBox!.width);
       expect(Math.abs(logoBox!.y - menuBox!.y)).toBeLessThan(2);
     }
   }

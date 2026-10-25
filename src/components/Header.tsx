@@ -273,7 +273,7 @@ export default function Header({
             href={import.meta.env.BASE_URL}
             onClick={event => navigateCatalogue(event)}
             aria-label="Luvia Creations — home"
-            className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa"
+            className={`shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa ${compact ? 'flex items-center gap-3 rounded-lg' : 'rounded-full'}`}
           >
           <img
           src={`${import.meta.env.BASE_URL}images/luvia-logo-320.webp`}
@@ -290,6 +290,7 @@ export default function Header({
               : 'h-20 w-20 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
           }`}
           />
+          {compact && <span className="font-heading text-lg font-bold text-cocoa">Luvia Creations</span>}
           </a>
         </div>
         {showHeading && <h1

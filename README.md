@@ -45,6 +45,8 @@ an India-based handmade crochet brand.
   Mobile checkout hides the desktop hamburger and header cart controls.
   The homepage keeps its large centred logo; other pages use compact,
   left-aligned branding on mobile.
+  Compact logos include the Luvia Creations name. Collection pages keep compact
+  mobile branding and bottom navigation even before the interactive app loads.
   Payment or assisted-order actions appear at review, after checkout settings
   load; a settings failure is shown explicitly rather than switching flows.
 - Mobile catalogue filters open from an icon beside sticky search. Seasonal

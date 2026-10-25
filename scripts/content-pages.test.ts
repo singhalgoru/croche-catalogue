@@ -19,6 +19,17 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('keeps the initial Collections page compact with bottom navigation before the app loads', () => {
+    const doc = documentFor('/collections/');
+    const logo = doc.querySelector('header .brand');
+    expect(logo?.textContent).toBe('Luvia Creations');
+    expect(logo?.querySelector('img')?.getAttribute('width')).toBe('48');
+    const navigation = doc.querySelector('nav[aria-label="Mobile navigation"]');
+    expect(navigation?.querySelector('[aria-current="page"]')?.textContent).toBe('Collections');
+    expect(navigation?.querySelector('a[href="/?checkout=cart"]')).toBeTruthy();
+    expect(doc.querySelector('style')?.textContent).toContain('position:fixed');
+    expect(doc.querySelector('style')?.textContent).toContain('header>nav{display:none}');
+  });
   it('prerenders the full founder story with matching social metadata, contact details and sitemap discovery', () => {
     const doc = documentFor('/about/');
     const story = doc.querySelector('article');

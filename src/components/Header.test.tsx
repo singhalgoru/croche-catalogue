@@ -201,7 +201,7 @@ describe('Header', () => {
   it('preserves the compact header without adding the mobile introduction', () => {
     render(<Header compact showInstallPrompt={false} />);
     expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
-    expect(screen.queryByText('Luvia Creations')).toBeNull();
+    expect(screen.getByText('Luvia Creations')).toBeTruthy();
     expect(screen.queryByText('Thoughtfully made. Delivered across India.')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
   });

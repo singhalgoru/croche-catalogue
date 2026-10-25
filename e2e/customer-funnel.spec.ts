@@ -505,7 +505,7 @@ test('header actions stay separate with touch-sized controls on narrow and wide 
       }
       const logo = (await header.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
       if (mobile) {
-        expect(logo.width).toBe(pathname === './' ? 80 : 48);
+        expect((await header.getByRole('link', { name: 'Luvia Creations — home' }).getByRole('img').boundingBox())!.width).toBe(pathname === './' ? 80 : 48);
         if (pathname === './') expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(1);
         else expect(logo.x).toBe(16);
         expect(logo.y + logo.height).toBeLessThanOrEqual((await bottomNav.boundingBox())!.y);
@@ -516,7 +516,7 @@ test('header actions stay separate with touch-sized controls on narrow and wide 
         await expect(search).toBeVisible();
         expect((await search.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       } else {
-        expect(logo.width).toBe(pathname === './' ? 176 : 48);
+        expect((await header.getByRole('link', { name: 'Luvia Creations — home' }).getByRole('img').boundingBox())!.width).toBe(pathname === './' ? 176 : 48);
         const search = (await controls[0].boundingBox())!;
         expect(logo.x + logo.width).toBeLessThanOrEqual(search.x);
         await expect(bottomNav).toBeHidden();
@@ -600,7 +600,8 @@ test('mobile sticky search and bottom navigation work without covering dialogs, 
   await expect(navigation.getByRole('button', { name: 'Open cart with 0 items', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(navigation.getByRole('link', { name: 'Collections', exact: true })).not.toHaveAttribute('aria-current', 'page');
   const cartLogo = (await page.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
-  expect(cartLogo.width).toBe(48);
+  await expect(page.getByRole('link', { name: 'Luvia Creations — home' })).toContainText('Luvia Creations');
+  expect((await page.getByRole('link', { name: 'Luvia Creations — home' }).getByRole('img').boundingBox())!.width).toBe(48);
   expect(cartLogo.x).toBe(16);
   await page.goto('./p/rose-charm/');
   const purchaseActions = page.getByLabel('Product purchase actions', { exact: true });
