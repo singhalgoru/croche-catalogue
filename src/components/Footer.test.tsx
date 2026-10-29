@@ -31,6 +31,8 @@ describe('Footer', () => {
     render(<Footer />);
     const section = screen.getByRole('region', { name: 'Create with Luvia' });
     expect(section.id).toBe('collaborate');
+    expect(screen.getByText('Celebrating artisan skill and working towards meaningful opportunities through handmade craft.')).toBeTruthy();
+    expect(section.textContent).not.toContain('their lives have been uplifted');
     expect(screen.getByRole('link', { name: 'Work with Luvia' }).getAttribute('href')).toBe('#collaborate');
     for (const name of ['Makers', 'Creators', 'Partners']) {
       expect(screen.getByRole('heading', { name })).toBeTruthy();

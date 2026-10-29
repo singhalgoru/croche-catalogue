@@ -22,6 +22,9 @@ export default function Footer({ showCollaboration = true, showBulkOrders = fals
       className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
       <div className="rounded-2xl border border-mustard/40 bg-cream p-5 text-center text-cocoa sm:p-8">
         <h2 id="collaboration-heading" className="font-heading text-2xl font-bold">Create with Luvia</h2>
+        <p className="mx-auto mt-2 max-w-2xl font-heading text-lg font-semibold sm:text-xl">
+          Celebrating artisan skill and working towards meaningful opportunities through handmade craft.
+        </p>
         <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base">
           Love handmade work? We welcome expressions of interest from crochet makers, content
           creators and brands who would like to grow with Luvia.
