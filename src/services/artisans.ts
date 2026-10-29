@@ -1,6 +1,7 @@
 import content from '../content/artisanOnboarding.json';
 import { loadSupabase } from '../lib/supabaseConfig';
 import { requestCartCaptcha } from './cartCaptcha';
+import { convertImageForUpload } from '../utils/imageUploadConversion';
 
 export const artisanStatuses = ['New', 'Contacted', 'Trial', 'Approved', 'Declined', 'Inactive'] as const;
 export type ArtisanStatus = typeof artisanStatuses[number];
@@ -30,6 +31,35 @@ export interface ArtisanApplication {
   created_at: string;
   updated_at: string;
   consent_version: string;
+  dispatch_terms_version?: string | null;
+  dispatch_terms_accepted_at?: string | null;
+  identity_type?: 'masked_aadhaar' | 'alternative_id' | null;
+  identity_expires_at?: string | null;
+}
+export interface ArtisanIdentityUpload {
+  documentType: 'masked_aadhaar' | 'alternative_id';
+  contentType: 'image/webp';
+  data: string;
+  consent: true;
+}
+export async function prepareArtisanIdentity(file: File, documentType: ArtisanIdentityUpload['documentType']): Promise<ArtisanIdentityUpload> {
+  if (!file.size || file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Choose one JPG, PNG or WebP ID photo up to 5 MB. PDF and other documents are not accepted.');
+  }
+  const prepared = await convertImageForUpload(file, { watermark: false });
+  if (prepared.size > 1024 * 1024) throw new Error('The prepared ID image exceeds 1 MB. Choose a smaller, readable image.');
+  const data = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string' || !reader.result.startsWith('data:image/webp;base64,')) {
+        reject(new Error('Unable to prepare the ID photo. Choose it again.')); return;
+      }
+      resolve(reader.result.slice('data:image/webp;base64,'.length));
+    };
+    reader.onerror = () => reject(new Error('Unable to read the ID photo. Choose it again.'));
+    reader.readAsDataURL(prepared);
+  });
+  return { documentType, contentType: 'image/webp', data, consent: true };
 }
 export interface ArtisanHistory {
   id: number;
@@ -54,7 +84,10 @@ function isApplication(value: unknown): value is ArtisanApplication {
   return isRecord(value) && typeof value.id === 'string' && isDetails(value.details)
     && artisanStatuses.some(status => status === value.status) && typeof value.admin_notes === 'string'
     && typeof value.version === 'number' && typeof value.created_at === 'string'
-    && typeof value.updated_at === 'string' && typeof value.consent_version === 'string';
+    && typeof value.updated_at === 'string' && typeof value.consent_version === 'string'
+    && ['dispatch_terms_version', 'dispatch_terms_accepted_at', 'identity_expires_at'].every(key =>
+      value[key] == null || typeof value[key] === 'string')
+    && (value.identity_type == null || value.identity_type === 'masked_aadhaar' || value.identity_type === 'alternative_id');
 }
 export function validateArtisanDetails(details: ArtisanDetails): void {
   for (const field of content.fields) {
@@ -82,8 +115,10 @@ async function client() {
   if (!result) throw new Error('Artisan applications require an online connection.');
   return result;
 }
-export async function submitArtisanApplication(details: ArtisanDetails, requestId: string, token: string): Promise<string> {
+export async function submitArtisanApplication(details: ArtisanDetails, requestId: string, token: string,
+  dispatchAcknowledged = false, identity: ArtisanIdentityUpload | null = null): Promise<string> {
   validateArtisanDetails(details);
+  if (!dispatchAcknowledged) throw new Error('Read and acknowledge the material dispatch and courier charge terms.');
   const db = await client();
   const { data: session, error: sessionError } = await db.auth.getSession();
   if (sessionError) throw new Error(`Unable to restore the application session: ${sessionError.message}`);
@@ -94,10 +129,29 @@ export async function submitArtisanApplication(details: ArtisanDetails, requestI
   }
   const { data, error } = await db.rpc('submit_artisan_application', {
     request_id: requestId, application_details: details, privacy_version: content.consentVersion, invitation_token: token,
+    dispatch_terms_version: content.dispatchTermsVersion, identity_document: identity,
   });
   if (error) throw new Error(`Unable to save the application: ${error.message}`);
   if (data !== requestId) throw new Error('Application receipt could not be confirmed. Retry without changing your details.');
   return data;
+}
+export async function readArtisanIdentity(id: string): Promise<{ source: string; expiresAt: string }> {
+  const db = await client();
+  const { data, error } = await db.rpc('read_artisan_identity_document', { application_id: id });
+  if (error) throw new Error(`Unable to open ID: ${error.message}`);
+  if (!isRecord(data) || data.contentType !== 'image/webp' || typeof data.data !== 'string'
+    || data.data.length > 1398104 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data.data) || typeof data.expiresAt !== 'string') {
+    throw new Error('Invalid identity document response.');
+  }
+  return { source: `data:image/webp;base64,${data.data}`, expiresAt: data.expiresAt };
+}
+export async function removeArtisanIdentity(application: ArtisanApplication): Promise<void> {
+  const db = await client();
+  const { data, error } = await db.rpc('remove_artisan_identity_document', {
+    application_id: application.id, expected_version: application.version,
+  });
+  if (error) throw new Error(`Unable to remove ID: ${error.message}`);
+  if (data !== application.id) throw new Error('ID removal could not be confirmed. Refresh before retrying.');
 }
 export async function checkArtisanInvitation(token: string): Promise<'available' | 'submitted' | 'unavailable'> {
   const db = await client();

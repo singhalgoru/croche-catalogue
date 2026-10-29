@@ -22,6 +22,7 @@ do $$ declare f record; invitation jsonb; begin
   select * into f from artisan_fixture;
   invitation:=public.create_artisan_invitation(f.invite_id,f.token,'Sample Maker','email','maker@example.test');
   if invitation->>'id'<>f.invite_id::text or invitation ? 'token_hash' then raise exception 'FAIL: invitation receipt.'; end if;
+  if (invitation->>'expires_at')::timestamptz-(invitation->>'created_at')::timestamptz<>interval '24 hours' then raise exception 'FAIL: invitation is not exactly 24 hours.'; end if;
   perform public.create_artisan_invitation(f.invite_id,f.token,'Sample Maker','email','maker@example.test');
   if (select count(*) from public.artisan_invitations where id=f.invite_id)<>1 then raise exception 'FAIL: duplicate invitation.'; end if;
   begin
@@ -41,7 +42,7 @@ do $$ declare f record; begin
     raise exception 'FAIL: anonymous invitation directory readable.';
   exception when insufficient_privilege then null; end;
   begin
-    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29',f.token);
+    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1');
     raise exception 'FAIL: anonymous RPC submission allowed without session.';
   exception when insufficient_privilege then null; end;
 end $$;
@@ -51,27 +52,39 @@ set local role authenticated;
 do $$ declare f record; result uuid; begin
   select * into f from artisan_fixture;
   begin
-    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29',repeat('b',64));
+    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',repeat('b',64),'2026-10-29.1');
     raise exception 'FAIL: missing invitation accepted.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
-    perform public.submit_artisan_application(f.application_id,f.details||'{"adult":false}'::jsonb,'2026-10-29',f.token);
+    perform public.submit_artisan_application(f.application_id,f.details||'{"adult":false}'::jsonb,'2026-10-29.2',f.token,'2026-10-29.1');
     raise exception 'FAIL: underage application accepted.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
-    perform public.submit_artisan_application(f.application_id,f.details||'{"consent":false}'::jsonb,'2026-10-29',f.token);
+    perform public.submit_artisan_application(f.application_id,f.details||'{"consent":false}'::jsonb,'2026-10-29.2',f.token,'2026-10-29.1');
     raise exception 'FAIL: missing consent accepted.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
-    perform public.submit_artisan_application(f.application_id,f.details||'{"portfolioUrl":"javascript:alert(1)"}'::jsonb,'2026-10-29',f.token);
+    perform public.submit_artisan_application(f.application_id,f.details||'{"portfolioUrl":"javascript:alert(1)"}'::jsonb,'2026-10-29.2',f.token,'2026-10-29.1');
     raise exception 'FAIL: unsafe portfolio accepted.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
-  result:=public.submit_artisan_application(f.application_id,f.details,'2026-10-29',f.token);
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token);
+    raise exception 'FAIL: dispatch terms not acknowledged.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29',f.token,'2026-10-29.1');
+    raise exception 'FAIL: old privacy notice accepted.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'old-terms');
+    raise exception 'FAIL: old dispatch terms accepted.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  result:=public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1');
   if result<>f.application_id then raise exception 'FAIL: application receipt.'; end if;
-  perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29',f.token);
+  perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1');
   if public.artisan_invitation_status(f.token)<>'submitted' then raise exception 'FAIL: submitted invitation not marked.'; end if;
   begin
-    perform public.submit_artisan_application(gen_random_uuid(),f.details,'2026-10-29',f.token);
+    perform public.submit_artisan_application(gen_random_uuid(),f.details,'2026-10-29.2',f.token,'2026-10-29.1');
     raise exception 'FAIL: invitation reused.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
@@ -115,7 +128,7 @@ do $$ declare f record; result jsonb; expired_id uuid:=gen_random_uuid(); revoke
   if public.artisan_invitation_status(repeat('d',64))<>'unavailable' then raise exception 'FAIL: revoked invitation available.'; end if;
 end $$;
 reset role;
-update public.artisan_invitations set expires_at=now()-interval '1 day' where token_hash=encode(extensions.digest(repeat('c',64),'sha256'),'hex');
+update public.artisan_invitations set expires_at=now() where token_hash=encode(extensions.digest(repeat('c',64),'sha256'),'hex');
 select set_config('request.jwt.claims',jsonb_build_object('sub',applicant_id,'role','authenticated')::text,true) from artisan_fixture;
 set local role authenticated;
 do $$ declare f record; token text; begin
@@ -123,7 +136,7 @@ do $$ declare f record; token text; begin
   foreach token in array array[repeat('c',64),repeat('d',64)] loop
     if public.artisan_invitation_status(token)<>'unavailable' then raise exception 'FAIL: expired/revoked link available.'; end if;
     begin
-      perform public.submit_artisan_application(gen_random_uuid(),f.details,'2026-10-29',token);
+      perform public.submit_artisan_application(gen_random_uuid(),f.details,'2026-10-29.2',token,'2026-10-29.1');
       raise exception 'FAIL: expired/revoked invitation accepted.';
     exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   end loop;

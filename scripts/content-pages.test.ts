@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { buildContentPages, collectionPath, renderContentSitemap } from './content-pages.mjs';
 import { toProduct } from './prerender.mjs';
 import storeContent from '../src/content/storeContent.json';
+import artisanOnboarding from '../src/content/artisanOnboarding.json';
 
 const toy = toProduct({
   id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
@@ -337,6 +338,8 @@ describe('collection and information pages', () => {
     expect(artisans.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
     expect(artisans.querySelector('meta[name="referrer"]')?.getAttribute('content')).toBe('no-referrer');
     expect(artisans.body.textContent).toContain('private admin invitation');
+    expect(artisans.body.textContent).toContain(artisanOnboarding.dispatchTermsTitle);
+    for (const paragraph of artisanOnboarding.dispatchTerms) expect(artisans.body.textContent).toContain(paragraph);
     expect(artisans.querySelector('header')).toBeTruthy();
     expect(artisans.querySelector('footer')).toBeTruthy();
     expect(xml).not.toContain('?category=');

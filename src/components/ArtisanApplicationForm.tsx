@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import content from '../content/artisanOnboarding.json';
-import { checkArtisanInvitation, emptyArtisanDetails, submitArtisanApplication } from '../services/artisans';
+import { checkArtisanInvitation, emptyArtisanDetails, prepareArtisanIdentity, submitArtisanApplication } from '../services/artisans';
+import type { ArtisanIdentityUpload } from '../services/artisans';
 
 export default function ArtisanApplicationForm() {
   const [token, setToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('invite') ?? '');
@@ -10,6 +11,12 @@ export default function ArtisanApplicationForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState('');
+  const [dispatchAcknowledged, setDispatchAcknowledged] = useState(false);
+  const [identityType, setIdentityType] = useState<ArtisanIdentityUpload['documentType']>('masked_aadhaar');
+  const [identityFile, setIdentityFile] = useState<File | null>(null);
+  const [identityConsent, setIdentityConsent] = useState(false);
+  const [preparedIdentity, setPreparedIdentity] = useState<ArtisanIdentityUpload | null>(null);
+  const identityInput = useRef<HTMLInputElement>(null);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const focusConfirmation = useCallback((element: HTMLHeadingElement | null) => element?.focus(), []);
   useEffect(() => {
@@ -17,6 +24,7 @@ export default function ArtisanApplicationForm() {
       const next = new URLSearchParams(window.location.hash.slice(1)).get('invite') ?? '';
       setToken(next); setInvitation(/^[a-f0-9]{64}$/.test(next) ? 'checking' : 'unavailable');
       setError(''); setReceipt(''); setDetails({ ...emptyArtisanDetails }); request.current = null;
+      setDispatchAcknowledged(false); setIdentityFile(null); setIdentityConsent(false); setPreparedIdentity(null);
     };
     window.addEventListener('hashchange', changeInvitation);
     return () => window.removeEventListener('hashchange', changeInvitation);
@@ -50,12 +58,18 @@ export default function ArtisanApplicationForm() {
     <p className="text-sm">No portfolio is required. You can discuss a paid trial instead. Keep your invitation private.</p>
     <form aria-label="Artisan application" className="grid gap-4 sm:grid-cols-2" onSubmit={event => {
       event.preventDefault(); setBusy(true); setError('');
-      const signature = JSON.stringify(details);
-      if (request.current?.signature !== signature) request.current = { signature, id: crypto.randomUUID() };
-      void submitArtisanApplication(details, request.current.id, token).then(id => {
-        setReceipt(id); setDetails({ ...emptyArtisanDetails }); request.current = null;
+      void (async () => {
+        if (!dispatchAcknowledged) throw new Error('Read and acknowledge the material dispatch and courier charge terms.');
+        if (identityFile && !identityConsent) throw new Error('Confirm the ID is masked and consent to private identity review, or remove the file.');
+        const identity = identityFile ? preparedIdentity ?? await prepareArtisanIdentity(identityFile, identityType) : null;
+        if (identity) setPreparedIdentity(identity);
+        const signature = JSON.stringify({ details, dispatchAcknowledged, identity });
+        if (request.current?.signature !== signature) request.current = { signature, id: crypto.randomUUID() };
+        const id = await submitArtisanApplication(details, request.current.id, token, dispatchAcknowledged, identity);
+        setReceipt(id); setDetails({ ...emptyArtisanDetails }); setIdentityFile(null); setPreparedIdentity(null);
+        setIdentityConsent(false); request.current = null;
         window.history.replaceState(window.history.state, '', window.location.pathname);
-      }).catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to save your application. Retry without changing your details.'))
+      })().catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to save your application. Retry without changing your details.'))
         .finally(() => setBusy(false));
     }}>
       <fieldset disabled={busy} className="contents">
@@ -77,6 +91,36 @@ export default function ArtisanApplicationForm() {
         onChange={event => setDetails(current => ({ ...current, paidTrial: event.target.checked }))} />I am interested in a small paid sample or trial (optional).</label>
       <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2"><input className="mt-1" type="checkbox" required checked={details.adult}
         onChange={event => setDetails(current => ({ ...current, adult: event.target.checked }))} />I confirm I am 18 or older. *</label>
+      <section aria-labelledby="artisan-id-heading" className="space-y-3 rounded-xl bg-cream p-4 text-sm sm:col-span-2">
+        <h2 id="artisan-id-heading" className="font-semibold">One identity document (optional)</h2>
+        <p>Upload a masked Aadhaar or an alternative government ID photo for private manual review. Aadhaar is not mandatory; you can arrange alternative verification with Luvia.</p>
+        <p>Before uploading, permanently cover the first 8 Aadhaar digits, QR/barcodes, address and unrelated details. Leave only your name, photo and last 4 digits visible. For other IDs, cover the document number except its last 4 digits and unrelated details. The website does not automatically mask or verify your ID. Never provide an OTP or full Aadhaar number.</p>
+        <label className="block">ID type<select value={identityType} onChange={event => {
+          if (event.target.value === 'masked_aadhaar' || event.target.value === 'alternative_id') {
+            setIdentityType(event.target.value); setPreparedIdentity(null); setIdentityConsent(false);
+          }
+        }} className="mt-1 block min-h-11 w-full rounded border p-2">
+          <option value="masked_aadhaar">Masked Aadhaar</option><option value="alternative_id">Alternative government ID</option>
+        </select></label>
+        <label className="block">Masked ID photo (JPG, PNG or WebP; up to 5 MB)<input ref={identityInput} key={token} type="file" accept="image/jpeg,image/png,image/webp"
+          onChange={event => { setIdentityFile(event.target.files?.[0] ?? null); setPreparedIdentity(null); setIdentityConsent(false); }}
+          className="mt-1 block min-h-11 w-full max-w-full rounded border p-2" /></label>
+        {identityFile && <button type="button" className="min-h-11 underline" onClick={() => {
+          setIdentityFile(null); setPreparedIdentity(null); setIdentityConsent(false);
+          if (identityInput.current) identityInput.current.value = '';
+        }}>Remove selected ID photo</button>}
+        {identityFile && <label className="flex min-h-11 items-start gap-3"><input type="checkbox" required checked={identityConsent} className="mt-1"
+          onChange={event => setIdentityConsent(event.target.checked)} />
+          I have permanently masked the details described above and consent to private storage and manual ID review. The image is accessible for at most 30 days and deleted by the next hourly cleanup, or earlier after review; private backups may retain it longer.</label>}
+        <p className="text-xs">The prepared image is stored privately in the database, not on a public image host. Do not put an ID image in your portfolio link.</p>
+      </section>
+      <section aria-labelledby="artisan-dispatch-heading" className="space-y-2 rounded-xl bg-cream p-4 text-sm sm:col-span-2">
+        <h2 id="artisan-dispatch-heading" className="font-semibold">{content.dispatchTermsTitle}</h2>
+        {content.dispatchTerms.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+      </section>
+      <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2"><input type="checkbox" required checked={dispatchAcknowledged} className="mt-1"
+        onChange={event => setDispatchAcknowledged(event.target.checked)} />
+        I have read and acknowledge the material dispatch and courier charge terms. The actual courier estimate must be separately agreed before dispatch. *</label>
       <section aria-labelledby="artisan-privacy-heading" className="space-y-2 rounded-xl bg-cream p-4 text-sm sm:col-span-2">
         <h2 id="artisan-privacy-heading" className="font-semibold">Application privacy notice</h2><p>{content.privacy}</p>
         <a href="/privacy-policy/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">Read the Privacy Policy</a>

@@ -187,6 +187,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description)));
   pages.set(artisanOnboarding.path, page(artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description,
     `<section class="intro"><p>${escapeHtml(artisanOnboarding.description)}</p><p>${escapeHtml(artisanOnboarding.notice)}</p>
+    <h2>${escapeHtml(artisanOnboarding.dispatchTermsTitle)}</h2>${artisanOnboarding.dispatchTerms.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}
     <p>Applications are by private admin invitation. Enable JavaScript and open the invitation link to complete your application. If your link has expired, contact Luvia.</p>
     <h2>Application privacy notice</h2><p>${escapeHtml(artisanOnboarding.privacy)}</p>
     <p><a href="mailto:hello@luviacreations.com">Contact Luvia</a> · <a href="/privacy-policy/">Privacy Policy</a></p></section>`,

@@ -57,6 +57,8 @@ an India-based handmade crochet brand.
 - Authorised administrators can manage products, drafts, media and orders.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
+  Invitations expire after 24 hours or one submission. Applications include
+  material-dispatch terms and an optional, consented masked-ID photo.
 
 ## Ordering
 

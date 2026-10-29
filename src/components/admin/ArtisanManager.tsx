@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import content from '../../content/artisanOnboarding.json';
-import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fetchArtisanHistory, updateArtisanApplication } from '../../services/artisans';
+import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fetchArtisanHistory, readArtisanIdentity, removeArtisanIdentity, updateArtisanApplication } from '../../services/artisans';
 import type { ArtisanApplication, ArtisanHistory, ArtisanStatus } from '../../services/artisans';
 import ArtisanInvitations from './ArtisanInvitations';
 
@@ -16,7 +16,16 @@ function ArtisanReview({ application, onClose, onChanged }: {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [identity, setIdentity] = useState<{ source: string; expiresAt: string } | null>(null);
+  const [confirmRemoveIdentity, setConfirmRemoveIdentity] = useState(false);
   const focusHeading = useCallback((element: HTMLHeadingElement | null) => element?.focus(), []);
+  useEffect(() => {
+    if (!identity) return;
+    const timer = window.setTimeout(() => setIdentity(null), 60_000);
+    const hide = () => { if (document.visibilityState !== 'visible') setIdentity(null); };
+    document.addEventListener('visibilitychange', hide);
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', hide); };
+  }, [identity]);
   useEffect(() => {
     let current = true;
     void fetchArtisanHistory(application.id).then(rows => {
@@ -39,7 +48,41 @@ function ArtisanReview({ application, onClose, onChanged }: {
       </div>)}
       <div><dt className="text-sm font-semibold">Paid trial interest</dt><dd>{application.details.paidTrial ? 'Yes' : 'Not selected'}</dd></div>
       <div><dt className="text-sm font-semibold">Confirmations</dt><dd>18 or older; application privacy consent recorded.</dd></div>
+      <div><dt className="text-sm font-semibold">Material dispatch acknowledgement</dt>
+        <dd>{application.dispatch_terms_version && application.dispatch_terms_accepted_at
+          ? `Version ${application.dispatch_terms_version}, accepted ${new Date(application.dispatch_terms_accepted_at).toLocaleString('en-IN')}`
+          : 'Not recorded (earlier application). Obtain acknowledgement before dispatch.'}</dd></div>
     </dl>
+    <section aria-label="Private identity document" className="space-y-3 rounded-xl border border-mustard/40 p-4 text-sm">
+      <h3 className="font-semibold">Private identity document</h3>
+      {!application.identity_type ? <p>No ID image retained. Alternative verification can be arranged directly.</p> : <>
+        <p>{application.identity_type === 'masked_aadhaar' ? 'Masked Aadhaar' : 'Alternative ID'} · Access expires {application.identity_expires_at ? new Date(application.identity_expires_at).toLocaleString('en-IN') : 'after 30 days'}.</p>
+        <p>For manual review only, not Aadhaar authentication. Viewing is recorded. Do not copy or share the image. Remove it once review is complete. Preview hides after one minute or when you leave this tab.</p>
+        {!identity ? <button type="button" disabled={busy} className="min-h-11 underline" onClick={() => {
+          setBusy(true); setError('');
+          void readArtisanIdentity(application.id).then(result => {
+            if (document.visibilityState === 'visible') setIdentity(result);
+            setHistoryKey(value => value + 1);
+          })
+            .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to open ID.'))
+            .finally(() => setBusy(false));
+        }}>View private ID</button> : <div className="space-y-2">
+          <img src={identity.source} alt="Private artisan identity document" draggable={false} className="max-h-96 max-w-full object-contain" />
+          <button type="button" className="min-h-11 underline" onClick={() => setIdentity(null)}>Hide ID</button>
+        </div>}
+        {!confirmRemoveIdentity ? <button type="button" disabled={busy} className="ml-4 min-h-11 text-red-700 underline"
+          onClick={() => setConfirmRemoveIdentity(true)}>Remove ID after review</button> : <div className="flex flex-wrap gap-3">
+          <p>Delete the stored ID image permanently? Application details will be kept.</p>
+          <button type="button" disabled={busy} className="min-h-11 text-red-700 underline" onClick={() => {
+            setBusy(true); setError(''); setIdentity(null);
+            void removeArtisanIdentity(application).then(onChanged)
+              .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to remove ID.'))
+              .finally(() => setBusy(false));
+          }}>Confirm ID removal</button><button type="button" disabled={busy} className="min-h-11 underline"
+            onClick={() => setConfirmRemoveIdentity(false)}>Cancel ID removal</button>
+        </div>}
+      </>}
+    </section>
     <p className="text-xs">Portfolio links are unverified. Review only for selection; do not republish without separate permission.</p>
     <form aria-label="Review artisan" className="space-y-3" onSubmit={event => {
       event.preventDefault(); setBusy(true); setError('');

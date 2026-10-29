@@ -3,13 +3,15 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ArtisanManager from './ArtisanManager';
 import { emptyArtisanDetails } from '../../services/artisans';
 
-const { list, history, update, remove, invites, create, revoke } = vi.hoisted(() => ({
+const { list, history, update, remove, invites, create, revoke, readId, removeId } = vi.hoisted(() => ({
   list: vi.fn(), history: vi.fn(), update: vi.fn(), remove: vi.fn(), invites: vi.fn(), create: vi.fn(), revoke: vi.fn(),
+  readId: vi.fn(), removeId: vi.fn(),
 }));
 vi.mock('../../services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/artisans')>(),
   fetchArtisanApplications: list, fetchArtisanHistory: history, updateArtisanApplication: update, deleteArtisanApplication: remove,
   fetchArtisanInvitations: invites, createArtisanInvitation: create, revokeArtisanInvitation: revoke,
+  readArtisanIdentity: readId, removeArtisanIdentity: removeId,
 }));
 const application = { id: 'reference', details: { ...emptyArtisanDetails, fullName: 'Sample Maker', city: 'Gurugram', skills: 'Flowers' },
   status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29' };
@@ -18,6 +20,39 @@ beforeEach(() => {
   history.mockResolvedValue([{ id: 1, action: 'Submitted', new_status: 'New', old_status: null, created_at: application.created_at }]);
   invites.mockResolvedValue([]); update.mockResolvedValue({ ...application, version: 2 }); remove.mockResolvedValue(undefined);
   create.mockImplementation(async input => ({ link: `https://luviacreations.com/artisans/#invite=${input.token}`, message: 'Email accepted' }));
+});
+it('fetches ID bytes only after an explicit view and requires removal confirmation', async () => {
+  const withId = { ...application, identity_type: 'masked_aadhaar', identity_expires_at: '2026-11-28T00:00:00Z' };
+  list.mockResolvedValue({ applications: [withId], total: 1 });
+  readId.mockResolvedValue({ source: 'data:image/webp;base64,fixture', expiresAt: withId.identity_expires_at });
+  removeId.mockResolvedValue(undefined);
+  render(<ArtisanManager />); fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  expect(readId).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'View private ID' }));
+  expect(await screen.findByAltText('Private artisan identity document')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Hide ID' }));
+  expect(screen.queryByAltText('Private artisan identity document')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'View private ID' }));
+  expect(await screen.findByAltText('Private artisan identity document')).toBeTruthy();
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  fireEvent(document, new Event('visibilitychange'));
+  expect(screen.queryByAltText('Private artisan identity document')).toBeNull();
+  vi.restoreAllMocks();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove ID after review' })); expect(removeId).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm ID removal' }));
+  await waitFor(() => expect(removeId).toHaveBeenCalledWith(withId));
+});
+it('distinguishes legacy applications from recorded dispatch acknowledgement', async () => {
+  const { unmount } = render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  expect(screen.getByText(/Not recorded \(earlier application\)/)).toBeTruthy();
+  unmount();
+  list.mockResolvedValue({ applications: [{ ...application, dispatch_terms_version: '2026-10-29.1',
+    dispatch_terms_accepted_at: '2026-10-29T00:00:00Z' }], total: 1 });
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  expect(screen.getByText(/Version 2026-10-29.1, accepted/)).toBeTruthy();
+  expect(screen.queryByText(/Not recorded \(earlier application\)/)).toBeNull();
 });
 afterEach(cleanup);
 it('filters and searches the directory and saves a versioned review', async () => {

@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
+import sharp from 'sharp';
 import { installMockSupabase } from './mockSupabase';
 
 const token = 'a'.repeat(64);
-test('invited artisan applies privately without tracking or mobile overflow', async ({ page }) => {
+for (const withIdentity of [false, true]) {
+test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : 'without an ID'}`, async ({ page }) => {
   await installMockSupabase(page);
   const submissions: Record<string, unknown>[] = [];
   await page.route('**/rest/v1/rpc/artisan_invitation_status', route => route.fulfill({ json: 'available' }));
@@ -23,6 +25,12 @@ test('invited artisan applies privately without tracking or mobile overflow', as
   await form.getByLabel('Weekly availability and approximate capacity').fill('5 hours/week');
   await form.getByLabel('I confirm I am 18 or older.').check();
   await form.getByLabel(/I confirm my details are accurate/).check();
+  await form.getByLabel(/I have read and acknowledge the material dispatch/).check();
+  if (withIdentity) {
+    const buffer = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#dddddd' } }).png().toBuffer();
+    await form.getByLabel('Masked ID photo', { exact: false }).setInputFiles({ name: 'synthetic-id.png', mimeType: 'image/png', buffer });
+    await form.getByLabel(/I have permanently masked/).check();
+  }
   await expect(page.getByRole('banner')).toBeVisible();
   await expect(page.getByRole('contentinfo')).toBeVisible();
   expect(await page.evaluate(() => ({
@@ -32,11 +40,19 @@ test('invited artisan applies privately without tracking or mobile overflow', as
   await form.getByRole('button', { name: 'Submit application' }).click();
   await expect(page.getByRole('region', { name: 'Application confirmation' })).toContainText('Your application has been saved');
   expect(submissions).toHaveLength(1);
-  expect(submissions[0]).toMatchObject({ invitation_token: token, privacy_version: '2026-10-29',
+  expect(submissions[0]).toMatchObject({ invitation_token: token, privacy_version: '2026-10-29.2',
+    dispatch_terms_version: '2026-10-29.1', identity_document: withIdentity
+      ? { documentType: 'masked_aadhaar', contentType: 'image/webp', consent: true, data: expect.any(String) } : null,
     application_details: { fullName: 'Sample Maker', paidTrial: false, portfolioUrl: '', adult: true, consent: true } });
+  if (withIdentity) {
+    const document = submissions[0].identity_document as { data: string };
+    const metadata = await sharp(Buffer.from(document.data, 'base64')).metadata();
+    expect(metadata.format).toBe('webp'); expect(metadata.exif).toBeUndefined();
+  }
   await expect(page).toHaveURL(/\/artisans\/$/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
+}
 
 test('missing and expired invitations never expose an application form', async ({ page }) => {
   await installMockSupabase(page);
@@ -59,7 +75,9 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
       language: 'Hindi', skills: 'Flowers', availability: '5 hours/week', experience: '', tools: '', portfolioUrl: '', notes: '',
       adult: true, consent: true, paidTrial: true,
     }, status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z',
-    updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29',
+    updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29.2',
+    dispatch_terms_version: '2026-10-29.1', dispatch_terms_accepted_at: '2026-10-29T00:00:00Z',
+    identity_type: 'masked_aadhaar', identity_expires_at: '2026-11-28T00:00:00Z',
   };
   await page.route('**/rest/v1/artisan_invitations*', route => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/artisan_application_history*', route => route.fulfill({ json: [] }));
@@ -67,6 +85,16 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.route('**/rest/v1/rpc/update_artisan_application', async route => {
     const body = route.request().postDataJSON(); updates.push(body);
     await route.fulfill({ json: { ...application, status: body.next_status, admin_notes: body.review_notes, version: 2 } });
+  });
+  const identityReads: unknown[] = [];
+  const identityRemovals: Record<string, unknown>[] = [];
+  const identityImage = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#dddddd' } }).webp().toBuffer();
+  await page.route('**/rest/v1/rpc/read_artisan_identity_document', async route => {
+    identityReads.push(route.request().postDataJSON());
+    await route.fulfill({ json: { contentType: 'image/webp', data: identityImage.toString('base64'), expiresAt: application.identity_expires_at } });
+  });
+  await page.route('**/rest/v1/rpc/remove_artisan_identity_document', async route => {
+    identityRemovals.push(route.request().postDataJSON()); await route.fulfill({ json: application.id });
   });
   await page.route('**/functions/v1/artisan-invitations', async route => {
     const body = route.request().postDataJSON(); invites.push(body);
@@ -90,10 +118,22 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await expect(page.getByRole('link', { name: 'Open WhatsApp to send' })).toHaveAttribute('href', /^https:\/\/wa.me\/919876543210\?text=/);
   expect(invites[1].token).not.toBe(invites[0].token);
   await page.getByRole('button', { name: 'Review Sample Maker' }).click();
+  expect(identityReads).toHaveLength(0);
+  await page.getByRole('button', { name: 'View private ID' }).click();
+  await expect(page.getByAltText('Private artisan identity document')).toBeVisible();
+  expect(identityReads).toHaveLength(1);
+  await page.getByRole('button', { name: 'Hide ID' }).click();
+  await expect(page.getByAltText('Private artisan identity document')).toHaveCount(0);
   await page.getByLabel('Application status').selectOption('Contacted');
   await page.getByLabel('Internal review notes').fill('Paid trial discussion arranged');
   await page.getByRole('button', { name: 'Save review' }).click();
   await expect(page.getByText('Application changes saved.')).toBeVisible();
   expect(updates[0]).toMatchObject({ expected_version: 1, next_status: 'Contacted', review_notes: 'Paid trial discussion arranged' });
+  await page.getByRole('button', { name: 'Review Sample Maker' }).click();
+  await page.getByRole('button', { name: 'Remove ID after review' }).click();
+  expect(identityRemovals).toHaveLength(0);
+  await page.getByRole('button', { name: 'Confirm ID removal' }).click();
+  await expect(page.getByText('Application changes saved.')).toBeVisible();
+  expect(identityRemovals[0]).toMatchObject({ application_id: application.id, expected_version: 1 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
