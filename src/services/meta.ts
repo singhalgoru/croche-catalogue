@@ -25,7 +25,7 @@ declare global {
 
 const pixelId = import.meta.env.VITE_META_PIXEL_ID?.trim();
 
-const isAdminRoute = () => window.location.hash === '#admin';
+const isAdminRoute = () => window.location.hash === '#admin' || /^\/artisans(?:\/|$)/.test(window.location.pathname);
 
 export const initializeMetaPixel = () => {
   // Meta has no equivalent of GA4's internal traffic filter, so our own visits

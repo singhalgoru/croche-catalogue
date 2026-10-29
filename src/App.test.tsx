@@ -4,6 +4,10 @@ import type { Product } from './types/product';
 import App from './App';
 import storeContent from './content/storeContent.json';
 vi.mock('./components/MobileNavigation', () => ({ default: () => null }));
+vi.mock('./services/artisans', async importOriginal => ({
+  ...await importOriginal<typeof import('./services/artisans')>(),
+  checkArtisanInvitation: vi.fn().mockResolvedValue('available'),
+}));
 
 const product: Product = {
   id: 'test-product', name: 'Test Coaster', category: 'Home', price: 100,
@@ -62,6 +66,16 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('preserves private artisan invitation fragments through route cleanup and navigation', async () => {
+    const token = 'a'.repeat(64);
+    window.history.replaceState(null, '', `/artisans/#invite=${token}`);
+    render(<App />);
+    expect(window.location.hash).toBe(`#invite=${token}`);
+    await waitFor(() => expect(document.title).toBe('Create with Luvia: artisan application | Luvia Creations'));
+    fireEvent(window, new PopStateEvent('popstate'));
+    expect(window.location.hash).toBe(`#invite=${token}`);
+    expect(document.title).toBe('Create with Luvia: artisan application | Luvia Creations');
+  });
   it('introduces the founder story on the catalogue with a crawlable about link', () => {
     render(<App />);
     const teaser = screen.getByRole('region', { name: storeContent.brandStory.teaser.title });

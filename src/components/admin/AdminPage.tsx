@@ -21,6 +21,7 @@ import SalesSnapshotWorkspace from './SalesSnapshotWorkspace';
 import WelcomeOfferManager from './WelcomeOfferManager';
 import CouponGenerator from './CouponGenerator';
 import AdminUsers from './AdminUsers';
+import ArtisanManager from './ArtisanManager';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -31,6 +32,7 @@ interface Props {
 export default function AdminPage({ onProductPublished }: Props) {
   const [snapshotRefreshKey, setSnapshotRefreshKey] = useState(0);
   const [salesRefreshKey, setSalesRefreshKey] = useState(0);
+  const [artisansOpened, setArtisansOpened] = useState(false);
   // The customer shop manifest is linked by default (see vite.config.ts) so
   // it can be installed as its own app. While the admin console is open,
   // swap that link to admin-manifest.webmanifest so installing from #admin
@@ -247,6 +249,7 @@ export default function AdminPage({ onProductPublished }: Props) {
 
         <AdminWorkspace onSectionChange={section => {
           if (section === 'Snapshots') setSnapshotRefreshKey(current => current + 1);
+          if (section === 'Artisans') setArtisansOpened(true);
         }}>{{
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
@@ -255,6 +258,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           </>,
           Orders: <><CustomerOrders loadOrders={fetchAdminLiveOrders} admin /><CartManager /></>,
           Customers: <CustomerSummary />,
+          Artisans: artisansOpened ? <ArtisanManager /> : null,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Settings: <>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import ProductCard from './ProductCard';
 import CatalogueNotice from './CatalogueNotice';
 import PriceFilter from './PriceFilter';
@@ -25,6 +25,9 @@ import { useBestsellerIds } from '../hooks/useBestsellerIds';
 import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../utils/productCollections.js';
 import { matchesProductSearch } from '../utils/productSearch';
 import { addRecentSearch, readRecentSearches, writeRecentSearches } from '../utils/recentSearches';
+import artisanOnboarding from '../content/artisanOnboarding.json';
+
+const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
 
 interface Props {
   products: Product[];
@@ -73,6 +76,7 @@ export default function StorePages({
   const isBulkOrders = requestedPath === bulkOrders.path;
   const isAbout = requestedPath === '/about/';
   const isSearch = requestedPath === '/search/';
+  const isArtisans = requestedPath === artisanOnboarding.path;
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (isSearch && window.innerWidth < 640) searchInputRef.current?.focus({ preventScroll: true });
@@ -121,7 +125,7 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
-  const title = productCollection?.title ?? policy?.title ?? (isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
+  const title = productCollection?.title ?? policy?.title ?? (isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -136,14 +140,14 @@ export default function StorePages({
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
-    if (isSearch) {
+    if (isSearch || isArtisans) {
       const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement('meta');
       robots.name = 'robots';
       robots.content = 'noindex,follow';
       if (!robots.isConnected) document.head.append(robots);
     }
-    if (productCollection || policy || isBulkOrders || isAbout) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isAbout ? storeContent.brandStory.description : bulkOrders.description);
+    if (productCollection || policy || isBulkOrders || isAbout || isArtisans) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description);
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -181,7 +185,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isSearch, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isSearch, isArtisans, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -211,9 +215,9 @@ export default function StorePages({
           <a href="/about/" className="min-h-11 underline">About &amp; contact</a>
         </nav>
       </article>}
-      {loadError && <CatalogueNotice message={loadError} onRetry={onRetry} />}
-      {isLoading && <p role="status">Checking the latest collections and availability…</p>}
-      {policy ? null : isSearch ? <>
+      {loadError && !isArtisans && <CatalogueNotice message={loadError} onRetry={onRetry} />}
+      {isLoading && !isArtisans && <p role="status">Checking the latest collections and availability…</p>}
+      {policy ? null : isArtisans ? <Suspense fallback={<p role="status">Loading application...</p>}><ArtisanApplicationForm /></Suspense> : isSearch ? <>
         <p className="hidden sm:block">Find handmade favourites by name, category, description or colour.</p>
         <form role="search" action="/search/" method="get" className="mobile-search sticky top-0 z-50 -mx-4 !mt-0 flex flex-wrap items-end gap-2 border-b border-mustard/30 bg-cream px-3 py-2 sm:static sm:mx-0 sm:gap-3 sm:border-0 sm:p-0"
           onSubmit={event => {
@@ -373,7 +377,7 @@ export default function StorePages({
         <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
-      {showCatalogue && !isCollectionsHub && !policy && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
-    </main><Footer />
+      {showCatalogue && !isCollectionsHub && !policy && !isArtisans && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
+    </main><Footer showCollaboration={!isArtisans} />
   </div>;
 }

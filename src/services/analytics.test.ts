@@ -155,3 +155,13 @@ it('records product WhatsApp intent with known prices only', async () => {
   expect(lead[2]).not.toHaveProperty('value');
   expect(lead[2].items[0]).not.toHaveProperty('price');
 });
+
+it('disables analytics and advertising on private artisan application pages', async () => {
+  history.replaceState(null, '', `/artisans/#invite=${'a'.repeat(64)}`);
+  const { initializeAnalytics, trackEvent, trackPageView } = await import('./analytics');
+  const { initializeMetaPixel, canTrackMeta } = await import('./meta');
+  initializeAnalytics(); initializeMetaPixel(); trackPageView();
+  expect(trackEvent('application-submitted')).toBe(false);
+  expect(canTrackMeta()).toBe(false);
+  expect(ga).not.toHaveBeenCalled(); expect(meta).not.toHaveBeenCalled();
+});

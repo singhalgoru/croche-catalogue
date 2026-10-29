@@ -39,7 +39,7 @@
     "path": "/privacy-policy/",
     "title": "Privacy Policy",
     "description": "How Luvia Creations uses customer information for accounts, orders, payments, delivery, support and website analytics.",
-    "updated": "25 October 2026",
+    "updated": "29 October 2026",
     "sections": [
       {
         "title": "Who we are and how to contact us",
@@ -64,6 +64,10 @@
       {
         "title": "Messaging, reviews and external services",
         "text": "When you choose an external messaging service or another external link, information you send is handled by that service under its privacy terms. If you opt in to a customer-review survey after an order, your order reference, email, delivery country and an estimated delivery date are shared with the review service provider for the survey. Review-survey participation is optional."
+      },
+      {
+        "title": "Artisan applications",
+        "text": "Artisan applications are by private admin invitation. We use the invited recipient's name, email or WhatsApp number to provide a single-use link, and the submitted contact, location, skills, availability, optional portfolio and work preferences to review suitability and coordinate a possible paid trial. Applications and internal reviews are private; no bank details or identity documents are requested. Unapproved applications are deleted after 180 days without an update, along with their review history. Unlinked invitations are removed after 180 days. Approved and inactive profiles are retained while needed for the relationship and applicable legal obligations. Portfolio review is not permission to publish an artisan's work, photos or story. Analytics and advertising tracking are disabled on the application page. Contact hello@luviacreations.com for access, correction, deletion or privacy questions."
       },
       {
         "title": "Retention and security",

@@ -249,7 +249,7 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/', '/artisans/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
@@ -328,11 +328,17 @@ describe('collection and information pages', () => {
   it('adds all public content URLs to the sitemap without indexing query filters', () => {
     const xml = renderContentSitemap([toy, hair], '2026-10-06', pages);
     for (const pathname of pages.keys()) {
-      if (pathname === '/search/') expect(xml).not.toContain('<loc>https://luviacreations.com/search/</loc>');
+      if (pathname === '/search/' || pathname === '/artisans/') expect(xml).not.toContain(`<loc>https://luviacreations.com${pathname}</loc>`);
       else expect(xml).toContain(`<loc>https://luviacreations.com${pathname}</loc>`);
     }
     expect(documentFor('/search/').querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
     expect(documentFor('/search/').querySelector('form[role="search"] input[name="q"]')).toBeTruthy();
+    const artisans = documentFor('/artisans/');
+    expect(artisans.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,follow');
+    expect(artisans.querySelector('meta[name="referrer"]')?.getAttribute('content')).toBe('no-referrer');
+    expect(artisans.body.textContent).toContain('private admin invitation');
+    expect(artisans.querySelector('header')).toBeTruthy();
+    expect(artisans.querySelector('footer')).toBeTruthy();
     expect(xml).not.toContain('?category=');
     expect(buildContentPages([], '919205907350').has('/collections/toys/')).toBe(false);
   });

@@ -233,6 +233,7 @@ function App() {
     // The lazy auth client must consume email-link credentials before route cleanup.
     const authParams = new URLSearchParams(window.location.hash.slice(1));
     if (authParams.has('access_token') || authParams.has('error_description')) return;
+    if (/^\/artisans\/?$/.test(window.location.pathname) && authParams.has('invite')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)
       : ['#collaborate', '#bulk-orders', '#products'].includes(window.location.hash) ? window.location.hash : '';
@@ -279,6 +280,7 @@ function App() {
   }, [pageReference, selectedProduct]);
 
   const restoreHomepageMetadata = useCallback(() => {
+    if (/^\/artisans\/?$/.test(window.location.pathname)) return;
     document.title = homepageMetadata?.title ?? initialMetadata.current.title;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = homepageMetadata?.canonical ?? initialMetadata.current.canonical ?? import.meta.env.BASE_URL;

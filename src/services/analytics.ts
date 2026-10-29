@@ -20,7 +20,7 @@ declare global {
 
 const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
 
-const isAdminRoute = () => window.location.hash === '#admin';
+const isAdminRoute = () => window.location.hash === '#admin' || /^\/artisans(?:\/|$)/.test(window.location.pathname);
 
 export const initializeAnalytics = () => {
   if (!measurementId || isAdminRoute() || isAutomatedVisit() || window.gtag) return;

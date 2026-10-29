@@ -2,6 +2,7 @@ import { escapeHtml, getProductImageUrl, priceRange, renderSitemap, toProductSlu
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import policies from '../src/content/policies.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
+import artisanOnboarding from '../src/content/artisanOnboarding.json' with { type: 'json' };
 import { collectionBreadcrumbList, collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
@@ -184,6 +185,13 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p>${escapeHtml(bulkOrders.email)}</p><p class="note">${escapeHtml(bulkOrders.note)}</p>
     <p class="note">With JavaScript enabled, use our enquiry form to prepare a personalised email draft. Review and send it from your email app; preparing a draft does not send it automatically.</p></section>`,
     baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description)));
+  pages.set(artisanOnboarding.path, page(artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description,
+    `<section class="intro"><p>${escapeHtml(artisanOnboarding.description)}</p><p>${escapeHtml(artisanOnboarding.notice)}</p>
+    <p>Applications are by private admin invitation. Enable JavaScript and open the invitation link to complete your application. If your link has expired, contact Luvia.</p>
+    <h2>Application privacy notice</h2><p>${escapeHtml(artisanOnboarding.privacy)}</p>
+    <p><a href="mailto:hello@luviacreations.com">Contact Luvia</a> · <a href="/privacy-policy/">Privacy Policy</a></p></section>`,
+    baseSchema('WebPage', artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description))
+    .replace('</head>', '<meta name="robots" content="noindex,follow"><meta name="referrer" content="no-referrer"></head>'));
   return pages;
 };
 
