@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import content from '../content/artisanOnboarding.json';
 import { checkArtisanInvitation, emptyArtisanDetails, prepareArtisanIdentity, submitArtisanApplication } from '../services/artisans';
 import type { ArtisanIdentityUpload } from '../services/artisans';
+import { getWhatsAppNumber } from '../utils/whatsapp';
 
 export default function ArtisanApplicationForm() {
   const [token, setToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('invite') ?? '');
@@ -44,6 +45,17 @@ export default function ArtisanApplicationForm() {
     <h2 className="font-heading text-2xl font-bold" tabIndex={-1} ref={focusConfirmation}>Thank you for introducing yourself</h2>
     <p role="status">Your application has been saved. Your reference is <strong className="break-all">{receipt}</strong>.</p>
     <p>Keep this reference. Luvia will review your application and contact you if there is a suitable next step. Work is not guaranteed.</p>
+    <section aria-labelledby="artisan-work-video-heading" className="space-y-3 rounded-xl bg-cream p-4">
+      <h3 id="artisan-work-video-heading" className="font-semibold">Show us your craft (optional)</h3>
+      <p>If possible, send a short 30-60 second video of your own crochet or handmade work on WhatsApp. Show a finished piece or a few stitches being made; there is no need to show your face.</p>
+      <p className="text-sm">Your application is already saved. A video is not required; you can discuss a paid trial instead. Do not include identity documents, personal details or other people. We will use it for application review only, not publish it without separate permission.</p>
+      <a href={`https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Luvia, I have submitted my artisan application.\nApplication reference: ${receipt}\nI would like to share a short video of my own craft work for application review.`)}`}
+        target="_blank" rel="noopener noreferrer"
+        className="inline-flex min-h-11 items-center justify-center rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">
+        Share work video on WhatsApp
+      </a>
+      <p className="text-sm">This opens a message draft. Attach your video in WhatsApp and press Send; nothing is sent automatically.</p>
+    </section>
     <p>Corrections or privacy requests: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a>.</p>
   </section>;
   if (invitation !== 'available') return <section className="max-w-3xl space-y-3 rounded-2xl bg-white p-5">

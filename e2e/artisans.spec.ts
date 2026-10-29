@@ -40,6 +40,13 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   await form.getByRole('button', { name: 'Submit application' }).click();
   await expect(page.getByRole('region', { name: 'Application confirmation' })).toContainText('Your application has been saved');
   expect(submissions).toHaveLength(1);
+  const videoLink = page.getByRole('link', { name: 'Share work video on WhatsApp' });
+  await expect(videoLink).toBeVisible();
+  const videoUrl = new URL((await videoLink.getAttribute('href'))!);
+  expect(videoUrl.origin).toBe('https://wa.me');
+  expect(videoUrl.searchParams.get('text')).toContain(`Application reference: ${submissions[0].request_id}`);
+  expect(videoUrl.href).not.toContain(token);
+  await expect(page.getByText(/A video is not required/)).toBeVisible();
   expect(submissions[0]).toMatchObject({ invitation_token: token, privacy_version: '2026-10-29.2',
     dispatch_terms_version: '2026-10-29.1', identity_document: withIdentity
       ? { documentType: 'masked_aadhaar', contentType: 'image/webp', consent: true, data: expect.any(String) } : null,

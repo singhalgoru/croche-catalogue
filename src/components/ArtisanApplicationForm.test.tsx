@@ -19,6 +19,7 @@ it('requires a valid invitation and displays no application for unavailable link
   expect(screen.queryByRole('form')).toBeNull();
   expect(screen.getByRole('status').textContent).toContain('Applications are by invitation');
   expect(check).not.toHaveBeenCalled();
+  expect(screen.queryByRole('link', { name: 'Share work video on WhatsApp' })).toBeNull();
 });
 it.each(['unavailable', 'submitted'])('does not expose the form for %s invitations', async status => {
   check.mockResolvedValue(status); render(<ArtisanApplicationForm />);
@@ -52,6 +53,7 @@ it('preserves details and request ID on a failed submission, then confirms persi
   fireEvent.submit(form);
   expect((await screen.findByRole('alert')).textContent).toBe('Connection interrupted');
   expect(screen.getByLabelText(/Full name/)).toHaveProperty('value', 'Sample fullName');
+  expect(screen.queryByRole('link', { name: 'Share work video on WhatsApp' })).toBeNull();
   fireEvent.submit(form);
   expect((await screen.findByRole('status')).textContent).toContain('saved-reference');
   expect(submit.mock.calls[0][1]).toBe(submit.mock.calls[1][1]);
@@ -60,6 +62,16 @@ it('preserves details and request ID on a failed submission, then confirms persi
   expect(window.location.hash).toBe('');
   expect(screen.queryByRole('form')).toBeNull();
   expect(localStorage.getItem('artisan-application')).toBeNull();
+  const link = screen.getByRole('link', { name: 'Share work video on WhatsApp' });
+  const url = new URL(link.getAttribute('href')!);
+  expect(url.origin).toBe('https://wa.me');
+  expect(url.pathname).toBe('/919205907350');
+  expect(url.searchParams.get('text')).toContain('Application reference: saved-reference');
+  expect(url.href).not.toContain(token);
+  expect(url.searchParams.get('text')).not.toContain('Sample fullName');
+  expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(screen.getByText(/A video is not required/).textContent).toContain('not publish it without separate permission');
+  expect(screen.getByText(/Attach your video in WhatsApp/)).toBeTruthy();
 });
 it('shows all material terms and blocks a submission without their acknowledgement', async () => {
   render(<ArtisanApplicationForm />);

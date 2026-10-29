@@ -59,6 +59,7 @@ an India-based handmade crochet brand.
   can send invitations and review applications in the Artisans workspace.
   Invitations expire after 24 hours or one submission. Applications include
   material-dispatch terms and an optional, consented masked-ID photo.
+  After submitting, artisans can optionally share a short work video on WhatsApp.
 
 ## Ordering
 
