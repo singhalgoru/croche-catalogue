@@ -85,20 +85,23 @@ export default function ArtisanApplicationForm() {
         .finally(() => setBusy(false));
     }}>
       <fieldset disabled={busy} className="contents">
-      {content.fields.map(field => <label key={field.name} className={`block text-sm ${['skills', 'availability', 'tools', 'notes'].includes(field.name) ? 'sm:col-span-2' : ''}`}>
-        <span className="font-semibold">{field.label}{field.required ? ' *' : ''}</span>
+      {content.fields.map(field => <div key={field.name} className={`block text-sm ${['skills', 'availability', 'tools', 'notes'].includes(field.name) ? 'sm:col-span-2' : ''}`}>
+        <label htmlFor={`artisan-${field.name}`} title={field.hint} className="font-semibold">{field.label}{field.required ? ' *' : ''}</label>
+        {field.hint && <p id={`artisan-${field.name}-hint`} className="mt-1 text-xs">{field.hint}</p>}
         {field.maxLength >= 500 && field.name !== 'portfolioUrl'
-          ? <textarea name={field.name} required={field.required} maxLength={field.maxLength} rows={3}
+          ? <textarea id={`artisan-${field.name}`} title={field.hint} aria-describedby={field.hint ? `artisan-${field.name}-hint` : undefined}
+              name={field.name} required={field.required} maxLength={field.maxLength} rows={3}
               value={String(Reflect.get(details, field.name))}
               onChange={event => setDetails(current => ({ ...current, [field.name]: event.target.value }))}
               className="mt-1 block w-full rounded-lg border border-cocoa/30 p-3" />
-          : <input name={field.name} required={field.required} maxLength={field.maxLength} autoComplete={field.autocomplete}
+          : <input id={`artisan-${field.name}`} title={field.hint} aria-describedby={field.hint ? `artisan-${field.name}-hint` : undefined}
+              name={field.name} required={field.required} maxLength={field.maxLength} autoComplete={field.autocomplete}
               type={field.name === 'mobile' ? 'tel' : field.name === 'portfolioUrl' ? 'url' : 'text'}
               inputMode={field.name === 'pin' ? 'numeric' : undefined}
               value={String(Reflect.get(details, field.name))}
               onChange={event => setDetails(current => ({ ...current, [field.name]: event.target.value }))}
               className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/30 p-3" />}
-      </label>)}
+      </div>)}
       <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2"><input className="mt-1" type="checkbox" checked={details.paidTrial}
         onChange={event => setDetails(current => ({ ...current, paidTrial: event.target.checked }))} />I am interested in a small paid sample or trial (optional).</label>
       <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2"><input className="mt-1" type="checkbox" required checked={details.adult}

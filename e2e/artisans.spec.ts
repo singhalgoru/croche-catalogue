@@ -15,6 +15,10 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   await page.goto(`./artisans/#invite=${token}`);
   const form = page.getByRole('form', { name: 'Artisan application' });
   await expect(form).toBeVisible();
+  await expect(form.getByLabel('Products and techniques you can make')).toHaveAttribute('title', /amigurumi/);
+  await expect(form.getByText(/Can you read written crochet patterns/)).toBeVisible();
+  await expect(form.getByText(/Which crochet hook sizes do you have/)).toBeVisible();
+  await expect(form.getByLabel('Public portfolio link (e.g. Instagram) (optional)')).toBeVisible();
   await form.getByLabel('Full name').fill('Sample Maker');
   await form.getByLabel('Mobile / WhatsApp number').fill('9876543210');
   await form.getByLabel('City / area').fill('Gurugram');

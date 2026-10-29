@@ -20,11 +20,11 @@
     { "name": "state", "label": "State", "required": true, "maxLength": 100, "autocomplete": "address-level1" },
     { "name": "pin", "label": "PIN code", "required": true, "maxLength": 6, "autocomplete": "postal-code" },
     { "name": "language", "label": "Preferred language and contact time", "required": true, "maxLength": 150, "autocomplete": "off" },
-    { "name": "skills", "label": "Products and techniques you can make", "required": true, "maxLength": 1000, "autocomplete": "off" },
+    { "name": "skills", "label": "Products and techniques you can make", "hint": "List the items you can crochet and specify whether you can make amigurumi (crocheted toys).", "required": true, "maxLength": 1000, "autocomplete": "off" },
     { "name": "availability", "label": "Weekly availability and approximate capacity", "required": true, "maxLength": 500, "autocomplete": "off" },
-    { "name": "experience", "label": "Experience (optional; beginners are welcome)", "required": false, "maxLength": 500, "autocomplete": "off" },
-    { "name": "tools", "label": "Tools available and pattern-reading support needed (optional)", "required": false, "maxLength": 500, "autocomplete": "off" },
-    { "name": "portfolioUrl", "label": "Public portfolio link (optional)", "required": false, "maxLength": 500, "autocomplete": "url" },
+    { "name": "experience", "label": "Experience (optional; beginners are welcome)", "hint": "Tell us about your crochet experience. Can you read written crochet patterns?", "required": false, "maxLength": 500, "autocomplete": "off" },
+    { "name": "tools", "label": "Tools available and pattern-reading support needed (optional)", "hint": "Which crochet hook sizes do you have? Do you have a phone or laptop to read patterns on? Tell us if you need any pattern-reading support.", "required": false, "maxLength": 500, "autocomplete": "off" },
+    { "name": "portfolioUrl", "label": "Public portfolio link (e.g. Instagram) (optional)", "required": false, "maxLength": 500, "autocomplete": "url" },
     { "name": "notes", "label": "Other work or delivery preferences (optional)", "required": false, "maxLength": 500, "autocomplete": "off" }
   ]
 }

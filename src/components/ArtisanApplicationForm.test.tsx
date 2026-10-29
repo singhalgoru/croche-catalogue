@@ -13,6 +13,18 @@ beforeEach(() => {
   check.mockResolvedValue('available'); submit.mockResolvedValue('saved-reference');
 });
 afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); });
+it('provides hover and accessible mobile guidance without changing field labels or requirements', async () => {
+  render(<ArtisanApplicationForm />);
+  await screen.findByRole('form', { name: 'Artisan application' });
+  for (const field of content.fields.filter(item => item.hint)) {
+    const input = screen.getByRole('textbox', { name: `${field.label}${field.required ? ' *' : ''}` });
+    expect(input.getAttribute('title')).toBe(field.hint);
+    expect(input.getAttribute('aria-describedby')).toBe(`artisan-${field.name}-hint`);
+    expect(document.getElementById(`artisan-${field.name}-hint`)?.textContent).toBe(field.hint);
+    expect(input.hasAttribute('required')).toBe(field.required);
+  }
+  expect(screen.getByRole('textbox', { name: 'Public portfolio link (e.g. Instagram) (optional)' }).getAttribute('type')).toBe('url');
+});
 it('requires a valid invitation and displays no application for unavailable links', async () => {
   window.history.replaceState(null, '', '/artisans/');
   render(<ArtisanApplicationForm />);
