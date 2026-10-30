@@ -31,6 +31,9 @@ const REPORT_HEADERS = [
   'Order Shipping Cost',
   'Order Shipping Source',
   'Customer Shipping Collected',
+  'Labour Time Per Piece',
+  'Labour Time Unit',
+  'Labour Hourly Rate',
 ] as const;
 
 const csvCell = (value: string | number) => {
@@ -74,6 +77,9 @@ export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
       sale.order?.shippingCost ?? '',
       sale.order?.shippingSource ?? '',
       sale.order?.shippingCollected ?? '',
+      sale.labourTimeSpent ?? '',
+      sale.labourTimeUnit ?? '',
+      sale.labourRate ?? '',
     ]);
   });
   const summary = summarizeSellerSales(monthly);
@@ -200,6 +206,15 @@ export const parseSellerSalesCsv = (
     if (numeric[0] <= 0) invalid.push('unit selling price greater than zero');
     if (numeric[1] > 100 || numeric[6] > 100 || numeric[7] > 100) invalid.push('tax/fee rates no greater than 100%');
     if (variantName.length > 100 || notes.length > 1000) invalid.push('variant/notes length');
+    const labourTime = row[headers.indexOf('labour time per piece')]?.trim() ?? '';
+    const labourUnit = row[headers.indexOf('labour time unit')]?.trim() ?? '';
+    const labourRate = row[headers.indexOf('labour hourly rate')]?.trim() ?? '';
+    const hasLabourCalculation = Boolean(labourTime || labourUnit || labourRate);
+    if (hasLabourCalculation && (!labourTime || !labourRate || !['hours', 'minutes'].includes(labourUnit)
+      || !Number.isFinite(Number(labourTime)) || Number(labourTime) < 0
+      || !Number.isFinite(Number(labourRate)) || Number(labourRate) < 0 || Number(labourRate) > 10000)) {
+      invalid.push('labour time, unit and hourly rate');
+    }
     if (invalid.length > 0) {
       errors.push(`Row ${lineNumber}: invalid ${invalid.join(', ')}.`);
       return;
@@ -221,6 +236,8 @@ export const parseSellerSalesCsv = (
       gstPercent: numeric[1],
       materialCost: numeric[2],
       labourCost: numeric[3],
+      ...(hasLabourCalculation ? { labourTimeSpent: Number(labourTime),
+        labourTimeUnit: labourUnit as 'hours' | 'minutes', labourRate: Number(labourRate) } : {}),
       packagingCost: numeric[4],
       shippingCost: numeric[5],
       gatewayFeePercent: numeric[6],

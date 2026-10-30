@@ -3,6 +3,7 @@ import {
   DEFAULT_PRICE_DISCOVERY_DEFAULTS,
   createDefaultPriceInputs,
   calculatePriceAtSellingPrice,
+  calculateLabourCost,
   calculateMinimumOrderQuantity,
   estimateProductPrice,
   roundPriceUp,
@@ -11,6 +12,26 @@ import {
 } from './priceDiscovery';
 
 describe('price discovery calculations', () => {
+  it('uses the default or product rate for labour, suggested prices, margins and minimum quantities', () => {
+    const inputs = { ...createDefaultPriceInputs(), timeSpent: '90', timeUnit: 'minutes' as const,
+      materialCost: '50', targetMarginPercent: '35' };
+    expect(calculateLabourCost(inputs)).toBe(150);
+    expect(calculateLabourCost({ ...inputs, labourRate: '200' })).toBe(300);
+    expect(calculateLabourCost({ ...inputs, labourRate: '0' })).toBe(0);
+    expect(calculateLabourCost({ ...inputs, labourRate: ' ' }, 80)).toBe(120);
+    const override = { ...inputs, labourRate: '200' };
+    const defaults = DEFAULT_PRICE_DISCOVERY_DEFAULTS;
+    expect(estimateProductPrice(override, defaults)?.labourCost).toBe(300);
+    expect(estimateProductPrice(override, defaults)!.customerTotal).toBeGreaterThan(estimateProductPrice(inputs, defaults)!.customerTotal);
+    expect(calculatePriceAtSellingPrice(override, defaults, '1000')?.profit).toBeCloseTo(
+      calculatePriceAtSellingPrice(inputs, defaults, '1000')!.profit - 150);
+    expect(calculateMinimumOrderQuantity(override, defaults, '400')).toBeNull();
+    expect(calculateMinimumOrderQuantity(inputs, defaults, '400')).not.toBeNull();
+    for (const labourRate of ['-1', 'Infinity', 'NaN', '10000.01']) {
+      expect(calculateLabourCost({ ...inputs, labourRate })).toBeNull();
+      expect(estimateProductPrice({ ...inputs, labourRate }, defaults)).toBeNull();
+    }
+  });
   it('uses the configurable default GST while preserving saved rates and calculator inputs', () => {
     const defaults = { ...DEFAULT_PRICE_DISCOVERY_DEFAULTS, gstPercent: 12 };
     expect(createDefaultPriceInputs().gstPercent).toBe('5');

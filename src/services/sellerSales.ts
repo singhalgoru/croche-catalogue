@@ -26,6 +26,9 @@ export interface SellerSale {
   gstPercent: number;
   materialCost: number;
   labourCost: number;
+  labourTimeSpent?: number | null;
+  labourTimeUnit?: 'hours' | 'minutes' | null;
+  labourRate?: number | null;
   packagingCost: number;
   shippingCost: number;
   gatewayFeePercent: number;
@@ -53,6 +56,9 @@ interface SellerSaleRow {
   gst_percent: number;
   material_cost: number;
   labour_cost: number;
+  labour_time_spent?: number | null;
+  labour_time_unit?: 'hours' | 'minutes' | null;
+  labour_rate?: number | null;
   packaging_cost: number;
   shipping_cost: number;
   gateway_fee_percent: number;
@@ -62,7 +68,7 @@ interface SellerSaleRow {
 }
 
 const SALE_COLUMNS =
-  'id, product_id, product_name, variant_name, sale_date, channel, quantity, unit_price, gst_percent, material_cost, labour_cost, packaging_cost, shipping_cost, gateway_fee_percent, gateway_fee_gst_percent, notes, created_at, order:seller_orders!seller_sales_order_id_fkey(id,reference,payment_order_id,packaging_cost,shipping_cost,shipping_collected,shipping_source,items:seller_sales!seller_sales_order_id_fkey(unit_price,quantity))';
+  'id, product_id, product_name, variant_name, sale_date, channel, quantity, unit_price, gst_percent, material_cost, labour_cost, labour_time_spent, labour_time_unit, labour_rate, packaging_cost, shipping_cost, gateway_fee_percent, gateway_fee_gst_percent, notes, created_at, order:seller_orders!seller_sales_order_id_fkey(id,reference,payment_order_id,packaging_cost,shipping_cost,shipping_collected,shipping_source,items:seller_sales!seller_sales_order_id_fkey(unit_price,quantity))';
 
 const requireSupabase = async () => {
   const client = await loadSupabase();
@@ -88,6 +94,9 @@ const mapSale = (row: SellerSaleRow): SellerSale => ({
   gstPercent: Number(row.gst_percent),
   materialCost: Number(row.material_cost),
   labourCost: Number(row.labour_cost),
+  ...(row.labour_time_spent == null ? {} : {
+    labourTimeSpent: Number(row.labour_time_spent), labourTimeUnit: row.labour_time_unit, labourRate: Number(row.labour_rate),
+  }),
   packagingCost: Number(row.packaging_cost),
   shippingCost: Number(row.shipping_cost),
   gatewayFeePercent: Number(row.gateway_fee_percent),
@@ -97,6 +106,12 @@ const mapSale = (row: SellerSaleRow): SellerSale => ({
 });
 
 const saleColumns = (sale: SellerSaleInput) => {
+  const hasLabourCalculation = sale.labourTimeSpent != null || sale.labourTimeUnit != null || sale.labourRate != null;
+  if (hasLabourCalculation && (sale.labourTimeSpent == null || !Number.isFinite(sale.labourTimeSpent) || sale.labourTimeSpent < 0
+    || !['hours', 'minutes'].includes(sale.labourTimeUnit ?? '') || sale.labourRate == null
+    || !Number.isFinite(sale.labourRate) || sale.labourRate < 0 || sale.labourRate > 10000)) {
+    throw new Error('Provide valid labour time, unit and an hourly rate from 0 to 10,000, or use a manual labour cost.');
+  }
   if (!sale.productName.trim() || sale.productName.trim().length > 150) {
     throw new Error('Choose a product or enter a product name of at most 150 characters.');
   }
@@ -147,6 +162,9 @@ const saleColumns = (sale: SellerSaleInput) => {
     gst_percent: sale.gstPercent,
     material_cost: sale.materialCost,
     labour_cost: sale.labourCost,
+    labour_time_spent: sale.labourTimeSpent ?? null,
+    labour_time_unit: sale.labourTimeUnit ?? null,
+    labour_rate: sale.labourRate ?? null,
     packaging_cost: sale.packagingCost,
     shipping_cost: sale.shippingCost,
     gateway_fee_percent: sale.gatewayFeePercent,

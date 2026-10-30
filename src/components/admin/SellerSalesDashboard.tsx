@@ -22,6 +22,7 @@ import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
 import BusinessExpensesPanel from './BusinessExpensesPanel';
 import { fetchBusinessExpenses, type BusinessExpense } from '../../services/businessExpenses';
 import SellerOrderSummary from './SellerOrderSummary';
+import { calculateLabourCost, DEFAULT_PRICE_DISCOVERY_DEFAULTS } from './priceDiscovery';
 
 interface Props {
   refreshKey: number;
@@ -39,6 +40,9 @@ interface SaleDraft {
   gstPercent: string;
   materialCost: string;
   labourCost: string;
+  labourTimeSpent: string;
+  labourTimeUnit: 'hours' | 'minutes';
+  labourRate: string;
   packagingCost: string;
   shippingCost: string;
   gatewayFeePercent: string;
@@ -59,6 +63,9 @@ const blankDraft = (): SaleDraft => ({
   gstPercent: '5',
   materialCost: '',
   labourCost: '',
+  labourTimeSpent: '',
+  labourTimeUnit: 'hours',
+  labourRate: '',
   packagingCost: '',
   shippingCost: '',
   gatewayFeePercent: '0',
@@ -77,6 +84,9 @@ const saleToDraft = (sale: SellerSale): SaleDraft => ({
   gstPercent: String(sale.gstPercent),
   materialCost: String(sale.materialCost),
   labourCost: String(sale.labourCost),
+  labourTimeSpent: sale.labourTimeSpent == null ? '' : String(sale.labourTimeSpent),
+  labourTimeUnit: sale.labourTimeUnit ?? 'hours',
+  labourRate: sale.labourRate == null ? '' : String(sale.labourRate),
   packagingCost: String(sale.packagingCost),
   shippingCost: String(sale.shippingCost),
   gatewayFeePercent: String(sale.gatewayFeePercent),
@@ -93,6 +103,12 @@ const parseAmount = (value: string, label: string) => {
 };
 
 const toSaleInput = (draft: SaleDraft): SellerSaleInput => {
+  const calculatedLabour = draft.labourTimeSpent.trim() ? calculateLabourCost({
+    timeSpent: draft.labourTimeSpent, timeUnit: draft.labourTimeUnit, labourRate: draft.labourRate,
+  }) : null;
+  if (draft.labourTimeSpent.trim() && calculatedLabour === null) {
+    throw new Error('Enter valid labour time and an hourly rate from 0 to 10,000.');
+  }
   const quantity = Number(draft.quantity);
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000) {
     throw new Error('Quantity must be a whole number between 1 and 100,000.');
@@ -108,6 +124,10 @@ const toSaleInput = (draft: SaleDraft): SellerSaleInput => {
     gstPercent: parseAmount(draft.gstPercent, 'GST rate'),
     materialCost: parseAmount(draft.materialCost, 'Material cost per piece'),
     labourCost: parseAmount(draft.labourCost, 'Labour cost per piece'),
+    ...(calculatedLabour === null ? {} : {
+      labourTimeSpent: Number(draft.labourTimeSpent), labourTimeUnit: draft.labourTimeUnit,
+      labourRate: draft.labourRate.trim() ? Number(draft.labourRate) : DEFAULT_PRICE_DISCOVERY_DEFAULTS.labourRate,
+    }),
     packagingCost: parseAmount(draft.packagingCost, 'Packaging cost per piece'),
     shippingCost: parseAmount(draft.shippingCost, 'Shipping cost for this sale'),
     gatewayFeePercent: parseAmount(draft.gatewayFeePercent, 'Payment fee rate'),
@@ -226,6 +246,15 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
   const updateDraft = (patch: Partial<SaleDraft>) =>
     setDraft((current) => current ? { ...current, ...patch } : current);
 
+  const updateLabour = (patch: Partial<Pick<SaleDraft, 'labourTimeSpent' | 'labourTimeUnit' | 'labourRate'>>) => {
+    setDraft(current => {
+      if (!current) return current;
+      const next = { ...current, ...patch };
+      const cost = calculateLabourCost({ timeSpent: next.labourTimeSpent, timeUnit: next.labourTimeUnit, labourRate: next.labourRate });
+      return { ...next, labourCost: cost === null ? '' : String(cost) };
+    });
+  };
+
   const selectProduct = (productId: string) => {
     const selectedProduct = products.find((product) => product.id === productId);
     if (!selectedProduct) {
@@ -237,6 +266,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         gstPercent: '5',
         materialCost: '',
         labourCost: '',
+        labourTimeSpent: '', labourTimeUnit: 'hours', labourRate: '',
         packagingCost: '',
         shippingCost: '',
       });
@@ -244,11 +274,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
     }
     const priceInputs = selectedProduct.priceDiscoveryInputs;
     const selectedVariant = selectedProduct.variants[0];
-    const timeSpent = Number(priceInputs?.timeSpent ?? 0);
-    const labourRate = 100;
-    const labourCost = Number.isFinite(timeSpent)
-      ? (priceInputs?.timeUnit === 'minutes' ? timeSpent / 60 : timeSpent) * labourRate
-      : 0;
+    const labourCost = priceInputs ? calculateLabourCost(priceInputs) : null;
     updateDraft({
       productId: selectedProduct.id,
       productName: selectedProduct.name,
@@ -260,7 +286,10 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         selectedProduct.gstPercent ?? priceInputs?.gstPercent ?? 5,
       ),
       materialCost: toWholeRupees(priceInputs?.materialCost),
-      labourCost: priceInputs ? toWholeRupees(labourCost) : '',
+      labourCost: toWholeRupees(labourCost),
+      labourTimeSpent: priceInputs?.timeSpent ?? '',
+      labourTimeUnit: priceInputs?.timeUnit ?? 'hours',
+      labourRate: priceInputs?.labourRate ?? '',
       packagingCost: toWholeRupees(priceInputs?.packagingCost),
       shippingCost: toWholeRupees(priceInputs?.shippingCost),
     });
@@ -542,6 +571,25 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
               className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
             />
           </label>
+          <div className="text-sm text-cocoa">
+            <label className="font-semibold">Time spent per piece
+              <input aria-label="Sale labour time" type="number" min="0" step="any"
+                value={draft.labourTimeSpent} onChange={event => updateLabour({ labourTimeSpent: event.target.value })}
+                className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2" />
+            </label>
+            <select aria-label="Sale labour time unit" value={draft.labourTimeUnit}
+              onChange={event => updateLabour({ labourTimeUnit: event.target.value === 'minutes' ? 'minutes' : 'hours' })}
+              className="mt-1 min-h-11 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2">
+              <option value="hours">Hours</option><option value="minutes">Minutes</option>
+            </select>
+          </div>
+          <label className="text-sm font-semibold text-cocoa">Labour rate (₹/hour)
+            <input aria-label="Sale labour rate per hour" type="number" min="0" max="10000" step="0.01"
+              value={draft.labourRate} placeholder={String(DEFAULT_PRICE_DISCOVERY_DEFAULTS.labourRate)}
+              onChange={event => updateLabour({ labourRate: event.target.value })}
+              className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2" />
+            <span className="mt-1 block text-xs font-normal">Blank uses ₹100/hour. A saved product rate prefills here; edits apply only to this sale.</span>
+          </label>
           {([
             ['materialCost', 'Materials per piece (₹)'],
             ['labourCost', 'Labour per piece (₹)'],
@@ -557,7 +605,8 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
                 max={1000000}
                 step="0.01"
                 value={draft[field]}
-                onChange={(event) => updateDraft({ [field]: event.target.value })}
+                onChange={(event) => updateDraft({ [field]: event.target.value,
+                  ...(field === 'labourCost' ? { labourTimeSpent: '', labourRate: '' } : {}) })}
                 required
                 className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2"
               />
@@ -576,7 +625,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           </label>
         </div>
         <p className="mt-3 text-xs text-cocoa/65">
-          Materials and labour are per piece. Item packaging and shipping are zero; edit those costs on the whole order. Labour defaults to ₹100/hour. Online payment fees default to 2%. Order date and channel are shared by all products.
+          Materials and labour are per piece. Time and hourly rate calculate labour automatically, rounded to whole rupees. Editing labour cost directly clears the time/rate calculation and keeps a manual amount. Existing sales keep their recorded costs unless edited. Item packaging and shipping are zero; edit those costs on the whole order. Online payment fees default to 2%. Order date and channel are shared by all products.
         </p>
         {!editingId && <button type="button" disabled={busy || orderItems.length >= 99} className="mt-3 mr-3 min-h-11 rounded-full border px-4 font-semibold"
           onClick={() => {

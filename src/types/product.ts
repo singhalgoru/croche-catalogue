@@ -52,6 +52,7 @@ export interface ProductDetails {
 export interface ProductPricingInputs {
   timeSpent: string;
   timeUnit: 'hours' | 'minutes';
+  labourRate?: string;
   materialCost: string;
   shippingCost: string;
   packagingCost: string;

@@ -246,3 +246,56 @@ test('feedback page keeps its storefront navigation and back-to-top control', as
   await goToTop.click({ timeout: 10_000 });
   await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 15_000 }).toBeLessThan(10);
 });
+
+test('product labour overrides persist and prefill an independently editable sale rate', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  let pricing: Record<string, string | number | null> = { profit_margin_percent: null, gst_percent: 5, time_spent: 90, time_unit: 'minutes',
+    labour_rate: null, material_cost: 50, shipping_cost: 100, packaging_cost: 10, target_margin_percent: 35 };
+  await page.route('**/rest/v1/products?*', async route => {
+    if (route.request().method() !== 'GET') { await route.fallback(); return; }
+    const url = new URL(route.request().url());
+    const id = url.searchParams.get('id')?.replace('eq.', '');
+    const products = state.products.filter(product => !id || product.id === id).map(product => ({
+      ...product, product_profit_margins: product.id === 'product-1' ? pricing : null,
+    }));
+    await route.fulfill({ json: route.request().headers().accept?.includes('application/vnd.pgrst.object') ? products[0] : products });
+  });
+  await page.route('**/rest/v1/product_profit_margins*', async route => {
+    pricing = { ...pricing, ...route.request().postDataJSON() };
+    await route.fulfill({ json: null });
+  });
+  await page.route('**/rest/v1/seller_sales*', route => route.fulfill({ json: [] }));
+  await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
+  const orders: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/create_seller_order', async route => {
+    orders.push(route.request().postDataJSON()); await route.fulfill({ json: 'saved-order' });
+  });
+  await page.goto('./#admin');
+  await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
+  await page.getByLabel('Password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('button', { name: /Manage products/ }).click();
+  const product = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Rose Charm', exact: true }) });
+  await product.getByRole('button', { name: /Price discovery/ }).click();
+  await expect(product.getByText(/Labour cost per piece:/)).toHaveText('Labour cost per piece: ₹150');
+  await page.getByLabel('Rose Charm labour rate per hour').fill('180');
+  await expect(product.getByText(/Labour cost per piece:/)).toHaveText('Labour cost per piece: ₹270');
+  await product.getByRole('button', { name: 'Save values for this product' }).click();
+  await expect(product.getByText('Price discovery values saved for this product.')).toBeVisible();
+  expect(pricing.labour_rate).toBe(180);
+  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await page.getByRole('button', { name: 'Record sale', exact: true }).click();
+  await page.getByLabel('Sale product', { exact: true }).selectOption('product-1');
+  await expect(page.getByLabel('Sale labour rate per hour')).toHaveValue('180');
+  await expect(page.getByLabel('Labour per piece (₹)', { exact: true })).toHaveValue('270');
+  await page.getByLabel('Sale labour rate per hour').fill('200');
+  await expect(page.getByLabel('Labour per piece (₹)', { exact: true })).toHaveValue('300');
+  await page.getByRole('button', { name: 'Save sale', exact: true }).click();
+  await expect(page.getByText('Sale recorded.', { exact: true })).toBeVisible();
+  expect(orders[0]).toMatchObject({ p_items: [expect.objectContaining({
+    labour_cost: 300, labour_rate: 200, labour_time_spent: 90, labour_time_unit: 'minutes',
+  })] });
+  expect(pricing.labour_rate).toBe(180);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});

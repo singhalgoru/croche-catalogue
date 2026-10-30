@@ -1,3 +1,5 @@
+import type { ProductPricingInputs } from '../../types/product';
+
 export interface PriceDiscoveryDefaults {
   labourRate: number;
   gatewayFeePercent: number;
@@ -5,15 +7,7 @@ export interface PriceDiscoveryDefaults {
   gstPercent: number;
 }
 
-export interface PriceDiscoveryInputs {
-  timeSpent: string;
-  timeUnit: 'hours' | 'minutes';
-  materialCost: string;
-  shippingCost: string;
-  packagingCost: string;
-  gstPercent: string;
-  targetMarginPercent: string;
-}
+export type PriceDiscoveryInputs = ProductPricingInputs;
 
 export interface PriceDiscoveryEstimate {
   labourCost: number;
@@ -63,22 +57,32 @@ const parseNonNegative = (value: string): number | null => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
+export const calculateLabourCost = (
+  inputs: Pick<PriceDiscoveryInputs, 'timeSpent' | 'timeUnit' | 'labourRate'>,
+  defaultRate = DEFAULT_PRICE_DISCOVERY_DEFAULTS.labourRate,
+): number | null => {
+  const time = parseNonNegative(inputs.timeSpent);
+  const rate = inputs.labourRate?.trim() ? parseNonNegative(inputs.labourRate) : defaultRate;
+  if (time === null || rate === null || !Number.isFinite(rate) || rate < 0 || rate > 10000
+    || !['hours', 'minutes'].includes(inputs.timeUnit)) return null;
+  const cost = Math.round((inputs.timeUnit === 'minutes' ? time / 60 : time) * rate);
+  return Number.isFinite(cost) ? cost : null;
+};
+
 const calculateCostBasis = (
   inputs: PriceDiscoveryInputs,
   defaults: PriceDiscoveryDefaults,
 ) => {
-  const timeSpent = parseNonNegative(inputs.timeSpent);
+  const labourCost = calculateLabourCost(inputs, defaults.labourRate);
   const materialCost = parseNonNegative(inputs.materialCost);
   const shippingCost = parseNonNegative(inputs.shippingCost);
   const packagingCost = parseNonNegative(inputs.packagingCost);
   const gstPercent = parseNonNegative(inputs.gstPercent);
   if (
-    timeSpent === null || materialCost === null || shippingCost === null
+    labourCost === null || materialCost === null || shippingCost === null
     || packagingCost === null || gstPercent === null || gstPercent > 100
   ) return null;
 
-  const hours = inputs.timeUnit === 'minutes' ? timeSpent / 60 : timeSpent;
-  const labourCost = Math.round(hours * defaults.labourRate);
   const roundedMaterialCost = Math.round(materialCost);
   const roundedShippingCost = Math.round(shippingCost);
   const roundedPackagingCost = Math.round(packagingCost);

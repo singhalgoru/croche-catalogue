@@ -13,6 +13,13 @@ import {
 const photo = () => new File(['bytes'], 'bunny.webp', { type: 'image/webp' });
 
 describe('isProductDraftEmpty', () => {
+  it('keeps a labour-rate-only draft including a zero-rate override', () => {
+    for (const labourRate of ['0', '200']) {
+      const draft = { ...EMPTY_PRODUCT_DRAFT, priceDiscoveryInputs: { ...createDefaultPriceInputs(), labourRate } };
+      expect(isProductDraftEmpty(draft, [createEmptyVariant('Standard')])).toBe(false);
+      expect(fromStoredProductDraft(toStoredProductDraft(draft, [createEmptyVariant('Standard')])).draft).toEqual(draft);
+    }
+  });
   it('treats the untouched form as empty', () => {
     expect(isProductDraftEmpty(EMPTY_PRODUCT_DRAFT, [createEmptyVariant('Standard')])).toBe(true);
   });

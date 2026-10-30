@@ -9,7 +9,7 @@ begin
   insert into public.product_profit_margins(product_id, gst_percent, time_spent, time_unit, material_cost, shipping_cost, packaging_cost)
     values (target_product, 12, 90, 'minutes', 40, 60, 10)
     on conflict (product_id) do update set gst_percent = 12, time_spent = 90, time_unit = 'minutes',
-      material_cost = 40, shipping_cost = 60, packaging_cost = 10;
+      material_cost = 40, shipping_cost = 60, packaging_cost = 10, labour_rate = null;
   insert into auth.users(id, email, email_confirmed_at) values (owner_id, owner_id::text || '@sales.test', now());
   perform set_config('request.jwt.claim.sub', owner_id::text, true);
   insert into public.payment_orders(reference, request_key, created_by, customer_user_id, razorpay_order_id, customer_name,

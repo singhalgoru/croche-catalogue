@@ -109,6 +109,57 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('uses the saved product labour rate and persists a sale-only override with its time', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{ ...product,
+      priceDiscoveryInputs: { ...product.priceDiscoveryInputs!, labourRate: '180' } }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    expect(screen.getByLabelText('Sale labour time')).toHaveProperty('value', '30');
+    expect(screen.getByLabelText('Sale labour time unit')).toHaveProperty('value', 'minutes');
+    expect(screen.getByLabelText('Sale labour rate per hour')).toHaveProperty('value', '180');
+    expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '90');
+    fireEvent.change(screen.getByLabelText('Sale labour rate per hour'), { target: { value: '240' } });
+    expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '120');
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale' }));
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalledWith([expect.objectContaining({
+      labourCost: 120, labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 240,
+    })], 0, 0));
+    expect(product.priceDiscoveryInputs?.labourRate).toBeUndefined();
+  });
+
+  it('allows a manual sale labour amount without inventing time/rate metadata', async () => {
+    render(<SellerSalesDashboard refreshKey={0} />);
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    fireEvent.change(screen.getByLabelText('Labour per piece (₹)'), { target: { value: '75' } });
+    expect(screen.getByLabelText('Sale labour time')).toHaveProperty('value', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale' }));
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalled());
+    const saved = vi.mocked(createSellerOrder).mock.calls[0][0][0];
+    expect(saved.labourCost).toBe(75);
+    expect(saved.labourRate).toBeUndefined();
+    expect(saved.labourTimeSpent).toBeUndefined();
+  });
+
+  it.each([false, true])('preserves historical labour cost while editing notes (saved calculation: %s)', async calculated => {
+    const saved = { ...sale, saleDate: localDate(), labourCost: 41.67,
+      ...(calculated ? { labourTimeSpent: 25, labourTimeUnit: 'minutes' as const, labourRate: 100 } : {}) };
+    vi.mocked(fetchSellerSales).mockResolvedValue([saved]);
+    vi.mocked(updateSellerSale).mockResolvedValue(saved);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(within(await screen.findByTestId('sale-record-sale-1')).getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '41.67');
+    fireEvent.change(screen.getByLabelText('Sale notes'), { target: { value: 'Keep actual costs' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale changes' }));
+    await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith(sale.id, expect.objectContaining({ labourCost: 41.67 })));
+    if (calculated) expect(vi.mocked(updateSellerSale).mock.calls[0][1].labourRate).toBe(100);
+  });
   it('records multiple offline products atomically with packaging and shipping only on the order',async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());

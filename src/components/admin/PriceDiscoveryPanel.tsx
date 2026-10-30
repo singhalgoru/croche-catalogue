@@ -7,6 +7,7 @@ import {
 } from '../../services/productAnalysis';
 import {
   calculatePriceAtSellingPrice,
+  calculateLabourCost,
   calculateMinimumOrderQuantity,
   estimateProductPrice,
   roundPriceUp,
@@ -52,6 +53,7 @@ export default function PriceDiscoveryPanel({
   const [saveInputsMessage, setSaveInputsMessage] = useState<string | null>(null);
   const [saveInputsError, setSaveInputsError] = useState<string | null>(null);
   const panelId = useId();
+  const labourCost = calculateLabourCost(inputs, defaults.labourRate);
   const estimate = estimateProductPrice(inputs, defaults);
   const suggestedPrice = estimate
     ? roundPriceUp(estimate.suggestedCustomerPrice, roundingIncrement)
@@ -184,7 +186,20 @@ export default function PriceDiscoveryPanel({
                   <option value="minutes">Minutes</option>
                 </select>
               </div>
+              <p className="mt-1 text-sm text-cocoa" aria-live="polite">
+                Labour cost per piece: <strong>{labourCost === null ? 'Enter valid time and rate' : formatRupees(labourCost)}</strong>
+              </p>
             </div>
+            <label className="text-sm font-semibold text-cocoa">
+              Labour rate (₹/hour)
+              <input aria-label={`${product.name} labour rate per hour`} type="number" min="0" max="10000" step="0.01"
+                value={inputs.labourRate ?? ''} placeholder={String(defaults.labourRate)}
+                onChange={event => updateInput('labourRate', event.target.value)}
+                className="mt-1 w-full rounded-lg border border-mustard/60 px-3 py-2" />
+              <span className="mt-1 block text-xs font-normal text-cocoa/60">
+                Leave blank to use the default {formatRupees(defaults.labourRate)}/hour. Enter a rate to override it for this product and save the price discovery values.
+              </span>
+            </label>
             <label className="text-sm font-semibold text-cocoa">
               Materials cost (₹)
               <input

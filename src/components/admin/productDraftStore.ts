@@ -65,6 +65,7 @@ export const isProductDraftEmpty = (draft: ProductDraft, variants: VariantDraft[
   !draft.featured &&
   !draft.showPrice &&
   (draft.minimumOrderQuantity ?? 1) === 1 &&
+  !draft.priceDiscoveryInputs?.labourRate?.trim() &&
   (!draft.priceDiscoveryInputs || Object.entries(createDefaultPriceInputs())
     .every(([key, value]) => draft.priceDiscoveryInputs?.[key as keyof PriceDiscoveryInputs] === value)) &&
   variants.every(

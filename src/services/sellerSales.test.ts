@@ -73,7 +73,8 @@ describe('seller sales persistence', () => {
     const query = {
       select: vi.fn(),
       order: vi.fn(),
-      range: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: [{ ...row,order: {
+      range: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: [{ ...row,
+        labour_time_spent: '30.00', labour_time_unit: 'minutes', labour_rate: '180.00', order: {
         id: 'order',reference: 'LUV-1',payment_order_id: 'payment',packaging_cost: '25.00',shipping_cost: '100.00',
         shipping_collected: '50.00',shipping_source: 'courier',items: [{ quantity: 2,unit_price: '105.00' },{ quantity: 1,unit_price: '200.00' }],
       } }], error: null }),
@@ -89,6 +90,9 @@ describe('seller sales persistence', () => {
       unitPrice: 105,
       gstPercent: 5,
       materialCost: 20,
+      labourTimeSpent: 30,
+      labourTimeUnit: 'minutes',
+      labourRate: 180,
       channel: 'online',
       order: { id: 'order',packagingCost: 25,shippingCost: 100,shippingCollected: 50,itemRevenue: 410 },
     }]);
@@ -141,7 +145,17 @@ describe('seller sales persistence', () => {
     await expect(createSellerSale({ ...sale, channel: 'unknown' as SellerSaleInput['channel'] }))
       .rejects.toThrow('sales channel');
     await expect(createSellerSale({ ...sale, gstPercent: 101 })).rejects.toThrow('cannot exceed');
+    for (const labourRate of [-1, Number.NaN, Number.POSITIVE_INFINITY, 10001]) {
+      await expect(createSellerSale({ ...sale, labourTimeSpent: 1, labourTimeUnit: 'hours', labourRate })).rejects.toThrow('labour time');
+    }
+    await expect(createSellerSale({ ...sale, labourRate: 100 })).rejects.toThrow('labour time');
     expect(from).not.toHaveBeenCalled();
+  });
+  it('stores the effective labour rate and time in each new order line', async () => {
+    await createSellerOrder([{ ...sale, labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 180, labourCost: 90 }], 0, 0);
+    expect(rpc).toHaveBeenCalledWith('create_seller_order', expect.objectContaining({ p_items: [
+      expect.objectContaining({ labour_time_spent: 30, labour_time_unit: 'minutes', labour_rate: 180, labour_cost: 90 }),
+    ] }));
   });
   it('creates all order lines atomically with zero item packaging and shipping',async () => {
     await createSellerOrder([sale,{ ...sale,productName: 'Bunny' }],40,125);

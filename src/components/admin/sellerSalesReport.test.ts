@@ -23,6 +23,16 @@ const sale: SellerSale = {
 };
 
 describe('seller sales report CSV', () => {
+  it('round-trips saved labour time and rate and rejects partial calculations', () => {
+    const csv = buildSellerSalesCsv('2026-10', [{ ...sale, labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 180 }]);
+    expect(parseSellerSalesCsv(csv, '2026-10', new Set(['product-1'])).sales[0]).toMatchObject({
+      labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 180, labourCost: 10,
+    });
+    expect(() => parseSellerSalesCsv(csv.replace(',30,minutes,180', ',30,minutes,'), '2026-10', new Set())).toThrow('labour time');
+    const legacy = csv.split('\r\n').map(line => line.split(',').slice(0, -3).join(',')).join('\r\n');
+    expect(parseSellerSalesCsv(legacy, '2026-10', new Set()).sales[0].labourCost).toBe(10);
+    expect(parseSellerSalesCsv(legacy, '2026-10', new Set()).sales[0].labourRate).toBeUndefined();
+  });
   it('exports shared order context with zero item charges and matching allocated totals', () => {
     const order = { id: 'order',reference: 'LUV-ORDER',paymentOrderId: 'payment',packagingCost: 25,shippingCost: 100,
       shippingCollected: 50,shippingSource: 'courier' as const,itemRevenue: 400 };

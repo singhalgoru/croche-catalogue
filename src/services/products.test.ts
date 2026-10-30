@@ -298,7 +298,7 @@ describe('product detail loading', () => {
     expect(managed.select).toHaveBeenCalledWith(PRODUCT_COLUMNS);
     expect(PRODUCT_COLUMNS).toContain('included_items, care_instructions');
     expect(PRODUCT_COLUMNS).toContain(
-      'product_profit_margins(profit_margin_percent, gst_percent, time_spent, time_unit, material_cost, shipping_cost, packaging_cost, target_margin_percent)',
+      'product_profit_margins(profit_margin_percent, gst_percent, time_spent, time_unit, labour_rate, material_cost, shipping_cost, packaging_cost, target_margin_percent)',
     );
     expect(PRODUCT_COLUMNS).toContain('public_slug');
     expect(loadedProducts[0][0].publicSlug).toBe('bunny');
@@ -437,6 +437,7 @@ describe('product detail persistence', () => {
     const savedInputs = {
       timeSpent: '2.5',
       timeUnit: 'hours' as const,
+      labourRate: '175.5',
       materialCost: '160',
       shippingCost: '100',
       packagingCost: '10',
@@ -450,6 +451,7 @@ describe('product detail persistence', () => {
         gst_percent: 5,
         time_spent: 2.5,
         time_unit: 'hours',
+        labour_rate: 175.5,
         material_cost: 160,
         shipping_cost: 100,
         packaging_cost: 10,
@@ -463,6 +465,7 @@ describe('product detail persistence', () => {
       product_id: product.id,
       time_spent: 2.5,
       time_unit: 'hours',
+      labour_rate: 175.5,
       material_cost: 160,
       shipping_cost: 100,
       packaging_cost: 10,
@@ -470,6 +473,19 @@ describe('product detail persistence', () => {
       target_margin_percent: 45,
     });
     expect(saved.priceDiscoveryInputs).toEqual(savedInputs);
+  });
+
+  it('clears a product labour override and rejects invalid rates before writing', async () => {
+    queueQuery([row]);
+    const [product] = await fetchManagedProducts();
+    const inputs = { timeSpent: '2', timeUnit: 'hours' as const, materialCost: '50',
+      shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '45' };
+    for (const labourRate of ['-1', 'Infinity', 'NaN', '10000.01']) {
+      await expect(saveProductPriceDiscoveryInputs(product, { ...inputs, labourRate })).rejects.toThrow('Labour rate');
+    }
+    const write = queueQuery(null); queueQuery(row);
+    await saveProductPriceDiscoveryInputs(product, { ...inputs, labourRate: '' });
+    expect(write.upsert).toHaveBeenCalledWith(expect.objectContaining({ labour_rate: null }), { onConflict: 'product_id' });
   });
 
   it('rejects invalid calculated margins before writing', async () => {

@@ -55,6 +55,7 @@ an India-based handmade crochet brand.
 - Contact Luvia by WhatsApp or email for product and customisation enquiries.
 - Install the catalogue as a home-screen app on supported browsers.
 - Authorised administrators can manage products, drafts, media and orders.
+  Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
   Invitations expire after 24 hours or one submission. Applications include

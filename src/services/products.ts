@@ -31,6 +31,7 @@ interface ProductProfitMarginRow {
   gst_percent: number | null;
   time_spent: number | null;
   time_unit: 'hours' | 'minutes' | null;
+  labour_rate?: number | null;
   material_cost: number | null;
   shipping_cost: number | null;
   packaging_cost: number | null;
@@ -159,6 +160,10 @@ const requireSupabase = async () => {
 };
 
 const priceDiscoveryColumns = (inputs: ProductPricingInputs) => {
+  const labourRate = inputs.labourRate?.trim() ? Number(inputs.labourRate) : null;
+  if (labourRate !== null && (!Number.isFinite(labourRate) || labourRate < 0 || labourRate > 10000)) {
+    throw new Error('Labour rate must be a finite amount from 0 to 10,000 per hour, or blank for the default.');
+  }
   if (
     [
       inputs.timeSpent,
@@ -190,6 +195,7 @@ const priceDiscoveryColumns = (inputs: ProductPricingInputs) => {
   return {
     time_spent: values.timeSpent,
     time_unit: inputs.timeUnit,
+    labour_rate: labourRate,
     material_cost: values.materialCost,
     shipping_cost: values.shippingCost,
     packaging_cost: values.packagingCost,
@@ -235,6 +241,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
     ? {
         timeSpent: String(marginRow.time_spent),
         timeUnit: marginRow.time_unit,
+        ...(marginRow.labour_rate == null ? {} : { labourRate: String(marginRow.labour_rate) }),
         materialCost: String(marginRow.material_cost),
         shippingCost: String(marginRow.shipping_cost),
         packagingCost: String(marginRow.packaging_cost),
