@@ -59,6 +59,7 @@ an India-based handmade crochet brand.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
+  The application supports English and Hindi; answers remain in their original language.
   Invitations expire after 24 hours or one submission. Applications include
   material-dispatch terms and an optional, consented masked-ID photo.
   After submitting, artisans can optionally share a short work video on WhatsApp.

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ArtisanApplicationForm from './ArtisanApplicationForm';
 import content from '../content/artisanOnboarding.json';
+import { hindiContent } from '../content/artisanOnboardingHindi';
 
 const { check, submit, prepare, preparePhoto } = vi.hoisted(() => ({ check: vi.fn(), submit: vi.fn(), prepare: vi.fn(), preparePhoto: vi.fn() }));
 vi.mock('../services/artisans', async importOriginal => ({
@@ -14,6 +15,28 @@ beforeEach(() => {
   check.mockResolvedValue('available'); submit.mockResolvedValue('saved-reference');
 });
 afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); });
+it('switches languages without changing answers and submits original Hindi with contact preference', async () => {
+  render(<ArtisanApplicationForm />);
+  await screen.findByRole('form', { name: 'Artisan application' });
+  fireEvent.change(screen.getByLabelText('Full name *'), { target: { value: 'परीक्षण कारीगर' } });
+  fireEvent.change(screen.getByLabelText('Form language / फॉर्म की भाषा'), { target: { value: 'hi' } });
+  const form = screen.getByRole('form', { name: 'कारीगर आवेदन' });
+  expect(form.closest('[lang]')?.getAttribute('lang')).toBe('hi');
+  expect(screen.getByLabelText('पूरा नाम *')).toHaveProperty('value', 'परीक्षण कारीगर');
+  for (const paragraph of hindiContent.dispatchTerms) expect(screen.getByText(paragraph)).toBeTruthy();
+  expect(screen.getByText(hindiContent.privacy)).toBeTruthy();
+  expect(screen.getByText(hindiContent.profilePrivacy)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('पसंदीदा भाषा और संपर्क का समय *'), { target: { value: 'हिन्दी, शाम को' } });
+  fireEvent.change(screen.getByLabelText('आप कौन-से उत्पाद और तकनीक बना सकते हैं *'), { target: { value: 'फूल और अमिगुरुमी खिलौने' } });
+  fireEvent.change(screen.getByLabelText('Form language / फॉर्म की भाषा'), { target: { value: 'en' } });
+  expect(screen.getByLabelText('Products and techniques you can make *')).toHaveProperty('value', 'फूल और अमिगुरुमी खिलौने');
+  fireEvent.change(screen.getByLabelText('Form language / फॉर्म की भाषा'), { target: { value: 'hi' } });
+  fireEvent.click(screen.getByLabelText(/मैंने सामग्री भेजने/));
+  fireEvent.submit(form);
+  expect(await screen.findByRole('region', { name: 'आवेदन की पुष्टि' })).toBeTruthy();
+  expect(submit.mock.calls[0][0]).toMatchObject({ fullName: 'परीक्षण कारीगर', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने' });
+  expect(screen.getByRole('link', { name: 'WhatsApp पर काम का वीडियो साझा करें' })).toBeTruthy();
+});
 it('provides hover and accessible mobile guidance without changing field labels or requirements', async () => {
   render(<ArtisanApplicationForm />);
   await screen.findByRole('form', { name: 'Artisan application' });

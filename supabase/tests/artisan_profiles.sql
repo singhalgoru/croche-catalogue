@@ -2,8 +2,8 @@ begin;
 create temporary table profile_fixture as select gen_random_uuid() admin_id,gen_random_uuid() applicant_id,
   gen_random_uuid() session_id,gen_random_uuid() factor_id,gen_random_uuid() invite_id,gen_random_uuid() application_id,
   gen_random_uuid() comment_id,gen_random_uuid() payment_id,repeat('f',64) token,
-  '{"fullName":"Synthetic Profile Fixture","address":"Synthetic delivery address","mobile":"9876543210","city":"Gurugram","state":"Haryana","pin":"122001",
-    "language":"Hindi","skills":"Crochet flowers","availability":"5 hours/week","experience":"","tools":"",
+  '{"fullName":"Synthetic Profile Fixture परीक्षण","address":"परीक्षण गली","mobile":"9876543210","city":"गुरुग्राम","state":"हरियाणा","pin":"122001",
+    "language":"हिन्दी, शाम को","skills":"Crochet flowers और अमिगुरुमी","availability":"हर सप्ताह 5 घंटे","experience":"","tools":"",
     "portfolioUrl":"","notes":"","adult":true,"consent":true,"paidTrial":true}'::jsonb details,
   jsonb_build_object('contentType','image/webp','consent',true,'consentVersion','2026-10-30.1',
     'data',encode(decode('52494646080000005745425056503820','hex'),'base64')) photo;
@@ -56,7 +56,11 @@ reset role;
 do $$ begin
   if (select count(*) from public.artisan_profile_photos where application_id=(select application_id from profile_fixture))<>1 then raise exception 'FAIL: photo not stored exactly once.'; end if;
   if not exists(select 1 from public.artisan_applications where id=(select application_id from profile_fixture)
-    and delivery_address='Synthetic delivery address' and has_profile_photo and skill_rating is null) then raise exception 'FAIL: profile not populated.'; end if;
+    and delivery_address='परीक्षण गली' and has_profile_photo and skill_rating is null) then raise exception 'FAIL: profile not populated.'; end if;
+  if current_setting('server_encoding') <> 'UTF8' then raise exception 'FAIL: database is not UTF8.'; end if;
+  if not exists(select 1 from public.artisan_applications a, profile_fixture f where a.id=f.application_id
+    and a.details=f.details-'address') then
+    raise exception 'FAIL: original Hindi answers changed.'; end if;
 end $$;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal1','session_id',session_id)::text,true) from profile_fixture;
 set local role authenticated;
@@ -84,6 +88,9 @@ do $$ declare f record; result jsonb; bad numeric; begin
   if (result->>'total')::integer<>1 then raise exception 'FAIL: combined skills/rating filter missed artisan.'; end if;
   if (public.list_artisan_applications('Synthetic Profile Fixture','',0,'flowers',5)->>'total')::integer<>0 then raise exception 'FAIL: rating filter ignored.'; end if;
   if (public.list_artisan_applications('Synthetic Profile Fixture','',0,'flowers',null)->>'total')::integer<>1 then raise exception 'FAIL: original application skills not searchable.'; end if;
+  result:=public.list_artisan_applications('परीक्षण','',0,'अमिगुरुमी',null);
+  if (result->>'total')::integer<>1 or result->'applications'->0->'details' <> f.details-'address' then
+    raise exception 'FAIL: Hindi search or admin response changed original answers.'; end if;
   result:=public.read_artisan_profile_photo(f.application_id);
   if result->>'data'<>f.photo->>'data' then raise exception 'FAIL: photo differs.'; end if;
   perform public.add_artisan_comment(f.application_id,f.comment_id,'Strong trial stitches');

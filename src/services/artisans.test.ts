@@ -24,6 +24,16 @@ it('sends only explicit application details, consent version and invitation toke
   });
   expect(anonymous).not.toHaveBeenCalled();
 });
+it('preserves Hindi and mixed-script answers and preferred language through submission and directory reads', async () => {
+  const hindi = { ...details, fullName: 'परीक्षण कारीगर', address: 'परीक्षण गली', city: 'गुरुग्राम', state: 'हरियाणा',
+    language: 'हिन्दी, शाम को', skills: 'क्रोशिया flowers और अमिगुरुमी', notes: 'फोन पर संपर्क करें' };
+  await submitArtisanApplication(hindi, 'receipt', 'private-token', true);
+  expect(rpc).toHaveBeenLastCalledWith('submit_artisan_application', expect.objectContaining({ application_details: hindi }));
+  const application = { id: 'receipt', details: hindi, status: 'New', admin_notes: '', version: 1,
+    created_at: '', updated_at: '', consent_version: '2026-10-29.2' };
+  rpc.mockResolvedValueOnce({ data: { applications: [application], total: 1 } });
+  expect((await fetchArtisanApplications('', '', 0)).applications[0].details).toEqual(hindi);
+});
 it('creates a CAPTCHA-protected guest session only if needed', async () => {
   session.mockResolvedValue({ data: { session: null } });
   await submitArtisanApplication(details, 'receipt', 'token', true);

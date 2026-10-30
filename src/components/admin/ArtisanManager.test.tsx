@@ -59,6 +59,16 @@ it('distinguishes legacy applications from recorded dispatch acknowledgement', a
   expect(screen.queryByText(/Not recorded \(earlier application\)/)).toBeNull();
 });
 afterEach(cleanup);
+it('displays original Hindi answers and preferred contact language in the directory and review', async () => {
+  list.mockResolvedValue({ applications: [{ ...application, details: { ...application.details,
+    fullName: 'परीक्षण कारीगर', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी', address: 'परीक्षण गली' } }], total: 1 });
+  render(<ArtisanManager />);
+  expect(await screen.findByText('Preferred language / contact time: हिन्दी, शाम को')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Review परीक्षण कारीगर' }));
+  expect(screen.getByText('हिन्दी, शाम को')).toBeTruthy();
+  expect(screen.getByText('फूल और अमिगुरुमी', { selector: 'dd' })).toBeTruthy();
+  expect(screen.getByText('परीक्षण गली')).toBeTruthy();
+});
 it('filters and searches the directory and saves a versioned review', async () => {
   render(<ArtisanManager />);
   fireEvent.change(screen.getByLabelText('Name, mobile, skill or location'), { target: { value: 'Flowers' } });

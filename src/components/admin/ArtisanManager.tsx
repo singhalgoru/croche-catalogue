@@ -188,6 +188,7 @@ export default function ArtisanManager() {
         <ul className="grid gap-3 md:grid-cols-2">{rows.map(application => <li key={application.id} className="min-w-0 rounded-xl border border-mustard/40 p-4">
           <h3 className="break-words font-semibold">{application.details.fullName}</h3>
           <p className="text-sm">{application.status} · {application.details.city}, {application.details.state}</p>
+          <p className="break-words text-sm">Preferred language / contact time: {application.details.language || 'Not provided'}</p>
           <p className="mt-1 line-clamp-2 break-words text-sm">{application.details.skills}</p>
           <p className="text-sm">Skill rating: {application.skill_rating ? `${application.skill_rating}/5` : 'Not rated'}</p>
           {application.capabilities && <p className="mt-1 line-clamp-2 break-words text-sm">Can create: {application.capabilities}</p>}

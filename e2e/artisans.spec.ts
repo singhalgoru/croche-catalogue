@@ -72,6 +72,44 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
 });
 }
 
+test('Hindi form preserves original answers across language switches and submission', async ({ page }) => {
+  await installMockSupabase(page);
+  const submissions: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/artisan_invitation_status', route => route.fulfill({ json: 'available' }));
+  await page.route('**/rest/v1/rpc/submit_artisan_application', async route => {
+    const body = route.request().postDataJSON(); submissions.push(body);
+    await route.fulfill({ json: body.request_id });
+  });
+  await page.goto(`./artisans/#invite=${token}`);
+  await expect(page.getByRole('form', { name: 'Artisan application' })).toBeVisible();
+  await page.getByLabel('Form language / फॉर्म की भाषा').selectOption('hi');
+  const form = page.getByRole('form', { name: 'कारीगर आवेदन' });
+  await form.getByLabel('पूरा नाम').fill('परीक्षण कारीगर');
+  await form.getByLabel('मोबाइल / WhatsApp नंबर').fill('9876543210');
+  await form.getByLabel('डिलीवरी का पता (वैकल्पिक)').fill('परीक्षण गली');
+  await form.getByLabel('शहर / क्षेत्र').fill('गुरुग्राम');
+  await form.getByLabel('राज्य', { exact: false }).fill('हरियाणा');
+  await form.getByLabel('पिन कोड').fill('122001');
+  await form.getByLabel('पसंदीदा भाषा और संपर्क का समय').fill('हिन्दी, शाम को');
+  await form.getByLabel('आप कौन-से उत्पाद और तकनीक बना सकते हैं').fill('फूल और अमिगुरुमी खिलौने');
+  await form.getByLabel('हर सप्ताह उपलब्ध समय और अनुमानित काम की क्षमता').fill('हर सप्ताह 5 घंटे');
+  await page.getByLabel('Form language / फॉर्म की भाषा').selectOption('en');
+  await expect(page.getByLabel('Full name')).toHaveValue('परीक्षण कारीगर');
+  await page.getByLabel('Form language / फॉर्म की भाषा').selectOption('hi');
+  await form.getByLabel(/मेरी आयु 18 वर्ष/).check();
+  await form.getByLabel(/जानकारी सही है/).check();
+  await form.getByLabel(/मैंने सामग्री भेजने/).check();
+  await expect(form.getByRole('heading', { name: 'आवेदन गोपनीयता सूचना' })).toBeVisible();
+  await form.getByRole('button', { name: 'आवेदन जमा करें' }).click();
+  await expect(page.getByRole('region', { name: 'आवेदन की पुष्टि' })).toBeVisible();
+  expect(submissions).toHaveLength(1);
+  expect(submissions[0]).toMatchObject({ application_details: { fullName: 'परीक्षण कारीगर', address: 'परीक्षण गली',
+    city: 'गुरुग्राम', state: 'हरियाणा', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने',
+    availability: 'हर सप्ताह 5 घंटे' } });
+  await expect(page.getByRole('link', { name: 'WhatsApp पर काम का वीडियो साझा करें' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
 test('missing and expired invitations never expose an application form', async ({ page }) => {
   await installMockSupabase(page);
   await page.route('**/rest/v1/rpc/artisan_invitation_status', route => route.fulfill({ json: 'unavailable' }));
