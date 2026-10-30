@@ -84,11 +84,12 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
       void run(async () => { onUpdated(await saveArtisanSkills(application, rating ? Number(rating) : null, capabilities)); onActivityChanged(); }, 'Skills and rating saved.');
     }}>
       <fieldset disabled={busy} className="space-y-3">
-        <label className="block text-sm font-semibold">Skill rating<select value={rating} onChange={event => setRating(event.target.value)} className={inputClass}>
+        <div className="text-sm font-semibold"><label htmlFor="artisan-skill-rating">Skill rating</label>
+        <select id="artisan-skill-rating" value={rating} onChange={event => setRating(event.target.value)} className={inputClass}>
           <option value="">Not rated</option>
           <option value="1">1 - Beginner / needs guidance</option><option value="2">2 - Developing</option>
           <option value="3">3 - Independent</option><option value="4">4 - Skilled</option><option value="5">5 - Advanced</option>
-        </select></label>
+        </select></div>
         <label className="block text-sm font-semibold">Can create / assessed skills<textarea rows={3} maxLength={2000}
           value={capabilities} onChange={event => setCapabilities(event.target.value)} className={inputClass} /></label>
         <p className="text-xs">Starts with the application skills. Add reviewed items such as flowers, bags or amigurumi. Rate demonstrated craft skills only; leave unrated until assessed.</p>
