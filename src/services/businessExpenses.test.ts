@@ -53,6 +53,16 @@ describe('business expense persistence', () => {
     await expect(fetchBusinessExpenses()).rejects.toThrow('denied');
   });
 
+  it('maps recurring provenance without sending it back in editable expense fields', async () => {
+    const query = { update: vi.fn(), eq: vi.fn(), select: vi.fn(), single: vi.fn().mockResolvedValue({
+      data: { ...row, recurring_expense_id: 'schedule', recurring_date: '2026-10-08' },
+    }) };
+    query.update.mockReturnValue(query); query.eq.mockReturnValue(query); query.select.mockReturnValue(query); from.mockReturnValue(query);
+    const saved = await saveBusinessExpense(input, row.id);
+    expect(saved).toMatchObject({ recurringExpenseId: 'schedule', recurringDate: '2026-10-08' });
+    expect(query.update.mock.calls[0][0]).not.toHaveProperty('recurring_expense_id');
+  });
+
   it('verifies delete affects an expense and reports failures', async () => {
     const query = { delete: vi.fn(), eq: vi.fn(), select: vi.fn().mockResolvedValue({ data: [{ id: row.id }], error: null }) };
     query.delete.mockReturnValue(query); query.eq.mockReturnValue(query); from.mockReturnValue(query);

@@ -11,8 +11,10 @@ export interface BusinessExpense {
   category: ExpenseCategory;
   amount: number;
   notes: string;
+  recurringExpenseId?: string | null;
+  recurringDate?: string | null;
 }
-export type BusinessExpenseInput = Omit<BusinessExpense, 'id'>;
+export type BusinessExpenseInput = Omit<BusinessExpense, 'id' | 'recurringExpenseId' | 'recurringDate'>;
 interface ExpenseRow {
   id: string;
   description: string;
@@ -20,18 +22,21 @@ interface ExpenseRow {
   category: ExpenseCategory;
   amount: number | string;
   notes: string;
+  recurring_expense_id?: string | null;
+  recurring_date?: string | null;
 }
-const columns = 'id,description,expense_date,category,amount,notes';
+const columns = 'id,description,expense_date,category,amount,notes,recurring_expense_id,recurring_date';
 const mapExpense = (row: ExpenseRow): BusinessExpense => ({
   id: row.id, description: row.description, expenseDate: row.expense_date,
   category: row.category, amount: Number(row.amount), notes: row.notes,
+  ...(row.recurring_expense_id ? { recurringExpenseId: row.recurring_expense_id, recurringDate: row.recurring_date } : {}),
 });
 const requireClient = async () => {
   const client = await loadSupabase();
   if (!client) throw new Error('Supabase is not configured.');
   return client;
 };
-const expenseColumns = (input: BusinessExpenseInput) => {
+export const expenseColumns = (input: BusinessExpenseInput) => {
   if (!input.description.trim() || input.description.trim().length > 150) {
     throw new Error('Enter an expense description of at most 150 characters.');
   }

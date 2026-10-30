@@ -792,6 +792,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
       </div>
       <BusinessExpensesPanel month={month} expenses={monthExpenses} loading={!financialsLoaded || isImporting || busy}
         onBusyChange={setExpenseBusy}
+        onExpensesChanged={loadDashboard}
         onSaved={expense => {
           setExpenses(current => [...current.filter(item => item.id !== expense.id), expense]);
           setMonth(expense.expenseDate.slice(0, 7));
