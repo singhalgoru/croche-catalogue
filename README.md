@@ -61,6 +61,8 @@ an India-based handmade crochet brand.
   Invitations expire after 24 hours or one submission. Applications include
   material-dispatch terms and an optional, consented masked-ID photo.
   After submitting, artisans can optionally share a short work video on WhatsApp.
+  Private working profiles include skill/rating filters, comments and payment
+  records, with onboarding details and separately consented profile photos.
 
 ## Ordering
 

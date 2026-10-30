@@ -3,9 +3,10 @@ import content from '../../content/artisanOnboarding.json';
 import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fetchArtisanHistory, readArtisanIdentity, removeArtisanIdentity, updateArtisanApplication } from '../../services/artisans';
 import type { ArtisanApplication, ArtisanHistory, ArtisanStatus } from '../../services/artisans';
 import ArtisanInvitations from './ArtisanInvitations';
+import ArtisanProfile from './ArtisanProfile';
 
-function ArtisanReview({ application, onClose, onChanged }: {
-  application: ArtisanApplication; onClose: () => void; onChanged: () => void;
+function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
+  application: ArtisanApplication; onClose: () => void; onChanged: () => void; onUpdated: (application: ArtisanApplication) => void;
 }) {
   const [status, setStatus] = useState<ArtisanStatus>(application.status);
   const [notes, setNotes] = useState(application.admin_notes);
@@ -29,7 +30,7 @@ function ArtisanReview({ application, onClose, onChanged }: {
   useEffect(() => {
     let current = true;
     void fetchArtisanHistory(application.id).then(rows => {
-      if (current) setHistory(rows);
+      if (current) { setHistory(rows); setHistoryError(''); }
     }).catch(failure => {
       if (current) setHistoryError(failure instanceof Error ? failure.message : 'Unable to load history.');
     }).finally(() => { if (current) setHistoryLoading(false); });
@@ -44,7 +45,8 @@ function ArtisanReview({ application, onClose, onChanged }: {
     <dl className="grid gap-3 sm:grid-cols-2">
       {content.fields.map(field => <div key={field.name} className="min-w-0">
         <dt className="text-sm font-semibold">{field.label}</dt>
-        <dd className="whitespace-pre-wrap break-words">{String(Reflect.get(application.details, field.name)) || 'Not provided'}</dd>
+        <dd className="whitespace-pre-wrap break-words">{(field.name === 'address' ? application.delivery_address || application.details.address
+          : Reflect.get(application.details, field.name)) || 'Not provided'}</dd>
       </div>)}
       <div><dt className="text-sm font-semibold">Paid trial interest</dt><dd>{application.details.paidTrial ? 'Yes' : 'Not selected'}</dd></div>
       <div><dt className="text-sm font-semibold">Confirmations</dt><dd>18 or older; application privacy consent recorded.</dd></div>
@@ -84,6 +86,8 @@ function ArtisanReview({ application, onClose, onChanged }: {
       </>}
     </section>
     <p className="text-xs">Portfolio links are unverified. Review only for selection; do not republish without separate permission.</p>
+    <ArtisanProfile application={application} onUpdated={onUpdated} disabled={busy} onBusyChange={setBusy}
+      onActivityChanged={() => setHistoryKey(value => value + 1)} />
     <form aria-label="Review artisan" className="space-y-3" onSubmit={event => {
       event.preventDefault(); setBusy(true); setError('');
       void updateArtisanApplication(application, status, notes).then(onChanged)
@@ -126,7 +130,10 @@ function ArtisanReview({ application, onClose, onChanged }: {
 
 export default function ArtisanManager() {
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState({ search: '', status: '' });
+  const [skill, setSkill] = useState('');
+  const [filter, setFilter] = useState<{ search: string; status: string; skill: string; minimumRating: number | null }>({
+    search: '', status: '', skill: '', minimumRating: null,
+  });
   const [page, setPage] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [rows, setRows] = useState<ArtisanApplication[]>([]);
@@ -137,24 +144,26 @@ export default function ArtisanManager() {
   const [message, setMessage] = useState('');
   useEffect(() => {
     let current = true;
-    void fetchArtisanApplications(filter.search, filter.status, page).then(result => {
+    void fetchArtisanApplications(filter.search, filter.status, page, filter.skill, filter.minimumRating).then(result => {
       if (current) { setRows(result.applications); setTotal(result.total); }
     }).catch(failure => {
       if (current) setError(failure instanceof Error ? failure.message : 'Unable to load applications.');
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [filter, page, refresh]);
-  if (selected) return <ArtisanReview key={selected.id} application={selected} onClose={() => setSelected(null)} onChanged={() => {
+  if (selected) return <ArtisanReview key={selected.id} application={selected} onUpdated={setSelected} onClose={() => {
+    setSelected(null); setLoading(true); setRefresh(value => value + 1);
+  }} onChanged={() => {
     setSelected(null); setPage(0); setLoading(true); setError(''); setRefresh(value => value + 1); setMessage('Application changes saved.');
   }} />;
   return <div className="space-y-5 text-cocoa">
     <ArtisanInvitations />
     <section aria-labelledby="artisan-directory-title" className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <h2 id="artisan-directory-title" className="font-heading text-2xl font-bold">Artisan applications</h2>
-      <p className="text-sm">Private applications, not a public artisan directory. Review before arranging a paid trial. Unapproved applications expire after 180 days without an update.</p>
+      <p className="text-sm">Private applications and working profiles, not a public artisan directory. Unapproved applications without payment history expire after 180 days without an update.</p>
       {message && <p role="status">{message}</p>}
       <form role="search" aria-label="Search artisans" className="flex flex-wrap items-end gap-3" onSubmit={event => {
-        event.preventDefault(); setLoading(true); setError(''); setPage(0); setFilter(current => ({ ...current, search: search.trim() })); setRefresh(value => value + 1);
+        event.preventDefault(); setLoading(true); setError(''); setPage(0); setFilter(current => ({ ...current, search: search.trim(), skill: skill.trim() })); setRefresh(value => value + 1);
       }}>
         <label className="min-w-0 flex-1 text-sm">Name, mobile, skill or location<input maxLength={100} value={search}
           onChange={event => setSearch(event.target.value)} className="mt-1 block min-h-11 w-full rounded border p-2" /></label>
@@ -162,6 +171,14 @@ export default function ArtisanManager() {
           setLoading(true); setError(''); setPage(0); setFilter(current => ({ ...current, status: event.target.value }));
         }} className="mt-1 block min-h-11 w-full rounded border p-2"><option value="">All statuses</option>
           {artisanStatuses.map(value => <option key={value}>{value}</option>)}
+        </select></label>
+        <label className="min-w-0 flex-1 text-sm">Skill / can create<input maxLength={100} value={skill}
+          onChange={event => setSkill(event.target.value)} className="mt-1 block min-h-11 w-full rounded border p-2" /></label>
+        <label className="text-sm">Minimum skill rating<select value={filter.minimumRating ?? ''} onChange={event => {
+          setLoading(true); setError(''); setPage(0); setFilter(current => ({ ...current, minimumRating: event.target.value ? Number(event.target.value) : null }));
+        }} className="mt-1 block min-h-11 w-full rounded border p-2">
+          <option value="">All ratings (including unrated)</option>
+          {[1, 2, 3, 4, 5].map(rating => <option key={rating} value={rating}>{rating}+ / 5</option>)}
         </select></label>
         <button disabled={loading} className="min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-50">Search / refresh</button>
       </form>
@@ -172,6 +189,8 @@ export default function ArtisanManager() {
           <h3 className="break-words font-semibold">{application.details.fullName}</h3>
           <p className="text-sm">{application.status} · {application.details.city}, {application.details.state}</p>
           <p className="mt-1 line-clamp-2 break-words text-sm">{application.details.skills}</p>
+          <p className="text-sm">Skill rating: {application.skill_rating ? `${application.skill_rating}/5` : 'Not rated'}</p>
+          {application.capabilities && <p className="mt-1 line-clamp-2 break-words text-sm">Can create: {application.capabilities}</p>}
           <button onClick={() => { setMessage(''); setSelected(application); }} className="mt-2 min-h-11 underline">Review {application.details.fullName}</button>
         </li>)}</ul>
         <div className="flex flex-wrap items-center gap-4">

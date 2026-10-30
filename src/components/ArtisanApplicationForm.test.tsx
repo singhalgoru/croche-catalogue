@@ -3,9 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ArtisanApplicationForm from './ArtisanApplicationForm';
 import content from '../content/artisanOnboarding.json';
 
-const { check, submit, prepare } = vi.hoisted(() => ({ check: vi.fn(), submit: vi.fn(), prepare: vi.fn() }));
+const { check, submit, prepare, preparePhoto } = vi.hoisted(() => ({ check: vi.fn(), submit: vi.fn(), prepare: vi.fn(), preparePhoto: vi.fn() }));
 vi.mock('../services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('../services/artisans')>(), checkArtisanInvitation: check, submitArtisanApplication: submit, prepareArtisanIdentity: prepare,
+  prepareArtisanProfilePhoto: preparePhoto,
 }));
 const token = 'a'.repeat(64);
 beforeEach(() => {
@@ -70,7 +71,7 @@ it('preserves details and request ID on a failed submission, then confirms persi
   expect((await screen.findByRole('status')).textContent).toContain('saved-reference');
   expect(submit.mock.calls[0][1]).toBe(submit.mock.calls[1][1]);
   expect(submit.mock.calls[0][2]).toBe(token);
-  expect(submit.mock.calls[0].slice(3)).toEqual([true, null]);
+  expect(submit.mock.calls[0].slice(3)).toEqual([true, null, null]);
   expect(window.location.hash).toBe('');
   expect(screen.queryByRole('form')).toBeNull();
   expect(localStorage.getItem('artisan-application')).toBeNull();
@@ -84,6 +85,24 @@ it('preserves details and request ID on a failed submission, then confirms persi
   expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   expect(screen.getByText(/A video is not required/).textContent).toContain('not publish it without separate permission');
   expect(screen.getByText(/Attach your video in WhatsApp/)).toBeTruthy();
+});
+it('keeps the profile photo separate from ID, requires consent and reuses prepared bytes on retry', async () => {
+  const photo = { contentType: 'image/webp', data: 'fixture', consent: true, consentVersion: '2026-10-30.1' };
+  preparePhoto.mockResolvedValue(photo); submit.mockRejectedValueOnce(new Error('Interrupted'));
+  render(<ArtisanApplicationForm />); const form = await screen.findByRole('form');
+  fireEvent.change(screen.getByLabelText('Delivery address (optional)'), { target: { value: 'Synthetic address' } });
+  fireEvent.click(screen.getByLabelText(/I have read and acknowledge the material dispatch/));
+  fireEvent.change(screen.getByLabelText(/^Profile photo \(/), { target: { files: [new File(['fixture'], 'portrait.jpg', { type: 'image/jpeg' })] } });
+  fireEvent.submit(form);
+  expect((await screen.findByRole('alert')).textContent).toContain('Consent to private profile-photo');
+  expect(preparePhoto).not.toHaveBeenCalled(); expect(prepare).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByLabelText(/I consent to private database storage of my profile photo/));
+  fireEvent.submit(form); await screen.findByText('Interrupted');
+  fireEvent.submit(form); await screen.findByRole('region', { name: 'Application confirmation' });
+  expect(preparePhoto).toHaveBeenCalledOnce();
+  expect(submit.mock.calls[0][0].address).toBe('Synthetic address');
+  expect(submit.mock.calls[0][1]).toBe(submit.mock.calls[1][1]);
+  expect(submit.mock.calls[0][4]).toBeNull(); expect(submit.mock.calls[0][5]).toEqual(photo);
 });
 it('shows all material terms and blocks a submission without their acknowledgement', async () => {
   render(<ArtisanApplicationForm />);

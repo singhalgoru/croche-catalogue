@@ -20,7 +20,7 @@ it('sends only explicit application details, consent version and invitation toke
   expect(await submitArtisanApplication(details, 'receipt', 'private-token', true)).toBe('receipt');
   expect(rpc).toHaveBeenCalledWith('submit_artisan_application', {
     request_id: 'receipt', application_details: details, privacy_version: '2026-10-29.2', invitation_token: 'private-token',
-    dispatch_terms_version: '2026-10-29.1', identity_document: null,
+    dispatch_terms_version: '2026-10-29.1', identity_document: null, profile_photo: null,
   });
   expect(anonymous).not.toHaveBeenCalled();
 });
@@ -89,7 +89,10 @@ it('validates invitation status and admin directory response shapes', async () =
   await expect(checkArtisanInvitation('token')).rejects.toThrow('Invalid invitation');
   rpc.mockResolvedValueOnce({ data: { applications: [], total: 0 } });
   expect(await fetchArtisanApplications('flowers', 'New', 0)).toEqual({ applications: [], total: 0 });
-  expect(rpc).toHaveBeenLastCalledWith('list_artisan_applications', { search_text: 'flowers', status_filter: 'New', page_number: 0 });
+  expect(rpc).toHaveBeenLastCalledWith('list_artisan_applications', { search_text: 'flowers', status_filter: 'New', page_number: 0, skill_filter: '', minimum_rating: null });
+  rpc.mockResolvedValueOnce({ data: { applications: [], total: 0 } });
+  await fetchArtisanApplications('', 'Approved', 2, 'amigurumi', 4);
+  expect(rpc).toHaveBeenLastCalledWith('list_artisan_applications', { search_text: '', status_filter: 'Approved', page_number: 2, skill_filter: 'amigurumi', minimum_rating: 4 });
   rpc.mockResolvedValueOnce({ data: { applications: [{}], total: 1 } });
   await expect(fetchArtisanApplications('', '', 0)).rejects.toThrow('Invalid artisan directory');
 });

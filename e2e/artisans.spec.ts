@@ -21,6 +21,7 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   await expect(form.getByLabel('Public portfolio link (e.g. Instagram) (optional)')).toBeVisible();
   await form.getByLabel('Full name').fill('Sample Maker');
   await form.getByLabel('Mobile / WhatsApp number').fill('9876543210');
+  await form.getByLabel('Delivery address (optional)').fill('Synthetic delivery address');
   await form.getByLabel('City / area').fill('Gurugram');
   await form.getByLabel(/^State/).fill('Haryana');
   await form.getByLabel('PIN code').fill('122001');
@@ -34,6 +35,8 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
     const buffer = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#dddddd' } }).png().toBuffer();
     await form.getByLabel('Masked ID photo', { exact: false }).setInputFiles({ name: 'synthetic-id.png', mimeType: 'image/png', buffer });
     await form.getByLabel(/I have permanently masked/).check();
+    await form.getByLabel(/^Profile photo \(/).setInputFiles({ name: 'synthetic-portrait.png', mimeType: 'image/png', buffer });
+    await form.getByLabel(/I consent to private database storage of my profile photo/).check();
   }
   await expect(page.getByRole('banner')).toBeVisible();
   await expect(page.getByRole('contentinfo')).toBeVisible();
@@ -54,11 +57,15 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   expect(submissions[0]).toMatchObject({ invitation_token: token, privacy_version: '2026-10-29.2',
     dispatch_terms_version: '2026-10-29.1', identity_document: withIdentity
       ? { documentType: 'masked_aadhaar', contentType: 'image/webp', consent: true, data: expect.any(String) } : null,
-    application_details: { fullName: 'Sample Maker', paidTrial: false, portfolioUrl: '', adult: true, consent: true } });
+    profile_photo: withIdentity ? { contentType: 'image/webp', consent: true, consentVersion: '2026-10-30.1', data: expect.any(String) } : null,
+    application_details: { fullName: 'Sample Maker', address: 'Synthetic delivery address', paidTrial: false, portfolioUrl: '', adult: true, consent: true } });
   if (withIdentity) {
     const document = submissions[0].identity_document as { data: string };
     const metadata = await sharp(Buffer.from(document.data, 'base64')).metadata();
     expect(metadata.format).toBe('webp'); expect(metadata.exif).toBeUndefined();
+    const portrait = submissions[0].profile_photo as { data: string };
+    const photoMetadata = await sharp(Buffer.from(portrait.data, 'base64')).metadata();
+    expect(photoMetadata.format).toBe('webp'); expect(photoMetadata.exif).toBeUndefined();
   }
   await expect(page).toHaveURL(/\/artisans\/$/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -89,17 +96,54 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
     updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29.2',
     dispatch_terms_version: '2026-10-29.1', dispatch_terms_accepted_at: '2026-10-29T00:00:00Z',
     identity_type: 'masked_aadhaar', identity_expires_at: '2026-11-28T00:00:00Z',
+    delivery_address: 'Synthetic delivery address', skill_rating: null as number | null, capabilities: '', has_profile_photo: true,
   };
   await page.route('**/rest/v1/artisan_invitations*', route => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/artisan_application_history*', route => route.fulfill({ json: [] }));
-  await page.route('**/rest/v1/rpc/list_artisan_applications', route => route.fulfill({ json: { applications: [application], total: 1 } }));
+  const filters: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/list_artisan_applications', async route => {
+    const body = route.request().postDataJSON(); filters.push(body);
+    const matches = (!body.minimum_rating || (application.skill_rating ?? 0) >= body.minimum_rating)
+      && (!body.skill_filter || `${application.details.skills} ${application.capabilities}`.toLowerCase().includes(body.skill_filter.toLowerCase()));
+    await route.fulfill({ json: { applications: matches ? [application] : [], total: matches ? 1 : 0 } });
+  });
   await page.route('**/rest/v1/rpc/update_artisan_application', async route => {
     const body = route.request().postDataJSON(); updates.push(body);
-    await route.fulfill({ json: { ...application, status: body.next_status, admin_notes: body.review_notes, version: 2 } });
+    Object.assign(application, { status: body.next_status, admin_notes: body.review_notes, version: application.version + 1 });
+    await route.fulfill({ json: application });
+  });
+  const comments: Record<string, unknown>[] = [];
+  const payments: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/rpc/artisan_activity', route => route.fulfill({ json: { comments, payments } }));
+  await page.route('**/rest/v1/rpc/save_artisan_skills', async route => {
+    const body = route.request().postDataJSON();
+    expect(body.expected_version).toBe(application.version);
+    Object.assign(application, { skill_rating: body.rating, capabilities: body.can_create, version: application.version + 1 });
+    await route.fulfill({ json: application });
+  });
+  await page.route('**/rest/v1/rpc/add_artisan_comment', async route => {
+    const body = route.request().postDataJSON();
+    comments.push({ id: body.request_id, body: body.comment_body, created_at: '2026-10-30T00:00:00Z' });
+    await route.fulfill({ json: body.request_id });
+  });
+  await page.route('**/rest/v1/rpc/record_artisan_payment', async route => {
+    const body = route.request().postDataJSON();
+    payments.push({ id: body.request_id, paid_on: body.payment_date, amount: body.payment_amount, method: body.payment_method,
+      reference: body.payment_reference, description: body.payment_description, created_at: '2026-10-30T00:00:00Z', voided_at: null, void_reason: null });
+    await route.fulfill({ json: body.request_id });
+  });
+  await page.route('**/rest/v1/rpc/void_artisan_payment', async route => {
+    const body = route.request().postDataJSON();
+    const payment = payments.find(entry => entry.id === body.payment_id)!;
+    payment.voided_at = '2026-10-30T00:00:00Z'; payment.void_reason = body.reason;
+    await route.fulfill({ json: body.payment_id });
   });
   const identityReads: unknown[] = [];
   const identityRemovals: Record<string, unknown>[] = [];
   const identityImage = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#dddddd' } }).webp().toBuffer();
+  await page.route('**/rest/v1/rpc/read_artisan_profile_photo', route => route.fulfill({
+    json: { contentType: 'image/webp', data: identityImage.toString('base64') },
+  }));
   await page.route('**/rest/v1/rpc/read_artisan_identity_document', async route => {
     identityReads.push(route.request().postDataJSON());
     await route.fulfill({ json: { contentType: 'image/webp', data: identityImage.toString('base64'), expiresAt: application.identity_expires_at } });
@@ -129,6 +173,28 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await expect(page.getByRole('link', { name: 'Open WhatsApp to send' })).toHaveAttribute('href', /^https:\/\/wa.me\/919876543210\?text=/);
   expect(invites[1].token).not.toBe(invites[0].token);
   await page.getByRole('button', { name: 'Review Sample Maker' }).click();
+  await expect(page.getByText('Synthetic delivery address', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Can create / assessed skills')).toHaveValue('Flowers');
+  await page.getByRole('button', { name: 'View profile photo' }).click();
+  await expect(page.getByAltText('Private profile of Sample Maker')).toBeVisible();
+  await page.getByLabel('Skill rating', { exact: true }).selectOption('4');
+  await page.getByLabel('Can create / assessed skills').fill('Amigurumi toys and flowers');
+  await page.getByRole('button', { name: 'Save skills and rating' }).click();
+  await expect(page.getByText('Skills and rating saved.', { exact: true })).toBeVisible();
+  await page.getByLabel('New internal comment').fill('Paid trial stitches reviewed');
+  await page.getByRole('button', { name: 'Add comment', exact: true }).click();
+  await expect(page.getByText('Paid trial stitches reviewed', { exact: true })).toBeVisible();
+  await page.getByLabel('Amount paid (INR)').fill('125.50');
+  await page.getByLabel('Transaction reference (optional for cash)').fill('synthetic-payment');
+  await page.getByLabel('Work / batch description').fill('Paid trial flowers');
+  await page.getByRole('button', { name: 'Record payment', exact: true }).click();
+  await expect(page.getByText('Payment recorded. No money was sent by this site.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('125.50');
+  await page.getByRole('button', { name: /^Void payment/ }).click();
+  await page.getByLabel('Reason for voiding').fill('Wrong batch reference');
+  await page.getByRole('button', { name: 'Confirm void payment', exact: true }).click();
+  await expect(page.getByText('Payment voided; original entry retained.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('0.00');
   expect(identityReads).toHaveLength(0);
   await page.getByRole('button', { name: 'View private ID' }).click();
   await expect(page.getByAltText('Private artisan identity document')).toBeVisible();
@@ -139,12 +205,17 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('Internal review notes').fill('Paid trial discussion arranged');
   await page.getByRole('button', { name: 'Save review' }).click();
   await expect(page.getByText('Application changes saved.')).toBeVisible();
-  expect(updates[0]).toMatchObject({ expected_version: 1, next_status: 'Contacted', review_notes: 'Paid trial discussion arranged' });
+  expect(updates[0]).toMatchObject({ expected_version: 2, next_status: 'Contacted', review_notes: 'Paid trial discussion arranged' });
+  await page.getByLabel('Skill / can create', { exact: true }).fill('amigurumi');
+  await page.getByRole('button', { name: 'Search / refresh' }).click();
+  await page.getByLabel('Minimum skill rating').selectOption('4');
+  await expect(page.getByRole('button', { name: 'Review Sample Maker' })).toBeVisible();
+  expect(filters.some(filter => filter.skill_filter === 'amigurumi' && filter.minimum_rating === 4)).toBe(true);
   await page.getByRole('button', { name: 'Review Sample Maker' }).click();
   await page.getByRole('button', { name: 'Remove ID after review' }).click();
   expect(identityRemovals).toHaveLength(0);
   await page.getByRole('button', { name: 'Confirm ID removal' }).click();
   await expect(page.getByText('Application changes saved.')).toBeVisible();
-  expect(identityRemovals[0]).toMatchObject({ application_id: application.id, expected_version: 1 });
+  expect(identityRemovals[0]).toMatchObject({ application_id: application.id, expected_version: 3 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

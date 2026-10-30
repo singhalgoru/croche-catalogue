@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import content from '../content/artisanOnboarding.json';
-import { checkArtisanInvitation, emptyArtisanDetails, prepareArtisanIdentity, submitArtisanApplication } from '../services/artisans';
-import type { ArtisanIdentityUpload } from '../services/artisans';
+import { checkArtisanInvitation, emptyArtisanDetails, prepareArtisanIdentity, prepareArtisanProfilePhoto, submitArtisanApplication } from '../services/artisans';
+import type { ArtisanIdentityUpload, ArtisanProfilePhoto } from '../services/artisans';
 import { getWhatsAppNumber } from '../utils/whatsapp';
 
 export default function ArtisanApplicationForm() {
@@ -18,6 +18,10 @@ export default function ArtisanApplicationForm() {
   const [identityConsent, setIdentityConsent] = useState(false);
   const [preparedIdentity, setPreparedIdentity] = useState<ArtisanIdentityUpload | null>(null);
   const identityInput = useRef<HTMLInputElement>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoConsent, setPhotoConsent] = useState(false);
+  const [preparedPhoto, setPreparedPhoto] = useState<ArtisanProfilePhoto | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const focusConfirmation = useCallback((element: HTMLHeadingElement | null) => element?.focus(), []);
   useEffect(() => {
@@ -26,6 +30,7 @@ export default function ArtisanApplicationForm() {
       setToken(next); setInvitation(/^[a-f0-9]{64}$/.test(next) ? 'checking' : 'unavailable');
       setError(''); setReceipt(''); setDetails({ ...emptyArtisanDetails }); request.current = null;
       setDispatchAcknowledged(false); setIdentityFile(null); setIdentityConsent(false); setPreparedIdentity(null);
+      setPhotoFile(null); setPhotoConsent(false); setPreparedPhoto(null);
     };
     window.addEventListener('hashchange', changeInvitation);
     return () => window.removeEventListener('hashchange', changeInvitation);
@@ -75,11 +80,15 @@ export default function ArtisanApplicationForm() {
         if (identityFile && !identityConsent) throw new Error('Confirm the ID is masked and consent to private identity review, or remove the file.');
         const identity = identityFile ? preparedIdentity ?? await prepareArtisanIdentity(identityFile, identityType) : null;
         if (identity) setPreparedIdentity(identity);
-        const signature = JSON.stringify({ details, dispatchAcknowledged, identity });
+        if (photoFile && !photoConsent) throw new Error('Consent to private profile-photo storage or remove the photo.');
+        const photo = photoFile ? preparedPhoto ?? await prepareArtisanProfilePhoto(photoFile) : null;
+        if (photo) setPreparedPhoto(photo);
+        const signature = JSON.stringify({ details, dispatchAcknowledged, identity, photo });
         if (request.current?.signature !== signature) request.current = { signature, id: crypto.randomUUID() };
-        const id = await submitArtisanApplication(details, request.current.id, token, dispatchAcknowledged, identity);
+        const id = await submitArtisanApplication(details, request.current.id, token, dispatchAcknowledged, identity, photo);
         setReceipt(id); setDetails({ ...emptyArtisanDetails }); setIdentityFile(null); setPreparedIdentity(null);
         setIdentityConsent(false); request.current = null;
+        setPhotoFile(null); setPhotoConsent(false); setPreparedPhoto(null);
         window.history.replaceState(window.history.state, '', window.location.pathname);
       })().catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to save your application. Retry without changing your details.'))
         .finally(() => setBusy(false));
@@ -91,14 +100,14 @@ export default function ArtisanApplicationForm() {
         {field.maxLength >= 500 && field.name !== 'portfolioUrl'
           ? <textarea id={`artisan-${field.name}`} title={field.hint} aria-describedby={field.hint ? `artisan-${field.name}-hint` : undefined}
               name={field.name} required={field.required} maxLength={field.maxLength} rows={3}
-              value={String(Reflect.get(details, field.name))}
+              value={String(Reflect.get(details, field.name) ?? '')}
               onChange={event => setDetails(current => ({ ...current, [field.name]: event.target.value }))}
               className="mt-1 block w-full rounded-lg border border-cocoa/30 p-3" />
           : <input id={`artisan-${field.name}`} title={field.hint} aria-describedby={field.hint ? `artisan-${field.name}-hint` : undefined}
               name={field.name} required={field.required} maxLength={field.maxLength} autoComplete={field.autocomplete}
               type={field.name === 'mobile' ? 'tel' : field.name === 'portfolioUrl' ? 'url' : 'text'}
               inputMode={field.name === 'pin' ? 'numeric' : undefined}
-              value={String(Reflect.get(details, field.name))}
+              value={String(Reflect.get(details, field.name) ?? '')}
               onChange={event => setDetails(current => ({ ...current, [field.name]: event.target.value }))}
               className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/30 p-3" />}
       </div>)}
@@ -106,6 +115,23 @@ export default function ArtisanApplicationForm() {
         onChange={event => setDetails(current => ({ ...current, paidTrial: event.target.checked }))} />I am interested in a small paid sample or trial (optional).</label>
       <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2"><input className="mt-1" type="checkbox" required checked={details.adult}
         onChange={event => setDetails(current => ({ ...current, adult: event.target.checked }))} />I confirm I am 18 or older. *</label>
+      <section aria-label="Optional private profile photo" className="space-y-3 rounded-xl bg-cream p-4 text-sm sm:col-span-2">
+        <h2 className="font-semibold">Profile photo (optional)</h2>
+        <p>A photo of yourself helps authorised Luvia admins recognise your private artisan profile. It is not an ID document or required for selection. Do not upload other people or identity documents.</p>
+        <label className="block">Profile photo (JPG, PNG or WebP; up to 5 MB)<input ref={photoInput} key={token} type="file"
+          accept="image/jpeg,image/png,image/webp" className="mt-1 block min-h-11 w-full max-w-full rounded border p-2"
+          onChange={event => { setPhotoFile(event.target.files?.[0] ?? null); setPreparedPhoto(null); setPhotoConsent(false); }} /></label>
+        {photoFile && <>
+          <button type="button" className="min-h-11 underline" onClick={() => {
+            setPhotoFile(null); setPreparedPhoto(null); setPhotoConsent(false);
+            if (photoInput.current) photoInput.current.value = '';
+          }}>Remove selected profile photo</button>
+          <label className="flex min-h-11 items-start gap-3"><input type="checkbox" required checked={photoConsent} className="mt-1"
+            onChange={event => setPhotoConsent(event.target.checked)} />
+            I consent to private database storage of my profile photo for application review and our working relationship, not public use. I can request removal at hello@luviacreations.com. It is deleted with my application or earlier on request; private backups may retain it longer.</label>
+        </>}
+        <p className="text-xs">Photo consent version 2026-10-30.1. The photo is never copied from your identity document.</p>
+      </section>
       <section aria-labelledby="artisan-id-heading" className="space-y-3 rounded-xl bg-cream p-4 text-sm sm:col-span-2">
         <h2 id="artisan-id-heading" className="font-semibold">One identity document (optional)</h2>
         <p>Upload a masked Aadhaar or an alternative government ID photo for private manual review. Aadhaar is not mandatory; you can arrange alternative verification with Luvia.</p>
@@ -137,7 +163,7 @@ export default function ArtisanApplicationForm() {
         onChange={event => setDispatchAcknowledged(event.target.checked)} />
         I have read and acknowledge the material dispatch and courier charge terms. The actual courier estimate must be separately agreed before dispatch. *</label>
       <section aria-labelledby="artisan-privacy-heading" className="space-y-2 rounded-xl bg-cream p-4 text-sm sm:col-span-2">
-        <h2 id="artisan-privacy-heading" className="font-semibold">Application privacy notice</h2><p>{content.privacy}</p>
+        <h2 id="artisan-privacy-heading" className="font-semibold">Application privacy notice</h2><p>{content.privacy}</p><p>{content.profilePrivacy}</p>
         <a href="/privacy-policy/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">Read the Privacy Policy</a>
       </section>
       <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2"><input className="mt-1" type="checkbox" required checked={details.consent}

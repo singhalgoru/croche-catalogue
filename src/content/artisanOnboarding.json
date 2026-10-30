@@ -3,6 +3,7 @@
   "title": "Create with Luvia: artisan application",
   "description": "Invited artisans can share their crochet and handmade skills for possible home-based, batch-by-batch work with Luvia Creations.",
   "consentVersion": "2026-10-29.2",
+  "profilePrivacy": "Your delivery address, if provided, is used for agreed material deliveries. Authorised admins may record private work-related comments, demonstrated skills, ratings and payments for our working relationship. Payment history and the linked profile are retained for accounting and applicable legal obligations, including after the relationship ends; contact hello@luviacreations.com about access, correction or lawful deletion. A separately consented optional profile photo is private, not used for public promotion, and can be removed without deleting payment history.",
   "privacy": "We use this application to assess your skills, contact you and coordinate a possible paid trial. It is private and accessible only to authorised administrators and our hosting/authentication providers. An application/session reference is stored for abuse prevention. Applications not approved are deleted after 180 days without an update; approved and inactive profiles are retained while needed for the working relationship and applicable legal obligations. An optional masked ID image is stored privately in the database with separate consent for manual identity review, not Aadhaar authentication. It is available for at most 30 days and deleted by the next hourly cleanup, or earlier after review. Normal private backup retention may outlast deletion from the live database. Contact hello@luviacreations.com to request access, correction or deletion or arrange alternative identity verification. Do not include full Aadhaar numbers, QR/barcodes, bank details, passwords, OTPs, health information or another person's contact details. Portfolio links are reviewed for selection only; they do not give us permission to publish your work or story.",
   "dispatchTermsVersion": "2026-10-29.1",
   "dispatchTermsTitle": "Initial Material Dispatch and Courier Charges",
@@ -16,6 +17,7 @@
   "fields": [
     { "name": "fullName", "label": "Full name", "required": true, "maxLength": 100, "autocomplete": "name" },
     { "name": "mobile", "label": "Mobile / WhatsApp number", "required": true, "maxLength": 20, "autocomplete": "tel" },
+    { "name": "address", "label": "Delivery address (optional)", "hint": "House, street and locality for agreed material deliveries. You can provide this later, before dispatch.", "required": false, "maxLength": 1000, "autocomplete": "street-address" },
     { "name": "city", "label": "City / area", "required": true, "maxLength": 100, "autocomplete": "address-level2" },
     { "name": "state", "label": "State", "required": true, "maxLength": 100, "autocomplete": "address-level1" },
     { "name": "pin", "label": "PIN code", "required": true, "maxLength": 6, "autocomplete": "postal-code" },

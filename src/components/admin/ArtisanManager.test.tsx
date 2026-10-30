@@ -13,6 +13,10 @@ vi.mock('../../services/artisans', async importOriginal => ({
   fetchArtisanInvitations: invites, createArtisanInvitation: create, revokeArtisanInvitation: revoke,
   readArtisanIdentity: readId, removeArtisanIdentity: removeId,
 }));
+vi.mock('../../services/artisanProfiles', async importOriginal => ({
+  ...await importOriginal<typeof import('../../services/artisanProfiles')>(),
+  fetchArtisanActivity: vi.fn().mockResolvedValue({ comments: [], payments: [] }),
+}));
 const application = { id: 'reference', details: { ...emptyArtisanDetails, fullName: 'Sample Maker', city: 'Gurugram', skills: 'Flowers' },
   status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29' };
 beforeEach(() => {
@@ -59,9 +63,13 @@ it('filters and searches the directory and saves a versioned review', async () =
   render(<ArtisanManager />);
   fireEvent.change(screen.getByLabelText('Name, mobile, skill or location'), { target: { value: 'Flowers' } });
   fireEvent.submit(screen.getByRole('search'));
-  await waitFor(() => expect(list).toHaveBeenLastCalledWith('Flowers', '', 0));
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('Flowers', '', 0, '', null));
   fireEvent.change(screen.getByLabelText('Filter status'), { target: { value: 'New' } });
-  await waitFor(() => expect(list).toHaveBeenLastCalledWith('Flowers', 'New', 0));
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('Flowers', 'New', 0, '', null));
+  fireEvent.change(screen.getByLabelText('Skill / can create'), { target: { value: 'Amigurumi' } });
+  fireEvent.submit(screen.getByRole('search'));
+  fireEvent.change(screen.getByLabelText('Minimum skill rating'), { target: { value: '4' } });
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('Flowers', 'New', 0, 'Amigurumi', 4));
   fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
   fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'Contacted' } });
   fireEvent.change(screen.getByLabelText('Internal review notes'), { target: { value: 'Paid trial discussed' } });

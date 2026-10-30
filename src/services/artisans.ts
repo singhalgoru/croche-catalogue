@@ -7,6 +7,7 @@ export const artisanStatuses = ['New', 'Contacted', 'Trial', 'Approved', 'Declin
 export type ArtisanStatus = typeof artisanStatuses[number];
 export interface ArtisanDetails {
   fullName: string;
+  address?: string;
   mobile: string;
   city: string;
   state: string;
@@ -35,6 +36,10 @@ export interface ArtisanApplication {
   dispatch_terms_accepted_at?: string | null;
   identity_type?: 'masked_aadhaar' | 'alternative_id' | null;
   identity_expires_at?: string | null;
+  delivery_address?: string;
+  skill_rating?: number | null;
+  capabilities?: string;
+  has_profile_photo?: boolean;
 }
 export interface ArtisanIdentityUpload {
   documentType: 'masked_aadhaar' | 'alternative_id';
@@ -42,24 +47,36 @@ export interface ArtisanIdentityUpload {
   data: string;
   consent: true;
 }
-export async function prepareArtisanIdentity(file: File, documentType: ArtisanIdentityUpload['documentType']): Promise<ArtisanIdentityUpload> {
+export interface ArtisanProfilePhoto {
+  contentType: 'image/webp';
+  data: string;
+  consent: true;
+  consentVersion: '2026-10-30.1';
+}
+async function prepareArtisanImage(file: File, label: string): Promise<string> {
   if (!file.size || file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    throw new Error('Choose one JPG, PNG or WebP ID photo up to 5 MB. PDF and other documents are not accepted.');
+    throw new Error(`Choose one JPG, PNG or WebP ${label} up to 5 MB. PDF and other documents are not accepted.`);
   }
   const prepared = await convertImageForUpload(file, { watermark: false });
-  if (prepared.size > 1024 * 1024) throw new Error('The prepared ID image exceeds 1 MB. Choose a smaller, readable image.');
+  if (prepared.size > 1024 * 1024) throw new Error(`The prepared ${label} exceeds 1 MB. Choose a smaller image.`);
   const data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== 'string' || !reader.result.startsWith('data:image/webp;base64,')) {
-        reject(new Error('Unable to prepare the ID photo. Choose it again.')); return;
+        reject(new Error(`Unable to prepare the ${label}. Choose it again.`)); return;
       }
       resolve(reader.result.slice('data:image/webp;base64,'.length));
     };
-    reader.onerror = () => reject(new Error('Unable to read the ID photo. Choose it again.'));
+    reader.onerror = () => reject(new Error(`Unable to read the ${label}. Choose it again.`));
     reader.readAsDataURL(prepared);
   });
-  return { documentType, contentType: 'image/webp', data, consent: true };
+  return data;
+}
+export async function prepareArtisanIdentity(file: File, documentType: ArtisanIdentityUpload['documentType']): Promise<ArtisanIdentityUpload> {
+  return { documentType, contentType: 'image/webp', data: await prepareArtisanImage(file, 'ID photo'), consent: true };
+}
+export async function prepareArtisanProfilePhoto(file: File): Promise<ArtisanProfilePhoto> {
+  return { contentType: 'image/webp', data: await prepareArtisanImage(file, 'profile photo'), consent: true, consentVersion: '2026-10-30.1' };
 }
 export interface ArtisanHistory {
   id: number;
@@ -69,7 +86,7 @@ export interface ArtisanHistory {
   created_at: string;
 }
 export const emptyArtisanDetails: ArtisanDetails = {
-  fullName: '', mobile: '', city: '', state: '', pin: '', language: '', skills: '', availability: '',
+  fullName: '', address: '', mobile: '', city: '', state: '', pin: '', language: '', skills: '', availability: '',
   experience: '', tools: '', portfolioUrl: '', notes: '', adult: false, consent: false, paidTrial: false,
 };
 
@@ -77,21 +94,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 function isDetails(value: unknown): value is ArtisanDetails {
-  return isRecord(value) && content.fields.every(field => typeof value[field.name] === 'string')
+  return isRecord(value) && content.fields.every(field => (field.name === 'address' && value.address === undefined) || typeof value[field.name] === 'string')
     && typeof value.adult === 'boolean' && typeof value.consent === 'boolean' && typeof value.paidTrial === 'boolean';
 }
-function isApplication(value: unknown): value is ArtisanApplication {
+export function isApplication(value: unknown): value is ArtisanApplication {
   return isRecord(value) && typeof value.id === 'string' && isDetails(value.details)
     && artisanStatuses.some(status => status === value.status) && typeof value.admin_notes === 'string'
     && typeof value.version === 'number' && typeof value.created_at === 'string'
     && typeof value.updated_at === 'string' && typeof value.consent_version === 'string'
     && ['dispatch_terms_version', 'dispatch_terms_accepted_at', 'identity_expires_at'].every(key =>
       value[key] == null || typeof value[key] === 'string')
-    && (value.identity_type == null || value.identity_type === 'masked_aadhaar' || value.identity_type === 'alternative_id');
+    && (value.identity_type == null || value.identity_type === 'masked_aadhaar' || value.identity_type === 'alternative_id')
+    && (value.delivery_address === undefined || typeof value.delivery_address === 'string')
+    && (value.capabilities === undefined || typeof value.capabilities === 'string')
+    && (value.skill_rating == null || (typeof value.skill_rating === 'number' && Number.isInteger(value.skill_rating) && value.skill_rating >= 1 && value.skill_rating <= 5))
+    && (value.has_profile_photo === undefined || typeof value.has_profile_photo === 'boolean');
 }
 export function validateArtisanDetails(details: ArtisanDetails): void {
   for (const field of content.fields) {
     const value = Reflect.get(details, field.name);
+    if (field.name === 'address' && value === undefined) continue;
     if (typeof value !== 'string' || (field.required && !value.trim()) || value.trim().length > field.maxLength) {
       throw new Error(`Check ${field.label.toLowerCase()} (maximum ${field.maxLength} characters).`);
     }
@@ -116,7 +138,7 @@ async function client() {
   return result;
 }
 export async function submitArtisanApplication(details: ArtisanDetails, requestId: string, token: string,
-  dispatchAcknowledged = false, identity: ArtisanIdentityUpload | null = null): Promise<string> {
+  dispatchAcknowledged = false, identity: ArtisanIdentityUpload | null = null, photo: ArtisanProfilePhoto | null = null): Promise<string> {
   validateArtisanDetails(details);
   if (!dispatchAcknowledged) throw new Error('Read and acknowledge the material dispatch and courier charge terms.');
   const db = await client();
@@ -129,7 +151,7 @@ export async function submitArtisanApplication(details: ArtisanDetails, requestI
   }
   const { data, error } = await db.rpc('submit_artisan_application', {
     request_id: requestId, application_details: details, privacy_version: content.consentVersion, invitation_token: token,
-    dispatch_terms_version: content.dispatchTermsVersion, identity_document: identity,
+    dispatch_terms_version: content.dispatchTermsVersion, identity_document: identity, profile_photo: photo,
   });
   if (error) throw new Error(`Unable to save the application: ${error.message}`);
   if (data !== requestId) throw new Error('Application receipt could not be confirmed. Retry without changing your details.');
@@ -211,9 +233,11 @@ export async function revokeArtisanInvitation(id: string): Promise<void> {
   if (error) throw new Error(`Unable to revoke invitation: ${error.message}`);
   if (data !== id) throw new Error('Invalid invitation revocation receipt.');
 }
-export async function fetchArtisanApplications(search: string, status: string, page: number): Promise<{ applications: ArtisanApplication[]; total: number }> {
+export async function fetchArtisanApplications(search: string, status: string, page: number, skill = '', minimumRating: number | null = null): Promise<{ applications: ArtisanApplication[]; total: number }> {
   const db = await client();
-  const { data, error } = await db.rpc('list_artisan_applications', { search_text: search, status_filter: status, page_number: page });
+  const { data, error } = await db.rpc('list_artisan_applications', {
+    search_text: search, status_filter: status, page_number: page, skill_filter: skill, minimum_rating: minimumRating,
+  });
   if (error) throw new Error(`Unable to load artisans: ${error.message}`);
   if (!isRecord(data) || !Array.isArray(data.applications) || !data.applications.every(isApplication)
     || typeof data.total !== 'number') throw new Error('Invalid artisan directory response.');
