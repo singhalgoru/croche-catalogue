@@ -503,7 +503,9 @@ describe('Product detail admin integration', () => {
   });
 
   it('calculates an indicative price and places it in the editor without saving automatically', async () => {
-    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn().mockResolvedValue(undefined)} />);
+    const onPricingChanged = vi.fn();
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn().mockResolvedValue(undefined)}
+      onPricingChanged={onPricingChanged} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
     fireEvent.click(screen.getByRole('button', { name: /Estimate costs and a selling price/ }));
@@ -526,6 +528,7 @@ describe('Product detail admin integration', () => {
       }),
     ));
     expect(await screen.findByText('Price discovery values saved for this product.')).toBeTruthy();
+    expect(onPricingChanged).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Suggest price' })).toBeTruthy();
     vi.mocked(suggestProductGstRate).mockResolvedValue({
       source: 'GST Accelerator HSN lookup · CBIC-sourced rates',

@@ -47,6 +47,7 @@ export default function AdminPage({ onProductPublished }: Props) {
   }, []);
 
   const [productRefreshKey, setProductRefreshKey] = useState(0);
+  const [pricingRefreshKey, setPricingRefreshKey] = useState(0);
   const [categorySettings, setCategorySettings] = useState<CategorySettings[]>([]);
   const categories = categorySettings.filter(category => !category.isSeasonal).map((category) => category.name);
   const [session, setSession] = useState<Session | null>(null);
@@ -253,13 +254,14 @@ export default function AdminPage({ onProductPublished }: Props) {
         }}>{{
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
-            <ProductManager categories={categories} refreshKey={productRefreshKey} salesRefreshKey={salesRefreshKey} onChanged={handleProductChanged} />
-            <ProductDiscountManager refreshKey={productRefreshKey} onChanged={handleProductChanged} />
+            <ProductManager categories={categories} refreshKey={productRefreshKey} salesRefreshKey={salesRefreshKey} onChanged={handleProductChanged}
+              onPricingChanged={() => setPricingRefreshKey(current => current + 1)} />
+            <ProductDiscountManager refreshKey={productRefreshKey + pricingRefreshKey} onChanged={handleProductChanged} />
           </>,
           Orders: <><CustomerOrders loadOrders={fetchAdminLiveOrders} admin /><CartManager /></>,
           Customers: <CustomerSummary />,
           Artisans: artisansOpened ? <ArtisanManager /> : null,
-          Sales: <SellerSalesDashboard refreshKey={productRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
+          Sales: <SellerSalesDashboard refreshKey={productRefreshKey + pricingRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Settings: <>
             <AdminUsers />

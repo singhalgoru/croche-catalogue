@@ -37,6 +37,7 @@ interface Props {
   refreshKey: number;
   salesRefreshKey?: number;
   onChanged: () => Promise<void>;
+  onPricingChanged?: () => void;
 }
 
 interface EditDraft extends DetailDraft {
@@ -82,7 +83,7 @@ const parsePrice = (value: string): number | null | undefined => {
 const formatRupees = (amount: number) =>
   `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(amount))}`;
 
-export default function ProductManager({ categories, refreshKey, salesRefreshKey = 0, onChanged }: Props) {
+export default function ProductManager({ categories, refreshKey, salesRefreshKey = 0, onChanged, onPricingChanged }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [soldQuantities, setSoldQuantities] = useState<Map<string, number> | null>(null);
@@ -585,6 +586,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
               onSaveInputs={async inputs => {
                 const saved = await saveProductPriceDiscoveryInputs(product, inputs);
                 setProducts(current => current.map(item => item.id === saved.id ? saved : item));
+                onPricingChanged?.();
               }}
               onApplyPrice={(price, profitMarginPercent, gstPercent, minimumOrderQuantity) => {
                 if (isEditing) {
