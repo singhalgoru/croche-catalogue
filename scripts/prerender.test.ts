@@ -296,6 +296,10 @@ describe('escapeHtml and truncate', () => {
 describe('renderShell', () => {
   const shell = renderShell([product]);
 
+  it('preserves the full homepage introduction for crawlers', () => {
+    expect(shell).toContain('<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>');
+  });
+
   it('includes ordering and delivery guidance after the products for non-JavaScript visitors', () => {
     expect(shell).toContain('How ordering and delivery work');
     expect(shell).toContain('Adding items to your cart or sending a message does not confirm an order.');

@@ -437,7 +437,7 @@ const renderShell = (products, categorySettings = []) => {
   return [
     '<header>',
     '<h1>Premium Handmade Crochet Creations</h1>',
-    "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide.</p>",
+    "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>",
     '</header>',
     '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
     '<main>',

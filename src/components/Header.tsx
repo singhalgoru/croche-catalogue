@@ -311,7 +311,7 @@ export default function Header({
             <span className="sm:hidden">{storeContent.international.announcement}</span>
             <span className="hidden sm:inline">
               Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.
-              Handmade in India. Shipping across India; international orders by enquiry.
+              Handmade in India and shipped nationwide and internationally.
             </span>
           </p>
         )}
