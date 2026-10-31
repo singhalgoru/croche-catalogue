@@ -457,6 +457,7 @@ const renderShell = (products, categorySettings = []) => {
     '<li>Proceed to payment: pay securely through Razorpay. Your online order is confirmed after payment verification. Use WhatsApp for help or assisted ordering if checkout is unavailable.</li></ol>',
     `<p>${escapeHtml(storeContent.dispatch)}</p>`,
     `<p>${escapeHtml(storeContent.shipping)}</p>`,
+    `<p>${escapeHtml(storeContent.international.checkout)}</p><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p>`,
     `<p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>`,
     `<p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>`,
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
@@ -518,7 +519,7 @@ const appRedirectScript = (reference) =>
 
 const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).digest('base64')}'`;
 
-const renderProductPage = (product, whatsappNumber, socialImage = null, redirectToApp = true) => {
+const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, socialImage = null, redirectToApp = true) => {
   const url = productUrl(product);
   const title = `${product.name} | Luvia Creations`;
   const description = getProductMetaDescription(product);
@@ -622,7 +623,8 @@ const renderProductPage = (product, whatsappNumber, socialImage = null, redirect
         <a class="cta alt" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Ask on WhatsApp</a>
       </p>
       <p>Shopping without JavaScript? Contact Luvia for assisted ordering.</p>
-      <details><summary>Delivery and shipping</summary><p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p></details>
+      <p>${escapeHtml(storeContent.international.invitation)} <a href="https://wa.me/${whatsappContactDetails(whatsappNumber).digits}">Request an international quote</a></p>
+      <details><summary>Delivery and shipping</summary><p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></details>
       <section aria-labelledby="order-information-title">
         <h2 id="order-information-title">${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
         <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>

@@ -48,7 +48,7 @@ it('prepares a branded email from the form without sending automatically and cle
   for (const [label, value] of [
     ['Your name', ' Asha '], ['Reply email', 'asha@example.test'],
     ['Products or gifting ideas', 'Rose charms'], ['Approximate quantity', '50'],
-    ['Delivery city / pincode', 'Manesar 122050'],
+    ['Delivery country, city / postal code', 'Manesar 122050'],
     ['Company / organisation (optional)', 'Example & Co'],
     ['Budget per gift in INR (optional)', '250'],
     ['Required delivery date (optional)', '2026-12-01'],
@@ -61,7 +61,7 @@ it('prepares a branded email from the form without sending automatically and cle
   const body = url.searchParams.get('body')!;
   for (const text of ['Hello Luvia Creations,', 'Contact name: Asha', 'Company / organisation: Example & Co',
     'Reply email: asha@example.test', 'Approximate quantity: 50', 'Budget per gift (INR): 250',
-    'Delivery city / pincode: Manesar 122050', 'Required delivery date: 2026-12-01', 'Thank you,\r\nAsha']) {
+    'Delivery country, city / postal code: Manesar 122050', 'Required delivery date: 2026-12-01', 'Thank you,\r\nAsha']) {
     expect(body).toContain(text);
   }
   expect(trackContactClick).not.toHaveBeenCalled();

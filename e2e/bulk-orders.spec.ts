@@ -24,13 +24,13 @@ test('bulk gifting opens its dedicated page with an email form and WhatsApp enqu
   await form.getByLabel('Reply email', { exact: true }).fill('asha@example.test');
   await form.getByLabel('Products or gifting ideas', { exact: true }).fill('Rose charms for our team');
   await form.getByLabel('Approximate quantity', { exact: true }).fill('50');
-  await form.getByLabel('Delivery city / pincode', { exact: true }).fill('Manesar 122050');
+  await form.getByLabel('Delivery country, city / postal code', { exact: true }).fill('Manesar 122050');
   await form.getByRole('button', { name: 'Prepare email draft' }).click();
   const email = new URL(await form.getByRole('link', { name: 'Open email draft' }).getAttribute('href') ?? '');
   expect(email.pathname).toBe('bulkorder@luviacreations.com');
   expect(email.searchParams.get('subject')).toBe('Luvia Creations | Bulk Orders & Corporate Gifting Enquiry');
   expect(email.searchParams.get('body')).toContain('Approximate quantity: 50');
-  expect(email.searchParams.get('body')).toContain('Delivery city / pincode: Manesar 122050');
+  expect(email.searchParams.get('body')).toContain('Delivery country, city / postal code: Manesar 122050');
   await expect(form.getByRole('status')).toContainText('send it from your email app');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.goto('/about/');

@@ -4,8 +4,9 @@ import CartMenuButton from './CartMenuButton';
 import { collectionPath } from '../utils/collectionLink.js';
 import MobileNavigation from './MobileNavigation';
 import { getGeneralWhatsAppLink } from '../utils/whatsapp';
+import storeContent from '../content/storeContent.json';
 
-const DEFAULT_TICKER_MESSAGES = ['🚚 Shipping available across India'];
+const DEFAULT_TICKER_MESSAGES = [storeContent.international.announcement];
 
 interface Props {
   showShippingTicker?: boolean;
@@ -306,10 +307,10 @@ export default function Header({
         </h1>}
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-            <span className="sm:hidden">Thoughtfully made. Delivered across India.</span>
+            <span className="sm:hidden">{storeContent.international.announcement}</span>
             <span className="hidden sm:inline">
               Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.
-              Handmade in India and shipped nationwide.
+              Handmade in India. Shipping across India; international orders by enquiry.
             </span>
           </p>
         )}

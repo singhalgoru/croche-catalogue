@@ -338,7 +338,7 @@ export default function StorePages({
         <p>Questions about ordering? <a href="/faq/" className="inline-flex min-h-11 items-center underline underline-offset-4">Read our FAQ</a>.</p>
         </div>
       </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
-        <p>Answers about ordering, custom colours, shipping across India, care and returns.</p>
+        <p>Answers about ordering, custom colours, shipping across India, international enquiries, care and returns.</p>
         {storeContent.questions.map(([question, answer]) => <details key={question} className="rounded-xl border border-mustard/40 bg-white p-4">
           <summary className="cursor-pointer font-semibold">{question}</summary><p className="mt-3">{answer}</p>
         </details>)}

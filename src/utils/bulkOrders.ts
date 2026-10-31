@@ -26,7 +26,7 @@ export function buildBulkOrderEmail(enquiry: BulkOrderEnquiry) {
     `Products or ideas: ${value('products')}`,
     `Approximate quantity: ${value('quantity')}`,
     `Budget per gift (INR): ${value('budget')}`,
-    `Delivery city / pincode: ${value('city')}`,
+    `Delivery country, city / postal code: ${value('city')}`,
     `Required delivery date: ${value('date')}`,
     `Customisation / packaging preferences: ${value('preferences')}`, '',
     'Please help me explore suitable options and share pricing and preparation timelines.', '',

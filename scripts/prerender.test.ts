@@ -300,7 +300,9 @@ describe('renderShell', () => {
     expect(shell).toContain('How ordering and delivery work');
     expect(shell).toContain('Adding items to your cart or sending a message does not confirm an order.');
     expect(shell).toContain('Your online order is confirmed after payment verification.');
-    expect(shell).toContain('Orders are dispatched within 5 days of receiving the order, or earlier.');
+    expect(shell).toContain('For orders delivered within India, dispatch is within 5 days');
+    expect(shell).toContain('International orders are considered individually.');
+    expect(shell).toContain('Indian checkout shipping offers do not apply');
     expect(shell).toContain('Delivery time after dispatch depends on the destination');
     expect(shell).toContain('href="mailto:orders@luviacreations.com"');
     expect(shell).toContain('href="/return-policy/"');

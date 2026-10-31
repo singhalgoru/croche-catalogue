@@ -48,6 +48,9 @@ export default function OrderingGuide() {
         {storeContent.shipping}
       </p>
       <p className="mt-2 text-sm text-cocoa/80">{storeContent.orderingDisclosure.price}</p>
+      <p className="mt-2 text-sm text-cocoa/80">{storeContent.international.checkout}</p>
+      <p className="mt-2 text-sm text-cocoa/80">{storeContent.international.details}</p>
+      <p className="mt-2 text-sm text-cocoa/80">{storeContent.international.customs}</p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
         <a href="/faq/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Read the ordering FAQ</a>
         <a

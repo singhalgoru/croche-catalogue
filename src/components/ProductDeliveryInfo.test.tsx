@@ -18,4 +18,7 @@ it('separates preparation from transit and links to existing policies', () => {
   expect(screen.getByText(/defective, damaged or incorrect items only, not change of mind/)).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Full return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
   expect(screen.getByRole('link', { name: 'Delivery FAQ' }).getAttribute('href')).toBe('/faq/');
+  expect(screen.getByRole('link', { name: 'Request an international quote' }).getAttribute('href')).toMatch(/^https:\/\/wa.me\//);
+  expect(screen.getByText(/Indian checkout shipping offers do not apply/)).toBeTruthy();
+  expect(screen.getByText(/Import duties, taxes and clearance charges/)).toBeTruthy();
 });

@@ -13,7 +13,7 @@ const fields: { key: keyof BulkOrderEnquiry; label: string; type: string; requir
   { key: 'products', label: 'Products or gifting ideas', type: 'text', required: true, maxLength: 200 },
   { key: 'quantity', label: 'Approximate quantity', type: 'number', required: true, maxLength: 10 },
   { key: 'budget', label: 'Budget per gift in INR (optional)', type: 'number', required: false, maxLength: 10 },
-  { key: 'city', label: 'Delivery city / pincode', type: 'text', required: true, maxLength: 120 },
+  { key: 'city', label: 'Delivery country, city / postal code', type: 'text', required: true, maxLength: 120 },
   { key: 'date', label: 'Required delivery date (optional)', type: 'date', required: false, maxLength: 10 },
 ];
 

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from '../lib/supabaseConfig';
 import { fetchActiveTickerMessages } from '../services/ticker';
+import storeContent from '../content/storeContent.json';
 
-const FALLBACK_MESSAGE = '🚚 Shipping available across India';
+const FALLBACK_MESSAGE = storeContent.international.announcement;
 
 export function useTickerMessages(enabled = true) {
   const [messages, setMessages] = useState<string[]>([FALLBACK_MESSAGE]);

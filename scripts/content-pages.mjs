@@ -163,7 +163,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p>Questions about ordering? <a href="/faq/">Read our FAQ</a>.</p></section>`,
     baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription)));
   const faqTitle = 'Ordering, delivery & care FAQ';
-  const faqDescription = 'Answers to Luvia Creations ordering questions: secure Razorpay checkout, custom colours, shipping across India, product care and returns.';
+  const faqDescription = 'Answers to Luvia Creations ordering questions: India checkout, international enquiries, custom colours, shipping, product care and returns.';
   const questions = storeContent.questions;
   const faqBody = questions.map(([question, answer]) => `<details><summary>${escapeHtml(question)}</summary><p>${escapeHtml(answer)}</p></details>`).join('');
   pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<p class="intro">${faqDescription}</p>${faqBody}

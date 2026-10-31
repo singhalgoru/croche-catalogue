@@ -48,6 +48,18 @@ test('section anchors land below sticky controls on PWA launches, reloads and hi
   await expectAnchored('products');
 });
 
+test('international enquiries are explained without offering overseas online checkout', async ({ page }) => {
+  await page.goto('/faq/');
+  await page.getByText('Can I order from outside India?', { exact: true }).click();
+  await expect(page.getByText(/International orders are by enquiry, not online checkout/)).toBeVisible();
+  await page.goto('/bulk-orders/');
+  await expect(page.getByText(/Planning gifts for an overseas team or event/)).toBeVisible();
+  await expect(page.getByLabel('Delivery country, city / postal code')).toBeVisible();
+  await page.goto('/?checkout=cart');
+  await expect(page.getByText(/Online checkout currently supports delivery within India/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Request an international quote' })).toHaveAttribute('href', /^https:\/\/wa.me\//);
+});
+
 test('shared pages show bulk gifting beside collaboration without duplicating the enquiry page', async ({ page }) => {
   for (const pathname of ['/', '/p/rose-charm/', '/collections/', '/featured/', '/about/', '/faq/']) {
     await page.goto(pathname);
@@ -74,6 +86,7 @@ test('home page opens a product page with current purchase actions', async ({ pa
   await expect(purchase.getByRole('button', { name: 'Share this product' })).toBeVisible();
   await expect(purchase.getByRole('link', { name: 'Ask on WhatsApp' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Delivery and returns' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Request an international quote' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Making video', exact: true })).toHaveCount(0);
 });
 

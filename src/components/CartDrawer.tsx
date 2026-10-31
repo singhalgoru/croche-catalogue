@@ -9,6 +9,8 @@ import { getCartWhatsAppLink, getCheckoutSupportWhatsAppLink } from '../utils/wh
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
 import CartDeliveryPin from './CartDeliveryPin';
+import storeContent from '../content/storeContent.json';
+import { getGeneralWhatsAppLink } from '../utils/whatsapp';
 import CartNotice from './CartNotice';
 import ProductDiscount from './ProductDiscount';
 import RazorpayCheckout from './RazorpayCheckout';
@@ -217,6 +219,10 @@ export default function CartDrawer({
           </button>
         </div>
 
+        {pageStep !== 'confirmation' && <p className="mt-3 text-sm text-cocoa">
+          {storeContent.international.checkout}{' '}
+          <a href={getGeneralWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">Request an international quote</a>
+        </p>}
         {isPage && <nav aria-label="Checkout steps" className="my-5">
           <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(['cart','delivery','review','confirmation'] as const).map((step, index) => <li key={step}>
