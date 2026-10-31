@@ -326,6 +326,27 @@ describe('collection and information pages', () => {
     expect(JSON.parse(faq.querySelector('script')!.textContent!)['@type']).toBe('WebPage');
   });
 
+  it('keeps fallback sitemap and AI discovery links aligned with public information pages', () => {
+    const xml = new JSDOM(readFileSync(resolve('public', 'sitemap.xml'), 'utf8'), { contentType: 'text/xml' }).window.document;
+    const urls = [...xml.querySelectorAll('url > loc')].map(node => node.textContent);
+    const expected = ['/', '/about/', '/collections/', '/bestsellers/', '/featured/', '/faq/', '/bulk-orders/',
+      '/terms-and-conditions/', '/privacy-policy/', '/return-policy/'];
+    expect(new Set(urls).size).toBe(urls.length);
+    const llms = readFileSync(resolve('public', 'llms.txt'), 'utf8');
+    for (const pathname of expected) {
+      expect(urls).toContain(`https://luviacreations.com${pathname}`);
+      expect(llms).toContain(`](https://luviacreations.com${pathname})`);
+      if (pathname !== '/' && pathname !== '/return-policy/') expect(pages.has(pathname)).toBe(true);
+    }
+    for (const url of urls) {
+      expect(new URL(url!).search).toBe('');
+      expect(new URL(url!).hash).toBe('');
+      expect(url).not.toMatch(/\/(?:artisans|search)\/|checkout|account|admin|invite/);
+    }
+    expect(llms).toContain('https://luviacreations.com/#collaborate');
+    expect(llms).not.toContain('https://luviacreations.com/artisans/');
+  });
+
   it('adds all public content URLs to the sitemap without indexing query filters', () => {
     const xml = renderContentSitemap([toy, hair], '2026-10-06', pages);
     for (const pathname of pages.keys()) {
