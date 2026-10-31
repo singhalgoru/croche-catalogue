@@ -7,6 +7,7 @@ import { collectionBreadcrumbList, collectionPath } from '../src/utils/collectio
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
 import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../src/utils/productCollections.js';
+import { publicContentPages } from './public-discovery.mjs';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -197,8 +198,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
 };
 
 export const renderContentSitemap = (products, today, pages, categories = []) =>
-  renderSitemap(products, today, [...pages]
-    .filter(([, html]) => !html.includes('<meta name="robots" content="noindex,follow">'))
+  renderSitemap(products, today, publicContentPages(pages)
     .map(([pathname]) => {
       const category = categories.find(settings => collectionPath(settings.name) === pathname);
       const items = products.filter(product => category?.isSeasonal

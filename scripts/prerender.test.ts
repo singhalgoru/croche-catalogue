@@ -428,6 +428,14 @@ describe('injectShell', () => {
 describe('renderLlms', () => {
   const template = readFileSync(path.resolve('public', 'llms.txt'), 'utf8');
 
+  it('updates making-video discovery as videos are published or removed', () => {
+    const withVideo = { ...product, makingVideo: { title: 'Making this product' } };
+    expect(renderLlms(template, [withVideo])).toContain(`https://luviacreations.com/watch/${prerenderSlug(product)}/`);
+    expect(renderLlms(template, [product])).not.toContain('https://luviacreations.com/watch/');
+    expect(() => renderLlms(template.replace(/<!--public-pages-->[\s\S]*?<!--\/public-pages-->/, ''), []))
+      .toThrow('public-pages');
+  });
+
   it('lists real product links under their categories with price ranges and stock', () => {
     const text = renderLlms(template, [product]);
     expect(text).toContain('## Hair Accessories');

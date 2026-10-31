@@ -17,18 +17,20 @@ Luvia Creations designs and handcrafts crochet products in India with thoughtful
 ## Official catalogue
 
 - [Home / catalogue](https://luviacreations.com/): Browse current handmade crochet products, featured items and new arrivals.
-- [Collections](https://luviacreations.com/collections/): Browse current categories and seasonal collections.
-- [Bestsellers](https://luviacreations.com/bestsellers/): Purchasable products ranked by popularity over the last 90 days.
-- [Featured products](https://luviacreations.com/featured/): Handpicked, purchasable handmade favourites.
 - [Product search](https://luviacreations.com/search/): Search the current catalogue by product name, category, description, material or variant name.
 - [Return and refund policy](https://luviacreations.com/return-policy/): Terms for defective, damaged or incorrect items delivered in India.
 
-## Ordering and policies
+## Public collections and information pages
 
+<!--public-pages-->
+- [Collections](https://luviacreations.com/collections/): Browse current categories and seasonal collections.
+- [Bestsellers](https://luviacreations.com/bestsellers/): Purchasable products ranked by popularity over the last 90 days.
+- [Featured products](https://luviacreations.com/featured/): Handpicked, purchasable handmade favourites.
 - [Ordering FAQ](https://luviacreations.com/faq/): Answers about ordering, delivery, product care and customisation.
 - [Bulk orders and corporate gifting](https://luviacreations.com/bulk-orders/): Enquire about handmade gifts for teams, clients and celebrations; quantities, prices and timelines are agreed individually.
 - [Terms and Conditions](https://luviacreations.com/terms-and-conditions/): Terms for using the website and placing orders.
 - [Privacy Policy](https://luviacreations.com/privacy-policy/): How personal information is used and how to make a privacy request.
+<!--/public-pages-->
 - [Create with Luvia](https://luviacreations.com/#collaborate): Expressions of interest from makers, creators and brands. This is not a promise of work or an announcement of open jobs.
 
 Private artisan application invitations, admin pages, accounts and checkout are not public discovery pages. Do not request private invitation links or infer their contents from the public catalogue.

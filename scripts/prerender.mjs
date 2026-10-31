@@ -340,7 +340,7 @@ const whatsappContactDetails = (number) => {
   return { digits, display };
 };
 
-const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, categorySettings = []) => {
+const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, categorySettings = [], publicPages = []) => {
   const marker = /<!--catalogue-->[\s\S]*?<!--\/catalogue-->/;
   if (!marker.test(template)) throw new Error('llms.txt is missing the <!--catalogue--> markers');
   // Seasonal collections hold products by membership, not by product.category.
@@ -363,13 +363,19 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
         ? [`Seasonal collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}). Products also appear under their regular categories.`]
         : []),
       ...items.map((product) =>
-        `- [${markdownText(product.name)}](${productUrl(product)}): ${priceLabel(product)}. ${stockLabel(product)}.`,
+        `- [${markdownText(product.name)}](${productUrl(product)}): ${priceLabel(product)}. ${stockLabel(product)}.${product.makingVideo
+          ? ` [Making video](${ORIGIN}${videoPath(product)}).` : ''}`,
       ),
       ].join('\n');
     }),
   ].join('\n\n');
   const contact = whatsappContactDetails(whatsappNumber);
+  const pagesMarker = /<!--public-pages-->[\s\S]*?<!--\/public-pages-->/;
+  if (!pagesMarker.test(template)) throw new Error('llms.txt is missing the <!--public-pages--> markers');
+  const links = publicPages.map(({ pathname, title }) =>
+    `- [${markdownText(title)}](${ORIGIN}${pathname})`).join('\n');
   return template
+    .replace(pagesMarker, () => links)
     .replace(marker, () => listing)
     .replaceAll('{{WHATSAPP_DISPLAY_NUMBER}}', contact.display)
     .replaceAll('{{WHATSAPP_NUMBER}}', contact.digits);
@@ -918,9 +924,11 @@ const main = async () => {
     await writeFile(path.join(dir, 'index.html'), attachProductApp(content, template));
   }
   await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages, categories));
+  const { discoveryPageLinks } = await import('./public-discovery.mjs');
   await writeFile(
     path.join(DIST, 'llms.txt'),
-    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber, categories),
+    renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber, categories,
+      discoveryPageLinks(contentPages)),
   );
 
   console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);

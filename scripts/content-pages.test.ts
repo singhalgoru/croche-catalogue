@@ -3,7 +3,8 @@ import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildContentPages, collectionPath, renderContentSitemap } from './content-pages.mjs';
-import { toProduct } from './prerender.mjs';
+import { renderLlms, toProduct } from './prerender.mjs';
+import { discoveryPageLinks } from './public-discovery.mjs';
 import storeContent from '../src/content/storeContent.json';
 import artisanOnboarding from '../src/content/artisanOnboarding.json';
 
@@ -20,6 +21,26 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('automatically includes new public pages and removes stale/private pages from both discovery outputs', () => {
+    const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
+    const generated = new Map(pages);
+    generated.set('/new-public-page/', '<html><head><title>New &amp; current | Luvia Creations</title></head></html>');
+    generated.set('/private-fixture/', '<meta name="robots" content="noindex, follow"><title>Private</title>');
+    const llms = renderLlms(template, [toy, hair], undefined, [], discoveryPageLinks(generated));
+    const sitemap = renderContentSitemap([toy, hair], '2026-10-31', generated);
+    const doc = new JSDOM(sitemap, { contentType: 'text/xml' }).window.document;
+    for (const loc of doc.querySelectorAll('url > loc')) expect(llms).toContain(`](${loc.textContent})`);
+    expect(llms).toContain('[New & current](https://luviacreations.com/new-public-page/)');
+    expect(llms).not.toContain('/private-fixture/');
+    expect(sitemap).not.toContain('/private-fixture/');
+    expect(llms).not.toContain('/artisans/');
+    generated.delete('/new-public-page/');
+    const next = renderLlms(template, [], undefined, [], discoveryPageLinks(generated));
+    expect(next).not.toContain('/new-public-page/');
+    expect(next).not.toContain('https://luviacreations.com/p/bunny/');
+    expect(next).not.toContain('<!--public-pages-->');
+    expect(next).not.toContain('{{WHATSAPP');
+  });
   it('keeps the initial Collections page compact with bottom navigation before the app loads', () => {
     const doc = documentFor('/collections/');
     const logo = doc.querySelector('header .brand');
