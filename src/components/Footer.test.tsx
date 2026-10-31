@@ -13,15 +13,17 @@ afterEach(() => {
 });
 
 describe('Footer', () => {
-  it('links every footer to bulk enquiries and only shows the section when requested', () => {
+  it('shows the bulk gifting invitation by default and supports an explicit opt-out', () => {
     const { rerender } = render(<Footer />);
     expect(screen.getByRole('link', { name: 'Bulk orders & corporate gifting' }).getAttribute('href')).toBe('/bulk-orders/');
-    expect(screen.queryByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toBeNull();
-    rerender(<Footer showBulkOrders />);
     expect(screen.getByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Explore bulk gifting' }).getAttribute('href')).toBe('/bulk-orders/');
+    rerender(<Footer showBulkOrders={false} />);
+    expect(screen.queryByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toBeNull();
   });
   it('can omit the collaboration invitation on the cart page', () => {
     render(<Footer showCollaboration={false} />);
+    expect(screen.queryByRole('region', { name: 'Bulk Orders & Corporate Gifting' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Create with Luvia' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Work with Luvia' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Explore & support' })).toBeTruthy();

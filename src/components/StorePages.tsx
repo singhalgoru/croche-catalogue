@@ -378,6 +378,6 @@ export default function StorePages({
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
       {showCatalogue && !isCollectionsHub && !policy && !isArtisans && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
-    </main><Footer showCollaboration={!isArtisans} />
+    </main><Footer showCollaboration={!isArtisans} showBulkOrders={!isArtisans && !isBulkOrders} />
   </div>;
 }

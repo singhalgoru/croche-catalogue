@@ -900,7 +900,7 @@ function App() {
       </main>
       )}
 
-      <Footer showBulkOrders={!pageReference} />
+      <Footer />
       {(!selectedProduct || pageReference) && <BackToTopButton raised={Boolean(pageReference && selectedProduct)} />}
 
       {selectedProduct && !pageReference && (

@@ -48,6 +48,23 @@ test('section anchors land below sticky controls on PWA launches, reloads and hi
   await expectAnchored('products');
 });
 
+test('shared pages show bulk gifting beside collaboration without duplicating the enquiry page', async ({ page }) => {
+  for (const pathname of ['/', '/p/rose-charm/', '/collections/', '/featured/', '/about/', '/faq/']) {
+    await page.goto(pathname);
+    await expect(page.getByRole('region', { name: 'Create with Luvia', exact: true })).toHaveCount(1);
+    const invitation = page.getByRole('region', { name: 'Bulk Orders & Corporate Gifting', exact: true });
+    await expect(invitation).toHaveCount(1);
+    await expect(invitation.getByRole('link', { name: 'Explore bulk gifting' })).toHaveAttribute('href', '/bulk-orders/');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  }
+  await page.getByRole('link', { name: 'Explore bulk gifting', exact: true }).click();
+  await expect(page.getByRole('form', { name: 'Bulk order email enquiry' })).toBeVisible();
+  await expect(page.locator('#bulk-orders')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Explore bulk gifting' })).toHaveCount(0);
+  await page.goto('/artisans/');
+  await expect(page.locator('#bulk-orders, #collaborate')).toHaveCount(0);
+});
+
 test('home page opens a product page with current purchase actions', async ({ page }) => {
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
   await expect(page).toHaveURL(/\/p\/rose-charm\/$/);

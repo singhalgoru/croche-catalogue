@@ -12,7 +12,7 @@ interface Props {
   showBulkOrders?: boolean;
 }
 
-export default function Footer({ showCollaboration = true, showBulkOrders = false }: Props) {
+export default function Footer({ showCollaboration = true, showBulkOrders = showCollaboration }: Props) {
   const [informationOpen, setInformationOpen] = useState(false);
   const informationId = useId();
   return (
