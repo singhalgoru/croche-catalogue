@@ -3,6 +3,7 @@ import storeContent from '../src/content/storeContent.json' with { type: 'json' 
 import policies from '../src/content/policies.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import artisanOnboarding from '../src/content/artisanOnboarding.json' with { type: 'json' };
+import internationalQuote from '../src/content/internationalQuote.json' with { type: 'json' };
 import { collectionBreadcrumbList, collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
@@ -14,6 +15,7 @@ const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
 const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
+  + `<a href="${internationalQuote.path}">International quotes</a>`
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 export const renderSiteHeader = () => `<a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-160.webp" width="48" height="48" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation()}</nav></header>`;
 const renderMobileNavigation = pathname => `<nav class="static-mobile-navigation" aria-label="Mobile navigation"><a href="/">Home</a><a href="/collections/"${pathname.startsWith('/collections/') ? ' aria-current="page"' : ''}>Collections</a><a href="/?checkout=cart">Cart</a><a href="/?account=orders">Account</a><a href="#store-links">More</a></nav>`;
@@ -168,6 +170,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   const faqBody = questions.map(([question, answer]) => `<details><summary>${escapeHtml(question)}</summary><p>${escapeHtml(answer)}</p></details>`).join('');
   pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<p class="intro">${faqDescription}</p>${faqBody}
     <details><summary>What is the return and refund policy?</summary><p>Please read our <a href="/return-policy/">return and refund policy</a> before ordering. Contact us about your specific order if you need clarification.</p></details>
+    <p><a class="button" href="${internationalQuote.path}">Request an international quote</a></p>
     <p><a class="button" href="${contact}">Ask another question on WhatsApp</a></p>`,
     baseSchema('WebPage', '/faq/', faqTitle, faqDescription)));
   for (const policy of policies) {
@@ -186,6 +189,15 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p>${escapeHtml(bulkOrders.email)}</p><p class="note">${escapeHtml(bulkOrders.note)}</p>
     <p class="note">With JavaScript enabled, use our enquiry form to prepare a personalised email draft. Review and send it from your email app; preparing a draft does not send it automatically.</p></section>`,
     baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description)));
+  pages.set(internationalQuote.path, page(internationalQuote.path, internationalQuote.title, internationalQuote.description,
+    `<section class="intro"><p>${escapeHtml(internationalQuote.description)}</p><p>${escapeHtml(internationalQuote.notice)}</p>
+    <h2>Products and quantities</h2><p>Enable JavaScript to select multiple products and quantities and prepare your request. You can also email the product names, links and quantities directly to Luvia.</p>
+    <ul>${products.map(product => `<li><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></li>`).join('')}</ul>
+    <h2>Contact and delivery destination</h2><p>Include your name, reply email, country, city, state / province / region (where applicable), ZIP / postal code (or N/A), and optionally your street address and phone / WhatsApp number with country code.</p>
+    <p><a class="button" href="mailto:${internationalQuote.email}?subject=${encodeURIComponent(internationalQuote.subject)}">Email Luvia</a>
+    <a class="button" href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent('Hello Luvia, I would like an international order quote. I will share product names and quantities, my name, email, country, city, state and postal code.')}">Contact Luvia on WhatsApp</a></p>
+    <h2>Shipping, customs and quote terms</h2><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></section>`,
+    baseSchema('WebPage', internationalQuote.path, internationalQuote.title, internationalQuote.description)));
   pages.set(artisanOnboarding.path, page(artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description,
     `<section class="intro"><p>${escapeHtml(artisanOnboarding.description)}</p><p>${escapeHtml(artisanOnboarding.notice)}</p>
     <h2>${escapeHtml(artisanOnboarding.dispatchTermsTitle)}</h2>${artisanOnboarding.dispatchTerms.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}

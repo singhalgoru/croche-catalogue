@@ -242,6 +242,7 @@ export default function Header({
               <a href={`${import.meta.env.BASE_URL}faq/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Ordering FAQ</a>
               <a href={getGeneralWhatsAppLink()} className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Contact on WhatsApp</a>
               <a href="/bulk-orders/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Bulk orders &amp; gifting</a>
+              <a href="/international-quote/" className="block rounded-lg px-3 py-3 hover:bg-cream">International quotes</a>
               <a href="/privacy-policy/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Privacy policy</a>
               <a href="/terms-and-conditions/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Terms &amp; conditions</a>
               {showCollaborationLink && <a href="#collaborate" className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">Collaborate with us</a>}

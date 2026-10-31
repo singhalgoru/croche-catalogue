@@ -457,7 +457,7 @@ const renderShell = (products, categorySettings = []) => {
     '<li>Proceed to payment: pay securely through Razorpay. Your online order is confirmed after payment verification. Use WhatsApp for help or assisted ordering if checkout is unavailable.</li></ol>',
     `<p>${escapeHtml(storeContent.dispatch)}</p>`,
     `<p>${escapeHtml(storeContent.shipping)}</p>`,
-    `<p>${escapeHtml(storeContent.international.checkout)}</p><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p>`,
+    `<p>${escapeHtml(storeContent.international.checkout)}</p><p><a href="/international-quote/">Request an international quote</a></p><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p>`,
     `<p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>`,
     `<p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>`,
     '<p><a href="mailto:orders@luviacreations.com">Email about an order</a></p>',
@@ -466,7 +466,7 @@ const renderShell = (products, categorySettings = []) => {
     `<p>${escapeHtml(bulkOrders.invitation)}</p>`,
     `<p><a href="${bulkOrders.path}">${escapeHtml(bulkOrders.invitationCta)}</a></p></section>`,
     '</main>',
-    '<footer><a href="/collections/">Explore collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></footer>',
+    '<footer><a href="/collections/">Explore collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a> · <a href="/international-quote/">International quotes</a></footer>',
   ].join('');
 };
 
@@ -623,7 +623,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
         <a class="cta alt" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Ask on WhatsApp</a>
       </p>
       <p>Shopping without JavaScript? Contact Luvia for assisted ordering.</p>
-      <p>${escapeHtml(storeContent.international.invitation)} <a href="https://wa.me/${whatsappContactDetails(whatsappNumber).digits}">Request an international quote</a></p>
+      <p>${escapeHtml(storeContent.international.invitation)} <a href="/international-quote/?product=${encodeURIComponent(product.id)}">Request an international quote</a></p>
       <details><summary>Delivery and shipping</summary><p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></details>
       <section aria-labelledby="order-information-title">
         <h2 id="order-information-title">${escapeHtml(storeContent.orderingDisclosure.title)}</h2>
@@ -633,7 +633,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
         <p><a href="/faq/">Shipping &amp; payment information</a> · <a href="/about/">About &amp; contact</a></p>
       </section>
       <footer>
-        <p><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
+        <p><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a> · <a href="/international-quote/">International quotes</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>
         <p>Luvia Creations makes handmade crochet accessories, gifts, toys and decor, shipped across India.
         <a href="/">Browse the full catalogue</a> or follow
         <a href="https://www.instagram.com/luvia.craftedwithlove/" rel="noopener">@luvia.craftedwithlove</a>.</p>

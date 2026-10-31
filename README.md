@@ -53,6 +53,9 @@ an India-based handmade crochet brand.
   collections stay in collection navigation and the filter panel; active-filter
   chips scroll with the product grid rather than occupying another sticky row.
 - Contact Luvia by WhatsApp or email for product and customisation enquiries.
+- Request an international quote at `/international-quote/` with product
+  quantities and destination details, then review and send it by email or
+  WhatsApp. Online checkout remains India-only.
 - Install the catalogue as a home-screen app on supported browsers.
 - Authorised administrators can manage products, drafts, media and orders.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.

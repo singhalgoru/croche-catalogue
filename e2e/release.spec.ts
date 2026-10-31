@@ -57,7 +57,48 @@ test('international enquiries are explained without offering overseas online che
   await expect(page.getByLabel('Delivery country, city / postal code')).toBeVisible();
   await page.goto('/?checkout=cart');
   await expect(page.getByText(/Online checkout currently supports delivery within India/)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Request an international quote' })).toHaveAttribute('href', /^https:\/\/wa.me\//);
+  await expect(page.getByRole('link', { name: 'Request an international quote' })).toHaveAttribute('href', '/international-quote/');
+});
+
+test('international quote page selects products and quantities and prepares email/WhatsApp destination requests', async ({ page }) => {
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await page.getByRole('link', { name: 'Request an international quote', exact: true }).click();
+  await expect(page).toHaveURL(/\/international-quote\/\?product=/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Request an international quote' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Product 1', exact: true }).locator('option:checked')).toHaveText('Rose Charm');
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Product 1', exact: true }).locator('option:checked')).toHaveText('Rose Charm');
+  await page.getByLabel('Quantity 1', { exact: true }).fill('2');
+  await page.getByRole('button', { name: 'Add another product' }).click();
+  const other = await page.getByRole('combobox', { name: 'Product 2', exact: true }).locator('option:not([value=""]):not([disabled])').first().getAttribute('value');
+  await page.getByRole('combobox', { name: 'Product 2', exact: true }).selectOption(other!);
+  await page.getByLabel('Quantity 2', { exact: true }).fill('3');
+  for (const [label, value] of [
+    ['Your name', 'Synthetic Quote Test'], ['Reply email', 'quote@example.test'],
+    ['Country', 'United Kingdom'], ['City', 'London'],
+    ['State / province / region (if applicable)', 'Greater London'], ['ZIP / postal code', 'SW1A 1AA'],
+  ]) await page.getByLabel(label, { exact: true }).fill(value);
+  await page.getByRole('button', { name: 'Prepare quote request' }).click();
+  const email = new URL((await page.getByRole('link', { name: 'Send via email' }).getAttribute('href'))!);
+  const whatsapp = new URL((await page.getByRole('link', { name: 'Send via WhatsApp' }).getAttribute('href'))!);
+  expect(email.pathname).toBe('orders@luviacreations.com');
+  expect(whatsapp.origin).toBe('https://wa.me');
+  expect(whatsapp.searchParams.get('text')).toBe(email.searchParams.get('body'));
+  for (const text of ['Rose Charm x 2', ' x 3', 'Country: United Kingdom', 'City: London',
+    'State / province / region: Greater London', 'ZIP / postal code: SW1A 1AA',
+    'Phone / WhatsApp (optional): Not provided']) expect(email.searchParams.get('body')).toContain(text);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.getByLabel('City', { exact: true }).fill('Oxford');
+  await expect(page.getByRole('link', { name: 'Send via email' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Remove item 2' }).click();
+  await expect(page.getByRole('combobox', { name: 'Product 2', exact: true })).toHaveCount(0);
+  await page.goto('/international-quote/');
+  await expect(page.getByRole('form', { name: 'International quote request' })).toBeVisible();
+  const footer = page.locator('footer');
+  if (!(await footer.getByRole('link', { name: 'International quotes', exact: true }).isVisible())) {
+    await footer.getByRole('button', { name: 'Help & information' }).click();
+  }
+  await expect(footer.getByRole('link', { name: 'International quotes', exact: true })).toHaveAttribute('href', '/international-quote/');
 });
 
 test('shared pages show bulk gifting beside collaboration without duplicating the enquiry page', async ({ page }) => {

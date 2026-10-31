@@ -37,7 +37,7 @@ it('does not show assisted ordering while checkout settings are loading or faile
 it('does not offer assisted-order submission before the review step', async () => {
   renderCart(cart);
   expect(screen.getByText(/Online checkout currently supports delivery within India/)).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Request an international quote' }).getAttribute('href')).toMatch(/^https:\/\/wa.me\//);
+  expect(screen.getByRole('link', { name: 'Request an international quote' }).getAttribute('href')).toBe('/international-quote/');
   await waitFor(() => expect(screen.queryByText('Loading checkout options…')).toBeNull());
   expect(screen.queryByRole('link', { name: 'Send cart to Luvia on WhatsApp' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Continue with delivery details' })).toBeTruthy();

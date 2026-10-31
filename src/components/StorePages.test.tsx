@@ -16,6 +16,14 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('renders the dedicated international quote form and preselects a linked catalogue product', () => {
+    window.history.replaceState(null, '', '/international-quote/?product=p1');
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Request an international quote' })).toBeTruthy();
+    expect(screen.getByRole('form', { name: 'International quote request' })).toBeTruthy();
+    expect((screen.getByLabelText('Product 1') as HTMLSelectElement).value).toBe('p1');
+    expect(document.title).toBe('Request an international quote | Luvia Creations');
+  });
   it('retains submitted searches, reuses them and supports individual and complete removal', async () => {
     window.history.replaceState(null, '', '/search/');
     const view = render(<StorePages {...initial} />);

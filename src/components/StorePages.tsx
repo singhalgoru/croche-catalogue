@@ -12,6 +12,8 @@ import { productImageProtection } from '../utils/imageProtection';
 import policies from '../content/policies.json';
 import bulkOrders from '../content/bulkOrders.json';
 import BulkOrders from './BulkOrders';
+import InternationalQuote from './InternationalQuote';
+import internationalQuote from '../content/internationalQuote.json';
 import { collectionBreadcrumbList, collectionPath } from '../utils/collectionLink.js';
 import { toProductPageUrl } from '../utils/productLink';
 import { compareCatalogueProducts } from '../utils/catalogueSort';
@@ -74,6 +76,7 @@ export default function StorePages({
     ? getBestsellerProducts(products, bestsellers.ids) : getFeaturedProducts(products), [products, requestedPath, bestsellers.ids]);
   const policy = policies.find(item => item.path === requestedPath);
   const isBulkOrders = requestedPath === bulkOrders.path;
+  const isInternationalQuote = requestedPath === internationalQuote.path;
   const isAbout = requestedPath === '/about/';
   const isSearch = requestedPath === '/search/';
   const isArtisans = requestedPath === artisanOnboarding.path;
@@ -125,7 +128,7 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
-  const title = productCollection?.title ?? policy?.title ?? (isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
+  const title = productCollection?.title ?? policy?.title ?? (isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -146,8 +149,8 @@ export default function StorePages({
       robots.content = 'noindex,follow';
       if (!robots.isConnected) document.head.append(robots);
     }
-    if (productCollection || policy || isBulkOrders || isAbout || isArtisans) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description);
+    if (productCollection || policy || isBulkOrders || isInternationalQuote || isAbout || isArtisans) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description);
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -185,7 +188,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isSearch, isArtisans, isBulkOrders, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -302,7 +305,7 @@ export default function StorePages({
           {productCollections.filter(item => item.path !== requestedPath).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
         </nav>
-      </> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="grid items-start gap-6 leading-relaxed lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
+      </> : isInternationalQuote ? <InternationalQuote products={products} isLoading={isLoading} loadError={loadError} /> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="grid items-start gap-6 leading-relaxed lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
         <article aria-label="Luvia's founder story" className="space-y-6 rounded-2xl border border-mustard/30 bg-white/70 p-5 sm:p-8">
           <figure className="mx-auto w-full max-w-[240px]">
             <img {...productImageProtection} src={storeContent.brandStory.portrait.src} alt={storeContent.brandStory.portrait.alt}
@@ -339,6 +342,7 @@ export default function StorePages({
         </div>
       </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
         <p>Answers about ordering, custom colours, shipping across India, international enquiries, care and returns.</p>
+        <a href={internationalQuote.path} className="inline-flex min-h-11 items-center underline">Request an international quote</a>
         {storeContent.questions.map(([question, answer]) => <details key={question} className="rounded-xl border border-mustard/40 bg-white p-4">
           <summary className="cursor-pointer font-semibold">{question}</summary><p className="mt-3">{answer}</p>
         </details>)}

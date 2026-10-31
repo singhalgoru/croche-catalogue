@@ -1,9 +1,9 @@
 import storeContent from '../content/storeContent.json';
-import { getGeneralWhatsAppLink } from '../utils/whatsapp';
+import internationalQuote from '../content/internationalQuote.json';
 
-export default function ProductDeliveryInfo() {
+export default function ProductDeliveryInfo({ productId }: { productId?: string }) {
   return <section aria-label="Delivery and returns" className="mt-4 rounded-xl border border-mustard/30 bg-cream/40 p-3 text-sm text-cocoa">
-    <p>{storeContent.international.invitation} <a href={getGeneralWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">Request an international quote</a></p>
+    <p>{storeContent.international.invitation} <a href={`${internationalQuote.path}${productId ? `?product=${encodeURIComponent(productId)}` : ''}`} className="inline-flex min-h-11 items-center underline">Request an international quote</a></p>
     <details>
       <summary className="min-h-11 cursor-pointer content-center font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">Delivery and returns</summary>
       <div className="mt-2 space-y-2">

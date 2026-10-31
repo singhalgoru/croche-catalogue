@@ -21,6 +21,21 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('prerenders the international quote page with contact/destination guidance, product links and automatic discovery', () => {
+    const doc = documentFor('/international-quote/');
+    expect(doc.querySelector('h1')?.textContent).toBe('Request an international quote');
+    expect(doc.querySelector('header')).toBeTruthy();
+    expect(doc.querySelector('footer')).toBeTruthy();
+    expect(doc.querySelector('main a[href="/p/bunny/"]')?.textContent).toBe('Bunny');
+    expect(doc.querySelector('main a[href="/p/clip/"]')?.textContent).toBe('Rose Clip');
+    expect(doc.querySelector('main a[href^="mailto:orders@"]')).toBeTruthy();
+    expect(doc.body.textContent).toContain('ZIP / postal code');
+    expect(doc.body.textContent).toContain('does not send it automatically');
+    expect(renderContentSitemap([toy, hair], '2026-10-31', pages)).toContain('<loc>https://luviacreations.com/international-quote/</loc>');
+    const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
+    expect(renderLlms(template, [toy, hair], undefined, [], discoveryPageLinks(pages)))
+      .toContain('[Request an international quote](https://luviacreations.com/international-quote/)');
+  });
   it('automatically includes new public pages and removes stale/private pages from both discovery outputs', () => {
     const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     const generated = new Map(pages);
@@ -271,7 +286,7 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/', '/artisans/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/', '/international-quote/', '/artisans/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');

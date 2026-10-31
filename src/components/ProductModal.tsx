@@ -644,7 +644,7 @@ export default function ProductModal({
           <p className="text-cocoa/80 mt-3">{product.description}</p>
           <ProductMakingVideo key={`${product.id}:${product.makingVideo?.videoUrl ?? ''}`} product={product} />
           <ProductDetails product={product} collapsible={!isPage} />
-          <ProductDeliveryInfo />
+          <ProductDeliveryInfo productId={product.id} />
           <details className="mt-4 rounded-xl border border-mustard/40 p-3 text-sm text-cocoa">
             <summary className="cursor-pointer font-semibold">{storeContent.orderingDisclosure.title}</summary>
             <p className="mt-2">{storeContent.orderingDisclosure.request}</p>
