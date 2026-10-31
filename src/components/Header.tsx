@@ -308,8 +308,13 @@ export default function Header({
         </h1>}
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
-            Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.
-            Handmade in India and shipped nationwide and internationally.
+            <span className="sm:hidden">
+              Handmade crochet accessories, gifts, toys &amp; decor. Crafted in India, shipped nationwide and internationally.
+            </span>
+            <span className="hidden sm:inline">
+              Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.
+              Handmade in India and shipped nationwide and internationally.
+            </span>
           </p>
         )}
         {showInstallPrompt && <InstallAppButton />}

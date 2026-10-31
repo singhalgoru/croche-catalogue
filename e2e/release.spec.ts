@@ -13,8 +13,11 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
 });
 
-test('homepage introduction is visible and fits on mobile and desktop', async ({ page }) => {
-  const introduction = page.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.', { exact: true });
+test('homepage introduction is visible and fits on mobile and desktop', async ({ page, isMobile }) => {
+  const full = page.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.', { exact: true });
+  const compact = page.getByText('Handmade crochet accessories, gifts, toys & decor. Crafted in India, shipped nationwide and internationally.', { exact: true });
+  const introduction = isMobile ? compact : full;
+  await expect(isMobile ? full : compact).toBeHidden();
   await expect(introduction).toBeVisible();
   const fits = await introduction.evaluate(element => {
     const bounds = element.getBoundingClientRect();

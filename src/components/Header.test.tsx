@@ -193,7 +193,7 @@ describe('Header', () => {
     expect(link.contains(screen.getByRole('img', { name: /Luvia/ }))).toBe(true);
   });
 
-  it('preserves the full introduction on mobile and desktop while keeping the compact logo', () => {
+  it('uses compact mobile copy while preserving the full desktop introduction', () => {
     const onOpenCart = vi.fn();
     render(<Header showInstallPrompt={false} onOpenCart={onOpenCart} cartItemCount={2} />);
     expect(screen.queryByText('Luvia Creations')).toBeNull();
@@ -201,8 +201,8 @@ describe('Header', () => {
     expect(logo.className).toContain('h-20 w-20');
     expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 80px');
     const introduction = screen.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.');
-    expect(introduction.tagName).toBe('P');
-    expect(introduction.className).not.toContain('hidden');
+    expect(introduction.className).toBe('hidden sm:inline');
+    expect(screen.getByText('Handmade crochet accessories, gifts, toys & decor. Crafted in India, shipped nationwide and internationally.').className).toBe('sm:hidden');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Premium Handmade Crochet Creations');
     fireEvent.click(screen.getByRole('button', { name: 'Open cart with 2 items' }));
     expect(onOpenCart).toHaveBeenCalledOnce();
