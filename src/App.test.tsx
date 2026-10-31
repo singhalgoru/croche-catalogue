@@ -66,6 +66,53 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it.each(['collaborate', 'bulk-orders', 'products'])('anchors #%s after delayed catalogue loading while retaining PWA parameters', async id => {
+    catalogueLoading = true;
+    window.history.replaceState(null, '', `/?utm_source=pwa&utm_medium=app#${id}`);
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+    const { rerender } = render(<App />);
+    expect(scroll).not.toHaveBeenCalled();
+    catalogueLoading = false;
+    rerender(<App />);
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ behavior: 'instant', block: 'start' }));
+    expect(scroll.mock.instances.at(-1)).toBe(document.getElementById(id));
+    expect(window.location.search).toBe('?utm_source=pwa&utm_medium=app');
+    expect(window.location.hash).toBe(`#${id}`);
+  });
+  it('preserves and scrolls the collaboration anchor on a direct product page', async () => {
+    window.history.replaceState(null, '', '/p/test-coaster/?utm_source=pwa#collaborate');
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    const scroll = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    await waitFor(() => expect(scroll.mock.instances.at(-1)).toBe(document.getElementById('collaborate')));
+    expect(window.location.hash).toBe('#collaborate');
+    expect(window.location.search).toBe('?utm_source=pwa');
+  });
+  it('handles section hash changes and history without resetting the page to the top', async () => {
+    render(<App />);
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+    window.history.pushState(null, '', '/#collaborate');
+    fireEvent(window, new HashChangeEvent('hashchange'));
+    await waitFor(() => expect(scroll.mock.instances.at(-1)).toBe(document.getElementById('collaborate')));
+    scroll.mockClear();
+    vi.mocked(window.scrollTo).mockClear();
+    window.history.pushState(null, '', '/#products');
+    fireEvent(window, new PopStateEvent('popstate'));
+    await waitFor(() => expect(scroll.mock.instances.at(-1)).toBe(document.getElementById('products')));
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+  it('returns from a product page to an anchored catalogue history entry', async () => {
+    window.history.replaceState(null, '', '/?utm_source=pwa#collaborate');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open test product' }));
+    await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
+    window.history.replaceState(null, '', '/?utm_source=pwa#collaborate');
+    fireEvent(window, new PopStateEvent('popstate'));
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Test Coaster', level: 1 })).toBeNull());
+    const scroll = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    await waitFor(() => expect(scroll.mock.instances.at(-1)).toBe(document.getElementById('collaborate')));
+    expect(window.location.hash).toBe('#collaborate');
+  });
   it('preserves private artisan invitation fragments through route cleanup and navigation', async () => {
     const token = 'a'.repeat(64);
     window.history.replaceState(null, '', `/artisans/#invite=${token}`);
@@ -131,7 +178,7 @@ describe('Hybrid product navigation', () => {
     window.history.replaceState(null, '', '/p/test-coaster/variant/white/?utm_source=reddit');
     render(<App />);
     await screen.findByRole('heading', { name: 'Test Coaster', level: 1 });
-    expect(screen.getByRole('img', { name: 'Test Coaster' }).getAttribute('src')).toBe('/white.webp');
+    expect((await screen.findByRole('img', { name: 'Test Coaster — White' })).getAttribute('src')).toBe('/white.webp');
     expect(window.location.pathname).toBe('/p/test-coaster/variant/white/');
     expect(new URLSearchParams(window.location.search).get('utm_source')).toBe('reddit');
   });

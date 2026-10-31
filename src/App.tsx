@@ -69,6 +69,7 @@ const readCheckoutStep = () => {
   const value = new URLSearchParams(window.location.search).get('checkout');
   return (['cart','delivery','review','confirmation'] as const).find(step => step === value) ?? null;
 };
+const sectionHashes = ['#collaborate', '#bulk-orders', '#products'];
 
 function App() {
   const watchReference = window.location.pathname.match(/^\/watch\/([^/]+)\/?$/)?.[1];
@@ -236,26 +237,34 @@ function App() {
     if (/^\/artisans\/?$/.test(window.location.pathname) && authParams.has('invite')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)
-      : ['#collaborate', '#bulk-orders', '#products'].includes(window.location.hash) ? window.location.hash : '';
+      : sectionHashes.includes(window.location.hash) ? window.location.hash : '';
     window.history.replaceState(null, '', `${pathname}${search}${hash}`);
   }, [isAdminPage, isCartOpen, selectedProduct, pageReference]);
 
   useEffect(() => {
-    if (isLoading || pageReference || window.location.hash !== '#bulk-orders') return;
-    const frame = window.requestAnimationFrame(() => document.getElementById('bulk-orders')?.scrollIntoView());
-    return () => window.cancelAnimationFrame(frame);
-  }, [isLoading, pageReference]);
-
-  useEffect(() => {
-    if (isLoading || isCartOpen || pageReference || window.location.hash !== '#products') return;
-    const frame = window.requestAnimationFrame(() => document.getElementById('products')?.scrollIntoView());
-    return () => window.cancelAnimationFrame(frame);
-  }, [isLoading, isCartOpen, pageReference]);
+    if (isLoading || isCartOpen || isAdminPage || (selectedProduct && !pageReference)) return;
+    let frame = 0;
+    const scrollToSection = () => {
+      window.cancelAnimationFrame(frame);
+      if (!sectionHashes.includes(window.location.hash)) return;
+      const id = window.location.hash.slice(1);
+      frame = window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'instant', block: 'start' }));
+    };
+    // Native fragment scrolling can run before React mounts or the catalogue fills the page.
+    scrollToSection();
+    window.addEventListener('hashchange', scrollToSection);
+    window.addEventListener('popstate', scrollToSection);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('hashchange', scrollToSection);
+      window.removeEventListener('popstate', scrollToSection);
+    };
+  }, [isLoading, isCartOpen, isAdminPage, pageReference, selectedProduct]);
 
   useEffect(() => {
     if (!pageReference || !selectedProduct) return;
     const url = new URL(toProductPageUrl(selectedProduct));
-    if (window.location.hash === '#making-video') url.hash = '#making-video';
+    if (window.location.hash === '#making-video' || sectionHashes.includes(window.location.hash)) url.hash = window.location.hash;
     const params = new URLSearchParams(window.location.search);
     params.delete('productPage');
     const incomingVariant = readProductVariantReference();
@@ -312,7 +321,6 @@ function App() {
 
   useEffect(() => {
     const onPopState = () => {
-      if (['#collaborate', '#bulk-orders'].includes(window.location.hash)) return;
       const reference = readProductPageReference();
       setPageReference(reference);
       setActiveCategory(new URLSearchParams(window.location.search).get('category') || 'All');
@@ -325,7 +333,9 @@ function App() {
       pendingProductReference.current = requested && (isLoading || products.length === 0) ? requested : null;
       if (!reference) {
         restoreHomepageMetadata();
-        window.requestAnimationFrame(() => window.scrollTo({ top: productReturnScrollY.current ?? 0, behavior: 'auto' }));
+        if (!sectionHashes.includes(window.location.hash)) {
+          window.requestAnimationFrame(() => window.scrollTo({ top: productReturnScrollY.current ?? 0, behavior: 'auto' }));
+        }
       }
     };
     window.addEventListener('popstate', onPopState);

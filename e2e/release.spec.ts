@@ -13,6 +13,41 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
 });
 
+test('section anchors land below sticky controls on PWA launches, reloads and history navigation', async ({ page }) => {
+  const expectAnchored = async (id: string) => {
+    await expect.poll(() => page.locator(`#${id}`).evaluate(element => {
+      const desired = Number.parseFloat(getComputedStyle(element).scrollMarginTop);
+      return Math.abs(element.getBoundingClientRect().top - desired);
+    })).toBeLessThan(3);
+  };
+  await page.route('**/rest/v1/products?*', async route => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await route.fallback();
+  });
+  for (const id of ['collaborate', 'bulk-orders', 'products']) {
+    await page.goto(`./?utm_source=pwa&utm_medium=app#${id}`);
+    await expect(page.getByRole('button', { name: 'View Rose Charm' })).toBeAttached();
+    await expectAnchored(id);
+    expect(new URL(page.url()).search).toBe('?utm_source=pwa&utm_medium=app');
+    await page.reload();
+    await expectAnchored(id);
+  }
+  await page.evaluate(() => { location.hash = 'collaborate'; });
+  await expectAnchored('collaborate');
+  await page.evaluate(() => { location.hash = 'products'; });
+  await expectAnchored('products');
+  await page.goBack();
+  await expect(page).toHaveURL(/#collaborate$/);
+  await expectAnchored('collaborate');
+  await page.goForward();
+  await expectAnchored('products');
+  await page.getByRole('button', { name: 'View Rose Charm' }).click();
+  await expect(page.getByRole('heading', { name: 'Rose Charm', level: 1 })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/#products$/);
+  await expectAnchored('products');
+});
+
 test('home page opens a product page with current purchase actions', async ({ page }) => {
   await page.getByRole('button', { name: 'View Rose Charm' }).click();
   await expect(page).toHaveURL(/\/p\/rose-charm\/$/);
