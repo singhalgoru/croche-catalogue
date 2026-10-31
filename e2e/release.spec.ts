@@ -13,6 +13,17 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
 });
 
+test('homepage introduction is visible and fits on mobile and desktop', async ({ page }) => {
+  const introduction = page.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.', { exact: true });
+  await expect(introduction).toBeVisible();
+  const fits = await introduction.evaluate(element => {
+    const bounds = element.getBoundingClientRect();
+    return bounds.left >= 0 && bounds.right <= document.documentElement.clientWidth
+      && element.scrollWidth <= element.clientWidth;
+  });
+  expect(fits).toBe(true);
+});
+
 test('section anchors land below sticky controls on PWA launches, reloads and history navigation', async ({ page }) => {
   const expectAnchored = async (id: string) => {
     await expect.poll(() => page.locator(`#${id}`).evaluate(element => {
