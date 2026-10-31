@@ -179,7 +179,7 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     expect(screen.getByRole('heading', { name: title, level: 1 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: section })).toBeTruthy();
-    expect(screen.getByText(`Last updated: ${path === '/privacy-policy/' ? '29' : '14'} October 2026`)).toBeTruthy();
+    expect(screen.getByText(`Last updated: ${path === '/privacy-policy/' ? '29' : '31'} October 2026`)).toBeTruthy();
     if (path === '/privacy-policy/') {
       expect(screen.getByText(/latest eight submitted search keywords/)).toBeTruthy();
     }
