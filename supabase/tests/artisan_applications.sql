@@ -221,7 +221,7 @@ select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role',
   'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now())))))::text,true)
 from artisan_fixture;
 set local role authenticated;
-select public.delete_artisan_application(application_id,5) from artisan_fixture;
+select public.delete_artisan_application(application_id,6) from artisan_fixture;
 select public.delete_artisan_application(legacy_application_id,1) from artisan_fixture;
 reset role;
 do $$ begin

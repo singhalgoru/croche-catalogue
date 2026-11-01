@@ -55,8 +55,10 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
   const refreshActivity = () => { setReloadKey(value => value + 1); onActivityChanged(); };
   const totalPaid = activity?.payments.reduce((sum, entry) => sum + (entry.voided_at ? 0 : Math.round(entry.amount * 100)), 0) ?? 0;
   return <section aria-label="Artisan working profile" className="space-y-5 rounded-xl border border-mustard/40 p-4">
+    <details>
+    <summary className="min-h-11 cursor-pointer py-2 font-heading text-xl font-bold">Working profile</summary>
+    <div className="space-y-5 pt-3">
     <fieldset disabled={disabled} className="contents">
-    <h3 className="font-heading text-xl font-bold">Working profile</h3>
     <p className="text-sm">Private work-related records, not a public profile. Name, phone, location and application skills above come directly from onboarding.</p>
     <div className="space-y-2">
       <h4 className="font-semibold">Private profile photo</h4>
@@ -117,8 +119,9 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
       </li>)}</ul>}
       {activity?.comments.length === 0 && <p className="text-sm">No comments yet.</p>}
     </section>
-    <section aria-label="Artisan payments" className="space-y-3">
-      <h4 className="font-semibold">Payment entries</h4>
+    <details aria-label="Artisan payments">
+      <summary className="min-h-11 cursor-pointer py-2 font-semibold">Payment entries</summary>
+      <div className="space-y-3 pt-3">
       <p className="text-sm">Record money already paid to this artisan in INR. This does not send money, calculate wages owed or add a business expense automatically. Agree rates and payment terms before work.</p>
       {activity && <p className="font-semibold">Total paid (excluding voided entries): {paymentCurrency.format(totalPaid / 100)}</p>}
       <form aria-label="Record artisan payment" className="space-y-3" onSubmit={event => {
@@ -164,7 +167,8 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
         <button disabled={busy} className={buttonClass}>Confirm void payment</button>
         <button type="button" disabled={busy} className="ml-4 min-h-11 underline" onClick={() => setVoidId('')}>Cancel void</button>
       </form>}
-    </section>
+      </div>
+    </details>
     {!activity && !loadError && <p role="status">Loading comments and payments...</p>}
     {loadError && <div><p role="alert" className="text-red-700">{loadError}</p><button disabled={busy} className="min-h-11 underline"
       onClick={() => setReloadKey(value => value + 1)}>Retry comments and payments</button></div>}
@@ -172,5 +176,7 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
     {message && <p role="status">{message}</p>}
     <p className="text-xs">Profiles with payment history cannot be deleted automatically or from this screen. Mark them Inactive when the working relationship ends.</p>
     </fieldset>
+    </div>
+    </details>
   </section>;
 }

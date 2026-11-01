@@ -216,6 +216,8 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   expect(invites[1].token).not.toBe(invites[0].token);
   await page.getByRole('button', { name: 'Review Sample Maker' }).click();
   await expect(page.getByText('Synthetic delivery address', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Can create / assessed skills')).not.toBeVisible();
+  await page.locator('summary').filter({ hasText: /^Working profile$/ }).click();
   await expect(page.getByLabel('Can create / assessed skills')).toHaveValue('Flowers');
   await page.getByRole('button', { name: 'View profile photo' }).click();
   await expect(page.getByAltText('Private profile of Sample Maker')).toBeVisible();
@@ -226,7 +228,14 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('New internal comment').fill('Paid trial stitches reviewed');
   await page.getByRole('button', { name: 'Add comment', exact: true }).click();
   await expect(page.getByText('Paid trial stitches reviewed', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Amount paid (INR)')).not.toBeVisible();
+  await page.locator('summary').filter({ hasText: /^Payment entries$/ }).click();
   await page.getByLabel('Amount paid (INR)').fill('125.50');
+  await page.locator('summary').filter({ hasText: /^Payment entries$/ }).click();
+  await page.locator('summary').filter({ hasText: /^Working profile$/ }).click();
+  await page.locator('summary').filter({ hasText: /^Working profile$/ }).click();
+  await page.locator('summary').filter({ hasText: /^Payment entries$/ }).click();
+  await expect(page.getByLabel('Amount paid (INR)')).toHaveValue('125.50');
   await page.getByLabel('Transaction reference (optional for cash)').fill('synthetic-payment');
   await page.getByLabel('Work / batch description').fill('Paid trial flowers');
   await page.getByRole('button', { name: 'Record payment', exact: true }).click();

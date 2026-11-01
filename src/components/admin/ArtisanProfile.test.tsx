@@ -26,6 +26,7 @@ it('prefills skills, leaves rating unassigned and fetches photos only on demand'
   const updated = vi.fn();
   vi.mocked(readArtisanPhoto).mockResolvedValue('data:image/webp;base64,cGhvdG8=');
   render(<ArtisanProfile application={application} onUpdated={updated} onActivityChanged={vi.fn()} />);
+  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
   expect(screen.getByLabelText('Can create / assessed skills')).toHaveProperty('value', 'Flowers');
   expect(screen.getByLabelText('Skill rating')).toHaveProperty('value', '');
   expect(readArtisanPhoto).not.toHaveBeenCalled();
@@ -40,6 +41,7 @@ it('prefills skills, leaves rating unassigned and fetches photos only on demand'
 it('preserves comment and request ID on a network failure then reloads activity', async () => {
   vi.mocked(addArtisanComment).mockRejectedValueOnce(new Error('Offline'));
   render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
+  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
   await screen.findByText('No comments yet.');
   fireEvent.change(screen.getByLabelText('New internal comment'), { target: { value: 'Good stitches' } });
   fireEvent.submit(screen.getByRole('form', { name: 'Add artisan comment' }));
@@ -54,6 +56,8 @@ it('records payment with a retry-safe request and requires explicit reasoned voi
   vi.mocked(recordArtisanPayment).mockRejectedValueOnce(new Error('Interrupted'));
   vi.mocked(fetchArtisanActivity).mockResolvedValue({ comments: [], payments: [payment, { ...payment, id: 'voided', amount: 50, voided_at: '2026-10-30', void_reason: 'Wrong batch' }] });
   render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
+  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
+  fireEvent.click(screen.getByText('Payment entries', { selector: 'summary' }));
   expect((await screen.findByText(/Total paid/)).textContent).toContain('125.50');
   fireEvent.change(screen.getByLabelText('Amount paid (INR)'), { target: { value: '125.50' } });
   fireEvent.change(screen.getByLabelText('Transaction reference (optional for cash)'), { target: { value: 'synthetic-ref' } });
@@ -72,9 +76,27 @@ it('records payment with a retry-safe request and requires explicit reasoned voi
 it('surfaces activity errors and offers retry without an empty success state', async () => {
   vi.mocked(fetchArtisanActivity).mockRejectedValueOnce(new Error('Unable to load ledger'));
   render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
+  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
+  fireEvent.click(screen.getByText('Payment entries', { selector: 'summary' }));
   await screen.findByText('Unable to load ledger');
   expect(screen.queryByText('No payments recorded.')).toBeNull();
   expect(screen.getByRole('button', { name: 'Record payment' }).matches(':disabled')).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Retry comments and payments' }));
   expect(await screen.findByText('No payments recorded.')).toBeTruthy();
+});
+it('starts collapsed and preserves payment drafts when either section is closed', () => {
+  render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
+  const profileToggle = screen.getByText('Working profile', { selector: 'summary' });
+  const paymentToggle = screen.getByText('Payment entries', { selector: 'summary' });
+  expect(profileToggle.parentElement).toHaveProperty('open', false);
+  expect(paymentToggle.parentElement).toHaveProperty('open', false);
+  fireEvent.click(profileToggle);
+  fireEvent.click(paymentToggle);
+  fireEvent.change(screen.getByLabelText('Amount paid (INR)'), { target: { value: '125.50' } });
+  fireEvent.click(paymentToggle);
+  fireEvent.click(profileToggle);
+  fireEvent.click(profileToggle);
+  fireEvent.click(paymentToggle);
+  expect(screen.getByLabelText('Amount paid (INR)')).toHaveProperty('value', '125.50');
+  expect(recordArtisanPayment).not.toHaveBeenCalled();
 });
