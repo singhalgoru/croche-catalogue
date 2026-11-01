@@ -52,16 +52,17 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
   const state = emailText(payload.state);
   const skills = emailText(payload.skills);
   const availability = emailText(payload.availability);
-  const message = emailText(payload.message);
+  const message = payload.message.replace(/\r\n?/g, '\n').split('\n').map(emailText).join('\n').trim();
   const isSubmission = job.kind === 'submitted';
+  const isInformationRequest = job.kind === 'More information required';
   const subject = isSubmission ? `New artisan application to review - ${applicantName} - Luvia Creations`
     : job.kind === 'Trial' ? 'Welcome to Luvia Creations - your paid trial is next'
-    : job.kind === 'Approved' ? 'Welcome to Luvia Creations - your artisan application is approved'
+    : job.kind === 'Approved' ? 'Welcome to Luvia Creations - welcome to the Luvia family!'
       : job.kind === 'Declined' ? 'An update on your Luvia artisan application'
         : 'More information needed for your Luvia artisan application';
   const heading = isSubmission ? 'New artisan application'
     : job.kind === 'Trial' ? 'Welcome to Luvia'
-    : job.kind === 'Approved' ? 'Welcome to Luvia'
+    : job.kind === 'Approved' ? 'Welcome to the Luvia family!'
       : job.kind === 'Declined' ? 'An update on your application'
         : 'A little more information, please';
   const paragraphs = isSubmission ? [
@@ -79,8 +80,10 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     'The trial is not a promise of ongoing work; it helps us both see whether working together is a good fit.',
   ] : job.kind === 'Approved' ? [
     `Hello ${applicantName},`,
-    'Thank you for sharing your skills with Luvia Creations. We are pleased to let you know that your application has been approved.',
-    'We will contact you to discuss a small paid trial and any suitable work. This application decision is not a work agreement; batch scope, rates, quality requirements, delivery costs and timelines will be agreed separately before work starts.',
+    'Your artisan application has been approved. Welcome to the Luvia family! We are delighted to have your creativity and craftsmanship become part of our story.',
+    'At Luvia, every handmade piece carries the care and skill of the artisan behind it. Thank you for choosing to share your craft with us; we look forward to creating beautiful things together.',
+    'What happens next: Our team will contact you to discuss suitable work and agree the next steps. Please wait for confirmation of the batch scope, rates, quality requirements, delivery costs and timelines before starting any work.',
+    'This approval is not a work agreement or a guarantee of ongoing work. All work and payment terms will be agreed with you separately.',
   ] : job.kind === 'Declined' ? [
     `Hello ${applicantName},`,
     'Thank you for taking the time to apply and share your work with Luvia Creations. We are unable to proceed with your application at this time.',
@@ -95,7 +98,8 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     'Luvia Creations - Create with Luvia',
     heading,
     '',
-    ...paragraphs,
+    ...paragraphs.map((paragraph, index) => isInformationRequest && index === 2
+      ? `DETAILS WE NEED FROM YOU:\n${paragraph}` : paragraph),
     '',
     ...(!isSubmission ? [onboardingFlowText, ''] : []),
     ...(isSubmission ? [
@@ -109,8 +113,13 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     'With love,',
     'Luvia Creations',
   ].join('\n');
-  const htmlParagraphs = paragraphs.map(paragraph =>
-    `<p style="margin:0 0 16px;line-height:1.65;overflow-wrap:anywhere">${escapeHtml(paragraph)}</p>`).join('');
+  const htmlParagraphs = paragraphs.map((paragraph, index) => isInformationRequest && index === 2
+    ? `<section aria-label="Details we need from you" style="margin:20px 0;padding:20px;background:#f6ead7;border:1px solid #d4ab58;border-left:5px solid #604239;border-radius:12px">
+      <h2 style="margin:0 0 12px;color:#604239;font-size:20px;line-height:1.4">Details we need from you</h2>
+      <p style="margin:0;color:#604239;font-size:17px;font-weight:bold;line-height:1.65;overflow-wrap:anywhere">${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>
+      <p style="margin:16px 0 0;font-size:14px;line-height:1.65"><strong>How to respond:</strong> Reply to this email with an answer to each requested detail above.</p>
+      </section>`
+    : `<p style="margin:0 0 16px;line-height:1.65;overflow-wrap:anywhere">${escapeHtml(paragraph)}</p>`).join('');
   const submissionDetails = isSubmission ? `<div style="margin:20px 0;padding:16px;background:#fffaf0;border-left:4px solid #d4ab58">
     <p style="margin:0 0 8px"><strong>Application reference:</strong> ${escapeHtml(payload.application_id)}</p>
     <p style="margin:0 0 8px"><strong>Email:</strong> ${escapeHtml(applicantEmail || 'Not provided')}</p>

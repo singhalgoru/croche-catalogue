@@ -56,6 +56,31 @@ it.each([
   expect(email.html).not.toContain('<Maker>');
 });
 
+it('welcomes approved artisans to the Luvia family separately from the paid-trial welcome', () => {
+  const email = buildArtisanApplicationEmail({ id: 'approved-job', kind: 'Approved',
+    recipient_email: payload.applicant_email, payload });
+  expect(email.subject).toContain('welcome to the Luvia family!');
+  expect(email.html).toContain('Welcome to the Luvia family!');
+  expect(email.text).toContain('Your artisan application has been approved.');
+  expect(email.text).toContain('What happens next: Our team will contact you');
+  expect(email.text).toContain('not a work agreement or a guarantee of ongoing work');
+  expect(email.text).not.toContain('invite you to a small paid trial');
+  expect(email.html).not.toContain('Details we need from you');
+});
+
+it('highlights the exact requested details, preserves separate lines and escapes applicant-facing content', () => {
+  const message = '1. Photos of your <crochet> work.\r\n2. Weekly availability.\n\n3. Preferred batch size & timing.';
+  const email = buildArtisanApplicationEmail({ id: 'request-job', kind: 'More information required',
+    recipient_email: payload.applicant_email, payload: { ...payload, message } });
+  expect(email.text).toContain('DETAILS WE NEED FROM YOU:\n1. Photos of your <crochet> work.\n2. Weekly availability.\n\n3. Preferred batch size & timing.');
+  expect(email.html).toContain('<h2 style="margin:0 0 12px;color:#604239;font-size:20px;line-height:1.4">Details we need from you</h2>');
+  expect(email.html).toContain('font-weight:bold;line-height:1.65;overflow-wrap:anywhere">1. Photos of your &lt;crochet&gt; work.<br>2. Weekly availability.<br><br>3. Preferred batch size &amp; timing.');
+  expect(email.html).toContain('Reply to this email with an answer to each requested detail above.');
+  expect(email.html).toContain('Do not send identity documents, bank details, passwords or OTPs.');
+  expect(email.html).not.toContain('<crochet>');
+  expect(email.html.indexOf('Details we need from you')).toBeLessThan(email.html.indexOf('aria-label="Onboarding process"'));
+});
+
 it('sends notifications from onboarding with a stable idempotency key and correct reply target', async () => {
   const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-id' }), { status: 200 }));
   vi.stubGlobal('fetch', fetch);

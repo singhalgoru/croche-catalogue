@@ -108,6 +108,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
       <p className="text-xs">Approved is an internal review status, not a signed work agreement. Agree trial/batch terms separately before work starts.</p>
       {status === 'More information required' && <label className="block text-sm font-semibold">Message to artisan (sent by email; not an internal note)
         <textarea rows={4} maxLength={1500} required value={applicantMessage} disabled={busy}
+          placeholder={'List the exact details needed, one per line.\nFor example:\n1. A link to photos of your recent crochet work.\n2. How many hours per week you are available.'}
           onChange={event => setApplicantMessage(event.target.value)} className="mt-1 block w-full rounded border p-2" />
       </label>}
       <p className="text-xs">Changing status to Trial sends a one-time welcome email. Changing status to Approved, Declined or More information required sends an email. Updating the message while More information required remains selected sends the revised request. Internal notes are never included.</p>
