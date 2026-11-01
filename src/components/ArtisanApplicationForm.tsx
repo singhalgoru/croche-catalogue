@@ -53,7 +53,7 @@ export default function ArtisanApplicationForm() {
   if (receipt) return <section lang={language} className="max-w-3xl space-y-3 rounded-2xl bg-white p-5" aria-label={t('Application confirmation')}>
     <h2 className="font-heading text-2xl font-bold" tabIndex={-1} ref={focusConfirmation}>{t('Thank you for introducing yourself')}</h2>
     <p role="status">{t('Your application has been saved. Your reference is')} <strong className="break-all">{receipt}</strong>.</p>
-    <p>{t('Keep this reference. Luvia will review your application and contact you if there is a suitable next step. Work is not guaranteed.')}</p>
+    <p>{t('Your application is already saved. Luvia will email you about the review decision or any information needed. Check your inbox and spam folder. Work is not guaranteed.')}</p>
     <section aria-labelledby="artisan-work-video-heading" className="space-y-3 rounded-xl bg-cream p-4">
       <h3 id="artisan-work-video-heading" className="font-semibold">{t('Show us your craft (optional)')}</h3>
       <p>{t('If possible, send a short 30-60 second video of your own crochet or handmade work on WhatsApp. Show a finished piece or a few stitches being made; there is no need to show your face.')}</p>
@@ -89,6 +89,23 @@ export default function ArtisanApplicationForm() {
       : 'You can answer in Hindi or English. Answers are saved in their original language without translation. Tell us your preferred contact language and time below.'}</p>
     <p>{content.description}</p><p>{content.notice}</p>
     <p className="text-sm">{t('No portfolio is required. You can discuss a paid trial instead. Keep your invitation private.')}</p>
+    <section aria-labelledby="artisan-onboarding-flow" className="rounded-xl bg-cream p-4 sm:p-5">
+      <h2 id="artisan-onboarding-flow" className="mb-3 font-semibold">{t('How the onboarding process works')}</h2>
+      <ol className="space-y-2">
+        {([
+          ['Submit your application', 'Share your craft, contact details and email address.'],
+          ['Luvia reviews your application', 'Your application is reviewed privately by our team.'],
+          ['Receive an email update', 'We email you a decision or a request for more information.'],
+          ['Agree on a paid trial or batch', 'If selected, agree on scope, rate, courier and timing before work begins.'],
+        ] as const).map(([title, description], index, steps) => <li key={title}>
+          <div className="flex items-start gap-3 rounded-lg border border-cocoa/15 bg-white p-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-cocoa text-sm font-bold text-cream">{index + 1}</span>
+            <div><h3 className="font-semibold">{t(title)}</h3><p className="text-sm">{t(description)}</p></div>
+          </div>
+          {index < steps.length - 1 && <div aria-hidden="true" className="pl-5 text-lg leading-6 text-cocoa/70">↓</div>}
+        </li>)}
+      </ol>
+    </section>
     <form aria-label={t('Artisan application')} className="grid gap-4 sm:grid-cols-2" onSubmit={event => {
       event.preventDefault(); setBusy(true); setError('');
       void (async () => {
@@ -124,7 +141,7 @@ export default function ArtisanApplicationForm() {
               className="mt-1 block w-full rounded-lg border border-cocoa/30 p-3" />
           : <input id={`artisan-${field.name}`} title={field.hint} aria-describedby={field.hint ? `artisan-${field.name}-hint` : undefined}
               name={field.name} required={field.required} maxLength={field.maxLength} autoComplete={field.autocomplete}
-              type={field.name === 'mobile' ? 'tel' : field.name === 'portfolioUrl' ? 'url' : 'text'}
+              type={field.name === 'mobile' ? 'tel' : field.name === 'email' ? 'email' : field.name === 'portfolioUrl' ? 'url' : 'text'}
               inputMode={field.name === 'pin' ? 'numeric' : undefined}
               value={String(Reflect.get(details, field.name) ?? '')}
               onChange={event => setDetails(current => ({ ...current, [field.name]: event.target.value }))}

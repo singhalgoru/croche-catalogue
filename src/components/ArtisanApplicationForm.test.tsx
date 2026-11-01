@@ -19,10 +19,15 @@ it('switches languages without changing answers and submits original Hindi with 
   render(<ArtisanApplicationForm />);
   await screen.findByRole('form', { name: 'Artisan application' });
   fireEvent.change(screen.getByLabelText('Full name *'), { target: { value: 'परीक्षण कारीगर' } });
+  fireEvent.change(screen.getByLabelText('Email for application updates *'), { target: { value: 'maker@example.test' } });
   fireEvent.change(screen.getByLabelText('Form language / फॉर्म की भाषा'), { target: { value: 'hi' } });
   const form = screen.getByRole('form', { name: 'कारीगर आवेदन' });
   expect(form.closest('[lang]')?.getAttribute('lang')).toBe('hi');
   expect(screen.getByLabelText('पूरा नाम *')).toHaveProperty('value', 'परीक्षण कारीगर');
+  expect(screen.getByLabelText('आवेदन अपडेट के लिए ईमेल *')).toHaveProperty('value', 'maker@example.test');
+  expect(screen.getByRole('heading', { name: 'ऑनबोर्डिंग प्रक्रिया कैसे काम करती है' })).toBeTruthy();
+  expect(screen.getByText('अपना आवेदन जमा करें')).toBeTruthy();
+  expect(screen.getByText('ईमेल अपडेट पाएं')).toBeTruthy();
   for (const paragraph of hindiContent.dispatchTerms) expect(screen.getByText(paragraph)).toBeTruthy();
   expect(screen.getByText(hindiContent.privacy)).toBeTruthy();
   expect(screen.getByText(hindiContent.profilePrivacy)).toBeTruthy();
@@ -34,7 +39,7 @@ it('switches languages without changing answers and submits original Hindi with 
   fireEvent.click(screen.getByLabelText(/मैंने सामग्री भेजने/));
   fireEvent.submit(form);
   expect(await screen.findByRole('region', { name: 'आवेदन की पुष्टि' })).toBeTruthy();
-  expect(submit.mock.calls[0][0]).toMatchObject({ fullName: 'परीक्षण कारीगर', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने' });
+  expect(submit.mock.calls[0][0]).toMatchObject({ fullName: 'परीक्षण कारीगर', email: 'maker@example.test', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने' });
   expect(screen.getByRole('link', { name: 'WhatsApp पर काम का वीडियो साझा करें' })).toBeTruthy();
 });
 it('provides hover and accessible mobile guidance without changing field labels or requirements', async () => {
@@ -47,6 +52,7 @@ it('provides hover and accessible mobile guidance without changing field labels 
     expect(document.getElementById(`artisan-${field.name}-hint`)?.textContent).toBe(field.hint);
     expect(input.hasAttribute('required')).toBe(field.required);
   }
+  expect(screen.getByRole('textbox', { name: 'Email for application updates *' }).getAttribute('type')).toBe('email');
   expect(screen.getByRole('textbox', { name: 'Public portfolio link (e.g. Instagram) (optional)' }).getAttribute('type')).toBe('url');
 });
 it('requires a valid invitation and displays no application for unavailable links', async () => {
@@ -92,6 +98,7 @@ it('preserves details and request ID on a failed submission, then confirms persi
   expect(screen.queryByRole('link', { name: 'Share work video on WhatsApp' })).toBeNull();
   fireEvent.submit(form);
   expect((await screen.findByRole('status')).textContent).toContain('saved-reference');
+  expect(screen.getByText(/Luvia will email you about the review decision/)).toBeTruthy();
   expect(submit.mock.calls[0][1]).toBe(submit.mock.calls[1][1]);
   expect(submit.mock.calls[0][2]).toBe(token);
   expect(submit.mock.calls[0].slice(3)).toEqual([true, null, null]);

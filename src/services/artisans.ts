@@ -3,10 +3,11 @@ import { loadSupabase } from '../lib/supabaseConfig';
 import { requestCartCaptcha } from './cartCaptcha';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 
-export const artisanStatuses = ['New', 'Contacted', 'Trial', 'Approved', 'Declined', 'Inactive'] as const;
+export const artisanStatuses = ['New', 'Contacted', 'Trial', 'More information required', 'Approved', 'Declined', 'Inactive'] as const;
 export type ArtisanStatus = typeof artisanStatuses[number];
 export interface ArtisanDetails {
   fullName: string;
+  email?: string;
   address?: string;
   mobile: string;
   city: string;
@@ -26,6 +27,8 @@ export interface ArtisanDetails {
 export interface ArtisanApplication {
   id: string;
   details: ArtisanDetails;
+  contact_email?: string | null;
+  applicant_message?: string;
   status: ArtisanStatus;
   admin_notes: string;
   version: number;
@@ -86,7 +89,7 @@ export interface ArtisanHistory {
   created_at: string;
 }
 export const emptyArtisanDetails: ArtisanDetails = {
-  fullName: '', address: '', mobile: '', city: '', state: '', pin: '', language: '', skills: '', availability: '',
+  fullName: '', email: '', address: '', mobile: '', city: '', state: '', pin: '', language: '', skills: '', availability: '',
   experience: '', tools: '', portfolioUrl: '', notes: '', adult: false, consent: false, paidTrial: false,
 };
 
@@ -94,7 +97,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 function isDetails(value: unknown): value is ArtisanDetails {
-  return isRecord(value) && content.fields.every(field => (field.name === 'address' && value.address === undefined) || typeof value[field.name] === 'string')
+  return isRecord(value) && content.fields.every(field =>
+    ((field.name === 'address' || field.name === 'email') && value[field.name] === undefined) || typeof value[field.name] === 'string')
     && typeof value.adult === 'boolean' && typeof value.consent === 'boolean' && typeof value.paidTrial === 'boolean';
 }
 export function isApplication(value: unknown): value is ArtisanApplication {
@@ -106,6 +110,8 @@ export function isApplication(value: unknown): value is ArtisanApplication {
       value[key] == null || typeof value[key] === 'string')
     && (value.identity_type == null || value.identity_type === 'masked_aadhaar' || value.identity_type === 'alternative_id')
     && (value.delivery_address === undefined || typeof value.delivery_address === 'string')
+    && (value.contact_email === undefined || value.contact_email === null || typeof value.contact_email === 'string')
+    && (value.applicant_message === undefined || typeof value.applicant_message === 'string')
     && (value.capabilities === undefined || typeof value.capabilities === 'string')
     && (value.skill_rating == null || (typeof value.skill_rating === 'number' && Number.isInteger(value.skill_rating) && value.skill_rating >= 1 && value.skill_rating <= 5))
     && (value.has_profile_photo === undefined || typeof value.has_profile_photo === 'boolean');
@@ -120,6 +126,10 @@ export function validateArtisanDetails(details: ArtisanDetails): void {
   }
   if (!/^(?:\+?91[\s-]?)?[6-9]\d{9}$/.test(details.mobile.trim())) {
     throw new Error('Enter a valid Indian mobile number, with optional +91 prefix.');
+  }
+  const email = details.email?.trim() ?? '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    throw new Error('Enter a valid email address for application updates.');
   }
   if (!/^[1-9]\d{5}$/.test(details.pin.trim())) throw new Error('Enter a valid six-digit Indian PIN code.');
   if (details.portfolioUrl.trim()) {
@@ -149,8 +159,10 @@ export async function submitArtisanApplication(details: ArtisanDetails, requestI
     const { error } = await db.auth.signInAnonymously(captchaToken ? { options: { captchaToken } } : undefined);
     if (error) throw new Error(`Unable to prepare the application: ${error.message}`);
   }
+  const { email = '', ...applicationDetails } = details;
   const { data, error } = await db.rpc('submit_artisan_application', {
-    request_id: requestId, application_details: details, privacy_version: content.consentVersion, invitation_token: token,
+    request_id: requestId, application_details: applicationDetails, applicant_email: email.trim().toLowerCase(),
+    privacy_version: content.consentVersion, invitation_token: token,
     dispatch_terms_version: content.dispatchTermsVersion, identity_document: identity, profile_photo: photo,
   });
   if (error) throw new Error(`Unable to save the application: ${error.message}`);
@@ -243,10 +255,14 @@ export async function fetchArtisanApplications(search: string, status: string, p
     || typeof data.total !== 'number') throw new Error('Invalid artisan directory response.');
   return { applications: data.applications, total: data.total };
 }
-export async function updateArtisanApplication(application: ArtisanApplication, status: ArtisanStatus, notes: string): Promise<ArtisanApplication> {
+export async function updateArtisanApplication(application: ArtisanApplication, status: ArtisanStatus, notes: string, applicantMessage = ''): Promise<ArtisanApplication> {
+  if (applicantMessage.trim().length > 1500 || (status === 'More information required' && !applicantMessage.trim())) {
+    throw new Error('Enter the message to the artisan (up to 1,500 characters) before requesting more information.');
+  }
   const db = await client();
   const { data, error } = await db.rpc('update_artisan_application', {
     application_id: application.id, expected_version: application.version, next_status: status, review_notes: notes,
+    applicant_message: applicantMessage,
   });
   if (error) throw new Error(`Unable to update artisan: ${error.message}`);
   if (!isApplication(data)) throw new Error('Invalid artisan update receipt. Refresh before retrying.');

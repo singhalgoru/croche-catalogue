@@ -10,6 +10,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
 }) {
   const [status, setStatus] = useState<ArtisanStatus>(application.status);
   const [notes, setNotes] = useState(application.admin_notes);
+  const [applicantMessage, setApplicantMessage] = useState(application.applicant_message ?? '');
   const [history, setHistory] = useState<ArtisanHistory[]>([]);
   const [historyError, setHistoryError] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -46,6 +47,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
       {content.fields.map(field => <div key={field.name} className="min-w-0">
         <dt className="text-sm font-semibold">{field.label}</dt>
         <dd className="whitespace-pre-wrap break-words">{(field.name === 'address' ? application.delivery_address || application.details.address
+          : field.name === 'email' ? application.contact_email || application.details.email
           : Reflect.get(application.details, field.name)) || 'Not provided'}</dd>
       </div>)}
       <div><dt className="text-sm font-semibold">Paid trial interest</dt><dd>{application.details.paidTrial ? 'Yes' : 'Not selected'}</dd></div>
@@ -90,7 +92,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
       onActivityChanged={() => setHistoryKey(value => value + 1)} />
     <form aria-label="Review artisan" className="space-y-3" onSubmit={event => {
       event.preventDefault(); setBusy(true); setError('');
-      void updateArtisanApplication(application, status, notes).then(onChanged)
+      void updateArtisanApplication(application, status, notes, applicantMessage).then(onChanged)
         .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to save review.'))
         .finally(() => setBusy(false));
     }}>
@@ -100,6 +102,11 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
         {artisanStatuses.map(value => <option key={value}>{value}</option>)}
       </select></label>
       <p className="text-xs">Approved is an internal review status, not a signed work agreement. Agree trial/batch terms separately before work starts.</p>
+      {status === 'More information required' && <label className="block text-sm font-semibold">Message to artisan (sent by email; not an internal note)
+        <textarea rows={4} maxLength={1500} required value={applicantMessage} disabled={busy}
+          onChange={event => setApplicantMessage(event.target.value)} className="mt-1 block w-full rounded border p-2" />
+      </label>}
+      <p className="text-xs">Changing status to Approved, Declined or More information required sends an email. Updating the message while More information required remains selected sends the revised request. Internal notes are never included.</p>
       <label className="block text-sm font-semibold">Internal review notes<textarea rows={4} maxLength={3000} value={notes} disabled={busy}
         onChange={event => setNotes(event.target.value)} className="mt-1 block w-full rounded border p-2" /></label>
       <p className="text-xs">Record work-related decisions only. Do not enter bank details, identity documents or sensitive personal information.</p>

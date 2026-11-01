@@ -74,6 +74,9 @@ verify_jwt = false
 [functions.artisan-invitations]
 verify_jwt = true
 
+[functions.artisan-application-email-worker]
+verify_jwt = false
+
 # Admin JWTs are verified in-function; the scheduled tracking worker uses its private secret.
 [functions.order-shipping]
 verify_jwt = false

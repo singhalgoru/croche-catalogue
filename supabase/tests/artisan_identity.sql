@@ -33,14 +33,14 @@ do $$ declare f record; bad_document jsonb; begin
     f.document||jsonb_build_object('data',repeat('a',1398108))
   ] loop
     begin
-      perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',bad_document);
+      perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',bad_document,null,'maker@example.test');
       raise exception 'FAIL: invalid ID accepted.';
     exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   end loop;
-  perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',f.document);
-  perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',f.document);
+  perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',f.document,null,'maker@example.test');
+  perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',f.document,null,'maker@example.test');
   begin
-    perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',null);
+    perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
     raise exception 'FAIL: replay silently changed ID.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
@@ -74,7 +74,7 @@ do $$ declare f record; begin
   if (select count(*) from public.artisan_identity_documents where application_id=f.application_id)<>1 then raise exception 'FAIL: ID not stored exactly once.'; end if;
   if not exists(select 1 from public.artisan_applications where id=f.application_id
     and dispatch_terms_version='2026-10-29.1' and dispatch_terms_accepted_at is not null
-    and consent_version='2026-10-29.2' and identity_type='masked_aadhaar') then raise exception 'FAIL: acknowledgement metadata missing.'; end if;
+    and consent_version='2026-11-01.1' and identity_type='masked_aadhaar') then raise exception 'FAIL: acknowledgement metadata missing.'; end if;
   if not exists(select 1 from public.artisan_identity_documents where application_id=f.application_id and expires_at-consented_at=interval '30 days') then raise exception 'FAIL: ID retention interval.'; end if;
 end $$;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal1','session_id',session_id)::text,true) from identity_fixture;

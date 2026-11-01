@@ -15,11 +15,13 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   await page.goto(`./artisans/#invite=${token}`);
   const form = page.getByRole('form', { name: 'Artisan application' });
   await expect(form).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'How the onboarding process works' })).toBeVisible();
   await expect(form.getByLabel('Products and techniques you can make')).toHaveAttribute('title', /amigurumi/);
   await expect(form.getByText(/Can you read written crochet patterns/)).toBeVisible();
   await expect(form.getByText(/Which crochet hook sizes do you have/)).toBeVisible();
   await expect(form.getByLabel('Public portfolio link (e.g. Instagram) (optional)')).toBeVisible();
   await form.getByLabel('Full name').fill('Sample Maker');
+  await form.getByLabel('Email for application updates').fill('maker@example.test');
   await form.getByLabel('Mobile / WhatsApp number').fill('9876543210');
   await form.getByLabel('Delivery address (optional)').fill('Synthetic delivery address');
   await form.getByLabel('City / area').fill('Gurugram');
@@ -54,11 +56,12 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   expect(videoUrl.searchParams.get('text')).toContain(`Application reference: ${submissions[0].request_id}`);
   expect(videoUrl.href).not.toContain(token);
   await expect(page.getByText(/A video is not required/)).toBeVisible();
-  expect(submissions[0]).toMatchObject({ invitation_token: token, privacy_version: '2026-10-29.2',
+  expect(submissions[0]).toMatchObject({ invitation_token: token, applicant_email: 'maker@example.test', privacy_version: '2026-11-01.1',
     dispatch_terms_version: '2026-10-29.1', identity_document: withIdentity
       ? { documentType: 'masked_aadhaar', contentType: 'image/webp', consent: true, data: expect.any(String) } : null,
     profile_photo: withIdentity ? { contentType: 'image/webp', consent: true, consentVersion: '2026-10-30.1', data: expect.any(String) } : null,
     application_details: { fullName: 'Sample Maker', address: 'Synthetic delivery address', paidTrial: false, portfolioUrl: '', adult: true, consent: true } });
+  expect(submissions[0].application_details).not.toHaveProperty('email');
   if (withIdentity) {
     const document = submissions[0].identity_document as { data: string };
     const metadata = await sharp(Buffer.from(document.data, 'base64')).metadata();
@@ -85,6 +88,7 @@ test('Hindi form preserves original answers across language switches and submiss
   await page.getByLabel('Form language / फॉर्म की भाषा').selectOption('hi');
   const form = page.getByRole('form', { name: 'कारीगर आवेदन' });
   await form.getByLabel('पूरा नाम').fill('परीक्षण कारीगर');
+  await form.getByLabel('आवेदन अपडेट के लिए ईमेल').fill('maker@example.test');
   await form.getByLabel('मोबाइल / WhatsApp नंबर').fill('9876543210');
   await form.getByLabel('डिलीवरी का पता (वैकल्पिक)').fill('परीक्षण गली');
   await form.getByLabel('शहर / क्षेत्र').fill('गुरुग्राम');
@@ -105,7 +109,7 @@ test('Hindi form preserves original answers across language switches and submiss
   expect(submissions).toHaveLength(1);
   expect(submissions[0]).toMatchObject({ application_details: { fullName: 'परीक्षण कारीगर', address: 'परीक्षण गली',
     city: 'गुरुग्राम', state: 'हरियाणा', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने',
-    availability: 'हर सप्ताह 5 घंटे' } });
+    availability: 'हर सप्ताह 5 घंटे' }, applicant_email: 'maker@example.test', privacy_version: '2026-11-01.1' });
   await expect(page.getByRole('link', { name: 'WhatsApp पर काम का वीडियो साझा करें' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
@@ -130,8 +134,8 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
       fullName: 'Sample Maker', mobile: '9876543210', city: 'Gurugram', state: 'Haryana', pin: '122001',
       language: 'Hindi', skills: 'Flowers', availability: '5 hours/week', experience: '', tools: '', portfolioUrl: '', notes: '',
       adult: true, consent: true, paidTrial: true,
-    }, status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z',
-    updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29.2',
+    }, contact_email: 'maker@example.test', status: 'New', admin_notes: '', applicant_message: '', version: 1, created_at: '2026-10-29T00:00:00Z',
+    updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1',
     dispatch_terms_version: '2026-10-29.1', dispatch_terms_accepted_at: '2026-10-29T00:00:00Z',
     identity_type: 'masked_aadhaar', identity_expires_at: '2026-11-28T00:00:00Z',
     delivery_address: 'Synthetic delivery address', skill_rating: null as number | null, capabilities: '', has_profile_photo: true,
@@ -147,7 +151,7 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   });
   await page.route('**/rest/v1/rpc/update_artisan_application', async route => {
     const body = route.request().postDataJSON(); updates.push(body);
-    Object.assign(application, { status: body.next_status, admin_notes: body.review_notes, version: application.version + 1 });
+    Object.assign(application, { status: body.next_status, admin_notes: body.review_notes, applicant_message: body.applicant_message, version: application.version + 1 });
     await route.fulfill({ json: application });
   });
   const comments: Record<string, unknown>[] = [];
@@ -239,11 +243,13 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   expect(identityReads).toHaveLength(1);
   await page.getByRole('button', { name: 'Hide ID' }).click();
   await expect(page.getByAltText('Private artisan identity document')).toHaveCount(0);
-  await page.getByLabel('Application status').selectOption('Contacted');
+  await page.getByLabel('Application status').selectOption('More information required');
   await page.getByLabel('Internal review notes').fill('Paid trial discussion arranged');
+  await page.getByLabel('Message to artisan (sent by email; not an internal note)').fill('Please share a link to your crochet portfolio.');
   await page.getByRole('button', { name: 'Save review' }).click();
   await expect(page.getByText('Application changes saved.')).toBeVisible();
-  expect(updates[0]).toMatchObject({ expected_version: 2, next_status: 'Contacted', review_notes: 'Paid trial discussion arranged' });
+  expect(updates[0]).toMatchObject({ expected_version: 2, next_status: 'More information required',
+    review_notes: 'Paid trial discussion arranged', applicant_message: 'Please share a link to your crochet portfolio.' });
   await page.getByLabel('Skill / can create', { exact: true }).fill('amigurumi');
   await page.getByRole('button', { name: 'Search / refresh' }).click();
   await page.getByLabel('Minimum skill rating').selectOption('4');

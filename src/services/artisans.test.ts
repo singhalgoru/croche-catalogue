@@ -9,7 +9,7 @@ vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({
 }) }));
 vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: captcha }));
 vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: convert }));
-const details = { ...emptyArtisanDetails, fullName: 'Sample Maker', mobile: '9876543210', city: 'Gurugram',
+const details = { ...emptyArtisanDetails, fullName: 'Sample Maker', email: 'Maker@Example.Test', mobile: '9876543210', city: 'Gurugram',
   state: 'Haryana', pin: '122001', language: 'Hindi, evenings', skills: 'Crochet flowers', availability: '5 hours/week', adult: true, consent: true };
 beforeEach(() => {
   vi.clearAllMocks(); session.mockResolvedValue({ data: { session: {} } });
@@ -18,8 +18,10 @@ beforeEach(() => {
 });
 it('sends only explicit application details, consent version and invitation token', async () => {
   expect(await submitArtisanApplication(details, 'receipt', 'private-token', true)).toBe('receipt');
+  const { email, ...applicationDetails } = details;
   expect(rpc).toHaveBeenCalledWith('submit_artisan_application', {
-    request_id: 'receipt', application_details: details, privacy_version: '2026-10-29.2', invitation_token: 'private-token',
+    request_id: 'receipt', application_details: applicationDetails, applicant_email: email.toLowerCase(),
+    privacy_version: '2026-11-01.1', invitation_token: 'private-token',
     dispatch_terms_version: '2026-10-29.1', identity_document: null, profile_photo: null,
   });
   expect(anonymous).not.toHaveBeenCalled();
@@ -28,7 +30,10 @@ it('preserves Hindi and mixed-script answers and preferred language through subm
   const hindi = { ...details, fullName: 'परीक्षण कारीगर', address: 'परीक्षण गली', city: 'गुरुग्राम', state: 'हरियाणा',
     language: 'हिन्दी, शाम को', skills: 'क्रोशिया flowers और अमिगुरुमी', notes: 'फोन पर संपर्क करें' };
   await submitArtisanApplication(hindi, 'receipt', 'private-token', true);
-  expect(rpc).toHaveBeenLastCalledWith('submit_artisan_application', expect.objectContaining({ application_details: hindi }));
+  const { email, ...applicationDetails } = hindi;
+  expect(rpc).toHaveBeenLastCalledWith('submit_artisan_application', expect.objectContaining({
+    application_details: applicationDetails, applicant_email: email.toLowerCase(),
+  }));
   const application = { id: 'receipt', details: hindi, status: 'New', admin_notes: '', version: 1,
     created_at: '', updated_at: '', consent_version: '2026-10-29.2' };
   rpc.mockResolvedValueOnce({ data: { applications: [application], total: 1 } });
@@ -41,6 +46,7 @@ it('creates a CAPTCHA-protected guest session only if needed', async () => {
 });
 it.each([
   [{ fullName: ' ' }, 'full name'], [{ mobile: '123' }, 'mobile number'], [{ pin: '000000' }, 'PIN code'],
+  [{ email: 'not-an-email' }, 'valid email address'],
   [{ adult: false }, '18 or older'], [{ consent: false }, 'privacy notice'],
   [{ portfolioUrl: 'javascript:alert(1)' }, 'https://'], [{ portfolioUrl: 'https://user:pass@example.test' }, 'credentials'],
   [{ skills: 'x'.repeat(1001) }, '1'],
@@ -107,11 +113,18 @@ it('validates invitation status and admin directory response shapes', async () =
   await expect(fetchArtisanApplications('', '', 0)).rejects.toThrow('Invalid artisan directory');
 });
 it('passes the expected version to prevent overwriting another admin review', async () => {
-  const application = { id: 'id', details, status: 'New' as const, admin_notes: '', version: 3, created_at: '', updated_at: '', consent_version: '2026-10-29' };
+  const application = { id: 'id', details, status: 'New' as const, admin_notes: '', version: 3, created_at: '', updated_at: '', consent_version: '2026-11-01.1' };
   rpc.mockResolvedValue({ data: { ...application, status: 'Contacted', version: 4 } });
   expect((await updateArtisanApplication(application, 'Contacted', 'Call arranged')).version).toBe(4);
   expect(rpc).toHaveBeenCalledWith('update_artisan_application', {
     application_id: 'id', expected_version: 3, next_status: 'Contacted', review_notes: 'Call arranged',
+    applicant_message: '',
+  });
+  await expect(updateArtisanApplication(application, 'More information required', 'Private note')).rejects.toThrow('Enter the message to the artisan');
+  await updateArtisanApplication(application, 'More information required', 'Private note', 'Please share a link to your crochet portfolio.');
+  expect(rpc).toHaveBeenLastCalledWith('update_artisan_application', {
+    application_id: 'id', expected_version: 3, next_status: 'More information required', review_notes: 'Private note',
+    applicant_message: 'Please share a link to your crochet portfolio.',
   });
 });
 it('surfaces invitation email errors and validates the returned private link', async () => {

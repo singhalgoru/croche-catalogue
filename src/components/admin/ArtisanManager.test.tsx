@@ -18,7 +18,7 @@ vi.mock('../../services/artisanProfiles', async importOriginal => ({
   fetchArtisanActivity: vi.fn().mockResolvedValue({ comments: [], payments: [] }),
 }));
 const application = { id: 'reference', details: { ...emptyArtisanDetails, fullName: 'Sample Maker', city: 'Gurugram', skills: 'Flowers' },
-  status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-10-29' };
+  contact_email: 'maker@example.test', status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1' };
 beforeEach(() => {
   vi.clearAllMocks(); list.mockResolvedValue({ applications: [application], total: 1 });
   history.mockResolvedValue([{ id: 1, action: 'Submitted', new_status: 'New', old_status: null, created_at: application.created_at }]);
@@ -84,8 +84,21 @@ it('filters and searches the directory and saves a versioned review', async () =
   fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'Contacted' } });
   fireEvent.change(screen.getByLabelText('Internal review notes'), { target: { value: 'Paid trial discussed' } });
   fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
-  await waitFor(() => expect(update).toHaveBeenCalledWith(application, 'Contacted', 'Paid trial discussed'));
+  await waitFor(() => expect(update).toHaveBeenCalledWith(application, 'Contacted', 'Paid trial discussed', ''));
   expect(await screen.findByText('Application changes saved.')).toBeTruthy();
+});
+it('shows applicant contact email and keeps the applicant-facing request separate from internal notes', async () => {
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  expect(screen.getByText('maker@example.test', { selector: 'dd' })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'More information required' } });
+  fireEvent.change(screen.getByLabelText('Internal review notes'), { target: { value: 'Internal: confirm portfolio review.' } });
+  fireEvent.change(screen.getByLabelText('Message to artisan (sent by email; not an internal note)'), {
+    target: { value: 'Please share a link to your crochet portfolio.' },
+  });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  await waitFor(() => expect(update).toHaveBeenCalledWith(application, 'More information required',
+    'Internal: confirm portfolio review.', 'Please share a link to your crochet portfolio.'));
 });
 it('preserves review inputs and surfaces a concurrency conflict', async () => {
   update.mockRejectedValue(new Error('Another admin updated this application'));

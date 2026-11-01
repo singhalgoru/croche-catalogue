@@ -27,14 +27,14 @@ do $$ declare f record; bad jsonb; begin
   foreach bad in array array[f.photo||'{"consent":false}'::jsonb,f.photo||'{"consentVersion":"old"}'::jsonb,
     f.photo||'{"contentType":"text/html"}'::jsonb,f.photo||'{"data":"aGVsbG8="}'::jsonb] loop
     begin
-      perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',null,bad);
+      perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,bad,'maker@example.test');
       raise exception 'FAIL: invalid profile photo accepted.';
     exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   end loop;
-  perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',null,f.photo);
-  perform public.submit_artisan_application(f.application_id,f.details,'2026-10-29.2',f.token,'2026-10-29.1',null,f.photo);
+  perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,f.photo,'maker@example.test');
+  perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,f.photo,'maker@example.test');
   begin
-    perform public.submit_artisan_application(f.application_id,f.details||'{"address":"changed"}'::jsonb,'2026-10-29.2',f.token,'2026-10-29.1',null,f.photo);
+    perform public.submit_artisan_application(f.application_id,f.details||'{"address":"changed"}'::jsonb,'2026-11-01.1',f.token,'2026-10-29.1',null,f.photo,'maker@example.test');
     raise exception 'FAIL: replay changed delivery address.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin

@@ -70,6 +70,8 @@ an India-based handmade crochet brand.
   After submitting, artisans can optionally share a short work video on WhatsApp.
   Private working profiles include skill/rating filters, comments and payment
   records, with onboarding details and separately consented profile photos.
+  Applicants receive review updates by email, and the form and emails explain
+  the application-to-paid-trial process.
 
 ## Ordering
 
