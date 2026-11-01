@@ -193,8 +193,8 @@ describe('SellerSalesDashboard', () => {
     const order = { id: 'order',reference: 'LUV-MULTI',paymentOrderId: 'payment',packagingCost: 20,shippingCost: 80,
       shippingCollected: 0,shippingSource: 'courier' as const,itemRevenue: 500 };
     vi.mocked(fetchSellerSales).mockResolvedValue([
-      { ...sale,order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
-      { ...sale,id: 'second',order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
+      { ...sale,saleDate: localDate(),order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
+      { ...sale,id: 'second',saleDate: localDate(),order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
     ]);
     render(<SellerSalesDashboard refreshKey={0} />);
     fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
@@ -265,7 +265,7 @@ describe('SellerSalesDashboard', () => {
   });
 
   it('adds, edits and deletes monthly overheads without changing sale costs', async () => {
-    vi.mocked(fetchSellerSales).mockResolvedValue([{ ...sale, gstPercent: 0 }]);
+    vi.mocked(fetchSellerSales).mockResolvedValue([{ ...sale, saleDate: localDate(), gstPercent: 0 }]);
     render(<SellerSalesDashboard refreshKey={0} />);
     fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     await waitFor(() => expect(fetchBusinessExpenses).toHaveBeenCalled());
@@ -301,6 +301,7 @@ describe('SellerSalesDashboard', () => {
     ]);
     render(<SellerSalesDashboard refreshKey={0} />);
     fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.change(await screen.findByLabelText('Sales month'), { target: { value: '2026-10' } });
     await waitFor(() => expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹100'));
     expect(screen.getByText('Margin after business expenses').parentElement?.textContent).toContain('—');
     fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-09' } });
@@ -341,6 +342,7 @@ describe('SellerSalesDashboard', () => {
   ])('colors monthly and individual sale margins with cost %s', async (materialCost, color) => {
     vi.mocked(fetchSellerSales).mockResolvedValue([{
       ...sale,
+      saleDate: localDate(),
       unitPrice: 100,
       gstPercent: 0,
       materialCost,
