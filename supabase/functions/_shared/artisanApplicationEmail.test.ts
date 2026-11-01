@@ -28,6 +28,7 @@ it('sends a concise submission alert to info with a private admin-console review
 });
 
 it.each([
+  ['Trial', 'your paid trial is next', 'Please do not start any work until these details are confirmed'],
   ['Approved', 'Welcome to Luvia Creations', 'not a work agreement'],
   ['Declined', 'An update on your Luvia artisan application', 'unable to proceed'],
   ['More information required', 'More information needed for your Luvia artisan application', 'Please share a link to your crochet portfolio.'],
@@ -41,7 +42,10 @@ it.each([
   expect(email.text).toContain(expected);
   expect(email.text).not.toContain('Private internal note');
   expect(email.html).not.toContain('Private internal note');
-  expect(email.html).toContain('src="https://luviacreations.com/images/luvia-logo-160.webp"');
+  expect(email.html).toContain('src="https://luviacreations.com/images/luvia-logo-480.webp"');
+  expect(email.html).toContain('width="128"');
+  expect(email.html).toContain('CREATE WITH LUVIA');
+  expect(email.html.includes('YOU ARE HERE')).toBe(kind === 'Trial');
   expect(email.html).toContain('align="center"');
   expect(email.html).toContain('width="600"');
   expect(email.text).toContain('Onboarding process:');

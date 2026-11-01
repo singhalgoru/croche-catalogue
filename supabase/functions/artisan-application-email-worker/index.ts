@@ -8,7 +8,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function isJob(value: unknown): value is ArtisanApplicationEmailJob {
-  const isKind = isRecord(value) && (value.kind === 'submitted' || value.kind === 'Approved'
+  const isKind = isRecord(value) && (value.kind === 'submitted' || value.kind === 'Trial' || value.kind === 'Approved'
     || value.kind === 'Declined' || value.kind === 'More information required');
   if (!isRecord(value) || typeof value.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(value.id)
     || !isKind

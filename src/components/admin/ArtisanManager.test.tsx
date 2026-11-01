@@ -91,6 +91,7 @@ it('shows applicant contact email and keeps the applicant-facing request separat
   render(<ArtisanManager />);
   fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
   expect(screen.getByText('maker@example.test', { selector: 'dd' })).toBeTruthy();
+  expect(screen.getByLabelText(`Current status: ${application.status}`).textContent).toBe(application.status);
   fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'More information required' } });
   fireEvent.change(screen.getByLabelText('Internal review notes'), { target: { value: 'Internal: confirm portfolio review.' } });
   fireEvent.change(screen.getByLabelText('Message to artisan (sent by email; not an internal note)'), {

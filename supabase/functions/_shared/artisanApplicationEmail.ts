@@ -1,4 +1,4 @@
-export type ArtisanApplicationEmailKind = 'submitted' | 'Approved' | 'Declined' | 'More information required';
+export type ArtisanApplicationEmailKind = 'submitted' | 'Trial' | 'Approved' | 'Declined' | 'More information required';
 
 export interface ArtisanApplicationEmailJob {
   id: string;
@@ -35,11 +35,11 @@ const onboardingFlowText = [
   'Onboarding process:',
   ...onboardingSteps.map(([title, description]) => `${title}: ${description}`),
 ].join('\n');
-const onboardingFlowHtml = `<section aria-label="Onboarding process" style="margin:20px 0;padding:16px;background:#fffaf0;border:1px solid #e8dcc5;border-radius:12px">
+const onboardingFlowHtml = (activeIndex = -1) => `<section aria-label="Onboarding process" style="margin:20px 0;padding:16px;background:#fffaf0;border:1px solid #e8dcc5;border-radius:12px">
   <h2 style="margin:0 0 12px;font-size:18px">Onboarding process</h2>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-  ${onboardingSteps.map(([title, description], index) => `<tr><td width="36" valign="top" style="padding:6px 8px 6px 0;color:#604239;font-weight:bold">${index + 1}.</td>
-    <td style="padding:6px 0;line-height:1.5"><strong>${escapeHtml(title.slice(3))}</strong><br>${escapeHtml(description)}</td></tr>
+  ${onboardingSteps.map(([title, description], index) => `<tr${index === activeIndex ? ' bgcolor="#f6ead7"' : ''}><td width="36" valign="top" style="padding:6px 8px 6px ${index === activeIndex ? '8px' : '0'};color:#604239;font-weight:bold">${index + 1}.</td>
+    <td style="padding:6px 8px 6px 0;line-height:1.5"><strong>${escapeHtml(title.slice(3))}</strong>${index === activeIndex ? ' <span style="display:inline-block;padding:1px 8px;background:#604239;color:#fffaf0;border-radius:10px;font-size:11px;font-weight:bold">YOU ARE HERE</span>' : ''}<br>${escapeHtml(description)}</td></tr>
     ${index < onboardingSteps.length - 1 ? '<tr><td colspan="2" align="center" aria-hidden="true" style="height:16px;color:#8b6b51">&darr;</td></tr>' : ''}`).join('')}
   </table></section>`;
 
@@ -55,10 +55,12 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
   const message = emailText(payload.message);
   const isSubmission = job.kind === 'submitted';
   const subject = isSubmission ? `New artisan application to review - ${applicantName} - Luvia Creations`
+    : job.kind === 'Trial' ? 'Welcome to Luvia Creations - your paid trial is next'
     : job.kind === 'Approved' ? 'Welcome to Luvia Creations - your artisan application is approved'
       : job.kind === 'Declined' ? 'An update on your Luvia artisan application'
         : 'More information needed for your Luvia artisan application';
   const heading = isSubmission ? 'New artisan application'
+    : job.kind === 'Trial' ? 'Welcome to Luvia'
     : job.kind === 'Approved' ? 'Welcome to Luvia'
       : job.kind === 'Declined' ? 'An update on your application'
         : 'A little more information, please';
@@ -70,6 +72,11 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     `Skills: ${skills}`,
     `Availability: ${availability}`,
     'Please review the private application in the admin console.',
+  ] : job.kind === 'Trial' ? [
+    `Hello ${applicantName},`,
+    'Welcome to Luvia Creations! Thank you for sharing your craft with us. We loved your application and would like to invite you to a small paid trial.',
+    'We will contact you shortly to agree the trial piece, rate, quality requirements, delivery costs and timeline. Please do not start any work until these details are confirmed with you.',
+    'The trial is not a promise of ongoing work; it helps us both see whether working together is a good fit.',
   ] : job.kind === 'Approved' ? [
     `Hello ${applicantName},`,
     'Thank you for sharing your skills with Luvia Creations. We are pleased to let you know that your application has been approved.',
@@ -118,11 +125,12 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
   <tr><td align="center" style="padding:0 12px">
   <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" bgcolor="#fffaf0" style="width:100%;max-width:600px;background:#fffaf0;line-height:1.65">
   <tr><td align="center" style="padding:24px 16px 8px">
-  <a href="https://luviacreations.com/" style="display:inline-block;text-decoration:none"><img src="https://luviacreations.com/images/luvia-logo-160.webp" alt="Luvia Creations" width="96" height="96" style="display:block;width:96px;height:96px;margin:0 auto;border:0"></a>
-  <h1 style="margin:16px 0 0;text-align:center;color:#604239;font-size:26px">${escapeHtml(heading)}</h1>
+  <a href="https://luviacreations.com/" style="display:inline-block;text-decoration:none">  <img src="https://luviacreations.com/images/luvia-logo-480.webp" alt="Luvia Creations — made with love" width="128" height="128" style="display:block;width:128px;height:128px;margin:0 auto;border:0;border-radius:50%"></a>
+    <p style="margin:16px 0 6px;color:#a47772;font-size:11px;font-weight:bold;letter-spacing:2px;line-height:1.4;text-align:center">CREATE WITH LUVIA</p>
+    <h1 style="margin:0;text-align:center;color:#604239;font-size:26px;line-height:1.25">${escapeHtml(heading)}</h1>
   </td></tr><tr><td style="padding:8px 20px 24px">
   ${isSubmission ? `<p style="margin:0 0 16px;line-height:1.65">${escapeHtml(paragraphs[0])}</p>` : htmlParagraphs}
-  ${isSubmission ? '' : onboardingFlowHtml}
+  ${isSubmission ? '' : onboardingFlowHtml(job.kind === 'Trial' ? onboardingSteps.length - 1 : -1)}
   ${submissionDetails}
   ${isSubmission ? `<p style="margin:0 0 16px;line-height:1.65">${escapeHtml(paragraphs.at(-1)!)}</p>
     <p style="margin:0 0 16px;line-height:1.65">This private notice is for application review; do not forward it.</p>` : ''}

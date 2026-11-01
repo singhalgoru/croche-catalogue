@@ -155,9 +155,11 @@ do $$ declare f record; result jsonb; expired_id uuid:=gen_random_uuid(); revoke
   result:=public.list_artisan_applications('','More information required',0);
   if (result->>'total')::integer<>1 or result->'applications'->0->>'contact_email'<>'maker@example.test' then
     raise exception 'FAIL: new status or applicant email missing from admin directory.'; end if;
-  result:=public.update_artisan_application(f.application_id,4,'Approved','Approval note');
+  result:=public.update_artisan_application(f.application_id,4,'Trial','Trial note');
+  if result->>'status'<>'Trial' then raise exception 'FAIL: trial review receipt.'; end if;
+  result:=public.update_artisan_application(f.application_id,5,'Approved','Approval note');
   if result->>'status'<>'Approved' then raise exception 'FAIL: approval review receipt.'; end if;
-  if (select count(*) from public.artisan_application_history where application_id=f.application_id)<>5 then raise exception 'FAIL: review history after email statuses.'; end if;
+  if (select count(*) from public.artisan_application_history where application_id=f.application_id)<>6 then raise exception 'FAIL: review history after email statuses.'; end if;
   begin
     perform public.update_artisan_application(f.application_id,1,'Approved','Stale');
     raise exception 'FAIL: stale review overwrote newer changes.';
@@ -181,6 +183,9 @@ do $$ declare f record; begin
     raise exception 'FAIL: revised information request was not queued.'; end if;
   if (select count(*) from public.artisan_application_emails where application_id=f.application_id
     and kind='Approved' and recipient_email='maker@example.test')<>1 then raise exception 'FAIL: approval notification not queued.'; end if;
+  if (select count(*) from public.artisan_application_emails where application_id=f.application_id
+    and kind='Trial' and event_key='trial-welcome' and recipient_email='maker@example.test'
+    and not (payload ? 'admin_notes'))<>1 then raise exception 'FAIL: trial welcome email not queued once.'; end if;
 end $$;
 update public.artisan_invitations set expires_at=now() where token_hash=encode(extensions.digest(repeat('c',64),'sha256'),'hex');
 select public.purge_expired_artisan_invitations();

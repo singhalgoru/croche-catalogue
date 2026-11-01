@@ -39,8 +39,12 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
   }, [application.id, historyKey]);
   return <section aria-labelledby="artisan-review-heading" className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
     <button disabled={busy} onClick={onClose} className="min-h-11 underline">Back to applications</button>
-    <h2 id="artisan-review-heading" className="font-heading text-2xl font-bold" tabIndex={-1}
-      ref={focusHeading}>{application.details.fullName}</h2>
+    <div className="flex flex-wrap items-center gap-3">
+      <h2 id="artisan-review-heading" className="font-heading text-2xl font-bold" tabIndex={-1}
+        ref={focusHeading}>{application.details.fullName}</h2>
+      <span aria-label={`Current status: ${application.status}`}
+        className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-[#604239]">{application.status}</span>
+    </div>
     <p className="break-all text-xs">Reference: {application.id}</p>
     <p className="text-sm">Applied {new Date(application.created_at).toLocaleString('en-IN')} · Privacy notice {application.consent_version}</p>
     <dl className="grid gap-3 sm:grid-cols-2">
@@ -106,7 +110,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
         <textarea rows={4} maxLength={1500} required value={applicantMessage} disabled={busy}
           onChange={event => setApplicantMessage(event.target.value)} className="mt-1 block w-full rounded border p-2" />
       </label>}
-      <p className="text-xs">Changing status to Approved, Declined or More information required sends an email. Updating the message while More information required remains selected sends the revised request. Internal notes are never included.</p>
+      <p className="text-xs">Changing status to Trial sends a one-time welcome email. Changing status to Approved, Declined or More information required sends an email. Updating the message while More information required remains selected sends the revised request. Internal notes are never included.</p>
       <label className="block text-sm font-semibold">Internal review notes<textarea rows={4} maxLength={3000} value={notes} disabled={busy}
         onChange={event => setNotes(event.target.value)} className="mt-1 block w-full rounded border p-2" /></label>
       <p className="text-xs">Record work-related decisions only. Do not enter bank details, identity documents or sensitive personal information.</p>
