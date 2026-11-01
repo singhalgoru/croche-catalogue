@@ -28,7 +28,7 @@ export default function ArtisanInvitations() {
   }, [refresh]);
   return <section aria-labelledby="artisan-invitations-title" className="space-y-4 rounded-2xl bg-white p-4 text-cocoa shadow-sm sm:p-6">
     <h2 id="artisan-invitations-title" className="font-heading text-2xl font-bold">Invite an artisan</h2>
-    <p className="text-sm">Create a private application link that expires 24 hours after creation or after one submission, whichever comes first. Email invitations come from onboarding@luviacreations.com; replies go to hello@luviacreations.com. WhatsApp messages must be sent manually.</p>
+    <p className="text-sm">Create a private application link that expires 24 hours after creation or after one submission, whichever comes first. Unused invitations are removed immediately when revoked or within 15 minutes after expiry. Email invitations come from onboarding@luviacreations.com; replies go to hello@luviacreations.com. WhatsApp messages must be sent manually.</p>
     <form aria-label="Invite artisan" className="grid gap-3 sm:grid-cols-3" onSubmit={event => {
       event.preventDefault(); setBusy(true); setError(''); setResult(null);
       const signature = JSON.stringify({ name, channel, contact });
@@ -84,7 +84,7 @@ export default function ArtisanInvitations() {
           <p>{status} · Expires {new Date(invite.expires_at).toLocaleString('en-IN')}</p>
           {!invite.revoked_at && !invite.submitted_at && Date.parse(invite.expires_at) > now && <>
             {revokeId !== invite.id ? <button disabled={busy} className="min-h-11 underline" onClick={() => setRevokeId(invite.id)}>Revoke invitation</button>
-              : <div className="flex flex-wrap items-center gap-3"><span>Disable this application link?</span>
+              : <div className="flex flex-wrap items-center gap-3"><span>Disable this link and remove its invitation record?</span>
                 <button disabled={busy} className="min-h-11 text-red-700 underline" onClick={() => {
                   setBusy(true); setError('');
                   void revokeArtisanInvitation(invite.id).then(() => {

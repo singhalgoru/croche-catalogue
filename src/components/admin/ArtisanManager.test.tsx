@@ -100,6 +100,20 @@ it('shows applicant contact email and keeps the applicant-facing request separat
   await waitFor(() => expect(update).toHaveBeenCalledWith(application, 'More information required',
     'Internal: confirm portfolio review.', 'Please share a link to your crochet portfolio.'));
 });
+it('removes a revoked unused invitation from the admin list', async () => {
+  const invitation = { id: 'invite-reference', recipient_name: 'Sample Maker', channel: 'whatsapp' as const,
+    contact: '9876543210', created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    revoked_at: null, submitted_at: null, email_accepted_at: null };
+  let active = true;
+  invites.mockImplementation(async () => active ? [invitation] : []);
+  revoke.mockImplementation(async () => { active = false; });
+  render(<ArtisanManager />);
+  expect(await screen.findByText(/Sample Maker — 9876543210/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Revoke invitation' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm revoke' }));
+  await waitFor(() => expect(revoke).toHaveBeenCalledWith(invitation.id));
+  await waitFor(() => expect(screen.queryByText(/Sample Maker — 9876543210/)).toBeNull());
+});
 it('preserves review inputs and surfaces a concurrency conflict', async () => {
   update.mockRejectedValue(new Error('Another admin updated this application'));
   render(<ArtisanManager />); fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));

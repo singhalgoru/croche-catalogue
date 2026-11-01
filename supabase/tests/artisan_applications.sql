@@ -165,6 +165,8 @@ do $$ declare f record; result jsonb; expired_id uuid:=gen_random_uuid(); revoke
   perform public.create_artisan_invitation(expired_id,repeat('c',64),'Expired','whatsapp','9876543210');
   perform public.create_artisan_invitation(revoked_id,repeat('d',64),'Revoked','whatsapp','9876543210');
   perform public.revoke_artisan_invitation(revoked_id);
+  if exists(select 1 from public.artisan_invitations where id=revoked_id) then
+    raise exception 'FAIL: revoked invitation remained in the database.'; end if;
   if public.artisan_invitation_status(repeat('d',64))<>'unavailable' then raise exception 'FAIL: revoked invitation available.'; end if;
 end $$;
 reset role;
@@ -181,6 +183,13 @@ do $$ declare f record; begin
     and kind='Approved' and recipient_email='maker@example.test')<>1 then raise exception 'FAIL: approval notification not queued.'; end if;
 end $$;
 update public.artisan_invitations set expires_at=now() where token_hash=encode(extensions.digest(repeat('c',64),'sha256'),'hex');
+select public.purge_expired_artisan_invitations();
+do $$ begin
+  if exists(select 1 from public.artisan_invitations where token_hash=encode(extensions.digest(repeat('c',64),'sha256'),'hex')) then
+    raise exception 'FAIL: expired invitation remained after cleanup.'; end if;
+  if not exists(select 1 from public.artisan_invitations where id=(select invite_id from artisan_fixture)) then
+    raise exception 'FAIL: cleanup removed an invitation with a submitted application.'; end if;
+end $$;
 select set_config('request.jwt.claims',jsonb_build_object('sub',applicant_id,'role','authenticated')::text,true) from artisan_fixture;
 set local role authenticated;
 do $$ declare f record; token text; begin
