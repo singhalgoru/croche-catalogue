@@ -30,7 +30,7 @@ it('sends a concise submission alert to info with a private admin-console review
 it.each([
   ['Trial', 'your paid trial is next', 'Please do not start any work until these details are confirmed'],
   ['Approved', 'Welcome to Luvia Creations', 'not a work agreement'],
-  ['Declined', 'An update on your Luvia artisan application', 'unable to proceed'],
+  ['Declined', 'An update on your Luvia artisan application', 'unable to approve your application'],
   ['More information required', 'More information needed for your Luvia artisan application', 'Please share a link to your crochet portfolio.'],
 ] as const)('builds applicant-facing %s email without exposing internal notes', (kind, subject, expected) => {
   const applicantPayload = { ...payload, message: 'Please share a link to your crochet portfolio.',
@@ -61,11 +61,23 @@ it('welcomes approved artisans to the Luvia family separately from the paid-tria
     recipient_email: payload.applicant_email, payload });
   expect(email.subject).toContain('welcome to the Luvia family!');
   expect(email.html).toContain('Welcome to the Luvia family!');
-  expect(email.text).toContain('Your artisan application has been approved.');
+  expect(email.text).toContain('Thank you for completing your paid trial');
+  expect(email.text).toContain('Following our review of your trial work, your artisan application has been approved.');
   expect(email.text).toContain('What happens next: Our team will contact you');
   expect(email.text).toContain('not a work agreement or a guarantee of ongoing work');
   expect(email.text).not.toContain('invite you to a small paid trial');
+  expect(email.text).toContain('For each new batch, please wait for confirmation');
+  expect(email.text).toContain('5. Post-trial decision: After reviewing your completed paid trial, Luvia approves or declines your application.');
   expect(email.html).not.toContain('Details we need from you');
+});
+
+it('explains the declined outcome after reviewing the paid trial without inviting further work', () => {
+  const email = buildArtisanApplicationEmail({ id: 'declined-job', kind: 'Declined',
+    recipient_email: payload.applicant_email, payload });
+  expect(email.text).toContain('Thank you for completing your paid trial');
+  expect(email.text).toContain('After reviewing your trial work, we are unable to approve your application');
+  expect(email.text).not.toContain('Welcome to the Luvia family!');
+  expect(email.text).not.toContain('invite you to a small paid trial');
 });
 
 it('highlights the exact requested details, preserves separate lines and escapes applicant-facing content', () => {

@@ -30,6 +30,7 @@ const onboardingSteps = [
   ['2. Review', 'Luvia reviews your application privately.'],
   ['3. Email update', 'Receive a decision or a request for more information.'],
   ['4. Agree a paid trial', 'Set batch scope, rate and timing before work begins.'],
+  ['5. Post-trial decision', 'After reviewing your completed paid trial, Luvia approves or declines your application.'],
 ] as const;
 const onboardingFlowText = [
   'Onboarding process:',
@@ -80,13 +81,13 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     'The trial is not a promise of ongoing work; it helps us both see whether working together is a good fit.',
   ] : job.kind === 'Approved' ? [
     `Hello ${applicantName},`,
-    'Your artisan application has been approved. Welcome to the Luvia family! We are delighted to have your creativity and craftsmanship become part of our story.',
+    'Thank you for completing your paid trial with Luvia Creations. Following our review of your trial work, your artisan application has been approved. Welcome to the Luvia family!',
     'At Luvia, every handmade piece carries the care and skill of the artisan behind it. Thank you for choosing to share your craft with us; we look forward to creating beautiful things together.',
-    'What happens next: Our team will contact you to discuss suitable work and agree the next steps. Please wait for confirmation of the batch scope, rates, quality requirements, delivery costs and timelines before starting any work.',
+    'What happens next: Our team will contact you about suitable upcoming batches and agree the next steps. For each new batch, please wait for confirmation of the scope, rates, quality requirements, delivery costs and timelines before starting work.',
     'This approval is not a work agreement or a guarantee of ongoing work. All work and payment terms will be agreed with you separately.',
   ] : job.kind === 'Declined' ? [
     `Hello ${applicantName},`,
-    'Thank you for taking the time to apply and share your work with Luvia Creations. We are unable to proceed with your application at this time.',
+    'Thank you for completing your paid trial and sharing your work with Luvia Creations. After reviewing your trial work, we are unable to approve your application or continue with further batches at this time.',
     'We appreciate your interest and wish you the very best with your craft.',
   ] : [
     `Hello ${applicantName},`,
@@ -139,7 +140,7 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     <h1 style="margin:0;text-align:center;color:#604239;font-size:26px;line-height:1.25">${escapeHtml(heading)}</h1>
   </td></tr><tr><td style="padding:8px 20px 24px">
   ${isSubmission ? `<p style="margin:0 0 16px;line-height:1.65">${escapeHtml(paragraphs[0])}</p>` : htmlParagraphs}
-  ${isSubmission ? '' : onboardingFlowHtml(job.kind === 'Trial' ? onboardingSteps.length - 1 : -1)}
+  ${isSubmission ? '' : onboardingFlowHtml(job.kind === 'Trial' ? 3 : -1)}
   ${submissionDetails}
   ${isSubmission ? `<p style="margin:0 0 16px;line-height:1.65">${escapeHtml(paragraphs.at(-1)!)}</p>
     <p style="margin:0 0 16px;line-height:1.65">This private notice is for application review; do not forward it.</p>` : ''}
