@@ -238,6 +238,7 @@ export default function Header({
                 Return and refund policy
               </a>
               <a href={`${import.meta.env.BASE_URL}collections/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Explore collection pages</a>
+              <a href={`${import.meta.env.BASE_URL}customer-love/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Customer Love</a>
               <a href={`${import.meta.env.BASE_URL}about/`} className="block rounded-lg px-3 py-3 hover:bg-cream">About &amp; contact</a>
               <a href={`${import.meta.env.BASE_URL}faq/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Ordering FAQ</a>
               <a href={getGeneralWhatsAppLink()} className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Contact on WhatsApp</a>

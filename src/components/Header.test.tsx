@@ -26,6 +26,11 @@ describe('Header', () => {
     render(<Header showInstallPrompt={false} />);
     expect(screen.getByRole('link', { name: 'Search products' }).getAttribute('href')).toBe('/search/');
   });
+  it('links to Customer Love from the navigation menu', () => {
+    render(<Header showInstallPrompt={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.getByRole('link', { name: 'Customer Love' }).getAttribute('href')).toBe('/customer-love/');
+  });
   it('opens My orders from the main menu for signed-in customers', () => {
     const orders = vi.fn();
     const account = vi.fn();

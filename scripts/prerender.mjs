@@ -459,7 +459,7 @@ const renderShell = (products, categorySettings = []) => {
     '<h1>Premium Handmade Crochet Creations</h1>',
     "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>",
     '</header>',
-    '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
+    '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
     '<main>',
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
@@ -614,7 +614,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
     <a class="skip" href="#main">Skip to content</a>
     <header class="bar">
       <a href="/"><img src="/images/favicon-96.png" width="36" height="36" alt="" />Luvia Creations</a>
-      <nav aria-label="Main navigation"><a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a></nav>
+      <nav aria-label="Main navigation"><a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a></nav>
     </header>
     <main id="main" class="wrap">
       <nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="${collectionPath(product.category)}">${escapeHtml(product.category)}</a> › <span aria-current="page">${escapeHtml(product.name)}</span></nav>
