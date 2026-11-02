@@ -3,6 +3,7 @@ import type { Product } from '../types/product';
 import { fetchTestimonials, type Testimonial } from '../services/customerLove';
 import { toProductPageUrl } from '../utils/productLink';
 import RotatingCarousel from './RotatingCarousel';
+import { productImageProtection } from '../utils/imageProtection';
 
 export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false }: {
   entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean;
@@ -20,12 +21,12 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
     className={`${fullQuote ? 'h-full' : 'flex h-[30rem] flex-col'} scroll-mt-24 overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm`}>
     {entry.has_image && source && !imageFailed && (fullQuote
       ? <img src={source} alt={entry.image_alt} loading="lazy" decoding="async" width={480} height={480}
-        onError={() => setFailedSource(source)} className="h-auto w-full bg-cream object-contain" />
+        onError={() => setFailedSource(source)} className="h-auto w-full bg-cream object-contain" {...productImageProtection} />
       : <div className="relative h-56 shrink-0 overflow-hidden bg-cream">
         <img src={source} alt="" aria-hidden="true" loading="lazy" decoding="async"
-          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" {...productImageProtection} />
         <img src={source} alt={entry.image_alt} loading="lazy" decoding="async" width={480} height={480}
-          onError={() => setFailedSource(source)} className="relative h-full w-full object-contain" />
+          onError={() => setFailedSource(source)} className="relative h-full w-full object-contain" {...productImageProtection} />
       </div>)}
     <div className={fullQuote ? 'space-y-3 p-5' : 'flex min-h-0 flex-1 flex-col gap-2 p-4'}>
       <p className="text-xs font-semibold uppercase tracking-widest text-cocoa/60">A little love, handmade</p>

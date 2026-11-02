@@ -3,6 +3,7 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import ProductDetails from './ProductDetails';
 import ProductDeliveryInfo from './ProductDeliveryInfo';
 import { findProductVariantByReference } from '../utils/productLink';
+import { productImageProtection } from '../utils/imageProtection';
 
 export default function ProductDetailPreview({ product, variantReference }: { product: Product; variantReference?: string }) {
   const variant = variantReference ? findProductVariantByReference(product, variantReference) : undefined;
@@ -11,7 +12,7 @@ export default function ProductDetailPreview({ product, variantReference }: { pr
       className="grid gap-5 rounded-2xl bg-white p-4 sm:p-6 md:grid-cols-2">
       <img src={getProductImageUrl(variant?.image || product.image, 960)} alt={product.name}
         width={960} height={960} fetchPriority="high"
-        className="aspect-square w-full rounded-xl object-contain" />
+        className="aspect-square w-full rounded-xl object-contain" {...productImageProtection} />
       <div className="space-y-4 text-cocoa">
         <p className="text-sm">{product.category}</p>
         <h1 className="font-heading text-2xl font-bold sm:text-3xl">{product.name}</h1>

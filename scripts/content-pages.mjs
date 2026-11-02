@@ -34,6 +34,7 @@ const page = (pathname, title, description, body, schema, socialImage = `${ORIGI
 <script type="application/ld+json">${JSON.stringify({ ...schema, ...(pathname.startsWith('/collections/') ? { breadcrumb: collectionBreadcrumbList(pathname, title, ORIGIN) } : {}) }).replace(/</g, '\\u003c')}</script>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#fffaf0;color:#604239;font:16px/1.65 system-ui,sans-serif}
+img,video{pointer-events:none;-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
 .hotspot-links{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.hotspot-links:focus-within{position:static;width:auto;height:auto;margin:0;overflow:visible;clip-path:none;white-space:normal}
 a{color:inherit;text-underline-offset:4px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid #604239;outline-offset:4px}
 header,main,footer{max-width:1120px;margin:auto;padding:24px}header{border-bottom:3px solid #edc357}.brand{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none}.brand img{border-radius:50%}.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:8px;background:white;padding:8px}
@@ -219,9 +220,15 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   return pages;
 };
 
-export const renderContentSitemap = (products, today, pages, categories = []) =>
+export const renderContentSitemap = (products, today, pages, categories = [], customerLove = { testimonials: [], lastmod: null }) =>
   renderSitemap(products, today, publicContentPages(pages)
     .map(([pathname]) => {
+      if (pathname === '/customer-love/') return {
+        pathname,
+        lastmod: customerLove.lastmod,
+        images: customerLove.testimonials.map(entry => entry.image_url)
+          .filter((url, index, urls) => typeof url === 'string' && /^https:\/\//.test(url) && urls.indexOf(url) === index),
+      };
       const category = categories.find(settings => collectionPath(settings.name) === pathname);
       const items = products.filter(product => category?.isSeasonal
         ? category.productIds?.includes(product.id) : collectionPath(product.category) === pathname);

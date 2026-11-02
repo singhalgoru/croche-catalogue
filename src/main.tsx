@@ -7,6 +7,7 @@ import { initializeMetaPixel } from './services/meta'
 import { captureCampaign } from './utils/campaign'
 import { captureInternalTrafficPreference } from './utils/internalTraffic'
 import { installChunkLoadRecovery } from './utils/chunkLoadRecovery'
+import { installMediaProtection } from './utils/imageProtection'
 
 if (import.meta.env.DEV && window.location.pathname === '/__preview/customer-love/') {
   void import('./dev/CustomerLovePreview').then(({ default: Preview }) => {
@@ -17,6 +18,7 @@ if (import.meta.env.DEV && window.location.pathname === '/__preview/customer-lov
   })
 } else {
   installChunkLoadRecovery()
+  installMediaProtection()
   captureCampaign()
   captureInternalTrafficPreference()
   initializeAnalytics()

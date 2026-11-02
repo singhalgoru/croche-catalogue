@@ -340,7 +340,8 @@ const whatsappContactDetails = (number) => {
   return { digits, display };
 };
 
-const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, categorySettings = [], publicPages = []) => {
+const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, categorySettings = [], publicPages = [],
+  customerLove = { testimonials: [], lastmod: null }) => {
   const marker = /<!--catalogue-->[\s\S]*?<!--\/catalogue-->/;
   if (!marker.test(template)) throw new Error('llms.txt is missing the <!--catalogue--> markers');
   // Seasonal collections hold products by membership, not by product.category.
@@ -374,8 +375,26 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
   if (!pagesMarker.test(template)) throw new Error('llms.txt is missing the <!--public-pages--> markers');
   const links = publicPages.map(({ pathname, title }) =>
     `- [${markdownText(title)}](${ORIGIN}${pathname})`).join('\n');
+  const storiesMarker = /<!--customer-love-->[\s\S]*?<!--\/customer-love-->/;
+  if (!storiesMarker.test(template)) throw new Error('llms.txt is missing the <!--customer-love--> markers');
+  const stories = customerLove.testimonials;
+  const storyText = text => {
+    const characters = Array.from(text.replace(/\s+/g, ' ').trim());
+    return characters.length > 200 ? `${characters.slice(0, 200).join('').trimEnd()}...` : characters.join('');
+  };
+  const storyListing = stories.length ? [
+    `${stories.length} customer ${stories.length === 1 ? 'story is' : 'stories are'} published on [Customer Love](${ORIGIN}/customer-love/)${
+      customerLove.lastmod ? ` (last updated ${customerLove.lastmod})` : ''}. Stories are shared with permission; they are not star ratings or verified-purchase reviews.`,
+    ...stories.map(entry => {
+      const tagged = products.filter(product => entry.product_ids.includes(product.id));
+      return `- [${markdownText(entry.display_name)}](${ORIGIN}/customer-love/#testimonial-${encodeURIComponent(entry.id)}): "${
+        markdownText(storyText(entry.quote))}"${tagged.length
+        ? ` Related: ${tagged.map(product => `[${markdownText(product.name)}](${productUrl(product)})`).join(', ')}.` : ''}`;
+    }),
+  ].join('\n') : `Customer stories shared with permission will appear on [Customer Love](${ORIGIN}/customer-love/).`;
   return template
     .replace(pagesMarker, () => links)
+    .replace(storiesMarker, () => storyListing)
     .replace(marker, () => listing)
     .replaceAll('{{WHATSAPP_DISPLAY_NUMBER}}', contact.display)
     .replaceAll('{{WHATSAPP_NUMBER}}', contact.digits);
@@ -486,6 +505,7 @@ const catalogueJsonLd = (products) => ({
 
 const PAGE_STYLE = `:root{color-scheme:light}
 *{box-sizing:border-box}
+img,video{pointer-events:none;-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
 body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fdf6ec;color:#4a2c1d;line-height:1.6}
 a{color:#8a4f2d}
 .bar{padding:16px 20px;border-bottom:1px solid #ecd9c6}
@@ -679,7 +699,7 @@ const renderSitemap = (products, today, additionalPaths = []) => {
       `  <url><loc>${ORIGIN}${videoPath(product)}</loc>${videoSitemapEntry(product)}</url>`),
     ...additionalPaths.map(page => typeof page === 'string'
       ? entry(`${ORIGIN}${page}`, null)
-      : entry(`${ORIGIN}${page.pathname}`, null, page.images)),
+      : entry(`${ORIGIN}${page.pathname}`, page.lastmod ?? null, page.images)),
   ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n${urls.join('\n')}\n</urlset>\n`;
@@ -854,6 +874,21 @@ export async function fetchPublicTestimonials(supabaseUrl, anonKey) {
   return entries;
 }
 
+export async function fetchCustomerLoveLastChanged(supabaseUrl, anonKey) {
+  const response = await fetch(new URL('/rest/v1/rpc/customer_love_last_changed', supabaseUrl), {
+    method: 'POST',
+    headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+    body: '{}',
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Unable to read Customer Love discovery date: HTTP ${response.status}. Apply the Customer Love discovery migration before deployment.`);
+  const value = await response.json();
+  if (value !== null && !(typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))) {
+    throw new Error('Invalid Customer Love discovery date.');
+  }
+  return value;
+}
+
 const main = async () => {
   const env = { ...loadEnv('production', ROOT, 'VITE_'), ...process.env };
   const supabaseUrl = env.VITE_SUPABASE_URL;
@@ -868,11 +903,12 @@ const main = async () => {
     return;
   }
 
-  const [rows, categories, bestsellers, testimonials] = await Promise.all([
+  const [rows, categories, bestsellers, testimonials, customerLoveLastmod] = await Promise.all([
     fetchProductRows(supabaseUrl, anonKey),
     fetchBootstrapCategories(supabaseUrl, anonKey),
     fetchBootstrapBestsellers(supabaseUrl, anonKey),
     fetchPublicTestimonials(supabaseUrl, anonKey),
+    fetchCustomerLoveLastChanged(supabaseUrl, anonKey),
   ]);
   const products = rows.map(toProduct);
   await Promise.all(products.filter(product => product.makingVideo).map(async product => {
@@ -945,12 +981,13 @@ const main = async () => {
     }
     await writeFile(path.join(dir, 'index.html'), attachProductApp(content, template));
   }
-  await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages, categories));
+  const customerLove = { testimonials, lastmod: customerLoveLastmod };
+  await writeFile(path.join(DIST, 'sitemap.xml'), renderContentSitemap(products, today, contentPages, categories, customerLove));
   const { discoveryPageLinks } = await import('./public-discovery.mjs');
   await writeFile(
     path.join(DIST, 'llms.txt'),
     renderLlms(await readFile(path.join(ROOT, 'public', 'llms.txt'), 'utf8'), products, whatsappNumber, categories,
-      discoveryPageLinks(contentPages)),
+      discoveryPageLinks(contentPages), customerLove),
   );
 
   console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);

@@ -5,6 +5,7 @@ import type { Product } from '../types/product';
 import { formatINR } from '../utils/currency';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { getProductImageUrl } from '../utils/productImageUrl';
+import { productImageProtection } from '../utils/imageProtection';
 import { getCartWhatsAppLink, getCheckoutSupportWhatsAppLink } from '../utils/whatsapp';
 import { getCartEmailLink, getCartEmailText, getCartGmailLink, ORDERS_EMAIL } from '../utils/email';
 import { MailIcon, WhatsAppIcon } from './SocialIcons';
@@ -308,6 +309,7 @@ export default function CartDrawer({
                           loading="lazy"
                           decoding="async"
                           className="h-20 w-20 rounded-xl bg-cream object-cover"
+                          {...productImageProtection}
                         />
                       </button>
                       <div className="min-w-0 flex-1">

@@ -45,6 +45,32 @@ describe('collection and information pages', () => {
     const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     expect(renderLlms(template, [], undefined, [], discoveryPageLinks(generated))).toContain('[Customer Love](https://luviacreations.com/customer-love/)');
   });
+  it('refreshes sitemap and llms.txt Customer Love entries from published stories', () => {
+    const story = {
+      id: 'story-1', display_name: 'Asha [Delhi]', quote: `${'Lovely '.repeat(40)}gift`, product_ids: [toy.id],
+      has_image: true, image_url: 'https://images.luviacreations.com/customer-reviews/story-1-0123456789abcdef.webp',
+      image_alt: 'Handmade toy', featured: true, sort_order: 0,
+    };
+    const generated = buildContentPages([toy], '919205907350', [], [], [story]);
+    const xml = renderContentSitemap([toy], '2026-11-02', generated, [], { testimonials: [story], lastmod: '2026-11-01' });
+    const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+    const entry = [...doc.querySelectorAll('url')].find(url => url.querySelector('loc')?.textContent === 'https://luviacreations.com/customer-love/')!;
+    expect(entry.querySelector('lastmod')?.textContent).toBe('2026-11-01');
+    expect(entry.getElementsByTagName('image:loc')[0]?.textContent).toBe(story.image_url);
+    const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
+    const llms = renderLlms(template, [toy], undefined, [], discoveryPageLinks(generated), { testimonials: [story], lastmod: '2026-11-01' });
+    expect(llms).toContain('1 customer story is published on [Customer Love](https://luviacreations.com/customer-love/) (last updated 2026-11-01)');
+    expect(llms).toContain('- [Asha \\[Delhi\\]](https://luviacreations.com/customer-love/#testimonial-story-1): "Lovely');
+    expect(llms).toContain('..." Related: [Bunny](https://luviacreations.com/p/bunny/).');
+    expect(llms).not.toContain('<!--customer-love-->');
+    const withdrawn = renderLlms(template, [toy], undefined, [], discoveryPageLinks(buildContentPages([toy], '919205907350')),
+      { testimonials: [], lastmod: '2026-11-02' });
+    expect(withdrawn).not.toContain('#testimonial-story-1');
+    expect(withdrawn).toContain('Customer stories shared with permission will appear on [Customer Love]');
+    expect(renderContentSitemap([toy], '2026-11-02', buildContentPages([toy], '919205907350'), [], { testimonials: [], lastmod: '2026-11-02' }))
+      .not.toContain('customer-reviews/');
+    expect(() => renderLlms(template.replace(/<!--customer-love-->[\s\S]*?<!--\/customer-love-->/, ''), [])).toThrow(/customer-love/);
+  });
   it('prerenders the international quote page with contact/destination guidance, product links and automatic discovery', () => {
     const doc = documentFor('/international-quote/');
     expect(doc.querySelector('h1')?.textContent).toBe('Request an international quote');

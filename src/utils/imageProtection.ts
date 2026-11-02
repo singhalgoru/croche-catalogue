@@ -10,6 +10,24 @@ export const preventImageContextMenu = (event: MouseEvent<HTMLElement>) => {
   event.preventDefault();
 };
 
+const isProtectedMedia = (target: EventTarget | null) =>
+  target instanceof Element
+  && (target instanceof HTMLImageElement || target instanceof HTMLVideoElement || target instanceof HTMLPictureElement)
+  && !target.closest('[data-allow-media-save]');
+
+/** Site-wide safety net so every current and future image/video is covered. */
+export const installMediaProtection = (root: Document = document) => {
+  const block = (event: Event) => {
+    if (isProtectedMedia(event.target)) event.preventDefault();
+  };
+  root.addEventListener('contextmenu', block);
+  root.addEventListener('dragstart', block);
+  return () => {
+    root.removeEventListener('contextmenu', block);
+    root.removeEventListener('dragstart', block);
+  };
+};
+
 export const productImageProtection = {
   draggable: false,
   onContextMenu: preventImageContextMenu,

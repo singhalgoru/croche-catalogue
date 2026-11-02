@@ -3,6 +3,7 @@ create temporary table love_fixture as select gen_random_uuid() admin_id,gen_ran
   gen_random_uuid() factor_id,gen_random_uuid() testimonial_id,
   gen_random_uuid() product_one,gen_random_uuid() product_two,gen_random_uuid() product_private;
 grant select on love_fixture to anon,authenticated,service_role;
+update public.customer_love_discovery set changed_at='2000-01-01T00:00:00Z';
 insert into auth.users(id) select admin_id from love_fixture;
 insert into public.catalogue_admins(user_id) select admin_id from love_fixture;
 insert into public.products(id,name,category,description,color,image_path,image_url,created_by,published,price)
@@ -37,6 +38,10 @@ do $$ declare f record; draft jsonb; begin
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
 end $$;
 reset role;
+do $$ begin
+  if (select changed_at from public.customer_love_discovery) <> '2000-01-01T00:00:00Z'::timestamptz
+    then raise exception 'FAIL: draft-only save changed public discovery date.'; end if;
+end $$;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
 set local role anon;
 do $$ declare f record; begin
@@ -153,6 +158,12 @@ do $$ declare f record; begin
   select * into f from love_fixture;
   if exists(select 1 from jsonb_array_elements(public.list_customer_love(false)) e where e->>'id'=f.testimonial_id::text)
     then raise exception 'FAIL: revoked story still public.'; end if;
+  if public.customer_love_last_changed() is distinct from to_char(now() at time zone 'UTC','YYYY-MM-DD')
+    then raise exception 'FAIL: publication/withdrawal did not refresh the discovery date.'; end if;
+  begin
+    perform 1 from public.customer_love_discovery;
+    raise exception 'FAIL: anon read discovery table directly.';
+  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal2',

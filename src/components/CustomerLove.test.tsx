@@ -35,6 +35,18 @@ it('loads public photos from their R2 URL and hides photos that are not yet in R
   rerender(<TestimonialCard entry={{ ...entries[0], has_image: true, image_url: null, image_alt: 'Crochet gift' }} />);
   expect(screen.queryByAltText('Crochet gift')).toBeNull();
 });
+it('blocks right-click save and dragging on customer photos in compact and full cards', () => {
+  const url = 'https://images.luviacreations.com/customer-reviews/story-0123456789abcdef.webp';
+  const entry = { ...entries[0], has_image: true, image_url: url, image_alt: 'Crochet gift' };
+  const { rerender, container } = render(<TestimonialCard entry={entry} />);
+  for (const image of container.querySelectorAll('img')) {
+    expect(image.getAttribute('draggable')).toBe('false');
+    expect(fireEvent.contextMenu(image)).toBe(false);
+  }
+  rerender(<TestimonialCard entry={entry} fullQuote />);
+  expect(screen.getByAltText('Crochet gift').getAttribute('draggable')).toBe('false');
+  expect(fireEvent.contextMenu(screen.getByAltText('Crochet gift'))).toBe(false);
+});
 it('shows featured stories on homepage and every published story on the full page', () => {
   const { rerender } = render(<CustomerLove products={[]} entries={entries} />);
   expect(screen.getByText('Featured customer')).toBeTruthy();
