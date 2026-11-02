@@ -9,6 +9,7 @@ import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
 import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../src/utils/productCollections.js';
 import { publicContentPages } from './public-discovery.mjs';
+import { testimonialPath } from '../src/utils/testimonialLink.js';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -213,16 +214,44 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     + (testimonials.length ? `<div class="grid">${testimonials.map(entry => {
       const taggedProducts = products.filter(item => entry.product_ids.includes(item.id));
       return `<figure class="card" id="testimonial-${escapeHtml(entry.id)}" tabindex="-1" style="scroll-margin-top:6rem">${entry.has_image && entry.image_url ? `<img src="${escapeHtml(entry.image_url)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" loading="lazy" style="width:100%;height:auto;border-radius:12px">` : ''}
-        <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption>
+        <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption><a href="${testimonialPath(entry)}">${escapeHtml(entry.display_name)}</a></figcaption>
         ${taggedProducts.map(product => `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>`).join('')}</figure>`;
     }).join('')}</div>` : '<p>Customer stories will appear here once shared with permission.</p>'),
     baseSchema('CollectionPage', '/customer-love/', 'Customer Love', 'Selected customer stories shared with permission.')));
+  for (const entry of testimonials) {
+    const pathname = testimonialPath(entry);
+    const title = `Customer story from ${entry.display_name}`;
+    const excerpt = Array.from(entry.quote.replace(/\s+/g, ' ').trim());
+    const description = `${excerpt.length > 150 ? `${excerpt.slice(0, 150).join('').trimEnd()}...` : excerpt.join('')} Shared with permission by a Luvia Creations customer.`;
+    const taggedProducts = products.filter(item => entry.product_ids.includes(item.id));
+    const image = entry.has_image && entry.image_url ? entry.image_url : null;
+    pages.set(pathname, page(pathname, title, description,
+      `<nav aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/customer-love/">Customer Love</a> › <span aria-current="page">${escapeHtml(entry.display_name)}</span></nav>
+      <figure class="card" style="max-width:640px">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" style="width:100%;height:auto;border-radius:12px">` : ''}
+        <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption></figure>
+      ${taggedProducts.length ? `<h2>Products in this story</h2><ul>${taggedProducts.map(product => `<li><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></li>`).join('')}</ul>` : ''}
+      <p><a href="/customer-love/">See all customer stories</a></p>`,
+      { ...baseSchema('WebPage', pathname, title, description),
+        isPartOf: { '@type': 'CollectionPage', name: 'Customer Love', url: `${ORIGIN}/customer-love/` },
+        breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
+          { name: 'Home', item: `${ORIGIN}/` },
+          { name: 'Customer Love', item: `${ORIGIN}/customer-love/` },
+          { name: entry.display_name, item: `${ORIGIN}${pathname}` },
+        ].map((item, index) => ({ '@type': 'ListItem', position: index + 1, ...item })) } },
+      image ?? undefined));
+  }
   return pages;
 };
 
 export const renderContentSitemap = (products, today, pages, categories = [], customerLove = { testimonials: [], lastmod: null }) =>
   renderSitemap(products, today, publicContentPages(pages)
     .map(([pathname]) => {
+      const story = customerLove.testimonials.find(entry => testimonialPath(entry) === pathname);
+      if (story) return {
+        pathname,
+        lastmod: story.updated_on ?? customerLove.lastmod,
+        images: story.has_image && typeof story.image_url === 'string' && /^https:\/\//.test(story.image_url) ? [story.image_url] : [],
+      };
       if (pathname === '/customer-love/') return {
         pathname,
         lastmod: customerLove.lastmod,

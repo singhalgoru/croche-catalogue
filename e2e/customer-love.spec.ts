@@ -95,11 +95,11 @@ test('long quote previews link to the complete testimonial after delayed loading
   await expect(page.getByRole('blockquote')).toContainText('...');
   await expect(page.getByRole('blockquote')).not.toContainText('This is the end');
   await page.getByRole('link', { name: 'Read full testimonial from Synthetic long story', exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/customer-love/#testimonial-${id}$`));
+  await expect(page).toHaveURL(/\/customer-love\/synthetic-long-story-10000000\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Customer story from Synthetic long story');
   const story = page.locator(`#testimonial-${id}`);
   await expect(story.getByRole('blockquote')).toHaveText(`“${quote}”`);
-  await expect(story).toBeFocused();
-  await expect(story).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'See all customer stories' })).toBeVisible();
 });
 
 test('late-loading customer stories preserve product section anchor alignment', async ({ page }) => {

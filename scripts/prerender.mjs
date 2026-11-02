@@ -24,6 +24,7 @@ import storeContent from '../src/content/storeContent.json' with { type: 'json' 
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { getCategoryImage } from '../src/utils/categoryImage.js';
+import { testimonialPath } from '../src/utils/testimonialLink.js';
 import { fetchVideoUploadDate, renderVideoPage, videoPath, videoPlayer, videoSchema, videoSitemapEntry } from './video-pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -387,7 +388,7 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
       customerLove.lastmod ? ` (last updated ${customerLove.lastmod})` : ''}. Stories are shared with permission; they are not star ratings or verified-purchase reviews.`,
     ...stories.map(entry => {
       const tagged = products.filter(product => entry.product_ids.includes(product.id));
-      return `- [${markdownText(entry.display_name)}](${ORIGIN}/customer-love/#testimonial-${encodeURIComponent(entry.id)}): "${
+      return `- [${markdownText(entry.display_name)}](${ORIGIN}${testimonialPath(entry)}): "${
         markdownText(storyText(entry.quote))}"${tagged.length
         ? ` Related: ${tagged.map(product => `[${markdownText(product.name)}](${productUrl(product)})`).join(', ')}.` : ''}`;
     }),
@@ -868,7 +869,8 @@ export async function fetchPublicTestimonials(supabaseUrl, anonKey) {
     || typeof entry.display_name !== 'string' || typeof entry.quote !== 'string'
     || typeof entry.has_image !== 'boolean' || typeof entry.image_alt !== 'string'
     || !(entry.image_url === null || (typeof entry.image_url === 'string' && entry.image_url.startsWith('https://')))
-    || !Array.isArray(entry.product_ids) || entry.product_ids.some(id => typeof id !== 'string'))) {
+    || !Array.isArray(entry.product_ids) || entry.product_ids.some(id => typeof id !== 'string')
+    || !(entry.updated_on === undefined || (typeof entry.updated_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.updated_on))))) {
     throw new Error('Invalid public Customer Love snapshot.');
   }
   return entries;

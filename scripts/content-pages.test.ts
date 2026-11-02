@@ -51,16 +51,34 @@ describe('collection and information pages', () => {
       has_image: true, image_url: 'https://images.luviacreations.com/customer-reviews/story-1-0123456789abcdef.webp',
       image_alt: 'Handmade toy', featured: true, sort_order: 0,
     };
-    const generated = buildContentPages([toy], '919205907350', [], [], [story]);
-    const xml = renderContentSitemap([toy], '2026-11-02', generated, [], { testimonials: [story], lastmod: '2026-11-01' });
+    const generated = buildContentPages([toy], '919205907350', [], [], [{ ...story, updated_on: '2026-10-30' }]);
+    const storyPath = '/customer-love/asha-delhi-1/';
+    const storyDoc = new JSDOM(generated.get(storyPath)).window.document;
+    expect(storyDoc.querySelector('h1')?.textContent).toBe('Customer story from Asha [Delhi]');
+    expect(storyDoc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${storyPath}`);
+    expect(storyDoc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(story.image_url);
+    expect(storyDoc.querySelector('main a[href="/p/bunny/"]')).toBeTruthy();
+    expect(storyDoc.querySelector('header')).toBeTruthy();
+    expect(storyDoc.querySelector('footer')).toBeTruthy();
+    expect(generated.get(storyPath)).not.toContain('aggregateRating');
+    expect(new JSDOM(generated.get('/customer-love/')).window.document.querySelector(`a[href="${storyPath}"]`)?.textContent).toBe('Asha [Delhi]');
+    const xml = renderContentSitemap([toy], '2026-11-02', generated, [], { testimonials: [{ ...story, updated_on: '2026-10-30' }], lastmod: '2026-11-01' });
     const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
-    const entry = [...doc.querySelectorAll('url')].find(url => url.querySelector('loc')?.textContent === 'https://luviacreations.com/customer-love/')!;
+    const urlFor = (loc: string) => [...doc.querySelectorAll('url')].find(url => url.querySelector('loc')?.textContent === loc)!;
+    const entry = urlFor('https://luviacreations.com/customer-love/');
     expect(entry.querySelector('lastmod')?.textContent).toBe('2026-11-01');
     expect(entry.getElementsByTagName('image:loc')[0]?.textContent).toBe(story.image_url);
+    const storyEntry = urlFor(`https://luviacreations.com${storyPath}`);
+    expect(storyEntry.querySelector('lastmod')?.textContent).toBe('2026-10-30');
+    expect(storyEntry.getElementsByTagName('image:loc')[0]?.textContent).toBe(story.image_url);
+    expect(xml).not.toContain('#testimonial-');
     const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     const llms = renderLlms(template, [toy], undefined, [], discoveryPageLinks(generated), { testimonials: [story], lastmod: '2026-11-01' });
     expect(llms).toContain('1 customer story is published on [Customer Love](https://luviacreations.com/customer-love/) (last updated 2026-11-01)');
-    expect(llms).toContain('- [Asha \\[Delhi\\]](https://luviacreations.com/customer-love/#testimonial-story-1): "Lovely');
+    expect(llms).toContain(`- [Asha \\[Delhi\\]](https://luviacreations.com${storyPath}): "Lovely`);
+    expect(llms).not.toContain('#testimonial-');
+    expect(llms.split(storyPath).length - 1).toBe(1);
+    for (const loc of doc.querySelectorAll('url > loc')) expect(llms).toContain(`](${loc.textContent})`);
     expect(llms).toContain('..." Related: [Bunny](https://luviacreations.com/p/bunny/).');
     expect(llms).not.toContain('<!--customer-love-->');
     const withdrawn = renderLlms(template, [toy], undefined, [], discoveryPageLinks(buildContentPages([toy], '919205907350')),

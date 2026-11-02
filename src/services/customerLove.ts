@@ -12,6 +12,8 @@ export interface Testimonial {
   image_alt: string;
   featured: boolean;
   sort_order: number;
+  /** Public UTC date (YYYY-MM-DD) of the story's last change. */
+  updated_on?: string;
 }
 export interface AdminTestimonial extends Testimonial {
   published: boolean;

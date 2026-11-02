@@ -4,9 +4,10 @@ import { fetchTestimonials, type Testimonial } from '../services/customerLove';
 import { toProductPageUrl } from '../utils/productLink';
 import RotatingCarousel from './RotatingCarousel';
 import { productImageProtection } from '../utils/imageProtection';
+import { findTestimonialBySlug, testimonialPath } from '../utils/testimonialLink';
 
-export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false }: {
-  entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean;
+export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false, storyLink = false }: {
+  entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean; storyLink?: boolean;
 }) {
   const source = imageUrl ?? entry.image_url;
   const [failedSource, setFailedSource] = useState<string | null>(null);
@@ -30,13 +31,14 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
       </div>)}
     <div className={fullQuote ? 'space-y-3 p-5' : 'flex min-h-0 flex-1 flex-col gap-2 p-4'}>
       {imageFailed && <p role="status" className="text-xs">Customer photo is currently unavailable.</p>}
-      {!fullQuote ? <a href={`/customer-love/#testimonial-${encodeURIComponent(entry.id)}`}
+      {!fullQuote ? <a href={testimonialPath(entry)}
         aria-label={`Read full testimonial from ${entry.display_name}`}
         className="block min-h-0 overflow-hidden">
         {quote}
         <span className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Read full testimonial</span>
       </a> : quote}
-      <figcaption className={`${fullQuote ? '' : 'shrink-0 truncate leading-6 '}text-sm font-semibold text-cocoa`}>{entry.display_name}</figcaption>
+      <figcaption className={`${fullQuote ? '' : 'shrink-0 truncate leading-6 '}text-sm font-semibold text-cocoa`}>{storyLink
+        ? <a href={testimonialPath(entry)} className="underline underline-offset-4">{entry.display_name}</a> : entry.display_name}</figcaption>
       {products.length > 0 && <div className={fullQuote ? 'flex flex-wrap gap-x-4' : 'mt-auto flex shrink-0 gap-4 overflow-x-auto'}>{products.map(product => <a key={product.id} href={toProductPageUrl(product)} className={`${fullQuote ? '' : 'shrink-0 whitespace-nowrap '}inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4`}>
         Shop {product.name}
       </a>)}</div>}
@@ -44,8 +46,11 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
   </figure>;
 }
 
-export default function CustomerLove({ products, productId, page = false, entries: suppliedEntries, imageUrl, onContentReady }: {
+export default function CustomerLove({ products, productId, page = false, storySlug, onStoryResolved, entries: suppliedEntries, imageUrl, onContentReady }: {
   products: Product[]; productId?: string; page?: boolean; entries?: Testimonial[];
+  /** Renders only the published story at /customer-love/<slug>/. */
+  storySlug?: string;
+  onStoryResolved?: (entry: Testimonial | null) => void;
   imageUrl?: (entry: Testimonial) => string;
   onContentReady?: () => void;
 }) {
@@ -67,17 +72,28 @@ export default function CustomerLove({ products, productId, page = false, entrie
     const target = document.getElementById(location.hash.slice(1));
     if (target) { target.scrollIntoView(); target.focus({ preventScroll: true }); }
   }, [page, loading, error, entries, suppliedEntries]);
-  const selected = (suppliedEntries ?? entries).filter(entry => productId
+  const available = suppliedEntries ?? entries;
+  const story = storySlug === undefined ? undefined : findTestimonialBySlug(available, storySlug) ?? null;
+  useEffect(() => {
+    if (storySlug !== undefined && !loading && !error) onStoryResolved?.(story ?? null);
+  }, [storySlug, loading, error, story, onStoryResolved]);
+  const selected = available.filter(entry => productId
     ? entry.product_ids.includes(productId) : page || entry.featured).sort((a, b) => a.sort_order - b.sort_order);
-  if (loading || error) return <section aria-label="Customer Love" className={loading && !page ? 'sr-only' : 'rounded-xl border border-mustard/30 p-4 text-sm'}>
+  if (loading || error) return <section aria-label="Customer Love" className={loading && !page && storySlug === undefined ? 'sr-only' : 'rounded-xl border border-mustard/30 p-4 text-sm'}>
     {loading && <p role="status">Loading Customer Love...</p>}
     {error && <><p role="alert">Customer Love could not be loaded.</p><button type="button" className="min-h-11 underline"
       onClick={() => setRetry(value => value + 1)}>Retry customer stories</button></>}
   </section>;
+  if (storySlug !== undefined) return <div className="max-w-2xl space-y-4">
+    {story ? <TestimonialCard entry={story} products={products.filter(product => story.product_ids.includes(product.id))}
+      imageUrl={imageUrl?.(story)} fullQuote />
+      : <p role="status">This customer story is no longer available.</p>}
+    <a href="/customer-love/" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">See all customer stories</a>
+  </div>;
   if (!selected.length) return page ? <p>Customer stories will appear here once shared with permission.</p> : null;
   const cards = selected.map(entry => <div key={entry.id} className={page ? 'min-w-0' : 'w-[85%] shrink-0 sm:w-[calc((100%-24px)/3)]'}>
     <TestimonialCard entry={entry} products={products.filter(product => entry.product_ids.includes(product.id))}
-      imageUrl={imageUrl?.(entry)} fullQuote={page} />
+      imageUrl={imageUrl?.(entry)} fullQuote={page} storyLink={page} />
   </div>);
   return page ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
     : <RotatingCarousel title="Customer Love" label="customer story" itemCount={selected.length} viewAll="/customer-love/"

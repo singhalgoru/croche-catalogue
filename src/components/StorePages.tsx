@@ -29,6 +29,8 @@ import { matchesProductSearch } from '../utils/productSearch';
 import { addRecentSearch, readRecentSearches, writeRecentSearches } from '../utils/recentSearches';
 import artisanOnboarding from '../content/artisanOnboarding.json';
 import CustomerLove from './CustomerLove';
+import type { Testimonial } from '../services/customerLove';
+import { readTestimonialSlug } from '../utils/testimonialLink';
 
 const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
 
@@ -80,6 +82,10 @@ export default function StorePages({
   const isInternationalQuote = requestedPath === internationalQuote.path;
   const isAbout = requestedPath === '/about/';
   const isCustomerLove = requestedPath === '/customer-love/';
+  const storySlug = readTestimonialSlug(requestedPath) ?? undefined;
+  const isStory = storySlug !== undefined;
+  // undefined while loading; null when the story is unpublished or unknown.
+  const [story, setStory] = useState<Testimonial | null | undefined>(undefined);
   const isSearch = requestedPath === '/search/';
   const isArtisans = requestedPath === artisanOnboarding.path;
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +136,8 @@ export default function StorePages({
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
-  const title = productCollection?.title ?? policy?.title ?? (isCustomerLove ? 'Customer Love' : isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
+  const title = productCollection?.title ?? policy?.title ?? (isStory ? story ? `Customer story from ${story.display_name}` : story === null ? 'Customer story unavailable' : 'Customer story'
+    : isCustomerLove ? 'Customer Love' : isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections');
@@ -142,6 +149,19 @@ export default function StorePages({
 
   useEffect(() => {
     if (isLoading && !hasCatalogueSnapshot) return;
+    if (isStory) {
+      // Prerendered story pages already carry accurate metadata; only correct it once data is known.
+      if (story === undefined) return;
+      document.title = `${title} | Luvia Creations`;
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
+      if (story === null) {
+        const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement('meta');
+        robots.name = 'robots';
+        robots.content = 'noindex,follow';
+        if (!robots.isConnected) document.head.append(robots);
+      }
+      return;
+    }
     document.title = `${title} | Luvia Creations`;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
@@ -190,7 +210,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isCustomerLove, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isCustomerLove, isStory, story, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -205,8 +225,10 @@ export default function StorePages({
       cartItemCount={cartItemCount} cartUpdateCount={cartUpdateCount} onOpenCart={onOpenCart} onOpenAccount={onOpenAccount} onOpenOrders={onOpenOrders} accountName={accountName} />
     <main className={`mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 text-cocoa ${isSearch ? 'pb-6 sm:py-6' : 'py-6'}`}>
       <nav aria-label="Breadcrumb" className={`${isSearch ? 'hidden sm:flex' : 'flex'} flex-wrap gap-3 text-sm`}><a href="/" className="underline">Home</a>
-        {isCollection && <a href="/collections/" className="underline">Collections</a>}<span aria-current="page">{title}</span></nav>
+        {isCollection && <a href="/collections/" className="underline">Collections</a>}
+        {isStory && <a href="/customer-love/" className="underline">Customer Love</a>}<span aria-current="page">{title}</span></nav>
       <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>{title}</h1>
+      {isStory && <CustomerLove products={products} storySlug={storySlug} onStoryResolved={setStory} />}
       {isCustomerLove && <><p>Made with love. Loved in real life.</p>
         <CustomerLove products={products} page /></>}
       {policy && <article className="max-w-3xl space-y-5">

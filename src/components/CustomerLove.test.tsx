@@ -2,6 +2,7 @@ import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerLove, { TestimonialCard } from './CustomerLove';
 import { newTestimonial, fetchTestimonials } from '../services/customerLove';
+import { testimonialPath } from '../utils/testimonialLink.js';
 vi.mock('../services/customerLove', async original => ({ ...await original<object>(), fetchTestimonials: vi.fn() }));
 vi.mock('./RotatingCarousel', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 const entries = [
@@ -16,7 +17,7 @@ it('shortens long carousel quotes with ellipses and links to the complete story'
   const { rerender } = render(<TestimonialCard entry={story} />);
   expect(screen.getByRole('blockquote').textContent).toContain('a'.repeat(239) + '\uD83D\uDC69\u200D\uD83C\uDFA8...');
   expect(screen.queryByText(/ending of the full story/)).toBeNull();
-  expect(screen.getByRole('link', { name: /Read full testimonial/ }).getAttribute('href')).toBe(`/customer-love/#testimonial-${story.id}`);
+  expect(screen.getByRole('link', { name: /Read full testimonial/ }).getAttribute('href')).toBe(testimonialPath(story));
   expect(screen.getByRole('link', { name: /Read full testimonial/ }).textContent).toContain('...');
   rerender(<TestimonialCard entry={story} fullQuote />);
   expect(screen.getByRole('blockquote').textContent).toContain(quote);
