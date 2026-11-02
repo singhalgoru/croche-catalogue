@@ -420,6 +420,14 @@ describe('injectShell', () => {
     expect(store.description).toContain('Shop handmade crochet gajras, hair accessories');
   });
 
+  it('advertises machine-readable discovery files from the homepage head', () => {
+    const result = injectShell(readFileSync(path.resolve('index.html'), 'utf8'), [product]);
+    const head = result.slice(0, result.indexOf('</head>'));
+    expect(head).toContain('<link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />');
+    expect(head).toContain('<link rel="alternate" type="text/plain" title="Site summary for AI agents" href="/llms.txt" />');
+    expect(head).toContain('<link rel="alternate" type="application/rss+xml" title="Product feed" href="/merchant-feed.xml" />');
+  });
+
   it('bootstraps the premium homepage title for hydrated metadata', async () => {
     const source = readFileSync(path.resolve('index.html'), 'utf8');
     const result = injectCatalogueBootstrap(source, [], [], {
