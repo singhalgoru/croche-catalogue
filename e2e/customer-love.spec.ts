@@ -100,6 +100,10 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
     .toHaveAttribute('href', '/customer-love/synthetic-home-2-meerut-10000000/');
   const layout = await cards.evaluateAll(elements => ({
     boxes: elements.map(element => { const box = element.getBoundingClientRect(); return { left: Math.round(box.left), width: box.width }; }),
+    emptyBelow: Math.max(...elements.map(element => {
+      const links = [...element.querySelectorAll('a')].map(link => link.getBoundingClientRect().bottom);
+      return element.getBoundingClientRect().bottom - Math.max(...links);
+    })),
     photosOnTop: elements.filter(element => element.querySelector('img')).every(element => {
       const card = element.getBoundingClientRect(); const image = element.querySelector('img')!.getBoundingClientRect();
       return image.width >= card.width - 4 && image.bottom <= element.querySelector('blockquote')!.getBoundingClientRect().top;
@@ -111,6 +115,7 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
   if (testInfo.project.name === 'mobile-chromium') {
     expect(layout.scrollable).toBe(true);
     expect(layout.photosOnTop).toBe(true);
+    expect(layout.emptyBelow).toBeLessThan(40);
     expect(new Set(layout.boxes.map(box => box.left)).size).toBe(3);
   } else {
     expect(layout.scrollable).toBe(false);

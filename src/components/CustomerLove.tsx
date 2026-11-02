@@ -112,7 +112,7 @@ function LovedByYou({ stories, tagged, imageUrl }: {
       <p className="mt-1 text-cocoa/80">Real stories from our happy customers</p>
     </div>
     <div aria-label="Customer stories" role="region" tabIndex={0}
-      className={`relative -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 ${
+      className={`relative -mx-4 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:items-stretch md:overflow-visible md:px-0 md:pb-0 ${
         stories.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:max-w-xl'}`}>
       {stories.map((entry, index) => <HomeStory key={entry.id} entry={entry} products={tagged(entry)}
         imageUrl={imageUrl?.(entry)} lead={index === 0} />)}
