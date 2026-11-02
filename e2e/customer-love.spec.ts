@@ -82,7 +82,7 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
     quote: 'A lovely handmade keepsake that we use every day. '.repeat(index), product_ids: [catalogue.products[0].id],
     has_image: false, image_url: null, image_alt: '', featured: true, sort_order: index, ...extra });
   await page.route('**/rest/v1/rpc/list_customer_love', route => route.fulfill({ json: [
-    story(1, {}), story(2, { has_image: true, image_alt: 'Synthetic home photo',
+    story(1, { product_ids: catalogue.products.slice(0, 2).map(product => product.id) }), story(2, { has_image: true, image_alt: 'Synthetic home photo',
       image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000022-0123456789abcdef.webp' }),
     story(3, { has_image: true, image_alt: 'Synthetic second home photo',
       image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000023-0123456789abcdef.webp' }), story(4, { featured: false }),
@@ -101,8 +101,8 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
   const layout = await cards.evaluateAll(elements => ({
     boxes: elements.map(element => { const box = element.getBoundingClientRect(); return { left: Math.round(box.left), width: box.width }; }),
     emptyBelow: Math.max(...elements.map(element => {
-      const links = [...element.querySelectorAll('a')].map(link => link.getBoundingClientRect().bottom);
-      return element.getBoundingClientRect().bottom - Math.max(...links);
+      const firstLink = Math.min(...[...element.querySelectorAll('a')].map(link => link.getBoundingClientRect().top));
+      return firstLink - element.querySelector('figcaption')!.getBoundingClientRect().bottom;
     })),
     photosOnTop: elements.filter(element => element.querySelector('img')).every(element => {
       const card = element.getBoundingClientRect(); const image = element.querySelector('img')!.getBoundingClientRect();
@@ -115,7 +115,7 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
   if (testInfo.project.name === 'mobile-chromium') {
     expect(layout.scrollable).toBe(true);
     expect(layout.photosOnTop).toBe(true);
-    expect(layout.emptyBelow).toBeLessThan(40);
+    expect(layout.emptyBelow).toBeLessThan(60);
     expect(new Set(layout.boxes.map(box => box.left)).size).toBe(3);
   } else {
     expect(layout.scrollable).toBe(false);

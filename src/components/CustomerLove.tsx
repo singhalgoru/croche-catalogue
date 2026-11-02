@@ -87,16 +87,14 @@ function HomeStory({ entry, products, imageUrl, lead }: { entry: Testimonial; pr
     : 'h-56 w-full shrink-0 bg-cream object-contain md:h-24 md:w-24 md:rounded-xl');
   return <figure className={`relative flex w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
     lead ? 'md:row-span-2' : 'md:flex-row md:items-start md:gap-4 md:p-5'}`}>
-    {photo}
-    <div className={`flex min-w-0 flex-1 flex-col p-5 ${lead ? '' : 'md:p-0'}`}>
-      <div className="min-w-0 space-y-2">
-        <blockquote className={`whitespace-pre-line break-words ${lead ? 'line-clamp-4 font-heading text-xl leading-snug sm:text-2xl'
-          : 'line-clamp-3 leading-relaxed'}`}>&ldquo;{entry.quote}&rdquo;</blockquote>
-        <StoryAttribution entry={entry} />
-        <div className="flex flex-wrap items-center gap-x-4">
-          <ShopLinks products={products.slice(0, 2)} />
-          <ReadStoryLink entry={entry} />
-        </div>
+    {photo ?? <div aria-hidden="true" className="flex h-56 shrink-0 items-center justify-center bg-cream-dark font-heading text-6xl text-mustard-dark md:hidden">♡</div>}
+    <div className={`flex min-w-0 flex-1 flex-col gap-2 p-5 ${lead ? '' : 'md:p-0'}`}>
+      <blockquote className={`line-clamp-3 whitespace-pre-line break-words ${lead ? 'font-heading text-lg leading-snug md:line-clamp-4 md:text-2xl'
+        : 'leading-relaxed'}`}>&ldquo;{entry.quote}&rdquo;</blockquote>
+      <StoryAttribution entry={entry} />
+      <div className="mt-auto flex flex-col items-start md:flex-row md:flex-wrap md:items-center md:gap-x-4">
+        <ShopLinks products={products.slice(0, 1)} />
+        <ReadStoryLink entry={entry} />
       </div>
     </div>
   </figure>;
@@ -112,7 +110,7 @@ function LovedByYou({ stories, tagged, imageUrl }: {
       <p className="mt-1 text-cocoa/80">Real stories from our happy customers</p>
     </div>
     <div aria-label="Customer stories" role="region" tabIndex={0}
-      className={`relative -mx-4 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:items-stretch md:overflow-visible md:px-0 md:pb-0 ${
+      className={`relative -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 ${
         stories.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:max-w-xl'}`}>
       {stories.map((entry, index) => <HomeStory key={entry.id} entry={entry} products={tagged(entry)}
         imageUrl={imageUrl?.(entry)} lead={index === 0} />)}
