@@ -229,7 +229,9 @@ export default function StorePages({
         {isStory && <a href="/customer-love/" className="underline">Customer Love</a>}<span aria-current="page">{title}</span></nav>
       <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>{title}</h1>
       {isStory && <CustomerLove products={products} storySlug={storySlug} onStoryResolved={setStory} />}
-      {isCustomerLove && <><p>Made with love. Loved in real life.</p>
+      {isCustomerLove && <><div className="space-y-1">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">Little moments, beautifully handmade</p>
+        <p className="font-heading text-xl">Made with love. Loved in real life.</p></div>
         <CustomerLove products={products} page /></>}
       {policy && <article className="max-w-3xl space-y-5">
         <p className="text-sm">Last updated: {policy.updated}</p>

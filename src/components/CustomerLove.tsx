@@ -5,9 +5,80 @@ import { toProductPageUrl } from '../utils/productLink';
 import RotatingCarousel from './RotatingCarousel';
 import { productImageProtection } from '../utils/imageProtection';
 import { findTestimonialBySlug, testimonialPath } from '../utils/testimonialLink';
+import { getCustomerStoryWhatsAppLink } from '../utils/whatsapp';
 
-export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false, storyLink = false }: {
-  entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean; storyLink?: boolean;
+/** Splits an approved display name like "Shalini, Meerut" into a name and a subtle location label. */
+export const splitDisplayName = (displayName: string) => {
+  const index = displayName.indexOf(',');
+  if (index < 0) return { name: displayName.trim(), location: '' };
+  return { name: displayName.slice(0, index).trim(), location: displayName.slice(index + 1).trim() };
+};
+
+const StoryAttribution = ({ entry }: { entry: Testimonial }) => {
+  const { name, location } = splitDisplayName(entry.display_name);
+  return <figcaption className="text-sm">
+    <span className="font-semibold">{name}</span>
+    {location && <><span className="sr-only">, </span><span aria-hidden="true" className="text-cocoa/70"> · </span>
+      <span className="text-cocoa/70">{location}</span></>}
+  </figcaption>;
+};
+
+const ShopLinks = ({ products }: { products: Product[] }) => products.length > 0
+  ? <div className="flex flex-wrap gap-x-4">{products.map(product => <a key={product.id} href={toProductPageUrl(product)}
+    className="inline-flex min-h-11 items-center text-xs font-bold uppercase tracking-wide underline-offset-4 hover:underline">
+    Shop {product.name}<span aria-hidden="true">&nbsp;→</span>
+  </a>)}</div> : null;
+
+const ReadStoryLink = ({ entry }: { entry: Testimonial }) => <a href={testimonialPath(entry)}
+  aria-label={`Read full story from ${entry.display_name}`}
+  className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Read full story</a>;
+
+const storyPhoto = (entry: Testimonial, source: string | undefined, className: string, eager = false) => entry.has_image && source
+  ? <img src={source} alt={entry.image_alt} loading={eager ? 'eager' : 'lazy'} decoding="async" width={480} height={480}
+    className={className} {...productImageProtection} /> : null;
+
+/** Large photo-first hero for the lead story on /customer-love/. */
+function FeaturedStory({ entry, products, imageUrl }: { entry: Testimonial; products: Product[]; imageUrl?: string }) {
+  const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined, 'h-auto max-h-[36rem] w-full bg-cream object-contain', true);
+  return <figure id={`testimonial-${entry.id}`} tabIndex={-1}
+    className={`grid scroll-mt-24 overflow-hidden rounded-3xl border border-mustard/40 bg-white shadow-sm ${photo ? 'md:grid-cols-5' : ''}`}>
+    {photo && <div className="flex items-center justify-center bg-cream md:col-span-3">{photo}</div>}
+    <div className={`flex flex-col justify-center gap-4 p-6 sm:p-8 ${photo ? 'md:col-span-2' : ''}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">Featured story</p>
+      <blockquote className="line-clamp-6 whitespace-pre-line font-heading text-2xl leading-snug sm:text-3xl">&ldquo;{entry.quote}&rdquo;</blockquote>
+      <StoryAttribution entry={entry} />
+      <ShopLinks products={products} />
+      <ReadStoryLink entry={entry} />
+    </div>
+  </figure>;
+}
+
+/** Masonry gallery card: photos lead when available, text-only stories get a softer quote card. */
+function GalleryStory({ entry, products, imageUrl }: { entry: Testimonial; products: Product[]; imageUrl?: string }) {
+  const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined, 'h-auto w-full bg-cream object-contain');
+  return <figure id={`testimonial-${entry.id}`} tabIndex={-1}
+    className={`mb-5 break-inside-avoid scroll-mt-24 overflow-hidden rounded-2xl border border-mustard/40 shadow-sm ${photo ? 'bg-white' : 'bg-cream-dark'}`}>
+    {photo}
+    <div className="space-y-2 p-5">
+      {!photo && <p aria-hidden="true" className="font-heading text-3xl leading-none text-mustard-dark">♡</p>}
+      <blockquote className={`line-clamp-3 whitespace-pre-line break-words ${photo ? 'text-base' : 'font-heading text-xl'} leading-relaxed`}>&ldquo;{entry.quote}&rdquo;</blockquote>
+      <StoryAttribution entry={entry} />
+      <ShopLinks products={products} />
+      <ReadStoryLink entry={entry} />
+    </div>
+  </figure>;
+}
+
+const ShareStory = () => <section aria-labelledby="share-story-heading"
+  className="rounded-3xl bg-cream-dark px-6 py-10 text-center">
+  <h2 id="share-story-heading" className="font-heading text-2xl font-bold">Have a Luvia story to share?</h2>
+  <p className="mx-auto mt-2 max-w-md">Your love keeps our little handmade world growing. We only publish stories and photos with your permission.</p>
+  <a href={getCustomerStoryWhatsAppLink()} target="_blank" rel="noopener noreferrer"
+    className="mt-5 inline-flex min-h-11 items-center rounded-full bg-cocoa px-6 py-2 font-semibold text-cream">Share your experience</a>
+</section>;
+
+export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false }: {
+  entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean;
 }) {
   const source = imageUrl ?? entry.image_url;
   const [failedSource, setFailedSource] = useState<string | null>(null);
@@ -37,8 +108,7 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
         {quote}
         <span className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Read full testimonial</span>
       </a> : quote}
-      <figcaption className={`${fullQuote ? '' : 'shrink-0 truncate leading-6 '}text-sm font-semibold text-cocoa`}>{storyLink
-        ? <a href={testimonialPath(entry)} className="underline underline-offset-4">{entry.display_name}</a> : entry.display_name}</figcaption>
+      <figcaption className={`${fullQuote ? '' : 'shrink-0 truncate leading-6 '}text-sm font-semibold text-cocoa`}>{entry.display_name}</figcaption>
       {products.length > 0 && <div className={fullQuote ? 'flex flex-wrap gap-x-4' : 'mt-auto flex shrink-0 gap-4 overflow-x-auto'}>{products.map(product => <a key={product.id} href={toProductPageUrl(product)} className={`${fullQuote ? '' : 'shrink-0 whitespace-nowrap '}inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4`}>
         Shop {product.name}
       </a>)}</div>}
@@ -84,18 +154,29 @@ export default function CustomerLove({ products, productId, page = false, storyS
     {error && <><p role="alert">Customer Love could not be loaded.</p><button type="button" className="min-h-11 underline"
       onClick={() => setRetry(value => value + 1)}>Retry customer stories</button></>}
   </section>;
-  if (storySlug !== undefined) return <div className="max-w-2xl space-y-4">
+  if (storySlug !== undefined) return <div className="space-y-10"><div className="max-w-2xl space-y-4">
     {story ? <TestimonialCard entry={story} products={products.filter(product => story.product_ids.includes(product.id))}
       imageUrl={imageUrl?.(story)} fullQuote />
       : <p role="status">This customer story is no longer available.</p>}
     <a href="/customer-love/" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">See all customer stories</a>
-  </div>;
-  if (!selected.length) return page ? <p>Customer stories will appear here once shared with permission.</p> : null;
-  const cards = selected.map(entry => <div key={entry.id} className={page ? 'min-w-0' : 'w-[85%] shrink-0 sm:w-[calc((100%-24px)/3)]'}>
-    <TestimonialCard entry={entry} products={products.filter(product => entry.product_ids.includes(product.id))}
-      imageUrl={imageUrl?.(entry)} fullQuote={page} storyLink={page} />
+  </div><ShareStory /></div>;
+  if (!selected.length) return page ? <div className="space-y-10"><p>Customer stories will appear here once shared with permission.</p><ShareStory /></div> : null;
+  const tagged = (entry: Testimonial) => products.filter(product => entry.product_ids.includes(product.id));
+  if (page) {
+    const lead = selected.find(entry => entry.featured && entry.has_image && entry.image_url)
+      ?? selected.find(entry => entry.has_image && entry.image_url) ?? selected[0];
+    const rest = selected.filter(entry => entry !== lead);
+    return <div className="space-y-10">
+      <FeaturedStory entry={lead} products={tagged(lead)} imageUrl={imageUrl?.(lead)} />
+      {rest.length > 0 && <div className="columns-1 gap-5 sm:columns-2">
+        {rest.map(entry => <GalleryStory key={entry.id} entry={entry} products={tagged(entry)} imageUrl={imageUrl?.(entry)} />)}
+      </div>}
+      <ShareStory />
+    </div>;
+  }
+  const cards = selected.map(entry => <div key={entry.id} className="w-[85%] shrink-0 sm:w-[calc((100%-24px)/3)]">
+    <TestimonialCard entry={entry} products={tagged(entry)} imageUrl={imageUrl?.(entry)} />
   </div>);
-  return page ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
-    : <RotatingCarousel title="Customer Love" label="customer story" itemCount={selected.length} viewAll="/customer-love/"
-      description="Made with love. Loved in real life.">{cards}</RotatingCarousel>;
+  return <RotatingCarousel title="Customer Love" label="customer story" itemCount={selected.length} viewAll="/customer-love/"
+    description="Made with love. Loved in real life.">{cards}</RotatingCarousel>;
 }

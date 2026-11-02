@@ -1,6 +1,7 @@
-import { cleanup, render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import CustomerLove, { TestimonialCard } from './CustomerLove';
+import CustomerLove, { splitDisplayName, TestimonialCard } from './CustomerLove';
+import type { Product } from '../types/product';
 import { newTestimonial, fetchTestimonials } from '../services/customerLove';
 import { testimonialPath } from '../utils/testimonialLink.js';
 vi.mock('../services/customerLove', async original => ({ ...await original<object>(), fetchTestimonials: vi.fn() }));
@@ -47,6 +48,33 @@ it('blocks right-click save and dragging on customer photos in compact and full 
   rerender(<TestimonialCard entry={entry} fullQuote />);
   expect(screen.getByAltText('Crochet gift').getAttribute('draggable')).toBe('false');
   expect(fireEvent.contextMenu(screen.getByAltText('Crochet gift'))).toBe(false);
+});
+it('lays out the full page as a photo-led hero, a masonry gallery and a share invitation', () => {
+  const url = 'https://images.luviacreations.com/customer-reviews/story-0123456789abcdef.webp';
+  const gallery = [
+    { ...entries[1], display_name: 'Text only, Delhi', sort_order: 0 },
+    { ...entries[0], display_name: 'Shalini, Meerut', has_image: true, image_url: url, image_alt: 'Rose gajra worn by customer', sort_order: 1 },
+  ];
+  const product = { id: 'one', name: 'Rose Gajra' } as Product;
+  const { container } = render(<CustomerLove products={[product]} entries={gallery} page />);
+  const hero = container.querySelector(`#testimonial-${gallery[1].id}`)!;
+  expect(hero.textContent).toContain('Featured story');
+  expect(within(hero as HTMLElement).getByAltText('Rose gajra worn by customer').getAttribute('draggable')).toBe('false');
+  expect(within(hero as HTMLElement).getByText('Shalini')).toBeTruthy();
+  expect(within(hero as HTMLElement).getByText('Meerut').className).toContain('text-cocoa/70');
+  expect(within(hero as HTMLElement).getByRole('link', { name: 'Shop Rose Gajra' })).toBeTruthy();
+  expect(within(hero as HTMLElement).getByRole('link', { name: 'Read full story from Shalini, Meerut' }).getAttribute('href'))
+    .toBe(testimonialPath(gallery[1]));
+  const textCard = container.querySelector(`#testimonial-${gallery[0].id}`)!;
+  expect(textCard.parentElement?.className).toContain('sm:columns-2');
+  expect(textCard.className).toContain('break-inside-avoid');
+  expect(textCard.querySelector('blockquote')?.className).toContain('line-clamp-3');
+  expect(screen.getByRole('link', { name: 'Share your experience' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+  expect(screen.queryByText(/★/)).toBeNull();
+});
+it('splits approved display names into name and location labels', () => {
+  expect(splitDisplayName('Sangetha , Chennai')).toEqual({ name: 'Sangetha', location: 'Chennai' });
+  expect(splitDisplayName('Asha')).toEqual({ name: 'Asha', location: '' });
 });
 it('shows featured stories on homepage and every published story on the full page', () => {
   const { rerender } = render(<CustomerLove products={[]} entries={entries} />);

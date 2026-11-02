@@ -35,6 +35,45 @@ test('extracts review text locally without uploading the image or publishing it'
   expect(await page.getByLabel('Customer photo (optional)').inputValue()).toBe('');
 });
 
+test('the Customer Love page shows a photo-led hero, a masonry gallery and a share invitation', async ({ page }, testInfo) => {
+  const catalogue = await installMockSupabase(page);
+  const photo = await sharp({ create: { width: 800, height: 1000, channels: 3, background: '#f3cf74' } }).webp().toBuffer();
+  await page.route('https://images.luviacreations.com/customer-reviews/**', route => route.fulfill({ body: photo, contentType: 'image/webp' }));
+  const story = (index: number, extra: object) => ({ id: `10000000-0000-4000-8000-00000000001${index}`, display_name: `Synthetic story ${index}, Meerut`,
+    quote: 'A lovely handmade keepsake that we use every day. '.repeat(index === 2 ? 8 : 1), product_ids: [catalogue.products[0].id],
+    has_image: false, image_url: null, image_alt: '', featured: false, sort_order: index, ...extra });
+  const withPhoto = (index: number) => ({ has_image: true, image_alt: `Synthetic photo ${index}`,
+    image_url: `https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-00000000001${index}-0123456789abcdef.webp` });
+  await page.route('**/rest/v1/rpc/list_customer_love', route => route.fulfill({ json: [
+    story(1, {}), story(2, { featured: true, ...withPhoto(2) }), story(3, withPhoto(3)), story(4, {}),
+  ] }));
+  await page.goto('./customer-love/');
+  await expect(page.getByText('Little moments, beautifully handmade')).toBeVisible();
+  const hero = page.locator('#testimonial-10000000-0000-4000-8000-000000000012');
+  await expect(hero.getByText('Featured story')).toBeVisible();
+  await expect(hero.getByAltText('Synthetic photo 2')).toBeVisible();
+  await expect(hero.getByRole('link', { name: 'Read full story from Synthetic story 2, Meerut' })).toHaveAttribute('href', '/customer-love/synthetic-story-2-meerut-10000000/');
+  await expect(hero.getByRole('link', { name: `Shop ${catalogue.products[0].name}`, exact: true })).toBeVisible();
+  const layout = await page.evaluate(() => {
+    const heroImage = document.querySelector('#testimonial-10000000-0000-4000-8000-000000000012 img')!.getBoundingClientRect();
+    const heroCard = document.querySelector('#testimonial-10000000-0000-4000-8000-000000000012')!.getBoundingClientRect();
+    const cards = ['11', '13', '14'].map(id => document.querySelector(`#testimonial-10000000-0000-4000-8000-0000000000${id}`)!.getBoundingClientRect());
+    return { photoShare: heroImage.width / heroCard.width, columns: new Set(cards.map(card => Math.round(card.left))).size,
+      overflow: document.documentElement.scrollWidth > window.innerWidth };
+  });
+  expect(layout.overflow).toBe(false);
+  if (testInfo.project.name === 'mobile-chromium') {
+    expect(layout.photoShare).toBeGreaterThan(0.95);
+    expect(layout.columns).toBe(1);
+  } else {
+    expect(layout.photoShare).toBeGreaterThan(0.5);
+    expect(layout.photoShare).toBeLessThan(0.7);
+    expect(layout.columns).toBe(2);
+  }
+  await expect(page.getByRole('link', { name: 'Share your experience' })).toHaveAttribute('href', /^https:\/\/wa\.me\//);
+  await page.screenshot({ path: testInfo.outputPath('customer-love-gallery.png'), fullPage: true });
+});
+
 test('homepage testimonial cards stay compact with photos, long quotes and multiple product tags', async ({ page }) => {
   const catalogue = await installMockSupabase(page);
   const photo = await sharp({ create: { width: 400, height: 900, channels: 3, background: '#f3cf74' } }).webp().toBuffer();

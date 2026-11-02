@@ -29,6 +29,9 @@ export const getBulkOrderWhatsAppLink = () => whatsappLink(bulkOrders.message);
 
 export const getInternationalQuoteWhatsAppLink = (message: string) => whatsappLink(message);
 
+export const getCustomerStoryWhatsAppLink = () =>
+  whatsappLink("Hi Luvia! I'd love to share my experience with my order.\n\nMy name and city: \nProduct: \nMy experience: \n\nI'll attach a photo if I'm happy for it to be featured.");
+
 export const getCollaborationWhatsAppLink = () =>
   whatsappLink("Hi Luvia! I'd like to explore working with you as a maker, content creator or partner.\n\nMy name / brand: \nInterested in: \nAbout my work: \nPhotos or portfolio link: ");
 
