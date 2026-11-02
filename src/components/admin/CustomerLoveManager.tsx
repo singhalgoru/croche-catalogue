@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { customerLoveRepository, newTestimonial, prepareTestimonialPhoto, validateTestimonial,
   type AdminTestimonial, type CustomerLoveRepository } from '../../services/customerLove';
 import { fetchPublishedProducts } from '../../services/products';
@@ -10,6 +10,12 @@ import { localDate } from '../../utils/date';
 
 const fieldClass = 'mt-1 block min-h-11 w-full rounded-xl border border-cocoa/25 bg-white p-3 font-normal';
 const buttonClass = 'min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-50';
+const quoteEmojis = [
+  ['\u2764\uFE0F', 'Red heart'], ['\uD83D\uDE0D', 'Heart eyes'], ['\uD83E\uDD70', 'Smiling face with hearts'],
+  ['\uD83D\uDE0A', 'Smiling face'], ['\u2728', 'Sparkles'], ['\uD83C\uDF38', 'Cherry blossom'],
+  ['\uD83D\uDC95', 'Two hearts'], ['\uD83D\uDC4D', 'Thumbs up'], ['\uD83D\uDE4F', 'Folded hands'],
+  ['\uD83C\uDF89', 'Party popper'],
+] as const;
 
 export default function CustomerLoveManager({ repository = customerLoveRepository, products: suppliedProducts }: {
   repository?: CustomerLoveRepository; products?: Product[];
@@ -27,6 +33,7 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [deleteEntry, setDeleteEntry] = useState<AdminTestimonial | null>(null);
+  const quoteInput = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     let current = true;
     setLoading(true); setLoadError('');
@@ -96,9 +103,35 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
               value={draft.display_name} onChange={event => update({ display_name: event.target.value })} />
           </label>
           <label className="block text-sm font-semibold">Customer quote
-            <textarea className={fieldClass} rows={4} required minLength={10} maxLength={1000} value={draft.quote}
+            <textarea ref={quoteInput} className={fieldClass} rows={4} required minLength={10} maxLength={1000} value={draft.quote}
               onChange={event => update({ quote: event.target.value })} />
           </label>
+          <details className="rounded-xl border border-cocoa/20 p-3">
+            <summary className="min-h-11 cursor-pointer text-sm font-semibold">Add emoji to quote</summary>
+            <p className="mb-2 text-xs">Insert at the cursor. You can also paste any emoji from the customer's message.</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Quote emojis">
+              {quoteEmojis.map(([emoji, name]) => <button key={name} type="button" aria-label={`Insert ${name}`}
+                className="min-h-11 min-w-11 rounded-lg border border-cocoa/20 bg-white p-2 text-xl"
+                onClick={() => {
+                  const input = quoteInput.current;
+                  if (!input) return;
+                  const start = input.selectionStart;
+                  const end = input.selectionEnd;
+                  const quote = draft.quote.slice(0, start) + emoji + draft.quote.slice(end);
+                  if (quote.length > 1000) {
+                    setError('The quote must stay within 1,000 characters. Shorten it before adding an emoji.');
+                    return;
+                  }
+                  setError('');
+                  update({ quote });
+                  requestAnimationFrame(() => {
+                    if (!input.isConnected) return;
+                    input.focus();
+                    input.setSelectionRange(start + emoji.length, start + emoji.length);
+                  });
+                }}>{emoji}</button>)}
+            </div>
+          </details>
           <label className="block text-sm font-semibold">Related product
             <select className={fieldClass} value={draft.product_id ?? ''} onChange={event => update({ product_id: event.target.value || null })}>
               <option value="">General customer story</option>

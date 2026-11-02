@@ -39,6 +39,35 @@ it('blocks publication without permission, then saves with date and source', asy
   fireEvent.submit(screen.getByRole('form', { name: 'Testimonial editor' }));
   await screen.findByText('Testimonial published.');
 });
+it('inserts emojis at the cursor, replaces selected text and saves the exact quote', async () => {
+  render(<CustomerLoveManager repository={repository} products={products} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit Demo customer' }));
+  const input = await screen.findByLabelText<HTMLTextAreaElement>('Customer quote');
+  fireEvent.change(input, { target: { value: 'I love this keepsake!' } });
+  fireEvent.click(screen.getByText('Add emoji to quote'));
+  input.setSelectionRange(7, 11);
+  fireEvent.click(screen.getByRole('button', { name: 'Insert Red heart' }));
+  const quote = 'I love \u2764\uFE0F keepsake!';
+  expect(input.value).toBe(quote);
+  expect(screen.getByText(quote, { selector: 'blockquote', exact: false })).toBeTruthy();
+  await waitFor(() => expect(input.selectionStart).toBe(9));
+  expect(document.activeElement).toBe(input);
+  fireEvent.submit(screen.getByRole('form', { name: 'Testimonial editor' }));
+  await screen.findByText('Testimonial saved as a private draft.');
+  expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ quote }), null);
+});
+it('does not exceed the quote limit when inserting an emoji', async () => {
+  render(<CustomerLoveManager repository={repository} products={products} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit Demo customer' }));
+  const input = await screen.findByLabelText<HTMLTextAreaElement>('Customer quote');
+  fireEvent.change(input, { target: { value: 'a'.repeat(999) } });
+  input.setSelectionRange(999, 999);
+  fireEvent.click(screen.getByText('Add emoji to quote'));
+  fireEvent.click(screen.getByRole('button', { name: 'Insert Red heart' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent',
+    'The quote must stay within 1,000 characters. Shorten it before adding an emoji.');
+  expect(input.value).toBe('a'.repeat(999));
+});
 it('requires renewed permission when public content changes and preserves edits on failure', async () => {
   vi.mocked(repository.list).mockResolvedValue([{ ...entry, published: true, consent_confirmed: true,
     consent_date: '2026-01-01', consent_source: 'Written permission' }]);
