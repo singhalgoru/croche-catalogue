@@ -23,7 +23,7 @@ const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.
 describe('collection and information pages', () => {
   it('prerenders consented customer stories with escaped quotes, product links and discovery but no ratings', () => {
     const generated = buildContentPages([toy, hair], '919205907350', [], [], [{
-      id: 'story-1', display_name: '<Customer>', quote: 'A lovely gift & handmade keepsake.', product_id: toy.id,
+      id: 'story-1', display_name: '<Customer>', quote: 'A lovely gift & handmade keepsake.', product_ids: [toy.id, hair.id],
       has_image: true, image_alt: 'Handmade toy', featured: true, sort_order: 0,
     }], 'https://example.supabase.co');
     const html = generated.get('/customer-love/')!;
@@ -33,6 +33,8 @@ describe('collection and information pages', () => {
     expect(doc.querySelector('blockquote')?.textContent).toBe('A lovely gift & handmade keepsake.');
     expect(doc.querySelector('figcaption')?.textContent).toBe('<Customer>');
     expect(doc.querySelector('main a[href="/p/bunny/"]')).toBeTruthy();
+    expect(doc.querySelector('main a[href="/p/clip/"]')).toBeTruthy();
+    expect(doc.querySelector('#testimonial-story-1 blockquote')?.textContent).toBe('A lovely gift & handmade keepsake.');
     expect(html).not.toContain('aggregateRating');
     expect(html).not.toContain('consent_source');
     expect(renderContentSitemap([], '2026-11-01', generated)).toContain('/customer-love/');

@@ -208,12 +208,12 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     .replace('</head>', '<meta name="robots" content="noindex,follow"><meta name="referrer" content="no-referrer"></head>'));
   pages.set('/customer-love/', page('/customer-love/', 'Customer Love',
     'Customer stories and handmade moments, shared with permission by Luvia Creations customers.',
-    '<p class="intro">Little moments of joy, shared by our customers with permission. These are selected customer stories, not star ratings.</p>'
+    '<p class="intro">Made with love. Loved in real life.</p>'
     + (testimonials.length ? `<div class="grid">${testimonials.map(entry => {
-      const product = products.find(item => item.id === entry.product_id);
-      return `<figure class="card">${entry.has_image && testimonialImageBase ? `<img src="${escapeHtml(`${testimonialImageBase}/functions/v1/customer-love-image?id=${encodeURIComponent(entry.id)}`)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" loading="lazy" style="width:100%;height:auto;border-radius:12px">` : ''}
+      const taggedProducts = products.filter(item => entry.product_ids.includes(item.id));
+      return `<figure class="card" id="testimonial-${escapeHtml(entry.id)}" tabindex="-1" style="scroll-margin-top:6rem">${entry.has_image && testimonialImageBase ? `<img src="${escapeHtml(`${testimonialImageBase}/functions/v1/customer-love-image?id=${encodeURIComponent(entry.id)}`)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" loading="lazy" style="width:100%;height:auto;border-radius:12px">` : ''}
         <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption>
-        ${product ? `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>` : ''}</figure>`;
+        ${taggedProducts.map(product => `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>`).join('')}</figure>`;
     }).join('')}</div>` : '<p>Customer stories will appear here once shared with permission.</p>'),
     baseSchema('CollectionPage', '/customer-love/', 'Customer Love', 'Selected customer stories shared with permission.')));
   return pages;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { customerLoveRepository, newTestimonial, prepareTestimonialPhoto, validateTestimonial,
   type AdminTestimonial, type CustomerLoveRepository } from '../../services/customerLove';
 import { fetchPublishedProducts } from '../../services/products';
@@ -6,6 +6,7 @@ import type { Product } from '../../types/product';
 import { TestimonialCard } from '../CustomerLove';
 import AdminDialog from './AdminDialog';
 import ImageFilePicker from './ImageFilePicker';
+import QuotePhotoText from './QuotePhotoText';
 import { localDate } from '../../utils/date';
 
 const fieldClass = 'mt-1 block min-h-11 w-full rounded-xl border border-cocoa/25 bg-white p-3 font-normal';
@@ -34,6 +35,7 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
   const [notice, setNotice] = useState('');
   const [deleteEntry, setDeleteEntry] = useState<AdminTestimonial | null>(null);
   const quoteInput = useRef<HTMLTextAreaElement>(null);
+  const quoteId = useId();
   useEffect(() => {
     let current = true;
     setLoading(true); setLoadError('');
@@ -54,7 +56,7 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
   };
   const update = (patch: Partial<AdminTestimonial>) => setDraft(value => {
     if (!value) return value;
-    const changesPublicContent = ['display_name', 'quote', 'product_id', 'has_image', 'image_alt'].some(key => Object.hasOwn(patch, key));
+    const changesPublicContent = ['display_name', 'quote', 'product_ids', 'has_image', 'image_alt'].some(key => Object.hasOwn(patch, key));
     return { ...value, ...(changesPublicContent && value.consent_confirmed ? { consent_confirmed: false, published: false } : {}), ...patch };
   });
   return <section className="space-y-5 text-cocoa">
@@ -102,10 +104,12 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
             <input className={fieldClass} required maxLength={80} placeholder="For example: A happy customer or approved initials"
               value={draft.display_name} onChange={event => update({ display_name: event.target.value })} />
           </label>
-          <label className="block text-sm font-semibold">Customer quote
-            <textarea ref={quoteInput} className={fieldClass} rows={4} required minLength={10} maxLength={1000} value={draft.quote}
+          <div>
+            <label htmlFor={quoteId} className="block text-sm font-semibold">Customer quote</label>
+            <textarea id={quoteId} ref={quoteInput} className={fieldClass} rows={4} required minLength={10} maxLength={1000} value={draft.quote}
               onChange={event => update({ quote: event.target.value })} />
-          </label>
+          </div>
+          <QuotePhotoText hasQuote={Boolean(draft.quote.trim())} onApply={quote => update({ quote })} onBusyChange={setBusy} />
           <details className="rounded-xl border border-cocoa/20 p-3">
             <summary className="min-h-11 cursor-pointer text-sm font-semibold">Add emoji to quote</summary>
             <p className="mb-2 text-xs">Insert at the cursor. You can also paste any emoji from the customer's message.</p>
@@ -132,13 +136,21 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
                 }}>{emoji}</button>)}
             </div>
           </details>
-          <label className="block text-sm font-semibold">Related product
-            <select className={fieldClass} value={draft.product_id ?? ''} onChange={event => update({ product_id: event.target.value || null })}>
-              <option value="">General customer story</option>
-              {draft.product_id && !products.some(product => product.id === draft.product_id) && <option value={draft.product_id}>Unavailable product (not linked publicly)</option>}
-              {products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}
-            </select>
-          </label>
+          <fieldset className="space-y-2 rounded-xl border border-cocoa/20 p-3">
+            <legend className="text-sm font-semibold">Related products</legend>
+            <p className="text-xs">Select every product mentioned in the review. Leave all unchecked for a general customer story.</p>
+            <div className="max-h-60 overflow-y-auto">
+              {[...products.map(product => ({ id: product.id, name: product.name })),
+                ...draft.product_ids.filter(id => !products.some(product => product.id === id))
+                  .map(id => ({ id, name: `Unavailable product (${id}) - not linked publicly` }))].map(product =>
+                <label key={product.id} className="flex min-h-11 items-center gap-3 text-sm">
+                  <input type="checkbox" checked={draft.product_ids.includes(product.id)}
+                    onChange={event => update({ product_ids: event.target.checked
+                      ? [...draft.product_ids, product.id] : draft.product_ids.filter(id => id !== product.id) })} />
+                  {product.name}
+                </label>)}
+            </div>
+          </fieldset>
           <ImageFilePicker label="Customer photo (optional)" file={file} disabled={busy} onChange={async event => {
             const next = event.target.files?.[0]; if (!next) return;
             setBusy(true); setError('');
@@ -180,8 +192,8 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
         <aside className="min-w-0 space-y-3 lg:sticky lg:top-24 lg:self-start">
           <h3 className="font-heading text-xl font-bold">Website preview</h3>
           <p className="text-xs">Preview only. Nothing appears publicly until you save it as Published with permission recorded.</p>
-          <TestimonialCard key={`${draft.id}-${draft.has_image}`} entry={{ ...draft, display_name: draft.display_name || 'Customer name',
-            quote: draft.quote || 'Your customer quote will appear here.' }} product={products.find(product => product.id === draft.product_id)} imageUrl={preview} />
+          <TestimonialCard fullQuote key={`${draft.id}-${draft.has_image}`} entry={{ ...draft, display_name: draft.display_name || 'Customer name',
+            quote: draft.quote || 'Your customer quote will appear here.' }} products={products.filter(product => draft.product_ids.includes(product.id))} imageUrl={preview} />
         </aside>
       </form>
     </AdminDialog>}

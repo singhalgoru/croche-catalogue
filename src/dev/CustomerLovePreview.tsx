@@ -8,7 +8,7 @@ import ProductCarousel from '../components/ProductCarousel';
 import { newTestimonial, validateTestimonial, type AdminTestimonial, type CustomerLoveRepository } from '../services/customerLove';
 import type { Product } from '../types/product';
 
-const key = 'luvia-customer-love-demo-v1';
+const key = 'luvia-customer-love-demo-v2';
 const products: Product[] = [
   { id: '00000000-0000-4000-8000-000000000001', publicSlug: 'demo-scrunchie', name: 'Crochet Scrunchie', category: 'Hair Accessories',
     description: 'A colourful handmade finishing touch.', price: 150, color: 'Pink', image: '/images/processed/scrunchie-mustard-pink.jpg', inStock: true, variants: [] },
@@ -20,15 +20,15 @@ const products: Product[] = [
 const initial: AdminTestimonial[] = [
   { ...newTestimonial(), id: '10000000-0000-4000-8000-000000000001', display_name: 'Demo customer A',
     quote: 'A beautiful handmade finishing touch. The colours make me smile every time I wear it.',
-    product_id: products[0].id, has_image: true, image_alt: 'Demo product photo of a colourful crochet scrunchie', featured: true,
+    product_ids: [products[0].id], has_image: true, image_alt: 'Demo product photo of a colourful crochet scrunchie', featured: true,
     published: true, consent_confirmed: true, consent_date: '2026-11-01', consent_source: 'Synthetic preview only - not customer permission', version: 1 },
   { ...newTestimonial(), id: '10000000-0000-4000-8000-000000000002', display_name: 'Demo customer B',
     quote: 'Such a thoughtful little keepsake. It adds a special handmade touch to my everyday bag.',
-    product_id: products[1].id, has_image: true, image_alt: 'Demo product photo of handmade paw charms', featured: true, sort_order: 1,
+    product_ids: [products[1].id], has_image: true, image_alt: 'Demo product photo of handmade paw charms', featured: true, sort_order: 1,
     published: true, consent_confirmed: true, consent_date: '2026-11-01', consent_source: 'Synthetic preview only - not customer permission', version: 1 },
   { ...newTestimonial(), id: '10000000-0000-4000-8000-000000000003', display_name: 'Demo customer C',
     quote: 'A tiny piece of sunshine! You can really see the care that goes into every stitch.',
-    product_id: products[2].id, has_image: true, image_alt: 'Demo product photo of a sunflower brooch', featured: true, sort_order: 2,
+    product_ids: [products[2].id], has_image: true, image_alt: 'Demo product photo of a sunflower brooch', featured: true, sort_order: 2,
     published: true, consent_confirmed: true, consent_date: '2026-11-01', consent_source: 'Synthetic preview only - not customer permission', version: 1 },
   { ...newTestimonial(), id: '10000000-0000-4000-8000-000000000004', display_name: 'Demo draft',
     quote: 'This story is waiting for customer permission and is only visible in the admin preview.', version: 1, sort_order: 3 },
@@ -111,7 +111,7 @@ export default function CustomerLovePreview() {
           <ProductCarousel products={products} title="Featured products" label="featured product" viewAll="/featured/"
             onSelect={() => navigate('product')} description="Handpicked handmade favourites." /></>}
         {view === 'stories' && <><h1 className="font-heading text-3xl font-bold">Customer Love</h1>
-          <p>Little moments of joy, shared by our customers with permission. These are selected customer stories, not star ratings.</p></>}
+          <p>Made with love. Loved in real life.</p></>}
         {view === 'product' && <div className="grid items-center gap-6 sm:grid-cols-2">
           <img src={products[0].image} alt={products[0].name} className="aspect-square w-full rounded-2xl object-contain" />
           <div><h1 className="font-heading text-3xl font-bold">{products[0].name}</h1><p>{products[0].description}</p></div>

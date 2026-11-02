@@ -238,6 +238,7 @@ function App() {
     const authParams = new URLSearchParams(window.location.hash.slice(1));
     if (authParams.has('access_token') || authParams.has('error_description')) return;
     if (/^\/artisans\/?$/.test(window.location.pathname) && authParams.has('invite')) return;
+    if (/^\/customer-love\/?$/.test(window.location.pathname) && window.location.hash.startsWith('#testimonial-')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)
       : sectionHashes.includes(window.location.hash) ? window.location.hash : '';

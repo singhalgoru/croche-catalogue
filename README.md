@@ -22,8 +22,11 @@ an India-based handmade crochet brand.
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
 - Customer Love presents selected, permission-based customer stories on the
   homepage, matching product pages and `/customer-love/`. Administrators manage
-  private drafts, photos and publication consent. These are testimonials, not
+  private drafts, photos, multiple product tags and publication consent. Long
+  card previews link to the full story. These are testimonials, not
   star ratings or verified-purchase claims.
+  An optional on-device English text reader helps prepare quotes from review
+  images; administrators review the extracted text before applying it.
 - Meet the founder in the homepage story card above collections, with a link to
   the full About page. Both use a cropped, optimised founder portrait.
   Empty-cart “Shop now” opens the product-grid heading.

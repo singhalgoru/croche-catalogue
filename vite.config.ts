@@ -3,6 +3,33 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { PRODUCT_COLUMNS } from './src/services/productColumns.js'
+import { readFileSync } from 'node:fs'
+
+const localOcrLanguage = (): Plugin => {
+  const pathname = 'ocr/eng-v1/eng.traineddata.gz'
+  const source = readFileSync(new URL('./node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', import.meta.url))
+  return {
+    name: 'local-ocr-language',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        if (request.url?.split('?')[0] !== `/${pathname}`) return next()
+        response.setHeader('Content-Type', 'application/octet-stream')
+        response.end(source)
+      })
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: pathname, source })
+      const notices = [
+        'Tesseract.js, Tesseract.js-core and English tessdata. Sources: https://github.com/naptha/tesseract.js, https://github.com/naptha/tesseract.js-core, https://github.com/naptha/tessdata',
+        readFileSync(new URL('./node_modules/tesseract.js/LICENSE.md', import.meta.url), 'utf8'),
+        readFileSync(new URL('./node_modules/tesseract.js-core/LICENSE', import.meta.url), 'utf8'),
+        readFileSync(new URL('./node_modules/tesseract.js/dist/worker.min.js.LICENSE.txt', import.meta.url), 'utf8'),
+        readFileSync(new URL('./node_modules/tesseract.js/dist/tesseract.min.js.LICENSE.txt', import.meta.url), 'utf8'),
+      ].join('\n\n')
+      this.emitFile({ type: 'asset', fileName: 'ocr/LICENSES.txt', source: notices })
+    },
+  }
+}
 
 const supabasePreconnect = (): Plugin => {
   let origin: string | undefined
@@ -58,6 +85,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    localOcrLanguage(),
     supabasePreconnect(),
     react(),
     tailwindcss(),
@@ -68,7 +96,7 @@ export default defineConfig({
       injectRegister: false,
       workbox: {
         // Keep the lazy admin console out of public visitors' background downloads.
-        globIgnores: ['**/AdminPage-*.js'],
+        globIgnores: ['**/AdminPage-*.js', '**/photoQuoteOcr-*.js', '**/worker.min-*.js', '**/tesseract-core-*.js', '**/*.traineddata*.gz'],
         // Activate new versions immediately; otherwise an installed app can
         // keep running a stale bundle until every window is closed.
         skipWaiting: true,

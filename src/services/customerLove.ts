@@ -6,7 +6,7 @@ export interface Testimonial {
   id: string;
   display_name: string;
   quote: string;
-  product_id: string | null;
+  product_ids: string[];
   has_image: boolean;
   image_alt: string;
   featured: boolean;
@@ -26,7 +26,7 @@ export interface CustomerLoveRepository {
   remove: (entry: AdminTestimonial) => Promise<void>;
 }
 export const newTestimonial = (): AdminTestimonial => ({
-  id: crypto.randomUUID(), display_name: '', quote: '', product_id: null, has_image: false, image_alt: '',
+  id: crypto.randomUUID(), display_name: '', quote: '', product_ids: [], has_image: false, image_alt: '',
   featured: false, sort_order: 0, published: false, consent_confirmed: false, consent_date: null,
   consent_source: '', version: 0,
 });
@@ -34,7 +34,7 @@ export function isTestimonial(value: unknown): value is Testimonial {
   if (!value || typeof value !== 'object') return false;
   const item = value as Record<string, unknown>;
   return typeof item.id === 'string' && typeof item.display_name === 'string' && typeof item.quote === 'string'
-    && (item.product_id === null || typeof item.product_id === 'string') && typeof item.has_image === 'boolean'
+    && Array.isArray(item.product_ids) && item.product_ids.every(id => typeof id === 'string') && typeof item.has_image === 'boolean'
     && typeof item.image_alt === 'string' && typeof item.featured === 'boolean'
     && Number.isInteger(item.sort_order);
 }

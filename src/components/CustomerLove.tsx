@@ -4,26 +4,36 @@ import { fetchTestimonials, testimonialPhotoUrl, type Testimonial } from '../ser
 import { toProductPageUrl } from '../utils/productLink';
 import RotatingCarousel from './RotatingCarousel';
 
-export function TestimonialCard({ entry, product, imageUrl }: {
-  entry: Testimonial; product?: Product; imageUrl?: string;
+export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false }: {
+  entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean;
 }) {
   const source = imageUrl ?? testimonialPhotoUrl(entry.id);
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const imageFailed = failedSource === source;
-  return <figure className="h-full overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm">
+  const characters = Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(entry.quote), part => part.segment);
+  const shortened = !fullQuote && characters.length > 240;
+  const quote = <blockquote className={fullQuote ? 'whitespace-pre-line text-base leading-relaxed text-cocoa'
+    : 'line-clamp-3 whitespace-pre-line break-words text-sm leading-6 text-cocoa'}>
+    &ldquo;{shortened ? `${characters.slice(0, 240).join('').trimEnd()}...` : entry.quote}&rdquo;
+  </blockquote>;
+  return <figure id={fullQuote ? `testimonial-${entry.id}` : undefined} tabIndex={fullQuote ? -1 : undefined}
+    className={`${fullQuote ? 'h-full' : 'flex h-96 flex-col'} scroll-mt-24 overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm`}>
     {entry.has_image && !imageFailed && <img src={source} alt={entry.image_alt}
       loading="lazy" decoding="async" width={480} height={480} onError={() => setFailedSource(source)}
-      className="aspect-square w-full object-cover" />}
-    <div className="space-y-3 p-5">
+      className={fullQuote ? 'aspect-square w-full object-cover' : 'h-32 w-full shrink-0 object-cover'} />}
+    <div className={fullQuote ? 'space-y-3 p-5' : 'flex min-h-0 flex-1 flex-col gap-2 p-4'}>
       <p className="text-xs font-semibold uppercase tracking-widest text-cocoa/60">A little love, handmade</p>
       {imageFailed && <p role="status" className="text-xs">Customer photo is currently unavailable.</p>}
-      <blockquote className="whitespace-pre-line text-base leading-relaxed text-cocoa">
-        &ldquo;{entry.quote}&rdquo;
-      </blockquote>
-      <figcaption className="text-sm font-semibold text-cocoa">{entry.display_name}</figcaption>
-      {product && <a href={toProductPageUrl(product)} className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">
+      {!fullQuote ? <a href={`/customer-love/#testimonial-${encodeURIComponent(entry.id)}`}
+        aria-label={`Read full testimonial from ${entry.display_name}`}
+        className="block">
+        {quote}
+        <span className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Read full testimonial</span>
+      </a> : quote}
+      <figcaption className={`${fullQuote ? '' : 'truncate '}text-sm font-semibold text-cocoa`}>{entry.display_name}</figcaption>
+      {products.length > 0 && <div className={fullQuote ? 'flex flex-wrap gap-x-4' : 'mt-auto flex shrink-0 gap-4 overflow-x-auto'}>{products.map(product => <a key={product.id} href={toProductPageUrl(product)} className={`${fullQuote ? '' : 'shrink-0 whitespace-nowrap '}inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4`}>
         Shop {product.name}
-      </a>}
+      </a>)}</div>}
     </div>
   </figure>;
 }
@@ -46,8 +56,13 @@ export default function CustomerLove({ products, productId, page = false, entrie
     }).finally(() => { if (current) { setLoading(false); onContentReady?.(); } });
     return () => { current = false; };
   }, [suppliedEntries, retry, onContentReady]);
+  useEffect(() => {
+    if (!page || loading || error || !location.hash.startsWith('#testimonial-')) return;
+    const target = document.getElementById(location.hash.slice(1));
+    if (target) { target.scrollIntoView(); target.focus({ preventScroll: true }); }
+  }, [page, loading, error, entries, suppliedEntries]);
   const selected = (suppliedEntries ?? entries).filter(entry => productId
-    ? entry.product_id === productId : page || entry.featured).sort((a, b) => a.sort_order - b.sort_order);
+    ? entry.product_ids.includes(productId) : page || entry.featured).sort((a, b) => a.sort_order - b.sort_order);
   if (loading || error) return <section aria-label="Customer Love" className={loading && !page ? 'sr-only' : 'rounded-xl border border-mustard/30 p-4 text-sm'}>
     {loading && <p role="status">Loading Customer Love...</p>}
     {error && <><p role="alert">Customer Love could not be loaded.</p><button type="button" className="min-h-11 underline"
@@ -55,10 +70,10 @@ export default function CustomerLove({ products, productId, page = false, entrie
   </section>;
   if (!selected.length) return page ? <p>Customer stories will appear here once shared with permission.</p> : null;
   const cards = selected.map(entry => <div key={entry.id} className={page ? 'min-w-0' : 'w-[85%] shrink-0 sm:w-[calc((100%-24px)/3)]'}>
-    <TestimonialCard entry={entry} product={products.find(product => product.id === entry.product_id)}
-      imageUrl={imageUrl?.(entry)} />
+    <TestimonialCard entry={entry} products={products.filter(product => entry.product_ids.includes(product.id))}
+      imageUrl={imageUrl?.(entry)} fullQuote={page} />
   </div>);
   return page ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
     : <RotatingCarousel title="Customer Love" label="customer story" itemCount={selected.length} viewAll="/customer-love/"
-      description="Little moments of joy, shared by our customers with permission.">{cards}</RotatingCarousel>;
+      description="Made with love. Loved in real life.">{cards}</RotatingCarousel>;
 }

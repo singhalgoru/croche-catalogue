@@ -847,7 +847,7 @@ export async function fetchPublicTestimonials(supabaseUrl, anonKey) {
   if (!Array.isArray(entries) || entries.some(entry => !entry || typeof entry.id !== 'string'
     || typeof entry.display_name !== 'string' || typeof entry.quote !== 'string'
     || typeof entry.has_image !== 'boolean' || typeof entry.image_alt !== 'string'
-    || (entry.product_id !== null && typeof entry.product_id !== 'string'))) {
+    || !Array.isArray(entry.product_ids) || entry.product_ids.some(id => typeof id !== 'string'))) {
     throw new Error('Invalid public Customer Love snapshot.');
   }
   return entries;
