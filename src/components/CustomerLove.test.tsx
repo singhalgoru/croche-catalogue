@@ -1,6 +1,6 @@
 import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import CustomerLove, { pickHomeStories, splitDisplayName, TestimonialCard } from './CustomerLove';
+import CustomerLove, { splitDisplayName, TestimonialCard } from './CustomerLove';
 import type { Product } from '../types/product';
 import { newTestimonial, fetchTestimonials } from '../services/customerLove';
 import { testimonialPath } from '../utils/testimonialLink.js';
@@ -82,28 +82,6 @@ it('shows featured stories on homepage and every published story on the full pag
   expect(screen.queryByText('Another customer')).toBeNull();
   rerender(<CustomerLove products={[]} entries={entries} page />);
   expect(screen.getByText('Another customer')).toBeTruthy();
-});
-it('shows a compact "Loved by You" section with at most three stories led by a photo story', () => {
-  const url = 'https://images.luviacreations.com/customer-reviews/story-0123456789abcdef.webp';
-  const featured = [0, 1, 2, 3].map(index => ({ ...newTestimonial(), display_name: `Customer ${index}, Meerut`,
-    quote: `Story ${index}`, featured: true, sort_order: index, product_ids: ['one'],
-    ...(index === 1 ? { has_image: true, image_url: url, image_alt: 'Customer photo 1' } : {}) }));
-  const product = { id: 'one', name: 'Rose Gajra' } as Product;
-  render(<CustomerLove products={[product]} entries={featured} />);
-  expect(screen.getByRole('heading', { name: 'Loved by You' })).toBeTruthy();
-  const stories = screen.getAllByRole('figure');
-  expect(stories.length).toBeLessThanOrEqual(3);
-  expect(within(stories[0]).getByAltText('Customer photo 1').getAttribute('draggable')).toBe('false');
-  expect(within(stories[0]).getByRole('link', { name: 'Shop Rose Gajra' })).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Read more customer stories' }).getAttribute('href')).toBe('/customer-love/');
-  expect(screen.queryByText(/★/)).toBeNull();
-});
-it('rotates homepage stories daily when more than three are featured', () => {
-  const featured = [0, 1, 2, 3].map(index => ({ ...newTestimonial(), display_name: `Customer ${index}`, featured: true }));
-  expect(pickHomeStories(featured, 0).map(entry => entry.display_name)).toEqual(['Customer 0', 'Customer 1', 'Customer 2']);
-  expect(pickHomeStories(featured, 1).map(entry => entry.display_name)).toEqual(['Customer 1', 'Customer 2', 'Customer 3']);
-  expect(pickHomeStories(featured, 3).map(entry => entry.display_name)).toEqual(['Customer 3', 'Customer 0', 'Customer 1']);
-  expect(pickHomeStories(featured.slice(0, 2), 1).map(entry => entry.display_name)).toEqual(['Customer 0', 'Customer 1']);
 });
 it('filters by product and renders literal text without inserting HTML', () => {
   render(<CustomerLove products={[]} productId="two" entries={[...entries,

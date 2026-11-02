@@ -74,59 +74,7 @@ test('the Customer Love page shows a photo-led hero, a masonry gallery and a sha
   await page.screenshot({ path: testInfo.outputPath('customer-love-gallery.png'), fullPage: true });
 });
 
-test('homepage "Loved by You" shows three stories: two columns on desktop, swipeable cards on mobile', async ({ page }, testInfo) => {
-  const catalogue = await installMockSupabase(page);
-  const photo = await sharp({ create: { width: 800, height: 1000, channels: 3, background: '#f3cf74' } }).webp().toBuffer();
-  await page.route('https://images.luviacreations.com/customer-reviews/**', route => route.fulfill({ body: photo, contentType: 'image/webp' }));
-  const story = (index: number, extra: object) => ({ id: `10000000-0000-4000-8000-00000000002${index}`, display_name: `Synthetic home ${index}, Meerut`,
-    quote: 'A lovely handmade keepsake that we use every day. '.repeat(index), product_ids: [catalogue.products[0].id],
-    has_image: false, image_url: null, image_alt: '', featured: true, sort_order: index, ...extra });
-  await page.route('**/rest/v1/rpc/list_customer_love', route => route.fulfill({ json: [
-    story(1, { product_ids: catalogue.products.slice(0, 2).map(product => product.id) }), story(2, { has_image: true, image_alt: 'Synthetic home photo',
-      image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000022-0123456789abcdef.webp' }),
-    story(3, { has_image: true, image_alt: 'Synthetic second home photo',
-      image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000023-0123456789abcdef.webp' }), story(4, { featured: false }),
-  ] }));
-  await page.goto('./');
-  const section = page.locator('section[aria-labelledby="loved-by-you-heading"]');
-  await expect(section.getByRole('heading', { name: 'Loved by You' })).toBeVisible();
-  await section.scrollIntoViewIfNeeded();
-  const cards = section.getByRole('figure');
-  await expect(cards).toHaveCount(3);
-  await expect(cards.first().getByAltText('Synthetic home photo')).toBeVisible();
-  await expect(section.getByText('Synthetic home 4')).toHaveCount(0);
-  await expect(section.getByRole('link', { name: 'Read more customer stories' })).toHaveAttribute('href', '/customer-love/');
-  await expect(cards.first().getByRole('link', { name: 'Read full story from Synthetic home 2, Meerut' }))
-    .toHaveAttribute('href', '/customer-love/synthetic-home-2-meerut-10000000/');
-  const layout = await cards.evaluateAll(elements => ({
-    boxes: elements.map(element => { const box = element.getBoundingClientRect(); return { left: Math.round(box.left), width: box.width }; }),
-    emptyBelow: Math.max(...elements.map(element => {
-      const firstLink = Math.min(...[...element.querySelectorAll('a')].map(link => link.getBoundingClientRect().top));
-      return firstLink - element.querySelector('figcaption')!.getBoundingClientRect().bottom;
-    })),
-    photosOnTop: elements.filter(element => element.querySelector('img')).every(element => {
-      const card = element.getBoundingClientRect(); const image = element.querySelector('img')!.getBoundingClientRect();
-      return image.width >= card.width - 4 && image.bottom <= element.querySelector('blockquote')!.getBoundingClientRect().top;
-    }),
-    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth || window.innerWidth > document.documentElement.clientWidth,
-    scrollable: (() => { const track = elements[0].parentElement!; return track.scrollWidth > track.clientWidth; })(),
-  }));
-  expect(layout.overflow).toBe(false);
-  if (testInfo.project.name === 'mobile-chromium') {
-    expect(layout.scrollable).toBe(true);
-    expect(layout.photosOnTop).toBe(true);
-    expect(layout.emptyBelow).toBeLessThan(60);
-    expect(new Set(layout.boxes.map(box => box.left)).size).toBe(3);
-  } else {
-    expect(layout.scrollable).toBe(false);
-    expect(new Set(layout.boxes.map(box => box.left)).size).toBe(2);
-    expect(layout.boxes[1].left).toBe(layout.boxes[2].left);
-  }
-  await section.getByRole('heading', { name: 'Loved by You' }).evaluate(element => element.scrollIntoView({ block: 'start' }));
-  await page.screenshot({ path: testInfo.outputPath('loved-by-you.png') });
-});
-
-test('product page testimonial cards stay compact with photos, long quotes and multiple product tags', async ({ page }) => {
+test('homepage testimonial cards stay compact with photos, long quotes and multiple product tags', async ({ page }) => {
   const catalogue = await installMockSupabase(page);
   const photo = await sharp({ create: { width: 400, height: 900, channels: 3, background: '#f3cf74' } }).webp().toBuffer();
   await page.route('https://images.luviacreations.com/customer-reviews/**', route => route.fulfill({ body: photo, contentType: 'image/webp' }));
@@ -136,12 +84,9 @@ test('product page testimonial cards stay compact with photos, long quotes and m
       has_image: true, image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000007-0123456789abcdef.webp',
       image_alt: 'Synthetic tall customer photo', featured: true, sort_order: 0 },
     { id: '10000000-0000-4000-8000-000000000008', display_name: 'Synthetic text customer',
-      quote: 'A lovely handmade gift.', product_ids: [catalogue.products[0].id], has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 1 },
+      quote: 'A lovely handmade gift.', product_ids: [], has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 1 },
   ] }));
-  await page.goto('./customer-love/');
-  await page.locator('#testimonial-10000000-0000-4000-8000-000000000007')
-    .getByRole('link', { name: `Shop ${catalogue.products[0].name}`, exact: true }).click();
-  await expect(page.getByRole('heading', { name: catalogue.products[0].name, level: 1 })).toBeVisible();
+  await page.goto('./');
   const cards = page.getByRole('group', { name: 'Customer Love', exact: true }).locator(':scope > div:not([inert]) figure');
   await expect(cards).toHaveCount(2);
   await cards.first().scrollIntoViewIfNeeded();
@@ -186,9 +131,9 @@ test('long quote previews link to the complete testimonial after delayed loading
       has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 0 }] });
   });
   await page.goto('./');
-  await expect(page.getByRole('blockquote')).toContainText('This is the end');
-  await expect(page.getByRole('blockquote')).toHaveClass(/line-clamp-4/);
-  await page.getByRole('link', { name: 'Read full story from Synthetic long story', exact: true }).click();
+  await expect(page.getByRole('blockquote')).toContainText('...');
+  await expect(page.getByRole('blockquote')).not.toContainText('This is the end');
+  await page.getByRole('link', { name: 'Read full testimonial from Synthetic long story', exact: true }).click();
   await expect(page).toHaveURL(/\/customer-love\/synthetic-long-story-10000000\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Customer story from Synthetic long story');
   const story = page.locator(`#testimonial-${id}`);
@@ -305,7 +250,7 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   await expect(page.getByRole('heading', { name: catalogue.products[1].name, level: 1 })).toBeVisible();
   await expect(page.getByText('Synthetic customer', { exact: true })).toBeVisible();
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Loved by You' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Customer Love', exact: true })).toBeVisible();
   await page.goto('./#admin');
   await page.getByRole('button', { name: 'Customer Love', exact: true }).click();
   await page.getByRole('button', { name: 'Edit Synthetic customer', exact: true }).click();

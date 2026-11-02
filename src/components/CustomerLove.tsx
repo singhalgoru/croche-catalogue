@@ -26,7 +26,7 @@ const StoryAttribution = ({ entry }: { entry: Testimonial }) => {
 const ShopLinks = ({ products }: { products: Product[] }) => products.length > 0
   ? <div className="flex flex-wrap gap-x-4">{products.map(product => <a key={product.id} href={toProductPageUrl(product)}
     className="inline-flex min-h-11 items-center text-xs font-bold uppercase tracking-wide underline-offset-4 hover:underline">
-    <span>Shop {product.name}<span aria-hidden="true">&nbsp;→</span></span>
+    Shop {product.name}<span aria-hidden="true">&nbsp;→</span>
   </a>)}</div> : null;
 
 const ReadStoryLink = ({ entry }: { entry: Testimonial }) => <a href={testimonialPath(entry)}
@@ -67,58 +67,6 @@ function GalleryStory({ entry, products, imageUrl }: { entry: Testimonial; produ
       <ReadStoryLink entry={entry} />
     </div>
   </figure>;
-}
-
-const hasPhoto = (entry: Testimonial) => entry.has_image && Boolean(entry.image_url);
-
-/** Picks up to three homepage stories, rotating daily through featured stories, with a photo story leading. */
-export const pickHomeStories = (featured: Testimonial[], day = Math.floor(Date.now() / 86400000)) => {
-  const start = featured.length > 3 ? day % featured.length : 0;
-  const chosen = [...featured.slice(start), ...featured.slice(0, start)].slice(0, 3);
-  const lead = chosen.find(hasPhoto) ?? chosen[0];
-  return lead ? [lead, ...chosen.filter(entry => entry !== lead)] : [];
-};
-
-/** Compact homepage testimonial: a photo-led lead story and short quote cards; swipeable on mobile. */
-function HomeStory({ entry, products, imageUrl, lead }: { entry: Testimonial; products: Product[]; imageUrl?: string; lead: boolean }) {
-  // Mobile: every card is photo-on-top. Desktop: the lead keeps a large photo, others use a side thumbnail.
-  const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined, lead
-    ? 'h-56 w-full shrink-0 bg-cream object-contain md:h-80'
-    : 'h-56 w-full shrink-0 bg-cream object-contain md:h-24 md:w-24 md:rounded-xl');
-  return <figure className={`relative flex w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
-    lead ? 'md:row-span-2' : 'md:flex-row md:items-start md:gap-4 md:p-5'}`}>
-    {photo ?? <div aria-hidden="true" className="flex h-56 shrink-0 items-center justify-center bg-cream-dark font-heading text-6xl text-mustard-dark md:hidden">♡</div>}
-    <div className={`flex min-w-0 flex-1 flex-col gap-2 p-5 ${lead ? '' : 'md:p-0'}`}>
-      <blockquote className={`line-clamp-3 whitespace-pre-line break-words ${lead ? 'font-heading text-lg leading-snug md:line-clamp-4 md:text-2xl'
-        : 'leading-relaxed'}`}>&ldquo;{entry.quote}&rdquo;</blockquote>
-      <StoryAttribution entry={entry} />
-      <div className="mt-auto flex flex-col items-start md:flex-row md:flex-wrap md:items-center md:gap-x-4">
-        <ShopLinks products={products.slice(0, 1)} />
-        <ReadStoryLink entry={entry} />
-      </div>
-    </div>
-  </figure>;
-}
-
-function LovedByYou({ stories, tagged, imageUrl }: {
-  stories: Testimonial[]; tagged: (entry: Testimonial) => Product[]; imageUrl?: (entry: Testimonial) => string;
-}) {
-  return <section aria-labelledby="loved-by-you-heading" className="space-y-6">
-    <div className="text-center">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">A little love goes a long way</p>
-      <h2 id="loved-by-you-heading" className="mt-2 font-heading text-3xl font-bold">Loved by You <span aria-hidden="true">♡</span></h2>
-      <p className="mt-1 text-cocoa/80">Real stories from our happy customers</p>
-    </div>
-    <div aria-label="Customer stories" role="region" tabIndex={0}
-      className={`relative -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 ${
-        stories.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:max-w-xl'}`}>
-      {stories.map((entry, index) => <HomeStory key={entry.id} entry={entry} products={tagged(entry)}
-        imageUrl={imageUrl?.(entry)} lead={index === 0} />)}
-    </div>
-    <p className="text-center text-sm">Every creation has a story.{' '}
-      <a href="/customer-love/" className="inline-flex min-h-11 items-center font-semibold uppercase tracking-wide underline underline-offset-4">
-        Read more customer stories<span aria-hidden="true">&nbsp;→</span></a></p>
-  </section>;
 }
 
 const ShareStory = () => <section aria-labelledby="share-story-heading"
@@ -226,7 +174,6 @@ export default function CustomerLove({ products, productId, page = false, storyS
       <ShareStory />
     </div>;
   }
-  if (!productId) return <LovedByYou stories={pickHomeStories(selected)} tagged={tagged} imageUrl={imageUrl} />;
   const cards = selected.map(entry => <div key={entry.id} className="w-[85%] shrink-0 sm:w-[calc((100%-24px)/3)]">
     <TestimonialCard entry={entry} products={tagged(entry)} imageUrl={imageUrl?.(entry)} />
   </div>);
