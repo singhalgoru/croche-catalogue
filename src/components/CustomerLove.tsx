@@ -69,6 +69,59 @@ function GalleryStory({ entry, products, imageUrl }: { entry: Testimonial; produ
   </figure>;
 }
 
+const hasPhoto = (entry: Testimonial) => entry.has_image && Boolean(entry.image_url);
+
+/** Picks up to three homepage stories, rotating daily through featured stories, with a photo story leading. */
+export const pickHomeStories = (featured: Testimonial[], day = Math.floor(Date.now() / 86400000)) => {
+  const start = featured.length > 3 ? day % featured.length : 0;
+  const chosen = [...featured.slice(start), ...featured.slice(0, start)].slice(0, 3);
+  const lead = chosen.find(hasPhoto) ?? chosen[0];
+  return lead ? [lead, ...chosen.filter(entry => entry !== lead)] : [];
+};
+
+/** Compact homepage testimonial: a photo-led lead story and short quote cards; swipeable on mobile. */
+function HomeStory({ entry, products, imageUrl, lead }: { entry: Testimonial; products: Product[]; imageUrl?: string; lead: boolean }) {
+  const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined,
+    lead ? 'h-64 w-full bg-cream object-contain sm:h-80' : 'h-24 w-24 shrink-0 rounded-xl bg-cream object-contain');
+  return <figure className={`w-[85%] shrink-0 snap-start overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
+    lead ? 'md:row-span-2' : ''}`}>
+    {lead && photo}
+    <div className={`flex gap-4 p-5 ${lead ? 'flex-col' : 'items-start'}`}>
+      {!lead && photo}
+      <div className="min-w-0 space-y-2">
+        <blockquote className={`whitespace-pre-line break-words ${lead ? 'line-clamp-4 font-heading text-xl leading-snug sm:text-2xl'
+          : 'line-clamp-3 leading-relaxed'}`}>&ldquo;{entry.quote}&rdquo;</blockquote>
+        <StoryAttribution entry={entry} />
+        <div className="flex flex-wrap items-center gap-x-4">
+          <ShopLinks products={products.slice(0, 2)} />
+          <ReadStoryLink entry={entry} />
+        </div>
+      </div>
+    </div>
+  </figure>;
+}
+
+function LovedByYou({ stories, tagged, imageUrl }: {
+  stories: Testimonial[]; tagged: (entry: Testimonial) => Product[]; imageUrl?: (entry: Testimonial) => string;
+}) {
+  return <section aria-labelledby="loved-by-you-heading" className="space-y-6">
+    <div className="text-center">
+      <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">A little love goes a long way</p>
+      <h2 id="loved-by-you-heading" className="mt-2 font-heading text-3xl font-bold">Loved by You <span aria-hidden="true">♡</span></h2>
+      <p className="mt-1 text-cocoa/80">Real stories from our happy customers</p>
+    </div>
+    <div aria-label="Customer stories" role="region" tabIndex={0}
+      className={`-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 ${
+        stories.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:max-w-xl'}`}>
+      {stories.map((entry, index) => <HomeStory key={entry.id} entry={entry} products={tagged(entry)}
+        imageUrl={imageUrl?.(entry)} lead={index === 0} />)}
+    </div>
+    <p className="text-center text-sm">Every creation has a story.{' '}
+      <a href="/customer-love/" className="inline-flex min-h-11 items-center font-semibold uppercase tracking-wide underline underline-offset-4">
+        Read more customer stories<span aria-hidden="true">&nbsp;→</span></a></p>
+  </section>;
+}
+
 const ShareStory = () => <section aria-labelledby="share-story-heading"
   className="rounded-3xl bg-cream-dark px-6 py-10 text-center">
   <h2 id="share-story-heading" className="font-heading text-2xl font-bold">Have a Luvia story to share?</h2>
@@ -174,6 +227,7 @@ export default function CustomerLove({ products, productId, page = false, storyS
       <ShareStory />
     </div>;
   }
+  if (!productId) return <LovedByYou stories={pickHomeStories(selected)} tagged={tagged} imageUrl={imageUrl} />;
   const cards = selected.map(entry => <div key={entry.id} className="w-[85%] shrink-0 sm:w-[calc((100%-24px)/3)]">
     <TestimonialCard entry={entry} products={tagged(entry)} imageUrl={imageUrl?.(entry)} />
   </div>);
