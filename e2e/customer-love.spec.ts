@@ -84,7 +84,8 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
   await page.route('**/rest/v1/rpc/list_customer_love', route => route.fulfill({ json: [
     story(1, {}), story(2, { has_image: true, image_alt: 'Synthetic home photo',
       image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000022-0123456789abcdef.webp' }),
-    story(3, {}), story(4, { featured: false }),
+    story(3, { has_image: true, image_alt: 'Synthetic second home photo',
+      image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000023-0123456789abcdef.webp' }), story(4, { featured: false }),
   ] }));
   await page.goto('./');
   const section = page.locator('section[aria-labelledby="loved-by-you-heading"]');
@@ -99,12 +100,17 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
     .toHaveAttribute('href', '/customer-love/synthetic-home-2-meerut-10000000/');
   const layout = await cards.evaluateAll(elements => ({
     boxes: elements.map(element => { const box = element.getBoundingClientRect(); return { left: Math.round(box.left), width: box.width }; }),
+    photosOnTop: elements.filter(element => element.querySelector('img')).every(element => {
+      const card = element.getBoundingClientRect(); const image = element.querySelector('img')!.getBoundingClientRect();
+      return image.width >= card.width - 4 && image.bottom <= element.querySelector('blockquote')!.getBoundingClientRect().top;
+    }),
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth || window.innerWidth > document.documentElement.clientWidth,
     scrollable: (() => { const track = elements[0].parentElement!; return track.scrollWidth > track.clientWidth; })(),
   }));
   expect(layout.overflow).toBe(false);
   if (testInfo.project.name === 'mobile-chromium') {
     expect(layout.scrollable).toBe(true);
+    expect(layout.photosOnTop).toBe(true);
     expect(new Set(layout.boxes.map(box => box.left)).size).toBe(3);
   } else {
     expect(layout.scrollable).toBe(false);

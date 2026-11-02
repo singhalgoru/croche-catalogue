@@ -26,7 +26,7 @@ const StoryAttribution = ({ entry }: { entry: Testimonial }) => {
 const ShopLinks = ({ products }: { products: Product[] }) => products.length > 0
   ? <div className="flex flex-wrap gap-x-4">{products.map(product => <a key={product.id} href={toProductPageUrl(product)}
     className="inline-flex min-h-11 items-center text-xs font-bold uppercase tracking-wide underline-offset-4 hover:underline">
-    Shop {product.name}<span aria-hidden="true">&nbsp;→</span>
+    <span>Shop {product.name}<span aria-hidden="true">&nbsp;→</span></span>
   </a>)}</div> : null;
 
 const ReadStoryLink = ({ entry }: { entry: Testimonial }) => <a href={testimonialPath(entry)}
@@ -81,13 +81,14 @@ export const pickHomeStories = (featured: Testimonial[], day = Math.floor(Date.n
 
 /** Compact homepage testimonial: a photo-led lead story and short quote cards; swipeable on mobile. */
 function HomeStory({ entry, products, imageUrl, lead }: { entry: Testimonial; products: Product[]; imageUrl?: string; lead: boolean }) {
-  const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined,
-    lead ? 'h-64 w-full bg-cream object-contain sm:h-80' : 'h-24 w-24 shrink-0 rounded-xl bg-cream object-contain');
-  return <figure className={`relative w-[85%] shrink-0 snap-start overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
-    lead ? 'md:row-span-2' : ''}`}>
-    {lead && photo}
-    <div className={`flex gap-4 p-5 ${lead ? 'flex-col' : 'items-start'}`}>
-      {!lead && photo}
+  // Mobile: every card is photo-on-top. Desktop: the lead keeps a large photo, others use a side thumbnail.
+  const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined, lead
+    ? 'h-56 w-full shrink-0 bg-cream object-contain md:h-80'
+    : 'h-56 w-full shrink-0 bg-cream object-contain md:h-24 md:w-24 md:rounded-xl');
+  return <figure className={`relative flex w-[85%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
+    lead ? 'md:row-span-2' : 'md:flex-row md:items-start md:gap-4 md:p-5'}`}>
+    {photo}
+    <div className={`flex min-w-0 flex-1 flex-col p-5 ${lead ? '' : 'md:p-0'}`}>
       <div className="min-w-0 space-y-2">
         <blockquote className={`whitespace-pre-line break-words ${lead ? 'line-clamp-4 font-heading text-xl leading-snug sm:text-2xl'
           : 'line-clamp-3 leading-relaxed'}`}>&ldquo;{entry.quote}&rdquo;</blockquote>
