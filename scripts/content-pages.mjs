@@ -14,7 +14,7 @@ export { collectionPath };
 const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
-const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
+const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
   + `<a href="${internationalQuote.path}">International quotes</a>`
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 export const renderSiteHeader = () => `<a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-160.webp" width="48" height="48" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation()}</nav></header>`;
@@ -61,7 +61,7 @@ const productCards = items => items.map((product, index) => {
   <a class="button" href="https://wa.me/?text=${encodeURIComponent(`${product.name} — ${ORIGIN}/p/${toProductSlug(product)}/`)}" aria-label="Share ${escapeHtml(product.name)}">Share</a></div></li>`;
 }).join('');
 
-export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = []) => {
+export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = [], testimonialImageBase = '') => {
   const pages = new Map();
   const orderedCategories = [...categories].sort((a, b) => Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority);
   const groups = new Map(orderedCategories.filter(category => category.visible !== false).map(category => [
@@ -206,6 +206,16 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p><a href="mailto:hello@luviacreations.com">Contact Luvia</a> · <a href="/privacy-policy/">Privacy Policy</a></p></section>`,
     baseSchema('WebPage', artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description))
     .replace('</head>', '<meta name="robots" content="noindex,follow"><meta name="referrer" content="no-referrer"></head>'));
+  pages.set('/customer-love/', page('/customer-love/', 'Customer Love',
+    'Customer stories and handmade moments, shared with permission by Luvia Creations customers.',
+    '<p class="intro">Little moments of joy, shared by our customers with permission. These are selected customer stories, not star ratings.</p>'
+    + (testimonials.length ? `<div class="grid">${testimonials.map(entry => {
+      const product = products.find(item => item.id === entry.product_id);
+      return `<figure class="card">${entry.has_image && testimonialImageBase ? `<img src="${escapeHtml(`${testimonialImageBase}/functions/v1/customer-love-image?id=${encodeURIComponent(entry.id)}`)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" loading="lazy" style="width:100%;height:auto;border-radius:12px">` : ''}
+        <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption>
+        ${product ? `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>` : ''}</figure>`;
+    }).join('')}</div>` : '<p>Customer stories will appear here once shared with permission.</p>'),
+    baseSchema('CollectionPage', '/customer-love/', 'Customer Love', 'Selected customer stories shared with permission.')));
   return pages;
 };
 

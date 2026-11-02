@@ -28,6 +28,7 @@ International orders are by enquiry and individual quote, not online checkout. C
 - [Collections](https://luviacreations.com/collections/): Browse current categories and seasonal collections.
 - [Bestsellers](https://luviacreations.com/bestsellers/): Purchasable products ranked by popularity over the last 90 days.
 - [Featured products](https://luviacreations.com/featured/): Handpicked, purchasable handmade favourites.
+- [Customer Love](https://luviacreations.com/customer-love/): Selected customer stories and photos shared with permission, not star ratings.
 - [Ordering FAQ](https://luviacreations.com/faq/): Answers about ordering, delivery, product care and customisation.
 - [Bulk orders and corporate gifting](https://luviacreations.com/bulk-orders/): Enquire about handmade gifts for teams, clients and celebrations; quantities, prices and timelines are agreed individually.
 - [Request an international quote](https://luviacreations.com/international-quote/): Select products and quantities, enter destination and contact details, then review and send a request by email or WhatsApp. This does not confirm an order.

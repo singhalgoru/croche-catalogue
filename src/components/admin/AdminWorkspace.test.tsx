@@ -7,6 +7,7 @@ afterEach(cleanup);
 it('shows only one workspace while preserving entries when switching sections', () => {
   render(<AdminWorkspace>{{
     Products: <input aria-label="Product draft" defaultValue="" />,
+    'Customer Love': <p>Customer stories</p>,
     Orders: <p>Cart orders</p>, Customers: <p>Registered customers</p>, Artisans: <p>Artisan applications</p>, Sales: <p>Monthly sales</p>, Snapshots: <p>Sales snapshots</p>, Settings: <p>Store settings</p>,
   }}</AdminWorkspace>);
   fireEvent.change(screen.getByLabelText('Product draft'), { target: { value: 'Rose' } });
@@ -16,6 +17,8 @@ it('shows only one workspace while preserving entries when switching sections', 
   expect(screen.getByRole('region', { name: 'Customers workspace' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Artisans' }));
   expect(screen.getByRole('region', { name: 'Artisans workspace' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Customer Love' }));
+  expect(screen.getByRole('region', { name: 'Customer Love workspace' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
   expect(screen.getByRole('region', { name: 'Sales workspace' })).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'Products workspace' })).toBeNull();

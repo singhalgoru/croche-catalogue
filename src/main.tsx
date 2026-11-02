@@ -8,17 +8,26 @@ import { captureCampaign } from './utils/campaign'
 import { captureInternalTrafficPreference } from './utils/internalTraffic'
 import { installChunkLoadRecovery } from './utils/chunkLoadRecovery'
 
-installChunkLoadRecovery()
-captureCampaign()
-captureInternalTrafficPreference()
-initializeAnalytics()
-initializeMetaPixel()
-initializePageTracking()
+if (import.meta.env.DEV && window.location.pathname === '/__preview/customer-love/') {
+  void import('./dev/CustomerLovePreview').then(({ default: Preview }) => {
+    createRoot(document.getElementById('root')!).render(<StrictMode><Preview /></StrictMode>)
+  }).catch(error => {
+    console.error('Unable to load local Customer Love preview:', error)
+    document.getElementById('root')!.textContent = 'Unable to load the local preview. Check the browser console.'
+  })
+} else {
+  installChunkLoadRecovery()
+  captureCampaign()
+  captureInternalTrafficPreference()
+  initializeAnalytics()
+  initializeMetaPixel()
+  initializePageTracking()
 
-document.getElementById('product-fallback-style')?.remove()
+  document.getElementById('product-fallback-style')?.remove()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}

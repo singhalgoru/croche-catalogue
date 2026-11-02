@@ -506,6 +506,11 @@ export async function installMockSupabase(
       return;
     }
 
+    if (pathname === '/rest/v1/rpc/list_customer_love') {
+      await json(route, []);
+      return;
+    }
+
     if (pathname === '/rest/v1/rpc/is_catalogue_admin') {
       await json(route, currentUser.is_anonymous !== true);
       return;

@@ -75,6 +75,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
           <a href="/collections/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Explore collections</a>
           <a href="/bestsellers/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Bestsellers</a>
           <a href="/featured/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Featured products</a>
+          <a href="/customer-love/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Customer Love</a>
           <a href="/about/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">About &amp; contact</a>
           <a href="/faq/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Ordering FAQ</a>
           <a href="/bulk-orders/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-mustard hover:underline">Bulk orders &amp; corporate gifting</a>

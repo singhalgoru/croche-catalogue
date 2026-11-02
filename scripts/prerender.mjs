@@ -835,6 +835,24 @@ const attachProductApp = (page, template) => {
     .replace('</body>', '</div></body>');
 };
 
+export async function fetchPublicTestimonials(supabaseUrl, anonKey) {
+  const response = await fetch(new URL('/rest/v1/rpc/list_customer_love', supabaseUrl), {
+    method: 'POST',
+    headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ admin_view: false }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Unable to prerender Customer Love: HTTP ${response.status}. Apply the Customer Love migration before deployment.`);
+  const entries = await response.json();
+  if (!Array.isArray(entries) || entries.some(entry => !entry || typeof entry.id !== 'string'
+    || typeof entry.display_name !== 'string' || typeof entry.quote !== 'string'
+    || typeof entry.has_image !== 'boolean' || typeof entry.image_alt !== 'string'
+    || (entry.product_id !== null && typeof entry.product_id !== 'string'))) {
+    throw new Error('Invalid public Customer Love snapshot.');
+  }
+  return entries;
+}
+
 const main = async () => {
   const env = { ...loadEnv('production', ROOT, 'VITE_'), ...process.env };
   const supabaseUrl = env.VITE_SUPABASE_URL;
@@ -849,10 +867,11 @@ const main = async () => {
     return;
   }
 
-  const [rows, categories, bestsellers] = await Promise.all([
+  const [rows, categories, bestsellers, testimonials] = await Promise.all([
     fetchProductRows(supabaseUrl, anonKey),
     fetchBootstrapCategories(supabaseUrl, anonKey),
     fetchBootstrapBestsellers(supabaseUrl, anonKey),
+    fetchPublicTestimonials(supabaseUrl, anonKey),
   ]);
   const products = rows.map(toProduct);
   await Promise.all(products.filter(product => product.makingVideo).map(async product => {
@@ -906,7 +925,7 @@ const main = async () => {
 
   const today = new Date().toISOString().slice(0, 10);
   const { buildContentPages, renderContentSitemap } = await import('./content-pages.mjs');
-  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers);
+  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials, supabaseUrl);
   for (const [pathname, html] of contentPages) {
     const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
     await mkdir(dir, { recursive: true });

@@ -9,6 +9,7 @@ import storeContent from './content/storeContent.json';
 import { productImageProtection } from './utils/imageProtection';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
+import CustomerLove from './components/CustomerLove';
 import ProductCarousel from './components/ProductCarousel';
 import { getFeaturedProducts, productCollections } from './utils/productCollections.js';
 import CategoryTiles from './components/CategoryTiles';
@@ -76,6 +77,8 @@ function App() {
   const { products, categorySettings, isLoading, loadError, refreshProducts, hasCatalogueSnapshot, homepageMetadata, initialBestsellerIds } =
     useCatalogueProducts();
   const [isAdminPage, setIsAdminPage] = useState(window.location.hash === '#admin');
+  const [customerLoveContentVersion, setCustomerLoveContentVersion] = useState(0);
+  const customerLoveContentReady = useCallback(() => setCustomerLoveContentVersion(value => value + 1), []);
   const [checkoutStep, setCheckoutStep] = useState(readCheckoutStep);
   const [isCartOpen, setCartOpen] = useState(() => Boolean(readCheckoutStep()));
   const [chunkLoadFailed, setChunkLoadFailed] = useState(false);
@@ -259,7 +262,7 @@ function App() {
       window.removeEventListener('hashchange', scrollToSection);
       window.removeEventListener('popstate', scrollToSection);
     };
-  }, [isLoading, isCartOpen, isAdminPage, pageReference, selectedProduct]);
+  }, [isLoading, isCartOpen, isAdminPage, pageReference, selectedProduct, customerLoveContentVersion]);
 
   useEffect(() => {
     if (!pageReference || !selectedProduct) return;
@@ -801,6 +804,7 @@ function App() {
           {selectedProduct && (
             <RelatedProducts product={selectedProduct} products={products} onSelect={openRelatedProduct} />
           )}
+          {selectedProduct && <CustomerLove products={products} productId={selectedProduct.id} />}
           {loadError && selectedProduct && <CatalogueNotice message={loadError} onRetry={refreshProducts} />}
           <OrderingGuide />
         </main>
@@ -820,6 +824,7 @@ function App() {
         {effectiveActiveCategory === 'All' && !query.trim() && <ProductCarousel products={getFeaturedProducts(products)}
           onSelect={selectProduct} title={productCollections[1].title} label="featured product"
           viewAll={productCollections[1].path} description={productCollections[1].description} />}
+        {effectiveActiveCategory === 'All' && !query.trim() && <CustomerLove products={products} onContentReady={customerLoveContentReady} />}
           <div
             ref={catalogueToolsRef}
             className="space-y-3 sm:sticky sm:top-0 sm:z-30 sm:-mx-4 sm:border-b sm:border-mustard/30 sm:bg-cream/95 sm:px-4 sm:py-3 sm:backdrop-blur-md"

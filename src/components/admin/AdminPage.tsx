@@ -22,6 +22,7 @@ import WelcomeOfferManager from './WelcomeOfferManager';
 import CouponGenerator from './CouponGenerator';
 import AdminUsers from './AdminUsers';
 import ArtisanManager from './ArtisanManager';
+import CustomerLoveManager from './CustomerLoveManager';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -33,6 +34,7 @@ export default function AdminPage({ onProductPublished }: Props) {
   const [snapshotRefreshKey, setSnapshotRefreshKey] = useState(0);
   const [salesRefreshKey, setSalesRefreshKey] = useState(0);
   const [artisansOpened, setArtisansOpened] = useState(false);
+  const [customerLoveOpened, setCustomerLoveOpened] = useState(false);
   // The customer shop manifest is linked by default (see vite.config.ts) so
   // it can be installed as its own app. While the admin console is open,
   // swap that link to admin-manifest.webmanifest so installing from #admin
@@ -251,6 +253,7 @@ export default function AdminPage({ onProductPublished }: Props) {
         <AdminWorkspace onSectionChange={section => {
           if (section === 'Snapshots') setSnapshotRefreshKey(current => current + 1);
           if (section === 'Artisans') setArtisansOpened(true);
+          if (section === 'Customer Love') setCustomerLoveOpened(true);
         }}>{{
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
@@ -260,6 +263,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           </>,
           Orders: <><CustomerOrders loadOrders={fetchAdminLiveOrders} admin /><CartManager /></>,
           Customers: <CustomerSummary />,
+          'Customer Love': customerLoveOpened ? <CustomerLoveManager /> : null,
           Artisans: artisansOpened ? <ArtisanManager /> : null,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey + pricingRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,

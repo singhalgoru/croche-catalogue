@@ -20,6 +20,10 @@ an India-based handmade crochet brand.
   remove individual entries, or clear the history.
 - Discover bestsellers and featured products in homepage carousels and on
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
+- Customer Love presents selected, permission-based customer stories on the
+  homepage, matching product pages and `/customer-love/`. Administrators manage
+  private drafts, photos and publication consent. These are testimonials, not
+  star ratings or verified-purchase claims.
 - Meet the founder in the homepage story card above collections, with a link to
   the full About page. Both use a cropped, optimised founder portrait.
   Empty-cart “Shop now” opens the product-grid heading.
