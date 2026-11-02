@@ -52,7 +52,8 @@ test('homepage testimonial cards stay compact with photos, long quotes and multi
   await cards.first().scrollIntoViewIfNeeded();
   await expect(page.getByAltText('Synthetic tall customer photo', { exact: true }).first()).toBeVisible();
   expect(await page.getByAltText('Synthetic tall customer photo', { exact: true }).first()
-    .evaluate(image => getComputedStyle(image).objectFit)).toBe('contain');
+    .evaluate(image => ({ fit: getComputedStyle(image).objectFit, position: getComputedStyle(image).objectPosition })))
+    .toEqual({ fit: 'cover', position: '50% 0%' });
   const measurements = await cards.evaluateAll(elements => elements.map(element => {
     const bounds = element.getBoundingClientRect();
     const quote = element.querySelector('blockquote')!.getBoundingClientRect();
@@ -64,6 +65,15 @@ test('homepage testimonial cards stay compact with photos, long quotes and multi
     expect(item.quoteHeight).toBeLessThanOrEqual(72);
     expect(item.linksFit).toBe(true);
   }
+  await page.getByRole('link', { name: 'Read full testimonial from Synthetic photo customer', exact: true }).click();
+  const fullImage = page.getByAltText('Synthetic tall customer photo', { exact: true });
+  await expect(fullImage).toBeVisible();
+  const fullSize = await fullImage.evaluate(image => {
+    const bounds = image.getBoundingClientRect();
+    return { ratio: bounds.height / bounds.width, fit: getComputedStyle(image).objectFit };
+  });
+  expect(fullSize.fit).toBe('contain');
+  expect(fullSize.ratio).toBeCloseTo(900 / 400, 1);
 });
 
 test('long quote previews link to the complete testimonial after delayed loading', async ({ page }) => {
