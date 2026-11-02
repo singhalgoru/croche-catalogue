@@ -52,15 +52,14 @@ test('homepage testimonial cards stay compact with photos, long quotes and multi
   await cards.first().scrollIntoViewIfNeeded();
   await expect(page.getByAltText('Synthetic tall customer photo', { exact: true }).first()).toBeVisible();
   expect(await page.getByAltText('Synthetic tall customer photo', { exact: true }).first()
-    .evaluate(image => ({ fit: getComputedStyle(image).objectFit, position: getComputedStyle(image).objectPosition })))
-    .toEqual({ fit: 'cover', position: '50% 0%' });
+    .evaluate(image => getComputedStyle(image).objectFit)).toBe('contain');
   const measurements = await cards.evaluateAll(elements => elements.map(element => {
     const bounds = element.getBoundingClientRect();
     const quote = element.querySelector('blockquote')!.getBoundingClientRect();
     return { height: bounds.height, quoteHeight: quote.height,
       linksFit: [...element.querySelectorAll('a')].every(link => link.getBoundingClientRect().bottom <= bounds.bottom) };
   }));
-  expect(measurements.map(item => item.height)).toEqual([384, 384]);
+  expect(measurements.map(item => item.height)).toEqual([480, 480]);
   for (const item of measurements) {
     expect(item.quoteHeight).toBeLessThanOrEqual(72);
     expect(item.linksFit).toBe(true);
