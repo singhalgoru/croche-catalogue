@@ -71,6 +71,21 @@ beforeEach(() => {
 });
 
 describe('analyze-product endpoint', () => {
+  it('generates testimonial alt text with Gemini without loading product categories', async () => {
+    fetchMock.mockResolvedValue(geminiResponse({ image_alt: 'A handmade crochet flower attached to a bag.' }));
+    const response = await handler(request({ mode: 'testimonial-photo-description' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ image_alt: 'A handmade crochet flower attached to a bag.' });
+    expect(from).not.toHaveBeenCalled();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.contents[0].parts[1].inlineData.data).toBe('aW1hZ2U=');
+  });
+  it('rejects invalid testimonial alt text and denies non-admin generation', async () => {
+    fetchMock.mockResolvedValue(geminiResponse({ image_alt: 'a'.repeat(201) }));
+    expect((await handler(request({ mode: 'testimonial-photo-description' }))).status).toBe(502);
+    rpc.mockResolvedValue({ data: false, error: null });
+    expect((await handler(request({ mode: 'testimonial-photo-description' }))).status).toBe(403);
+  });
   const mockCategoryOverview = (products: { name: string; description: string }[] = [{ name: 'Rose', description: 'Handmade rose charm.' }]) => {
     const categoryQuery = { select: vi.fn(), eq: vi.fn(), single: vi.fn().mockResolvedValue({
       data: { name: 'Navaratri', is_seasonal: true, seasonal_category_products: [{ product_id: 'rose' }] }, error: null,

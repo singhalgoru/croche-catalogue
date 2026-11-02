@@ -122,3 +122,19 @@ export async function prepareTestimonialPhoto(file: File): Promise<string> {
 export function testimonialPhotoUrl(id: string) {
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/customer-love-image?id=${encodeURIComponent(id)}`;
 }
+export async function generateTestimonialPhotoDescription(imageBase64: string): Promise<string> {
+  const { data, error } = await (await client()).functions.invoke('analyze-product', {
+    body: { mode: 'testimonial-photo-description', imageBase64, mimeType: 'image/webp' },
+  });
+  if (error) {
+    if (error.context instanceof Response) {
+      const body: unknown = await error.context.clone().json();
+      if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') throw new Error(body.error);
+    }
+    throw error;
+  }
+  if (!data || typeof data.image_alt !== 'string' || !data.image_alt.trim() || data.image_alt.length > 200) {
+    throw new Error('Gemini returned an invalid photo description.');
+  }
+  return data.image_alt.trim();
+}

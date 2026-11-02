@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { customerLoveRepository, newTestimonial, prepareTestimonialPhoto, validateTestimonial,
+import { customerLoveRepository, generateTestimonialPhotoDescription, newTestimonial, prepareTestimonialPhoto, validateTestimonial,
   type AdminTestimonial, type CustomerLoveRepository } from '../../services/customerLove';
 import { fetchPublishedProducts } from '../../services/products';
 import type { Product } from '../../types/product';
@@ -34,6 +34,7 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [deleteEntry, setDeleteEntry] = useState<AdminTestimonial | null>(null);
+  const [geminiConsent, setGeminiConsent] = useState(false);
   const quoteInput = useRef<HTMLTextAreaElement>(null);
   const quoteId = useId();
   useEffect(() => {
@@ -50,7 +51,7 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
     try {
       const image = entry.has_image ? await repository.photo(entry.id) : null;
       if (entry.has_image && !image) throw new Error('The saved photo is unavailable. Reload before editing.');
-      setDraft({ ...entry }); setPreview(image ?? undefined); setPhoto(null); setFile(null);
+      setDraft({ ...entry }); setPreview(image ?? undefined); setPhoto(null); setFile(null); setGeminiConsent(false);
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to open testimonial.'); }
     finally { setBusy(false); }
   };
@@ -180,6 +181,22 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
           </div>
           <label className="block text-sm font-semibold">Display order<input type="number" className={fieldClass} min={0} max={9999} step={1}
             value={draft.sort_order} onChange={event => update({ sort_order: Number(event.target.value) })} /></label>
+          {draft.has_image && <div className="space-y-2 rounded-xl border border-cocoa/20 p-3">
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input type="checkbox" checked={geminiConsent} onChange={event => setGeminiConsent(event.target.checked)} />
+              I have permission to send this photo to Google Gemini for a photo description.
+            </label>
+            <button type="button" disabled={!geminiConsent || !preview} className={buttonClass} onClick={async () => {
+              setBusy(true); setError('');
+              try {
+                if (!preview?.startsWith('data:image/webp;base64,')) throw new Error('Reload the testimonial photo before generating a description.');
+                const image_alt = await generateTestimonialPhotoDescription(preview.slice('data:image/webp;base64,'.length));
+                update({ image_alt });
+              } catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to generate a photo description with Gemini.'); }
+              finally { setBusy(false); }
+            }}>Generate photo description with Gemini</button>
+            <p className="text-xs">Sends only this photo to Google. Review the generated Photo description before saving. Existing publication permission must be reconfirmed after changes.</p>
+          </div>}
           <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={draft.featured}
             onChange={event => update({ featured: event.target.checked })} />Feature on homepage</label>
           <label className="block text-sm font-semibold">Visibility<select className={fieldClass} value={draft.published ? 'published' : 'draft'}

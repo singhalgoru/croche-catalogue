@@ -20,7 +20,7 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
     className={`${fullQuote ? 'h-full' : 'flex h-96 flex-col'} scroll-mt-24 overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm`}>
     {entry.has_image && !imageFailed && <img src={source} alt={entry.image_alt}
       loading="lazy" decoding="async" width={480} height={480} onError={() => setFailedSource(source)}
-      className={fullQuote ? 'aspect-square w-full object-cover' : 'h-32 w-full shrink-0 object-cover'} />}
+      className={fullQuote ? 'h-auto w-full bg-cream object-contain' : 'h-32 w-full shrink-0 bg-cream object-contain'} />}
     <div className={fullQuote ? 'space-y-3 p-5' : 'flex min-h-0 flex-1 flex-col gap-2 p-4'}>
       <p className="text-xs font-semibold uppercase tracking-widest text-cocoa/60">A little love, handmade</p>
       {imageFailed && <p role="status" className="text-xs">Customer photo is currently unavailable.</p>}

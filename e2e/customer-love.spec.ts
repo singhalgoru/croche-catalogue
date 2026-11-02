@@ -51,6 +51,8 @@ test('homepage testimonial cards stay compact with photos, long quotes and multi
   await expect(cards).toHaveCount(2);
   await cards.first().scrollIntoViewIfNeeded();
   await expect(page.getByAltText('Synthetic tall customer photo', { exact: true }).first()).toBeVisible();
+  expect(await page.getByAltText('Synthetic tall customer photo', { exact: true }).first()
+    .evaluate(image => getComputedStyle(image).objectFit)).toBe('contain');
   const measurements = await cards.evaluateAll(elements => elements.map(element => {
     const bounds = element.getBoundingClientRect();
     const quote = element.querySelector('blockquote')!.getBoundingClientRect();
@@ -139,7 +141,17 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   const photo = await sharp({ create: { width: 400, height: 300, channels: 3, background: '#f3cf74' } })
     .jpeg().withMetadata({ exif: { IFD0: { Artist: 'Synthetic private metadata' } } }).toBuffer();
   await page.getByLabel('Customer photo (optional)').setInputFiles({ name: 'synthetic-photo.jpg', mimeType: 'image/jpeg', buffer: photo });
-  await page.getByLabel('Photo description').fill('Synthetic yellow photo used for testing');
+  await page.route('**/functions/v1/analyze-product', async route => {
+    const body = route.request().postDataJSON();
+    expect(body.mode).toBe('testimonial-photo-description');
+    expect(body.mimeType).toBe('image/webp');
+    expect(body.imageBase64).toBeTruthy();
+    await route.fulfill({ json: { image_alt: 'Synthetic yellow photo used for testing' } });
+  });
+  await expect(page.getByRole('button', { name: 'Generate photo description with Gemini', exact: true })).toBeDisabled();
+  await page.getByLabel('I have permission to send this photo to Google Gemini for a photo description.', { exact: true }).check();
+  await page.getByRole('button', { name: 'Generate photo description with Gemini', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Photo description', exact: true })).toHaveValue('Synthetic yellow photo used for testing');
   await expect(page.getByRole('dialog').getByRole('blockquote')).toContainText('A thoughtful handmade gift');
   await page.getByRole('button', { name: 'Save testimonial', exact: true }).click();
   await expect(page.getByText('Testimonial saved as a private draft.')).toBeVisible();
