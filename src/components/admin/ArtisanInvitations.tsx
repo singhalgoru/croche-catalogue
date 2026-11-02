@@ -81,7 +81,9 @@ export default function ArtisanInvitations() {
             : invite.email_accepted_at ? 'Email accepted by provider' : invite.channel === 'email' ? 'Email not confirmed' : 'Link created; send manually';
         return <li key={invite.id} className="rounded-xl border border-mustard/40 p-3 text-sm">
           <p className="break-words font-semibold">{invite.recipient_name} — {invite.contact}</p>
-          <p>{status} · Expires {new Date(invite.expires_at).toLocaleString('en-IN')}</p>
+          <p>{status} · {invite.revoked_at ? `Revoked ${new Date(invite.revoked_at).toLocaleString('en-IN')}`
+            : invite.submitted_at ? `Submitted ${new Date(invite.submitted_at).toLocaleString('en-IN')}`
+              : `${Date.parse(invite.expires_at) <= now ? 'Expired' : 'Expires'} ${new Date(invite.expires_at).toLocaleString('en-IN')}`}</p>
           {!invite.revoked_at && !invite.submitted_at && Date.parse(invite.expires_at) > now && <>
             {revokeId !== invite.id ? <button disabled={busy} className="min-h-11 underline" onClick={() => setRevokeId(invite.id)}>Revoke invitation</button>
               : <div className="flex flex-wrap items-center gap-3"><span>Disable this link and remove its invitation record?</span>

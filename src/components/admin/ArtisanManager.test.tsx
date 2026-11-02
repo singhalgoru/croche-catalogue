@@ -101,6 +101,17 @@ it('shows applicant contact email and keeps the applicant-facing request separat
   await waitFor(() => expect(update).toHaveBeenCalledWith(application, 'More information required',
     'Internal: confirm portfolio review.', 'Please share a link to your crochet portfolio.'));
 });
+it('shows the submission date instead of an expiry for submitted invitations', async () => {
+  const base = { recipient_name: 'Sample Maker', channel: 'email' as const, contact: 'maker@example.test',
+    created_at: '2026-10-01T00:00:00Z', expires_at: '2026-10-08T00:00:00Z', revoked_at: null, email_accepted_at: null };
+  invites.mockResolvedValue([{ ...base, id: 'submitted', submitted_at: '2026-10-02T00:00:00Z' },
+    { ...base, id: 'pending', contact: 'pending@example.test', expires_at: new Date(Date.now() + 86_400_000).toISOString(), submitted_at: null }]);
+  render(<ArtisanManager />);
+  const submitted = await screen.findByText(/^Application submitted · /);
+  expect(submitted.textContent).toContain('Submitted');
+  expect(submitted.textContent).not.toContain('Expire');
+  expect(screen.getByText(/· Expires /)).toBeTruthy();
+});
 it('removes a revoked unused invitation from the admin list', async () => {
   const invitation = { id: 'invite-reference', recipient_name: 'Sample Maker', channel: 'whatsapp' as const,
     contact: '9876543210', created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 86_400_000).toISOString(),
