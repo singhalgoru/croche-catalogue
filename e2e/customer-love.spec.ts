@@ -99,7 +99,7 @@ test('homepage "Loved by You" shows three stories: two columns on desktop, swipe
     .toHaveAttribute('href', '/customer-love/synthetic-home-2-meerut-10000000/');
   const layout = await cards.evaluateAll(elements => ({
     boxes: elements.map(element => { const box = element.getBoundingClientRect(); return { left: Math.round(box.left), width: box.width }; }),
-    overflow: document.documentElement.scrollWidth > window.innerWidth,
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth || window.innerWidth > document.documentElement.clientWidth,
     scrollable: (() => { const track = elements[0].parentElement!; return track.scrollWidth > track.clientWidth; })(),
   }));
   expect(layout.overflow).toBe(false);

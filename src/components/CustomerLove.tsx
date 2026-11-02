@@ -83,7 +83,7 @@ export const pickHomeStories = (featured: Testimonial[], day = Math.floor(Date.n
 function HomeStory({ entry, products, imageUrl, lead }: { entry: Testimonial; products: Product[]; imageUrl?: string; lead: boolean }) {
   const photo = storyPhoto(entry, imageUrl ?? entry.image_url ?? undefined,
     lead ? 'h-64 w-full bg-cream object-contain sm:h-80' : 'h-24 w-24 shrink-0 rounded-xl bg-cream object-contain');
-  return <figure className={`w-[85%] shrink-0 snap-start overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
+  return <figure className={`relative w-[85%] shrink-0 snap-start overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm md:w-auto ${
     lead ? 'md:row-span-2' : ''}`}>
     {lead && photo}
     <div className={`flex gap-4 p-5 ${lead ? 'flex-col' : 'items-start'}`}>
@@ -111,7 +111,7 @@ function LovedByYou({ stories, tagged, imageUrl }: {
       <p className="mt-1 text-cocoa/80">Real stories from our happy customers</p>
     </div>
     <div aria-label="Customer stories" role="region" tabIndex={0}
-      className={`-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 ${
+      className={`relative -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 ${
         stories.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:max-w-xl'}`}>
       {stories.map((entry, index) => <HomeStory key={entry.id} entry={entry} products={tagged(entry)}
         imageUrl={imageUrl?.(entry)} lead={index === 0} />)}
