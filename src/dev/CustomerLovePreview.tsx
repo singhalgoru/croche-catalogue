@@ -62,6 +62,7 @@ export default function CustomerLovePreview() {
     return {
       async list() { return readDemo().entries; },
       async photo(id) { return readDemo().photos[id] ?? null; },
+      async syncPhotos() {},
       async save(entry, photo) {
         validateTestimonial(entry);
         const current = readDemo();

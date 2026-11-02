@@ -2,7 +2,7 @@ begin;
 create temporary table love_fixture as select gen_random_uuid() admin_id,gen_random_uuid() session_id,
   gen_random_uuid() factor_id,gen_random_uuid() testimonial_id,
   gen_random_uuid() product_one,gen_random_uuid() product_two,gen_random_uuid() product_private;
-grant select on love_fixture to anon,authenticated;
+grant select on love_fixture to anon,authenticated,service_role;
 insert into auth.users(id) select admin_id from love_fixture;
 insert into public.catalogue_admins(user_id) select admin_id from love_fixture;
 insert into public.products(id,name,category,description,color,image_path,image_url,created_by,published,price)
@@ -43,7 +43,12 @@ do $$ declare f record; begin
   select * into f from love_fixture;
   if exists(select 1 from jsonb_array_elements(public.list_customer_love(false)) e where e->>'id'=f.testimonial_id::text)
     then raise exception 'FAIL: draft publicly listed.'; end if;
-  if public.customer_love_photo(f.testimonial_id,false) is not null then raise exception 'FAIL: draft photo public.'; end if;
+  begin perform public.customer_love_photo(f.testimonial_id,false); raise exception 'FAIL: anonymous photo read allowed.';
+    exception when insufficient_privilege then null; end;
+  begin perform public.customer_love_photo_sources(f.testimonial_id,true); raise exception 'FAIL: anonymous photo source read allowed.';
+    exception when insufficient_privilege then null; end;
+  begin perform public.set_customer_love_image_url(f.testimonial_id,null,null); raise exception 'FAIL: anonymous R2 URL update allowed.';
+    exception when insufficient_privilege then null; end;
   begin perform public.list_customer_love(true); raise exception 'FAIL: anonymous admin listing allowed.';
     exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin perform 1 from public.customer_love; raise exception 'FAIL: private table readable.';
@@ -87,10 +92,35 @@ do $$ declare f record; entry jsonb; begin
   select e into entry from jsonb_array_elements(public.list_customer_love(false)) e where e->>'id'=f.testimonial_id::text;
   if entry is null or entry ? 'consent_source' or entry ? 'consent_date' or entry ? 'version'
     then raise exception 'FAIL: public view missing or reveals private metadata.'; end if;
-  if public.customer_love_photo(f.testimonial_id,false) is null then raise exception 'FAIL: published photo missing.'; end if;
+  if entry->'has_image'<>'false'::jsonb or entry->'image_url'<>'null'::jsonb then
+    raise exception 'FAIL: photo advertised before its R2 copy exists.'; end if;
   if jsonb_array_length(entry->'product_ids')<>2 or not (entry->'product_ids' @> jsonb_build_array(f.product_one,f.product_two))
     or entry->'product_ids' @> jsonb_build_array(f.product_private) then
     raise exception 'FAIL: public product tags missing or unpublished tag exposed.'; end if;
+end $$;
+reset role;
+set local role service_role;
+do $$ declare f record; source jsonb; url text; entry jsonb; begin
+  select * into f from love_fixture;
+  source := public.customer_love_photo_sources(f.testimonial_id,true)->0;
+  if source->>'photo' is null or length(source->>'sha256')<>64 then raise exception 'FAIL: published photo source missing.'; end if;
+  if exists(select 1 from jsonb_array_elements(public.customer_love_photo_sources(null,false)) e where e->>'photo' is not null)
+    then raise exception 'FAIL: listing returned photo bytes.'; end if;
+  url := 'https://images.example.test/customer-reviews/'||f.testimonial_id||'-'||left(source->>'sha256',16)||'.webp';
+  if public.set_customer_love_image_url(f.testimonial_id,repeat('0',64),url) then raise exception 'FAIL: stale photo hash accepted.'; end if;
+  if not public.set_customer_love_image_url(f.testimonial_id,source->>'sha256',url) then raise exception 'FAIL: R2 URL not recorded.'; end if;
+  begin
+    perform public.set_customer_love_image_url(f.testimonial_id,source->>'sha256','https://evil.test/x.webp');
+    raise exception 'FAIL: arbitrary image URL accepted.';
+  exception when check_violation then null; end;
+end $$;
+reset role;
+set local role anon;
+do $$ declare f record; entry jsonb; begin
+  select * into f from love_fixture;
+  select e into entry from jsonb_array_elements(public.list_customer_love(false)) e where e->>'id'=f.testimonial_id::text;
+  if entry->'has_image'<>'true'::jsonb or entry->>'image_url' not like 'https://images.example.test/customer-reviews/%'
+    then raise exception 'FAIL: public R2 photo URL missing.'; end if;
 end $$;
 reset role;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal2',
@@ -103,6 +133,7 @@ do $$ declare f record; entry jsonb; begin
   perform public.save_customer_love(f.testimonial_id,2,entry - 'product_ids',null);
   select e into entry from jsonb_array_elements(public.list_customer_love(true)) e where e->>'id'=f.testimonial_id::text;
   if jsonb_array_length(entry->'product_ids')<>3 then raise exception 'FAIL: older editor erased additional tags.'; end if;
+  if entry->>'image_url' is null then raise exception 'FAIL: unchanged photo lost its R2 URL.'; end if;
   perform public.save_customer_love(f.testimonial_id,3,entry || '{"published":false,"consent_confirmed":false}'::jsonb,null);
 end $$;
 reset role;
@@ -112,11 +143,16 @@ do $$ begin
     or not exists(select 1 from public.customer_love where id=(select testimonial_id from love_fixture)) then
     raise exception 'FAIL: deleting a product removed the story or retained its tag.'; end if;
 end $$;
+do $$ begin
+  if (select image_url from public.customer_love where id=(select testimonial_id from love_fixture)) is not null
+    then raise exception 'FAIL: withdrawn testimonial kept its public R2 URL.'; end if;
+end $$;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
 set local role anon;
 do $$ declare f record; begin
   select * into f from love_fixture;
-  if public.customer_love_photo(f.testimonial_id,false) is not null then raise exception 'FAIL: revoked photo still public.'; end if;
+  if exists(select 1 from jsonb_array_elements(public.list_customer_love(false)) e where e->>'id'=f.testimonial_id::text)
+    then raise exception 'FAIL: revoked story still public.'; end if;
 end $$;
 reset role;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal2',

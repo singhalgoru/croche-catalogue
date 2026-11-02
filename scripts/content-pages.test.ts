@@ -24,10 +24,14 @@ describe('collection and information pages', () => {
   it('prerenders consented customer stories with escaped quotes, product links and discovery but no ratings', () => {
     const generated = buildContentPages([toy, hair], '919205907350', [], [], [{
       id: 'story-1', display_name: '<Customer>', quote: 'A lovely gift & handmade keepsake.', product_ids: [toy.id, hair.id],
-      has_image: true, image_alt: 'Handmade toy', featured: true, sort_order: 0,
-    }], 'https://example.supabase.co');
+      has_image: true, image_url: 'https://images.luviacreations.com/customer-reviews/story-1-0123456789abcdef.webp',
+      image_alt: 'Handmade toy', featured: true, sort_order: 0,
+    }]);
     const html = generated.get('/customer-love/')!;
     const doc = new JSDOM(html).window.document;
+    expect(doc.querySelector('#testimonial-story-1 img')?.getAttribute('src'))
+      .toBe('https://images.luviacreations.com/customer-reviews/story-1-0123456789abcdef.webp');
+    expect(html).not.toContain('customer-love-image');
     expect(doc.querySelector('header')).toBeTruthy();
     expect(doc.querySelector('footer')).toBeTruthy();
     expect(doc.querySelector('blockquote')?.textContent).toBe('A lovely gift & handmade keepsake.');

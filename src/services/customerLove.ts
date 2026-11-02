@@ -8,6 +8,7 @@ export interface Testimonial {
   quote: string;
   product_ids: string[];
   has_image: boolean;
+  image_url: string | null;
   image_alt: string;
   featured: boolean;
   sort_order: number;
@@ -24,9 +25,10 @@ export interface CustomerLoveRepository {
   photo: (id: string) => Promise<string | null>;
   save: (entry: AdminTestimonial, photo: string | null) => Promise<void>;
   remove: (entry: AdminTestimonial) => Promise<void>;
+  syncPhotos: (id?: string) => Promise<void>;
 }
 export const newTestimonial = (): AdminTestimonial => ({
-  id: crypto.randomUUID(), display_name: '', quote: '', product_ids: [], has_image: false, image_alt: '',
+  id: crypto.randomUUID(), display_name: '', quote: '', product_ids: [], has_image: false, image_url: null, image_alt: '',
   featured: false, sort_order: 0, published: false, consent_confirmed: false, consent_date: null,
   consent_source: '', version: 0,
 });
@@ -35,6 +37,7 @@ export function isTestimonial(value: unknown): value is Testimonial {
   const item = value as Record<string, unknown>;
   return typeof item.id === 'string' && typeof item.display_name === 'string' && typeof item.quote === 'string'
     && Array.isArray(item.product_ids) && item.product_ids.every(id => typeof id === 'string') && typeof item.has_image === 'boolean'
+    && (item.image_url === null || (typeof item.image_url === 'string' && item.image_url.startsWith('https://')))
     && typeof item.image_alt === 'string' && typeof item.featured === 'boolean'
     && Number.isInteger(item.sort_order);
 }
@@ -85,7 +88,18 @@ export const customerLoveRepository: CustomerLoveRepository = {
     if (error) throw error;
     if (data !== entry.id) throw new Error('Testimonial deletion was not confirmed.');
   },
+  async syncPhotos(id) {
+    const { error } = await (await client()).functions.invoke('customer-love-photos', { body: id ? { id } : {} });
+    if (error) throw new Error(await functionErrorMessage(error, 'Unable to update the public photo in R2.'));
+  },
 };
+async function functionErrorMessage(error: { message: string; context?: unknown }, fallback: string) {
+  if (error.context instanceof Response) {
+    const body: unknown = await error.context.clone().json().catch(() => null);
+    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') return body.error;
+  }
+  return error.message || fallback;
+}
 export function validateTestimonial(entry: AdminTestimonial) {
   if (!entry.display_name.trim() || entry.display_name.trim().length > 80
     || entry.quote.trim().length < 10 || entry.quote.trim().length > 1000) {
@@ -118,9 +132,6 @@ export async function prepareTestimonialPhoto(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Unable to read prepared photo.'));
     reader.readAsDataURL(prepared);
   });
-}
-export function testimonialPhotoUrl(id: string) {
-  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/customer-love-image?id=${encodeURIComponent(id)}`;
 }
 export async function generateTestimonialPhotoDescription(imageBase64: string): Promise<string> {
   const { data, error } = await (await client()).functions.invoke('analyze-product', {

@@ -71,8 +71,8 @@ verify_jwt = false
 [functions.feedback-worker]
 verify_jwt = false
 
-[functions.customer-love-image]
-verify_jwt = false
+[functions.customer-love-photos]
+verify_jwt = true
 
 [functions.artisan-invitations]
 verify_jwt = true

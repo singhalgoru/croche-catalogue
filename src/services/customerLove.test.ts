@@ -1,8 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { customerLoveRepository, fetchTestimonials, newTestimonial, prepareTestimonialPhoto, validateTestimonial } from './customerLove';
 
-const { rpc, convert, resize } = vi.hoisted(() => ({ rpc: vi.fn(), convert: vi.fn(), resize: vi.fn() }));
-vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ rpc }) }));
+const { rpc, invoke, convert, resize } = vi.hoisted(() => ({ rpc: vi.fn(), invoke: vi.fn(), convert: vi.fn(), resize: vi.fn() }));
+vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({ rpc, functions: { invoke } }) }));
 vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: convert, createResizedWebp: resize }));
 const valid = () => ({ ...newTestimonial(), display_name: 'Demo customer', quote: 'A lovely handmade keepsake.' });
 beforeEach(() => vi.clearAllMocks());
@@ -28,6 +28,19 @@ it('requests only published public data and rejects malformed responses', async 
   expect(rpc).toHaveBeenCalledWith('list_customer_love', { admin_view: false });
   rpc.mockResolvedValueOnce({ data: [{ id: 'partial' }] });
   await expect(fetchTestimonials()).rejects.toThrow('Invalid Customer Love');
+  rpc.mockResolvedValueOnce({ data: [{ ...valid(), image_url: 'javascript:alert(1)' }] });
+  await expect(fetchTestimonials()).rejects.toThrow('Invalid Customer Love');
+});
+it('syncs public photos to R2 and surfaces the function error', async () => {
+  invoke.mockResolvedValueOnce({ data: { results: [] }, error: null });
+  await customerLoveRepository.syncPhotos('id-1');
+  expect(invoke).toHaveBeenCalledWith('customer-love-photos', { body: { id: 'id-1' } });
+  invoke.mockResolvedValueOnce({ data: { results: [] }, error: null });
+  await customerLoveRepository.syncPhotos();
+  expect(invoke).toHaveBeenLastCalledWith('customer-love-photos', { body: {} });
+  invoke.mockResolvedValueOnce({ data: null, error: { message: 'Edge Function returned a non-2xx status code',
+    context: new Response(JSON.stringify({ error: 'R2 upload failed with status 503.' }), { status: 502 }) } });
+  await expect(customerLoveRepository.syncPhotos('id-1')).rejects.toThrow('R2 upload failed with status 503.');
 });
 it('guards admin reads, version-checks saves and requires matching receipts', async () => {
   const entry = valid();

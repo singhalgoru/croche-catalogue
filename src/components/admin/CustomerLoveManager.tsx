@@ -55,6 +55,12 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to open testimonial.'); }
     finally { setBusy(false); }
   };
+  const syncPhotos = async (id?: string) => {
+    try { await repository.syncPhotos(id); return ''; }
+    catch (failure) {
+      return `${failure instanceof Error ? failure.message : 'Unable to update public photos.'} Select “Sync photos to R2” to retry.`;
+    }
+  };
   const update = (patch: Partial<AdminTestimonial>) => setDraft(value => {
     if (!value) return value;
     const changesPublicContent = ['display_name', 'quote', 'product_ids', 'has_image', 'image_alt'].some(key => Object.hasOwn(patch, key));
@@ -67,9 +73,17 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
         <p className="text-sm">Turn customer messages into beautiful quote cards. Only published stories are public; featured stories also appear on the homepage.</p>
         <p className="text-xs">Keep the original meaning. Use initials or a customer-approved name. Obtain permission for the quote, name and photo; crop out chat details, faces and location clues as needed.</p>
       </div>
-      <button type="button" className={buttonClass} disabled={busy || loading || Boolean(loadError)} onClick={() => void edit(newTestimonial())}>
-        Add testimonial
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" className={buttonClass} disabled={busy || loading || Boolean(loadError)} onClick={() => void edit(newTestimonial())}>
+          Add testimonial
+        </button>
+        <button type="button" className="min-h-11 underline" disabled={busy || loading} onClick={async () => {
+          setBusy(true); setError(''); setNotice('');
+          const failure = await syncPhotos();
+          if (failure) setError(failure); else setNotice('Public photos are up to date in R2.');
+          setRetry(value => value + 1); setBusy(false);
+        }}>Sync photos to R2</button>
+      </div>
     </div>
     {loading && <p role="status">Loading testimonials...</p>}
     {loadError && <div><p role="alert">{loadError}</p><button className="min-h-11 underline"
@@ -96,6 +110,8 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
           validateTestimonial(draft);
           await repository.save(draft, photo);
           setDraft(null); setNotice(draft.published ? 'Testimonial published.' : 'Testimonial saved as a private draft.');
+          const failure = await syncPhotos(draft.id);
+          if (failure) setError(`Testimonial saved, but its public photo was not updated. ${failure}`);
           setRetry(value => value + 1);
         } catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to save testimonial.'); }
         finally { setBusy(false); }
@@ -219,7 +235,12 @@ export default function CustomerLoveManager({ repository = customerLoveRepositor
         {error && <p role="alert" className="text-red-700">{error}</p>}
         <button className={buttonClass} disabled={busy} onClick={async () => {
           setBusy(true); setError('');
-          try { await repository.remove(deleteEntry); setDeleteEntry(null); setNotice('Testimonial deleted.'); setRetry(value => value + 1); }
+          try {
+            await repository.remove(deleteEntry); setDeleteEntry(null); setNotice('Testimonial deleted.');
+            const failure = await syncPhotos(deleteEntry.id);
+            if (failure) setError(`Testimonial deleted, but its public photo copy was not removed. ${failure}`);
+            setRetry(value => value + 1);
+          }
           catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to delete testimonial.'); }
           finally { setBusy(false); }
         }}>Confirm delete</button>

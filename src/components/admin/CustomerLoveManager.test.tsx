@@ -5,15 +5,29 @@ import { newTestimonial, type CustomerLoveRepository } from '../../services/cust
 import { mockNativeDialog } from './dialogTestSupport';
 
 const entry = { ...newTestimonial(), display_name: 'Demo customer', quote: 'Such a beautiful handmade keepsake!', version: 1 };
-const repository: CustomerLoveRepository = { list: vi.fn(), photo: vi.fn(), save: vi.fn(), remove: vi.fn() };
+const repository: CustomerLoveRepository = { list: vi.fn(), photo: vi.fn(), save: vi.fn(), remove: vi.fn(), syncPhotos: vi.fn() };
 const products: [] = [];
 let restoreDialog: () => void;
 beforeEach(() => {
   restoreDialog = mockNativeDialog(); vi.clearAllMocks();
   vi.mocked(repository.list).mockResolvedValue([entry]);
   vi.mocked(repository.save).mockResolvedValue();
+  vi.mocked(repository.syncPhotos).mockResolvedValue();
 });
 afterEach(() => { cleanup(); restoreDialog(); });
+
+it('syncs the public R2 photo after saving and reports a failed sync with a retry', async () => {
+  vi.mocked(repository.syncPhotos).mockRejectedValueOnce(new Error('R2 upload failed with status 503.'));
+  render(<CustomerLoveManager repository={repository} products={products} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit Demo customer' }));
+  fireEvent.submit(await screen.findByRole('form', { name: 'Testimonial editor' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent',
+    'Testimonial saved, but its public photo was not updated. R2 upload failed with status 503. Select “Sync photos to R2” to retry.');
+  expect(repository.syncPhotos).toHaveBeenCalledWith(entry.id);
+  fireEvent.click(screen.getByRole('button', { name: 'Sync photos to R2' }));
+  await screen.findByText('Public photos are up to date in R2.');
+  expect(repository.syncPhotos).toHaveBeenLastCalledWith(undefined);
+});
 
 it('adds a private draft and previews the exact quote before saving', async () => {
   render(<CustomerLoveManager repository={repository} products={products} />);
@@ -92,4 +106,5 @@ it('asks before deleting and surfaces load failures with retry', async () => {
   expect(repository.remove).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
   await waitFor(() => expect(repository.remove).toHaveBeenCalledWith(entry));
+  await waitFor(() => expect(repository.syncPhotos).toHaveBeenCalledWith(entry.id));
 });

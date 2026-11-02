@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { Product } from '../types/product';
-import { fetchTestimonials, testimonialPhotoUrl, type Testimonial } from '../services/customerLove';
+import { fetchTestimonials, type Testimonial } from '../services/customerLove';
 import { toProductPageUrl } from '../utils/productLink';
 import RotatingCarousel from './RotatingCarousel';
 
 export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = false }: {
   entry: Testimonial; products?: Product[]; imageUrl?: string; fullQuote?: boolean;
 }) {
-  const source = imageUrl ?? testimonialPhotoUrl(entry.id);
+  const source = imageUrl ?? entry.image_url;
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const imageFailed = failedSource === source;
   const characters = Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(entry.quote), part => part.segment);
@@ -18,7 +18,7 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
   </blockquote>;
   return <figure id={fullQuote ? `testimonial-${entry.id}` : undefined} tabIndex={fullQuote ? -1 : undefined}
     className={`${fullQuote ? 'h-full' : 'flex h-[30rem] flex-col'} scroll-mt-24 overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm`}>
-    {entry.has_image && !imageFailed && (fullQuote
+    {entry.has_image && source && !imageFailed && (fullQuote
       ? <img src={source} alt={entry.image_alt} loading="lazy" decoding="async" width={480} height={480}
         onError={() => setFailedSource(source)} className="h-auto w-full bg-cream object-contain" />
       : <div className="relative h-56 shrink-0 overflow-hidden bg-cream">

@@ -61,7 +61,7 @@ const productCards = items => items.map((product, index) => {
   <a class="button" href="https://wa.me/?text=${encodeURIComponent(`${product.name} — ${ORIGIN}/p/${toProductSlug(product)}/`)}" aria-label="Share ${escapeHtml(product.name)}">Share</a></div></li>`;
 }).join('');
 
-export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = [], testimonialImageBase = '') => {
+export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = []) => {
   const pages = new Map();
   const orderedCategories = [...categories].sort((a, b) => Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority);
   const groups = new Map(orderedCategories.filter(category => category.visible !== false).map(category => [
@@ -211,7 +211,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     '<p class="intro">Made with love. Loved in real life.</p>'
     + (testimonials.length ? `<div class="grid">${testimonials.map(entry => {
       const taggedProducts = products.filter(item => entry.product_ids.includes(item.id));
-      return `<figure class="card" id="testimonial-${escapeHtml(entry.id)}" tabindex="-1" style="scroll-margin-top:6rem">${entry.has_image && testimonialImageBase ? `<img src="${escapeHtml(`${testimonialImageBase}/functions/v1/customer-love-image?id=${encodeURIComponent(entry.id)}`)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" loading="lazy" style="width:100%;height:auto;border-radius:12px">` : ''}
+      return `<figure class="card" id="testimonial-${escapeHtml(entry.id)}" tabindex="-1" style="scroll-margin-top:6rem">${entry.has_image && entry.image_url ? `<img src="${escapeHtml(entry.image_url)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" loading="lazy" style="width:100%;height:auto;border-radius:12px">` : ''}
         <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption>
         ${taggedProducts.map(product => `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>`).join('')}</figure>`;
     }).join('')}</div>` : '<p>Customer stories will appear here once shared with permission.</p>'),

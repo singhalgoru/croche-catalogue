@@ -847,6 +847,7 @@ export async function fetchPublicTestimonials(supabaseUrl, anonKey) {
   if (!Array.isArray(entries) || entries.some(entry => !entry || typeof entry.id !== 'string'
     || typeof entry.display_name !== 'string' || typeof entry.quote !== 'string'
     || typeof entry.has_image !== 'boolean' || typeof entry.image_alt !== 'string'
+    || !(entry.image_url === null || (typeof entry.image_url === 'string' && entry.image_url.startsWith('https://')))
     || !Array.isArray(entry.product_ids) || entry.product_ids.some(id => typeof id !== 'string'))) {
     throw new Error('Invalid public Customer Love snapshot.');
   }
@@ -925,7 +926,7 @@ const main = async () => {
 
   const today = new Date().toISOString().slice(0, 10);
   const { buildContentPages, renderContentSitemap } = await import('./content-pages.mjs');
-  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials, supabaseUrl);
+  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials);
   for (const [pathname, html] of contentPages) {
     const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
     await mkdir(dir, { recursive: true });

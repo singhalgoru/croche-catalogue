@@ -38,13 +38,14 @@ test('extracts review text locally without uploading the image or publishing it'
 test('homepage testimonial cards stay compact with photos, long quotes and multiple product tags', async ({ page }) => {
   const catalogue = await installMockSupabase(page);
   const photo = await sharp({ create: { width: 400, height: 900, channels: 3, background: '#f3cf74' } }).webp().toBuffer();
-  await page.route('**/functions/v1/customer-love-image*', route => route.fulfill({ body: photo, contentType: 'image/webp' }));
+  await page.route('https://images.luviacreations.com/customer-reviews/**', route => route.fulfill({ body: photo, contentType: 'image/webp' }));
   await page.route('**/rest/v1/rpc/list_customer_love', route => route.fulfill({ json: [
     { id: '10000000-0000-4000-8000-000000000007', display_name: 'Synthetic photo customer',
       quote: 'Beautiful handmade gifts! '.repeat(30), product_ids: catalogue.products.map(product => product.id),
-      has_image: true, image_alt: 'Synthetic tall customer photo', featured: true, sort_order: 0 },
+      has_image: true, image_url: 'https://images.luviacreations.com/customer-reviews/10000000-0000-4000-8000-000000000007-0123456789abcdef.webp',
+      image_alt: 'Synthetic tall customer photo', featured: true, sort_order: 0 },
     { id: '10000000-0000-4000-8000-000000000008', display_name: 'Synthetic text customer',
-      quote: 'A lovely handmade gift.', product_ids: [], has_image: false, image_alt: '', featured: true, sort_order: 1 },
+      quote: 'A lovely handmade gift.', product_ids: [], has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 1 },
   ] }));
   await page.goto('./');
   const cards = page.getByRole('group', { name: 'Customer Love', exact: true }).locator(':scope > div:not([inert]) figure');
@@ -82,7 +83,7 @@ test('long quote previews link to the complete testimonial after delayed loading
   await page.route('**/rest/v1/rpc/list_customer_love', async route => {
     await new Promise(resolve => setTimeout(resolve, 300));
     await route.fulfill({ json: [{ id, display_name: 'Synthetic long story', quote, product_ids: [],
-      has_image: false, image_alt: '', featured: true, sort_order: 0 }] });
+      has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 0 }] });
   });
   await page.goto('./');
   await expect(page.getByRole('blockquote')).toContainText('...');
@@ -101,7 +102,7 @@ test('late-loading customer stories preserve product section anchor alignment', 
     await new Promise(resolve => setTimeout(resolve, 700));
     await route.fulfill({ json: [{ id: '10000000-0000-4000-8000-000000000001', display_name: 'Synthetic late story',
       quote: 'A lovely handmade gift that arrived after the catalogue loaded.', product_ids: [],
-      has_image: false, image_alt: '', featured: true, sort_order: 0 }] });
+      has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 0 }] });
   });
   await page.goto('./#products');
   await expect(page.getByText('Synthetic late story', { exact: true })).toBeVisible();
@@ -116,26 +117,37 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   await page.route('**/rest/v1/rpc/list_customer_love', async route => {
     const admin = route.request().postDataJSON().admin_view;
     await route.fulfill({ json: admin ? entries : entries.filter(entry => entry.published && entry.consent_confirmed)
-      .map(({ published: _published, consent_confirmed: _consent, consent_date: _date, consent_source: _source, version: _version, ...entry }) => entry) });
+      .map(({ published: _published, consent_confirmed: _consent, consent_date: _date, consent_source: _source, version: _version, ...entry }) =>
+        ({ ...entry, has_image: Boolean(entry.image_url) })) });
   });
+  const r2Objects = new Map<string, string>();
   await page.route('**/rest/v1/rpc/save_customer_love', async route => {
     const body = route.request().postDataJSON();
     const previous = entries.find(entry => entry.id === body.testimonial_id);
     expect(body.expected_version).toBe(previous?.version ?? 0);
-    const saved = { ...body.entry, version: body.expected_version + 1 };
+    const saved = { ...body.entry, image_url: null, version: body.expected_version + 1 };
     if (previous) Object.assign(previous, saved); else entries.push(saved);
     if (body.photo_base64) photos.set(saved.id, body.photo_base64);
     await route.fulfill({ json: body.testimonial_id });
   });
+  await page.route('**/functions/v1/customer-love-photos', async route => {
+    const { id } = route.request().postDataJSON();
+    const entry = entries.find(item => item.id === id);
+    for (const key of [...r2Objects.keys()].filter(key => key.includes(id))) r2Objects.delete(key);
+    if (entry?.published && entry.consent_confirmed && photos.has(id)) {
+      const key = `customer-reviews/${id}-0123456789abcdef.webp`;
+      r2Objects.set(key, photos.get(id)!);
+      entry.image_url = `https://images.luviacreations.com/${key}`;
+    } else if (entry) entry.image_url = null;
+    await route.fulfill({ json: { results: [] } });
+  });
   await page.route('**/rest/v1/rpc/customer_love_photo', async route => {
     await route.fulfill({ json: photos.get(route.request().postDataJSON().testimonial_id) ?? null });
   });
-  await page.route('**/functions/v1/customer-love-image*', async route => {
-    const id = new URL(route.request().url()).searchParams.get('id')!;
-    const image = photos.get(id);
-    if (image && entries.some(entry => entry.id === id && entry.published)) {
-      await route.fulfill({ body: Buffer.from(image, 'base64'), contentType: 'image/webp' });
-    } else await route.fulfill({ status: 404 });
+  await page.route('https://images.luviacreations.com/customer-reviews/**', async route => {
+    const image = r2Objects.get(new URL(route.request().url()).pathname.slice(1));
+    if (image) await route.fulfill({ body: Buffer.from(image, 'base64'), contentType: 'image/webp' });
+    else await route.fulfill({ status: 404 });
   });
   await page.goto('./#admin');
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
@@ -203,4 +215,5 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   await expect(page.getByText('Testimonial saved as a private draft.')).toBeVisible();
   await page.goto('./customer-love/');
   await expect(page.getByText('Synthetic customer', { exact: true })).toHaveCount(0);
+  expect(r2Objects.size).toBe(0);
 });

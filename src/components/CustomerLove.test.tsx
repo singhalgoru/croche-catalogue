@@ -28,6 +28,13 @@ it('retains the quote at the 240-character boundary and provides a link for visu
   expect(screen.getByRole('blockquote').textContent).toContain('a'.repeat(240));
   expect(screen.getByRole('link', { name: /Read full testimonial/ })).toBeTruthy();
 });
+it('loads public photos from their R2 URL and hides photos that are not yet in R2', () => {
+  const url = 'https://images.luviacreations.com/customer-reviews/story-0123456789abcdef.webp';
+  const { rerender } = render(<TestimonialCard entry={{ ...entries[0], has_image: true, image_url: url, image_alt: 'Crochet gift' }} />);
+  expect(screen.getByAltText('Crochet gift').getAttribute('src')).toBe(url);
+  rerender(<TestimonialCard entry={{ ...entries[0], has_image: true, image_url: null, image_alt: 'Crochet gift' }} />);
+  expect(screen.queryByAltText('Crochet gift')).toBeNull();
+});
 it('shows featured stories on homepage and every published story on the full page', () => {
   const { rerender } = render(<CustomerLove products={[]} entries={entries} />);
   expect(screen.getByText('Featured customer')).toBeTruthy();
