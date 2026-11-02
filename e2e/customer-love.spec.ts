@@ -57,12 +57,18 @@ test('homepage testimonial cards stay compact with photos, long quotes and multi
   const measurements = await cards.evaluateAll(elements => elements.map(element => {
     const bounds = element.getBoundingClientRect();
     const quote = element.querySelector('blockquote')!.getBoundingClientRect();
+    const caption = element.querySelector('figcaption')!;
+    const name = caption.getBoundingClientRect();
+    const readMore = element.querySelector('a[aria-label^="Read full testimonial"]')!.getBoundingClientRect();
     return { height: bounds.height, quoteHeight: quote.height,
+      nameVisible: name.height >= 20 && name.top >= readMore.bottom - 1 && name.bottom <= bounds.bottom
+        && caption.scrollHeight <= caption.clientHeight + 1,
       linksFit: [...element.querySelectorAll('a')].every(link => link.getBoundingClientRect().bottom <= bounds.bottom) };
   }));
   expect(measurements.map(item => item.height)).toEqual([480, 480]);
   for (const item of measurements) {
     expect(item.quoteHeight).toBeLessThanOrEqual(72);
+    expect(item.nameVisible).toBe(true);
     expect(item.linksFit).toBe(true);
   }
   await page.getByRole('link', { name: 'Read full testimonial from Synthetic photo customer', exact: true }).click();

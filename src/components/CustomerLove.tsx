@@ -29,15 +29,14 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
           onError={() => setFailedSource(source)} className="relative h-full w-full object-contain" {...productImageProtection} />
       </div>)}
     <div className={fullQuote ? 'space-y-3 p-5' : 'flex min-h-0 flex-1 flex-col gap-2 p-4'}>
-      <p className="text-xs font-semibold uppercase tracking-widest text-cocoa/60">A little love, handmade</p>
       {imageFailed && <p role="status" className="text-xs">Customer photo is currently unavailable.</p>}
       {!fullQuote ? <a href={`/customer-love/#testimonial-${encodeURIComponent(entry.id)}`}
         aria-label={`Read full testimonial from ${entry.display_name}`}
-        className="block">
+        className="block min-h-0 overflow-hidden">
         {quote}
         <span className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">Read full testimonial</span>
       </a> : quote}
-      <figcaption className={`${fullQuote ? '' : 'truncate '}text-sm font-semibold text-cocoa`}>{entry.display_name}</figcaption>
+      <figcaption className={`${fullQuote ? '' : 'shrink-0 truncate leading-6 '}text-sm font-semibold text-cocoa`}>{entry.display_name}</figcaption>
       {products.length > 0 && <div className={fullQuote ? 'flex flex-wrap gap-x-4' : 'mt-auto flex shrink-0 gap-4 overflow-x-auto'}>{products.map(product => <a key={product.id} href={toProductPageUrl(product)} className={`${fullQuote ? '' : 'shrink-0 whitespace-nowrap '}inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4`}>
         Shop {product.name}
       </a>)}</div>}
