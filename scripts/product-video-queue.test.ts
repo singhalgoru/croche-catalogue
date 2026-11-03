@@ -76,17 +76,27 @@ it('records an explicit failure without publishing when either asset upload fail
   await expect(access(resolve('.video-processing', id))).rejects.toThrow();
 });
 
-it('deletes only published originals, verifies absence, then records cleanup without deleting processed assets', async () => {
+it('deletes every private copy of a published video, verifies absence, and never touches the public bucket', async () => {
   jobs = [];
   processed = [{ id }];
   storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
     new Response(null, { status: options?.method === 'HEAD' ? 404 : 204 }));
-  await processQueue(env, { encode });
-  expect(storageFetch.mock.calls.map(call => [call[0], call[1].method])).toEqual([
-    [`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/original.mp4`, 'DELETE'],
-    [`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/original.mp4`, 'HEAD'],
-  ]);
+  await processQueue({ ...env, R2_VIDEO_BUCKET: 'videos' }, { encode });
+  expect(storageFetch.mock.calls.map(call => [call[0], call[1].method])).toEqual(
+    ['original.mp4', 'music.bin', 'video.mp4', 'poster.webp'].flatMap(file => [
+      [`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/${file}`, 'DELETE'],
+      [`https://account.r2.cloudflarestorage.com/private/making-videos/${id}/${file}`, 'HEAD'],
+    ]));
   expect(rpc).toHaveBeenCalledWith('finish_product_video_original_cleanup', { p_job_id: id });
+});
+
+it('does not record cleanup when a private copy is still present', async () => {
+  jobs = [];
+  processed = [{ id }];
+  storageFetch.mockImplementation(async (url: string, options?: { method?: string }) =>
+    new Response(null, { status: options?.method === 'HEAD' ? (url.endsWith('poster.webp') ? 200 : 404) : 204 }));
+  await expect(processQueue(env, { encode })).rejects.toThrow('could not be verified');
+  expect(rpc.mock.calls.some(call => call[0] === 'finish_product_video_original_cleanup')).toBe(false);
 });
 
 it('keeps the original after processing into a private review draft', async () => {
@@ -130,7 +140,7 @@ it.each([['DELETE', 503], ['HEAD', 200], ['HEAD', 403]])(
     jobs = []; processed = [{ id }];
     storageFetch.mockImplementation(async (_url: string, options?: { method?: string }) =>
       new Response(null, { status: options?.method === method ? status : 204 }));
-    await expect(processQueue(env, { encode })).rejects.toThrow(/Original video/);
+    await expect(processQueue(env, { encode })).rejects.toThrow(/Private video/);
     expect(rpc).not.toHaveBeenCalledWith('finish_product_video_original_cleanup', { p_job_id: id });
     expect(rpc.mock.calls.some(call => call[0] === 'finish_product_video')).toBe(false);
   },

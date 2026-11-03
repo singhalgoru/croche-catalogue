@@ -274,24 +274,27 @@ export async function processQueue(env = process.env, { encode = encodeVideo } =
       await rm(dir, { recursive: true, force: true });
     }
   }
-  // Only successfully published jobs qualify; private review drafts retain sources.
+  // Published jobs are served from the public video bucket, so every private copy is redundant.
+  // Review drafts keep theirs for preview and reprocessing.
   const { data: processed, error: cleanupQueryError } = await db.from('product_video_jobs')
     .select('id').in('status', ['ready'])
     .is('original_deleted_at', null).limit(30);
   if (cleanupQueryError) throw cleanupQueryError;
   for (const job of processed) {
     if (!UUID.test(job.id)) throw new Error('Invalid stored job ID.');
-    const url = objectUrl(env.R2_ORIGINALS_BUCKET, `making-videos/${job.id}/original.mp4`);
-    const response = await r2.fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(30_000) });
-    if (!response.ok && !(response.status === 404 && /<Code>NoSuchKey<\/Code>/.test(await response.text()))) {
-      throw new Error(`Original video cleanup failed (HTTP ${response.status}). Retry processing workflow; processed video is safe.`);
+    for (const file of ['original.mp4', 'music.bin', 'video.mp4', 'poster.webp']) {
+      const url = objectUrl(env.R2_ORIGINALS_BUCKET, `making-videos/${job.id}/${file}`);
+      const response = await r2.fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(30_000) });
+      if (!response.ok && !(response.status === 404 && /<Code>NoSuchKey<\/Code>/.test(await response.text()))) {
+        throw new Error(`Private video cleanup failed (HTTP ${response.status}). Retry processing workflow; the published video is safe.`);
+      }
+      const head = await r2.fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(30_000) });
+      if (head.status !== 404) throw new Error(`Private video deletion could not be verified (HTTP ${head.status}).`);
     }
-    const head = await r2.fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(30_000) });
-    if (head.status !== 404) throw new Error(`Original video deletion could not be verified (HTTP ${head.status}).`);
     if (!await rpc('finish_product_video_original_cleanup', { p_job_id: job.id })) {
-      throw new Error('Original video cleanup was not confirmed. Retry processing workflow.');
+      throw new Error('Private video cleanup was not confirmed. Retry processing workflow.');
     }
-    console.log(`Video job ${job.id}: original deleted; processed video and poster retained`);
+    console.log(`Video job ${job.id}: private copies deleted; published video retained`);
   }
   // Discard still authorizes deletion of the other private/public draft assets.
   const { data: replaced, error: replacedError } = await db.from('product_video_jobs')
