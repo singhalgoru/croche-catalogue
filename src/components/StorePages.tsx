@@ -405,11 +405,14 @@ export default function StorePages({
             </li>)}
           </ul>}
         </>}
-      </> : <><p>Find your favourites by collection, then open a product for photos and details.</p>
+      </> : isCustomerLove || isStory ? showCatalogue && visibleCategories.length > 0 && <section className="space-y-3">
+        <h2 className="font-heading text-xl font-bold">Explore collections</h2>
+        <CollectionGrid categories={visibleCategories} products={products} />
+      </section> : <><p>Find your favourites by collection, then open a product for photos and details.</p>
         <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
-      {showCatalogue && !isCollectionsHub && !policy && !isArtisans && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
+      {showCatalogue && !isCollectionsHub && !isCustomerLove && !isStory && !policy && !isArtisans && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
     </main><Footer showCollaboration={!isArtisans} showBulkOrders={!isArtisans && !isBulkOrders} />
   </div>;
 }

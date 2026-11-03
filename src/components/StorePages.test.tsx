@@ -285,6 +285,16 @@ describe('live store pages', () => {
     rerender(<StorePages {...initial} products={[...products, { ...products[0], id: 'p2' }]} />);
     expect(toyLink.textContent).toContain('2 products');
   });
+  it('shows collection cards once on Customer Love without a repeated text list', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('[]', { headers: { 'Content-Type': 'application/json' } }));
+    window.history.replaceState(null, '', '/customer-love/');
+    render(<StorePages {...initial} />);
+    expect(screen.getAllByRole('heading', { name: 'Explore collections' })).toHaveLength(1);
+    const nav = screen.getByRole('navigation', { name: 'Explore collections' });
+    expect(within(nav).getByRole('link', { name: /Toys/ }).querySelectorAll('img')).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /^Toys/ })).toHaveLength(1);
+    expect(screen.queryByText(/Find your favourites by collection/)).toBeNull();
+  });
   it('uses the homepage warm card surface and full-photo layout without white padding', () => {
     window.history.replaceState(null, '', '/collections/toys/');
     render(<StorePages {...initial} />);
