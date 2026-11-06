@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Cart } from '../types/cart';
-import { formatINR } from '../utils/currency';
-import { getCartTotals } from '../utils/cartMessage';
 import type { DeliveryDetails, SavedAddress } from '../types/customer';
 import { emptyDeliveryDetails, normalizeDeliveryDetails, validateDeliveryDetails, deliveryAddressText } from '../utils/customer';
 import { fetchCustomerAddresses, fetchCustomerProfile } from '../services/customer';
@@ -15,7 +13,6 @@ interface Props {
   cart: Cart;
   busy: boolean;
   onSave: (value: DeliveryDetails) => Promise<Cart | null>;
-  onCoupon: (code: string) => Promise<Cart | null>;
   onlineCheckout?: boolean;
   pageStep?: 'delivery' | 'review';
   onReview?: () => void;
@@ -27,14 +24,12 @@ const addressFields = [
   ['addressLine2', 'Area / landmark (optional)', 200, false],
   ['city', 'City', 80, true], ['state', 'State', 80, true], ['pincode', 'Pincode', 6, true],
 ] as const;
-export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineCheckout = false, pageStep, onReview, onEdit, onBack }: Props) {
-  const totals = getCartTotals(cart);
+export default function CustomerFunnel({ cart, busy, onSave, onlineCheckout = false, pageStep, onReview, onEdit, onBack }: Props) {
   const [step, setStep] = useState<'cart' | 'contact' | 'address' | 'review'>(() =>
     pageStep === 'delivery' ? 'contact' : cart.deliveryDetails ? 'review' : pageStep ? 'contact' : 'cart');
   const [details, setDetails] = useState<DeliveryDetails>(() => cart.deliveryDetails ?? { ...emptyDeliveryDetails(), pincode: cart.deliveryPinCode ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   useEffect(() => {
     let current = true;
@@ -207,11 +202,6 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
               We could not confirm this PIN’s postal area. Please double-check it; Luvia will confirm delivery availability.
             </p>}
         </section>
-        {cart.welcomeCouponCode && <p className="break-words">{cart.coupon
-          ? totals.couponShortfall > 0
-            ? `Coupon ${cart.coupon.code} not applied: minimum items value not met.`
-            : `Coupon ${cart.coupon.code} applied: ${cart.coupon.percent}% off (up to ${formatINR(cart.coupon.maxDiscountRupees)}) on items worth ${formatINR(cart.coupon.minimumSubtotalRupees)}+`
-          : `Requested coupon: ${cart.welcomeCouponCode} (subject to confirmation)`}</p>}
         <p className="text-xs">{onlineCheckout ? 'Review your items, coupon, shipping and total, then pay securely with Razorpay.'
           : 'Review your cart items and estimated total, then send the order request using WhatsApp or email.'}</p>
         {onlineCheckout && !reviewed.email?.trim() && <p role="alert" className="text-xs text-red-700">Edit details and add a contact email to receive your order confirmation before payment.</p>}
@@ -219,26 +209,6 @@ export default function CustomerFunnel({ cart, busy, onSave, onCoupon, onlineChe
           if (onEdit) onEdit();
           else { setDetails(reviewed); setStep('contact'); }
         }} className="underline">Edit details</button>
-        <form className="space-y-2" onSubmit={event => {
-          event.preventDefault(); setSaving(true); setError('');
-          void onCoupon(couponCode).catch(error => setError(error instanceof Error ? error.message : 'Unable to apply coupon.'))
-            .finally(() => setSaving(false));
-        }}>
-          <label className="block">Coupon code
-            <input required maxLength={64} value={couponCode} disabled={busy || saving}
-              onChange={event => setCouponCode(event.target.value.toUpperCase())} className="mt-1 w-full rounded border p-2" />
-          </label>
-          {cart.coupon && totals.couponShortfall > 0 && <p role="alert" className="text-sm text-red-700">
-            Add {formatINR(totals.couponShortfall)} more in items to reach the minimum items value of {formatINR(cart.coupon.minimumSubtotalRupees)} before applying {cart.coupon.code}. Shipping does not count towards the minimum.
-          </p>}
-          <button disabled={busy || saving} className="rounded-full border border-cocoa px-3 py-2">{onlineCheckout ? 'Apply coupon' : 'Apply coupon to request'}</button>
-          {cart.welcomeCouponCode && <button type="button" disabled={busy || saving} className="ml-3 underline"
-            onClick={() => {
-              setSaving(true); setError('');
-              void onCoupon('').catch(error => setError(error instanceof Error ? error.message : 'Unable to remove coupon.'))
-                .finally(() => setSaving(false));
-            }}>Remove coupon</button>}
-        </form>
       </>}
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     </section>

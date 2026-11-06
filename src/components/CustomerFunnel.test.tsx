@@ -28,7 +28,7 @@ async function enterAddress() {
 }
 it('supports guest contact → address → persisted review without requiring signup', async () => {
   const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: details });
-  render(<CustomerFunnel cart={cart} busy={false} onSave={save} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={cart} busy={false} onSave={save} />);
   await enterAddress();
   fireEvent.click(screen.getByRole('button', { name: 'Save and review' }));
   await waitFor(() => expect(screen.getByText('3. Review order request')).toBeTruthy());
@@ -46,7 +46,7 @@ it('shows the courier transit window for the selected address pincode after disp
     items: [{ id: 'item', productId: 'p1', variantId: 'v1', productName: 'Flower', variantName: '',
       image: '', unitPrice: 200, quantity: 1 }],
   };
-  render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} />);
   const deliveryWindow = screen.getByRole('region', { name: 'Delivery window' }).textContent ?? '';
   expect(deliveryWindow).toContain('Around');
   expect(deliveryWindow).toContain('For pincode 110001');
@@ -58,14 +58,14 @@ it('shows the courier transit window for the selected address pincode after disp
 });
 it('explains when the selected address has no courier transit estimate', () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details, deliveryPinCode: details.pincode }}
-    busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+    busy={false} onSave={vi.fn()} />);
   expect(screen.getByRole('region', { name: 'Delivery window' }).textContent)
     .toContain('A courier transit estimate is not available for pincode 110001 right now');
 });
 it('warns when postal lookup did not confirm the saved PIN area', () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: { ...details, pincode: '122050' },
     deliveryPinCode: '122050', deliveryPinCheckedAt: '2026-10-14T12:00:00.000Z' }}
-  busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  busy={false} onSave={vi.fn()} />);
   expect(screen.getByRole('status').textContent).toContain('Luvia will confirm delivery availability');
 });
 it('does not overwrite a chosen saved address when the default profile arrives later', async () => {
@@ -74,7 +74,7 @@ it('does not overwrite a chosen saved address when the default profile arrives l
   const office = { ...details, addressLine1: '5 Office Street', pincode: '411001' };
   vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'office', isDefault: false, details: office }]);
   const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: office });
-  render(<CustomerFunnel cart={cart} pageStep="delivery" busy={false} onSave={save} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={cart} pageStep="delivery" busy={false} onSave={save} />);
   fireEvent.change(await screen.findByLabelText('Deliver to saved address'), { target: { value: 'office' } });
   await waitFor(() => expect(save).toHaveBeenCalledWith(office));
   resolveProfile(details);
@@ -83,21 +83,21 @@ it('does not overwrite a chosen saved address when the default profile arrives l
 });
 it('requires a contact email for live checkout and flags older saved addresses without one', async () => {
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: { ...details, email: '' } }} busy={false}
-    onSave={vi.fn()} onCoupon={vi.fn()} onlineCheckout />);
+    onSave={vi.fn()} onlineCheckout />);
   expect(screen.getByRole('alert').textContent).toContain('add a contact email');
   fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
   expect((await screen.findByLabelText('Contact email') as HTMLInputElement).required).toBe(true);
 });
 it('keeps the address form open on persistence failure', async () => {
   const save = vi.fn().mockRejectedValue(new Error('Unable to save address.'));
-  render(<CustomerFunnel cart={cart} busy={false} onSave={save} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={cart} busy={false} onSave={save} />);
   await enterAddress();
   fireEvent.click(screen.getByRole('button', { name: 'Save and review' }));
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Unable to save'));
   expect(screen.getByText('2. Delivery address')).toBeTruthy();
 });
 it('restores saved details and allows editing them', () => {
-  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
   expect(screen.getByDisplayValue(details.name)).toBeTruthy();
 });
@@ -120,35 +120,19 @@ it('includes saved details and requested coupon in both enquiry channels when it
   }
 });
 
-it('submits a typed coupon and surfaces server eligibility errors', async () => {
-  const select = vi.fn().mockRejectedValue(new Error('Verify your email before using ILOVELUVIA.'));
-  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={vi.fn()} onCoupon={select} />);
-  fireEvent.change(screen.getByLabelText('Coupon code'), { target: { value: 'iloveluvia' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Apply coupon to request' }));
-  await waitFor(() => expect(select).toHaveBeenCalledWith('ILOVELUVIA'));
-  expect((await screen.findByRole('alert')).textContent).toContain('Verify your email');
-});
-
-it('shows the missing items value beside the coupon field and updates when the minimum is met', () => {
+it('keeps coupon entry out of the delivery review panel', () => {
   const order: Cart = { ...cart, deliveryDetails: details, welcomeCouponCode: 'ILOVELUVIA',
     coupon: { code: 'ILOVELUVIA', percent: 10, maxDiscountRupees: 100, minimumSubtotalRupees: 500 },
     items: [{ id: 'item', productId: 'product', variantId: 'variant', productName: 'Rose Charm',
       variantName: 'Pink', image: '', quantity: 1, unitPrice: 350 }] };
-  const { rerender } = render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
-  expect(screen.getByRole('alert').textContent).toContain('Add ₹150 more in items');
-  expect(screen.getByRole('alert').textContent).toContain('minimum items value of ₹500');
-  expect(screen.getByRole('alert').textContent).toContain('Shipping does not count');
-  expect(screen.getByText('Coupon ILOVELUVIA not applied: minimum items value not met.')).toBeTruthy();
-  rerender(<CustomerFunnel cart={{ ...order, items: [{ ...order.items[0], unitPrice: 500 }] }}
-    busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
-  expect(screen.queryByRole('alert')).toBeNull();
-  expect(screen.getByText(/Coupon ILOVELUVIA applied:/)).toBeTruthy();
+  render(<CustomerFunnel cart={order} busy={false} onSave={vi.fn()} />);
+  expect(screen.queryByLabelText('Coupon code')).toBeNull();
 });
 
 it('goes straight to delivery details with a guest reward note and prefills a signed-in profile', async () => {
   vi.mocked(fetchCustomerProfile).mockResolvedValue({ name: 'Saved Buyer', phone: '9123456780', email: 'saved@example.test',
     addressLine1: '9 Saved Road', addressLine2: '', city: 'Pune', state: 'Maharashtra', pincode: '411001' });
-  render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: '411002' }} busy={false} onSave={vi.fn()} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: '411002' }} busy={false} onSave={vi.fn()} />);
   expect(screen.queryByText(/Guest orders do not receive the one-time welcome reward/)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Continue with delivery details' }));
@@ -165,7 +149,7 @@ it('automatically applies a signed-in customer default address and opens review'
   const profile = { ...details, name: 'Saved Buyer' };
   vi.mocked(fetchCustomerProfile).mockResolvedValue(profile);
   const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: profile, deliveryPinCode: profile.pincode });
-  render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: profile.pincode }} busy={false} onSave={save} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={{ ...cart, deliveryPinCode: profile.pincode }} busy={false} onSave={save} />);
   expect(await screen.findByText('3. Review order request')).toBeTruthy();
   expect(save).toHaveBeenCalledWith(profile);
   expect(screen.getByText(/Saved Buyer/)).toBeTruthy();
@@ -177,7 +161,7 @@ it('lets a signed-in customer switch the order to another saved address', async 
   vi.mocked(fetchCustomerAddresses).mockResolvedValue([
     { id: 'home', isDefault: true, details }, { id: 'office', isDefault: false, details: office }]);
   const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: office, deliveryPinCode: office.pincode });
-  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={save} onCoupon={vi.fn()} />);
+  render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} onSave={save} />);
   const picker = await screen.findByLabelText('Deliver to saved address');
   expect((picker as HTMLSelectElement).value).toBe('home');
   fireEvent.change(picker, { target: { value: 'office' } });
@@ -190,7 +174,7 @@ it('offers saved addresses during delivery and saves the selected pincode before
   const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: office, deliveryPinCode: office.pincode });
   const review = vi.fn();
   render(<CustomerFunnel cart={{ ...cart, deliveryDetails: details }} busy={false} pageStep="delivery"
-    onSave={save} onCoupon={vi.fn()} onReview={review} onlineCheckout />);
+    onSave={save} onReview={review} onlineCheckout />);
   expect(screen.getByLabelText('Recipient name')).toBeTruthy();
   fireEvent.change(await screen.findByLabelText('Deliver to saved address'), { target: { value: 'office' } });
   await waitFor(() => expect(review).toHaveBeenCalledTimes(1));
@@ -200,7 +184,7 @@ it('keeps delivery open and reports failures when a saved address cannot be appl
   vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'home', isDefault: true, details }]);
   const review = vi.fn();
   render(<CustomerFunnel cart={cart} busy={false} pageStep="delivery"
-    onSave={vi.fn().mockRejectedValue(new Error('Unable to calculate shipping.'))} onCoupon={vi.fn()} onReview={review} />);
+    onSave={vi.fn().mockRejectedValue(new Error('Unable to calculate shipping.'))} onReview={review} />);
   fireEvent.change(await screen.findByLabelText('Deliver to saved address'), { target: { value: 'home' } });
   expect((await screen.findByRole('alert')).textContent).toContain('Unable to calculate shipping.');
   expect(review).not.toHaveBeenCalled();
@@ -210,7 +194,7 @@ it('requires an email for a saved live-checkout address and retains it when supp
   vi.mocked(fetchCustomerAddresses).mockResolvedValue([{ id: 'home', isDefault: true, details: { ...details, email: '' } }]);
   const save = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: details });
   render(<CustomerFunnel cart={cart} busy={false} pageStep="delivery" onlineCheckout
-    onSave={save} onCoupon={vi.fn()} />);
+    onSave={save} />);
   const picker = await screen.findByLabelText('Deliver to saved address');
   fireEvent.change(picker, { target: { value: 'home' } });
   expect(screen.getByRole('alert').textContent).toContain('Add a contact email');

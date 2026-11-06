@@ -119,6 +119,39 @@ it('also shows the coupon-aware free-delivery message in the cart drawer', () =>
     onOpenProduct={vi.fn()} onSaveDeliveryPin={vi.fn()} />);
   expect(screen.getByRole('region', { name: 'Free delivery' }).textContent).toContain('Add ₹55 more in items');
 });
+it('places coupon entry below the checkout total and applies typed codes from the summary', async () => {
+  const select = vi.fn().mockResolvedValue({ ...cart, deliveryDetails: {
+    name: 'Test Buyer', phone: '9876543210', email: 'buyer@example.test',
+    addressLine1: '12 Test Street', addressLine2: '', city: 'New Delhi', state: 'Delhi', pincode: '110001',
+  } });
+  render(<CartDrawer cart={{ ...cart, deliveryDetails: {
+    name: 'Test Buyer', phone: '9876543210', email: 'buyer@example.test',
+    addressLine1: '12 Test Street', addressLine2: '', city: 'New Delhi', state: 'Delhi', pincode: '110001',
+  } }} pageStep="review" products={[]} isLoading={false} isBusy={false} error={null}
+  onClose={vi.fn()} onUpdateQuantity={vi.fn()} onRemove={vi.fn()} onClear={vi.fn()}
+  onWhatsAppStarted={vi.fn()} onEmailStarted={vi.fn()} onOpenProduct={vi.fn()}
+  onSaveDeliveryPin={vi.fn()} onSelectWelcomeCoupon={select} />);
+  const summary = screen.getByLabelText('Cart order actions');
+  const couponForm = screen.getByRole('form', { name: 'Apply coupon' });
+  expect(summary.contains(couponForm)).toBe(true);
+  expect(summary.querySelector('form')?.previousElementSibling?.textContent).toContain('Includes estimated shipping');
+  fireEvent.change(screen.getByLabelText('Coupon code'), { target: { value: 'iloveluvia' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await waitFor(() => expect(select).toHaveBeenCalledWith('ILOVELUVIA'));
+});
+it('shows coupon validation errors in the order summary', async () => {
+  const select = vi.fn().mockRejectedValue(new Error('Verify your email before using this coupon.'));
+  render(<CartDrawer cart={{ ...cart, deliveryDetails: {
+    name: 'Test Buyer', phone: '9876543210', email: 'buyer@example.test',
+    addressLine1: '12 Test Street', addressLine2: '', city: 'New Delhi', state: 'Delhi', pincode: '110001',
+  } }} pageStep="review" products={[]} isLoading={false} isBusy={false} error={null}
+  onClose={vi.fn()} onUpdateQuantity={vi.fn()} onRemove={vi.fn()} onClear={vi.fn()}
+  onWhatsAppStarted={vi.fn()} onEmailStarted={vi.fn()} onOpenProduct={vi.fn()}
+  onSaveDeliveryPin={vi.fn()} onSelectWelcomeCoupon={select} />);
+  fireEvent.change(screen.getByLabelText('Coupon code'), { target: { value: 'SAVE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Verify your email');
+});
 it('shows the configured guest welcome discount and opens signup without closing checkout', async () => {
   vi.mocked(fetchWelcomeOffer).mockResolvedValue({ enabled: true, percent: 15, maxDiscountRupees: 80,
     minimumSubtotalRupees: 600, validDays: 7 });

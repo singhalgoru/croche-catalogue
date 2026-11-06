@@ -81,6 +81,9 @@ export default function CartDrawer({
   const [checkoutAttempt, setCheckoutAttempt] = useState(0);
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeOffer | null>(null);
   const [welcomeError, setWelcomeError] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponSaving, setCouponSaving] = useState(false);
   const canCreateAccount = Boolean(onCreateAccount);
   useEffect(() => {
     if (!isPage || !canCreateAccount || accountName) return;
@@ -441,7 +444,7 @@ export default function CartDrawer({
                 onReview={() => onNavigateStep?.('review')}
                 onEdit={isPage ? () => onNavigateStep?.('delivery') : undefined}
                 onBack={isPage ? () => onNavigateStep?.('cart') : undefined}
-                cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onCoupon={onSelectWelcomeCoupon} onlineCheckout={liveCheckout === true} />}
+                cart={checkoutCart ?? cart} busy={isBusy} onSave={onSaveDeliveryDetails} onlineCheckout={liveCheckout === true} />}
               {pageStep === 'cart' && <div className={isPage ? 'checkout-step-actions' : undefined}><button type="button" disabled={isBusy || unavailableItemIds.size > 0 || belowMinimumItemIds.size > 0}
                 onClick={() => onNavigateStep?.('delivery')} className="min-h-11 w-full rounded-full bg-cocoa px-5 py-3 font-semibold text-cream disabled:opacity-50">
                 Continue with delivery details
@@ -469,6 +472,50 @@ export default function CartDrawer({
               {totals?.discount ? `Coupon saves ${formatINR(totals.discount)} · ` : ''}{totals?.shipping === 0 ? 'Free shipping' : liveCheckout && cart?.deliveryDetails ? 'Includes shipping' : 'Includes estimated shipping'}
               {hasUnpricedItems ? ' · Unpriced items excluded' : ''}
             </p>
+            {pageStep !== 'confirmation' && checkoutCart?.deliveryDetails && onSelectWelcomeCoupon && <form
+              aria-label="Apply coupon" className="mt-4 space-y-2 border-t border-cocoa/10 pt-4"
+              onSubmit={event => {
+                event.preventDefault();
+                setCouponSaving(true);
+                setCouponError('');
+                void onSelectWelcomeCoupon(couponCode).then(updated => {
+                  if (updated) setCouponCode('');
+                  else setCouponError('Unable to apply coupon. Please retry.');
+                }).catch(failure => setCouponError(failure instanceof Error ? failure.message : 'Unable to apply coupon.'))
+                  .finally(() => setCouponSaving(false));
+              }}>
+              <label htmlFor="checkout-coupon-code" className="block text-sm font-semibold">Coupon code</label>
+              <div className="flex gap-2">
+                <input id="checkout-coupon-code" required maxLength={64} value={couponCode}
+                  disabled={isBusy || couponSaving}
+                  onChange={event => setCouponCode(event.target.value.toUpperCase())}
+                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-cocoa/25 px-3 py-2 text-sm"
+                  autoComplete="off" />
+                <button type="submit" disabled={isBusy || couponSaving}
+                  className="min-h-11 shrink-0 rounded-full border border-cocoa px-4 py-2 text-sm font-semibold disabled:opacity-50">
+                  {couponSaving ? 'Applying…' : 'Apply'}
+                </button>
+              </div>
+              {checkoutCart.welcomeCouponCode && <div className="text-xs">
+                {checkoutCart.coupon && totals && totals.couponShortfall > 0
+                  ? <p className="text-red-700">Add {formatINR(totals.couponShortfall)} more in items to use {checkoutCart.coupon.code}.</p>
+                  : checkoutCart.coupon
+                    ? <p className="text-green-800">Coupon {checkoutCart.welcomeCouponCode} applied.</p>
+                    : <p>Requested coupon: {checkoutCart.welcomeCouponCode} (subject to confirmation).</p>}
+                <button type="button" disabled={isBusy || couponSaving}
+                  onClick={() => {
+                    setCouponSaving(true);
+                    setCouponError('');
+                    void onSelectWelcomeCoupon('').then(updated => {
+                      if (!updated) setCouponError('Unable to remove coupon. Please retry.');
+                    }).catch(failure => setCouponError(failure instanceof Error ? failure.message : 'Unable to remove coupon.'))
+                      .finally(() => setCouponSaving(false));
+                  }} className="mt-1 min-h-11 font-semibold underline disabled:opacity-50">
+                  Remove coupon
+                </button>
+              </div>}
+              {couponError && <p role="alert" className="text-xs text-red-700">{couponError}</p>}
+            </form>}
             {pageStep !== 'confirmation' && totals?.hasCompletePricing && <section aria-label="Free delivery" className="mt-4 rounded-xl border border-mustard/40 bg-cream p-3 text-sm">
               {freeDeliveryShortfall > 0 ? <>
                 <p className="font-semibold">Add {formatINR(freeDeliveryShortfall)} more in items for free delivery!</p>
