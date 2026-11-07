@@ -8,6 +8,7 @@ import { canTrackMeta, initializeMetaPixel, metaProductParameters, trackMetaEven
 import { analyticsPage } from './analyticsPage';
 import type { Cart, CartItem } from '../types/cart';
 import { getCartTotals } from '../utils/cartMessage';
+import { productPromotion, rememberPromotion } from './promotionAttribution';
 
 type AnalyticsParameters = Record<string, unknown>;
 
@@ -91,6 +92,7 @@ export const initializePageTracking = () => {
 };
 
 export const cartItemParameters = (item: CartItem) => ({
+  ...productPromotion(item.productId),
   item_id: item.productId, item_name: item.productName, item_variant: item.variantName,
   variant_id: item.variantId, quantity: item.quantity,
   ...(item.unitPrice !== null ? { price: item.unitPrice } : {}),
@@ -136,6 +138,7 @@ export const trackCartChanges = (previous: Cart | null, next: Cart) => {
 };
 
 const itemParameters = (product: Product, variant?: ProductVariant) => ({
+  ...productPromotion(product.id),
   item_id: product.id,
   item_name: product.name,
   item_category: product.category,
@@ -233,7 +236,8 @@ const shopTheLookPromotion = (category: string) => ({
 
 export const trackShopTheLookViewed = (category: string, products: Product[]) => {
   trackEvent('view_promotion', { ...shopTheLookPromotion(category), hotspot_count: products.length,
-    items: products.map((product, index) => ({ ...itemParameters(product), index })) });
+    items: products.map((product, index) => ({ ...itemParameters(product), ...shopTheLookPromotion(category),
+      creative_slot: `hotspot_${index + 1}`, index })) });
 };
 
 export const trackShopTheLookHotspot = (category: string, product: Product, index: number) => {
@@ -242,6 +246,8 @@ export const trackShopTheLookHotspot = (category: string, product: Product, inde
 };
 
 export const trackShopTheLookProductOpened = (category: string, product: Product, index: number, source: 'card' | 'list') => {
+  const promotion = { ...shopTheLookPromotion(category), creative_slot: `hotspot_${index + 1}` };
+  if (canTrackAnalytics()) rememberPromotion(product.id, promotion);
   trackEvent('select_promotion', { ...shopTheLookPromotion(category), creative_slot: `hotspot_${index + 1}`,
-    link_source: source, items: [{ ...itemParameters(product), index }] });
+    link_source: source, items: [{ ...itemParameters(product), ...promotion, index }] });
 };

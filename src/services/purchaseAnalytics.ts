@@ -1,6 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import { canTrackAnalytics, trackEvent } from './analytics';
 import { canTrackMeta, trackMetaEvent } from './meta';
+import { productPromotion } from './promotionAttribution';
 
 export interface PurchaseAnalytics {
   transaction_id: string;
@@ -70,7 +71,7 @@ export const trackVerifiedPurchase = (requestId: string): Promise<void> => {
     const subtotal = purchase.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const items = purchase.items.map(item => {
       const price = item.price * purchase.value / subtotal;
-      return { ...item, price, discount: item.price - price };
+      return { ...item, ...productPromotion(item.item_id), price, discount: item.price - price };
     });
     if (!wasSent(gaKey) && trackEvent('purchase', {
       transaction_id: purchase.transaction_id, currency: purchase.currency,

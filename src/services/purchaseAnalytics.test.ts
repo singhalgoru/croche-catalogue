@@ -11,7 +11,7 @@ const purchase = {
   items: [{ item_id: 'rose', item_name: 'Rose', item_variant: 'Pink', variant_id: 'pink', price: 250, quantity: 4 }],
 };
 beforeEach(() => {
-  vi.resetModules(); vi.clearAllMocks(); localStorage.clear();
+  vi.resetModules(); vi.clearAllMocks(); localStorage.clear(); sessionStorage.clear();
   canGA.mockReturnValue(true); canMeta.mockReturnValue(true);
   ga.mockReturnValue(true); meta.mockReturnValue(true);
   rpc.mockResolvedValue({ data: purchase, error: null });
@@ -25,6 +25,23 @@ it('uses the paid server snapshot, excluding shipping from GA revenue and includ
   expect(meta).toHaveBeenCalledWith('Purchase', expect.objectContaining({
     currency: 'INR', value: 1000, num_items: 4,
   }), 'purchase-LUV-PAID');
+});
+it('carries only matching product promotions into verified purchases after a module reload', async () => {
+  const promotion = { promotion_id: 'shop_the_look:Decor', promotion_name: 'Shop this look: Decor',
+    creative_name: 'category_hotspot_image', creative_slot: 'hotspot_2' };
+  const { rememberPromotion } = await import('./promotionAttribution');
+  rememberPromotion('rose', promotion);
+  rememberPromotion('unrelated', { ...promotion, promotion_name: 'Unrelated' });
+  vi.resetModules();
+  rpc.mockResolvedValue({ data: { ...purchase, items: [purchase.items[0],
+    { ...purchase.items[0], item_id: 'other', quantity: 1 }] }, error: null });
+  const { trackVerifiedPurchase } = await import('./purchaseAnalytics');
+  await trackVerifiedPurchase('owned-request');
+  const items = ga.mock.calls[0][1].items;
+  expect(items[0]).toMatchObject(promotion);
+  expect(items[1]).not.toHaveProperty('promotion_id');
+  expect(ga.mock.calls[0][1]).not.toHaveProperty('promotion_name');
+  expect(meta.mock.calls[0][1]).not.toHaveProperty('promotion_name');
 });
 it('deduplicates concurrent callbacks, polling and page refresh independently for each channel', async () => {
   let service = await import('./purchaseAnalytics');

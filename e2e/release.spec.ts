@@ -27,6 +27,40 @@ test('homepage introduction is visible and fits on mobile and desktop', async ({
   expect(fits).toBe(true);
 });
 
+test('shop-the-look attribution survives product navigation and reaches cart items', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const product = state.products[0];
+  state.categorySettings[product.category].coverImage = product.image_url;
+  state.categorySettings[product.category].imageHotspots = [{ productId: product.id, x: 50, y: 50 }];
+  await page.route('https://images.luviacreations.com/**', route => route.fulfill({
+    contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#fdf6ec"/></svg>',
+  }));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'userAgent', { get: () => 'Analytics regression browser' });
+    Object.defineProperty(navigator, 'userAgentData', { get: () => undefined });
+    window.dataLayer = [];
+    window.gtag = (...args: unknown[]) => { window.dataLayer?.push(args); };
+  });
+  await page.goto(`/collections/${product.category.toLowerCase()}/`);
+  const look = page.getByRole('region', { name: `Shop the look: ${product.category}` });
+  await look.getByRole('button', { name: `Explore ${product.name}, hotspot 1` }).click();
+  await look.getByRole('link', { name: `View ${product.name}`, exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: product.name, exact: true })).toBeVisible();
+  const expected = { item_id: product.id, promotion_id: `shop_the_look:${product.category}`,
+    promotion_name: `Shop this look: ${product.category}`, creative_slot: 'hotspot_1' };
+  await expect.poll(() => page.evaluate(() => {
+    const event = window.dataLayer?.find(value => Array.isArray(value) && value[1] === 'view_item');
+    return Array.isArray(event) ? event[2].items[0] : null;
+  })).toMatchObject(expected);
+  await page.getByRole('button', { name: `Add to cart — ${product.name}`, exact: true }).click();
+  await expect.poll(() => page.evaluate(() => {
+    const event = window.dataLayer?.find(value => Array.isArray(value) && value[1] === 'add_to_cart');
+    return Array.isArray(event) ? event[2].items[0] : null;
+  })).toMatchObject(expected);
+});
+
 test('account deletion instructions are reachable without sign-in and linked from privacy', async ({ page }) => {
   await page.goto('/privacy-policy/');
   await expect(page.getByRole('heading', { name: 'The Luvia Android app' })).toBeVisible();

@@ -139,6 +139,37 @@ it('records shop-the-look impressions, hotspot taps and product opens as promoti
     promotion_name: 'Shop this look: Decor', creative_slot: 'hotspot_1', link_source: 'card',
   }));
 });
+it('attributes product and checkout items only after a promotion product link is opened', async () => {
+  const analytics = await import('./analytics');
+  const product: Product = { id: 'rose', name: 'Rose', category: 'Decor', price: 200, showPrice: true,
+    description: '', color: 'pink', inStock: true, image: '/rose.webp', variants: [] };
+  analytics.trackShopTheLookViewed('Decor', [product]);
+  analytics.trackShopTheLookHotspot('Decor', product, 0);
+  expect(sessionStorage.getItem('luvia:promotion:rose')).toBeNull();
+  analytics.trackShopTheLookProductOpened('Decor', product, 1, 'card');
+  vi.resetModules();
+  const reloaded = await import('./analytics');
+  ga.mockClear();
+  reloaded.trackProductViewed(product);
+  reloaded.trackCartChanges(null, cart);
+  for (const step of ['view_cart', 'begin_checkout', 'add_shipping_info', 'add_payment_info'] as const) {
+    reloaded.trackCartStep(step, { ...cart, items: [...cart.items, { ...cart.items[0], productId: 'other' }] });
+  }
+  for (const call of ga.mock.calls) {
+    expect(call[2].items[0]).toMatchObject({ promotion_id: 'shop_the_look:Decor',
+      promotion_name: 'Shop this look: Decor', creative_slot: 'hotspot_2' });
+    if (call[2].items.length > 1) expect(call[2].items[1]).not.toHaveProperty('promotion_id');
+  }
+});
+
+it('does not persist promotion clicks when GA tracking is disabled', async () => {
+  vi.stubEnv('VITE_GA_MEASUREMENT_ID', '');
+  const { trackShopTheLookProductOpened } = await import('./analytics');
+  const product: Product = { id: 'rose', name: 'Rose', category: 'Decor', price: 200, showPrice: true,
+    description: '', color: 'pink', inStock: true, image: '/rose.webp', variants: [] };
+  trackShopTheLookProductOpened('Decor', product, 0, 'list');
+  expect(sessionStorage.length).toBe(0);
+});
 it('records product WhatsApp intent with known prices only', async () => {
   const { trackWhatsAppEnquiry } = await import('./analytics');
   const product: Product = { id: 'rose', name: 'Rose', category: 'Flowers', price: 200, showPrice: true,

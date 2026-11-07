@@ -63,7 +63,7 @@
       },
       {
         "title": "Cookies and browser storage",
-        "text": "The website uses browser storage and caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. The latest eight submitted search keywords are saved in this browser on this device, not synced to an account. You can remove individual recent searches or clear them all from the search page. Analytics and advertising services may use cookies or similar technologies. Our security and bot-protection services process browser signals when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
+        "text": "The website uses browser storage and caching to maintain carts, sign-in sessions, checkout recovery and a faster browsing experience. The latest eight submitted search keywords are saved in this browser on this device, not synced to an account. You can remove individual recent searches or clear them all from the search page. When analytics is enabled, selected product-promotion details are kept in this browser tab for up to 24 hours to measure shopping activity from that promotion. Analytics and advertising services may use cookies or similar technologies. Our security and bot-protection services process browser signals when configured. Browser settings can restrict cookies or clear stored data, but doing so may interrupt sign-in, cart or payment recovery."
       },
       {
         "title": "Messaging, reviews and external services",
