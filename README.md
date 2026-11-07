@@ -36,6 +36,8 @@ an India-based handmade crochet brand.
   making videos. Tap the top-right play badge on a product image to jump to its
   making video and start muted playback (subject to browser autoplay settings).
 - Save a cart, check delivery availability, place orders and view order history.
+- Customer delivery emails include an optional link to share honest feedback
+  on Luvia Creations' Trustpilot profile.
 - Request account and associated-data deletion at `/account-deletion/`, also
   linked from signed-in account details. The Privacy Policy covers the shop
   and its Android app.

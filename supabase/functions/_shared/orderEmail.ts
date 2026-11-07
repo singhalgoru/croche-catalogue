@@ -62,6 +62,10 @@ export function buildOrderEmail(order: EmailOrder, audience: 'customer' | 'store
       : 'We will dispatch your order within 5 days of receiving it, or earlier. Delivery after dispatch depends on your location.';
   const support = kind === 'confirmed' ? 'Need help or wish to cancel before dispatch? Email'
     : 'Need help with your order? Email';
+  const reviewUrl = 'https://www.trustpilot.com/review/luviacreations.com';
+  const reviewInvitation = audience === 'customer' && kind === 'delivered'
+    && order.status === 'paid' && order.is_live_checkout;
+  const reviewText = 'How was your experience with Luvia Creations? Share your honest feedback on Trustpilot. Leaving a review is optional.';
   const trackingText = details ? [
     ...(details.courier_name ? [`Courier: ${details.courier_name}`] : []),
     ...(details.tracking_number ? [`Tracking number: ${details.tracking_number}`] : []),
@@ -88,6 +92,7 @@ export function buildOrderEmail(order: EmailOrder, audience: 'customer' | 'store
     `Email: ${order.customer_email ?? ''}`, `Delivery address: ${address}, India`,
     next,
     `${support} orders@luviacreations.com with your Order ID.`,
+    ...(reviewInvitation ? [reviewText, reviewUrl] : []),
     'Policies: https://luviacreations.com/return-policy/',
     'With love, Team Luvia',
   ].join('\n');
@@ -143,6 +148,9 @@ export function buildOrderEmail(order: EmailOrder, audience: 'customer' | 'store
       <h2 style="margin:28px 0 12px;font-size:20px;">What happens next?</h2>
       <p style="line-height:1.7;">${next}</p>
       <p style="line-height:1.7;">${support} <a href="mailto:orders@luviacreations.com" style="color:#604439;">orders@luviacreations.com</a> with your Order ID.</p>
+      ${reviewInvitation ? `<h2 style="margin:28px 0 12px;font-size:20px;">Share your experience</h2>
+      <p style="line-height:1.7;">${reviewText}</p>
+      <p><a href="${reviewUrl}" style="display:inline-block;padding:12px 20px;background:#604439;color:#ffffff;border-radius:24px;text-decoration:none;">Review Luvia Creations on Trustpilot</a></p>` : ''}
       <p style="margin-top:24px;line-height:1.7;">With love,<br><strong>Team Luvia</strong></p>
     </td></tr><tr><td align="center" style="padding:20px;background:#fff9ef;border-radius:0 0 20px 20px;font-size:12px;color:#8c776c;line-height:1.8;">
       Gurugram, Haryana, India<br><a href="https://luviacreations.com/" style="color:#604439;">Visit Luvia Creations</a> &middot;

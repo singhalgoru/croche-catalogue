@@ -35,6 +35,8 @@ it.each(['customer','store'] as const)('sends %s confirmation with totals, addre
   expect(body.html).toContain('background:#fff9ef');
   expect(body.html).toContain('border:1px dashed #bd9856');
   expect(body.html).toContain('Gurugram, Haryana, India');
+  expect(body.text).not.toContain('trustpilot.com');
+  expect(body.html).not.toContain('trustpilot.com');
 });
 it('renders every purchased item with its own snapshot and safe product link', () => {
   const { html } = buildOrderEmail({ ...order, payment_order_items: [...order.payment_order_items, {
@@ -106,7 +108,26 @@ it.each(['shipped','delivered'] as const)('sends branded %s email to the custome
   if (kind === 'delivered') {
     expect(body.text).toContain('marked as delivered by our team');
     expect(body.text).toContain('If your parcel has not arrived');
-  } else expect(body.text).toContain('Delivery after dispatch depends on your location');
+    expect(body.text).toContain('https://www.trustpilot.com/review/luviacreations.com');
+    expect(body.html).toContain('href="https://www.trustpilot.com/review/luviacreations.com"');
+    expect(body.text).toContain('Share your honest feedback');
+    expect(body.html).toContain('Leaving a review is optional.');
+    expect(body.html).not.toContain('invitejs.trustpilot.com');
+    expect(body).not.toHaveProperty('bcc');
+    expect(body).not.toHaveProperty('cc');
+    expect(body.text).not.toContain('5-star');
+  } else {
+    expect(body.text).toContain('Delivery after dispatch depends on your location');
+    expect(body.text).not.toContain('trustpilot.com');
+    expect(body.html).not.toContain('trustpilot.com');
+  }
+});
+it('omits review invitations from unpaid and non-live delivery previews', () => {
+  for (const change of [{ status: 'link_created' }, { status: 'review_required' }, { is_live_checkout: false }]) {
+    const { text, html } = buildOrderEmail({ ...order, ...change }, 'customer', 'delivered', shipment);
+    expect(text).not.toContain('trustpilot.com');
+    expect(html).not.toContain('trustpilot.com');
+  }
 });
 it('keeps fulfilment emails readable when tracking is unavailable', () => {
   const { text, html } = buildOrderEmail(order, 'customer', 'shipped',
