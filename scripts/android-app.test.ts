@@ -3,6 +3,21 @@ import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import sharp from 'sharp';
 
+it('associates the website with the current Android test signing certificate', () => {
+  const config = JSON.parse(readFileSync('android/twa-manifest.json', 'utf8'));
+  const associations = JSON.parse(readFileSync('public/.well-known/assetlinks.json', 'utf8'));
+  expect(associations).toEqual([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: {
+      namespace: 'android_app',
+      package_name: config.packageId,
+      sha256_cert_fingerprints: [
+        'F8:1D:20:64:46:9D:41:7C:A2:CE:AD:FF:B2:D7:B9:E3:86:35:B0:5D:0C:67:EF:4B:EA:3C:15:5E:91:39:56:B7',
+      ],
+    },
+  }]);
+});
+
 it('keeps the Android shop wrapper aligned with its public origin and Play target', () => {
   const config = JSON.parse(readFileSync('android/twa-manifest.json', 'utf8'));
   const gradle = readFileSync('android/app/build.gradle', 'utf8');
