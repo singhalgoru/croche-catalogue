@@ -238,6 +238,7 @@ export default function StorePages({
         {policy.sections.map(section => <section key={section.title} className="space-y-2">
           <h2 className="font-heading text-xl font-bold">{section.title}</h2>
           <p>{section.text}</p>
+          {section.link && <a href={section.link.href} className="inline-flex min-h-11 items-center font-semibold underline">{section.link.label}</a>}
         </section>)}
         <nav aria-label="Related policies" className="flex flex-wrap gap-4">
           {policies.filter(item => item.path !== policy.path).map(item =>

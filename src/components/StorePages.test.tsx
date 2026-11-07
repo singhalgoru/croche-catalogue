@@ -187,12 +187,21 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     expect(screen.getByRole('heading', { name: title, level: 1 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: section })).toBeTruthy();
-    expect(screen.getByText(`Last updated: ${path === '/privacy-policy/' ? '29' : '31'} October 2026`)).toBeTruthy();
+    expect(screen.getByText(`Last updated: ${path === '/privacy-policy/' ? '7 November' : '31 October'} 2026`)).toBeTruthy();
     if (path === '/privacy-policy/') {
       expect(screen.getByText(/latest eight submitted search keywords/)).toBeTruthy();
     }
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
     expect(screen.queryByText('Find your favourites by collection, then open a product for photos and details.')).toBeNull();
+  });
+  it('offers a public deletion request without requiring sign-in and explains retained records', () => {
+    window.history.replaceState(null, '', '/account-deletion/');
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Delete your Luvia account' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Email an account-deletion request' }).getAttribute('href'))
+      .toBe('mailto:hello@luviacreations.com?subject=Luvia%20account%20deletion');
+    expect(screen.getByText(/not an immediate automated deletion/)).toBeTruthy();
+    expect(screen.getByText(/restricted backups/)).toBeTruthy();
   });
   it('explains AI lifestyle imagery using the shared FAQ disclosure', () => {
     window.history.replaceState(null, '', '/faq/');

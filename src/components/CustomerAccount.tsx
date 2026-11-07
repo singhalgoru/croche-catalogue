@@ -78,6 +78,9 @@ export default function CustomerAccount({ initialEmail = '', initialDetails, can
           My orders
         </a>
         <ChangePassword />
+        <a href="/account-deletion/" className="mt-3 flex min-h-11 items-center font-semibold underline underline-offset-4">
+          Request account deletion
+        </a>
         <a href={`${import.meta.env.BASE_URL}?page=feedback`} className="mt-3 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
           Share feedback
         </a>

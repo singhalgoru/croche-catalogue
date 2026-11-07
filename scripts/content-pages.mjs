@@ -177,7 +177,8 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     baseSchema('WebPage', '/faq/', faqTitle, faqDescription)));
   for (const policy of policies) {
     const body = `<p class="note">Last updated: ${escapeHtml(policy.updated)}</p>`
-      + policy.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p></section>`).join('')
+      + policy.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p>${section.link
+        ? `<p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></p>` : ''}</section>`).join('')
       + '<p><a href="/return-policy/">Return and refund policy</a> · <a href="/about/">About &amp; contact</a></p>';
     pages.set(policy.path, page(policy.path, policy.title, policy.description, body,
       baseSchema('WebPage', policy.path, policy.title, policy.description)));

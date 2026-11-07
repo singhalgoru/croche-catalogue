@@ -39,11 +39,15 @@
     "path": "/privacy-policy/",
     "title": "Privacy Policy",
     "description": "How Luvia Creations uses customer information for accounts, orders, payments, delivery, support and website analytics.",
-    "updated": "29 October 2026",
+    "updated": "7 November 2026",
     "sections": [
       {
         "title": "Who we are and how to contact us",
         "text": "Luvia Creations operates luviacreations.com from Gurugram, Haryana, India. For privacy questions or requests about your information, email hello@luviacreations.com. For order support, email orders@luviacreations.com or contact +91 92059 07350."
+      },
+      {
+        "title": "The Luvia Android app",
+        "text": "This policy also applies to the Luvia Creations Android app. The app opens our online shop using your device's supported browser, so the website's accounts, checkout, browser storage, analytics and service providers also apply within the app. The app does not add native access to your contacts or precise GPS location. External payment, messaging and other services have their own privacy terms."
       },
       {
         "title": "Information we collect",
@@ -75,7 +79,34 @@
       },
       {
         "title": "Your choices and requests",
-        "text": "You can shop as a guest, edit delivery details before ordering and contact us to request access, correction or deletion of your information or to raise a privacy concern. We may need to verify your identity and retain records required for legal obligations or unresolved transactions. Contact hello@luviacreations.com for assistance. We will publish policy updates here with a revised date."
+        "text": "You can shop as a guest, edit delivery details before ordering and contact us to request access, correction or deletion of your information or to raise a privacy concern. To request deletion of your Luvia account and associated data, use the account-deletion instructions linked below or email hello@luviacreations.com from your registered email address. We may need to verify your identity and retain records required for legal obligations or unresolved transactions. We will publish policy updates here with a revised date.",
+        "link": { "href": "/account-deletion/", "label": "Request account and data deletion" }
+      }
+    ]
+  },
+  {
+    "path": "/account-deletion/",
+    "title": "Delete your Luvia account",
+    "description": "How to request deletion of your Luvia Creations account and associated data from the website or Android app.",
+    "updated": "7 November 2026",
+    "sections": [
+      {
+        "title": "Request account and data deletion",
+        "text": "You can request deletion without installing the app or signing in. Email hello@luviacreations.com from the email address registered with your Luvia account, with the subject 'Luvia account deletion'. State that you want your account and associated data deleted. If you cannot access that email address, contact us to arrange another way to verify account ownership. Never send your password, card details or OTP.",
+        "link": { "href": "mailto:hello@luviacreations.com?subject=Luvia%20account%20deletion", "label": "Email an account-deletion request" }
+      },
+      {
+        "title": "What happens next",
+        "text": "Your email is a request, not an immediate automated deletion. Luvia reviews it, verifies account ownership where necessary and confirms the outcome by email. Uninstalling the app, signing out or clearing browser storage does not delete your account. You can also request deletion of particular information without deleting the whole account."
+      },
+      {
+        "title": "Information deleted and records retained",
+        "text": "Once the request is verified and processed, we delete the account login and associated saved profile, delivery addresses and active cart data that are no longer needed. We may retain order, payment, delivery, accounting, fraud-prevention and support records where needed for applicable legal obligations or unresolved transactions. These records are retained only for the relevant obligation or dispute, not to keep the deleted account active. We explain any applicable retention exception when handling your request. Deleted data may remain in restricted backups until the normal backup-retention cycle expires."
+      },
+      {
+        "title": "Other services and local storage",
+        "text": "Luvia cannot delete your accounts with external payment, messaging or other providers. Contact those providers for their deletion options. To remove locally stored search history, clear recent searches in Luvia; to remove other cached shop data, use your browser's site-data settings. Our Privacy Policy explains how the shop and Android app process information.",
+        "link": { "href": "/privacy-policy/", "label": "Read the Privacy Policy" }
       }
     ]
   }

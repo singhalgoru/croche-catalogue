@@ -354,10 +354,16 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
+  });
+  it('prerenders account deletion instructions and actionable email links', () => {
+    const doc = documentFor('/account-deletion/');
+    expect(doc.querySelector('a[href="mailto:hello@luviacreations.com?subject=Luvia%20account%20deletion"]')).toBeTruthy();
+    expect(doc.body.textContent).toContain('not an immediate automated deletion');
+    expect(documentFor('/privacy-policy/').querySelector('a[href="/account-deletion/"]')).toBeTruthy();
   });
 
   it('gives every page one H1, unique metadata, canonical and no client-app dependency', () => {

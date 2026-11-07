@@ -27,6 +27,18 @@ test('homepage introduction is visible and fits on mobile and desktop', async ({
   expect(fits).toBe(true);
 });
 
+test('account deletion instructions are reachable without sign-in and linked from privacy', async ({ page }) => {
+  await page.goto('/privacy-policy/');
+  await expect(page.getByRole('heading', { name: 'The Luvia Android app' })).toBeVisible();
+  await page.getByRole('link', { name: 'Request account and data deletion', exact: true }).click();
+  await expect(page).toHaveURL(/\/account-deletion\/$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Delete your Luvia account' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Email an account-deletion request', exact: true }))
+    .toHaveAttribute('href', 'mailto:hello@luviacreations.com?subject=Luvia%20account%20deletion');
+  await expect(page.getByText(/not an immediate automated deletion/)).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test('section anchors land below sticky controls on PWA launches, reloads and history navigation', async ({ page }) => {
   const expectAnchored = async (id: string) => {
     await expect.poll(() => page.locator(`#${id}`).evaluate(element => {

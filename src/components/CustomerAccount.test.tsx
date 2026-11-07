@@ -34,6 +34,7 @@ it('does not flash sign-in controls while opening an already signed-in account',
   expect(screen.queryByRole('form', { name: 'Customer sign in' })).toBeNull();
   await act(async () => { resolveAccount('buyer@example.test'); });
   expect(await screen.findByText('Your addresses')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Request account deletion' }).getAttribute('href')).toBe('/account-deletion/');
   expect(screen.queryByRole('form', { name: 'Customer sign in' })).toBeNull();
 });
 

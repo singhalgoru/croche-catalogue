@@ -36,6 +36,9 @@ an India-based handmade crochet brand.
   making videos. Tap the top-right play badge on a product image to jump to its
   making video and start muted playback (subject to browser autoplay settings).
 - Save a cart, check delivery availability, place orders and view order history.
+- Request account and associated-data deletion at `/account-deletion/`, also
+  linked from signed-in account details. The Privacy Policy covers the shop
+  and its Android app.
 - Use the header for search, cart and navigation; sign in, account details and
   order history are available inside the navigation menu.
 - Signed-in customers see an initial badge on the menu button; their name and
