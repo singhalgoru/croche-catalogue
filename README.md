@@ -68,6 +68,8 @@ an India-based handmade crochet brand.
   quantities and destination details, then review and send it by email or
   WhatsApp. Online checkout remains India-only.
 - Install the catalogue as a home-screen app on supported browsers.
+- An Android app for the shop is in development; it is not yet available on
+  Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.

@@ -1,0 +1,25 @@
+{
+  "packageId": "com.luviacreations.shop",
+  "host": "luviacreations.com",
+  "name": "Luvia Creations",
+  "launcherName": "Luvia",
+  "display": "standalone",
+  "themeColor": "#5f3825",
+  "themeColorDark": "#5f3825",
+  "navigationColor": "#5f3825",
+  "backgroundColor": "#fdf6ec",
+  "enableNotifications": false,
+  "startUrl": "/?utm_source=android&utm_medium=app",
+  "iconUrl": "https://luviacreations.com/icons/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://luviacreations.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "minSdkVersion": 24
+}
