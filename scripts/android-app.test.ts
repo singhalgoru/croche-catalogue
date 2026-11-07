@@ -22,6 +22,25 @@ it('keeps the Android shop wrapper aligned with its public origin and Play targe
   expect(assetStatements).toContain(`https://${config.host}`);
 });
 
+it('uses transparent splash corners over the configured cream background at every density', async () => {
+  const gradle = readFileSync('android/app/build.gradle', 'utf8');
+  const manifest = readFileSync('android/app/src/main/AndroidManifest.xml', 'utf8');
+  expect(gradle).toMatch(/backgroundColor:\s*'#FDF6EC'/i);
+  expect(manifest).toContain('android:resource="@drawable/splash"');
+  expect(manifest).toContain('android:resource="@color/backgroundColor"');
+
+  for (const [density, size] of [['mdpi', 300], ['hdpi', 450], ['xhdpi', 600], ['xxhdpi', 900], ['xxxhdpi', 1200]] as const) {
+    const splash = await sharp(`android/app/src/main/res/drawable-${density}/splash.png`)
+      .ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    expect([splash.info.width, splash.info.height]).toEqual([size, size]);
+    const alpha = (x: number, y: number) => splash.data[(y * size + x) * 4 + 3];
+    for (const [x, y] of [[0, 0], [size - 1, 0], [0, size - 1], [size - 1, size - 1]]) {
+      expect(alpha(x, y)).toBe(0);
+    }
+    expect(alpha(Math.floor(size / 2), Math.floor(size / 2))).toBe(255);
+  }
+});
+
 it('provides an adaptive launcher icon with a cream background and safe-zone artwork at every density', async () => {
   const adaptive = readFileSync('android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml', 'utf8');
   const colors = readFileSync('android/app/src/main/res/values/launcher_colors.xml', 'utf8');

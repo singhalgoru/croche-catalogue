@@ -14,14 +14,14 @@ const circularLogo = await sharp(logo)
   .toBuffer();
 
 const sizes = [
-  ['mdpi', 48, 108],
-  ['hdpi', 72, 162],
-  ['xhdpi', 96, 216],
-  ['xxhdpi', 144, 324],
-  ['xxxhdpi', 192, 432],
+  ['mdpi', 48, 108, 300],
+  ['hdpi', 72, 162, 450],
+  ['xhdpi', 96, 216, 600],
+  ['xxhdpi', 144, 324, 900],
+  ['xxxhdpi', 192, 432, 1200],
 ];
 
-for (const [density, legacySize, foregroundSize] of sizes) {
+for (const [density, legacySize, foregroundSize, splashSize] of sizes) {
   const directory = new URL(`android/app/src/main/res/mipmap-${density}/`, root);
   await mkdir(directory, { recursive: true });
   const foregroundLogoSize = Math.round(foregroundSize * 66 / 108);
@@ -35,4 +35,9 @@ for (const [density, legacySize, foregroundSize] of sizes) {
   await sharp({ create: { width: legacySize, height: legacySize, channels: 4, background: '#fdf6ec' } })
     .composite([{ input: legacyLogo, gravity: 'centre' }])
     .png().toFile(fileURLToPath(new URL('ic_launcher.png', directory)));
+
+  const splashDirectory = new URL(`android/app/src/main/res/drawable-${density}/`, root);
+  await mkdir(splashDirectory, { recursive: true });
+  await sharp(circularLogo).resize(splashSize, splashSize).png()
+    .toFile(fileURLToPath(new URL('splash.png', splashDirectory)));
 }
