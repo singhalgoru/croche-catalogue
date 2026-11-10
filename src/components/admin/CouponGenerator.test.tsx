@@ -14,10 +14,11 @@ const coupon = { id: 'coupon', code: 'LUVIA-0123456789ABCDEF', percent: 10, max_
   expires_at: '2026-11-10T08:00:00Z', archived_at: null, used_count: 0, reserved_count: 0 };
 beforeEach(() => {
   vi.clearAllMocks(); vi.restoreAllMocks(); fetchCoupons.mockResolvedValue([]); generate.mockResolvedValue(coupon);
+  vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-11-01T00:00:00Z').getTime());
   setEnabled.mockResolvedValue(undefined); remove.mockResolvedValue(undefined);
   archive.mockResolvedValue(undefined);
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const renderExpanded = () => {
   render(<CouponGenerator />);
   fireEvent.click(screen.getByRole('button', { name: 'Generate discount coupons' }));
