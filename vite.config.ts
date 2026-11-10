@@ -31,6 +31,16 @@ const localOcrLanguage = (): Plugin => {
   }
 }
 
+const webpEncoderNotices = (): Plugin => ({
+  name: 'webp-encoder-notices',
+  generateBundle() {
+    const source = ['LICENSE', 'codec/LICENSE.codec.md']
+      .map(path => readFileSync(new URL(`./node_modules/@jsquash/webp/${path}`, import.meta.url), 'utf8'))
+      .join('\n\n')
+    this.emitFile({ type: 'asset', fileName: 'image-encoder/LICENSES.txt', source })
+  },
+})
+
 const supabasePreconnect = (): Plugin => {
   let origin: string | undefined
   let url: string | undefined
@@ -86,6 +96,7 @@ export default defineConfig({
   },
   plugins: [
     localOcrLanguage(),
+    webpEncoderNotices(),
     supabasePreconnect(),
     react(),
     tailwindcss(),
@@ -96,7 +107,7 @@ export default defineConfig({
       injectRegister: false,
       workbox: {
         // Keep the lazy admin console out of public visitors' background downloads.
-        globIgnores: ['**/AdminPage-*.js', '**/photoQuoteOcr-*.js', '**/worker.min-*.js', '**/tesseract-core-*.js', '**/*.traineddata*.gz'],
+        globIgnores: ['**/AdminPage-*.js', '**/photoQuoteOcr-*.js', '**/worker.min-*.js', '**/tesseract-core-*.js', '**/*.traineddata*.gz', '**/webpEncoder-*.js', '**/encode-*.js', '**/webp_enc*.js', '**/webp_enc*.wasm'],
         // Activate new versions immediately; otherwise an installed app can
         // keep running a stale bundle until every window is closed.
         skipWaiting: true,

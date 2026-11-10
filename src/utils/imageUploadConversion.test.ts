@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { convertImageForUpload, createResizedWebp } from './imageUploadConversion';
 
+const { encodeWebp } = vi.hoisted(() => ({ encodeWebp: vi.fn() }));
+vi.mock('./webpEncoder', () => ({ encodeWebp }));
+
 const mockImageEncoding = (width: number, height: number, encodedSize: number) => {
   vi.stubGlobal('URL', {
     createObjectURL: vi.fn(() => 'blob:product'),
@@ -18,6 +21,7 @@ const mockImageEncoding = (width: number, height: number, encodedSize: number) =
   const drawImage = vi.fn();
   const context = {
     drawImage,
+    getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
     save: vi.fn(),
     restore: vi.fn(),
     beginPath: vi.fn(),
@@ -39,6 +43,7 @@ const mockImageEncoding = (width: number, height: number, encodedSize: number) =
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  encodeWebp.mockReset();
 });
 
 describe('image upload compression', () => {
@@ -55,6 +60,45 @@ describe('image upload compression', () => {
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.82);
     expect(context.save).not.toHaveBeenCalled();
     expect(context.arc).not.toHaveBeenCalled();
+    expect(encodeWebp).not.toHaveBeenCalled();
+  });
+  it.each(['png', 'null'])('encodes locally when native WebP encoding returns %s', async fallback => {
+    const { toBlob, context } = mockImageEncoding(3200, 1600, 50_000);
+    toBlob.mockImplementation(callback => callback(fallback === 'null' ? null : new Blob(['png'], { type: 'image/png' })));
+    encodeWebp.mockResolvedValue(new Blob(['encoded'], { type: 'image/webp' }));
+    const original = new File(['image'], 'photo.jpg', { type: 'image/jpeg', lastModified: 123 });
+    const converted = await convertImageForUpload(original, { watermark: false });
+
+    expect(converted.name).toBe('photo.webp');
+    expect(converted.type).toBe('image/webp');
+    expect(converted.size).toBe(7);
+    expect(converted.lastModified).toBe(123);
+    expect(context.getImageData).toHaveBeenCalledWith(0, 0, 1600, 800);
+    expect(encodeWebp).toHaveBeenCalledWith(context.getImageData.mock.results[0].value, 0.82);
+    expect(context.save).not.toHaveBeenCalled();
+  });
+
+  it('encodes the watermarked canvas and resized variants with the same fallback', async () => {
+    const { toBlob, context } = mockImageEncoding(800, 600, 50_000);
+    toBlob.mockImplementation(callback => callback(new Blob(['png'], { type: 'image/png' })));
+    encodeWebp.mockResolvedValue(new Blob(['encoded'], { type: 'image/webp' }));
+    const original = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
+    await convertImageForUpload(original);
+    expect(context.save).toHaveBeenCalled();
+    expect(context.drawImage.mock.invocationCallOrder.at(-1)).toBeLessThan(context.getImageData.mock.invocationCallOrder[0]);
+    const resized = await createResizedWebp(original, 480);
+    expect(resized.name).toBe('w480.webp');
+    expect(resized.type).toBe('image/webp');
+    expect(context.getImageData).toHaveBeenLastCalledWith(0, 0, 480, 360);
+    expect(encodeWebp).toHaveBeenLastCalledWith(context.getImageData.mock.results[1].value, 0.75);
+  });
+
+  it('surfaces local encoder failures instead of returning a mislabeled PNG', async () => {
+    const { toBlob } = mockImageEncoding(800, 600, 50_000);
+    toBlob.mockImplementation(callback => callback(new Blob(['png'], { type: 'image/png' })));
+    encodeWebp.mockRejectedValue(new Error('Unable to prepare the image on this device.'));
+    await expect(convertImageForUpload(new File(['image'], 'photo.jpg', { type: 'image/jpeg' }), { watermark: false }))
+      .rejects.toThrow('Unable to prepare the image on this device.');
   });
   it('resizes even existing WebP files to 1600px and recompresses at 82% quality', async () => {
     const { drawImage, toBlob } = mockImageEncoding(3200, 1600, 50_000);

@@ -16,6 +16,7 @@
     "backup:images": "node --env-file=.env.r2.local scripts/backup-r2-images.mjs"
   },
   "dependencies": {
+    "@jsquash/webp": "^1.5.0",
     "@fontsource-variable/baloo-2": "^5.3.0",
     "@fontsource-variable/quicksand": "^5.3.0",
     "@supabase/supabase-js": "^2.116.0",

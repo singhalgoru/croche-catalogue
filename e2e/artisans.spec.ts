@@ -3,8 +3,22 @@ import sharp from 'sharp';
 import { installMockSupabase } from './mockSupabase';
 
 const token = 'a'.repeat(64);
-for (const withIdentity of [false, true]) {
-test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : 'without an ID'}`, async ({ page }) => {
+for (const { withIdentity, nativeWebp, scalarEncoder = false } of [
+  { withIdentity: false, nativeWebp: true },
+  { withIdentity: true, nativeWebp: true },
+  { withIdentity: true, nativeWebp: false },
+  { withIdentity: true, nativeWebp: false, scalarEncoder: true },
+]) {
+test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : 'without an ID'}${nativeWebp ? '' : ' without native WebP encoding'}${scalarEncoder ? ' or WASM SIMD' : ''}`, async ({ page }) => {
+  if (!nativeWebp) await page.addInitScript(() => {
+    const nativeToBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
+      return nativeToBlob.call(this, callback, type === 'image/webp' ? 'image/png' : type, quality);
+    };
+  });
+  if (scalarEncoder) await page.addInitScript(() => {
+    WebAssembly.validate = () => false;
+  });
   await installMockSupabase(page);
   const submissions: Record<string, unknown>[] = [];
   await page.route('**/rest/v1/rpc/artisan_invitation_status', route => route.fulfill({ json: 'available' }));

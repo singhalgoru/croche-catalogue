@@ -83,6 +83,8 @@ an India-based handmade crochet brand.
   The application supports English and Hindi; answers remain in their original language.
   Invitations expire after 24 hours or one submission. Applications include
   material-dispatch terms and an optional, consented masked-ID photo.
+  Photo preparation runs on-device, including a fallback for browsers without
+  native WebP encoding.
   After submitting, artisans can optionally share a short work video on WhatsApp.
   Private working profiles include skill/rating filters, comments and payment
   records, with onboarding details and separately consented profile photos.

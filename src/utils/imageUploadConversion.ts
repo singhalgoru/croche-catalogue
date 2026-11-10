@@ -10,14 +10,22 @@ const getWebpFileName = (name: string) => {
   return `${baseName}.webp`;
 };
 
-const canvasToBlob = (canvas: HTMLCanvasElement) =>
-  new Promise<Blob>((resolve, reject) => {
+const canvasToBlob = async (canvas: HTMLCanvasElement, quality: number): Promise<Blob> => {
+  const blob = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob(
-      (blob) => blob ? resolve(blob) : reject(new Error('Unable to encode the product image as WebP.')),
+      resolve,
       'image/webp',
-      WEBP_UPLOAD_QUALITY,
+      quality,
     );
   });
+  if (blob?.type === 'image/webp') return blob;
+
+  // WebKit can decode WebP but returns PNG when asked to encode it.
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Unable to prepare the product image for upload.');
+  const { encodeWebp } = await import('./webpEncoder');
+  return encodeWebp(context.getImageData(0, 0, canvas.width, canvas.height), quality);
+};
 
 const loadImageElement = (file: File) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -60,8 +68,7 @@ export async function convertImageForUpload(
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   // The resized R2 copies are made from this file, so they inherit the mark.
   if (logo) drawWatermark(context, canvas.width, canvas.height, logo);
-  const blob = await canvasToBlob(canvas);
-  if (blob.type !== 'image/webp') throw new Error('WebP image encoding is not supported by this browser.');
+  const blob = await canvasToBlob(canvas, WEBP_UPLOAD_QUALITY);
 
   return new File([blob], getWebpFileName(file.name), {
     type: 'image/webp',
@@ -86,13 +93,6 @@ export async function createResizedWebp(file: File, targetWidth: number): Promis
   if (!context) throw new Error('Unable to prepare the product image for upload.');
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (result) => result ? resolve(result) : reject(new Error('Unable to encode the product image as WebP.')),
-      'image/webp',
-      RESIZED_WEBP_QUALITY,
-    );
-  });
-  if (blob.type !== 'image/webp') throw new Error('WebP image encoding is not supported by this browser.');
+  const blob = await canvasToBlob(canvas, RESIZED_WEBP_QUALITY);
   return new File([blob], `w${targetWidth}.webp`, { type: 'image/webp' });
 }
