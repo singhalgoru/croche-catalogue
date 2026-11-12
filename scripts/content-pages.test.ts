@@ -150,7 +150,9 @@ describe('collection and information pages', () => {
       expect([...story!.querySelectorAll('h2')].map(heading => heading.textContent)).toContain(section.title);
       for (const paragraph of section.paragraphs) expect(story?.textContent).toContain(paragraph);
     }
-    expect(story?.querySelector('a')?.getAttribute('href')).toBe('/collections/');
+    expect(story?.querySelector('a[href="/collections/"]')).toBeTruthy();
+    const linkedin = story?.querySelector('a[href="https://www.linkedin.com/in/tanushreemithal/"]');
+    expect(linkedin?.textContent).toBe('Connect with Tanushree on LinkedIn');
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
       expect(doc.querySelector(selector)?.getAttribute('content')).toBe(storeContent.brandStory.description);
     }

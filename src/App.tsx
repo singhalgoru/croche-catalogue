@@ -818,6 +818,7 @@ function App() {
           <h2 id="brand-story-teaser-title" className="font-heading text-xl font-bold sm:text-2xl">{storeContent.brandStory.teaser.title}</h2>
           <p className="col-span-2 text-sm leading-relaxed sm:col-span-1 sm:col-start-2">{storeContent.brandStory.teaser.text}</p>
           <a href="/about/" className="col-span-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:col-span-1 sm:col-start-2">{storeContent.brandStory.teaser.linkLabel}</a>
+          <a href={storeContent.brandStory.linkedinUrl} className="col-span-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:col-span-1 sm:col-start-2">{storeContent.brandStory.linkedinLabel}</a>
         </section>}
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}

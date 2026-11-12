@@ -129,6 +129,7 @@ describe('Hybrid product navigation', () => {
     expect(within(teaser).getByText(storeContent.brandStory.teaser.text)).toBeTruthy();
     expect(within(teaser).getByRole('img', { name: storeContent.brandStory.portrait.alt }).getAttribute('src')).toBe(storeContent.brandStory.portrait.thumbnail);
     expect(within(teaser).getByRole('link', { name: storeContent.brandStory.teaser.linkLabel }).getAttribute('href')).toBe('/about/');
+    expect(within(teaser).getByRole('link', { name: 'Connect with Tanushree on LinkedIn' }).getAttribute('href')).toBe('https://www.linkedin.com/in/tanushreemithal/');
     expect(teaser.parentElement?.firstElementChild).toBe(teaser);
   });
   it('renders watch pages with compact branding and the interactive footer, not the catalogue', () => {

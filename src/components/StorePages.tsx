@@ -352,6 +352,7 @@ export default function StorePages({
             <h2 id="founder-note-title" className="font-heading text-xl font-bold">{storeContent.brandStory.founderNote.title}</h2>
             <p>{storeContent.brandStory.founderNote.text}</p>
             <p className="font-semibold">{storeContent.brandStory.founderNote.signature}<span className="block text-sm font-normal">{storeContent.brandStory.founderNote.role}</span></p>
+            <a href={storeContent.brandStory.linkedinUrl} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{storeContent.brandStory.linkedinLabel}</a>
           </section>
           <p className="border-l-4 border-mustard pl-4 font-semibold">{storeContent.brandStory.closing}</p>
           <a href="/collections/" className="inline-flex min-h-11 items-center rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">{storeContent.brandStory.shopLabel}</a>

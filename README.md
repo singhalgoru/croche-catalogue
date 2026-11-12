@@ -30,7 +30,7 @@ an India-based handmade crochet brand.
   Published stories are listed automatically in `sitemap.xml` and `llms.txt`.
 - Site photos and videos block casual right-click saving and dragging.
 - Meet the founder in the homepage story card above collections, with a link to
-  the full About page. Both use a cropped, optimised founder portrait.
+  the full About page and her LinkedIn profile. Both use a cropped, optimised founder portrait.
   Empty-cart “Shop now” opens the product-grid heading.
 - View product details, available variants, angle photos, image zoom and optional
   making videos. Tap the top-right play badge on a product image to jump to its

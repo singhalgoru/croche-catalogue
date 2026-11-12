@@ -156,7 +156,8 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p><strong>${escapeHtml(story.subtitle)}</strong></p><p>${escapeHtml(story.intro)}</p>
     ${story.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2>${section.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}</section>`).join('')}
     <section aria-labelledby="founder-note-title" class="card"><h2 id="founder-note-title">${escapeHtml(story.founderNote.title)}</h2>
-    <p>${escapeHtml(story.founderNote.text)}</p><p><strong>${escapeHtml(story.founderNote.signature)}</strong><br>${escapeHtml(story.founderNote.role)}</p></section>
+    <p>${escapeHtml(story.founderNote.text)}</p><p><strong>${escapeHtml(story.founderNote.signature)}</strong><br>${escapeHtml(story.founderNote.role)}</p>
+    <p><a href="${escapeHtml(story.linkedinUrl)}">${escapeHtml(story.linkedinLabel)}</a></p></section>
     <p><strong>${escapeHtml(story.closing)}</strong></p><a class="button" href="/collections/">${escapeHtml(story.shopLabel)}</a></article>
     <h2>Thoughtfully crafted crochet, made to be treasured</h2><p>${escapeHtml(storeContent.about[0])}</p>
     <p>${escapeHtml(storeContent.about[1])}</p>
