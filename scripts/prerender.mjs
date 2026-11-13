@@ -24,6 +24,7 @@ import storeContent from '../src/content/storeContent.json' with { type: 'json' 
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { getCategoryImage } from '../src/utils/categoryImage.js';
+import { getLatestProduct } from '../src/utils/productCollections.js';
 import { testimonialPath } from '../src/utils/testimonialLink.js';
 import { fetchVideoUploadDate, renderVideoPage, videoPath, videoPlayer, videoSchema, videoSitemapEntry } from './video-pages.mjs';
 
@@ -414,8 +415,12 @@ const compareInitialProducts = (left, right, now = Date.now()) => {
     || (left.sortOrder ?? 0) - (right.sortOrder ?? 0);
 };
 
-const renderShell = (products, categorySettings = []) => {
+const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
   const orderedProducts = [...products].sort(compareInitialProducts);
+  const latest = getLatestProduct(products);
+  const latestVariant = latest?.variants.find(item => item.inStock && item.availableQuantity > 0);
+  const latestImage = latestVariant?.image || latest?.image;
+  const customisationUrl = `https://wa.me/${whatsappContactDetails(whatsappNumber).digits}?text=${encodeURIComponent(storeContent.customisation.message)}`;
   const firstProductId = orderedProducts[0]?.id;
   const groups = groupByCategory(orderedProducts);
   const categories = groups.map(([category]) => category);
@@ -469,6 +474,8 @@ const renderShell = (products, categorySettings = []) => {
     '<section aria-labelledby="collections-heading"><h2 id="collections-heading">Explore collections</h2>',
     `<nav aria-label="Explore collections"><ul>${collectionNames.map(name =>
       `<li><a href="${collectionPath(name)}">${escapeHtml(name)}</a></li>`).join('')}</ul></nav></section>`,
+    latest && latestImage ? `<section aria-labelledby="latest-product-title"><p>Product spotlight</p><h2 id="latest-product-title">Latest from Luvia</h2><a href="/p/${escapeHtml(toProductSlug(latest))}/"><img src="${escapeHtml(getProductImageUrl(latestImage, 480))}" alt="${escapeHtml(latest.name)}" width="160" height="160" loading="lazy"><span>${escapeHtml(latest.name)}</span></a></section>` : '',
+    `<section aria-labelledby="customisation-title"><h2 id="customisation-title">${escapeHtml(storeContent.customisation.title)}</h2><p>${escapeHtml(storeContent.customisation.description)}</p><a href="${escapeHtml(customisationUrl)}">${escapeHtml(storeContent.customisation.linkLabel)}</a></section>`,
     sections,
     '<section aria-labelledby="ordering-guide-title">',
     '<h2 id="ordering-guide-title">How ordering and delivery work</h2>',
@@ -833,7 +840,7 @@ const injectShell = (html, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, 
       (_, before, after) => `${before}${escapeHtml(description)}${after}`)
     .replace(/("description":\s*")[^"]*(")/,
       () => `"description":${JSON.stringify(description).replace(/</g, '\\u003c')}`)
-    .replace(shell, () => `<!--shell-->${renderShell(products, categories)}<!--/shell-->`)
+    .replace(shell, () => `<!--shell-->${renderShell(products, categories, whatsappNumber)}<!--/shell-->`)
     .replaceAll('{{WHATSAPP_PHONE}}', display)
     .replace('</head>', `${jsonLdScript(catalogueJsonLd(products))}</head>`);
 };

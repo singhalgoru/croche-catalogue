@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../types/product';
-import { getBestsellerProducts, getFeaturedProducts } from './productCollections.js';
+import { getBestsellerProducts, getFeaturedProducts, getLatestProduct } from './productCollections.js';
 
 const product = (id: string, sortOrder = 0, featured = true, quantity = 2): Product => ({
   id, name: id, sortOrder, featured, category: 'Toys', description: '', price: 100,
@@ -23,5 +23,18 @@ describe('shared curated product selection', () => {
     products[0].variants[0].inStock = false;
     expect(getBestsellerProducts(products, ['missing', 'a', 'b']).map(item => item.id)).toEqual(['b']);
     expect(getFeaturedProducts([])).toEqual([]);
+  });
+  it('selects the most recently published purchasable product without mutating the list', () => {
+    const now = Date.parse('2026-03-01T00:00:00Z');
+    const items = [
+      { ...product('older'), publishedAt: '2025-01-01' },
+      { ...product('future'), publishedAt: '2026-03-02' },
+      { ...product('invalid'), publishedAt: 'invalid' },
+      { ...product('sold', 0, true, 0), publishedAt: '2026-02-28' },
+      { ...product('new'), publishedAt: '2026-02-01' },
+    ];
+    expect(getLatestProduct(items, now)?.id).toBe('new');
+    expect(items[0].id).toBe('older');
+    expect(getLatestProduct(items.slice(1, 4), now)).toBeUndefined();
   });
 });

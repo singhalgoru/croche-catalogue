@@ -11,6 +11,7 @@ import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
 import CustomerLove from './components/CustomerLove';
 import ProductCarousel from './components/ProductCarousel';
+import { HomepageCustomisation, HomepageSpotlight } from './components/HomepageDiscover';
 import { getFeaturedProducts, productCollections } from './utils/productCollections.js';
 import CategoryTiles from './components/CategoryTiles';
 import ProductDetailPreview from './components/ProductDetailPreview';
@@ -822,10 +823,12 @@ function App() {
         </section>}
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}
+        {effectiveActiveCategory === 'All' && !query.trim() && <HomepageSpotlight products={products} onSelect={selectProduct} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <Bestsellers products={products} initialIds={initialBestsellerIds} onSelect={selectProduct} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <ProductCarousel products={getFeaturedProducts(products)}
           onSelect={selectProduct} title={productCollections[1].title} label="featured product"
           viewAll={productCollections[1].path} description={productCollections[1].description} />}
+        {effectiveActiveCategory === 'All' && !query.trim() && <HomepageCustomisation />}
         {effectiveActiveCategory === 'All' && !query.trim() && <CustomerLove products={products} onContentReady={customerLoveContentReady} />}
           <div
             ref={catalogueToolsRef}

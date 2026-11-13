@@ -66,6 +66,15 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('places the latest product above featured products and the customisation section', () => {
+    catalogueProducts = [{ ...product, featured: true, publishedAt: '2020-01-01T00:00:00Z' }];
+    render(<App />);
+    const spotlight = screen.getByRole('region', { name: 'Latest from Luvia' });
+    const featured = screen.getByRole('region', { name: 'Featured products' });
+    const customisation = screen.getByRole('region', { name: 'Make it your own' });
+    expect(spotlight.compareDocumentPosition(featured) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(featured.compareDocumentPosition(customisation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   it.each(['collaborate', 'bulk-orders', 'products'])('anchors #%s after delayed catalogue loading while retaining PWA parameters', async id => {
     catalogueLoading = true;
     window.history.replaceState(null, '', `/?utm_source=pwa&utm_medium=app#${id}`);

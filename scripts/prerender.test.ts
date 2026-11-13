@@ -53,6 +53,15 @@ const product = toProduct(row);
 afterEach(() => vi.unstubAllGlobals());
 
 describe('fetchProducts', () => {
+  it('renders a customisation draft and the latest available product in the shell', () => {
+    const shell = renderShell([product], [], '+91 98765 43210');
+    expect(shell).toContain('Make it your own');
+    expect(shell).toContain('https://wa.me/919876543210?text=');
+    expect(shell).toContain('Latest from Luvia');
+    expect(shell.indexOf('Latest from Luvia')).toBeLessThan(shell.indexOf('Make it your own'));
+    expect(shell).toContain('/p/ivory-rose-gajra/');
+    expect(renderShell([{ ...product, publishedAt: 'invalid' }])).not.toContain('Latest from Luvia');
+  });
   it('preserves making-video metadata through static prerender mapping without creating eager video sources', () => {
     const video = { video_url: 'https://images.luviacreations.com/making-videos/id/video.mp4',
       poster_url: 'https://images.luviacreations.com/making-videos/id/poster.webp',
@@ -351,7 +360,8 @@ describe('renderShell', () => {
   it('renders the initially featured product first, matching the hydrated catalogue', () => {
     const second = { ...product, id: 'featured', name: 'Featured item', featured: true };
     const html = renderShell([product, second]);
-    expect(html.indexOf('Featured item')).toBeLessThan(html.indexOf('Ivory Rose Gajra'));
+    const catalogue = html.slice(html.indexOf('<h3>Handmade Crochet Hair Accessories</h3>'));
+    expect(catalogue.indexOf('Featured item')).toBeLessThan(catalogue.indexOf('Ivory Rose Gajra'));
     expect(html).toContain(`alt="Featured item"`);
   });
 
@@ -360,7 +370,7 @@ describe('renderShell', () => {
   });
 
   it('does not add image requests for every catalogue item', () => {
-    expect(shell.match(/<img\b/g)).toHaveLength(2);
+    expect(shell.match(/<img\b/g)).toHaveLength(3);
     expect(shell).toContain('src="/tanushree-mithal-small.webp"');
   });
 });

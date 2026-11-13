@@ -4,6 +4,7 @@ import { getCampaignReference } from './campaign';
 import { buildWhatsAppCartMessage } from './cartMessage';
 import { toProductPageUrl, toPublicVariantSlug } from './productLink';
 import bulkOrders from '../content/bulkOrders.json';
+import storeContent from '../content/storeContent.json';
 
 // Fallback keeps local dev working if the env var isn't set; production reads
 // VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
@@ -26,6 +27,7 @@ export const getGeneralWhatsAppLink = () =>
   whatsappLink('Hi Luvia, I would like to know more about your crochet catalogue.');
 
 export const getBulkOrderWhatsAppLink = () => whatsappLink(bulkOrders.message);
+export const getHomepageCustomisationWhatsAppLink = () => whatsappLink(storeContent.customisation.message);
 
 export const getInternationalQuoteWhatsAppLink = (message: string) => whatsappLink(message);
 

@@ -12,3 +12,12 @@ export const getBestsellerProducts = (products, ids) => [...new Set(ids)].slice(
 
 export const getFeaturedProducts = products => products.filter(product => product.featured && isPurchasable(product))
   .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id));
+
+export const getLatestProduct = (products, now = Date.now()) => products
+  .filter(product => {
+    const time = Date.parse(product.publishedAt);
+    const variant = product.variants.find(item => item.inStock && item.availableQuantity > 0);
+    return Number.isFinite(time) && time <= now && isPurchasable(product)
+      && Boolean(variant?.image || product.image);
+  })
+  .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || a.id.localeCompare(b.id))[0];

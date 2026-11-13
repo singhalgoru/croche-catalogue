@@ -22,6 +22,12 @@
     "returns": "International cancellation, return and refund arrangements, including return-shipping costs, will be explained before payment, subject to applicable consumer rights. Do not send a return without contacting us."
   },
   "dispatch": "For orders delivered within India, dispatch is within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window. International dispatch and delivery estimates are confirmed separately in your quote.",
+  "customisation": {
+    "title": "Make it your own",
+    "description": "Have a colour or personal touch in mind? Share the product and your idea with us. Customisation depends on the design; we will confirm what is possible, the price and dispatch timing before you order.",
+    "linkLabel": "Discuss your idea on WhatsApp",
+    "message": "Hi Luvia, I'd like to ask about customising a handmade piece.\n\nProduct or idea: \nPreferred colour or change: \n\nPlease confirm what is possible, the price and dispatch estimate before I order."
+  },
   "shipping": "We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay.",
   "brandStory": {
     "portrait": {
