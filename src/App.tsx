@@ -767,12 +767,13 @@ function App() {
                 </li>
                 <li aria-hidden="true">/</li>
                 <li>
-                  <a
+                  {categorySettings.some(category => category.name === selectedProduct.category && category.visible === false)
+                    ? <span>{selectedProduct.category}</span> : <a
                     href={collectionPath(selectedProduct.category)}
                     className="underline underline-offset-4"
                   >
                     {selectedProduct.category}
-                  </a>
+                  </a>}
                 </li>
                 <li aria-hidden="true">/</li>
                 <li aria-current="page" className="min-w-0 break-words font-semibold">

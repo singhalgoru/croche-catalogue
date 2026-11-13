@@ -195,6 +195,15 @@ export async function renameCategory(currentName: string, replacementName: strin
   }
 }
 
+export async function setCategoryVisibility(name: string, visible: boolean): Promise<void> {
+  const client = await requireSupabase();
+  const { error } = await client.rpc('set_category_visibility', {
+    category_name: name,
+    show_category: visible,
+  });
+  if (error) throw new Error(`Unable to update category visibility: ${error.message}`);
+}
+
 export async function deleteCategory(name: string): Promise<void> {
   const client = await requireSupabase();
   const { error } = await client.from('categories').delete().eq('name', name);

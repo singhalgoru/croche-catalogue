@@ -70,6 +70,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     category.name, category.isSeasonal ? products.filter(product => category.productIds?.includes(product.id)) : [],
   ]));
   for (const product of products) {
+    if (orderedCategories.some(category => category.name === product.category && category.visible === false)) continue;
     const current = groups.get(product.category) ?? [];
     current.push(product);
     groups.set(product.category, current);

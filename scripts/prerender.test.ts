@@ -485,6 +485,15 @@ describe('renderLlms', () => {
     expect(renderLlms(template, [product], undefined, [{ ...seasonal, visible: false }])).not.toContain('Diwali Specials');
     expect(renderLlms(template, [product], undefined, [{ ...seasonal, productIds: [] }])).not.toContain('Diwali Specials');
   });
+  it('keeps products discoverable without linking to a hidden regular collection', () => {
+    const category = { name: product.category, priority: 1, visible: false };
+    const text = renderLlms(template, [product], undefined, [category]);
+    expect(text).toContain(`[Ivory Rose Gajra](https://luviacreations.com/p/${prerenderSlug(product)}/)`);
+    expect(text).not.toContain('/collections/hair-accessories/');
+    const page = renderProductPage(product, undefined, null, false, false);
+    expect(page).not.toContain('/collections/hair-accessories/');
+    expect(page).toContain('Ivory Rose Gajra');
+  });
 
   it('uses the configured number in crawler contact details', () => {
     const text = renderLlms(template, [product], '+44 20 1234 5678');

@@ -3,6 +3,7 @@ import {
   createCategory,
   deleteCategory,
   renameCategory,
+  setCategoryVisibility,
   updateCategoryPresentation,
 } from '../../services/categories';
 import type { CategorySettings } from '../../types/product';
@@ -117,6 +118,22 @@ export default function CategoryManager({ categories, onChanged }: Props) {
     }
   };
 
+  const toggleVisibility = async (category: CategorySettings) => {
+    const visible = category.visible === false;
+    setBusyName(category.name);
+    setError(null);
+    setMessage(null);
+    try {
+      await setCategoryVisibility(category.name, visible);
+      await onChanged();
+      setMessage(`“${category.name}” is ${visible ? 'visible' : 'hidden'}.`);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Unable to update category visibility.');
+    } finally {
+      setBusyName(null);
+    }
+  };
+
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 shadow-sm">
       <button
@@ -146,7 +163,7 @@ export default function CategoryManager({ categories, onChanged }: Props) {
 
       <div id="category-management-content" hidden={!isExpanded}>
         <p className="mt-4 text-sm text-cocoa/65">
-          Use lower priority numbers to show categories earlier in the catalogue. Seasonal categories such as Navaratri group existing products without moving them from their original categories; hide them when the season ends.
+          Use lower priority numbers to show categories earlier in the catalogue. Hidden categories do not appear in shop navigation or collection pages; their products remain available. Seasonal categories group existing products without moving them from their original categories.
         </p>
 
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={addCategory}>
@@ -192,8 +209,8 @@ export default function CategoryManager({ categories, onChanged }: Props) {
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {categories.map((category) => (
           <div key={category.name} className="rounded-xl border border-mustard/30 bg-cream/50 p-3">
+            <p className="mb-2 text-xs font-semibold text-cocoa/70">{category.isSeasonal ? 'Seasonal' : 'Regular'} · {category.visible === false ? 'Hidden' : 'Visible'}{category.isSeasonal ? ` · ${category.productIds?.length ?? 0} products` : ''}</p>
             {category.isSeasonal && <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-cocoa/70">Seasonal · {category.visible === false ? 'Hidden' : 'Visible'} · {category.productIds?.length ?? 0} products</p>
               <button type="button" disabled={busyName !== null} onClick={() => setSeasonalName(category.name)}
                 className="min-h-11 rounded-full border border-cocoa/30 px-3 text-sm font-semibold">Manage products</button>
             </div>}
@@ -289,6 +306,12 @@ export default function CategoryManager({ categories, onChanged }: Props) {
                   </button>
                 </div>
                 <div className="mt-3 flex justify-end gap-3">
+                  <button type="button" onClick={() => void toggleVisibility(category)}
+                    disabled={busyName !== null || seasonalName !== null}
+                    aria-label={`${category.visible === false ? 'Show' : 'Hide'} ${category.name} category`}
+                    className="text-sm font-semibold text-cocoa underline disabled:cursor-not-allowed disabled:opacity-40">
+                    {busyName === category.name ? 'Saving…' : category.visible === false ? 'Show' : 'Hide'}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

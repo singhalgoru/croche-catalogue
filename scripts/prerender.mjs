@@ -220,7 +220,7 @@ const productUrl = (product) => product.url ?? `${ORIGIN}/p/${toProductSlug(prod
 const availability = (product) =>
   product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
 
-const productJsonLd = (product) => {
+const productJsonLd = (product, showCategoryLink = true) => {
   const range = priceRange(product);
   const url = productUrl(product);
   const data = {
@@ -280,8 +280,8 @@ const productJsonLd = (product) => {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
-          { '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}${collectionPath(product.category)}` },
-          { '@type': 'ListItem', position: 3, name: product.name, item: url },
+          ...(showCategoryLink ? [{ '@type': 'ListItem', position: 2, name: product.category, item: `${ORIGIN}${collectionPath(product.category)}` }] : []),
+          { '@type': 'ListItem', position: showCategoryLink ? 3 : 2, name: product.name, item: url },
         ],
       },
     ],
@@ -353,6 +353,7 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
     .map(category => [category.name, products.filter(product => category.productIds?.includes(product.id))])
     .filter(([, items]) => items.length > 0);
   const seasonalNames = new Set(seasonal.map(([name]) => name));
+  const hiddenNames = new Set(categorySettings.filter(category => category.visible === false).map(category => category.name));
   const categories = [...seasonal, ...groupByCategory(products).filter(([name]) => !seasonalNames.has(name))];
   const listing = [
     'Prices are in INR. Variant prices may differ; confirm current price and availability on the linked product page.',
@@ -360,8 +361,8 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
       const image = getCategoryImage(items, categorySettings.find(settings => settings.name === category));
       return [
       `## ${markdownText(category)}`,
-      `Collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}).`,
-      ...(/^https:\/\//.test(image) ? [`Collection image: ${getProductImageUrl(image, 960)}`] : []),
+      ...(hiddenNames.has(category) ? [] : [`Collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}).`]),
+      ...(!hiddenNames.has(category) && /^https:\/\//.test(image) ? [`Collection image: ${getProductImageUrl(image, 960)}`] : []),
       ...(seasonalNames.has(category)
         ? [`Seasonal collection: [${markdownText(category)}](${ORIGIN}${collectionPath(category)}). Products also appear under their regular categories.`]
         : []),
@@ -547,7 +548,7 @@ const appRedirectScript = (reference) =>
 
 const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).digest('base64')}'`;
 
-const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, socialImage = null, redirectToApp = true) => {
+const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, socialImage = null, redirectToApp = true, showCategoryLink = true) => {
   const url = productUrl(product);
   const title = `${product.name} | Luvia Creations`;
   const description = getProductMetaDescription(product);
@@ -614,7 +615,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${escapeHtml(shareImage)}" />
-    ${jsonLdScript(productJsonLd(product))}
+    ${jsonLdScript(productJsonLd(product, showCategoryLink))}
     <style>${PAGE_STYLE}</style>
   </head>
   <body>
@@ -624,7 +625,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
       <nav aria-label="Main navigation"><a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a></nav>
     </header>
     <main id="main" class="wrap">
-      <nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="${collectionPath(product.category)}">${escapeHtml(product.category)}</a> › <span aria-current="page">${escapeHtml(product.name)}</span></nav>
+      <nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a> › ${showCategoryLink ? `<a href="${collectionPath(product.category)}">${escapeHtml(product.category)}</a>` : escapeHtml(product.category)} › <span aria-current="page">${escapeHtml(product.name)}</span></nav>
       <h1>${escapeHtml(product.name)}</h1>
       <p class="cat">Handmade crochet from the ${escapeHtml(product.category)} collection by Luvia Creations</p>
       <img class="hero" src="${escapeHtml(image)}" alt="${escapeHtml(product.name)}" width="460" height="460" fetchpriority="high" decoding="async" />
@@ -935,6 +936,7 @@ const main = async () => {
     firstBestsellerImageUrls(rows, bestsellers)));
 
   for (const product of products) {
+    const showCategoryLink = !categories.some(category => category.name === product.category && category.visible === false);
     const slug = toProductSlug(product);
     const dir = path.join(DIST, 'p', slug);
     await mkdir(dir, { recursive: true });
@@ -946,7 +948,7 @@ const main = async () => {
     const socialImage = await writeSocialImage(product, dir, `/p/${slug}/`);
     await writeFile(
       path.join(dir, 'index.html'),
-      attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
+      attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false, showCategoryLink), template),
     );
     for (const variant of product.variants) {
       const reference = `${slug}/variant/${toVariantSlug(variant)}`;
@@ -956,7 +958,7 @@ const main = async () => {
       const variantImage = await writeSocialImage(shareProduct, variantDir, `/p/${reference}/`);
       await writeFile(
         path.join(variantDir, 'index.html'),
-        attachProductApp(renderProductPage(shareProduct, whatsappNumber, variantImage, false), template),
+        attachProductApp(renderProductPage(shareProduct, whatsappNumber, variantImage, false, showCategoryLink), template),
       );
     }
     const legacyDir = path.join(DIST, 'p', toProductReference(product));
@@ -964,7 +966,7 @@ const main = async () => {
       await mkdir(legacyDir, { recursive: true });
       await writeFile(
         path.join(legacyDir, 'index.html'),
-        attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false), template),
+        attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false, showCategoryLink), template),
       );
     }
   }

@@ -335,6 +335,17 @@ describe('collection and information pages', () => {
     expect(hidden.get('/collections/')).not.toContain('Navaratri');
     expect(hidden.get('/collections/toys/')).toContain('Bunny');
   });
+  it('omits hidden regular collection pages without removing products from visible seasonal collections', () => {
+    const categories = [
+      { name: 'Toys', priority: 1, visible: false },
+      { name: 'Gifts', priority: 2, isSeasonal: true, visible: true, productIds: ['p1'] },
+    ];
+    const pages = buildContentPages([toy], '919205907350', categories);
+    expect(pages.has('/collections/toys/')).toBe(false);
+    expect(pages.get('/collections/')).not.toContain('Handmade Toys');
+    expect(pages.get('/collections/gifts/')).toContain('Bunny');
+    expect(renderContentSitemap([toy], '2026-10-06', pages, categories)).not.toContain('/collections/toys/');
+  });
   it('discloses the actual catalogue payment model and additional shipping in crawlable pages', () => {
     for (const pathname of ['/faq/']) {
       const text = documentFor(pathname).body.textContent;

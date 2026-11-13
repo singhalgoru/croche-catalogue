@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryContent, saveCategoryOverview, saveSeasonalCategory, uploadSeasonalCategoryImage } from './categories';
+import { generateCategoryOverview, removeSeasonalCategoryImages, saveCategoryContent, saveCategoryOverview, saveSeasonalCategory, setCategoryVisibility, uploadSeasonalCategoryImage } from './categories';
 import { archiveImageOriginal } from './imageOriginals';
 import { deleteImagesFromR2, uploadImageToR2 } from './r2ImageStorage';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
@@ -9,6 +9,12 @@ vi.mock('./imageOriginals', () => ({ archiveImageOriginal: vi.fn() }));
 vi.mock('./r2ImageStorage', () => ({ uploadImageToR2: vi.fn(), deleteImagesFromR2: vi.fn() }));
 vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: vi.fn() }));
 beforeEach(() => vi.clearAllMocks());
+it('updates visibility through the dedicated admin RPC and surfaces failures', async () => {
+  rpc.mockResolvedValueOnce({ error: null }).mockResolvedValueOnce({ error: { message: 'Access denied' } });
+  await setCategoryVisibility('Bags', false);
+  expect(rpc).toHaveBeenCalledWith('set_category_visibility', { category_name: 'Bags', show_category: false });
+  await expect(setCategoryVisibility('Bags', true)).rejects.toThrow('Access denied');
+});
 it('rejects saving overviews longer than 90 words on either category path', async () => {
   const overview = Array(91).fill('crochet').join(' ');
   await expect(saveCategoryOverview('Toys', overview)).rejects.toThrow('90 words');

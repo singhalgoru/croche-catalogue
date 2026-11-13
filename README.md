@@ -77,6 +77,7 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
+  Categories can be hidden from collection navigation without deleting their products.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
 - Invited artisans can submit a private application; authorised administrators
