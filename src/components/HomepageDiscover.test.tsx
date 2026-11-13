@@ -5,7 +5,7 @@ import { HomepageCustomisation, HomepageSpotlight } from './HomepageDiscover';
 
 const product: Product = {
   id: 'one', name: 'Crochet flower', publicSlug: 'crochet-flower', category: 'Gifts',
-  description: '', price: 250, showPrice: true, color: '', inStock: true,
+  description: 'A handmade flower.', price: 250, showPrice: true, color: '', inStock: true,
   image: '/flower.webp', publishedAt: '2020-01-01T00:00:00Z',
   variants: [{ id: 'red', name: 'Red', color: '', price: 300, image: '/red.webp',
     imagePath: '', gallery: [], inStock: true, availableQuantity: 1 }],
@@ -23,6 +23,7 @@ describe('HomepageDiscover', () => {
     expect(url.searchParams.get('text')).toContain('price and dispatch estimate');
     const section = screen.getByRole('region', { name: 'Latest from Luvia' });
     expect(within(section).getByText('₹300')).toBeTruthy();
+    expect(within(section).getByText('A handmade flower.')).toBeTruthy();
     const productLink = within(section).getByRole('link', { name: /crochet flower/i });
     expect(productLink.getAttribute('href')).toContain('/p/crochet-flower/');
     fireEvent.click(productLink);

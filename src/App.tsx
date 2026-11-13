@@ -819,8 +819,9 @@ function App() {
           <p className="text-xs font-semibold uppercase tracking-wider">Meet Luvia &amp; our founder</p>
           <h2 id="brand-story-teaser-title" className="font-heading text-xl font-bold sm:text-2xl">{storeContent.brandStory.teaser.title}</h2>
           <p className="col-span-2 text-sm leading-relaxed sm:col-span-1 sm:col-start-2">{storeContent.brandStory.teaser.text}</p>
-          <a href="/about/" className="col-span-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:col-span-1 sm:col-start-2">{storeContent.brandStory.teaser.linkLabel}</a>
-          <a href={storeContent.brandStory.linkedinUrl} className="col-span-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:col-span-1 sm:col-start-2">{storeContent.brandStory.linkedinLabel}</a>
+          <div className="col-span-2 sm:col-span-1 sm:col-start-2 sm:mt-1">
+            <a href="/about/" className="inline-flex min-h-11 items-center rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream hover:bg-cocoa-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">{storeContent.brandStory.teaser.linkLabel}</a>
+          </div>
         </section>}
         {categories.length > 0 && (!isLoading || hasCatalogueSnapshot) && effectiveActiveCategory === 'All' && !query.trim() &&
           <CategoryTiles categories={categories} products={products} categorySettings={categorySettings} />}

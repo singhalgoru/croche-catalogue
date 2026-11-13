@@ -62,6 +62,11 @@ describe('fetchProducts', () => {
     expect(shell).toContain('/p/ivory-rose-gajra/');
     expect(renderShell([{ ...product, publishedAt: 'invalid' }])).not.toContain('Latest from Luvia');
   });
+  it('links the founder teaser to About without a homepage LinkedIn link', () => {
+    const shell = renderShell([product]);
+    expect(shell).toContain('href="/about/"');
+    expect(shell).not.toContain('linkedin.com/in/tanushreemithal');
+  });
   it('preserves making-video metadata through static prerender mapping without creating eager video sources', () => {
     const video = { video_url: 'https://images.luviacreations.com/making-videos/id/video.mp4',
       poster_url: 'https://images.luviacreations.com/making-videos/id/poster.webp',
