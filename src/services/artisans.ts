@@ -119,7 +119,6 @@ export function isApplication(value: unknown): value is ArtisanApplication {
 export function validateArtisanDetails(details: ArtisanDetails): void {
   for (const field of content.fields) {
     const value = Reflect.get(details, field.name);
-    if (field.name === 'address' && value === undefined) continue;
     if (typeof value !== 'string' || (field.required && !value.trim()) || value.trim().length > field.maxLength) {
       throw new Error(`Check ${field.label.toLowerCase()} (maximum ${field.maxLength} characters).`);
     }

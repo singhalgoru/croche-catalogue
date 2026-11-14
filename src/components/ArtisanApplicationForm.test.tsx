@@ -25,6 +25,8 @@ it('switches languages without changing answers and submits original Hindi with 
   expect(form.closest('[lang]')?.getAttribute('lang')).toBe('hi');
   expect(screen.getByLabelText('पूरा नाम *')).toHaveProperty('value', 'परीक्षण कारीगर');
   expect(screen.getByLabelText('आवेदन अपडेट के लिए ईमेल *')).toHaveProperty('value', 'maker@example.test');
+  expect(screen.getByLabelText('डिलीवरी का पता *')).toHaveProperty('required', true);
+  fireEvent.change(screen.getByLabelText('डिलीवरी का पता *'), { target: { value: 'परीक्षण गली' } });
   expect(screen.getByRole('heading', { name: 'ऑनबोर्डिंग प्रक्रिया कैसे काम करती है' })).toBeTruthy();
   expect(screen.getByText('अपना आवेदन जमा करें')).toBeTruthy();
   expect(screen.getByText('ईमेल अपडेट पाएं')).toBeTruthy();
@@ -39,7 +41,7 @@ it('switches languages without changing answers and submits original Hindi with 
   fireEvent.click(screen.getByLabelText(/मैंने सामग्री भेजने/));
   fireEvent.submit(form);
   expect(await screen.findByRole('region', { name: 'आवेदन की पुष्टि' })).toBeTruthy();
-  expect(submit.mock.calls[0][0]).toMatchObject({ fullName: 'परीक्षण कारीगर', email: 'maker@example.test', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने' });
+  expect(submit.mock.calls[0][0]).toMatchObject({ fullName: 'परीक्षण कारीगर', email: 'maker@example.test', address: 'परीक्षण गली', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी खिलौने' });
   expect(screen.getByRole('link', { name: 'WhatsApp पर काम का वीडियो साझा करें' })).toBeTruthy();
 });
 it('provides hover and accessible mobile guidance without changing field labels or requirements', async () => {
@@ -120,7 +122,7 @@ it('keeps the profile photo separate from ID, requires consent and reuses prepar
   const photo = { contentType: 'image/webp', data: 'fixture', consent: true, consentVersion: '2026-10-30.1' };
   preparePhoto.mockResolvedValue(photo); submit.mockRejectedValueOnce(new Error('Interrupted'));
   render(<ArtisanApplicationForm />); const form = await screen.findByRole('form');
-  fireEvent.change(screen.getByLabelText('Delivery address (optional)'), { target: { value: 'Synthetic address' } });
+  fireEvent.change(screen.getByLabelText('Delivery address *'), { target: { value: 'Synthetic address' } });
   fireEvent.click(screen.getByLabelText(/I have read and acknowledge the material dispatch/));
   fireEvent.change(screen.getByLabelText(/^Profile photo \(/), { target: { files: [new File(['fixture'], 'portrait.jpg', { type: 'image/jpeg' })] } });
   fireEvent.submit(form);

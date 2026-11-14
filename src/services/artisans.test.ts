@@ -9,7 +9,7 @@ vi.mock('../lib/supabaseConfig', () => ({ loadSupabase: async () => ({
 }) }));
 vi.mock('./cartCaptcha', () => ({ requestCartCaptcha: captcha }));
 vi.mock('../utils/imageUploadConversion', () => ({ convertImageForUpload: convert }));
-const details = { ...emptyArtisanDetails, fullName: 'Sample Maker', email: 'Maker@Example.Test', mobile: '9876543210', city: 'Gurugram',
+const details = { ...emptyArtisanDetails, fullName: 'Sample Maker', email: 'Maker@Example.Test', address: 'Synthetic address', mobile: '9876543210', city: 'Gurugram',
   state: 'Haryana', pin: '122001', language: 'Hindi, evenings', skills: 'Crochet flowers', availability: '5 hours/week', adult: true, consent: true };
 beforeEach(() => {
   vi.clearAllMocks(); session.mockResolvedValue({ data: { session: {} } });
@@ -47,6 +47,8 @@ it('creates a CAPTCHA-protected guest session only if needed', async () => {
 it.each([
   [{ fullName: ' ' }, 'full name'], [{ mobile: '123' }, 'mobile number'], [{ pin: '000000' }, 'PIN code'],
   [{ email: 'not-an-email' }, 'valid email address'],
+  [{ address: '' }, 'delivery address'], [{ address: ' \t\n' }, 'delivery address'],
+  [{ address: undefined }, 'delivery address'], [{ address: 'x'.repeat(1001) }, 'delivery address'],
   [{ adult: false }, '18 or older'], [{ consent: false }, 'privacy notice'],
   [{ portfolioUrl: 'javascript:alert(1)' }, 'https://'], [{ portfolioUrl: 'https://user:pass@example.test' }, 'credentials'],
   [{ skills: 'x'.repeat(1001) }, '1'],

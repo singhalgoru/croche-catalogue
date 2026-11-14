@@ -37,7 +37,8 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
   await form.getByLabel('Full name').fill('Sample Maker');
   await form.getByLabel('Email for application updates').fill('maker@example.test');
   await form.getByLabel('Mobile / WhatsApp number').fill('9876543210');
-  await form.getByLabel('Delivery address (optional)').fill('Synthetic delivery address');
+  await expect(form.getByLabel('Delivery address')).toHaveAttribute('required', '');
+  await form.getByLabel('Delivery address').fill('Synthetic delivery address');
   await form.getByLabel('City / area').fill('Gurugram');
   await form.getByLabel(/^State/).fill('Haryana');
   await form.getByLabel('PIN code').fill('122001');
@@ -60,6 +61,11 @@ test(`invited artisan applies privately ${withIdentity ? 'with a private ID' : '
     ga: typeof window.gtag, meta: typeof window.fbq,
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
   }))).toEqual({ ga: 'undefined', meta: 'undefined', overflow: false });
+  await form.getByLabel('Delivery address').fill('');
+  await form.getByRole('button', { name: 'Submit application' }).click();
+  expect(await form.getByLabel('Delivery address').evaluate((element: HTMLTextAreaElement) => element.validity.valueMissing)).toBe(true);
+  expect(submissions).toHaveLength(0);
+  await form.getByLabel('Delivery address').fill('Synthetic delivery address');
   await form.getByRole('button', { name: 'Submit application' }).click();
   await expect(page.getByRole('region', { name: 'Application confirmation' })).toContainText('Your application has been saved');
   expect(submissions).toHaveLength(1);
@@ -104,7 +110,8 @@ test('Hindi form preserves original answers across language switches and submiss
   await form.getByLabel('पूरा नाम').fill('परीक्षण कारीगर');
   await form.getByLabel('आवेदन अपडेट के लिए ईमेल').fill('maker@example.test');
   await form.getByLabel('मोबाइल / WhatsApp नंबर').fill('9876543210');
-  await form.getByLabel('डिलीवरी का पता (वैकल्पिक)').fill('परीक्षण गली');
+  await expect(form.getByLabel('डिलीवरी का पता')).toHaveAttribute('required', '');
+  await form.getByLabel('डिलीवरी का पता').fill('परीक्षण गली');
   await form.getByLabel('शहर / क्षेत्र').fill('गुरुग्राम');
   await form.getByLabel('राज्य', { exact: false }).fill('हरियाणा');
   await form.getByLabel('पिन कोड').fill('122001');

@@ -83,6 +83,7 @@ an India-based handmade crochet brand.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
   The application supports English and Hindi; answers remain in their original language.
+  A delivery address is required for new applications.
   Invitations expire after 24 hours or one submission. Applications include
   material-dispatch terms and an optional, consented masked-ID photo.
   Photo preparation runs on-device, including a fallback for browsers without

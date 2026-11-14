@@ -1,8 +1,10 @@
 begin;
 create temporary table artisan_fixture as select gen_random_uuid() admin_id,gen_random_uuid() applicant_id,
   gen_random_uuid() session_id,gen_random_uuid() factor_id,gen_random_uuid() invite_id,gen_random_uuid() application_id,
-  gen_random_uuid() legacy_invite_id,gen_random_uuid() legacy_application_id,repeat('a',64) token,repeat('f',64) legacy_token,
-  '{"fullName":"Sample Maker","mobile":"9876543210","city":"Gurugram","state":"Haryana","pin":"122001",
+  gen_random_uuid() legacy_invite_id,gen_random_uuid() legacy_application_id,
+  gen_random_uuid() addressless_invite_id,gen_random_uuid() addressless_application_id,
+  repeat('a',64) token,repeat('f',64) legacy_token,repeat('e',64) addressless_token,
+  '{"fullName":"Sample Maker","address":"Synthetic delivery address","mobile":"9876543210","city":"Gurugram","state":"Haryana","pin":"122001",
     "language":"Hindi","skills":"Crochet flowers","availability":"5 hours/week","experience":"","tools":"",
     "portfolioUrl":"","notes":"","adult":true,"consent":true,"paidTrial":true}'::jsonb details;
 grant select on artisan_fixture to authenticated,anon;
@@ -25,6 +27,7 @@ do $$ declare f record; invitation jsonb; begin
   if (invitation->>'expires_at')::timestamptz-(invitation->>'created_at')::timestamptz<>interval '24 hours' then raise exception 'FAIL: invitation is not exactly 24 hours.'; end if;
   perform public.create_artisan_invitation(f.invite_id,f.token,'Sample Maker','email','maker@example.test');
   perform public.create_artisan_invitation(f.legacy_invite_id,f.legacy_token,'Legacy Maker','whatsapp','9876543210');
+  perform public.create_artisan_invitation(f.addressless_invite_id,f.addressless_token,'Addressless Maker','whatsapp','9876543210');
   if (select count(*) from public.artisan_invitations where id=f.invite_id)<>1 then raise exception 'FAIL: duplicate invitation.'; end if;
   begin
     perform public.create_artisan_invitation(f.invite_id,f.token,'Changed','email','maker@example.test');
@@ -49,9 +52,42 @@ do $$ declare f record; begin
 end $$;
 reset role;
 select set_config('request.jwt.claims',jsonb_build_object('sub',applicant_id,'role','authenticated')::text,true) from artisan_fixture;
+-- Simulate an application submitted before addresses became mandatory.
+select public.submit_artisan_application_before_address_required(addressless_application_id,details-'address',
+  '2026-10-29.2',addressless_token,'2026-10-29.1',null,null,null) from artisan_fixture;
 set local role authenticated;
 do $$ declare f record; result uuid; begin
   select * into f from artisan_fixture;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details-'address','2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: missing address accepted.';
+  exception when raise_exception then if sqlerrm <> 'Enter a delivery address.' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details||jsonb_build_object('address',E' \t\n'),'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: blank address accepted.';
+  exception when raise_exception then if sqlerrm <> 'Enter a delivery address.' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details||'{"address":null}'::jsonb,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: null address accepted.';
+  exception when raise_exception then if sqlerrm <> 'Enter a delivery address.' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details||'{"address":123}'::jsonb,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: non-string address accepted.';
+  exception when raise_exception then if sqlerrm <> 'Enter a delivery address.' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details||jsonb_build_object('address',repeat('x',1001)),'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: oversized address accepted.';
+  exception when raise_exception then if sqlerrm <> 'Delivery address must be at most 1,000 characters.' then raise; end if; end;
+  begin
+    perform public.submit_artisan_application_before_address_required(f.application_id,f.details-'address','2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: address enforcement bypassed.';
+  exception when insufficient_privilege then null; end;
+  result:=public.submit_artisan_application(f.addressless_application_id,f.details-'address','2026-10-29.2',f.addressless_token,'2026-10-29.1',null,null,null);
+  if result<>f.addressless_application_id then raise exception 'FAIL: addressless legacy retry failed.'; end if;
+  begin
+    perform public.submit_artisan_application(f.addressless_application_id,(f.details-'address')||'{"fullName":"Changed"}'::jsonb,'2026-10-29.2',f.addressless_token,'2026-10-29.1',null,null,null);
+    raise exception 'FAIL: existing request ID allowed changed application.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
     perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',repeat('b',64),'2026-10-29.1',null,null,'maker@example.test');
     raise exception 'FAIL: missing invitation accepted.';
@@ -87,6 +123,10 @@ do $$ declare f record; result uuid; begin
   result:=public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
   if result<>f.application_id then raise exception 'FAIL: application receipt.'; end if;
   perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+  begin
+    perform public.submit_artisan_application(f.application_id,f.details-'address','2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
+    raise exception 'FAIL: existing request ID allowed removal of address.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
     perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'changed@example.test');
     raise exception 'FAIL: idempotent retry changed applicant email.';

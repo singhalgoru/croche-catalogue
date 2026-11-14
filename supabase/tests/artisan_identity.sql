@@ -2,7 +2,7 @@ begin;
 create temporary table identity_fixture as select gen_random_uuid() admin_id,gen_random_uuid() applicant_id,
   gen_random_uuid() session_id,gen_random_uuid() factor_id,gen_random_uuid() invite_id,gen_random_uuid() application_id,
   repeat('e',64) token,
-  '{"fullName":"Synthetic Identity Fixture","mobile":"9876543210","city":"Gurugram","state":"Haryana","pin":"122001",
+  '{"fullName":"Synthetic Identity Fixture","address":"Synthetic delivery address","mobile":"9876543210","city":"Gurugram","state":"Haryana","pin":"122001",
     "language":"Hindi","skills":"Crochet flowers","availability":"5 hours/week","experience":"","tools":"",
     "portfolioUrl":"","notes":"","adult":true,"consent":true,"paidTrial":true}'::jsonb details,
   jsonb_build_object('documentType','masked_aadhaar','contentType','image/webp','consent',true,
