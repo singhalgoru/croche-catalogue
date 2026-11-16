@@ -1,10 +1,32 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
-const { fetchMarketingOverview, startMetaConnection, completeMetaConnection } = vi.hoisted(() => ({
-  fetchMarketingOverview: vi.fn(), startMetaConnection: vi.fn(), completeMetaConnection: vi.fn(),
+const {
+  fetchMarketingOverview,
+  startMetaConnection,
+  completeMetaConnection,
+  listMarketingCampaignDrafts,
+  generateMarketingCampaignProposal,
+  saveMarketingCampaignDraft,
+  reviewMarketingCampaignDraft,
+} = vi.hoisted(() => ({
+  fetchMarketingOverview: vi.fn(),
+  startMetaConnection: vi.fn(),
+  completeMetaConnection: vi.fn(),
+  listMarketingCampaignDrafts: vi.fn().mockResolvedValue([]),
+  generateMarketingCampaignProposal: vi.fn(),
+  saveMarketingCampaignDraft: vi.fn(),
+  reviewMarketingCampaignDraft: vi.fn(),
 }));
-vi.mock('../../services/marketing', () => ({ fetchMarketingOverview, startMetaConnection, completeMetaConnection }));
+vi.mock('../../services/marketing', () => ({
+  fetchMarketingOverview,
+  startMetaConnection,
+  completeMetaConnection,
+  listMarketingCampaignDrafts,
+  generateMarketingCampaignProposal,
+  saveMarketingCampaignDraft,
+  reviewMarketingCampaignDraft,
+}));
 
 import MarketingDashboard from './MarketingDashboard';
 

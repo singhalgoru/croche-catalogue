@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { completeMetaConnection, fetchMarketingOverview, startMetaConnection, type MarketingOverview } from '../../services/marketing';
+import MarketingCampaignDrafts from './MarketingCampaignDrafts';
 
 const numberLabel = (value: number) => new Intl.NumberFormat('en-IN').format(value);
 const moneyLabel = (value: number, currency: string) => new Intl.NumberFormat('en-IN', {
@@ -105,7 +106,8 @@ export default function MarketingDashboard() {
     }
   };
 
-  return <section aria-label="Marketing overview" className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+  return <>
+    <section aria-label="Marketing overview" className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="font-heading text-xl font-bold text-cocoa">Marketing overview</h2>
@@ -174,5 +176,7 @@ export default function MarketingDashboard() {
         Meta-reported delivery metrics are not confirmed website orders. No campaign changes can be made from this screen.
       </p>
     </>}
-  </section>;
+    </section>
+    <MarketingCampaignDrafts />
+  </>;
 }
