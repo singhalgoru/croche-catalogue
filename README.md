@@ -84,7 +84,8 @@ an India-based handmade crochet brand.
   Meta, and create AI campaign proposals with model provenance and location
   planning for internal review. When configured, a separate confirmation creates
   paused Facebook Feed ads from approved proposals; activation remains manual
-  in Meta Ads Manager.
+  in Meta Ads Manager. Eligible incomplete attempts offer a separate saved-details
+  recovery review without recreating the campaign or ad set.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
   The application supports English and Hindi; answers remain in their original language.

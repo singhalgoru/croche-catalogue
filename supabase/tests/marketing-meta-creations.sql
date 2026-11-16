@@ -50,6 +50,30 @@ begin
 end $$;
 update public.marketing_meta_creations set status='needs_attention',campaign_id='10',error='Fixture partial failure'
 where draft_id=(select draft_id from meta_creation_fixture);
+do $$
+declare claimed integer;
+begin
+  update public.marketing_meta_creations
+  set status='creating', recovery_started_at=now()
+  where draft_id=(select draft_id from meta_creation_fixture)
+    and status='needs_attention' and recovery_started_at is null;
+  get diagnostics claimed = row_count;
+  if claimed <> 1 then raise exception 'FAIL: first recovery claim was not reserved.'; end if;
+  update public.marketing_meta_creations
+  set status='creating', recovery_started_at=now()
+  where draft_id=(select draft_id from meta_creation_fixture)
+    and status='needs_attention' and recovery_started_at is null;
+  get diagnostics claimed = row_count;
+  if claimed <> 0 then raise exception 'FAIL: a concurrent recovery claim was permitted.'; end if;
+  update public.marketing_meta_creations set status='needs_attention'
+  where draft_id=(select draft_id from meta_creation_fixture);
+  update public.marketing_meta_creations
+  set status='creating', recovery_started_at=now()
+  where draft_id=(select draft_id from meta_creation_fixture)
+    and status='needs_attention' and recovery_started_at is null;
+  get diagnostics claimed = row_count;
+  if claimed <> 0 then raise exception 'FAIL: failed recovery became retryable.'; end if;
+end $$;
 reset role;
 
 set local role authenticated;

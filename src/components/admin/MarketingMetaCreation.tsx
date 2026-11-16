@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { Product } from '../../types/product';
 import {
   createPausedMetaCampaign, fetchMetaCampaignCreation, fetchMetaCreationSetup,
+  recoverPausedMetaCampaign, reviewMetaCampaignRecovery,
+  type MetaRecoveryReview,
   type MarketingLocation, type MetaCampaignCreation, type MetaCreationSetup, type SavedMarketingCampaignDraft,
 } from '../../services/marketing';
 import MarketingLocationPicker from './MarketingLocationPicker';
@@ -33,6 +35,8 @@ export default function MarketingMetaCreation({ draft, products }: {
   const [locationLabel, setLocationLabel] = useState(countryDefault ? 'India' : '');
   const [locations, setLocations] = useState<MarketingLocation[] | null>(countryDefault ? null : []);
   const [confirmed, setConfirmed] = useState(false);
+  const [recoveryReview, setRecoveryReview] = useState<MetaRecoveryReview | null>(null);
+  const [recoveryConfirmed, setRecoveryConfirmed] = useState(false);
   const p = draft.proposal;
   const product = products.find(item => item.id === productId);
   const supported = p.callToAction !== 'Send message' && (p.goal !== 'sales' || Boolean(setup?.pixelId));
@@ -83,11 +87,43 @@ export default function MarketingMetaCreation({ draft, products }: {
     }
   };
 
+  const reviewRecovery = async () => {
+    if (busy || uncertain) return;
+    setBusy(true);
+    setError('');
+    setRecoveryConfirmed(false);
+    try {
+      setRecoveryReview(await reviewMetaCampaignRecovery(draft.id));
+    } catch (failure) {
+      setRecoveryReview(null);
+      setError(failure instanceof Error ? failure.message : 'Unable to verify recovery.');
+    } finally { setBusy(false); }
+  };
+  const recover = async () => {
+    if (busy || uncertain || !recoveryConfirmed || !recoveryReview) return;
+    setBusy(true);
+    setError('');
+    try {
+      setCreation(await recoverPausedMetaCampaign(draft.id));
+      setRecoveryReview(null);
+    } catch (failure) {
+      setUncertain(true);
+      setRecoveryReview(null);
+      setError(failure instanceof Error ? failure.message : 'Recovery could not be confirmed. Refresh status; do not retry.');
+    } finally {
+      setRecoveryConfirmed(false);
+      setBusy(false);
+    }
+  };
+  const canRecover = creation?.status === 'needs_attention' && !creation.recovery_started_at
+    && creation.campaign_id && creation.adset_id && !creation.creative_id && !creation.ad_id
+    && creation.error?.includes('subcode 1885183)');
+
   return <section aria-label="Create paused Meta campaign" className="mt-4 rounded-xl border border-cocoa/25 bg-cream/50 p-4">
     <h5 className="font-semibold text-cocoa">Final review: create in Meta, paused</h5>
     <p className="mt-2 text-sm text-cocoa/80">
       This sends the approved copy and selected product image to Meta and creates a new campaign, ad set and ad.
-      All three are paused. Activation stays manual in Ads Manager. Existing campaigns are never changed.
+      All three are paused. Activation stays manual in Ads Manager. Campaigns from other proposals are never changed.
     </p>
     {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     {loading && <p role="status" className="mt-3 text-sm">Checking setup and prior creation attempts...</p>}
@@ -102,6 +138,44 @@ export default function MarketingMetaCreation({ draft, products }: {
         Review campaign in Meta Ads Manager
       </a>}
       <p className="mt-2 text-xs">Saved status is a creation-time snapshot; subsequent manual changes in Meta are not synchronized here.</p>
+      {canRecover && !uncertain && <div className="mt-4 grid gap-3 rounded-xl border border-cocoa/25 p-3">
+        <h6 className="font-semibold">Recover saved traffic ad</h6>
+        <p>After publishing the Meta app, discard any manually started ad draft in Ads Manager.
+          Recovery reuses this attempt&apos;s paused campaign and ad set, with the original saved image, copy,
+          locations, schedule and lifetime budget. It never creates another campaign or ad set.</p>
+        {!recoveryReview && <button type="button" disabled={busy || loading} onClick={() => void reviewRecovery()}
+          className="min-h-11 rounded-full border border-cocoa/30 px-4 font-semibold disabled:opacity-50">
+          {busy ? 'Verifying saved recovery...' : 'Review saved recovery'}
+        </button>}
+        {recoveryReview && <>
+          <p><strong>Campaign:</strong> {recoveryReview.plan.campaignName} ({recoveryReview.campaignId})<br />
+            <strong>Ad set:</strong> {recoveryReview.adsetId}<br />
+            <strong>Account:</strong> {recoveryReview.accountId}<br />
+            <strong>Page:</strong> {recoveryReview.pageId}<br />
+            <strong>Placement:</strong> Facebook Feed only, ages 18+<br />
+            <strong>Locations:</strong> {recoveryReview.locationLabel}</p>
+          <img src={recoveryReview.plan.imageUrl} alt="Saved recovery product image" className="h-48 w-48 rounded-xl object-contain" />
+          <p className="whitespace-pre-wrap"><strong>Primary text:</strong> {recoveryReview.plan.primaryText}</p>
+          <p><strong>Headline:</strong> {recoveryReview.plan.headline}<br />
+            <strong>Description:</strong> {recoveryReview.plan.description}<br />
+            <strong>Destination:</strong> {recoveryReview.plan.destination}<br />
+            <strong>Call to action:</strong> {recoveryReview.plan.callToAction === 'SHOP_NOW' ? 'Shop now' : 'Learn more'}<br />
+            <strong>Lifetime media budget:</strong> {money(recoveryReview.plan.lifetimeBudget / 100)} (not a daily cap; taxes/fees may be extra)<br />
+            <strong>Start:</strong> {new Date(recoveryReview.plan.startTime).toLocaleString('en-IN')}<br />
+            <strong>End:</strong> {new Date(recoveryReview.plan.endTime).toLocaleString('en-IN')}</p>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" checked={recoveryConfirmed} disabled={busy}
+              onChange={event => setRecoveryConfirmed(event.target.checked)} className="mt-1" />
+            <span>I published the Meta app, discarded any manual ad draft, and reviewed the saved image, copy,
+              rights, claims, destination, locations, schedule and budget. Complete only this ad, paused;
+              activation stays manual in Meta.</span>
+          </label>
+          <button type="button" disabled={busy || !recoveryConfirmed} onClick={() => void recover()}
+            className="min-h-11 rounded-full bg-cocoa px-4 font-semibold text-cream disabled:opacity-50">
+            {busy ? 'Recovering paused ad...' : 'Confirm and recover paused ad'}
+          </button>
+        </>}
+      </div>}
     </div>}
     {!loading && !creation && setup && !uncertain && <form onSubmit={event => void submit(event)} className="mt-4 grid gap-3">
       <p className="text-sm"><strong>Account:</strong> {setup.accountName} ({setup.accountId})<br />
@@ -175,6 +249,8 @@ export default function MarketingMetaCreation({ draft, products }: {
       setSetup(null);
       setError('');
       setConfirmed(false);
+      setRecoveryReview(null);
+      setRecoveryConfirmed(false);
       setAttempt(value => value + 1);
     }}
       className="mt-3 min-h-10 rounded-full border border-cocoa/30 px-4 text-sm font-semibold disabled:opacity-50">

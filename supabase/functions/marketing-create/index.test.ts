@@ -1,9 +1,14 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { buildPlan, parseCreationInput } from './meta';
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(), rpc: vi.fn(), readCreation: vi.fn(), readDraft: vi.fn(), readProduct: vi.fn(),
   insert: vi.fn(), claim: vi.fn(), update: vi.fn(), loadMetaAccess: vi.fn(),
+  recoveryClaim: vi.fn(), verifyRecovery: vi.fn(),
+}));
+vi.mock('./recovery.ts', async importOriginal => ({
+  ...await importOriginal<typeof import('./recovery')>(), verifyRecovery: mocks.verifyRecovery,
 }));
 vi.mock('../_shared/loadMetaAccess.ts', () => ({ loadMetaAccess: mocks.loadMetaAccess }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
@@ -13,7 +18,13 @@ vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
       select: () => ({ eq: () => ({ maybeSingle: table === 'marketing_campaign_drafts'
         ? mocks.readDraft : table === 'products' ? mocks.readProduct : mocks.readCreation }) }),
       insert: (value: unknown) => { mocks.insert(value); return { select: () => ({ single: mocks.claim }) }; },
-      update: (value: unknown) => ({ eq: () => ({ select: () => ({ single: () => mocks.update(value) }) }) }),
+      update: (value: unknown) => {
+        const builder = {
+          eq: () => builder, is: () => builder,
+          select: () => ({ single: () => mocks.update(value), maybeSingle: () => mocks.recoveryClaim(value) }),
+        };
+        return builder;
+      },
     }),
   }),
 }));
@@ -59,6 +70,8 @@ beforeEach(() => {
   mocks.readProduct.mockResolvedValue({ data: { published: true, image_url: 'https://images.luviacreations.com/flower.webp' }, error: null });
   mocks.loadMetaAccess.mockResolvedValue({ config: { accessToken: 'secret-fixture', accountId: '123', graphApiVersion: 'v27.0' } });
   mocks.claim.mockResolvedValue({ data: creation, error: null });
+  mocks.recoveryClaim.mockResolvedValue({ data: null, error: null });
+  mocks.verifyRecovery.mockResolvedValue(undefined);
   let progress = { ...creation };
   mocks.update.mockImplementation(async updates => {
     progress = { ...progress, ...updates };
@@ -147,4 +160,93 @@ it('keeps all known IDs but records needs-attention when readback does not confi
   });
   expect(mocks.update).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'created' }));
   expect(fetcher.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(4);
+});
+
+function recoverableRow() {
+  const plan = buildPlan({ status: 'approved', proposal }, {
+    published: true, image_url: 'https://images.luviacreations.com/flower.webp',
+  }, parseCreationInput(input), undefined);
+  return {
+    ...creation, status: 'needs_attention', campaign_id: '10', adset_id: '20',
+    recovery_started_at: null, updated_at: '2030-01-01T00:00:00Z',
+    error: 'Meta object request failed (HTTP 400, code 100, subcode 1885183). Check permissions and account setup in Meta.',
+    request: { ...parseCreationInput(input), plan, geo: { countries: ['IN'] }, pageId: '456', pixelId: null },
+  };
+}
+const recoveryRequest = (action = 'recover') => request({
+  action, draftId: input.draftId, ...(action === 'recover' ? { confirmPaused: true, confirmNoManualAd: true } : {}),
+});
+
+it('gates recovery with fresh admin verification, explicit confirmation and the feature flag', async () => {
+  mocks.rpc.mockResolvedValueOnce({ data: false, error: null });
+  expect((await handle(recoveryRequest())).status).toBe(403);
+  expect((await handle(request({ action: 'recover', draftId: input.draftId }))).status).toBe(400);
+  env.META_PAUSED_CREATION_ENABLED = 'false';
+  expect((await handle(recoveryRequest())).status).toBe(503);
+  expect(mocks.verifyRecovery).not.toHaveBeenCalled();
+  expect(mocks.recoveryClaim).not.toHaveBeenCalled();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it('reviews original saved details without claiming recovery or sending writes', async () => {
+  mocks.readCreation.mockResolvedValueOnce({ data: recoverableRow(), error: null });
+  const result = await handle(recoveryRequest('review-recovery'));
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({ recovery: {
+    campaignId: '10', adsetId: '20', locationLabel: 'India',
+    plan: { primaryText: 'First copy', imageUrl: 'https://images.luviacreations.com/flower.webp', lifetimeBudget: 350000 },
+  } });
+  expect(mocks.verifyRecovery).toHaveBeenCalledTimes(1);
+  expect(mocks.insert).not.toHaveBeenCalled();
+  expect(mocks.recoveryClaim).not.toHaveBeenCalled();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it('stops a competing or repeated recovery before any POST', async () => {
+  mocks.readCreation.mockResolvedValueOnce({ data: recoverableRow(), error: null });
+  expect((await handle(recoveryRequest())).status).toBe(409);
+  expect(mocks.recoveryClaim).toHaveBeenCalledTimes(1);
+  expect(fetcher).not.toHaveBeenCalled();
+  mocks.readCreation.mockResolvedValueOnce({ data: { ...recoverableRow(), recovery_started_at: new Date().toISOString() }, error: null });
+  expect((await handle(recoveryRequest())).status).toBe(409);
+  expect(mocks.recoveryClaim).toHaveBeenCalledTimes(1);
+});
+
+it('completes only creative and ad after an atomic recovery claim and a second read-only verification', async () => {
+  const row = recoverableRow();
+  mocks.readCreation.mockResolvedValueOnce({ data: row, error: null });
+  mocks.recoveryClaim.mockResolvedValueOnce({ data: { ...row, status: 'creating', recovery_started_at: new Date().toISOString() }, error: null });
+  fetcher.mockReset().mockResolvedValueOnce(response({ id: '30' })).mockResolvedValueOnce(response({ id: '40' }))
+    .mockResolvedValueOnce(response({ id: '10', status: 'PAUSED' })).mockResolvedValueOnce(response({ id: '20', status: 'PAUSED' }))
+    .mockResolvedValueOnce(response({ id: '40', status: 'PAUSED' }));
+  const result = await handle(recoveryRequest());
+  expect(await result.json()).toMatchObject({ creation: { status: 'created', creative_id: '30', ad_id: '40' } });
+  expect(mocks.verifyRecovery).toHaveBeenCalledTimes(2);
+  expect(mocks.recoveryClaim).toHaveBeenCalledWith(expect.objectContaining({ status: 'creating', recovery_started_at: expect.any(String) }));
+  expect(fetcher.mock.calls.filter(([, options]) => options.method === 'POST').map(([url]) => new URL(url).pathname))
+    .toEqual(['/v27.0/act_123/adcreatives', '/v27.0/act_123/ads']);
+  expect(mocks.insert).not.toHaveBeenCalled();
+});
+
+it('preserves partial recovery progress on failure and never retries the provider write', async () => {
+  const row = recoverableRow();
+  mocks.readCreation.mockResolvedValueOnce({ data: row, error: null });
+  mocks.recoveryClaim.mockResolvedValueOnce({ data: { ...row, status: 'creating', recovery_started_at: new Date().toISOString() }, error: null });
+  fetcher.mockReset().mockResolvedValueOnce(response({ id: '30' })).mockRejectedValueOnce(new Error('secret-fixture'));
+  const result = await handle(recoveryRequest());
+  const body = await result.text();
+  expect(JSON.parse(body)).toMatchObject({ creation: { status: 'needs_attention', creative_id: '30', ad_id: null } });
+  expect(body).not.toContain('secret-fixture');
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it('sends no writes if an object changes after the recovery claim', async () => {
+  const row = recoverableRow();
+  mocks.readCreation.mockResolvedValueOnce({ data: row, error: null });
+  mocks.recoveryClaim.mockResolvedValueOnce({ data: { ...row, status: 'creating', recovery_started_at: new Date().toISOString() }, error: null });
+  mocks.verifyRecovery.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('An ad already exists.'));
+  const result = await handle(recoveryRequest());
+  expect(await result.json()).toMatchObject({ creation: { status: 'needs_attention', error: 'An ad already exists.' } });
+  expect(mocks.recoveryClaim).toHaveBeenCalledTimes(1);
+  expect(fetcher).not.toHaveBeenCalled();
 });

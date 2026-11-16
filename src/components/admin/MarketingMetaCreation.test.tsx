@@ -5,6 +5,7 @@ import type { SavedMarketingCampaignDraft } from '../../services/marketing';
 
 const mocks = vi.hoisted(() => ({
   createPausedMetaCampaign: vi.fn(), fetchMetaCampaignCreation: vi.fn(), fetchMetaCreationSetup: vi.fn(),
+  reviewMetaCampaignRecovery: vi.fn(), recoverPausedMetaCampaign: vi.fn(),
 }));
 vi.mock('../../services/marketing', () => mocks);
 import MarketingMetaCreation from './MarketingMetaCreation';
@@ -98,4 +99,56 @@ it('does not silently downgrade sales campaigns when no Purchase pixel is config
   expect(await screen.findByText('Sales ads require the operator to configure a Meta pixel that receives Purchase events.')).toBeTruthy();
   expect(screen.getByRole<HTMLFieldSetElement>('group', { name: '' }).disabled).toBe(true);
   expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
+});
+
+const partial = {
+  ...result, status: 'needs_attention', creative_id: null, ad_id: null, recovery_started_at: null,
+  error: 'Meta object request failed (HTTP 400, code 100, subcode 1885183). Check permissions and account setup in Meta.',
+};
+const recovery = {
+  accountId: '123', pageId: '456', campaignId: '10', adsetId: '20', locationLabel: 'India',
+  plan: {
+    campaignName: 'Flowers', goal: 'traffic', destination: draft.proposal.landingPageUrl,
+    primaryText: 'Saved selected copy', headline: 'Saved selected headline', description: 'Saved description',
+    imageUrl: product.image, callToAction: 'SHOP_NOW',
+    startTime: '2030-01-01T10:00:00Z', endTime: '2030-01-08T10:00:00Z', lifetimeBudget: 350000,
+  },
+};
+
+it('reviews server-saved recovery details and requires a separate cleanup and paused confirmation', async () => {
+  mocks.fetchMetaCampaignCreation.mockResolvedValue(partial);
+  mocks.reviewMetaCampaignRecovery.mockResolvedValue(recovery);
+  mocks.recoverPausedMetaCampaign.mockResolvedValue({ ...result, recovery_started_at: '2030-01-01T09:00:00Z' });
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review saved recovery' }));
+  const submit = await screen.findByRole<HTMLButtonElement>('button', { name: 'Confirm and recover paused ad' });
+  expect(submit.disabled).toBe(true);
+  expect(screen.getByAltText('Saved recovery product image').getAttribute('src')).toBe(product.image);
+  expect(screen.getByText('Saved selected copy', { exact: false })).toBeTruthy();
+  expect(screen.getByText('Saved selected headline', { exact: false })).toBeTruthy();
+  expect(screen.queryByLabelText('Published product image for this ad')).toBeNull();
+  expect(mocks.recoverPausedMetaCampaign).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('checkbox', { name: /I published the Meta app/ }));
+  fireEvent.click(submit);
+  await waitFor(() => expect(mocks.recoverPausedMetaCampaign).toHaveBeenCalledWith(draft.id));
+  await screen.findByText(/Created in Meta; campaign, ad set and ad were verified paused/);
+  expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
+});
+
+it('blocks another recovery after an uncertain result and resets confirmation on refresh', async () => {
+  mocks.fetchMetaCampaignCreation.mockResolvedValue(partial);
+  mocks.reviewMetaCampaignRecovery.mockResolvedValue(recovery);
+  mocks.recoverPausedMetaCampaign.mockRejectedValue(new Error('Recovery connection interrupted.'));
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review saved recovery' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: /I published the Meta app/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm and recover paused ad' }));
+  await screen.findByText('Recovery connection interrupted.');
+  expect(screen.queryByRole('button', { name: 'Review saved recovery' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Confirm and recover paused ad' })).toBeNull();
+  mocks.fetchMetaCampaignCreation.mockResolvedValue({ ...partial, recovery_started_at: '2030-01-01T09:00:00Z' });
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh Meta creation status' }));
+  await waitFor(() => expect(mocks.fetchMetaCampaignCreation).toHaveBeenCalledTimes(2));
+  expect(screen.queryByRole('button', { name: 'Review saved recovery' })).toBeNull();
+  expect(mocks.recoverPausedMetaCampaign).toHaveBeenCalledTimes(1);
 });

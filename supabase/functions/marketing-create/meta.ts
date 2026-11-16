@@ -124,7 +124,7 @@ export function buildPlan(
   };
 }
 
-async function graph(
+export async function graph(
   config: MetaConfig, path: string, method: 'GET' | 'POST', parameters: Record<string, string>, fetcher: Fetcher,
   operation: 'permission check' | 'ad account lookup' | 'Facebook Page lookup' | 'pixel lookup' | 'object request' = 'object request',
 ) {
@@ -200,17 +200,23 @@ export async function resolveLocations(config: MetaConfig, locations: MetaLocati
   return geo;
 }
 
-export async function createPausedObjects(
-  config: MetaConfig, settings: ReturnType<typeof creationSettings>, plan: CreationPlan,
-  geo: Awaited<ReturnType<typeof resolveLocations>>,
-  checkpoint: (ids: Record<string, string>) => Promise<unknown>, fetcher: Fetcher = fetch,
+function objectWriter(
+  config: MetaConfig, checkpoint: (ids: Record<string, string>) => Promise<unknown>, fetcher: Fetcher,
 ) {
-  const post = async (edge: string, parameters: Record<string, string>, field: string) => {
+  return async (edge: string, parameters: Record<string, string>, field: string) => {
     const result = await graph(config, `act_${config.accountId}/${edge}`, 'POST', parameters, fetcher);
     if (!numericId(result.id)) throw new Error('Meta returned an invalid object ID; inspect Ads Manager before recovery.');
     await checkpoint({ [field]: result.id });
     return result.id;
   };
+}
+
+export async function createPausedObjects(
+  config: MetaConfig, settings: ReturnType<typeof creationSettings>, plan: CreationPlan,
+  geo: Awaited<ReturnType<typeof resolveLocations>>,
+  checkpoint: (ids: Record<string, string>) => Promise<unknown>, fetcher: Fetcher = fetch,
+) {
+  const post = objectWriter(config, checkpoint, fetcher);
   const campaignId = await post('campaigns', {
     name: plan.campaignName,
     objective: plan.goal === 'sales' ? 'OUTCOME_SALES' : plan.goal === 'traffic' ? 'OUTCOME_TRAFFIC' : 'OUTCOME_AWARENESS',
@@ -229,6 +235,15 @@ export async function createPausedObjects(
       targeting_automation: { advantage_audience: 0 },
     }),
   }, 'adset_id');
+  await completePausedAd(config, settings, plan, campaignId, adsetId, checkpoint, fetcher);
+}
+
+export async function completePausedAd(
+  config: MetaConfig, settings: ReturnType<typeof creationSettings>, plan: CreationPlan,
+  campaignId: string, adsetId: string, checkpoint: (ids: Record<string, string>) => Promise<unknown>,
+  fetcher: Fetcher = fetch,
+) {
+  const post = objectWriter(config, checkpoint, fetcher);
   const creativeId = await post('adcreatives', {
     name: plan.campaignName,
     object_story_spec: JSON.stringify({

@@ -81,6 +81,28 @@ export interface MetaCampaignCreation {
   creative_id: string | null;
   ad_id: string | null;
   error: string | null;
+  recovery_started_at?: string | null;
+}
+
+export interface MetaRecoveryReview {
+  accountId: string;
+  pageId: string;
+  campaignId: string;
+  adsetId: string;
+  locationLabel: string;
+  plan: {
+    campaignName: string;
+    goal: 'traffic';
+    destination: string;
+    primaryText: string;
+    headline: string;
+    description: string;
+    callToAction: 'SHOP_NOW' | 'LEARN_MORE';
+    imageUrl: string;
+    startTime: string;
+    endTime: string;
+    lifetimeBudget: number;
+  };
 }
 
 export interface MetaCampaignCreationInput {
@@ -362,18 +384,23 @@ export async function reviewMarketingCampaignDraft(
   return parseSavedDraft(data);
 }
 
-const creationColumns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error';
+const creationColumns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error,recovery_started_at';
 const metaId = (value: unknown): value is string => typeof value === 'string' && /^\d{1,30}$/.test(value);
 const parseCreation = (value: unknown): MetaCampaignCreation => {
   if (!isRecord(value) || !isText(value.draft_id) || !metaId(value.account_id)
     || (value.status !== 'creating' && value.status !== 'created' && value.status !== 'needs_attention')
     || ![value.campaign_id, value.adset_id, value.creative_id, value.ad_id].every(id => id === null || metaId(id))
     || (value.status === 'created' && ![value.campaign_id, value.adset_id, value.creative_id, value.ad_id].every(metaId))
-    || (value.error !== null && typeof value.error !== 'string')) throw new Error('Invalid Meta creation response.');
+    || (value.error !== null && typeof value.error !== 'string')
+    || (value.recovery_started_at !== undefined && value.recovery_started_at !== null
+      && (typeof value.recovery_started_at !== 'string' || !Number.isFinite(Date.parse(value.recovery_started_at))))) {
+    throw new Error('Invalid Meta creation response.');
+  }
   return {
     draft_id: value.draft_id, status: value.status, account_id: value.account_id,
     campaign_id: value.campaign_id as string | null, adset_id: value.adset_id as string | null,
     creative_id: value.creative_id as string | null, ad_id: value.ad_id as string | null, error: value.error,
+    ...(value.recovery_started_at !== undefined ? { recovery_started_at: value.recovery_started_at as string | null } : {}),
   };
 };
 
@@ -410,5 +437,48 @@ export async function createPausedMetaCampaign(input: MetaCampaignCreationInput)
   if (!isRecord(data)) throw new Error('Invalid Meta creation response.');
   const creation = parseCreation(data.creation);
   if (creation.draft_id !== input.draftId) throw new Error('Meta creation returned a different proposal.');
+  return creation;
+}
+
+export async function reviewMetaCampaignRecovery(draftId: string): Promise<MetaRecoveryReview> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta recovery requires an online connection.');
+  const { data, error } = await client.functions.invoke('marketing-create', {
+    body: { action: 'review-recovery', draftId },
+  });
+  if (error) throw new Error(await errorMessage(error));
+  const value: unknown = isRecord(data) ? data.recovery : undefined;
+  const p = isRecord(value) ? value.plan : undefined;
+  if (!isRecord(value) || ![value.accountId, value.pageId, value.campaignId, value.adsetId].every(metaId)
+    || !isText(value.locationLabel) || !isRecord(p) || p.goal !== 'traffic'
+    || ![p.campaignName, p.destination, p.primaryText, p.headline, p.description, p.imageUrl].every(isText)
+    || (p.callToAction !== 'SHOP_NOW' && p.callToAction !== 'LEARN_MORE')
+    || typeof p.startTime !== 'string' || !Number.isFinite(Date.parse(p.startTime))
+    || typeof p.endTime !== 'string' || Date.parse(p.endTime) <= Date.parse(p.startTime)
+    || !Number.isFinite(Date.parse(p.endTime)) || !isNonNegativeInteger(p.lifetimeBudget) || p.lifetimeBudget === 0) {
+    throw new Error('Invalid Meta recovery review.');
+  }
+  return {
+    accountId: String(value.accountId), pageId: String(value.pageId), campaignId: String(value.campaignId),
+    adsetId: String(value.adsetId), locationLabel: value.locationLabel,
+    plan: {
+      campaignName: String(p.campaignName), goal: 'traffic', destination: String(p.destination),
+      primaryText: String(p.primaryText), headline: String(p.headline), description: String(p.description),
+      callToAction: p.callToAction, imageUrl: String(p.imageUrl), startTime: p.startTime, endTime: p.endTime,
+      lifetimeBudget: p.lifetimeBudget,
+    },
+  };
+}
+
+export async function recoverPausedMetaCampaign(draftId: string): Promise<MetaCampaignCreation> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta recovery requires an online connection.');
+  const { data, error } = await client.functions.invoke('marketing-create', {
+    body: { action: 'recover', draftId, confirmPaused: true, confirmNoManualAd: true },
+  });
+  if (error) throw new Error(await errorMessage(error));
+  if (!isRecord(data)) throw new Error('Invalid Meta recovery response.');
+  const creation = parseCreation(data.creation);
+  if (creation.draft_id !== draftId) throw new Error('Meta recovery returned a different proposal.');
   return creation;
 }

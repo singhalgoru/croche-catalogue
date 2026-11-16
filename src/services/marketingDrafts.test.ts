@@ -16,6 +16,8 @@ import {
   createPausedMetaCampaign,
   fetchMetaCampaignCreation,
   fetchMetaCreationSetup,
+  reviewMetaCampaignRecovery,
+  recoverPausedMetaCampaign,
   type MarketingCampaignBrief,
   type MarketingCampaignProposal,
 } from './marketing';
@@ -160,4 +162,32 @@ it('reads an existing creation ledger through RLS without invoking a Meta write'
   await expect(fetchMetaCampaignCreation(row.id)).resolves.toBeNull();
   expect(from).toHaveBeenCalledWith('marketing_meta_creations');
   expect(invoke).not.toHaveBeenCalled();
+});
+
+it('validates saved recovery review and sends no client replacement fields during recovery', async () => {
+  const recovery = {
+    accountId: '123', pageId: '456', campaignId: '10', adsetId: '20', locationLabel: 'India',
+    plan: {
+      campaignName: 'Flowers', goal: 'traffic', destination: 'https://luviacreations.com/p/flowers/',
+      primaryText: 'Saved copy', headline: 'Saved headline', description: 'Saved description', callToAction: 'SHOP_NOW',
+      imageUrl: 'https://images.luviacreations.com/flower.webp',
+      startTime: '2030-01-01T10:00:00Z', endTime: '2030-01-08T10:00:00Z', lifetimeBudget: 350000,
+    },
+  };
+  invoke.mockResolvedValueOnce({ data: { recovery }, error: null });
+  await expect(reviewMetaCampaignRecovery(row.id)).resolves.toEqual(recovery);
+  expect(invoke).toHaveBeenLastCalledWith('marketing-create', { body: { action: 'review-recovery', draftId: row.id } });
+  invoke.mockResolvedValueOnce({ data: { recovery: { ...recovery, plan: { ...recovery.plan, lifetimeBudget: -1 } } }, error: null });
+  await expect(reviewMetaCampaignRecovery(row.id)).rejects.toThrow('Invalid Meta recovery review.');
+  const creation = {
+    draft_id: row.id, status: 'created', account_id: '123', campaign_id: '10', adset_id: '20',
+    creative_id: '30', ad_id: '40', error: null, recovery_started_at: '2030-01-01T09:00:00Z',
+  };
+  invoke.mockResolvedValueOnce({ data: { creation }, error: null });
+  await expect(recoverPausedMetaCampaign(row.id)).resolves.toEqual(creation);
+  expect(invoke).toHaveBeenLastCalledWith('marketing-create', {
+    body: { action: 'recover', draftId: row.id, confirmPaused: true, confirmNoManualAd: true },
+  });
+  invoke.mockResolvedValueOnce({ data: { creation: { ...creation, draft_id: 'other' } }, error: null });
+  await expect(recoverPausedMetaCampaign(row.id)).rejects.toThrow('different proposal');
 });
