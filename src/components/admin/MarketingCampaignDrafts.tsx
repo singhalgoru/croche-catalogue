@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { fetchManagedProducts } from '../../services/products';
+import type { Product } from '../../types/product';
+import { toProductPageUrl } from '../../utils/productLink';
 import {
   generateMarketingCampaignProposal,
   listMarketingCampaignDrafts,
@@ -38,6 +41,11 @@ export default function MarketingCampaignDrafts() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState('');
+  const [productLoadAttempt, setProductLoadAttempt] = useState(0);
 
   const refreshDrafts = useCallback(async () => {
     setLoading(true);
@@ -63,6 +71,37 @@ export default function MarketingCampaignDrafts() {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void fetchManagedProducts().then(value => {
+      if (active) setProducts(value.filter(product => product.published));
+    }).catch(failure => {
+      if (active) setProductsError(failure instanceof Error ? failure.message : 'Unable to load published products.');
+    }).finally(() => {
+      if (active) setProductsLoading(false);
+    });
+    return () => { active = false; };
+  }, [productLoadAttempt]);
+
+  const selectProduct = (id: string) => {
+    setSelectedProductId(id);
+    if (!id) return;
+    const product = products.find(item => item.id === id);
+    if (!product) {
+      setProductsError('The selected product is no longer available. Reload published products.');
+      return;
+    }
+    const facts = [product.name, product.description].filter(Boolean).join(': ').replace(/\s+/g, ' ').trim();
+    const page = new URL(toProductPageUrl(product));
+    setBrief(current => ({
+      ...current,
+      productOrOffer: facts.slice(0, 180),
+      landingPageUrl: new URL(page.pathname, 'https://luviacreations.com').href,
+    }));
+    setProposal(null);
+    setMessage('');
+  };
 
   const updateBrief = <K extends keyof MarketingCampaignBrief>(key: K, value: MarketingCampaignBrief[K]) => {
     setBrief(current => ({ ...current, [key]: value }));
@@ -141,6 +180,32 @@ export default function MarketingCampaignDrafts() {
     {message && <p role="status" className="mt-4 text-sm text-cocoa">{message}</p>}
 
     <form onSubmit={event => void generate(event)} className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <label className="grid gap-1 text-sm font-medium text-cocoa">
+          Published product
+          <select value={selectedProductId} disabled={busy !== '' || productsLoading}
+            onChange={event => selectProduct(event.target.value)}
+            className="min-h-11 rounded-xl border border-cocoa/25 px-3">
+            <option value="">{productsLoading ? 'Loading published products...' : 'Custom product or offer (enter manually)'}</option>
+            {products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}
+          </select>
+        </label>
+        <p className="mt-1 text-xs text-cocoa/70">
+          Selecting a published product fills its name and description (up to 180 characters) and page URL. Both remain editable.
+        </p>
+        {!productsLoading && !productsError && products.length === 0
+          && <p className="mt-1 text-sm text-cocoa/70">No published products available. Enter a custom offer below.</p>}
+        {productsError && <div className="mt-2">
+          <p role="alert" className="text-sm text-red-700">{productsError}</p>
+          <button type="button" disabled={busy !== '' || productsLoading} onClick={() => {
+            setProductsLoading(true);
+            setProductsError('');
+            setProductLoadAttempt(current => current + 1);
+          }} className="mt-2 min-h-10 rounded-full border border-cocoa/30 px-4 text-sm font-semibold text-cocoa disabled:opacity-50">
+            Reload published products
+          </button>
+        </div>}
+      </div>
       <label className="grid gap-1 text-sm font-medium text-cocoa sm:col-span-2">
         Product or offer facts
         <textarea required maxLength={180} disabled={busy !== ''} value={brief.productOrOffer}

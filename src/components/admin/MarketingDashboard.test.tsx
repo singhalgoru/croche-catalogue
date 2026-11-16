@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
+vi.mock('../../services/products', () => ({ fetchManagedProducts: vi.fn().mockResolvedValue([]) }));
+
 const {
   fetchMarketingOverview,
   startMetaConnection,

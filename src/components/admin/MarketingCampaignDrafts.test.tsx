@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
+const { fetchManagedProducts } = vi.hoisted(() => ({ fetchManagedProducts: vi.fn() }));
+vi.mock('../../services/products', () => ({ fetchManagedProducts }));
+
 const {
   generateMarketingCampaignProposal,
   listMarketingCampaignDrafts,
@@ -49,11 +52,64 @@ const draft = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fetchManagedProducts.mockResolvedValue([]);
   listMarketingCampaignDrafts.mockResolvedValue([]);
   generateMarketingCampaignProposal.mockResolvedValue(proposal);
   saveMarketingCampaignDraft.mockResolvedValue(draft);
 });
 afterEach(cleanup);
+
+const publishedProduct = {
+  id: 'flowers',
+  publicSlug: 'crochet-flowers',
+  name: 'Crochet flowers',
+  description: 'Handmade flowers in cotton yarn.',
+  published: true,
+};
+
+it('autofills published product facts and its public URL, allowing manual edits and custom offers', async () => {
+  fetchManagedProducts.mockResolvedValue([publishedProduct, {
+    ...publishedProduct, id: 'unpublished', name: 'Unpublished draft', published: false,
+  }]);
+  render(<MarketingCampaignDrafts />);
+  await screen.findByRole('option', { name: 'Crochet flowers' });
+  expect(fetchManagedProducts).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('option', { name: 'Unpublished draft' })).toBeNull();
+  fireEvent.change(screen.getByLabelText('Published product'), { target: { value: 'flowers' } });
+  expect(screen.getByLabelText<HTMLTextAreaElement>('Product or offer facts').value)
+    .toBe('Crochet flowers: Handmade flowers in cotton yarn.');
+  expect(screen.getByLabelText<HTMLInputElement>('Luvia product page URL').value)
+    .toBe('https://luviacreations.com/p/crochet-flowers/');
+  fireEvent.change(screen.getByLabelText('Product or offer facts'), { target: { value: 'Reviewed product facts' } });
+  fireEvent.change(screen.getByLabelText('Published product'), { target: { value: '' } });
+  expect(screen.getByLabelText<HTMLTextAreaElement>('Product or offer facts').value).toBe('Reviewed product facts');
+  fireEvent.change(screen.getByLabelText('Target location'), { target: { value: 'Mumbai' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Generate AI proposal' }));
+  await screen.findByText('Review generated proposal');
+  fireEvent.change(screen.getByLabelText('Published product'), { target: { value: 'flowers' } });
+  expect(screen.queryByText('Review generated proposal')).toBeNull();
+});
+
+it('limits prefilled facts to the brief limit without including price data', async () => {
+  fetchManagedProducts.mockResolvedValue([{ ...publishedProduct, description: 'x'.repeat(250), price: 500, showPrice: false }]);
+  render(<MarketingCampaignDrafts />);
+  await screen.findByRole('option', { name: 'Crochet flowers' });
+  fireEvent.change(screen.getByLabelText('Published product'), { target: { value: 'flowers' } });
+  expect(screen.getByLabelText<HTMLTextAreaElement>('Product or offer facts').value)
+    .toBe(`Crochet flowers: ${'x'.repeat(250)}`.slice(0, 180));
+});
+
+it('reports product-loading errors and supports retry without blocking manual entry', async () => {
+  fetchManagedProducts.mockRejectedValueOnce(new Error('Product list unavailable.'));
+  render(<MarketingCampaignDrafts />);
+  expect(await screen.findByText('Product list unavailable.')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Product or offer facts'), { target: { value: 'Custom offer' } });
+  fetchManagedProducts.mockResolvedValueOnce([publishedProduct]);
+  fireEvent.click(screen.getByRole('button', { name: 'Reload published products' }));
+  await screen.findByRole('option', { name: 'Crochet flowers' });
+  expect(screen.queryByText('Product list unavailable.')).toBeNull();
+  expect(screen.getByLabelText<HTMLTextAreaElement>('Product or offer facts').value).toBe('Custom offer');
+});
 
 it('generates, lets the admin review copy, and saves an unpublished proposal', async () => {
   render(<MarketingCampaignDrafts />);
