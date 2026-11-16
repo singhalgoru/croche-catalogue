@@ -74,6 +74,8 @@ it('shows existing partial attempts without offering a second create or requirin
   mocks.fetchMetaCampaignCreation.mockResolvedValue({ ...result, status: 'needs_attention', ad_id: null, error: 'Meta request failed.' });
   render(<MarketingMetaCreation draft={draft} products={[product]} />);
   expect(await screen.findByText('Meta request failed.')).toBeTruthy();
+  expect(screen.getByText('Saved error from the previous attempt:')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Confirm and create paused campaign' })).toBeNull();
   expect(mocks.fetchMetaCreationSetup).not.toHaveBeenCalled();
   expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
@@ -151,4 +153,27 @@ it('blocks another recovery after an uncertain result and resets confirmation on
   await waitFor(() => expect(mocks.fetchMetaCampaignCreation).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole('button', { name: 'Review saved recovery' })).toBeNull();
   expect(mocks.recoverPausedMetaCampaign).toHaveBeenCalledTimes(1);
+});
+
+it('distinguishes a new review error from the saved prior failure', async () => {
+  mocks.fetchMetaCampaignCreation.mockResolvedValue(partial);
+  mocks.reviewMetaCampaignRecovery.mockRejectedValue(new Error('Existing ad-set verification failed: lifetime budget.'));
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review saved recovery' }));
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toBe('Existing ad-set verification failed: lifetime budget.');
+  expect(screen.getByText('Saved error from the previous attempt:')).toBeTruthy();
+  expect(alert.textContent).not.toContain('1885183');
+  expect(mocks.recoverPausedMetaCampaign).not.toHaveBeenCalled();
+});
+
+it('warns when recovery preserves a near or past start instead of restarting the schedule', async () => {
+  const start = new Date(Date.now() - 3600000).toISOString();
+  const end = new Date(Date.now() + 6 * 86400_000).toISOString();
+  mocks.fetchMetaCampaignCreation.mockResolvedValue(partial);
+  mocks.reviewMetaCampaignRecovery.mockResolvedValue({ ...recovery, plan: { ...recovery.plan, startTime: start, endTime: end } });
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review saved recovery' }));
+  await screen.findByText(/Recovery keeps the original dates and budget unchanged/);
+  expect(mocks.recoverPausedMetaCampaign).not.toHaveBeenCalled();
 });

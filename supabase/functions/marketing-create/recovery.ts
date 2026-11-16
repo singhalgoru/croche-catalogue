@@ -34,7 +34,7 @@ export function recoverySnapshot(
     primaryTextIndex: saved.primaryTextIndex, headlineIndex: saved.headlineIndex,
     startTime: saved.startTime, locations: saved.locations,
   });
-  const plan = buildPlan(draft, product, input, settings.pixelId, now);
+  const plan = buildPlan(draft, product, input, settings.pixelId, now, 'existing');
   const savedPlan = saved.plan;
   if (input.draftId !== value.draft_id || plan.goal !== 'traffic' || !isRecord(savedPlan)
     || Object.keys(plan).some(key => plan[key as keyof CreationPlan] !== savedPlan[key])) {

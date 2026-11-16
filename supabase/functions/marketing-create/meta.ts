@@ -75,6 +75,7 @@ export interface CreationPlan {
 
 export function buildPlan(
   draft: unknown, product: unknown, input: CreationInput, pixelId: string | undefined, now = Date.now(),
+  schedule: 'new' | 'existing' = 'new',
 ): CreationPlan {
   if (!isRecord(draft) || draft.status !== 'approved' || !isRecord(draft.proposal)) {
     throw new Error('Only an internally approved saved proposal can be sent to Meta.');
@@ -110,8 +111,12 @@ export function buildPlan(
     throw new Error('The published product image must have a public HTTPS URL.');
   }
   const start = Date.parse(input.startTime);
-  if (start < now + 5 * 60_000 || start > now + 30 * 86400_000) {
+  const end = start + p.durationDays * 86400_000;
+  if (schedule === 'new' && (start < now + 5 * 60_000 || start > now + 30 * 86400_000)) {
     throw new Error('Choose a start time between five minutes and 30 days from now.');
+  }
+  if (schedule === 'existing' && end <= now) {
+    throw new Error('The saved ad-set schedule has ended. Recovery cannot reschedule it; inspect Ads Manager manually.');
   }
   return {
     campaignName: p.campaignName, goal: p.goal as CreationPlan['goal'],
@@ -119,7 +124,7 @@ export function buildPlan(
     primaryText: p.primaryText[input.primaryTextIndex], headline: p.headlines[input.headlineIndex],
     description: p.description, callToAction: p.callToAction === 'Shop now' ? 'SHOP_NOW' : 'LEARN_MORE',
     imageUrl: image.href, startTime: input.startTime,
-    endTime: new Date(start + p.durationDays * 86400_000).toISOString(),
+    endTime: new Date(end).toISOString(),
     lifetimeBudget: p.totalBudgetInr * 100,
   };
 }

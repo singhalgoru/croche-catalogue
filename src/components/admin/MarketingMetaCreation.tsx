@@ -131,7 +131,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       <p role="status">{creation.status === 'created'
         ? 'Created in Meta; campaign, ad set and ad were verified paused. Activation is manual in Meta.'
         : 'Creation is incomplete or needs attention. Do not retry or create another proposal to bypass this check; inspect Ads Manager and contact the operator.'}</p>
-      {creation.error && <p role="alert" className="mt-2 text-red-700">{creation.error}</p>}
+      {creation.error && <p className="mt-2 text-red-700"><strong>Saved error from the previous attempt:</strong> {creation.error}</p>}
       {creation.campaign_id && <a target="_blank" rel="noopener noreferrer"
         className="mt-2 inline-block min-h-10 py-2 font-semibold underline"
         href={`https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${creation.account_id}&selected_campaign_ids=${creation.campaign_id}`}>
@@ -163,6 +163,8 @@ export default function MarketingMetaCreation({ draft, products }: {
             <strong>Lifetime media budget:</strong> {money(recoveryReview.plan.lifetimeBudget / 100)} (not a daily cap; taxes/fees may be extra)<br />
             <strong>Start:</strong> {new Date(recoveryReview.plan.startTime).toLocaleString('en-IN')}<br />
             <strong>End:</strong> {new Date(recoveryReview.plan.endTime).toLocaleString('en-IN')}</p>
+          <p>Recovery keeps the original dates and budget unchanged, even if the saved start is near or has passed.
+            Keep delivery paused and review the schedule in Ads Manager before activating; activation does not restart the full duration.</p>
           <label className="flex items-start gap-2">
             <input type="checkbox" checked={recoveryConfirmed} disabled={busy}
               onChange={event => setRecoveryConfirmed(event.target.checked)} className="mt-1" />

@@ -67,9 +67,19 @@ it('reconstructs the saved selected copy and image, but refuses uncertain, chang
     { request: { ...row.request, plan: { ...plan, primaryText: 'Changed' } } },
   ]) expect(() => recoverySnapshot({ ...row, ...change }, draft, product, config, settings, now)).toThrow();
   expect(() => recoverySnapshot(row, draft, { ...product, image_url: 'https://other.test/new.webp' }, config, settings, now)).toThrow('changed');
-  expect(() => recoverySnapshot(row, draft, product, config, settings, now + 3600000)).toThrow('start time');
+  expect(() => recoverySnapshot(row, draft, product, config, settings, now + 8 * 86400_000)).toThrow('schedule has ended');
 });
 
+it('preserves an existing near or past start without shifting dates, but still rejects a new campaign with that start', () => {
+  const parsed = parseCreationInput({ ...input, action: 'create', confirmPaused: true });
+  for (const reviewTime of [now + 59 * 60_000, now + 2 * 3600000]) {
+    const snapshot = recoverySnapshot(row, draft, product, config, settings, reviewTime);
+    expect(snapshot.plan.startTime).toBe(plan.startTime);
+    expect(snapshot.plan.endTime).toBe(plan.endTime);
+    expect(snapshot.plan.lifetimeBudget).toBe(plan.lifetimeBudget);
+    expect(() => buildPlan(draft, product, parsed, undefined, reviewTime)).toThrow('start time');
+  }
+});
 it('verifies existing paused objects and complete listings using GET only', async () => {
   const fetcher = verificationFetch({ creatives: {
     data: [{ id: '99', name: 'Other campaign' }], paging: { next: 'https://ignored.test/secret', cursors: { after: 'cursor-1' } },
