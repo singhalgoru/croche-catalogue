@@ -63,7 +63,7 @@ const mockSlowProvider = (delayMs: number) => {
     setTimeout(() => controller.abort(new DOMException('Fixture deadline reached.', 'TimeoutError')), milliseconds);
     return controller.signal;
   });
-  fetcher.mockImplementationOnce((_url: string, options: RequestInit) => new Promise((resolve, reject) => {
+  fetcher.mockImplementation((_url: string, options: RequestInit) => new Promise((resolve, reject) => {
     const timer = setTimeout(() => resolve(providerResponse(copy)), delayMs);
     options.signal?.addEventListener('abort', () => {
       clearTimeout(timer);
@@ -74,6 +74,7 @@ const mockSlowProvider = (delayMs: number) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
   getUser.mockResolvedValue({ data: { user: { id: 'admin' } }, error: null });
   rpc.mockResolvedValue({ data: true, error: null });
   fetcher.mockResolvedValue(providerResponse(copy));
@@ -110,6 +111,7 @@ it('returns a validated proposal with the user budget and total computed server-
       ...brief,
       ...copy,
       totalBudgetInr: 3500,
+      generation: { model: 'gemini-3.5-flash-lite', fallbackUsed: false },
     },
   });
   expect(fetcher).toHaveBeenCalledTimes(1);
@@ -136,31 +138,87 @@ it('allows a slow successful AI response beyond the former 20-second deadline', 
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it('stops stalled AI requests with a distinct timeout error and no automatic retry', async () => {
+it('bounds stalled AI requests to two models and reports exhaustion explicitly', async () => {
   mockSlowProvider(120_000);
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const pending = handle(request());
   await vi.advanceTimersByTimeAsync(60_000);
   const response = await pending;
   expect(response.status).toBe(504);
-  expect(await response.json()).toEqual({ error: 'AI campaign generation timed out. Please try again.' });
-  expect(fetcher).toHaveBeenCalledTimes(1);
-  expect(log).toHaveBeenCalledWith('AI campaign provider request failed.', { reason: 'timeout', elapsedMs: 60_000 });
+  expect(await response.json()).toEqual({
+    error: 'AI campaign generation timed out after trying both models. Please try again later.',
+  });
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(log).toHaveBeenNthCalledWith(1, 'AI campaign provider request failed.', {
+    model: 'gemini-3.5-flash-lite', reason: 'timeout', elapsedMs: 30_000,
+  });
+  expect(log).toHaveBeenNthCalledWith(2, 'AI campaign provider request failed.', {
+    model: 'gemini-3.1-flash-lite', reason: 'timeout', elapsedMs: 30_000,
+  });
 });
 
 it('reports connection failures without logging provider URLs, credentials or input', async () => {
-  fetcher.mockRejectedValueOnce(new Error('Sensitive provider URL and credential fixture.'));
+  fetcher.mockRejectedValue(new Error('Sensitive provider URL and credential fixture.'));
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const response = await handle(request());
   expect(response.status).toBe(502);
-  expect(await response.json()).toEqual({ error: 'Unable to reach the AI provider. Please try again.' });
+  expect(await response.json()).toEqual({
+    error: 'Unable to reach the AI provider after trying both models. Please try again later.',
+  });
   expect(log).toHaveBeenCalledWith('AI campaign provider request failed.', {
-    reason: 'network', elapsedMs: expect.any(Number),
+    model: 'gemini-3.1-flash-lite', reason: 'network', elapsedMs: expect.any(Number),
   });
   expect(JSON.stringify(log.mock.calls)).not.toContain('Sensitive');
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it('uses one transparent model fallback only for retryable provider errors, preserving the request', async () => {
+  for (const status of [408, 429, 500, 502, 503, 504]) {
+    fetcher.mockReset();
+    fetcher.mockResolvedValueOnce(new Response('Sensitive provider details', { status }))
+      .mockResolvedValueOnce(providerResponse(copy));
+    const response = await handle(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ proposal: {
+      ...brief, ...copy, totalBudgetInr: 3500,
+      generation: { model: 'gemini-3.1-flash-lite', fallbackUsed: true },
+    } });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toContain('/gemini-3.5-flash-lite:generateContent');
+    expect(fetcher.mock.calls[1][0]).toContain('/gemini-3.1-flash-lite:generateContent');
+    expect(fetcher.mock.calls[1][1].body).toBe(fetcher.mock.calls[0][1].body);
+  }
+});
+
+it('does not fallback for permanent provider errors or malformed successful responses', async () => {
+  for (const status of [400, 401, 403, 404]) {
+    fetcher.mockReset();
+    fetcher.mockResolvedValueOnce(new Response('Sensitive provider details', { status }));
+    const response = await handle(request());
+    expect(response.status).toBe(502);
+    expect(await response.text()).not.toContain('Sensitive');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  }
+  fetcher.mockReset();
+  fetcher.mockResolvedValueOnce(new Response('not JSON'));
+  expect((await handle(request())).status).toBe(502);
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
+it('recovers from a primary timeout using one fallback response', async () => {
+  mockSlowProvider(120_000);
+  const slow = fetcher.getMockImplementation();
+  if (!slow) throw new Error('Slow provider fixture is missing.');
+  fetcher.mockImplementationOnce(slow).mockResolvedValue(providerResponse(copy));
+  const pending = handle(request());
+  await vi.advanceTimersByTimeAsync(30_000);
+  const response = await pending;
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    proposal: { generation: { model: 'gemini-3.1-flash-lite', fallbackUsed: true } },
+  });
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
 it('sends full product facts to AI while rejecting oversized inputs explicitly', async () => {
   const productOrOffer = `${'Complete product facts. '.repeat(40)}Final product detail.`;
   const targetLocation = 'Mumbai, Maharashtra, India; Bengaluru, Karnataka, India; Pune, Maharashtra, India; Chennai, Tamil Nadu, India';

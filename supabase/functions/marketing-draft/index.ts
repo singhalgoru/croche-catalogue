@@ -157,65 +157,78 @@ Deno.serve(async (request) => {
     'Use only claims supported by productOrOffer. Do not invent prices, discounts, materials, availability, shipping, guarantees, or performance estimates.',
     'Do not suggest targeting based on sensitive or protected personal traits. Keep audience guidance broad and limited to the requested location.',
     'Return exactly two primaryText options, two short headlines, and two explicit assumptions for the admin to verify.',
+    'Character limits: campaignName 80, audienceSummary 300, creativeDirection 500, each primaryText 500, each headline 60, description 120, each assumption 240.',
     'Do not create, publish, activate, pause, edit, or otherwise call any advertising platform. This response is only proposal copy for human review.',
     JSON.stringify(brief),
   ].join('\n');
 
-  const providerStartedAt = Date.now();
-  const providerSignal = AbortSignal.timeout(60_000);
-  let providerResponse: Response;
-  try {
-    providerResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'OBJECT',
-              required: ['campaignName', 'audienceSummary', 'creativeDirection', 'primaryText', 'headlines', 'description', 'callToAction', 'assumptions'],
-              properties: {
-                campaignName: { type: 'STRING' },
-                audienceSummary: { type: 'STRING' },
-                creativeDirection: { type: 'STRING' },
-                primaryText: { type: 'ARRAY', items: { type: 'STRING' } },
-                headlines: { type: 'ARRAY', items: { type: 'STRING' } },
-                description: { type: 'STRING' },
-                callToAction: { type: 'STRING', enum: [...CALLS_TO_ACTION] },
-                assumptions: { type: 'ARRAY', items: { type: 'STRING' } },
-              },
-            },
-          },
-        }),
-        signal: providerSignal,
+  const requestBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        required: ['campaignName', 'audienceSummary', 'creativeDirection', 'primaryText', 'headlines', 'description', 'callToAction', 'assumptions'],
+        properties: {
+          campaignName: { type: 'STRING' },
+          audienceSummary: { type: 'STRING' },
+          creativeDirection: { type: 'STRING' },
+          primaryText: { type: 'ARRAY', items: { type: 'STRING' } },
+          headlines: { type: 'ARRAY', items: { type: 'STRING' } },
+          description: { type: 'STRING' },
+          callToAction: { type: 'STRING', enum: [...CALLS_TO_ACTION] },
+          assumptions: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
       },
-    );
-  } catch {
-    const timedOut = providerSignal.aborted;
-    console.error('AI campaign provider request failed.', {
-      reason: timedOut ? 'timeout' : 'network',
-      elapsedMs: Date.now() - providerStartedAt,
-    });
-    return jsonResponse({
-      error: timedOut
-        ? 'AI campaign generation timed out. Please try again.'
-        : 'Unable to reach the AI provider. Please try again.',
-    }, timedOut ? 504 : 502);
-  }
-  if (!providerResponse.ok) {
-    return jsonResponse({ error: `AI campaign generation failed (status ${providerResponse.status}).` }, 502);
-  }
-
+    },
+  });
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
   let providerPayload: unknown;
-  try {
-    providerPayload = await providerResponse.json();
-  } catch {
-    return jsonResponse({ error: 'The AI provider returned an invalid response.' }, 502);
+  let generation: { model: string; fallbackUsed: boolean } | undefined;
+  for (const [index, model] of models.entries()) {
+    const providerStartedAt = Date.now();
+    const providerSignal = AbortSignal.timeout(30_000);
+    let providerResponse: Response;
+    try {
+      providerResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+          signal: providerSignal,
+        },
+      );
+      if (providerResponse.ok) providerPayload = await providerResponse.json();
+    } catch (error) {
+      const timedOut = providerSignal.aborted;
+      const invalidJson = error instanceof SyntaxError;
+      console.error('AI campaign provider request failed.', {
+        model, reason: timedOut ? 'timeout' : invalidJson ? 'invalid_response' : 'network',
+        elapsedMs: Date.now() - providerStartedAt,
+      });
+      if (!invalidJson && index < models.length - 1) continue;
+      return jsonResponse({
+        error: timedOut ? 'AI campaign generation timed out after trying both models. Please try again later.'
+          : invalidJson ? 'The AI provider returned an invalid response.'
+            : 'Unable to reach the AI provider after trying both models. Please try again later.',
+      }, timedOut ? 504 : 502);
+    }
+    if (!providerResponse.ok) {
+      const retryable = providerResponse.status === 408 || providerResponse.status === 429 || providerResponse.status >= 500;
+      console.error('AI campaign provider request failed.', {
+        model, status: providerResponse.status, elapsedMs: Date.now() - providerStartedAt,
+      });
+      if (retryable && index < models.length - 1) continue;
+      return jsonResponse({
+        error: retryable ? 'The AI provider is temporarily unavailable after trying both models. Please try again later.'
+          : `AI campaign generation failed (status ${providerResponse.status}).`,
+      }, 502);
+    }
+    generation = { model, fallbackUsed: index > 0 };
+    break;
   }
+  if (!generation) return jsonResponse({ error: 'The AI provider did not complete campaign generation.' }, 502);
   const responseText = isRecord(providerPayload)
     && Array.isArray(providerPayload.candidates)
     && isRecord(providerPayload.candidates[0])
@@ -242,6 +255,7 @@ Deno.serve(async (request) => {
       ...brief,
       ...copy,
       totalBudgetInr: brief.dailyBudgetInr * brief.durationDays,
+      generation,
     },
   });
 });

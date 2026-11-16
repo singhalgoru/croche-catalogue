@@ -258,6 +258,9 @@ export default function MarketingCampaignDrafts() {
           {currency(proposal.dailyBudgetInr)}/day · {proposal.durationDays} days · {currency(proposal.totalBudgetInr)} planned total
         </p>
       </div>
+      {proposal.generation && <p className="mt-2 text-sm text-cocoa/70">
+        AI model: {proposal.generation.model}{proposal.generation.fallbackUsed && ' (fallback used after a provider failure)'}.
+      </p>}
       <div className="mt-3 grid gap-3">
         <label className="grid gap-1 text-sm font-medium text-cocoa">
           Campaign name
@@ -314,6 +317,9 @@ export default function MarketingCampaignDrafts() {
             ({currency(draft.proposal.totalBudgetInr)} planned total)
           </p>
           <p className="mt-2 text-sm text-cocoa">{draft.proposal.primaryText[0]}</p>
+          {draft.proposal.generation && <p className="mt-1 text-xs text-cocoa/65">
+            AI model: {draft.proposal.generation.model}{draft.proposal.generation.fallbackUsed && ' (fallback used after a provider failure)'}.
+          </p>}
           <p className="mt-1 text-sm text-cocoa/75">{draft.proposal.headlines.join(' · ')}</p>
           <p className="mt-1 break-all text-xs text-cocoa/65">{draft.proposal.landingPageUrl}</p>
           <details className="mt-3 text-sm text-cocoa">

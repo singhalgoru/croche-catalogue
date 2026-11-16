@@ -52,6 +52,7 @@ export interface MarketingCampaignProposal extends MarketingCampaignBrief {
   callToAction: 'Shop now' | 'Learn more' | 'Send message';
   assumptions: string[];
   totalBudgetInr: number;
+  generation?: { model: string; fallbackUsed: boolean };
 }
 
 export interface SavedMarketingCampaignDraft {
@@ -197,6 +198,13 @@ const parseBrief = (value: unknown): MarketingCampaignBrief => {
 const parseProposal = (value: unknown): MarketingCampaignProposal => {
   if (!isRecord(value)) throw new Error('Invalid campaign proposal response.');
   const brief = parseBrief(value);
+  let generation: MarketingCampaignProposal['generation'];
+  if (value.generation !== undefined) {
+    const details = value.generation;
+    if (!isRecord(details) || !isText(details.model) || details.model.length > 80
+      || typeof details.fallbackUsed !== 'boolean') throw new Error('Invalid campaign generation details.');
+    generation = { model: details.model, fallbackUsed: details.fallbackUsed };
+  }
   if (!isText(value.campaignName) || value.campaignName.length > 80
     || !isText(value.audienceSummary) || value.audienceSummary.length > 300
     || !isText(value.creativeDirection) || value.creativeDirection.length > 500
@@ -219,6 +227,7 @@ const parseProposal = (value: unknown): MarketingCampaignProposal => {
     callToAction: value.callToAction as MarketingCampaignProposal['callToAction'],
     assumptions: value.assumptions,
     totalBudgetInr: value.totalBudgetInr,
+    ...(generation ? { generation } : {}),
   };
 };
 

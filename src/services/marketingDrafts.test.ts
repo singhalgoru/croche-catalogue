@@ -82,6 +82,20 @@ it('loads and saves only well-formed RLS-backed draft records', async () => {
   expect(insert).toHaveBeenCalledWith({ brief, proposal });
 });
 
+it('preserves model provenance through generation and saving, rejecting invalid metadata', async () => {
+  const generated = { ...proposal, generation: { model: 'gemini-3.1-flash-lite', fallbackUsed: true } };
+  invoke.mockResolvedValueOnce({ data: { proposal: generated }, error: null });
+  await expect(generateMarketingCampaignProposal(brief)).resolves.toEqual(generated);
+  const single = vi.fn().mockResolvedValue({ data: { ...row, proposal: generated }, error: null });
+  const insert = vi.fn().mockReturnValue({ select: () => ({ single }) });
+  from.mockReturnValueOnce({ insert });
+  await expect(saveMarketingCampaignDraft(brief, generated)).resolves.toMatchObject({ proposal: generated });
+  expect(insert).toHaveBeenCalledWith({ brief, proposal: generated });
+  invoke.mockResolvedValueOnce({
+    data: { proposal: { ...generated, generation: { ...generated.generation, fallbackUsed: 'yes' } } }, error: null,
+  });
+  await expect(generateMarketingCampaignProposal(brief)).rejects.toThrow('Invalid campaign generation details.');
+});
 it('records review decisions through the one-way review RPC', async () => {
   rpc.mockResolvedValueOnce({
     data: { ...row, status: 'approved', reviewed_at: '2026-11-17T10:05:00.000Z' },

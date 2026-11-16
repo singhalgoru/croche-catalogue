@@ -103,6 +103,20 @@ it('preserves the full product description through generation without including 
   ));
 });
 
+it('shows which AI model generated the proposal and discloses fallback use before review', async () => {
+  generateMarketingCampaignProposal.mockResolvedValueOnce({
+    ...proposal, generation: { model: 'gemini-3.1-flash-lite', fallbackUsed: true },
+  });
+  listMarketingCampaignDrafts.mockResolvedValueOnce([{
+    ...draft, proposal: { ...proposal, generation: { model: 'gemini-3.5-flash-lite', fallbackUsed: false } },
+  }]);
+  render(<MarketingCampaignDrafts />);
+  await screen.findByText('AI model: gemini-3.5-flash-lite.');
+  fireEvent.change(screen.getByLabelText('Product or offer facts'), { target: { value: 'Handmade crochet flowers' } });
+  fireEvent.change(screen.getByLabelText('Luvia product page URL'), { target: { value: proposal.landingPageUrl } });
+  fireEvent.click(screen.getByRole('button', { name: 'Generate AI proposal' }));
+  expect(await screen.findByText('AI model: gemini-3.1-flash-lite (fallback used after a provider failure).')).toBeTruthy();
+});
 it('reports product-loading errors and supports retry without blocking manual entry', async () => {
   fetchManagedProducts.mockRejectedValueOnce(new Error('Product list unavailable.'));
   render(<MarketingCampaignDrafts />);
