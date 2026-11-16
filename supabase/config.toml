@@ -65,6 +65,9 @@ verify_jwt = false
 [functions.manage-admin-users]
 verify_jwt = true
 
+[functions.marketing-read]
+verify_jwt = true
+
 [functions.password-change-worker]
 verify_jwt = false
 
