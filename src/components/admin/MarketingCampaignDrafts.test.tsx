@@ -83,20 +83,24 @@ it('autofills published product facts and its public URL, allowing manual edits 
   fireEvent.change(screen.getByLabelText('Product or offer facts'), { target: { value: 'Reviewed product facts' } });
   fireEvent.change(screen.getByLabelText('Published product'), { target: { value: '' } });
   expect(screen.getByLabelText<HTMLTextAreaElement>('Product or offer facts').value).toBe('Reviewed product facts');
-  fireEvent.change(screen.getByLabelText('Target location'), { target: { value: 'Mumbai' } });
   fireEvent.click(screen.getByRole('button', { name: 'Generate AI proposal' }));
   await screen.findByText('Review generated proposal');
   fireEvent.change(screen.getByLabelText('Published product'), { target: { value: 'flowers' } });
   expect(screen.queryByText('Review generated proposal')).toBeNull();
 });
 
-it('limits prefilled facts to the brief limit without including price data', async () => {
-  fetchManagedProducts.mockResolvedValue([{ ...publishedProduct, description: 'x'.repeat(250), price: 500, showPrice: false }]);
+it('preserves the full product description through generation without including price data', async () => {
+  const description = `${'Detailed product facts. '.repeat(40)}Complete final sentence.`;
+  fetchManagedProducts.mockResolvedValue([{ ...publishedProduct, description, price: 500, showPrice: false }]);
   render(<MarketingCampaignDrafts />);
   await screen.findByRole('option', { name: 'Crochet flowers' });
   fireEvent.change(screen.getByLabelText('Published product'), { target: { value: 'flowers' } });
   expect(screen.getByLabelText<HTMLTextAreaElement>('Product or offer facts').value)
-    .toBe(`Crochet flowers: ${'x'.repeat(250)}`.slice(0, 180));
+    .toBe(`Crochet flowers: ${description}`);
+  fireEvent.click(screen.getByRole('button', { name: 'Generate AI proposal' }));
+  await waitFor(() => expect(generateMarketingCampaignProposal).toHaveBeenCalledWith(
+    expect.objectContaining({ productOrOffer: `Crochet flowers: ${description}` }),
+  ));
 });
 
 it('reports product-loading errors and supports retry without blocking manual entry', async () => {
@@ -115,14 +119,13 @@ it('generates, lets the admin review copy, and saves an unpublished proposal', a
   render(<MarketingCampaignDrafts />);
   await screen.findByText('No saved proposals yet.');
   fireEvent.change(screen.getByLabelText('Product or offer facts'), { target: { value: 'Handmade crochet flowers' } });
-  fireEvent.change(screen.getByLabelText('Target location'), { target: { value: 'Mumbai' } });
   fireEvent.change(screen.getByLabelText('Luvia product page URL'), { target: { value: proposal.landingPageUrl } });
   fireEvent.click(screen.getByRole('button', { name: 'Generate AI proposal' }));
   expect(await screen.findByText('Review generated proposal')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Primary text option 1'), { target: { value: 'Reviewed copy.' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save draft for review' }));
   await waitFor(() => expect(saveMarketingCampaignDraft).toHaveBeenCalledWith(
-    expect.objectContaining({ productOrOffer: 'Handmade crochet flowers' }),
+    expect.objectContaining({ productOrOffer: 'Handmade crochet flowers', targetLocation: 'India' }),
     expect.objectContaining({ primaryText: ['Reviewed copy.', proposal.primaryText[1]] }),
   ));
   expect(await screen.findByText('Draft saved for admin review. It has not been sent to Meta.')).toBeTruthy();

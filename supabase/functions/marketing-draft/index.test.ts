@@ -104,3 +104,17 @@ it('does not accept malformed AI output or expose provider error details', async
   expect(response.status).toBe(502);
   expect(await response.text()).not.toContain('secret provider details');
 });
+
+it('sends full product facts to AI while rejecting oversized inputs explicitly', async () => {
+  const productOrOffer = `${'Complete product facts. '.repeat(40)}Final product detail.`;
+  const targetLocation = 'Mumbai, Maharashtra, India; Bengaluru, Karnataka, India; Pune, Maharashtra, India; Chennai, Tamil Nadu, India';
+  const response = await handle(request({ ...brief, productOrOffer, targetLocation }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ proposal: { productOrOffer, targetLocation } });
+  expect(JSON.parse(fetcher.mock.calls[0][1].body).contents[0].parts[0].text).toContain(productOrOffer);
+  fetcher.mockClear();
+  const oversized = await handle(request({ ...brief, productOrOffer: 'x'.repeat(10001) }));
+  expect(oversized.status).toBe(400);
+  expect(await oversized.text()).toContain('10,000 characters');
+  expect(fetcher).not.toHaveBeenCalled();
+});

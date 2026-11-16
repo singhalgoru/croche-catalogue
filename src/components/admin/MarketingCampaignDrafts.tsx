@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { fetchManagedProducts } from '../../services/products';
 import type { Product } from '../../types/product';
 import { toProductPageUrl } from '../../utils/productLink';
+import MarketingLocationPicker from './MarketingLocationPicker';
+import MarketingMetaCreation from './MarketingMetaCreation';
 import {
   generateMarketingCampaignProposal,
   listMarketingCampaignDrafts,
@@ -16,7 +18,7 @@ const initialBrief: MarketingCampaignBrief = {
   productOrOffer: '',
   goal: 'sales',
   landingPageUrl: '',
-  targetLocation: '',
+  targetLocation: 'India',
   dailyBudgetInr: 500,
   durationDays: 7,
 };
@@ -46,6 +48,7 @@ export default function MarketingCampaignDrafts() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
   const [productLoadAttempt, setProductLoadAttempt] = useState(0);
+  const [metaDraftId, setMetaDraftId] = useState('');
 
   const refreshDrafts = useCallback(async () => {
     setLoading(true);
@@ -96,7 +99,7 @@ export default function MarketingCampaignDrafts() {
     const page = new URL(toProductPageUrl(product));
     setBrief(current => ({
       ...current,
-      productOrOffer: facts.slice(0, 180),
+      productOrOffer: facts,
       landingPageUrl: new URL(page.pathname, 'https://luviacreations.com').href,
     }));
     setProposal(null);
@@ -170,10 +173,10 @@ export default function MarketingCampaignDrafts() {
   return <section aria-label="AI campaign proposals" className="mt-5 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
     <h2 className="font-heading text-xl font-bold text-cocoa">AI campaign proposals</h2>
     <p className="mt-1 text-sm text-cocoa/70">
-      Generate and review proposal copy. Approval is an internal decision only: nothing is published to Meta and no live campaign is changed.
+      Generate and review proposal copy. Approval is internal only. Sending an approved proposal to Meta requires a separate confirmation and creates paused objects only.
     </p>
     <p className="mt-2 rounded-xl bg-cream p-3 text-xs text-cocoa/70">
-      Planning input only; no advertising spend will occur here. AI generation may incur Gemini charges. Do not enter customer personal data.
+      No advertising spend will occur here; activation stays manual in Meta. AI generation may incur Gemini charges. Do not enter customer personal data.
     </p>
 
     {error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
@@ -191,7 +194,7 @@ export default function MarketingCampaignDrafts() {
           </select>
         </label>
         <p className="mt-1 text-xs text-cocoa/70">
-          Selecting a published product fills its name and description (up to 180 characters) and page URL. Both remain editable.
+          Selecting a published product fills its full name and description and page URL. Both remain editable.
         </p>
         {!productsLoading && !productsError && products.length === 0
           && <p className="mt-1 text-sm text-cocoa/70">No published products available. Enter a custom offer below.</p>}
@@ -208,7 +211,7 @@ export default function MarketingCampaignDrafts() {
       </div>
       <label className="grid gap-1 text-sm font-medium text-cocoa sm:col-span-2">
         Product or offer facts
-        <textarea required maxLength={180} disabled={busy !== ''} value={brief.productOrOffer}
+        <textarea required maxLength={10000} disabled={busy !== ''} value={brief.productOrOffer}
           onChange={event => updateBrief('productOrOffer', event.target.value)}
           className="min-h-20 rounded-xl border border-cocoa/25 p-3" />
       </label>
@@ -222,12 +225,7 @@ export default function MarketingCampaignDrafts() {
           <option value="awareness">Awareness</option>
         </select>
       </label>
-      <label className="grid gap-1 text-sm font-medium text-cocoa">
-        Target location
-        <input required maxLength={100} disabled={busy !== ''} value={brief.targetLocation}
-          onChange={event => updateBrief('targetLocation', event.target.value)}
-          className="min-h-11 rounded-xl border border-cocoa/25 px-3" />
-      </label>
+      <MarketingLocationPicker disabled={busy !== ''} onChange={value => updateBrief('targetLocation', value)} />
       <label className="grid gap-1 text-sm font-medium text-cocoa sm:col-span-2">
         Luvia product page URL
         <input required type="url" pattern="https://(www\.)?luviacreations\.com(/.*)?"
@@ -247,7 +245,7 @@ export default function MarketingCampaignDrafts() {
           onChange={event => updateBrief('durationDays', Number(event.target.value))}
           className="min-h-11 rounded-xl border border-cocoa/25 px-3" />
       </label>
-      <button type="submit" disabled={busy !== ''}
+      <button type="submit" disabled={busy !== '' || !brief.targetLocation}
         className="min-h-11 rounded-full bg-cocoa px-4 text-sm font-semibold text-cream disabled:opacity-50 sm:col-span-2">
         {busy === 'generate' ? 'Generating proposal…' : 'Generate AI proposal'}
       </button>
@@ -342,6 +340,13 @@ export default function MarketingCampaignDrafts() {
               className="min-h-10 rounded-full border border-cocoa/30 px-4 text-sm font-semibold text-cocoa disabled:opacity-50">
               Reject proposal
             </button>
+          </div>}
+          {draft.status === 'approved' && <div className="mt-3">
+            <button type="button" disabled={busy !== ''} onClick={() => setMetaDraftId(current => current === draft.id ? '' : draft.id)}
+              className="min-h-10 rounded-full border border-cocoa/30 px-4 text-sm font-semibold text-cocoa disabled:opacity-50">
+              {metaDraftId === draft.id ? 'Close Meta creation review' : 'Create paused campaign in Meta'}
+            </button>
+            {metaDraftId === draft.id && <MarketingMetaCreation key={draft.id} draft={draft} products={products} />}
           </div>}
         </li>)}
       </ul>

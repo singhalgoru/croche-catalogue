@@ -81,8 +81,9 @@ an India-based handmade crochet brand.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
 - The admin Marketing workspace can show read-only Meta delivery data, reconnect
-  Meta, and create AI campaign proposals for internal review; it cannot publish
-  proposals or change live campaigns.
+  Meta, and create AI campaign proposals with location planning for internal
+  review. When configured, a separate confirmation creates paused Facebook Feed
+  ads from approved proposals; activation remains manual in Meta Ads Manager.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
   The application supports English and Hindi; answers remain in their original language.

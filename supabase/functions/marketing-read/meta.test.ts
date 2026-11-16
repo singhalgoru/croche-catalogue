@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { fetchMetaOverview, readMetaConfig } from './meta';
+import { fetchMetaOverview, readMetaConfig, searchMetaLocations } from './meta';
 
 const config = { accessToken: 'top-secret-fixture', accountId: '12345', graphApiVersion: 'v99.0' };
 const response = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -59,4 +59,22 @@ it('returns zero delivery metrics for an empty insights period and rejects inval
 
   const denied = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: config.accessToken } }), { status: 400 }));
   await expect(fetchMetaOverview(config, denied)).rejects.toThrow('Meta Marketing API request failed with status 400.');
+});
+
+it('looks up only Indian locations using Meta search without exposing credentials', async () => {
+  const fetcher = vi.fn().mockResolvedValue(response({ data: [
+    { key: '123', type: 'city', name: 'Mumbai', region: 'Maharashtra', country_code: 'IN' },
+    { key: '123', type: 'city', name: 'Mumbai', region: 'Maharashtra', country_code: 'IN' },
+    { key: '456', type: 'city', name: 'Elsewhere', country_code: 'US' },
+    { key: '789', type: 'region', name: 'Maharashtra', country_code: 'IN' },
+  ] }));
+  await expect(searchMetaLocations(config, 'Mumbai', 'city', fetcher)).resolves.toEqual([
+    { key: '123', type: 'city', label: 'Mumbai, Maharashtra, India' },
+  ]);
+  const url = new URL(fetcher.mock.calls[0][0]);
+  expect(url.pathname).toBe('/v99.0/search');
+  expect(url.searchParams.get('type')).toBe('adgeolocation');
+  expect(url.searchParams.get('location_types')).toBe('["city"]');
+  expect(url.searchParams.get('country_code')).toBe('IN');
+  expect(url.href).not.toContain(config.accessToken);
 });

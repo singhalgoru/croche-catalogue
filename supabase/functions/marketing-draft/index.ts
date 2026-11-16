@@ -52,8 +52,8 @@ const cleanList = (value: unknown, expectedLength: number, maxLength: number): s
 
 const parseBrief = (value: unknown): CampaignBrief | null => {
   if (!isRecord(value)) return null;
-  const productOrOffer = cleanText(value.productOrOffer, 180);
-  const targetLocation = cleanText(value.targetLocation, 100);
+  const productOrOffer = cleanText(value.productOrOffer, 10000);
+  const targetLocation = cleanText(value.targetLocation, 2000);
   if (!productOrOffer || !targetLocation || typeof value.goal !== 'string'
     || !GOALS.includes(value.goal as CampaignBrief['goal'])
     || typeof value.dailyBudgetInr !== 'number' || !Number.isSafeInteger(value.dailyBudgetInr)
@@ -137,6 +137,10 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'The request body must be valid JSON.' }, 400);
   }
   if (!isRecord(payload)) return jsonResponse({ error: 'The request body must be a JSON object.' }, 400);
+  if (typeof payload.productOrOffer === 'string'
+    && payload.productOrOffer.replace(/\s+/g, ' ').trim().length > 10000) {
+    return jsonResponse({ error: 'Product or offer facts must be 10,000 characters or fewer.' }, 400);
+  }
   const brief = parseBrief(payload);
   if (!brief) {
     return jsonResponse({

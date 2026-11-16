@@ -117,3 +117,20 @@ it('does not silently use the old token when reconnect storage is misconfigured'
     delete env.META_OAUTH_STATE_SECRET;
   }
 });
+
+it('validates location lookups and requires admin access before searching Meta', async () => {
+  const body = JSON.stringify({ action: 'search-locations', query: 'Mumbai', locationType: 'city' });
+  rpc.mockResolvedValueOnce({ data: false, error: null });
+  expect((await handle(request(body))).status).toBe(403);
+  expect((await handle(request('{"action":"search-locations","query":"x","locationType":"city"}'))).status).toBe(400);
+  expect(fetcher).not.toHaveBeenCalled();
+  fetcher.mockReset().mockResolvedValueOnce(upstream({ data: [
+    { key: 'city-1', name: 'Mumbai', region: 'Maharashtra', type: 'city', country_code: 'IN' },
+  ] }));
+  const response = await handle(request(body));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ locations: [
+    { key: 'city-1', type: 'city', label: 'Mumbai, Maharashtra, India' },
+  ] });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

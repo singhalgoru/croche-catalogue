@@ -4,6 +4,12 @@ export interface MetaConfig {
   graphApiVersion: string;
 }
 
+export interface MetaLocation {
+  key: string;
+  type: 'region' | 'city' | 'zip';
+  label: string;
+}
+
 export interface MetaOverview {
   account: {
     id: string;
@@ -177,4 +183,34 @@ export async function fetchMetaOverview(config: MetaConfig, fetcher: Fetcher = f
     date_preset: 'last_30d',
   }, fetcher);
   return { account, metrics: parseMetrics(insights.data), campaigns };
+}
+
+export async function searchMetaLocations(
+  config: MetaConfig,
+  query: string,
+  locationType: MetaLocation['type'],
+  fetcher: Fetcher = fetch,
+): Promise<MetaLocation[]> {
+  const result = await graphRequest<JsonRecord>(config, 'search', {
+    type: 'adgeolocation',
+    location_types: JSON.stringify([locationType]),
+    country_code: 'IN',
+    q: query,
+    limit: '20',
+  }, fetcher);
+  if (!isRecord(result) || !Array.isArray(result.data)) throw new Error('Meta returned invalid location results.');
+  const locations: MetaLocation[] = [];
+  for (const row of result.data) {
+    if (!isRecord(row)) throw new Error('Meta returned an invalid location.');
+    if (row.country_code !== 'IN' || row.type !== locationType) continue;
+    const key = requiredText(row.key, 'location key');
+    const name = requiredText(row.name, 'location name');
+    if (row.region !== undefined && typeof row.region !== 'string') {
+      throw new Error('Meta returned an invalid location region.');
+    }
+    const label = [...new Set([name, row.region, 'India'].filter((part): part is string => Boolean(part)))].join(', ');
+    if (key.length > 100 || label.length > 250) throw new Error('Meta returned an invalid location.');
+    if (!locations.some(location => location.key === key)) locations.push({ key, type: locationType, label });
+  }
+  return locations;
 }

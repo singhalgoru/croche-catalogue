@@ -74,6 +74,9 @@ verify_jwt = true
 [functions.marketing-draft]
 verify_jwt = true
 
+[functions.marketing-create]
+verify_jwt = true
+
 [functions.password-change-worker]
 verify_jwt = false
 

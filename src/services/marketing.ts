@@ -36,6 +36,12 @@ export interface MarketingCampaignBrief {
   durationDays: number;
 }
 
+export interface MarketingLocation {
+  key: string;
+  type: 'region' | 'city' | 'zip';
+  label: string;
+}
+
 export interface MarketingCampaignProposal extends MarketingCampaignBrief {
   campaignName: string;
   audienceSummary: string;
@@ -55,6 +61,34 @@ export interface SavedMarketingCampaignDraft {
   status: 'draft' | 'approved' | 'rejected';
   createdAt: string;
   reviewedAt: string | null;
+}
+
+export interface MetaCreationSetup {
+  accountId: string;
+  accountName: string;
+  pageId: string;
+  pageName: string;
+  pixelId: string | null;
+}
+
+export interface MetaCampaignCreation {
+  draft_id: string;
+  status: 'creating' | 'created' | 'needs_attention';
+  account_id: string;
+  campaign_id: string | null;
+  adset_id: string | null;
+  creative_id: string | null;
+  ad_id: string | null;
+  error: string | null;
+}
+
+export interface MetaCampaignCreationInput {
+  draftId: string;
+  productId: string;
+  primaryTextIndex: number;
+  headlineIndex: number;
+  startTime: string;
+  locations: MarketingLocation[] | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -136,10 +170,10 @@ const errorMessage = async (error: { message: string; context?: unknown }) => {
 };
 
 const parseBrief = (value: unknown): MarketingCampaignBrief => {
-  if (!isRecord(value) || !isText(value.productOrOffer) || value.productOrOffer.length > 180
+  if (!isRecord(value) || !isText(value.productOrOffer) || value.productOrOffer.length > 10000
     || !['sales', 'traffic', 'awareness'].includes(String(value.goal))
     || typeof value.landingPageUrl !== 'string' || typeof value.targetLocation !== 'string'
-    || !isText(value.targetLocation) || value.targetLocation.length > 100
+    || !isText(value.targetLocation) || value.targetLocation.length > 2000
     || typeof value.dailyBudgetInr !== 'number' || !Number.isSafeInteger(value.dailyBudgetInr)
     || value.dailyBudgetInr < 100 || value.dailyBudgetInr > 100_000
     || typeof value.durationDays !== 'number' || !Number.isSafeInteger(value.durationDays)
@@ -220,6 +254,26 @@ export async function fetchMarketingOverview(): Promise<MarketingOverview> {
   return parseOverview(data);
 }
 
+export async function searchMarketingLocations(
+  query: string,
+  locationType: MarketingLocation['type'],
+): Promise<MarketingLocation[]> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta location search requires an online connection.');
+  const { data, error } = await client.functions.invoke('marketing-read', {
+    body: { action: 'search-locations', query, locationType },
+  });
+  if (error) throw new Error(await errorMessage(error));
+  if (!isRecord(data) || !Array.isArray(data.locations)) throw new Error('Invalid Meta location search response.');
+  return data.locations.map((location: unknown) => {
+    if (!isRecord(location) || !isText(location.key) || location.key.length > 100
+      || location.type !== locationType || !isText(location.label) || location.label.length > 250) {
+      throw new Error('Invalid Meta location search response.');
+    }
+    return { key: location.key, type: locationType, label: location.label };
+  });
+}
+
 export async function startMetaConnection(): Promise<{ url: string; state: string }> {
   const client = await loadSupabase();
   if (!client) throw new Error('Meta connection requires an online connection.');
@@ -297,4 +351,55 @@ export async function reviewMarketingCampaignDraft(
   });
   if (error) throw new Error(`Unable to review campaign draft: ${error.message}`);
   return parseSavedDraft(data);
+}
+
+const creationColumns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error';
+const metaId = (value: unknown): value is string => typeof value === 'string' && /^\d{1,30}$/.test(value);
+const parseCreation = (value: unknown): MetaCampaignCreation => {
+  if (!isRecord(value) || !isText(value.draft_id) || !metaId(value.account_id)
+    || (value.status !== 'creating' && value.status !== 'created' && value.status !== 'needs_attention')
+    || ![value.campaign_id, value.adset_id, value.creative_id, value.ad_id].every(id => id === null || metaId(id))
+    || (value.status === 'created' && ![value.campaign_id, value.adset_id, value.creative_id, value.ad_id].every(metaId))
+    || (value.error !== null && typeof value.error !== 'string')) throw new Error('Invalid Meta creation response.');
+  return {
+    draft_id: value.draft_id, status: value.status, account_id: value.account_id,
+    campaign_id: value.campaign_id as string | null, adset_id: value.adset_id as string | null,
+    creative_id: value.creative_id as string | null, ad_id: value.ad_id as string | null, error: value.error,
+  };
+};
+
+export async function fetchMetaCreationSetup(): Promise<MetaCreationSetup> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta creation requires an online connection.');
+  const { data, error } = await client.functions.invoke('marketing-create', { body: { action: 'setup' } });
+  if (error) throw new Error(await errorMessage(error));
+  if (!isRecord(data) || !isRecord(data.setup) || !metaId(data.setup.accountId)
+    || !metaId(data.setup.pageId) || !isText(data.setup.accountName) || !isText(data.setup.pageName)
+    || (data.setup.pixelId !== null && !metaId(data.setup.pixelId))) throw new Error('Invalid Meta setup response.');
+  return {
+    accountId: data.setup.accountId, accountName: data.setup.accountName, pageId: data.setup.pageId,
+    pageName: data.setup.pageName, pixelId: data.setup.pixelId,
+  };
+}
+
+export async function fetchMetaCampaignCreation(draftId: string): Promise<MetaCampaignCreation | null> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta creation status requires an online connection.');
+  const { data, error } = await client.from('marketing_meta_creations')
+    .select(creationColumns).eq('draft_id', draftId).maybeSingle();
+  if (error) throw new Error(`Unable to load Meta creation status: ${error.message}`);
+  return data === null ? null : parseCreation(data);
+}
+
+export async function createPausedMetaCampaign(input: MetaCampaignCreationInput): Promise<MetaCampaignCreation> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta creation requires an online connection.');
+  const { data, error } = await client.functions.invoke('marketing-create', {
+    body: { ...input, action: 'create', confirmPaused: true },
+  });
+  if (error) throw new Error(await errorMessage(error));
+  if (!isRecord(data)) throw new Error('Invalid Meta creation response.');
+  const creation = parseCreation(data.creation);
+  if (creation.draft_id !== input.draftId) throw new Error('Meta creation returned a different proposal.');
+  return creation;
 }

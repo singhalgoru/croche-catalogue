@@ -6,7 +6,7 @@ const { loadSupabase, invoke } = vi.hoisted(() => ({
 }));
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase }));
 
-import { completeMetaConnection, fetchMarketingOverview, startMetaConnection } from './marketing';
+import { completeMetaConnection, fetchMarketingOverview, searchMarketingLocations, startMetaConnection } from './marketing';
 
 const validOverview = {
   account: { id: 'act_123', name: 'Luvia', currency: 'INR', timezoneName: 'Asia/Kolkata', status: 1 },
@@ -50,4 +50,15 @@ it('checks the Meta login origin and state before opening the popup', async () =
   expect(invoke).toHaveBeenLastCalledWith('marketing-connect', {
     body: { action: 'complete', code: 'code', state: 'state' },
   });
+});
+
+it('uses the read-only location lookup and rejects malformed results', async () => {
+  const location = { key: 'city-1', type: 'city', label: 'Mumbai, Maharashtra, India' };
+  invoke.mockResolvedValueOnce({ data: { locations: [location] }, error: null });
+  await expect(searchMarketingLocations('Mumbai', 'city')).resolves.toEqual([location]);
+  expect(invoke).toHaveBeenCalledWith('marketing-read', {
+    body: { action: 'search-locations', query: 'Mumbai', locationType: 'city' },
+  });
+  invoke.mockResolvedValueOnce({ data: { locations: [{ ...location, type: 'country' }] }, error: null });
+  await expect(searchMarketingLocations('Mumbai', 'city')).rejects.toThrow('Invalid Meta location search response.');
 });
