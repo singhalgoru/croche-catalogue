@@ -114,25 +114,39 @@ export async function verifyRecovery(
     fields: 'id,account_id,campaign_id,name,status,lifetime_budget,daily_budget,start_time,end_time,billing_event,bid_strategy,optimization_goal,destination_type,promoted_object,targeting',
   }, fetcher);
   const targeting = adset.targeting;
-  if (adset.id !== adsetId || adset.account_id !== config.accountId || adset.campaign_id !== campaignId
-    || adset.status !== 'PAUSED' || adset.name !== `${plan.campaignName} - Facebook Feed`
-    || adset.lifetime_budget !== String(plan.lifetimeBudget) || (adset.daily_budget !== undefined && adset.daily_budget !== '0')
-    || typeof adset.start_time !== 'string' || Date.parse(adset.start_time) !== Date.parse(plan.startTime)
-    || typeof adset.end_time !== 'string' || Date.parse(adset.end_time) !== Date.parse(plan.endTime)
-    || adset.billing_event !== 'IMPRESSIONS' || adset.bid_strategy !== 'LOWEST_COST_WITHOUT_CAP'
-    || adset.optimization_goal !== 'LINK_CLICKS' || adset.destination_type !== 'WEBSITE'
-    || (adset.promoted_object !== undefined && (!isRecord(adset.promoted_object) || Object.keys(adset.promoted_object).length !== 0))
-    || !isRecord(targeting) || targeting.age_min !== 18
-    || (targeting.age_max !== undefined && targeting.age_max !== 65)
-    || canonical(targeting.publisher_platforms) !== canonical(['facebook'])
-    || canonical(targeting.facebook_positions) !== canonical(['feed'])
-    || !sameGeo(targeting.geo_locations, geo)
-    || !isRecord(targeting.targeting_automation) || targeting.targeting_automation.advantage_audience !== 0
-    || Object.keys(targeting.targeting_automation).some(key => key !== 'advantage_audience')
-    || Object.keys(targeting).some(key => ![
+  const checks = {
+    'object/account/campaign identity': adset.id === adsetId && adset.account_id === config.accountId && adset.campaign_id === campaignId,
+    'paused status': adset.status === 'PAUSED',
+    name: adset.name === `${plan.campaignName} - Facebook Feed`,
+    'lifetime budget': adset.lifetime_budget === String(plan.lifetimeBudget),
+    'daily budget': adset.daily_budget === undefined || adset.daily_budget === '0',
+    'start time': typeof adset.start_time === 'string' && Date.parse(adset.start_time) === Date.parse(plan.startTime),
+    'end time': typeof adset.end_time === 'string' && Date.parse(adset.end_time) === Date.parse(plan.endTime),
+    'billing event': adset.billing_event === 'IMPRESSIONS',
+    'bid strategy': adset.bid_strategy === 'LOWEST_COST_WITHOUT_CAP',
+    'optimization goal': adset.optimization_goal === 'LINK_CLICKS',
+    'destination type': adset.destination_type === 'WEBSITE',
+    'promoted object': adset.promoted_object === undefined || (isRecord(adset.promoted_object) && Object.keys(adset.promoted_object).length === 0),
+    'age limits': isRecord(targeting) && targeting.age_min === 18 && (targeting.age_max === undefined || targeting.age_max === 65),
+    platforms: isRecord(targeting) && canonical(targeting.publisher_platforms) === canonical(['facebook']),
+    positions: isRecord(targeting) && canonical(targeting.facebook_positions) === canonical(['feed']),
+    geography: isRecord(targeting) && sameGeo(targeting.geo_locations, geo),
+    'audience automation': isRecord(targeting) && isRecord(targeting.targeting_automation)
+      && targeting.targeting_automation.advantage_audience === 0
+      && Object.keys(targeting.targeting_automation).every(key => key === 'advantage_audience'),
+    'additional targeting fields': isRecord(targeting) && Object.keys(targeting).every(key => [
       'age_min', 'age_max', 'publisher_platforms', 'facebook_positions', 'geo_locations', 'targeting_automation',
-    ].includes(key))) {
-    throw new Error('The existing ad set is not paused or its budget, schedule or targeting changed. Recovery is blocked.');
+    ].includes(key)),
+  };
+  const mismatches = Object.entries(checks).filter(([, matches]) => !matches).map(([field]) => field);
+  if (mismatches.length) {
+    const additionalFields = isRecord(targeting) ? [
+      'brand_safety_content_filter_levels', 'device_platforms', 'genders', 'flexible_spec',
+      'excluded_geo_locations', 'targeting_relaxation_types',
+    ].filter(field => field in targeting) : [];
+    console.error('Meta recovery ad-set verification failed.', { mismatches, additionalFields });
+    throw new Error(`Existing ad-set verification failed: ${mismatches.join(', ')}.${additionalFields.length
+      ? ` Additional fields: ${additionalFields.join(', ')}.` : ''} Recovery is blocked; no recovery writes were sent.`);
   }
   const adsets: string[] = [];
   await listObjects(config, `${campaignId}/adsets`, 'id', item => { adsets.push(String(item.id)); }, fetcher);

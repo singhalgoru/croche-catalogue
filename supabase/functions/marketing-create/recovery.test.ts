@@ -123,3 +123,16 @@ it('does not retry after an uncertain creative response or a lost checkpoint', a
   await expect(completePausedAd(config, settings, plan, '10', '20', checkpoint, fetcher)).rejects.toThrow('Checkpoint failed');
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it('identifies mismatched fields without exposing provider values, names or arbitrary targeting keys', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const fetcher = verificationFetch({ adset: {
+    ...adset, lifetime_budget: '999999', name: 'private-provider-name',
+    targeting: { ...adset.targeting, brand_safety_content_filter_levels: ['private-value'], 'secret-fixture': 'private-value' },
+  } });
+  const failure = verifyRecovery(config, settings, saved(), fetcher);
+  await expect(failure).rejects.toThrow('name, lifetime budget, additional targeting fields');
+  await expect(failure).rejects.toThrow('Additional fields: brand_safety_content_filter_levels');
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(/999999|private-provider-name|private-value|secret-fixture/);
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
