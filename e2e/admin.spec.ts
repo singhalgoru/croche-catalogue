@@ -32,6 +32,50 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('admin prepares a WhatsApp group photo and shares manually without Meta writes', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const source = await sharp({ create: { width: 640, height: 480, channels: 3, background: '#ffb6c1' } }).png().toBuffer();
+  await page.route('**/storage/v1/object/public/product-images/**', route =>
+    route.fulfill({ contentType: 'image/png', body: source }));
+  await page.route('**/rest/v1/marketing_social_posts*', route => route.fulfill({ json: [] }));
+  const metaRequests: string[] = [];
+  page.on('request', request => {
+    if (request.url().includes('/functions/v1/marketing-post')) metaRequests.push(request.url());
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => {
+      Object.assign(window, { whatsappTestShare: {
+        text: data.text, name: data.files?.[0]?.name, type: data.files?.[0]?.type,
+      } });
+    } });
+  });
+  await signIn(page, 'manage');
+  const product = page.getByRole('article').filter({ has: page.getByRole('heading', { name: state.products[0].name, exact: true }) });
+  await product.getByRole('button', { name: 'Create Facebook / Instagram / WhatsApp post' }).click();
+  const section = page.getByRole('region', { name: 'WhatsApp group sharing' });
+  await section.getByLabel('WhatsApp caption').fill('Our new handmade bag!');
+  await section.getByRole('button', { name: 'Prepare WhatsApp photo (does not send)' }).click();
+  await expect(section.getByRole('img', { name: 'WhatsApp product photo preview' })).toBeVisible();
+  const share = section.getByRole('button', { name: 'Share photo to WhatsApp group' });
+  await expect(share).toBeEnabled();
+  const downloadPromise = page.waitForEvent('download');
+  await section.getByRole('link', { name: 'Download WhatsApp photo' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.jpg$/);
+  const downloadedFile = await download.path();
+  if (!downloadedFile) throw new Error('WhatsApp JPEG download is missing.');
+  expect(await sharp(downloadedFile).metadata()).toMatchObject({ format: 'jpeg', width: 1080, height: 1080 });
+  await share.click();
+  await expect(section.getByRole('status')).toContainText('this website cannot verify that a message was sent');
+  expect(await page.evaluate(() => Reflect.get(window, 'whatsappTestShare'))).toMatchObject({
+    text: expect.stringContaining('Our new handmade bag!\n\nShop: http://127.0.0.1:4187/p/'),
+    type: 'image/jpeg',
+  });
+  expect(metaRequests).toEqual([]);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('admin name edits refresh the shop greeting without signing in again', async ({ page }) => {
   await installMockSupabase(page);
   let name = '';

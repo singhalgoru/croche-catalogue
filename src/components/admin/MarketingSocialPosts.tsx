@@ -7,6 +7,7 @@ import {
 } from '../../services/socialPosts';
 import { prepareSocialPostJpeg } from '../../utils/imageUploadConversion';
 import { toProductPageUrl } from '../../utils/productLink';
+import WhatsAppGroupShare from './WhatsAppGroupShare';
 
 const platforms: SocialPlatform[] = ['facebook', 'instagram'];
 const labels = { facebook: 'Facebook Page', instagram: 'Instagram' };
@@ -129,10 +130,11 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     });
   };
 
-  return <AdminDialog title="Facebook / Instagram product post" onClose={onClose} busy={Boolean(busy)}>
+  return <AdminDialog title="Facebook / Instagram / WhatsApp product post" onClose={onClose} busy={Boolean(busy)}>
     <div className="grid gap-4 p-4 sm:p-6">
       <p className="text-sm">Create an organic product photo post, not an ad. Publishing makes it LIVE immediately; it is not paused and creates no ad budget.
-        This release permits one initial post per product per platform. Never use another product to bypass an uncertain result.</p>
+        Facebook and Instagram permit one initial post per product per platform. Never use another product to bypass an uncertain result.
+        WhatsApp sharing is manual; check your group before sending again to avoid duplicates.</p>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {message && <p role="status" className="text-sm">{message}</p>}
       <fieldset disabled={Boolean(busy) || loadingProducts || loadingPosts} className="grid gap-3">
@@ -181,6 +183,11 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           {busy === 'Preparing' ? 'Preparing previews...' : 'Prepare post previews (does not publish)'}
         </button>
       </fieldset>
+      {product && <WhatsAppGroupShare key={`${product.id}:${product.image}`} product={product} disabled={Boolean(busy)}
+        onBusyChange={value => {
+          setBusy(value ? 'WhatsApp' : '');
+          setConfirmed(false);
+        }} />}
       {loadingPosts && <p role="status" className="text-sm">Loading saved posting status...</p>}
       {reviewDirty && <p role="status" className="text-sm">Caption edits are not saved. Prepare new previews before publishing; checking access or refreshing status does not save edits.</p>}
       {posts.map(post => <article key={post.id} className="grid gap-2 rounded-xl border border-cocoa/25 bg-white p-3 text-sm">
@@ -228,7 +235,7 @@ export default function MarketingSocialPosts({ initialProduct, disabled = false 
   return <>
     <button type="button" onClick={() => setOpen(true)} disabled={disabled}
       className="min-h-11 rounded-full border border-cocoa/30 px-4 text-sm font-semibold text-cocoa">
-      Create Facebook / Instagram post
+      Create Facebook / Instagram / WhatsApp post
     </button>
     {open && <PostComposer initialProduct={initialProduct} onClose={() => setOpen(false)} />}
   </>;

@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); restore(); });
 const open = async () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Create Facebook / Instagram post' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Create Facebook / Instagram / WhatsApp post' }));
   await screen.findByRole('option', { name: product.name });
 };
 const check = async () => {
@@ -59,7 +59,7 @@ it('opens an accessible modal on demand without fetching while closed or posting
   render(<MarketingSocialPosts />);
   expect(mocks.products).not.toHaveBeenCalled();
   await open();
-  expect(screen.getByRole('dialog', { name: 'Facebook / Instagram product post' })).toHaveProperty('open', true);
+  expect(screen.getByRole('dialog', { name: 'Facebook / Instagram / WhatsApp product post' })).toHaveProperty('open', true);
   expect(screen.queryByRole('option', { name: 'Hidden product' })).toBeNull();
   fireEvent.change(screen.getByRole('combobox', { name: 'Published product' }), { target: { value: product.id } });
   await waitFor(() => expect(mocks.list).toHaveBeenCalledWith(product.id));
@@ -100,6 +100,23 @@ it('publishes only the selected platform', async () => {
   fireEvent.click(confirmation());
   fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish LIVE' }));
   await waitFor(() => expect(mocks.publish).toHaveBeenCalledWith(product.id, [{ id: post('instagram').id, revision: 3 }]));
+});
+
+it('prepares a WhatsApp photo without Meta checks or writes even after a Facebook post was published', async () => {
+  mocks.list.mockResolvedValue([post('facebook', 'published')]);
+  const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:whatsapp-photo');
+  const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  try {
+    render(<MarketingSocialPosts initialProduct={product} />);
+    await open();
+    await screen.findByText('Facebook Page: Published');
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare WhatsApp photo (does not send)' }));
+    await screen.findByAltText('WhatsApp product photo preview');
+    expect(mocks.setup).not.toHaveBeenCalled();
+    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.publish).not.toHaveBeenCalled();
+    cleanup();
+  } finally { create.mockRestore(); revoke.mockRestore(); }
 });
 
 it('invalidates live consent after caption edits until new previews are prepared', async () => {
@@ -146,7 +163,7 @@ it('does not enable uncertain posts or disabled publishing and prevents modal cl
   fireEvent.click(screen.getByRole('button', { name: 'Refresh saved posting status (read-only)' }));
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: true, cancelable: true }));
   expect(screen.getByRole('dialog')).toHaveProperty('open', true);
-  expect(screen.getByRole('button', { name: 'Close Facebook / Instagram product post' })).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: 'Close Facebook / Instagram / WhatsApp product post' })).toHaveProperty('disabled', true);
   finish?.([post('facebook', 'needs_attention')]);
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Close Facebook / Instagram product post' })).toHaveProperty('disabled', false));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Close Facebook / Instagram / WhatsApp product post' })).toHaveProperty('disabled', false));
 });
