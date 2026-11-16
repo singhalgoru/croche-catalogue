@@ -56,7 +56,8 @@ function sameGeo(actual: unknown, expected: unknown) {
     if (key === 'location_types') {
       if (canonical(value) !== canonical(['home', 'recent'])) {
         const types = Array.isArray(value) ? value.map(item =>
-          item === 'home' || item === 'recent' || item === 'travel_in' ? item : 'unrecognized') : ['malformed'];
+          typeof item === 'string' && ['home', 'recent', 'travel_in', 'all', 'unknown', 'none'].includes(item)
+            ? item : item === null ? 'null' : typeof item !== 'string' ? 'non-string' : 'unrecognized') : ['malformed'];
         return { matches: false, detail: `Meta location types differ: ${types.slice(0, 5).join(', ') || 'empty'}.` };
       }
     } else if (['countries', 'regions', 'cities', 'zips'].includes(key) && Array.isArray(value)) {

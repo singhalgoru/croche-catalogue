@@ -149,6 +149,8 @@ it('identifies mismatched fields without exposing provider values, names or arbi
 
 it.each([
   [{ countries: ['IN'], location_types: ['home'] }, 'Meta location types differ: home.'],
+  [{ countries: ['IN'], location_types: ['all', 'home', 'recent'] }, 'Meta location types differ: all, home, recent.'],
+  [{ countries: ['IN'], location_types: [null, 'home', 'recent'] }, 'Meta location types differ: null, home, recent.'],
   [{ countries: ['IN'], cities: [] }, 'cities (Meta 0, saved absent)'],
   [{ countries: ['IN'], country_groups: [] }, 'country_groups (empty list)'],
   [{ countries: ['private-country'] }, 'countries (Meta 1, saved 1)'],
