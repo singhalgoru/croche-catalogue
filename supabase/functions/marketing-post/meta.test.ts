@@ -40,15 +40,48 @@ it('rejects missing publishing grants before Page lookup or any write', async ()
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
+it.each(['CREATE_CONTENT', 'MANAGE', 'PROFILE_PLUS_CREATE_CONTENT', 'PROFILE_PLUS_FULL_CONTROL'])(
+  'recognizes documented publishing task %s for Facebook and Instagram-only access',
+  async task => {
+    for (const platform of ['facebook', 'instagram'] as const) {
+      fetcher.mockReset().mockResolvedValueOnce(permissions()).mockResolvedValueOnce(response({ data: [{ ...page, tasks: [task] }] }));
+      if (platform === 'instagram') fetcher.mockResolvedValueOnce(response({
+        id: '456', instagram_business_account: { id: '999', username: 'luvia' },
+      }));
+      await expect(publishingAccess(config, '456', [platform], false, fetcher)).resolves.toMatchObject({
+        setup: { enabled: false, pageId: '456' },
+      });
+      expect(fetcher.mock.calls.every(([, options]) => options?.method === 'GET')).toBe(true);
+    }
+  },
+);
+
 it('requires a complete unique Page listing and content creation task', async () => {
   fetcher.mockResolvedValueOnce(permissions())
     .mockResolvedValueOnce(response({ data: [page], paging: { next: 'untrusted-next', cursors: { after: 'cursor' } } }))
     .mockResolvedValueOnce(response({ data: [page] }));
-  await expect(publishingAccess(config, '456', ['facebook'], true, fetcher)).rejects.toThrow('not uniquely available');
+  await expect(publishingAccess(config, '456', ['facebook'], true, fetcher)).rejects.toThrow('more than once');
   expect(new URL(String(fetcher.mock.calls[2][0])).searchParams.get('after')).toBe('cursor');
   expect(new URL(String(fetcher.mock.calls[2][0])).hostname).toBe('graph.facebook.com');
   fetcher.mockReset().mockResolvedValueOnce(permissions()).mockResolvedValueOnce(response({ data: [{ ...page, tasks: ['ADVERTISE'] }] }));
   await expect(publishingAccess(config, '456', ['facebook'], true, fetcher)).rejects.toThrow('content-creation access');
+});
+
+it.each([
+  [[], 'did not return the configured Facebook Page'],
+  [[{ ...page, name: '' }], 'without a valid Page name'],
+  [[{ ...page, access_token: undefined }], 'did not provide its Page access token'],
+  [[{ ...page, tasks: undefined }], 'without a Page task list'],
+  [[{ ...page, tasks: [] }], 'Recognized tasks: none; unrecognized task entries: 0'],
+  [[{ ...page, tasks: ['PROFILE_PLUS_ADVERTISE', 'PROFILE_PLUS_MODERATE'] }], 'Recognized tasks: PROFILE_PLUS_ADVERTISE, PROFILE_PLUS_MODERATE; unrecognized task entries: 0'],
+  [[{ ...page, tasks: ['ADVERTISE', 'UNRECOGNIZED_FIXTURE_WITH_SECRET'] }], 'Recognized tasks: ADVERTISE; unrecognized task entries: 1'],
+])('distinguishes Page lookup failures without leaking tokens or arbitrary provider values (%j)', async (data, diagnostic) => {
+  fetcher.mockResolvedValueOnce(permissions()).mockResolvedValueOnce(response({ data }));
+  const failure = await publishingAccess(config, '456', ['facebook'], false, fetcher).catch(error => error);
+  expect(failure).toBeInstanceOf(Error);
+  expect(failure.message).toContain(diagnostic);
+  expect(failure.message).not.toMatch(/page-token-fixture|UNRECOGNIZED_FIXTURE_WITH_SECRET/);
+  expect(fetcher.mock.calls.every(([, options]) => options?.method === 'GET')).toBe(true);
 });
 
 it('uses only photo/container/publish endpoints with exact reviewed content and Page token', async () => {

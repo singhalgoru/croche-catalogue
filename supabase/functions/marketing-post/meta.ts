@@ -26,10 +26,29 @@ export async function publishingAccess(
     if (item.id === pageId) pages.push(item);
   }, fetcher, 'organic publishing request');
   const page = pages[0];
-  if (pages.length !== 1 || typeof page?.name !== 'string' || !page.name.trim() || page.name.length > 300
-    || typeof page.access_token !== 'string' || !page.access_token.trim()
-    || !Array.isArray(page.tasks) || !page.tasks.some(task => task === 'CREATE_CONTENT' || task === 'MANAGE')) {
-    throw new Error('The configured Facebook Page is not uniquely available with content-creation access. Check Page tasks and reconnect Meta.');
+  if (!pages.length) {
+    throw new Error('Meta did not return the configured Facebook Page in /me/accounts. Reconnect Meta using a Facebook login with access to that Page and explicitly include the Page in the business-login asset selection. If it is still missing, the operator must verify META_PAGE_ID.');
+  }
+  if (pages.length !== 1) {
+    throw new Error('Meta returned the configured Facebook Page more than once in /me/accounts. Page access could not be verified safely. No publishing request was sent.');
+  }
+  if (typeof page.name !== 'string' || !page.name.trim() || page.name.length > 300) {
+    throw new Error('Meta returned the configured Facebook Page without a valid Page name. Reconnect Meta and check Page access. No publishing request was sent.');
+  }
+  if (typeof page.access_token !== 'string' || !page.access_token.trim()) {
+    throw new Error('Meta returned the configured Facebook Page but did not provide its Page access token. Reconnect Meta with the Page selected and the required publishing permissions granted. No publishing request was sent.');
+  }
+  if (!Array.isArray(page.tasks)) {
+    throw new Error('Meta returned the configured Facebook Page without a Page task list. Check the connected login in Page settings > Page access, then reconnect Meta. No publishing request was sent.');
+  }
+  const tasks = page.tasks;
+  const publishingTasks = ['CREATE_CONTENT', 'MANAGE', 'PROFILE_PLUS_CREATE_CONTENT', 'PROFILE_PLUS_FULL_CONTROL'];
+  if (!tasks.some(task => publishingTasks.includes(String(task)))) {
+    const knownTasks = ['ADVERTISE', 'ANALYZE', 'MODERATE', 'MESSAGING', 'MANAGE_LEADS', 'VIEW_MONETIZATION_INSIGHTS',
+      'PROFILE_PLUS_ADVERTISE', 'PROFILE_PLUS_ANALYZE', 'PROFILE_PLUS_MODERATE', 'PROFILE_PLUS_MESSAGING']
+      .filter(task => tasks.includes(task));
+    const otherTasks = tasks.filter(task => !knownTasks.includes(String(task))).length;
+    throw new Error(`Meta returned the configured Facebook Page but did not confirm content-creation access (Content or Full control). Recognized tasks: ${knownTasks.join(', ') || 'none'}; unrecognized task entries: ${otherTasks}. Check Page settings > Page access for content-creation access and reconnect Meta. No publishing request was sent.`);
   }
   const pageConfig = { ...config, accessToken: page.access_token };
   let instagram: SocialPublishingSetup['instagram'];
