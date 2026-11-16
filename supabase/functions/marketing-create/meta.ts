@@ -1,4 +1,5 @@
 import { searchMetaLocations, type MetaConfig, type MetaLocation } from '../marketing-read/meta.ts';
+import { formatMetaCreationError } from '../_shared/metaErrors.ts';
 
 type Fetcher = typeof fetch;
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -179,8 +180,8 @@ export async function graph(
         : operation === 'Instagram account lookup' ? 'Verify the Page-linked Instagram professional account, its ad-account assignment and granted permissions; reconnect Meta if access changed.'
         : operation === 'ad account lookup' ? 'Verify the configured ad account and access for the connected login.'
           : 'Check permissions and account setup in Meta.';
-    throw new Error(`Meta ${operation} failed (${diagnostic}). ${recovery}${permissions.length
-      ? ` Meta mentions: ${permissions.join(', ')}.` : ''}`);
+    throw new Error(formatMetaCreationError(`Meta ${operation} failed (${diagnostic}). ${recovery}${permissions.length
+      ? ` Meta mentions: ${permissions.join(', ')}.` : ''}`));
   }
   if (!isRecord(payload)) throw new Error('Meta returned an invalid response; inspect Ads Manager before recovery.');
   return payload;

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { formatMetaCreationError } from '../../../supabase/functions/_shared/metaErrors';
 import type { Product } from '../../types/product';
 import {
   createPausedMetaCampaign, fetchMetaCampaignCreation, fetchMetaCreationSetup,
@@ -153,7 +154,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       This sends the approved copy and selected product image to Meta and creates a new campaign, ad set and ad.
       All three are paused. Activation stays manual in Ads Manager. Campaigns from other proposals are never changed.
     </p>
-    {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+    {error && <p role="alert" className="mt-3 text-sm text-red-700">{formatMetaCreationError(error)}</p>}
     {loading && <p role="status" className="mt-3 text-sm">Checking setup and prior creation attempts...</p>}
     <div className="mt-3 rounded-xl border border-cocoa/25 p-3 text-sm">
       <button type="button" disabled={busy || loading} onClick={() => void checkInstagram()}
@@ -168,7 +169,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       <p role="status">{creation.status === 'created'
         ? 'Created in Meta; campaign, ad set and ad were verified paused. Activation is manual in Meta.'
         : 'Creation is incomplete or needs attention. Do not retry or create another proposal to bypass this check; inspect Ads Manager and contact the operator.'}</p>
-      {creation.error && <p className="mt-2 text-red-700"><strong>Saved error from the previous attempt:</strong> {creation.error}</p>}
+      {creation.error && <p className="mt-2 text-red-700"><strong>Saved error from the previous attempt:</strong> {formatMetaCreationError(creation.error)}</p>}
       {creation.placement === 'instagram-feed' && <p className="mt-2">Saved placement: Instagram Feed only.</p>}
       {creation.campaign_id && <a target="_blank" rel="noopener noreferrer"
         className="mt-2 inline-block min-h-10 py-2 font-semibold underline"

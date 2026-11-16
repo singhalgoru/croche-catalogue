@@ -200,3 +200,26 @@ it('stops after partial failure or lost checkpoint without retrying writes or ex
   await expect(createPausedObjects(config, settings, plan(), { countries: ['IN'] }, checkpoint, fetcher)).rejects.toThrow('Checkpoint failed');
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it.each(['facebook-feed', 'instagram-feed'] as const)('explains a billing rejection for %s without retrying or exposing provider details', async placement => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(response({ id: '10' })).mockResolvedValueOnce(response({ id: '20' }))
+    .mockResolvedValueOnce(response({ id: '30' }))
+    .mockResolvedValueOnce(response({ error: {
+      code: 100, error_subcode: 1359188, message: `${config.accessToken} https://private.test`,
+    } }, 400));
+  const checkpoint = vi.fn().mockResolvedValue(undefined);
+  const failure = createPausedObjects(config, settings, { ...plan(), placement,
+    ...(placement === 'instagram-feed' ? { instagramUserId: '999' } : {}),
+  }, { countries: ['IN'] }, checkpoint, fetcher);
+  await expect(failure).rejects.toThrow('HTTP 400, code 100, subcode 1359188');
+  await expect(failure).rejects.toThrow('Billing & payments');
+  await expect(failure).rejects.toThrow('verify a valid payment method');
+  await expect(failure).rejects.not.toThrow('Check permissions and account setup');
+  await expect(failure).rejects.not.toThrow(config.accessToken);
+  await expect(failure).rejects.not.toThrow('private.test');
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(checkpoint.mock.calls).toEqual([[{ campaign_id: '10' }], [{ adset_id: '20' }], [{ creative_id: '30' }]]);
+  expect(JSON.stringify(log.mock.calls)).not.toContain(config.accessToken);
+});

@@ -81,6 +81,40 @@ it('shows existing partial attempts without offering a second create or requirin
   expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
 });
 
+const savedBillingError = 'Meta object request failed (HTTP 400, code 100, subcode 1359188). Check permissions and account setup in Meta.';
+
+it.each(['facebook-feed', 'instagram-feed'])('clarifies historical %s billing failures without rewriting or retrying the attempt', async placement => {
+  const saved = { ...result, status: 'needs_attention', placement, ad_id: null, error: savedBillingError };
+  mocks.fetchMetaCampaignCreation.mockResolvedValue(saved);
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  const message = await screen.findByText(/Meta object request failed.*Billing & payments/);
+  expect(message.textContent).toContain('HTTP 400, code 100, subcode 1359188');
+  expect(message.textContent).toContain('verify a valid payment method');
+  expect(message.textContent).toContain('Paused ads still require billing eligibility.');
+  expect(message.textContent).not.toContain('Check permissions and account setup');
+  expect(screen.getByText('Saved error from the previous attempt:')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Confirm and create paused campaign' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Review saved recovery' })).toBeNull();
+  expect(saved.error).toBe(savedBillingError);
+  expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
+  expect(mocks.recoverPausedMetaCampaign).not.toHaveBeenCalled();
+});
+
+it('clarifies a fresh billing failure and still blocks another creation', async () => {
+  mocks.createPausedMetaCampaign.mockRejectedValue(new Error(savedBillingError));
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  const submit = await screen.findByRole('button', { name: 'Confirm and create paused campaign' });
+  fireEvent.change(screen.getByLabelText('Published product image for this ad'), { target: { value: product.id } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(submit);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toContain('Billing & payments');
+  expect(alert.textContent).toContain('subcode 1359188');
+  expect(screen.queryByRole('button', { name: 'Confirm and create paused campaign' })).toBeNull();
+  expect(mocks.createPausedMetaCampaign).toHaveBeenCalledTimes(1);
+});
+
 it('shows configuration errors and requires a status refresh after uncertain network results', async () => {
   mocks.createPausedMetaCampaign.mockRejectedValue(new Error('Connection interrupted.'));
   render(<MarketingMetaCreation draft={draft} products={[product]} />);
@@ -220,6 +254,8 @@ it('distinguishes a new review error from the saved prior failure', async () => 
   fireEvent.click(await screen.findByRole('button', { name: 'Review saved recovery' }));
   const alert = await screen.findByRole('alert');
   expect(alert.textContent).toBe('Existing ad-set verification failed: lifetime budget.');
+  expect(alert.textContent).not.toContain('Billing & payments');
+  expect(screen.getByText(/subcode 1885183/).textContent).not.toContain('Billing & payments');
   expect(screen.getByText('Saved error from the previous attempt:')).toBeTruthy();
   expect(alert.textContent).not.toContain('1885183');
   expect(mocks.recoverPausedMetaCampaign).not.toHaveBeenCalled();
