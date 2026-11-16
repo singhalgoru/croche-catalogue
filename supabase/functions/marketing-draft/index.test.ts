@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 
 const { getUser, rpc } = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn() }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
@@ -23,6 +23,11 @@ beforeAll(async () => {
   await import('./index');
 });
 afterAll(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 const brief = {
   productOrOffer: 'Handmade crochet flowers',
@@ -50,6 +55,22 @@ const copy = {
 const providerResponse = (value: unknown) => new Response(JSON.stringify({
   candidates: [{ content: { parts: [{ text: JSON.stringify(value) }] } }],
 }), { status: 200 });
+
+const mockSlowProvider = (delayMs: number) => {
+  vi.useFakeTimers();
+  vi.spyOn(AbortSignal, 'timeout').mockImplementation(milliseconds => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('Fixture deadline reached.', 'TimeoutError')), milliseconds);
+    return controller.signal;
+  });
+  fetcher.mockImplementationOnce((_url: string, options: RequestInit) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(providerResponse(copy)), delayMs);
+    options.signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(options.signal?.reason);
+    }, { once: true });
+  }));
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -103,6 +124,41 @@ it('does not accept malformed AI output or expose provider error details', async
   const response = await handle(request());
   expect(response.status).toBe(502);
   expect(await response.text()).not.toContain('secret provider details');
+});
+
+it('allows a slow successful AI response beyond the former 20-second deadline', async () => {
+  mockSlowProvider(25_000);
+  const pending = handle(request());
+  await vi.advanceTimersByTimeAsync(25_000);
+  const response = await pending;
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ proposal: { ...copy, totalBudgetInr: 3500 } });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it('stops stalled AI requests with a distinct timeout error and no automatic retry', async () => {
+  mockSlowProvider(120_000);
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const pending = handle(request());
+  await vi.advanceTimersByTimeAsync(60_000);
+  const response = await pending;
+  expect(response.status).toBe(504);
+  expect(await response.json()).toEqual({ error: 'AI campaign generation timed out. Please try again.' });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(log).toHaveBeenCalledWith('AI campaign provider request failed.', { reason: 'timeout', elapsedMs: 60_000 });
+});
+
+it('reports connection failures without logging provider URLs, credentials or input', async () => {
+  fetcher.mockRejectedValueOnce(new Error('Sensitive provider URL and credential fixture.'));
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const response = await handle(request());
+  expect(response.status).toBe(502);
+  expect(await response.json()).toEqual({ error: 'Unable to reach the AI provider. Please try again.' });
+  expect(log).toHaveBeenCalledWith('AI campaign provider request failed.', {
+    reason: 'network', elapsedMs: expect.any(Number),
+  });
+  expect(JSON.stringify(log.mock.calls)).not.toContain('Sensitive');
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
 it('sends full product facts to AI while rejecting oversized inputs explicitly', async () => {

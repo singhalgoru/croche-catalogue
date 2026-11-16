@@ -161,6 +161,8 @@ Deno.serve(async (request) => {
     JSON.stringify(brief),
   ].join('\n');
 
+  const providerStartedAt = Date.now();
+  const providerSignal = AbortSignal.timeout(60_000);
   let providerResponse: Response;
   try {
     providerResponse = await fetch(
@@ -189,11 +191,20 @@ Deno.serve(async (request) => {
             },
           },
         }),
-        signal: AbortSignal.timeout(20_000),
+        signal: providerSignal,
       },
     );
   } catch {
-    return jsonResponse({ error: 'Unable to reach the AI provider. Please try again.' }, 502);
+    const timedOut = providerSignal.aborted;
+    console.error('AI campaign provider request failed.', {
+      reason: timedOut ? 'timeout' : 'network',
+      elapsedMs: Date.now() - providerStartedAt,
+    });
+    return jsonResponse({
+      error: timedOut
+        ? 'AI campaign generation timed out. Please try again.'
+        : 'Unable to reach the AI provider. Please try again.',
+    }, timedOut ? 504 : 502);
   }
   if (!providerResponse.ok) {
     return jsonResponse({ error: `AI campaign generation failed (status ${providerResponse.status}).` }, 502);
