@@ -67,8 +67,48 @@ it('requires a complete unique Page listing and content creation task', async ()
   await expect(publishingAccess(config, '456', ['facebook'], true, fetcher)).rejects.toThrow('content-creation access');
 });
 
+it('verifies a directly obtained Page token and MANAGE-only read access when the Page list is empty', async () => {
+  fetcher.mockResolvedValueOnce(permissions()).mockResolvedValueOnce(response({ data: [] }))
+    .mockResolvedValueOnce(response({ id: '456', name: 'Page', access_token: 'page-token-fixture' }))
+    .mockResolvedValueOnce(response({ id: '456' }))
+    .mockResolvedValueOnce(response({ data: [{ setting: 'fixture', value: true }] }))
+    .mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '999', username: 'luvia' } }));
+  const access = await publishingAccess(config, '456', ['instagram'], false, fetcher);
+  expect(access.setup).toMatchObject({ pageId: '456', instagram: { id: '999' } });
+  expect(JSON.stringify(access.setup)).not.toContain('page-token-fixture');
+  expect(fetcher.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+    '/v27.0/me/permissions', '/v27.0/me/accounts', '/v27.0/456', '/v27.0/me', '/v27.0/456/settings', '/v27.0/456',
+  ]);
+  expect(fetcher.mock.calls.slice(3).every(([, options]) =>
+    options?.method === 'GET' && JSON.stringify(options.headers) === JSON.stringify({ Authorization: 'Bearer page-token-fixture' }))).toBe(true);
+});
+
 it.each([
-  [[], 'did not return the configured Facebook Page'],
+  [{ id: '457', name: 'Page', access_token: 'page-token-fixture' }, { id: '456' }, { data: [] }, 'did not return the configured'],
+  [{ id: '456', name: 'Page' }, { id: '456' }, { data: [] }, 'did not provide its Page access token'],
+  [{ id: '456', name: 'Page', access_token: 'page-token-fixture' }, { id: '457' }, { data: [] }, 'did not identify the configured'],
+  [{ id: '456', name: 'Page', access_token: 'page-token-fixture' }, { id: '456' }, { data: 'invalid' }, 'did not verify Page management access'],
+])('fails closed when the direct Page token or management check is invalid', async (pageResult, identity, settings, diagnostic) => {
+  fetcher.mockResolvedValueOnce(permissions()).mockResolvedValueOnce(response({ data: [] }))
+    .mockResolvedValueOnce(response(pageResult)).mockResolvedValueOnce(response(identity)).mockResolvedValueOnce(response(settings));
+  const failure = await publishingAccess(config, '456', ['instagram'], false, fetcher).catch(error => error);
+  expect(failure.message).toContain(diagnostic);
+  expect(failure.message).not.toContain('page-token-fixture');
+  expect(fetcher.mock.calls.every(([, options]) => options?.method === 'GET')).toBe(true);
+});
+
+it('fails closed when Meta denies the direct Page management check', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  fetcher.mockResolvedValueOnce(permissions()).mockResolvedValueOnce(response({ data: [] }))
+    .mockResolvedValueOnce(response({ id: '456', name: 'Page', access_token: 'page-token-fixture' }))
+    .mockResolvedValueOnce(response({ id: '456' }))
+    .mockResolvedValueOnce(response({ error: { code: 200, message: 'secret provider message' } }, 403));
+  await expect(publishingAccess(config, '456', ['instagram'], false, fetcher)).rejects.toThrow('HTTP 403, code 200');
+  expect(fetcher).toHaveBeenCalledTimes(5);
+  log.mockRestore();
+});
+
+it.each([
   [[{ ...page, name: '' }], 'without a valid Page name'],
   [[{ ...page, access_token: undefined }], 'did not provide its Page access token'],
   [[{ ...page, tasks: undefined }], 'without a Page task list'],
