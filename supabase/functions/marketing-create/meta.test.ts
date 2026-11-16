@@ -103,6 +103,16 @@ it('verifies write permission, the active INR account, page and sales pixel with
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
+it('treats a declined Instagram permission as missing without looking up the linked profile', async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce(response({ data: [
+    { permission: 'ads_management', status: 'granted' }, { permission: 'pages_show_list', status: 'granted' },
+    { permission: 'instagram_basic', status: 'declined' },
+  ] }));
+  await expect(preflight(config, settings, false, fetcher, 'instagram-feed')).rejects.toThrow('Reconnect Meta with instagram_basic');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][1].method).toBe('GET');
+});
+
 it('revalidates Meta keys against Indian search results and never translates labels into targeting', async () => {
   const fetcher = vi.fn().mockImplementation(async () => response({ data: [
     { key: 'city-1', name: 'Mumbai', region: 'Maharashtra', country_code: 'IN', type: 'city' },

@@ -188,11 +188,14 @@ export async function graph(
 
 export async function preflight(
   config: MetaConfig, settings: ReturnType<typeof creationSettings>, sales: boolean, fetcher: Fetcher = fetch,
+  placement: CreationInput['placement'] = 'facebook-feed',
 ) {
   const permissions = await graph(config, 'me/permissions', 'GET', {}, fetcher, 'permission check');
-  if (!Array.isArray(permissions.data) || !permissions.data.some(item =>
-    isRecord(item) && item.permission === 'ads_management' && item.status === 'granted')) {
-    throw new Error('Reconnect Meta with ads_management granted in the approved business login configuration.');
+  const required = ['ads_management', ...(placement === 'instagram-feed' ? ['instagram_basic', 'pages_show_list'] : [])];
+  const missing = required.filter(permission => !Array.isArray(permissions.data) || !permissions.data.some(item =>
+    isRecord(item) && item.permission === permission && item.status === 'granted'));
+  if (missing.length) {
+    throw new Error(`Reconnect Meta with ${missing.join(', ')} granted in the approved business login configuration.`);
   }
   const account = await graph(config, `act_${config.accountId}`, 'GET', { fields: 'id,name,currency,account_status' }, fetcher, 'ad account lookup');
   if (account.id !== `act_${config.accountId}` || !text(account.name, 250)

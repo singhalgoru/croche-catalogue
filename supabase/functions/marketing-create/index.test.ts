@@ -77,7 +77,8 @@ beforeEach(() => {
     progress = { ...progress, ...updates };
     return { data: progress, error: null };
   });
-  fetcher.mockResolvedValueOnce(response({ data: [{ permission: 'ads_management', status: 'granted' }] }))
+  fetcher.mockResolvedValueOnce(response({ data: ['ads_management', 'instagram_basic', 'pages_show_list']
+    .map(permission => ({ permission, status: 'granted' })) }))
     .mockResolvedValueOnce(response({ id: 'act_123', name: 'Account', currency: 'INR', account_status: 1 }))
     .mockResolvedValueOnce(response({ id: '456', name: 'Page' }));
 });
@@ -118,6 +119,21 @@ it('checks Instagram connection without reserving or writing any object', async 
   expect(mocks.insert).not.toHaveBeenCalled();
   expect(mocks.recoveryClaim).not.toHaveBeenCalled();
   expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+
+it.each(['setup-instagram', 'create'])('reports missing Instagram permission before profile lookup or writes (%s)', async action => {
+  fetcher.mockReset().mockResolvedValueOnce(response({ data: ['ads_management', 'pages_show_list']
+    .map(permission => ({ permission, status: 'granted' })) }));
+  const body = action === 'setup-instagram' ? { action } : { ...input, placement: 'instagram-feed', instagramUserId: '999' };
+  const result = await handle(request(body));
+  expect(result.status).toBe(502);
+  expect(await result.json()).toMatchObject({
+    error: 'Reconnect Meta with instagram_basic granted in the approved business login configuration.',
+  });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][1].method).toBe('GET');
+  expect(mocks.insert).not.toHaveBeenCalled();
+  expect(mocks.recoveryClaim).not.toHaveBeenCalled();
 });
 
 it('rejects changed Instagram identity before claiming or creating a campaign', async () => {

@@ -65,9 +65,10 @@ export async function handler(request: Request) {
   }
   if (setup) {
     try {
+      const placement = isRecord(payload) && payload.action === 'setup-instagram' ? 'instagram-feed' : 'facebook-feed';
       return json({ setup: {
-        ...await preflight(config, settings, false), pixelId: settings.pixelId ?? null,
-        ...(isRecord(payload) && payload.action === 'setup-instagram' ? { instagram: await instagramIdentity(config, settings) } : {}),
+        ...await preflight(config, settings, false, fetch, placement), pixelId: settings.pixelId ?? null,
+        ...(placement === 'instagram-feed' ? { instagram: await instagramIdentity(config, settings) } : {}),
       } });
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : 'Meta preflight failed.' }, 502);
@@ -146,7 +147,7 @@ export async function handler(request: Request) {
   }
   let geo;
   try {
-    await preflight(config, settings, plan.goal === 'sales');
+    await preflight(config, settings, plan.goal === 'sales', fetch, input.placement);
     if (input.placement === 'instagram-feed') await instagramIdentity(config, settings, input.instagramUserId);
     geo = await resolveLocations(config, input.locations);
   } catch (error) {
