@@ -25,7 +25,8 @@ it('requires explicit paused confirmation and server-controlled statuses and acc
   expect(parseCreationInput(input)).toMatchObject({ primaryTextIndex: 1, locations: null });
   for (const change of [{ confirmPaused: false }, { status: 'ACTIVE' }, { accountId: 'other' },
     { primaryTextIndex: 2 }, { locations: [] }, { startTime: 'bad' },
-    { placement: 'instagram-reels' }, { placement: 'instagram-feed' }, { instagramUserId: '999' }]) {
+    { placement: 'instagram-reels' }, { placement: 'instagram-feed' }, { placement: 'facebook-instagram-feeds' },
+    { placement: 'facebook-instagram-feeds', instagramUserId: 'invalid' }, { instagramUserId: '999' }]) {
     expect(() => parseCreationInput({ ...input, ...change })).toThrow();
   }
   expect(() => creationSettings(() => undefined)).toThrow('disabled');
@@ -75,6 +76,45 @@ it.each(['sales', 'traffic', 'awareness'] as const)('creates Instagram Feed-only
   expect(fetcher).toHaveBeenCalledTimes(7);
 });
 
+it.each(['sales', 'traffic', 'awareness'] as const)('creates %s across exactly both Feeds with one shared lifetime budget', async goal => {
+  const parsed = parseCreationInput({ ...input, placement: 'facebook-instagram-feeds', instagramUserId: '999' });
+  const combinedPlan = buildPlan(draft, product, parsed, settings.pixelId, now);
+  expect(combinedPlan).toMatchObject({ placement: 'facebook-instagram-feeds', instagramUserId: '999', lifetimeBudget: 350000 });
+  const fetcher = vi.fn();
+  for (const body of [{ id: '10' }, { id: '20' }, { id: '30' }, { id: '40' },
+    { id: '10', status: 'PAUSED' }, { id: '20', status: 'PAUSED' }, { id: '40', status: 'PAUSED' }]) {
+    fetcher.mockResolvedValueOnce(response(body));
+  }
+  const checkpoint = vi.fn().mockResolvedValue(undefined);
+  await createPausedObjects(config, settings, { ...combinedPlan, goal }, { countries: ['IN'] }, checkpoint, fetcher);
+  const writes = fetcher.mock.calls.filter(([, options]) => options.method === 'POST');
+  expect(writes.map(([url]) => new URL(url).pathname)).toEqual([
+    '/v27.0/act_123/campaigns', '/v27.0/act_123/adsets', '/v27.0/act_123/adcreatives', '/v27.0/act_123/ads',
+  ]);
+  const parameters = writes.map(([, options]) => options.body as URLSearchParams);
+  expect(parameters[1].get('name')).toBe('Crochet flowers - Facebook + Instagram Feeds');
+  expect(parameters[1].get('lifetime_budget')).toBe('350000');
+  expect(parameters[1].has('daily_budget')).toBe(false);
+  expect(JSON.parse(parameters[1].get('targeting')!)).toEqual({
+    geo_locations: { countries: ['IN'] }, age_min: 18,
+    publisher_platforms: ['facebook', 'instagram'], facebook_positions: ['feed'], instagram_positions: ['stream'],
+    targeting_automation: { advantage_audience: 0 },
+  });
+  expect(JSON.parse(parameters[2].get('object_story_spec')!)).toMatchObject({
+    page_id: '456', instagram_user_id: '999', link_data: { picture: product.image_url, message: 'Second copy' },
+  });
+  expect([parameters[0], parameters[1], parameters[3]].every(body => body.get('status') === 'PAUSED')).toBe(true);
+  expect(fetcher).toHaveBeenCalledTimes(7);
+  expect(checkpoint.mock.calls).toEqual([[{ campaign_id: '10' }], [{ adset_id: '20' }], [{ creative_id: '30' }], [{ ad_id: '40' }]]);
+});
+
+it('blocks combined Feed writes without a verified Instagram identity', async () => {
+  const fetcher = vi.fn();
+  await expect(createPausedObjects(config, settings, { ...plan(), placement: 'facebook-instagram-feeds' },
+    { countries: ['IN'] }, vi.fn(), fetcher)).rejects.toThrow('Verify the Instagram identity');
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
 it('uses the immutable approved copy and full lifetime budget in paise with a fixed end time', () => {
   expect(plan()).toMatchObject({
     primaryText: 'Second copy', headline: 'First headline', lifetimeBudget: 350000,
@@ -103,12 +143,12 @@ it('verifies write permission, the active INR account, page and sales pixel with
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it('treats a declined Instagram permission as missing without looking up the linked profile', async () => {
+it.each(['instagram-feed', 'facebook-instagram-feeds'] as const)('treats a declined Instagram permission as missing for %s before profile lookup', async placement => {
   const fetcher = vi.fn().mockResolvedValueOnce(response({ data: [
     { permission: 'ads_management', status: 'granted' }, { permission: 'pages_show_list', status: 'granted' },
     { permission: 'instagram_basic', status: 'declined' },
   ] }));
-  await expect(preflight(config, settings, false, fetcher, 'instagram-feed')).rejects.toThrow('Reconnect Meta with instagram_basic');
+  await expect(preflight(config, settings, false, fetcher, placement)).rejects.toThrow('Reconnect Meta with instagram_basic');
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls[0][1].method).toBe('GET');
 });
@@ -201,7 +241,7 @@ it('stops after partial failure or lost checkpoint without retrying writes or ex
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it.each(['facebook-feed', 'instagram-feed'] as const)('explains a billing rejection for %s without retrying or exposing provider details', async placement => {
+it.each(['facebook-feed', 'instagram-feed', 'facebook-instagram-feeds'] as const)('explains a billing rejection for %s without retrying or exposing provider details', async placement => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const fetcher = vi.fn()
     .mockResolvedValueOnce(response({ id: '10' })).mockResolvedValueOnce(response({ id: '20' }))
@@ -210,8 +250,8 @@ it.each(['facebook-feed', 'instagram-feed'] as const)('explains a billing reject
       code: 100, error_subcode: 1359188, message: `${config.accessToken} https://private.test`,
     } }, 400));
   const checkpoint = vi.fn().mockResolvedValue(undefined);
-  const failure = createPausedObjects(config, settings, { ...plan(), placement,
-    ...(placement === 'instagram-feed' ? { instagramUserId: '999' } : {}),
+  const failure = createPausedObjects(config, settings, { ...plan(),
+    ...(placement !== 'facebook-feed' ? { placement, instagramUserId: '999' } : {}),
   }, { countries: ['IN'] }, checkpoint, fetcher);
   await expect(failure).rejects.toThrow('HTTP 400, code 100, subcode 1359188');
   await expect(failure).rejects.toThrow('Billing & payments');

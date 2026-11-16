@@ -1,5 +1,6 @@
 import { searchMetaLocations, type MetaConfig, type MetaLocation } from '../marketing-read/meta.ts';
 import { formatMetaCreationError } from '../_shared/metaErrors.ts';
+import { isMetaFeedPlacement, usesInstagram, type MetaFeedPlacement } from '../_shared/metaPlacements.ts';
 
 type Fetcher = typeof fetch;
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -15,7 +16,7 @@ export interface CreationInput {
   headlineIndex: number;
   startTime: string;
   locations: MetaLocation[] | null;
-  placement?: 'facebook-feed' | 'instagram-feed';
+  placement?: MetaFeedPlacement;
   instagramUserId?: string;
 }
 
@@ -25,8 +26,8 @@ export function parseCreationInput(value: unknown): CreationInput {
       'action', 'confirmPaused', 'draftId', 'productId', 'primaryTextIndex', 'headlineIndex', 'startTime', 'locations',
       'placement', 'instagramUserId',
     ].includes(key))
-    || (value.placement !== undefined && value.placement !== 'facebook-feed' && value.placement !== 'instagram-feed')
-    || (value.placement !== 'instagram-feed' && value.instagramUserId !== undefined)
+    || (value.placement !== undefined && !isMetaFeedPlacement(value.placement))
+    || (value.placement !== 'instagram-feed' && value.placement !== 'facebook-instagram-feeds' && value.instagramUserId !== undefined)
     || !text(value.draftId, 36) || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value.draftId)
     || !text(value.productId, 36) || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value.productId)
     || (value.primaryTextIndex !== 0 && value.primaryTextIndex !== 1)
@@ -39,7 +40,7 @@ export function parseCreationInput(value: unknown): CreationInput {
   }
   const locations: MetaLocation[] | null = value.locations === null ? null : [];
   const instagram: Pick<CreationInput, 'placement' | 'instagramUserId'> = {};
-  if (value.placement === 'instagram-feed') {
+  if (value.placement === 'instagram-feed' || value.placement === 'facebook-instagram-feeds') {
     if (!numericId(value.instagramUserId)) throw new Error('Verify the Instagram identity before confirming paused creation.');
     instagram.placement = value.placement;
     instagram.instagramUserId = value.instagramUserId;
@@ -84,7 +85,7 @@ export interface CreationPlan {
   startTime: string;
   endTime: string;
   lifetimeBudget: number;
-  placement?: 'instagram-feed';
+  placement?: Exclude<MetaFeedPlacement, 'facebook-feed'>;
   instagramUserId?: string;
 }
 
@@ -141,7 +142,8 @@ export function buildPlan(
     imageUrl: image.href, startTime: input.startTime,
     endTime: new Date(end).toISOString(),
     lifetimeBudget: p.totalBudgetInr * 100,
-    ...(input.placement === 'instagram-feed' ? { placement: input.placement, instagramUserId: input.instagramUserId } : {}),
+    ...(input.placement === 'instagram-feed' || input.placement === 'facebook-instagram-feeds'
+      ? { placement: input.placement, instagramUserId: input.instagramUserId } : {}),
   };
 }
 
@@ -192,7 +194,7 @@ export async function preflight(
   placement: CreationInput['placement'] = 'facebook-feed',
 ) {
   const permissions = await graph(config, 'me/permissions', 'GET', {}, fetcher, 'permission check');
-  const required = ['ads_management', ...(placement === 'instagram-feed' ? ['instagram_basic', 'pages_show_list'] : [])];
+  const required = ['ads_management', ...(usesInstagram(placement) ? ['instagram_basic', 'pages_show_list'] : [])];
   const missing = required.filter(permission => !Array.isArray(permissions.data) || !permissions.data.some(item =>
     isRecord(item) && item.permission === permission && item.status === 'granted'));
   if (missing.length) {
@@ -292,7 +294,7 @@ export async function createPausedObjects(
   geo: Awaited<ReturnType<typeof resolveLocations>>,
   checkpoint: (ids: Record<string, string>) => Promise<unknown>, fetcher: Fetcher = fetch,
 ) {
-  if (plan.placement === 'instagram-feed' && !numericId(plan.instagramUserId)) {
+  if (usesInstagram(plan.placement) && !numericId(plan.instagramUserId)) {
     throw new Error('Verify the Instagram identity before creating paused objects.');
   }
   const post = objectWriter(config, checkpoint, fetcher);
@@ -302,7 +304,9 @@ export async function createPausedObjects(
     special_ad_categories: '[]', status: 'PAUSED', buying_type: 'AUCTION', is_adset_budget_sharing_enabled: 'false',
   }, 'campaign_id');
   const adsetId = await post('adsets', {
-    name: `${plan.campaignName} - ${plan.placement === 'instagram-feed' ? 'Instagram' : 'Facebook'} Feed`, campaign_id: campaignId, status: 'PAUSED',
+    name: `${plan.campaignName} - ${plan.placement === 'facebook-instagram-feeds'
+      ? 'Facebook + Instagram Feeds' : `${plan.placement === 'instagram-feed' ? 'Instagram' : 'Facebook'} Feed`}`,
+    campaign_id: campaignId, status: 'PAUSED',
     lifetime_budget: String(plan.lifetimeBudget), start_time: plan.startTime, end_time: plan.endTime,
     billing_event: 'IMPRESSIONS', bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     optimization_goal: plan.goal === 'sales' ? 'OFFSITE_CONVERSIONS' : plan.goal === 'traffic' ? 'LINK_CLICKS' : 'REACH',
@@ -311,9 +315,10 @@ export async function createPausedObjects(
     ...(plan.goal !== 'awareness' ? { destination_type: 'WEBSITE' } : {}),
     targeting: JSON.stringify({
       geo_locations: geo, age_min: 18,
-      ...(plan.placement === 'instagram-feed'
-        ? { publisher_platforms: ['instagram'], instagram_positions: ['stream'] }
-        : { publisher_platforms: ['facebook'], facebook_positions: ['feed'] }),
+      publisher_platforms: plan.placement === 'facebook-instagram-feeds'
+        ? ['facebook', 'instagram'] : plan.placement === 'instagram-feed' ? ['instagram'] : ['facebook'],
+      ...(plan.placement !== 'instagram-feed' ? { facebook_positions: ['feed'] } : {}),
+      ...(usesInstagram(plan.placement) ? { instagram_positions: ['stream'] } : {}),
       targeting_automation: { advantage_audience: 0 },
     }),
   }, 'adset_id');
@@ -325,7 +330,7 @@ export async function completePausedAd(
   campaignId: string, adsetId: string, checkpoint: (ids: Record<string, string>) => Promise<unknown>,
   fetcher: Fetcher = fetch,
 ) {
-  if (plan.placement === 'instagram-feed' && !numericId(plan.instagramUserId)) {
+  if (usesInstagram(plan.placement) && !numericId(plan.instagramUserId)) {
     throw new Error('Verify the Instagram identity before creating the creative.');
   }
   const post = objectWriter(config, checkpoint, fetcher);
@@ -333,7 +338,7 @@ export async function completePausedAd(
     name: plan.campaignName,
     object_story_spec: JSON.stringify({
       page_id: settings.pageId,
-      ...(plan.placement === 'instagram-feed' ? { instagram_user_id: plan.instagramUserId } : {}),
+      ...(usesInstagram(plan.placement) ? { instagram_user_id: plan.instagramUserId } : {}),
       link_data: {
         link: plan.destination, picture: plan.imageUrl, message: plan.primaryText,
         name: plan.headline, description: plan.description,

@@ -173,20 +173,20 @@ it('treats a null placement projection on legacy ledger rows as the original Fac
   expect(invoke).not.toHaveBeenCalled();
 });
 
-it('validates Instagram setup and sends only the selected Feed placement and verified identity', async () => {
+it.each(['instagram-feed', 'facebook-instagram-feeds'] as const)('validates Instagram setup and sends selected %s and identity', async placement => {
   const setup = { accountId: '123', accountName: 'Luvia', pageId: '456', pageName: 'Page', pixelId: null,
     instagram: { id: '999', username: 'luvia' } };
   invoke.mockResolvedValueOnce({ data: { setup }, error: null });
-  await expect(fetchMetaCreationSetup('instagram-feed')).resolves.toEqual(setup);
+  await expect(fetchMetaCreationSetup(placement)).resolves.toEqual(setup);
   expect(invoke).toHaveBeenLastCalledWith('marketing-create', { body: { action: 'setup-instagram' } });
   invoke.mockResolvedValueOnce({ data: { setup: { ...setup, instagram: { id: 'bad', username: 'luvia' } } }, error: null });
-  await expect(fetchMetaCreationSetup('instagram-feed')).rejects.toThrow('Instagram setup');
+  await expect(fetchMetaCreationSetup(placement)).rejects.toThrow('Instagram setup');
   const input = {
     draftId: row.id, productId: 'product-1', primaryTextIndex: 0, headlineIndex: 1,
-    startTime: '2030-01-01T10:00:00Z', locations: null, placement: 'instagram-feed' as const, instagramUserId: '999',
+    startTime: '2030-01-01T10:00:00Z', locations: null, placement, instagramUserId: '999',
   };
   const creation = { draft_id: row.id, status: 'created', account_id: '123', campaign_id: '10', adset_id: '20',
-    creative_id: '30', ad_id: '40', error: null, placement: 'instagram-feed' };
+    creative_id: '30', ad_id: '40', error: null, placement };
   invoke.mockResolvedValueOnce({ data: { creation }, error: null });
   await expect(createPausedMetaCampaign(input)).resolves.toEqual(creation);
   expect(invoke).toHaveBeenLastCalledWith('marketing-create', { body: { ...input, action: 'create', confirmPaused: true } });

@@ -65,6 +65,7 @@ it('reconstructs the saved selected copy and image, but refuses uncertain, chang
     { ad_id: '40' }, { account_id: '999' }, { recovery_started_at: '2030-01-02T09:00:00Z' },
     { request: { ...row.request, pageId: '999' } },
     { request: { ...row.request, placement: 'instagram-feed', instagramUserId: '999' } },
+    { request: { ...row.request, placement: 'facebook-instagram-feeds', instagramUserId: '999' } },
     { request: { ...row.request, plan: { ...plan, primaryText: 'Changed' } } },
   ]) expect(() => recoverySnapshot({ ...row, ...change }, draft, product, config, settings, now)).toThrow();
   expect(() => recoverySnapshot(row, draft, { ...product, image_url: 'https://other.test/new.webp' }, config, settings, now)).toThrow('changed');

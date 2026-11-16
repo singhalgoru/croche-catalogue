@@ -83,7 +83,7 @@ it('shows existing partial attempts without offering a second create or requirin
 
 const savedBillingError = 'Meta object request failed (HTTP 400, code 100, subcode 1359188). Check permissions and account setup in Meta.';
 
-it.each(['facebook-feed', 'instagram-feed'])('clarifies historical %s billing failures without rewriting or retrying the attempt', async placement => {
+it.each(['facebook-feed', 'instagram-feed', 'facebook-instagram-feeds'])('clarifies historical %s billing failures without rewriting or retrying the attempt', async placement => {
   const saved = { ...result, status: 'needs_attention', placement, ad_id: null, error: savedBillingError };
   mocks.fetchMetaCampaignCreation.mockResolvedValue(saved);
   render(<MarketingMetaCreation draft={draft} products={[product]} />);
@@ -137,12 +137,12 @@ it('does not silently downgrade sales campaigns when no Purchase pixel is config
   expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
 });
 
-it('requires a verified Instagram identity and a new confirmation after switching placements', async () => {
+it.each(['instagram-feed', 'facebook-instagram-feeds'])('requires verified Instagram identity and new confirmation for %s', async placement => {
   render(<MarketingMetaCreation draft={draft} products={[product]} />);
   const submit = await screen.findByRole<HTMLButtonElement>('button', { name: 'Confirm and create paused campaign' });
   fireEvent.change(screen.getByLabelText('Published product image for this ad'), { target: { value: product.id } });
   fireEvent.click(screen.getByRole('checkbox'));
-  fireEvent.change(screen.getByLabelText('Ad placement'), { target: { value: 'instagram-feed' } });
+  fireEvent.change(screen.getByLabelText('Ad placement'), { target: { value: placement } });
   expect(screen.getByRole<HTMLInputElement>('checkbox').checked).toBe(false);
   fireEvent.click(screen.getByRole('checkbox'));
   expect(submit.disabled).toBe(true);
@@ -150,6 +150,12 @@ it('requires a verified Instagram identity and a new confirmation after switchin
     instagram: { id: '999', username: 'luvia' } });
   fireEvent.click(screen.getByRole('button', { name: 'Check Instagram connection (read-only)' }));
   await screen.findByText('@luvia', { exact: true });
+  if (placement === 'facebook-instagram-feeds') {
+    expect(screen.getByText(/budget is not doubled/).closest('p')?.textContent).toContain('₹3,500');
+    expect(screen.getByText(/Meta chooses the spend split/).textContent).toContain('one shared lifetime budget');
+    expect(screen.queryByText(/This creates a separate campaign with its own full lifetime budget/)).toBeNull();
+    expect(screen.getByRole<HTMLInputElement>('checkbox').labels?.[0]?.textContent).toContain('I confirm one shared lifetime budget across both Feeds');
+  }
   expect(mocks.fetchMetaCreationSetup).toHaveBeenLastCalledWith('instagram-feed');
   expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
   expect(screen.getByRole<HTMLInputElement>('checkbox').checked).toBe(false);
@@ -158,7 +164,7 @@ it('requires a verified Instagram identity and a new confirmation after switchin
   expect(submit.disabled).toBe(false);
   fireEvent.click(submit);
   await waitFor(() => expect(mocks.createPausedMetaCampaign).toHaveBeenCalledWith(expect.objectContaining({
-    placement: 'instagram-feed', instagramUserId: '999', productId: product.id,
+    placement, instagramUserId: '999', productId: product.id,
   })));
 });
 
@@ -174,11 +180,11 @@ it('allows a read-only Instagram check alongside an existing Facebook attempt wi
   expect(mocks.recoverPausedMetaCampaign).not.toHaveBeenCalled();
 });
 
-it('fails closed on an Instagram lookup error and keeps paused creation disabled', async () => {
+it.each(['instagram-feed', 'facebook-instagram-feeds'])('fails closed on an Instagram lookup error for %s', async placement => {
   render(<MarketingMetaCreation draft={draft} products={[product]} />);
   const submit = await screen.findByRole<HTMLButtonElement>('button', { name: 'Confirm and create paused campaign' });
   fireEvent.change(screen.getByLabelText('Published product image for this ad'), { target: { value: product.id } });
-  fireEvent.change(screen.getByLabelText('Ad placement'), { target: { value: 'instagram-feed' } });
+  fireEvent.change(screen.getByLabelText('Ad placement'), { target: { value: placement } });
   mocks.fetchMetaCreationSetup.mockRejectedValueOnce(new Error('Instagram assignment missing.'));
   fireEvent.click(screen.getByRole('button', { name: 'Check Instagram connection (read-only)' }));
   expect((await screen.findByRole('alert')).textContent).toBe('Instagram assignment missing.');
@@ -209,6 +215,15 @@ it('labels saved Instagram placement and never offers Facebook recovery for it',
   expect(screen.queryByLabelText('Ad placement')).toBeNull();
 });
 
+it('labels saved combined Feeds and shared budget without offering conversion or recovery', async () => {
+  mocks.fetchMetaCampaignCreation.mockResolvedValue({ ...partial, placement: 'facebook-instagram-feeds' });
+  render(<MarketingMetaCreation draft={draft} products={[product]} />);
+  await screen.findByText('Saved placement: Facebook + Instagram Feeds.');
+  expect(screen.getByText(/Both Feeds use one shared lifetime budget/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Review saved recovery' })).toBeNull();
+  expect(screen.queryByLabelText('Ad placement')).toBeNull();
+  expect(mocks.createPausedMetaCampaign).not.toHaveBeenCalled();
+});
 it('reviews server-saved recovery details and requires a separate cleanup and paused confirmation', async () => {
   mocks.fetchMetaCampaignCreation.mockResolvedValue(partial);
   mocks.reviewMetaCampaignRecovery.mockResolvedValue(recovery);

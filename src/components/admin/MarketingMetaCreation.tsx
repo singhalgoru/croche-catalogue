@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { formatMetaCreationError } from '../../../supabase/functions/_shared/metaErrors';
+import { isMetaFeedPlacement, metaFeedPlacements, usesInstagram, type MetaFeedPlacement } from '../../../supabase/functions/_shared/metaPlacements';
 import type { Product } from '../../types/product';
 import {
   createPausedMetaCampaign, fetchMetaCampaignCreation, fetchMetaCreationSetup,
@@ -38,10 +39,11 @@ export default function MarketingMetaCreation({ draft, products }: {
   const [confirmed, setConfirmed] = useState(false);
   const [recoveryReview, setRecoveryReview] = useState<MetaRecoveryReview | null>(null);
   const [recoveryConfirmed, setRecoveryConfirmed] = useState(false);
-  const [placement, setPlacement] = useState<'facebook-feed' | 'instagram-feed'>('facebook-feed');
+  const [placement, setPlacement] = useState<MetaFeedPlacement>('facebook-feed');
   const [instagram, setInstagram] = useState<MetaCreationSetup['instagram']>();
   const [checkingInstagram, setCheckingInstagram] = useState(false);
-  const instagramReady = placement !== 'instagram-feed' || Boolean(instagram);
+  const instagramPlacement = usesInstagram(placement);
+  const instagramReady = !instagramPlacement || Boolean(instagram);
   const p = draft.proposal;
   const product = products.find(item => item.id === productId);
   const supported = p.callToAction !== 'Send message' && (p.goal !== 'sales' || Boolean(setup?.pixelId));
@@ -83,7 +85,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       setCreation(await createPausedMetaCampaign({
         draftId: draft.id, productId, primaryTextIndex, headlineIndex,
         startTime: new Date(startTime).toISOString(), locations,
-        ...(placement === 'instagram-feed' && instagram ? { placement, instagramUserId: instagram.id } : {}),
+        ...(instagramPlacement && instagram ? { placement, instagramUserId: instagram.id } : {}),
       }));
     } catch (failure) {
       setUncertain(true);
@@ -144,7 +146,7 @@ export default function MarketingMetaCreation({ draft, products }: {
     }
   };
   const canRecover = creation?.status === 'needs_attention' && !creation.recovery_started_at
-    && creation.placement !== 'instagram-feed'
+    && !usesInstagram(creation.placement)
     && creation.campaign_id && creation.adset_id && !creation.creative_id && !creation.ad_id
     && creation.error?.includes('subcode 1885183)');
 
@@ -170,7 +172,10 @@ export default function MarketingMetaCreation({ draft, products }: {
         ? 'Created in Meta; campaign, ad set and ad were verified paused. Activation is manual in Meta.'
         : 'Creation is incomplete or needs attention. Do not retry or create another proposal to bypass this check; inspect Ads Manager and contact the operator.'}</p>
       {creation.error && <p className="mt-2 text-red-700"><strong>Saved error from the previous attempt:</strong> {formatMetaCreationError(creation.error)}</p>}
-      {creation.placement === 'instagram-feed' && <p className="mt-2">Saved placement: Instagram Feed only.</p>}
+      {creation.placement && <p className="mt-2">Saved placement: {metaFeedPlacements[creation.placement]}.</p>}
+      {creation.placement === 'facebook-instagram-feeds' && <p className="mt-2">
+        Both Feeds use one shared lifetime budget, not a budget per platform. Meta controls the spend split.
+      </p>}
       {creation.campaign_id && <a target="_blank" rel="noopener noreferrer"
         className="mt-2 inline-block min-h-10 py-2 font-semibold underline"
         href={`https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${creation.account_id}&selected_campaign_ids=${creation.campaign_id}`}>
@@ -224,7 +229,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       {p.goal === 'sales' && setup.pixelId && <p className="text-sm"><strong>Pixel:</strong> {setup.pixelId} / Purchase event</p>}
       <p className="text-sm"><strong>Campaign:</strong> {p.campaignName}<br />
         <strong>Goal:</strong> {p.goal} {p.goal === 'sales' && '(Purchase-event conversion optimization)'}<br />
-        <strong>Placement:</strong> {placement === 'instagram-feed' ? 'Instagram' : 'Facebook'} Feed only, ages 18+, no interests or personal-trait targeting.<br />
+        <strong>Placement:</strong> {metaFeedPlacements[placement]}, ages 18+, no interests or personal-trait targeting.<br />
         <strong>Destination:</strong> {p.landingPageUrl}<br />
         <strong>Call to action:</strong> {p.callToAction}</p>
       {!supported && <p role="alert" className="text-sm text-red-700">
@@ -235,20 +240,23 @@ export default function MarketingMetaCreation({ draft, products }: {
         <label className="grid gap-1 text-sm">
           Ad placement
           <select value={placement} onChange={event => {
-            if (event.target.value === 'facebook-feed' || event.target.value === 'instagram-feed') {
+            if (isMetaFeedPlacement(event.target.value)) {
               setPlacement(event.target.value);
               setConfirmed(false);
             }
           }} className="min-h-11 rounded-xl border border-cocoa/25 px-3">
             <option value="facebook-feed">Facebook Feed only</option>
             <option value="instagram-feed">Instagram Feed only</option>
+            <option value="facebook-instagram-feeds">Facebook + Instagram Feeds (recommended)</option>
           </select>
         </label>
-        {placement === 'instagram-feed' && <p className="text-sm">
+        {instagramPlacement && <p className="text-sm">
           {instagram ? `Advertised Instagram identity: @${instagram.username}.` : 'Check the Instagram connection above before confirming.'}
           {' '}Single-image Feed ads only, not Stories, Reels or organic posts. Review Meta&apos;s image crop before activation.
-          This creates a separate campaign with its own full lifetime budget, not a shared Facebook budget.
-          A proposal has only one creation attempt; existing Facebook attempts cannot be converted.
+          {placement === 'facebook-instagram-feeds'
+            ? ' One campaign, one ad set and one ad across Facebook Feed and Instagram Feed, with one shared lifetime budget. Meta chooses the spend split; it is not guaranteed to be 50/50.'
+            : ' This creates a separate campaign with its own full lifetime budget, not a shared Facebook budget.'}{' '}
+          A proposal has only one creation attempt; existing attempts cannot be converted to another placement.
           Meta billing requirements still apply to paused ads; resolve any billing restriction before creation.
         </p>}
         <label className="grid gap-1 text-sm">
@@ -289,14 +297,16 @@ export default function MarketingMetaCreation({ draft, products }: {
           Lifetime media budget: <strong>{money(p.totalBudgetInr)}</strong> over {p.durationDays} days
           (planning average {money(p.dailyBudgetInr)}/day, not a daily cap). End time is start plus {p.durationDays} days.
           Planned end (your local time): {endLabel}.
-          Meta taxes/fees may be additional. If activation is delayed, review the schedule in Meta before activating.
+          {placement === 'facebook-instagram-feeds' && <span> This is the total across Facebook Feed and Instagram Feed, not per platform; the budget is not doubled.</span>}
+          {' '}Meta taxes/fees may be additional. If activation is delayed, review the schedule in Meta before activating.
         </p>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} className="mt-1" />
           <span>I reviewed the copy, image rights, product claims, destination, locations, schedule and lifetime budget
             {p.goal === 'sales' ? ', and verified that the configured pixel receives Purchase events' : ''}.
-            {placement === 'instagram-feed' ? ` Use @${instagram?.username ?? '(verify Instagram first)'} for Instagram Feed only.` : ''}
-            Create paused only; I will review and activate manually in Meta.</span>
+            {instagramPlacement ? ` Use @${instagram?.username ?? '(verify Instagram first)'} for ${metaFeedPlacements[placement]}.` : ''}
+            {placement === 'facebook-instagram-feeds' ? ' I confirm one shared lifetime budget across both Feeds, not a budget per platform.' : ''}
+            {' '}Create paused only; I will review and activate manually in Meta.</span>
         </label>
         <button type="submit" disabled={!confirmed || !productId || !locationLabel || !instagramReady || busy}
           className="min-h-11 rounded-full bg-cocoa px-4 text-sm font-semibold text-cream disabled:opacity-50">

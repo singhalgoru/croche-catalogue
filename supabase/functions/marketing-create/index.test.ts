@@ -121,10 +121,10 @@ it('checks Instagram connection without reserving or writing any object', async 
   expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
 
-it.each(['setup-instagram', 'create'])('reports missing Instagram permission before profile lookup or writes (%s)', async action => {
+it.each(['setup-instagram', 'instagram-feed', 'facebook-instagram-feeds'])('reports missing Instagram permission before profile lookup or writes (%s)', async placement => {
   fetcher.mockReset().mockResolvedValueOnce(response({ data: ['ads_management', 'pages_show_list']
     .map(permission => ({ permission, status: 'granted' })) }));
-  const body = action === 'setup-instagram' ? { action } : { ...input, placement: 'instagram-feed', instagramUserId: '999' };
+  const body = placement === 'setup-instagram' ? { action: placement } : { ...input, placement, instagramUserId: '999' };
   const result = await handle(request(body));
   expect(result.status).toBe(502);
   expect(await result.json()).toMatchObject({
@@ -136,28 +136,28 @@ it.each(['setup-instagram', 'create'])('reports missing Instagram permission bef
   expect(mocks.recoveryClaim).not.toHaveBeenCalled();
 });
 
-it('rejects changed Instagram identity before claiming or creating a campaign', async () => {
+it.each(['instagram-feed', 'facebook-instagram-feeds'])('rejects changed Instagram identity for %s before claiming or creating', async placement => {
   fetcher.mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '998', username: 'changed' } }));
-  const result = await handle(request({ ...input, placement: 'instagram-feed', instagramUserId: '999' }));
+  const result = await handle(request({ ...input, placement, instagramUserId: '999' }));
   expect(result.status).toBe(502);
   expect(await result.json()).toMatchObject({ error: expect.stringContaining('identity changed') });
   expect(mocks.insert).not.toHaveBeenCalled();
   expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
 
-it('persists Instagram placement and identity only after verification and before paused writes', async () => {
+it.each(['instagram-feed', 'facebook-instagram-feeds'])('persists %s and identity only after verification and before paused writes', async placement => {
   fetcher.mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '999', username: 'luvia' } }))
     .mockResolvedValueOnce(response({ data: [{ id: '999' }] }));
   for (const body of [{ id: '10' }, { id: '20' }, { id: '30' }, { id: '40' },
     { id: '10', status: 'PAUSED' }, { id: '20', status: 'PAUSED' }, { id: '40', status: 'PAUSED' }]) {
     fetcher.mockResolvedValueOnce(response(body));
   }
-  const result = await handle(request({ ...input, placement: 'instagram-feed', instagramUserId: '999' }));
+  const result = await handle(request({ ...input, placement, instagramUserId: '999' }));
   expect(result.status).toBe(200);
   expect(await result.json()).toMatchObject({ creation: { status: 'created' } });
   expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-    request: expect.objectContaining({ placement: 'instagram-feed', instagramUserId: '999',
-      plan: expect.objectContaining({ placement: 'instagram-feed', instagramUserId: '999' }) }),
+    request: expect.objectContaining({ placement, instagramUserId: '999',
+      plan: expect.objectContaining({ placement, instagramUserId: '999', lifetimeBudget: 350000 }) }),
   }));
   const writes = fetcher.mock.calls.filter(([, options]) => options.method === 'POST');
   expect(writes).toHaveLength(4);
@@ -173,6 +173,13 @@ it('returns an existing attempt without another provider call, even when creatio
   expect(mocks.insert).not.toHaveBeenCalled();
 });
 
+it('does not convert an existing Facebook attempt when combined Feeds are requested', async () => {
+  mocks.readCreation.mockResolvedValueOnce({ data: { ...creation, status: 'needs_attention', campaign_id: '10' }, error: null });
+  const result = await handle(request({ ...input, placement: 'facebook-instagram-feeds', instagramUserId: '999' }));
+  expect(await result.json()).toMatchObject({ creation: { status: 'needs_attention', campaign_id: '10' } });
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(mocks.insert).not.toHaveBeenCalled();
+});
 it('reserves one attempt before writes and does not write when a competing request wins the unique claim', async () => {
   mocks.claim.mockResolvedValueOnce({ data: null, error: { code: '23505' } });
   expect((await handle(request())).status).toBe(409);

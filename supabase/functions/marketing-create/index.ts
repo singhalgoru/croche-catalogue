@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { loadMetaAccess } from '../_shared/loadMetaAccess.ts';
+import { usesInstagram } from '../_shared/metaPlacements.ts';
 import {
   buildPlan, completePausedAd, createPausedObjects, creationSettings, instagramIdentity, isRecord, parseCreationInput, preflight, resolveLocations,
 } from './meta.ts';
@@ -148,7 +149,7 @@ export async function handler(request: Request) {
   let geo;
   try {
     await preflight(config, settings, plan.goal === 'sales', fetch, input.placement);
-    if (input.placement === 'instagram-feed') await instagramIdentity(config, settings, input.instagramUserId);
+    if (usesInstagram(input.placement)) await instagramIdentity(config, settings, input.instagramUserId);
     geo = await resolveLocations(config, input.locations);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : 'Meta preflight failed.' }, 502);
