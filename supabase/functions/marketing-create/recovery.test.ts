@@ -151,6 +151,11 @@ it.each([
   [{ countries: ['IN'], location_types: ['home'] }, 'Meta location types differ: home.'],
   [{ countries: ['IN'], location_types: ['all', 'home', 'recent'] }, 'Meta location types differ: all, home, recent.'],
   [{ countries: ['IN'], location_types: [null, 'home', 'recent'] }, 'Meta location types differ: null, home, recent.'],
+  [{ countries: ['IN'], location_types: ['', 'home', 'recent'] }, 'Meta location types differ: empty-string, home, recent.'],
+  [{ countries: ['IN'], location_types: [' \t\n', 'home', 'recent'] }, 'Meta location types differ: whitespace-only, home, recent.'],
+  [{ countries: ['IN'], location_types: ['future_presence', 'home', 'recent'] }, 'Meta location types differ: unsupported-code(future_presence), home, recent.'],
+  [{ countries: ['IN'], location_types: ['private-value', 'home', 'recent'] }, 'Meta location types differ: unrecognized-string, home, recent.'],
+  [{ countries: ['IN'], location_types: ['a'.repeat(33), 'home', 'recent'] }, 'Meta location types differ: unrecognized-string, home, recent.'],
   [{ countries: ['IN'], cities: [] }, 'cities (Meta 0, saved absent)'],
   [{ countries: ['IN'], country_groups: [] }, 'country_groups (empty list)'],
   [{ countries: ['private-country'] }, 'countries (Meta 1, saved 1)'],
@@ -160,6 +165,6 @@ it.each([
   const fetcher = verificationFetch({ adset: { ...adset, targeting: { ...adset.targeting, geo_locations: geo } } });
   const failure = verifyRecovery(config, settings, saved(), fetcher);
   await expect(failure).rejects.toThrow(detail);
-  expect(JSON.stringify(log.mock.calls)).not.toMatch(/secret-fixture|private-country|private-value/);
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(/secret-fixture|private-country|private-value|a{33}/);
   expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
