@@ -54,7 +54,7 @@ describe('organic post JPEG preparation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('source', { headers: { 'Content-Type': 'image/webp' } })));
     toBlob.mockImplementation(callback => callback(new Blob(['jpeg'], { type: 'image/jpeg' })));
     const result = await prepareSocialPostJpeg('https://images.example.test/bag.webp');
-    expect(fetch).toHaveBeenCalledWith('https://images.example.test/bag.webp', expect.objectContaining({ credentials: 'omit' }));
+    expect(fetch).toHaveBeenCalledWith('https://images.example.test/bag.webp', expect.objectContaining({ credentials: 'omit', cache: 'reload' }));
     expect(result.type).toBe('image/jpeg');
     expect(context.fillStyle).toBe('#ffffff');
     expect(context.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1080);
@@ -70,6 +70,12 @@ describe('organic post JPEG preparation', () => {
     await expect(prepareSocialPostJpeg('https://images.example.test/bag.webp')).rejects.toThrow('HTTP 404');
     toBlob.mockImplementation(callback => callback(new Blob(['png'], { type: 'image/png' })));
     await expect(prepareSocialPostJpeg('https://images.example.test/bag.webp')).rejects.toThrow('could not prepare a JPEG');
+  });
+
+  it('explains network or image-host failures without implying that a post was published', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    await expect(prepareSocialPostJpeg('https://images.example.test/bag.webp'))
+      .rejects.toThrow('Unable to download the product photo for the preview. Check your connection and image-host access; no post was published.');
   });
 });
 

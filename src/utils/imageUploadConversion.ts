@@ -98,7 +98,12 @@ export async function createResizedWebp(file: File, targetWidth: number): Promis
 }
 
 export async function prepareSocialPostJpeg(sourceUrl: string): Promise<File> {
-  const response = await fetch(sourceUrl, { credentials: 'omit', signal: AbortSignal.timeout(20000) });
+  let response: Response;
+  try {
+    response = await fetch(sourceUrl, { credentials: 'omit', cache: 'reload', signal: AbortSignal.timeout(20000) });
+  } catch {
+    throw new Error('Unable to download the product photo for the preview. Check your connection and image-host access; no post was published.');
+  }
   if (!response.ok) throw new Error(`Unable to download the published product photo (HTTP ${response.status}).`);
   const file = await response.blob();
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || !file.size || file.size > 8 * 1024 * 1024) {
