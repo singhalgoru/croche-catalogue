@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { buildPlan, createPausedObjects, creationSettings, parseCreationInput, preflight, resolveLocations } from './meta';
 
 const config = { accessToken: 'secret-fixture', accountId: '123', graphApiVersion: 'v27.0' };
@@ -19,6 +19,7 @@ const product = { published: true, image_url: 'https://images.luviacreations.com
 const now = Date.parse('2030-01-02T09:00:00.000Z');
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const plan = () => buildPlan(draft, product, parseCreationInput(input), settings.pixelId, now);
+afterEach(() => vi.restoreAllMocks());
 
 it('requires explicit paused confirmation and server-controlled statuses and account', () => {
   expect(parseCreationInput(input)).toMatchObject({ primaryTextIndex: 1, locations: null });
@@ -66,6 +67,36 @@ it('revalidates Meta keys against Indian search results and never translates lab
     .resolves.toEqual({ cities: [{ key: 'city-1' }] });
   await expect(resolveLocations(config, [{ key: 'foreign', type: 'city', label: 'Other' }], fetcher)).rejects.toThrow('verified in India');
   await expect(resolveLocations(config, null, fetcher)).resolves.toEqual({ countries: ['IN'] });
+});
+
+it('identifies failed Page setup with safe error codes and permission hints, never raw provider details', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(response({ data: [{ permission: 'ads_management', status: 'granted' }] }))
+    .mockResolvedValueOnce(response({ id: 'act_123', name: 'Account', currency: 'INR', account_status: 1 }))
+    .mockResolvedValueOnce(response({ error: {
+      code: 100, error_subcode: 33, message: `${config.accessToken} requires pages_read_engagement https://private.test`,
+    } }, 400));
+  const failure = preflight(config, settings, false, fetcher);
+  await expect(failure).rejects.toThrow('Facebook Page lookup failed (HTTP 400, code 100, subcode 33)');
+  await expect(failure).rejects.toThrow('pages_read_engagement');
+  await expect(failure).rejects.not.toThrow(config.accessToken);
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+  expect(log).toHaveBeenCalledWith('Meta request failed.', {
+    operation: 'Facebook Page lookup', status: 400, code: 100, subcode: 33, permissions: ['pages_read_engagement'],
+  });
+  expect(JSON.stringify(log.mock.calls)).not.toContain(config.accessToken);
+  expect(JSON.stringify(log.mock.calls)).not.toContain('private.test');
+});
+
+it('gives reconnect guidance for an invalid token and preserves HTTP diagnostics for malformed errors', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const fetcher = vi.fn().mockResolvedValueOnce(response({ error: { code: 190, message: config.accessToken } }, 400));
+  await expect(preflight(config, settings, false, fetcher)).rejects.toThrow('Reconnect Meta');
+  fetcher.mockReset().mockResolvedValueOnce(new Response(config.accessToken, { status: 400 }));
+  const failure = preflight(config, settings, false, fetcher);
+  await expect(failure).rejects.toThrow('permission check failed (HTTP 400)');
+  await expect(failure).rejects.not.toThrow(config.accessToken);
 });
 
 it.each(['sales', 'traffic', 'awareness'] as const)('creates a fully paused %s campaign and verifies all delivery statuses', async goal => {

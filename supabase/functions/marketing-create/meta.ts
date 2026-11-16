@@ -126,6 +126,7 @@ export function buildPlan(
 
 async function graph(
   config: MetaConfig, path: string, method: 'GET' | 'POST', parameters: Record<string, string>, fetcher: Fetcher,
+  operation: 'permission check' | 'ad account lookup' | 'Facebook Page lookup' | 'pixel lookup' | 'object request' = 'object request',
 ) {
   const url = new URL(`https://graph.facebook.com/${config.graphApiVersion}/${path}`);
   if (method === 'GET') url.search = new URLSearchParams(parameters).toString();
@@ -139,31 +140,49 @@ async function graph(
   } catch {
     throw new Error('Meta connection failed. A write may have completed; inspect Ads Manager before recovery.');
   }
-  if (!response.ok) throw new Error(`Meta request failed (HTTP ${response.status}). Check permissions and account setup in Meta.`);
   let payload: unknown;
-  try { payload = await response.json(); } catch { throw new Error('Meta returned invalid JSON; inspect Ads Manager before recovery.'); }
-  if (!isRecord(payload) || payload.error) throw new Error('Meta returned an invalid response; inspect Ads Manager before recovery.');
+  try { payload = await response.json(); } catch {
+    if (response.ok) throw new Error('Meta returned invalid JSON; inspect Ads Manager before recovery.');
+  }
+  if (!response.ok || (isRecord(payload) && payload.error)) {
+    const details = isRecord(payload) && isRecord(payload.error) ? payload.error : {};
+    const code = typeof details.code === 'number' && Number.isSafeInteger(details.code) ? details.code : null;
+    const subcode = typeof details.error_subcode === 'number' && Number.isSafeInteger(details.error_subcode)
+      ? details.error_subcode : null;
+    const permissions = ['ads_read', 'ads_management', 'pages_show_list', 'pages_read_engagement', 'pages_manage_ads']
+      .filter(permission => typeof details.message === 'string' && details.message.includes(permission));
+    console.error('Meta request failed.', { operation, status: response.status, code, subcode, permissions });
+    const diagnostic = [`HTTP ${response.status}`, ...(code !== null ? [`code ${code}`] : []),
+      ...(subcode !== null ? [`subcode ${subcode}`] : [])].join(', ');
+    const recovery = code === 190 ? 'Reconnect Meta; its access token is invalid or expired.'
+      : operation === 'Facebook Page lookup' ? 'Verify META_PAGE_ID, Page access for the connected login and the business login permissions, then reconnect Meta.'
+        : operation === 'ad account lookup' ? 'Verify the configured ad account and access for the connected login.'
+          : 'Check permissions and account setup in Meta.';
+    throw new Error(`Meta ${operation} failed (${diagnostic}). ${recovery}${permissions.length
+      ? ` Meta mentions: ${permissions.join(', ')}.` : ''}`);
+  }
+  if (!isRecord(payload)) throw new Error('Meta returned an invalid response; inspect Ads Manager before recovery.');
   return payload;
 }
 
 export async function preflight(
   config: MetaConfig, settings: ReturnType<typeof creationSettings>, sales: boolean, fetcher: Fetcher = fetch,
 ) {
-  const permissions = await graph(config, 'me/permissions', 'GET', {}, fetcher);
+  const permissions = await graph(config, 'me/permissions', 'GET', {}, fetcher, 'permission check');
   if (!Array.isArray(permissions.data) || !permissions.data.some(item =>
     isRecord(item) && item.permission === 'ads_management' && item.status === 'granted')) {
     throw new Error('Reconnect Meta with ads_management granted in the approved business login configuration.');
   }
-  const account = await graph(config, `act_${config.accountId}`, 'GET', { fields: 'id,name,currency,account_status' }, fetcher);
+  const account = await graph(config, `act_${config.accountId}`, 'GET', { fields: 'id,name,currency,account_status' }, fetcher, 'ad account lookup');
   if (account.id !== `act_${config.accountId}` || !text(account.name, 250)
     || account.currency !== 'INR' || account.account_status !== 1) {
     throw new Error('Paused creation requires the configured active INR ad account.');
   }
-  const page = await graph(config, settings.pageId, 'GET', { fields: 'id,name' }, fetcher);
+  const page = await graph(config, settings.pageId, 'GET', { fields: 'id,name' }, fetcher, 'Facebook Page lookup');
   if (page.id !== settings.pageId || !text(page.name, 250)) throw new Error('Unable to verify the configured Facebook Page.');
   if (sales) {
     if (!settings.pixelId) throw new Error('Sales creation requires a configured Meta pixel with a Purchase event.');
-    const pixel = await graph(config, settings.pixelId, 'GET', { fields: 'id' }, fetcher);
+    const pixel = await graph(config, settings.pixelId, 'GET', { fields: 'id' }, fetcher, 'pixel lookup');
     if (pixel.id !== settings.pixelId) throw new Error('Unable to verify the configured Meta pixel.');
   }
   return { accountId: config.accountId, accountName: account.name, pageId: settings.pageId, pageName: page.name };
