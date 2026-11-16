@@ -1,6 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 
 export interface MarketingOverview {
+  tokenExpiresAt?: string | null;
   account: {
     id: string;
     name: string;
@@ -63,7 +64,13 @@ const parseOverview = (value: unknown): MarketingOverview => {
       effectiveStatus: campaign.effectiveStatus,
     };
   });
+  const tokenExpiresAt = value.tokenExpiresAt;
+  if (tokenExpiresAt !== undefined && tokenExpiresAt !== null
+    && (typeof tokenExpiresAt !== 'string' || !Number.isFinite(Date.parse(tokenExpiresAt)))) {
+    throw new Error('Invalid Meta token expiry.');
+  }
   return {
+    ...(tokenExpiresAt !== undefined ? { tokenExpiresAt } : {}),
     account: {
       id: account.id,
       name: account.name,
@@ -104,5 +111,30 @@ export async function fetchMarketingOverview(): Promise<MarketingOverview> {
     const message = await errorMessage(error);
     throw new Error(`Unable to load Meta marketing data: ${message}`);
   }
+
   return parseOverview(data);
+}
+
+export async function startMetaConnection(): Promise<{ url: string; state: string }> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta connection requires an online connection.');
+  const { data, error } = await client.functions.invoke('marketing-connect', { body: { action: 'start' } });
+  if (error) throw new Error(await errorMessage(error));
+  if (!isRecord(data) || typeof data.url !== 'string' || typeof data.state !== 'string') {
+    throw new Error('Invalid Meta connection response.');
+  }
+  const url = new URL(data.url);
+  if (url.origin !== 'https://www.facebook.com' || url.username || url.password
+    || !/^\/v\d{1,3}\.\d{1,2}\/dialog\/oauth$/.test(url.pathname)
+    || url.searchParams.get('state') !== data.state) {
+    throw new Error('Invalid Meta login URL.');
+  }
+  return { url: url.href, state: data.state };
+}
+
+export async function completeMetaConnection(code: string, state: string): Promise<void> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Meta connection requires an online connection.');
+  const { error } = await client.functions.invoke('marketing-connect', { body: { action: 'complete', code, state } });
+  if (error) throw new Error(await errorMessage(error));
 }

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fetchMetaOverview, readMetaConfig } from './meta.ts';
+import { decryptMetaToken } from '../_shared/metaCredentials.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -44,14 +45,37 @@ export async function handler(request: Request) {
   }
 
   let config;
+  let expiresAt: string | null = null;
   try {
-    config = readMetaConfig(name => Deno.env.get(name));
+    const encryptionKey = Deno.env.get('META_TOKEN_ENCRYPTION_KEY');
+    let accessToken: string | undefined;
+    if (Deno.env.get('META_OAUTH_STATE_SECRET') && !encryptionKey) {
+      throw new Error('Meta credential encryption key is missing.');
+    }
+    if (encryptionKey) {
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (!serviceKey) throw new Error('Meta credential storage is not configured.');
+      const serviceClient = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+      const { data, error } = await serviceClient.from('meta_marketing_credential')
+        .select('ciphertext, expires_at').eq('id', true).maybeSingle();
+      if (error) throw new Error('Unable to read the stored Meta credential.');
+      if (data) {
+        accessToken = await decryptMetaToken(data.ciphertext, encryptionKey);
+        expiresAt = data.expires_at;
+        if (!expiresAt || !Number.isFinite(Date.parse(expiresAt))) throw new Error('Stored Meta credential expiry is invalid.');
+        if (Date.parse(expiresAt) <= Date.now()) throw new Error('Meta access has expired. Reconnect Meta.');
+      }
+    }
+    config = readMetaConfig(name => name === 'META_ACCESS_TOKEN' && accessToken ? accessToken : Deno.env.get(name));
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : 'Meta read access is not configured.' }, 503);
+    console.error('Meta credential configuration failed.');
+    const message = error instanceof Error && /^(Meta |META_|Unable to read|Stored Meta)/.test(error.message)
+      ? error.message : 'Unable to decrypt the stored Meta credential.';
+    return json({ error: message }, 503);
   }
 
   try {
-    return json(await fetchMetaOverview(config));
+    return json({ ...await fetchMetaOverview(config), tokenExpiresAt: expiresAt });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to load Meta marketing data.';
     console.error('Meta marketing read failed:', message);

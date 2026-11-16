@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <title>Meta connection</title>
+</head>
+<body>
+  <p>Returning to the admin. You can close this window.</p>
+  <script>
+    const params = new URLSearchParams(location.search);
+    history.replaceState(null, '', location.pathname);
+    if (window.opener) {
+      window.opener.postMessage({
+        type: 'meta-oauth-callback',
+        state: params.get('state'),
+        code: params.get('code'),
+        error: params.get('error'),
+      }, location.origin);
+      window.close();
+    }
+  </script>
+</body>
+</html>

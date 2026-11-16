@@ -6,7 +6,7 @@ const { loadSupabase, invoke } = vi.hoisted(() => ({
 }));
 vi.mock('../lib/supabaseConfig', () => ({ loadSupabase }));
 
-import { fetchMarketingOverview } from './marketing';
+import { completeMetaConnection, fetchMarketingOverview, startMetaConnection } from './marketing';
 
 const validOverview = {
   account: { id: 'act_123', name: 'Luvia', currency: 'INR', timezoneName: 'Asia/Kolkata', status: 1 },
@@ -30,7 +30,24 @@ it('surfaces function errors and rejects malformed provider data', async () => {
     data: null,
     error: { message: 'Function returned an error', context: new Response('{"error":"Meta integration is not configured."}') },
   });
+
   await expect(fetchMarketingOverview()).rejects.toThrow('Meta integration is not configured.');
   invoke.mockResolvedValueOnce({ data: { ...validOverview, metrics: { ...validOverview.metrics, spend: '500' } }, error: null });
   await expect(fetchMarketingOverview()).rejects.toThrow('Invalid Meta delivery metrics response.');
+});
+
+it('checks the Meta login origin and state before opening the popup', async () => {
+  invoke.mockResolvedValueOnce({ data: {
+    url: 'https://www.facebook.com/v27.0/dialog/oauth?state=expected', state: 'expected',
+  }, error: null });
+  await expect(startMetaConnection()).resolves.toMatchObject({ state: 'expected' });
+  invoke.mockResolvedValueOnce({ data: {
+    url: 'https://example.test/dialog?state=expected', state: 'expected',
+  }, error: null });
+  await expect(startMetaConnection()).rejects.toThrow('Invalid Meta login URL.');
+  invoke.mockResolvedValueOnce({ data: {}, error: null });
+  await completeMetaConnection('code', 'state');
+  expect(invoke).toHaveBeenLastCalledWith('marketing-connect', {
+    body: { action: 'complete', code: 'code', state: 'state' },
+  });
 });

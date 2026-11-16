@@ -1,8 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
-const { fetchMarketingOverview } = vi.hoisted(() => ({ fetchMarketingOverview: vi.fn() }));
-vi.mock('../../services/marketing', () => ({ fetchMarketingOverview }));
+const { fetchMarketingOverview, startMetaConnection, completeMetaConnection } = vi.hoisted(() => ({
+  fetchMarketingOverview: vi.fn(), startMetaConnection: vi.fn(), completeMetaConnection: vi.fn(),
+}));
+vi.mock('../../services/marketing', () => ({ fetchMarketingOverview, startMetaConnection, completeMetaConnection }));
 
 import MarketingDashboard from './MarketingDashboard';
 
@@ -32,4 +34,47 @@ it('shows configuration errors and allows retrying', async () => {
   expect((await screen.findByRole('alert')).textContent).toContain('Meta integration is not configured.');
   fireEvent.click(screen.getByRole('button', { name: 'Refresh Meta data' }));
   await waitFor(() => expect(screen.getByText('Winter launch')).toBeTruthy());
+});
+
+it('accepts only the matching popup callback and refreshes after reconnecting', async () => {
+  fetchMarketingOverview.mockResolvedValue(overview);
+  startMetaConnection.mockResolvedValue({ url: 'https://www.facebook.com/login', state: 'expected' });
+  completeMetaConnection.mockResolvedValue(undefined);
+  const popup = { location: { href: '' }, closed: false, close: vi.fn() };
+  vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+  render(<MarketingDashboard />);
+  await screen.findByText('Winter launch');
+  fireEvent.click(screen.getByRole('button', { name: 'Connect / reconnect Meta' }));
+  await waitFor(() => expect(popup.location.href).toBe('https://www.facebook.com/login'));
+  window.dispatchEvent(new MessageEvent('message', {
+    origin: 'https://evil.example', source: popup as unknown as Window,
+    data: { type: 'meta-oauth-callback', state: 'expected', code: 'code' },
+  }));
+  expect(completeMetaConnection).not.toHaveBeenCalled();
+  window.dispatchEvent(new MessageEvent('message', {
+    origin: window.location.origin, source: popup as unknown as Window,
+    data: { type: 'meta-oauth-callback', state: 'expected', code: 'code' },
+  }));
+  await waitFor(() => expect(completeMetaConnection).toHaveBeenCalledWith('code', 'expected'));
+  expect(await screen.findByText('Meta connected successfully.')).toBeTruthy();
+  expect(fetchMarketingOverview).toHaveBeenCalledTimes(2);
+  vi.restoreAllMocks();
+});
+
+it('rejects a callback with a different login state', async () => {
+  fetchMarketingOverview.mockResolvedValue(overview);
+  startMetaConnection.mockResolvedValue({ url: 'https://www.facebook.com/login', state: 'expected' });
+  const popup = { location: { href: '' }, closed: false, close: vi.fn() };
+  vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+  render(<MarketingDashboard />);
+  await screen.findByText('Winter launch');
+  fireEvent.click(screen.getByRole('button', { name: 'Connect / reconnect Meta' }));
+  await waitFor(() => expect(popup.location.href).toBe('https://www.facebook.com/login'));
+  window.dispatchEvent(new MessageEvent('message', {
+    origin: window.location.origin, source: popup as unknown as Window,
+    data: { type: 'meta-oauth-callback', state: 'wrong', code: 'code' },
+  }));
+  expect((await screen.findByRole('alert')).textContent).toContain('could not be verified');
+  expect(completeMetaConnection).not.toHaveBeenCalled();
+  vi.restoreAllMocks();
 });

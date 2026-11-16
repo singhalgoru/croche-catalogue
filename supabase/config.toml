@@ -68,6 +68,9 @@ verify_jwt = true
 [functions.marketing-read]
 verify_jwt = true
 
+[functions.marketing-connect]
+verify_jwt = true
+
 [functions.password-change-worker]
 verify_jwt = false
 

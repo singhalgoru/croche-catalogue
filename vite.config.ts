@@ -107,7 +107,7 @@ export default defineConfig({
       injectRegister: false,
       workbox: {
         // Keep the lazy admin console out of public visitors' background downloads.
-        globIgnores: ['**/AdminPage-*.js', '**/photoQuoteOcr-*.js', '**/worker.min-*.js', '**/tesseract-core-*.js', '**/*.traineddata*.gz', '**/webpEncoder-*.js', '**/encode-*.js', '**/webp_enc*.js', '**/webp_enc*.wasm'],
+        globIgnores: ['**/AdminPage-*.js', '**/photoQuoteOcr-*.js', '**/worker.min-*.js', '**/tesseract-core-*.js', '**/*.traineddata*.gz', '**/webpEncoder-*.js', '**/encode-*.js', '**/webp_enc*.js', '**/webp_enc*.wasm', '**/meta-oauth-callback.html'],
         // Activate new versions immediately; otherwise an installed app can
         // keep running a stale bundle until every window is closed.
         skipWaiting: true,
@@ -115,7 +115,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // Product pages and crawler files must come from the network, not the
         // cached SPA shell when opened in an installed browser.
-        navigateFallbackDenylist: [/^\/(?:p|watch|shopping|merchant-images)\//, /^\/(?:artisans|return-policy|collections|bestsellers|featured|about|faq)(?:\/|$)/, /^\/(?:robots\.txt|sitemap\.xml|merchant-feed\.xml)$/],
+        navigateFallbackDenylist: [/^\/(?:p|watch|shopping|merchant-images)\//, /^\/(?:artisans|return-policy|collections|bestsellers|featured|about|faq)(?:\/|$)/, /^\/(?:robots\.txt|sitemap\.xml|merchant-feed\.xml)$/, /^\/meta-oauth-callback\.html(?:\?|$)/],
         // GitHub Pages fixes Cache-Control at 10 minutes and older Supabase
         // objects were uploaded with short cache lifetimes. Product uploads get
         // a fresh UUID path and are never overwritten, so keep them for 30 days;

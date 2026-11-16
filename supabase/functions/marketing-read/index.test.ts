@@ -1,11 +1,14 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 
-const { getUser, rpc } = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn() }));
+const { getUser, rpc, maybeSingle } = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn(), maybeSingle: vi.fn() }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
-  createClient: () => ({ auth: { getUser }, rpc }),
+  createClient: (_url: string, key: string) => key === 'service'
+    ? { from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }) }
+    : { auth: { getUser }, rpc },
 }));
 
+import { encryptMetaToken } from '../_shared/metaCredentials';
 const env: Record<string, string> = {
   SUPABASE_URL: 'https://example.supabase.co',
   SUPABASE_ANON_KEY: 'anon-fixture',
@@ -80,4 +83,37 @@ it('does not echo Meta error bodies or tokens to the caller', async () => {
   const body = await response.text();
   expect(body).toContain('status 400');
   expect(body).not.toContain(env.META_ACCESS_TOKEN);
+});
+
+it('uses the encrypted credential instead of the legacy secret and reports its expiry', async () => {
+  env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+  env.META_TOKEN_ENCRYPTION_KEY = btoa('k'.repeat(32));
+  const ciphertext = await encryptMetaToken('stored-token', env.META_TOKEN_ENCRYPTION_KEY);
+  const expiry = new Date(Date.now() + 3600000).toISOString();
+  maybeSingle.mockResolvedValue({ data: { ciphertext, expires_at: expiry }, error: null });
+  try {
+    const response = await handle(request());
+    const body = await response.text();
+    expect(response.status).toBe(200);
+    expect(body).toContain(expiry);
+    expect(body).not.toContain('stored-token');
+    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('Bearer stored-token');
+    maybeSingle.mockResolvedValue({ data: { ciphertext, expires_at: '2000-01-01T00:00:00Z' }, error: null });
+    expect((await handle(request())).status).toBe(503);
+  } finally {
+    delete env.SUPABASE_SERVICE_ROLE_KEY;
+    delete env.META_TOKEN_ENCRYPTION_KEY;
+  }
+});
+
+it('does not silently use the old token when reconnect storage is misconfigured', async () => {
+  env.META_OAUTH_STATE_SECRET = 'configured';
+  try {
+    const response = await handle(request());
+    expect(response.status).toBe(503);
+    expect(await response.text()).toContain('encryption key is missing');
+    expect(fetcher).not.toHaveBeenCalled();
+  } finally {
+    delete env.META_OAUTH_STATE_SECRET;
+  }
 });
