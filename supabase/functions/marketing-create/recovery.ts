@@ -50,18 +50,34 @@ const canonical = (value: unknown): string => {
 };
 
 function sameGeo(actual: unknown, expected: unknown) {
-  if (!isRecord(actual) || !isRecord(expected)) return false;
+  if (!isRecord(actual) || !isRecord(expected)) return { matches: false, detail: 'Missing or malformed geographic targeting.' };
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(actual)) {
     if (key === 'location_types') {
-      if (canonical(value) !== canonical(['home', 'recent'])) return false;
+      if (canonical(value) !== canonical(['home', 'recent'])) {
+        const types = Array.isArray(value) ? value.map(item =>
+          item === 'home' || item === 'recent' || item === 'travel_in' ? item : 'unrecognized') : ['malformed'];
+        return { matches: false, detail: `Meta location types differ: ${types.slice(0, 5).join(', ') || 'empty'}.` };
+      }
     } else if (['countries', 'regions', 'cities', 'zips'].includes(key) && Array.isArray(value)) {
       if (key !== 'countries' && value.some(item => !isRecord(item)
-        || Object.keys(item).some(field => field !== 'key' && field !== 'name' && field !== 'country' && field !== 'region'))) return false;
+        || Object.keys(item).some(field => field !== 'key' && field !== 'name' && field !== 'country' && field !== 'region'))) {
+        return { matches: false, detail: `Unexpected ${key} selection metadata.` };
+      }
       normalized[key] = key === 'countries' ? value : value.map(item => isRecord(item) ? { key: item.key } : null);
-    } else return false;
+    } else {
+      const field = ['countries', 'regions', 'cities', 'zips', 'country_groups', 'custom_locations', 'geo_markets', 'places']
+        .includes(key) ? key : 'unrecognized';
+      return { matches: false, detail: `Unexpected geography field: ${field} (${Array.isArray(value)
+        ? value.length === 0 ? 'empty list' : 'non-empty list' : 'non-list value'}).` };
+    }
   }
-  return canonical(normalized) === canonical(expected);
+  const mismatches = ['countries', 'regions', 'cities', 'zips']
+    .filter(field => canonical(normalized[field]) !== canonical(expected[field]));
+  return { matches: mismatches.length === 0, detail: mismatches.length
+    ? `Geographic selections differ: ${mismatches.map(field => `${field} (Meta ${Array.isArray(normalized[field])
+      ? normalized[field].length : 'absent'}, saved ${Array.isArray(expected[field]) ? expected[field].length : 'absent'})`).join(', ')}.`
+    : '' };
 }
 
 async function listObjects(
@@ -114,6 +130,7 @@ export async function verifyRecovery(
     fields: 'id,account_id,campaign_id,name,status,lifetime_budget,daily_budget,start_time,end_time,billing_event,bid_strategy,optimization_goal,destination_type,promoted_object,targeting',
   }, fetcher);
   const targeting = adset.targeting;
+  const geography = sameGeo(isRecord(targeting) ? targeting.geo_locations : undefined, geo);
   const checks = {
     'object/account/campaign identity': adset.id === adsetId && adset.account_id === config.accountId && adset.campaign_id === campaignId,
     'paused status': adset.status === 'PAUSED',
@@ -130,7 +147,7 @@ export async function verifyRecovery(
     'age limits': isRecord(targeting) && targeting.age_min === 18 && (targeting.age_max === undefined || targeting.age_max === 65),
     platforms: isRecord(targeting) && canonical(targeting.publisher_platforms) === canonical(['facebook']),
     positions: isRecord(targeting) && canonical(targeting.facebook_positions) === canonical(['feed']),
-    geography: isRecord(targeting) && sameGeo(targeting.geo_locations, geo),
+    geography: geography.matches,
     'audience automation': isRecord(targeting) && isRecord(targeting.targeting_automation)
       && targeting.targeting_automation.advantage_audience === 0
       && Object.keys(targeting.targeting_automation).every(key => key === 'advantage_audience'),
@@ -144,9 +161,10 @@ export async function verifyRecovery(
       'brand_safety_content_filter_levels', 'device_platforms', 'genders', 'flexible_spec',
       'excluded_geo_locations', 'targeting_relaxation_types',
     ].filter(field => field in targeting) : [];
-    console.error('Meta recovery ad-set verification failed.', { mismatches, additionalFields });
+    console.error('Meta recovery ad-set verification failed.', { mismatches, additionalFields, geography: geography.detail });
     throw new Error(`Existing ad-set verification failed: ${mismatches.join(', ')}.${additionalFields.length
-      ? ` Additional fields: ${additionalFields.join(', ')}.` : ''} Recovery is blocked; no recovery writes were sent.`);
+      ? ` Additional fields: ${additionalFields.join(', ')}.` : ''}${!geography.matches
+        ? ` ${geography.detail}` : ''} Recovery is blocked; no recovery writes were sent.`);
   }
   const adsets: string[] = [];
   await listObjects(config, `${campaignId}/adsets`, 'id', item => { adsets.push(String(item.id)); }, fetcher);

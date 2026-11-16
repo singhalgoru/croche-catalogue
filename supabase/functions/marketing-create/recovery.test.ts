@@ -146,3 +146,18 @@ it('identifies mismatched fields without exposing provider values, names or arbi
   expect(JSON.stringify(log.mock.calls)).not.toMatch(/999999|private-provider-name|private-value|secret-fixture/);
   expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
+
+it.each([
+  [{ countries: ['IN'], location_types: ['home'] }, 'Meta location types differ: home.'],
+  [{ countries: ['IN'], cities: [] }, 'cities (Meta 0, saved absent)'],
+  [{ countries: ['IN'], country_groups: [] }, 'country_groups (empty list)'],
+  [{ countries: ['private-country'] }, 'countries (Meta 1, saved 1)'],
+  [{ countries: ['IN'], 'secret-fixture': 'private-value' }, 'unrecognized (non-list value)'],
+])('diagnoses geographic mismatch shapes without exposing geographic keys (%j)', async (geo, detail) => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const fetcher = verificationFetch({ adset: { ...adset, targeting: { ...adset.targeting, geo_locations: geo } } });
+  const failure = verifyRecovery(config, settings, saved(), fetcher);
+  await expect(failure).rejects.toThrow(detail);
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(/secret-fixture|private-country|private-value/);
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
