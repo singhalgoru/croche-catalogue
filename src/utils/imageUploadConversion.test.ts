@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { convertImageForUpload, createResizedWebp } from './imageUploadConversion';
+import { convertImageForUpload, createResizedWebp, prepareSocialPostJpeg } from './imageUploadConversion';
 
 const { encodeWebp } = vi.hoisted(() => ({ encodeWebp: vi.fn() }));
 vi.mock('./webpEncoder', () => ({ encodeWebp }));
@@ -27,6 +27,7 @@ const mockImageEncoding = (width: number, height: number, encodedSize: number) =
     beginPath: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
+    fillRect: vi.fn(),
     clip: vi.fn(),
     fillStyle: '',
     globalAlpha: 1,
@@ -37,6 +38,7 @@ const mockImageEncoding = (width: number, height: number, encodedSize: number) =
   const toBlob = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => {
     callback(new Blob([new Uint8Array(encodedSize)], { type: 'image/webp' }));
   });
+
   return { drawImage, toBlob, context };
 };
 
@@ -44,6 +46,31 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   encodeWebp.mockReset();
+});
+
+describe('organic post JPEG preparation', () => {
+  it('fetches without credentials and fits the complete photo into a white 1080 square without cropping', async () => {
+    const { drawImage, toBlob, context } = mockImageEncoding(1600, 800, 50_000);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('source', { headers: { 'Content-Type': 'image/webp' } })));
+    toBlob.mockImplementation(callback => callback(new Blob(['jpeg'], { type: 'image/jpeg' })));
+    const result = await prepareSocialPostJpeg('https://images.example.test/bag.webp');
+    expect(fetch).toHaveBeenCalledWith('https://images.example.test/bag.webp', expect.objectContaining({ credentials: 'omit' }));
+    expect(result.type).toBe('image/jpeg');
+    expect(context.fillStyle).toBe('#ffffff');
+    expect(context.fillRect).toHaveBeenCalledWith(0, 0, 1080, 1080);
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 270, 1080, 540);
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.9);
+  });
+
+  it('rejects unreadable source photos and never passes through a browser PNG fallback', async () => {
+    const { toBlob } = mockImageEncoding(1080, 1080, 50_000);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response('missing', { status: 404 }))
+      .mockResolvedValueOnce(new Response('source', { headers: { 'Content-Type': 'image/webp' } })));
+    await expect(prepareSocialPostJpeg('https://images.example.test/bag.webp')).rejects.toThrow('HTTP 404');
+    toBlob.mockImplementation(callback => callback(new Blob(['png'], { type: 'image/png' })));
+    await expect(prepareSocialPostJpeg('https://images.example.test/bag.webp')).rejects.toThrow('could not prepare a JPEG');
+  });
 });
 
 describe('image upload compression', () => {

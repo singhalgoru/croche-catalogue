@@ -96,3 +96,31 @@ export async function createResizedWebp(file: File, targetWidth: number): Promis
   const blob = await canvasToBlob(canvas, RESIZED_WEBP_QUALITY);
   return new File([blob], `w${targetWidth}.webp`, { type: 'image/webp' });
 }
+
+export async function prepareSocialPostJpeg(sourceUrl: string): Promise<File> {
+  const response = await fetch(sourceUrl, { credentials: 'omit', signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error(`Unable to download the published product photo (HTTP ${response.status}).`);
+  const file = await response.blob();
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || !file.size || file.size > 8 * 1024 * 1024) {
+    throw new Error('The published product photo must be a JPEG, PNG or WebP up to 8 MB.');
+  }
+  const image = await loadImageElement(new File([file], 'product-photo', { type: file.type }));
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (Math.min(width, height) < 320) throw new Error('Use a published product photo at least 320 pixels on each side.');
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1080;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Unable to prepare the social post image.');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, 1080, 1080);
+  const scale = 1080 / Math.max(width, height);
+  const drawWidth = Math.round(width * scale);
+  const drawHeight = Math.round(height * scale);
+  context.drawImage(image, Math.floor((1080 - drawWidth) / 2), Math.floor((1080 - drawHeight) / 2), drawWidth, drawHeight);
+  const jpeg = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  if (!jpeg || jpeg.type !== 'image/jpeg' || !jpeg.size || jpeg.size > 8 * 1024 * 1024) {
+    throw new Error('This browser could not prepare a JPEG preview within the 8 MB limit.');
+  }
+  return new File([jpeg], 'social-post.jpg', { type: 'image/jpeg' });
+}

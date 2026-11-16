@@ -149,7 +149,7 @@ export function buildPlan(
 
 export async function graph(
   config: MetaConfig, path: string, method: 'GET' | 'POST', parameters: Record<string, string>, fetcher: Fetcher,
-  operation: 'permission check' | 'ad account lookup' | 'Facebook Page lookup' | 'Instagram account lookup' | 'pixel lookup' | 'object request' = 'object request',
+  operation: 'permission check' | 'ad account lookup' | 'Facebook Page lookup' | 'Instagram account lookup' | 'pixel lookup' | 'object request' | 'organic publishing request' = 'object request',
 ) {
   const url = new URL(`https://graph.facebook.com/${config.graphApiVersion}/${path}`);
   if (method === 'GET') url.search = new URLSearchParams(parameters).toString();
@@ -161,18 +161,23 @@ export async function graph(
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    throw new Error('Meta connection failed. A write may have completed; inspect Ads Manager before recovery.');
+    throw new Error(operation === 'organic publishing request'
+      ? 'Meta connection failed. Publishing may have completed; inspect the Page or Instagram profile before any further action.'
+      : 'Meta connection failed. A write may have completed; inspect Ads Manager before recovery.');
   }
   let payload: unknown;
   try { payload = await response.json(); } catch {
-    if (response.ok) throw new Error('Meta returned invalid JSON; inspect Ads Manager before recovery.');
+    if (response.ok) throw new Error(operation === 'organic publishing request'
+      ? 'Meta returned invalid JSON. Inspect the Page or Instagram profile; do not retry an uncertain post.'
+      : 'Meta returned invalid JSON; inspect Ads Manager before recovery.');
   }
   if (!response.ok || (isRecord(payload) && payload.error)) {
     const details = isRecord(payload) && isRecord(payload.error) ? payload.error : {};
     const code = typeof details.code === 'number' && Number.isSafeInteger(details.code) ? details.code : null;
     const subcode = typeof details.error_subcode === 'number' && Number.isSafeInteger(details.error_subcode)
       ? details.error_subcode : null;
-    const permissions = ['ads_read', 'ads_management', 'pages_show_list', 'pages_read_engagement', 'pages_manage_ads', 'instagram_basic']
+    const permissions = ['ads_read', 'ads_management', 'pages_show_list', 'pages_read_engagement', 'pages_manage_ads', 'instagram_basic',
+      'pages_manage_posts', 'instagram_content_publish']
       .filter(permission => typeof details.message === 'string' && details.message.includes(permission));
     console.error('Meta request failed.', { operation, status: response.status, code, subcode, permissions });
     const diagnostic = [`HTTP ${response.status}`, ...(code !== null ? [`code ${code}`] : []),
@@ -181,11 +186,15 @@ export async function graph(
       : operation === 'Facebook Page lookup' ? 'Verify META_PAGE_ID, Page access for the connected login and the business login permissions, then reconnect Meta.'
         : operation === 'Instagram account lookup' ? 'Verify the Page-linked Instagram professional account, its ad-account assignment and granted permissions; reconnect Meta if access changed.'
         : operation === 'ad account lookup' ? 'Verify the configured ad account and access for the connected login.'
-          : 'Check permissions and account setup in Meta.';
-    throw new Error(formatMetaCreationError(`Meta ${operation} failed (${diagnostic}). ${recovery}${permissions.length
-      ? ` Meta mentions: ${permissions.join(', ')}.` : ''}`));
+          : operation === 'organic publishing request' ? 'Check publishing permissions and the destination Page or Instagram profile in Meta. Do not retry an uncertain publishing attempt.'
+            : 'Check permissions and account setup in Meta.';
+    const message = `Meta ${operation} failed (${diagnostic}). ${recovery}${permissions.length
+      ? ` Meta mentions: ${permissions.join(', ')}.` : ''}`;
+    throw new Error(operation === 'organic publishing request' ? message : formatMetaCreationError(message));
   }
-  if (!isRecord(payload)) throw new Error('Meta returned an invalid response; inspect Ads Manager before recovery.');
+  if (!isRecord(payload)) throw new Error(operation === 'organic publishing request'
+    ? 'Meta returned an invalid response. Inspect the Page or Instagram profile; do not retry an uncertain post.'
+    : 'Meta returned an invalid response; inspect Ads Manager before recovery.');
   return payload;
 }
 
@@ -229,7 +238,7 @@ export async function resolveLocations(config: MetaConfig, locations: MetaLocati
 
 export async function listMetaObjects(
   config: MetaConfig, path: string, fields: string, inspect: (item: Record<string, unknown>) => void,
-  fetcher: Fetcher, operation: 'object request' | 'Instagram account lookup' = 'object request',
+  fetcher: Fetcher, operation: 'object request' | 'Instagram account lookup' | 'organic publishing request' = 'object request',
 ) {
   let after = '';
   const cursors = new Set<string>();
@@ -253,7 +262,9 @@ export async function listMetaObjects(
     after = result.paging.cursors.after;
     cursors.add(after);
   }
-  throw new Error('Meta object listing exceeds the verification safety limit. Inspect Ads Manager manually.');
+  throw new Error(operation === 'organic publishing request'
+    ? 'The Page listing exceeds the verification safety limit. Inspect Page access in Meta manually.'
+    : 'Meta object listing exceeds the verification safety limit. Inspect Ads Manager manually.');
 }
 
 export async function instagramIdentity(

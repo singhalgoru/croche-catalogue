@@ -18,6 +18,7 @@ import ProductVideoManager from './ProductVideoManager';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import AdminDialog from './AdminDialog';
+import MarketingSocialPosts from './MarketingSocialPosts';
 import RequiredMark from './RequiredMark';
 import MarginLabel from './MarginLabel';
 import { ATTENTION_FILTERS, getProductAttention, LOW_STOCK_QUANTITY, type AttentionFilter } from './productAttention';
@@ -740,6 +741,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                         >
                           {copiedId === product.id ? 'Copied!' : 'Copy link'}
                         </button>
+                        {product.published && <MarketingSocialPosts initialProduct={product} disabled={isBusy || isAnalyzing} />}
                         <button
                           type="button"
                           onClick={() => startEditing(product)}

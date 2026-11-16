@@ -1,0 +1,108 @@
+import { graph, listMetaObjects } from '../marketing-create/meta.ts';
+import type { MetaConfig } from '../marketing-read/meta.ts';
+import {
+  socialNumericId, socialPermalink, socialRecord,
+  type SocialPlatform, type SocialPost, type SocialPublishingSetup,
+} from '../_shared/socialPosts.ts';
+
+type Fetcher = typeof fetch;
+export interface PublishingAccess {
+  config: MetaConfig;
+  setup: SocialPublishingSetup;
+}
+
+export async function publishingAccess(
+  config: MetaConfig, pageId: string, platforms: SocialPlatform[], enabled: boolean, fetcher: Fetcher = fetch,
+): Promise<PublishingAccess> {
+  const permissions = await graph(config, 'me/permissions', 'GET', {}, fetcher, 'organic publishing request');
+  const required = ['pages_show_list', 'pages_read_engagement',
+    ...(platforms.includes('facebook') ? ['pages_manage_posts'] : []),
+    ...(platforms.includes('instagram') ? ['instagram_basic', 'instagram_content_publish'] : [])];
+  const missing = required.filter(permission => !Array.isArray(permissions.data) || !permissions.data.some(item =>
+    socialRecord(item) && item.permission === permission && item.status === 'granted'));
+  if (missing.length) throw new Error(`Reconnect Meta with ${missing.join(', ')} granted in the approved business login configuration.`);
+  const pages: Record<string, unknown>[] = [];
+  await listMetaObjects(config, 'me/accounts', 'id,name,access_token,tasks', item => {
+    if (item.id === pageId) pages.push(item);
+  }, fetcher, 'organic publishing request');
+  const page = pages[0];
+  if (pages.length !== 1 || typeof page?.name !== 'string' || !page.name.trim() || page.name.length > 300
+    || typeof page.access_token !== 'string' || !page.access_token.trim()
+    || !Array.isArray(page.tasks) || !page.tasks.some(task => task === 'CREATE_CONTENT' || task === 'MANAGE')) {
+    throw new Error('The configured Facebook Page is not uniquely available with content-creation access. Check Page tasks and reconnect Meta.');
+  }
+  const pageConfig = { ...config, accessToken: page.access_token };
+  let instagram: SocialPublishingSetup['instagram'];
+  if (platforms.includes('instagram')) {
+    const identity = await graph(pageConfig, pageId, 'GET', { fields: 'id,instagram_business_account{id,username}' }, fetcher, 'organic publishing request');
+    const account = identity.instagram_business_account;
+    if (identity.id !== pageId || !socialRecord(account) || !socialNumericId(account.id) || typeof account.username !== 'string'
+      || !/^[a-zA-Z0-9._]{1,30}$/.test(account.username)) {
+      throw new Error('No verified Instagram professional account is linked to the publishing Page. Check its Page connection and publishing permissions.');
+    }
+    instagram = { id: account.id, username: account.username };
+  }
+  return { config: pageConfig, setup: { enabled, pageId, pageName: page.name, ...(instagram ? { instagram } : {}) } };
+}
+
+export function verifyPublishingIdentity(post: SocialPost, access: PublishingAccess) {
+  if (post.request.pageId !== access.setup.pageId
+    || (post.platform === 'instagram' && post.request.instagramUserId !== access.setup.instagram?.id)) {
+    throw new Error('The publishing identity changed. Prepare and review a new draft before publishing; do not retry an attempted post.');
+  }
+}
+
+export async function readPublishedPost(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+  if (!post.post_id) throw new Error('No saved post ID is available. Inspect the destination profile; do not publish again.');
+  const result = await graph(config, post.post_id, 'GET', {
+    fields: post.platform === 'facebook' ? 'id,permalink_url,is_published,from' : 'id,permalink,media_type',
+  }, fetcher, 'organic publishing request');
+  const permalink = post.platform === 'facebook' ? result.permalink_url : result.permalink;
+  if (result.id !== post.post_id || !socialPermalink(permalink, post.platform)
+    || (post.platform === 'facebook' && (result.is_published !== true || !socialRecord(result.from) || result.from.id !== post.request.pageId))
+    || (post.platform === 'instagram' && result.media_type !== 'IMAGE')) {
+    throw new Error('Meta did not verify the published image post. Inspect the destination profile; do not publish again.');
+  }
+  return { status: 'published' as const, permalink, error: null };
+}
+
+export async function containerStatus(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+  if (!post.container_id) throw new Error('The Instagram container ID is missing. Do not create another container.');
+  const result = await graph(config, post.container_id, 'GET', { fields: 'id,status_code' }, fetcher, 'organic publishing request');
+  if (result.id !== post.container_id || !['IN_PROGRESS', 'FINISHED', 'PUBLISHED', 'ERROR', 'EXPIRED'].includes(String(result.status_code))) {
+    throw new Error('Instagram returned an unknown container status. Inspect the profile; do not create another post.');
+  }
+  if (result.status_code === 'IN_PROGRESS') return { status: 'processing' as const, error: null };
+  if (result.status_code === 'FINISHED') return { status: 'ready' as const, error: null };
+  return { status: 'needs_attention' as const, error: result.status_code === 'PUBLISHED'
+    ? 'Instagram reports this container was published, but no verified post ID was saved. Inspect the profile; do not publish again.'
+    : `Instagram container ${result.status_code === 'EXPIRED' ? 'expired' : 'failed'}. Operator reconciliation is required; do not create another post.` };
+}
+
+export async function createFacebookPost(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+  const result = await graph(config, `${post.request.pageId}/photos`, 'POST', {
+    url: post.request.imageUrl, caption: post.request.caption, published: 'true',
+  }, fetcher, 'organic publishing request');
+  if (typeof result.post_id !== 'string' || !new RegExp(`^${post.request.pageId}_\\d{1,30}$`).test(result.post_id)) {
+    throw new Error('Facebook may have published the photo but did not return a valid post ID. Inspect the Page; do not retry.');
+  }
+  return result.post_id;
+}
+
+export async function createInstagramContainer(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+  if (!socialNumericId(post.request.instagramUserId)) throw new Error('A verified Instagram publishing identity is required.');
+  const result = await graph(config, `${post.request.instagramUserId}/media`, 'POST', {
+    image_url: post.request.imageUrl, caption: post.request.caption,
+  }, fetcher, 'organic publishing request');
+  if (!socialNumericId(result.id)) throw new Error('Instagram did not return a valid container ID. Inspect Meta; do not retry.');
+  return result.id;
+}
+
+export async function publishInstagramContainer(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+  if (!socialNumericId(post.request.instagramUserId) || !socialNumericId(post.container_id)) throw new Error('The saved Instagram container or identity is invalid.');
+  const result = await graph(config, `${post.request.instagramUserId}/media_publish`, 'POST', {
+    creation_id: post.container_id,
+  }, fetcher, 'organic publishing request');
+  if (!socialNumericId(result.id)) throw new Error('Instagram may have published the post but did not return a valid ID. Inspect the profile; do not retry.');
+  return result.id;
+}

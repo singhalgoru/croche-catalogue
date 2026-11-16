@@ -88,6 +88,11 @@ an India-based handmade crochet brand.
   budget. Instagram requires a verified Page-linked identity and ad-account access.
   Activation remains manual in Meta Ads Manager. Eligible incomplete attempts offer a separate saved-details
   recovery review without recreating the campaign or ad set.
+- Published products have a Facebook / Instagram posting modal with editable
+  captions, JPEG previews, explicit live-publish confirmation and per-platform
+  results. Organic posting requires configured publishing permissions and a
+  Page-linked professional Instagram account. Saving a product never posts or
+  boosts it automatically.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
   The application supports English and Hindi; answers remain in their original language.

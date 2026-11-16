@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { completeMetaConnection, fetchMarketingOverview, startMetaConnection, type MarketingOverview } from '../../services/marketing';
 import MarketingCampaignDrafts from './MarketingCampaignDrafts';
+import MarketingSocialPosts from './MarketingSocialPosts';
 
 const numberLabel = (value: number) => new Intl.NumberFormat('en-IN').format(value);
 const moneyLabel = (value: number, currency: string) => new Intl.NumberFormat('en-IN', {
@@ -114,6 +115,7 @@ export default function MarketingDashboard() {
         <p className="mt-1 text-sm text-cocoa/70">Read-only Meta account and delivery data for the last 30 days.</p>
       </div>
       <div className="flex flex-wrap gap-2">
+        <MarketingSocialPosts />
         <button type="button" onClick={() => void connectMeta()} disabled={connecting}
           className="min-h-11 rounded-full bg-cocoa px-4 text-sm font-semibold text-cream disabled:opacity-50">
           {connecting ? 'Connecting…' : 'Connect / reconnect Meta'}
