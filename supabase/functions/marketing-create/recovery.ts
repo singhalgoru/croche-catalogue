@@ -54,13 +54,17 @@ function sameGeo(actual: unknown, expected: unknown) {
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(actual)) {
     if (key === 'location_types') {
-      if (canonical(value) !== canonical(['home', 'recent'])) {
+      // Meta's default also includes frequent visitors in current readbacks.
+      const defaultPresence = !Object.hasOwn(expected, 'location_types') && [
+        ['home', 'recent'], ['home', 'recent', 'frequently_in'],
+      ].some(types => canonical(value) === canonical(types));
+      if (!defaultPresence) {
         const types = Array.isArray(value) ? value.map(item => {
           if (item === null) return 'null';
           if (typeof item !== 'string') return 'non-string';
           if (item === '') return 'empty-string';
           if (/^\s+$/.test(item)) return 'whitespace-only';
-          if (['home', 'recent', 'travel_in', 'all', 'unknown', 'none'].includes(item)) return item;
+          if (['home', 'recent', 'frequently_in', 'travel_in', 'all', 'unknown', 'none'].includes(item)) return item;
           if (/^[a-z][a-z_]{0,31}$/.test(item)) return `unsupported-code(${item})`;
           return 'unrecognized-string';
         }) : ['malformed'];

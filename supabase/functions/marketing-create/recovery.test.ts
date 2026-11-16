@@ -91,6 +91,19 @@ it('verifies existing paused objects and complete listings using GET only', asyn
 });
 
 it.each([
+  { countries: ['IN'] },
+  { countries: ['IN'], location_types: ['recent', 'home'] },
+  { countries: ['IN'], location_types: ['frequently_in', 'home', 'recent'] },
+])('accepts default presence readbacks without changing the saved geography (%j)', async geo => {
+  const snapshot = saved();
+  const fetcher = verificationFetch({ adset: { ...adset, targeting: { ...adset.targeting, geo_locations: geo } } });
+  await verifyRecovery(config, settings, snapshot, fetcher);
+  expect(snapshot.geo).toEqual({ countries: ['IN'] });
+  expect(fetcher).toHaveBeenCalledTimes(8);
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+
+it.each([
   { campaign: { ...campaign, status: 'ACTIVE' } },
   { campaign: { ...campaign, account_id: '999' } },
   { adset: { ...adset, status: 'ACTIVE' } },
@@ -150,6 +163,10 @@ it('identifies mismatched fields without exposing provider values, names or arbi
 it.each([
   [{ countries: ['IN'], location_types: ['home'] }, 'Meta location types differ: home.'],
   [{ countries: ['IN'], location_types: ['all', 'home', 'recent'] }, 'Meta location types differ: all, home, recent.'],
+  [{ countries: ['IN'], location_types: ['home', 'frequently_in'] }, 'Meta location types differ: home, frequently_in.'],
+  [{ countries: ['IN'], location_types: ['home', 'recent', 'frequently_in', 'travel_in'] }, 'Meta location types differ: home, recent, frequently_in, travel_in.'],
+  [{ countries: ['IN'], location_types: ['home', 'recent', 'frequently_in', 'frequently_in'] }, 'Meta location types differ: home, recent, frequently_in, frequently_in.'],
+  [{ countries: ['private-country'], location_types: ['frequently_in', 'home', 'recent'] }, 'countries (Meta 1, saved 1)'],
   [{ countries: ['IN'], location_types: [null, 'home', 'recent'] }, 'Meta location types differ: null, home, recent.'],
   [{ countries: ['IN'], location_types: ['', 'home', 'recent'] }, 'Meta location types differ: empty-string, home, recent.'],
   [{ countries: ['IN'], location_types: [' \t\n', 'home', 'recent'] }, 'Meta location types differ: whitespace-only, home, recent.'],
