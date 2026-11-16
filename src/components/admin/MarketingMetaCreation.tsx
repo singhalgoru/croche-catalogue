@@ -37,6 +37,10 @@ export default function MarketingMetaCreation({ draft, products }: {
   const [confirmed, setConfirmed] = useState(false);
   const [recoveryReview, setRecoveryReview] = useState<MetaRecoveryReview | null>(null);
   const [recoveryConfirmed, setRecoveryConfirmed] = useState(false);
+  const [placement, setPlacement] = useState<'facebook-feed' | 'instagram-feed'>('facebook-feed');
+  const [instagram, setInstagram] = useState<MetaCreationSetup['instagram']>();
+  const [checkingInstagram, setCheckingInstagram] = useState(false);
+  const instagramReady = placement !== 'instagram-feed' || Boolean(instagram);
   const p = draft.proposal;
   const product = products.find(item => item.id === productId);
   const supported = p.callToAction !== 'Send message' && (p.goal !== 'sales' || Boolean(setup?.pixelId));
@@ -68,7 +72,7 @@ export default function MarketingMetaCreation({ draft, products }: {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (busy || uncertain || creation) return;
-    if (!confirmed || !setup || !product || !locationLabel || !supported || !Number.isFinite(Date.parse(startTime))) {
+    if (!confirmed || !setup || !product || !locationLabel || !supported || !instagramReady || !Number.isFinite(Date.parse(startTime))) {
       setError('Review the image, supported goal, locations and start time, then confirm paused creation.');
       return;
     }
@@ -78,11 +82,34 @@ export default function MarketingMetaCreation({ draft, products }: {
       setCreation(await createPausedMetaCampaign({
         draftId: draft.id, productId, primaryTextIndex, headlineIndex,
         startTime: new Date(startTime).toISOString(), locations,
+        ...(placement === 'instagram-feed' && instagram ? { placement, instagramUserId: instagram.id } : {}),
       }));
     } catch (failure) {
       setUncertain(true);
       setError(failure instanceof Error ? failure.message : 'Creation could not be confirmed. Refresh status before retrying.');
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkInstagram = async () => {
+    if (busy) return;
+    setBusy(true);
+    setCheckingInstagram(true);
+    setError('');
+    setConfirmed(false);
+    setInstagram(undefined);
+    try {
+      const value = await fetchMetaCreationSetup('instagram-feed');
+      if (!value.instagram || (setup && (value.accountId !== setup.accountId || value.pageId !== setup.pageId))
+        || (creation && value.accountId !== creation.account_id)) {
+        throw new Error('Instagram setup changed or is incomplete. Refresh setup before creating anything.');
+      }
+      setInstagram(value.instagram);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Unable to verify the Instagram connection.');
+    } finally {
+      setCheckingInstagram(false);
       setBusy(false);
     }
   };
@@ -116,6 +143,7 @@ export default function MarketingMetaCreation({ draft, products }: {
     }
   };
   const canRecover = creation?.status === 'needs_attention' && !creation.recovery_started_at
+    && creation.placement !== 'instagram-feed'
     && creation.campaign_id && creation.adset_id && !creation.creative_id && !creation.ad_id
     && creation.error?.includes('subcode 1885183)');
 
@@ -127,11 +155,21 @@ export default function MarketingMetaCreation({ draft, products }: {
     </p>
     {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     {loading && <p role="status" className="mt-3 text-sm">Checking setup and prior creation attempts...</p>}
+    <div className="mt-3 rounded-xl border border-cocoa/25 p-3 text-sm">
+      <button type="button" disabled={busy || loading} onClick={() => void checkInstagram()}
+        className="min-h-11 rounded-full border border-cocoa/30 px-4 font-semibold disabled:opacity-50">
+        {checkingInstagram ? 'Checking Instagram connection...' : 'Check Instagram connection (read-only)'}
+      </button>
+      {instagram && <p className="mt-2">Verified Instagram identity: <strong>@{instagram.username}</strong> ({instagram.id}).
+        Linked to the configured Page and authorized for this ad account.</p>}
+      <p className="mt-2">This check does not create an ad, publish a post or change an existing attempt.</p>
+    </div>
     {creation && <div className="mt-3 text-sm text-cocoa">
       <p role="status">{creation.status === 'created'
         ? 'Created in Meta; campaign, ad set and ad were verified paused. Activation is manual in Meta.'
         : 'Creation is incomplete or needs attention. Do not retry or create another proposal to bypass this check; inspect Ads Manager and contact the operator.'}</p>
       {creation.error && <p className="mt-2 text-red-700"><strong>Saved error from the previous attempt:</strong> {creation.error}</p>}
+      {creation.placement === 'instagram-feed' && <p className="mt-2">Saved placement: Instagram Feed only.</p>}
       {creation.campaign_id && <a target="_blank" rel="noopener noreferrer"
         className="mt-2 inline-block min-h-10 py-2 font-semibold underline"
         href={`https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${creation.account_id}&selected_campaign_ids=${creation.campaign_id}`}>
@@ -185,7 +223,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       {p.goal === 'sales' && setup.pixelId && <p className="text-sm"><strong>Pixel:</strong> {setup.pixelId} / Purchase event</p>}
       <p className="text-sm"><strong>Campaign:</strong> {p.campaignName}<br />
         <strong>Goal:</strong> {p.goal} {p.goal === 'sales' && '(Purchase-event conversion optimization)'}<br />
-        <strong>Placement:</strong> Facebook Feed only, ages 18+, no interests or personal-trait targeting.<br />
+        <strong>Placement:</strong> {placement === 'instagram-feed' ? 'Instagram' : 'Facebook'} Feed only, ages 18+, no interests or personal-trait targeting.<br />
         <strong>Destination:</strong> {p.landingPageUrl}<br />
         <strong>Call to action:</strong> {p.callToAction}</p>
       {!supported && <p role="alert" className="text-sm text-red-700">
@@ -193,6 +231,25 @@ export default function MarketingMetaCreation({ draft, products }: {
           : 'Sales ads require the operator to configure a Meta pixel that receives Purchase events.'}
       </p>}
       <fieldset disabled={busy || !supported} className="grid gap-3">
+        <label className="grid gap-1 text-sm">
+          Ad placement
+          <select value={placement} onChange={event => {
+            if (event.target.value === 'facebook-feed' || event.target.value === 'instagram-feed') {
+              setPlacement(event.target.value);
+              setConfirmed(false);
+            }
+          }} className="min-h-11 rounded-xl border border-cocoa/25 px-3">
+            <option value="facebook-feed">Facebook Feed only</option>
+            <option value="instagram-feed">Instagram Feed only</option>
+          </select>
+        </label>
+        {placement === 'instagram-feed' && <p className="text-sm">
+          {instagram ? `Advertised Instagram identity: @${instagram.username}.` : 'Check the Instagram connection above before confirming.'}
+          {' '}Single-image Feed ads only, not Stories, Reels or organic posts. Review Meta&apos;s image crop before activation.
+          This creates a separate campaign with its own full lifetime budget, not a shared Facebook budget.
+          A proposal has only one creation attempt; existing Facebook attempts cannot be converted.
+          Meta billing requirements still apply to paused ads; resolve any billing restriction before creation.
+        </p>}
         <label className="grid gap-1 text-sm">
           Published product image for this ad
           <select required value={productId} onChange={event => { setProductId(event.target.value); setConfirmed(false); }}
@@ -237,11 +294,12 @@ export default function MarketingMetaCreation({ draft, products }: {
           <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} className="mt-1" />
           <span>I reviewed the copy, image rights, product claims, destination, locations, schedule and lifetime budget
             {p.goal === 'sales' ? ', and verified that the configured pixel receives Purchase events' : ''}.
+            {placement === 'instagram-feed' ? ` Use @${instagram?.username ?? '(verify Instagram first)'} for Instagram Feed only.` : ''}
             Create paused only; I will review and activate manually in Meta.</span>
         </label>
-        <button type="submit" disabled={!confirmed || !productId || !locationLabel || busy}
+        <button type="submit" disabled={!confirmed || !productId || !locationLabel || !instagramReady || busy}
           className="min-h-11 rounded-full bg-cocoa px-4 text-sm font-semibold text-cream disabled:opacity-50">
-          {busy ? 'Creating paused objects...' : 'Confirm and create paused campaign'}
+          {checkingInstagram ? 'Checking Instagram connection...' : busy ? 'Creating paused objects...' : 'Confirm and create paused campaign'}
         </button>
       </fieldset>
     </form>}
@@ -253,6 +311,7 @@ export default function MarketingMetaCreation({ draft, products }: {
       setConfirmed(false);
       setRecoveryReview(null);
       setRecoveryConfirmed(false);
+      setInstagram(undefined);
       setAttempt(value => value + 1);
     }}
       className="mt-3 min-h-10 rounded-full border border-cocoa/30 px-4 text-sm font-semibold disabled:opacity-50">

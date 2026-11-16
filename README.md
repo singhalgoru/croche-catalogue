@@ -83,7 +83,8 @@ an India-based handmade crochet brand.
 - The admin Marketing workspace can show read-only Meta delivery data, reconnect
   Meta, and create AI campaign proposals with model provenance and location
   planning for internal review. When configured, a separate confirmation creates
-  paused Facebook Feed ads from approved proposals; activation remains manual
+  paused Facebook Feed or Instagram Feed image ads from approved proposals;
+  Instagram requires a verified Page-linked identity and ad-account access. Activation remains manual
   in Meta Ads Manager. Eligible incomplete attempts offer a separate saved-details
   recovery review without recreating the campaign or ad set.
 - Invited artisans can submit a private application; authorised administrators

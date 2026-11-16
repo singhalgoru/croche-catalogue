@@ -1,4 +1,4 @@
-import { buildPlan, graph, isRecord, parseCreationInput, preflight, resolveLocations } from './meta.ts';
+import { buildPlan, graph, isRecord, listMetaObjects, parseCreationInput, preflight, resolveLocations } from './meta.ts';
 import type { CreationPlan, creationSettings } from './meta.ts';
 import type { MetaConfig } from '../marketing-read/meta.ts';
 
@@ -25,6 +25,8 @@ export function recoverySnapshot(
     || value.recovery_started_at !== null || !id(value.campaign_id) || !id(value.adset_id)
     || value.creative_id !== null || value.ad_id !== null || value.account_id !== config.accountId
     || !isRecord(value.request) || value.request.pageId !== settings.pageId
+    || (value.request.placement !== undefined && value.request.placement !== 'facebook-feed')
+    || value.request.instagramUserId !== undefined
     || value.request.pixelId !== (settings.pixelId ?? null)) {
     throw new Error('This attempt is not eligible for automatic recovery. Inspect Ads Manager; do not retry or replace the proposal.');
   }
@@ -91,35 +93,6 @@ function sameGeo(actual: unknown, expected: unknown) {
     : '' };
 }
 
-async function listObjects(
-  config: MetaConfig, path: string, fields: string, inspect: (item: Record<string, unknown>) => void,
-  fetcher: typeof fetch,
-) {
-  let after = '';
-  const cursors = new Set<string>();
-  for (let page = 0; page < 10; page++) {
-    const result = await graph(config, path, 'GET', { fields, limit: '100', ...(after ? { after } : {}) }, fetcher);
-    if (!Array.isArray(result.data)) throw new Error('Unable to verify existing Meta objects. Recovery is blocked.');
-    for (const item of result.data) {
-      if (!isRecord(item) || !id(item.id)) throw new Error('Invalid Meta object listing. Recovery is blocked.');
-      inspect(item);
-    }
-    if (result.paging === undefined) {
-      if (result.data.length >= 100) throw new Error('Meta listing may be incomplete. Recovery is blocked.');
-      return;
-    }
-    if (!isRecord(result.paging)) throw new Error('Unable to verify complete Meta object listing.');
-    if (!result.paging.next) return;
-    if (!isRecord(result.paging.cursors) || typeof result.paging.cursors.after !== 'string'
-      || !result.paging.cursors.after || cursors.has(result.paging.cursors.after)) {
-      throw new Error('Unable to verify complete Meta object listing.');
-    }
-    after = result.paging.cursors.after;
-    cursors.add(after);
-  }
-  throw new Error('Meta object listing exceeds the recovery safety limit. Inspect Ads Manager manually.');
-}
-
 export async function verifyRecovery(
   config: MetaConfig, settings: ReturnType<typeof creationSettings>, saved: ReturnType<typeof recoverySnapshot>,
   fetcher: typeof fetch = fetch,
@@ -178,12 +151,12 @@ export async function verifyRecovery(
         ? ` ${geography.detail}` : ''} Recovery is blocked; no recovery writes were sent.`);
   }
   const adsets: string[] = [];
-  await listObjects(config, `${campaignId}/adsets`, 'id', item => { adsets.push(String(item.id)); }, fetcher);
+  await listMetaObjects(config, `${campaignId}/adsets`, 'id', item => { adsets.push(String(item.id)); }, fetcher);
   if (adsets.length !== 1 || adsets[0] !== adsetId) throw new Error('Unexpected ad sets exist. Inspect Ads Manager before recovery.');
-  await listObjects(config, `${campaignId}/ads`, 'id', () => {
+  await listMetaObjects(config, `${campaignId}/ads`, 'id', () => {
     throw new Error('An ad already exists in this campaign. Recovery will not create a duplicate.');
   }, fetcher);
-  await listObjects(config, `act_${config.accountId}/adcreatives`, 'id,name', item => {
+  await listMetaObjects(config, `act_${config.accountId}/adcreatives`, 'id,name', item => {
     if (typeof item.name !== 'string' || item.name === plan.campaignName) {
       throw new Error('An existing or unidentifiable creative may belong to this attempt. Inspect Ads Manager before recovery.');
     }

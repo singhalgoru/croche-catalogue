@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
-import { buildPlan, createPausedObjects, creationSettings, parseCreationInput, preflight, resolveLocations } from './meta';
+import { buildPlan, createPausedObjects, creationSettings, instagramIdentity, parseCreationInput, preflight, resolveLocations } from './meta';
 
 const config = { accessToken: 'secret-fixture', accountId: '123', graphApiVersion: 'v27.0' };
 const settings = { pageId: '456', pixelId: '789' };
@@ -24,10 +24,55 @@ afterEach(() => vi.restoreAllMocks());
 it('requires explicit paused confirmation and server-controlled statuses and account', () => {
   expect(parseCreationInput(input)).toMatchObject({ primaryTextIndex: 1, locations: null });
   for (const change of [{ confirmPaused: false }, { status: 'ACTIVE' }, { accountId: 'other' },
-    { primaryTextIndex: 2 }, { locations: [] }, { startTime: 'bad' }]) {
+    { primaryTextIndex: 2 }, { locations: [] }, { startTime: 'bad' },
+    { placement: 'instagram-reels' }, { placement: 'instagram-feed' }, { instagramUserId: '999' }]) {
     expect(() => parseCreationInput({ ...input, ...change })).toThrow();
   }
   expect(() => creationSettings(() => undefined)).toThrow('disabled');
+});
+
+it('verifies a Page-linked Instagram identity against the complete ad-account assignment with GET only', async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '999', username: 'luvia.test' } }))
+    .mockResolvedValueOnce(response({ data: [{ id: '998' }], paging: { next: 'https://ignored.test', cursors: { after: 'cursor-1' } } }))
+    .mockResolvedValueOnce(response({ data: [{ id: '999' }] }));
+  await expect(instagramIdentity(config, settings, '999', fetcher)).resolves.toEqual({ id: '999', username: 'luvia.test' });
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+  expect(String(fetcher.mock.calls[2][0])).toContain('after=cursor-1');
+  expect(fetcher.mock.calls.every(([url]) => new URL(url).hostname === 'graph.facebook.com')).toBe(true);
+});
+
+it.each([
+  { page: { id: '456' }, accounts: { data: [] } },
+  { page: { id: '456', instagram_business_account: { id: '998', username: 'another' } }, accounts: { data: [{ id: '998' }] } },
+  { page: { id: '456', instagram_business_account: { id: '999', username: 'luvia' } }, accounts: { data: [] } },
+  { page: { id: '456', instagram_business_account: { id: '999', username: 'luvia' } }, accounts: { data: [{ id: '999' }, { id: '999' }] } },
+])('blocks missing, changed or unauthorized Instagram identities (%j)', async ({ page, accounts }) => {
+  const fetcher = vi.fn().mockResolvedValueOnce(response(page)).mockResolvedValueOnce(response(accounts));
+  await expect(instagramIdentity(config, settings, '999', fetcher)).rejects.toThrow();
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+
+it.each(['sales', 'traffic', 'awareness'] as const)('creates Instagram Feed-only %s objects under the confirmed identity, all paused', async goal => {
+  const parsed = parseCreationInput({ ...input, placement: 'instagram-feed', instagramUserId: '999' });
+  const instagramPlan = buildPlan(draft, product, parsed, settings.pixelId, now);
+  expect(instagramPlan).toMatchObject({ placement: 'instagram-feed', instagramUserId: '999' });
+  const fetcher = vi.fn();
+  for (const body of [{ id: '10' }, { id: '20' }, { id: '30' }, { id: '40' },
+    { id: '10', status: 'PAUSED' }, { id: '20', status: 'PAUSED' }, { id: '40', status: 'PAUSED' }]) {
+    fetcher.mockResolvedValueOnce(response(body));
+  }
+  await createPausedObjects(config, settings, { ...instagramPlan, goal }, { countries: ['IN'] }, vi.fn(), fetcher);
+  const parameters = fetcher.mock.calls.slice(0, 4).map(([, options]) => options.body as URLSearchParams);
+  expect(parameters[1].get('name')).toBe('Crochet flowers - Instagram Feed');
+  const targeting = JSON.parse(parameters[1].get('targeting')!);
+  expect(targeting.publisher_platforms).toEqual(['instagram']);
+  expect(targeting.instagram_positions).toEqual(['stream']);
+  expect(targeting.facebook_positions).toBeUndefined();
+  expect(JSON.parse(parameters[2].get('object_story_spec')!)).toMatchObject({
+    page_id: '456', instagram_user_id: '999', link_data: { picture: product.image_url, message: 'Second copy' },
+  });
+  expect([parameters[0], parameters[1], parameters[3]].every(body => body.get('status') === 'PAUSED')).toBe(true);
+  expect(fetcher).toHaveBeenCalledTimes(7);
 });
 
 it('uses the immutable approved copy and full lifetime budget in paise with a fixed end time', () => {

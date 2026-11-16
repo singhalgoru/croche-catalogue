@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { loadMetaAccess } from '../_shared/loadMetaAccess.ts';
 import {
-  buildPlan, completePausedAd, createPausedObjects, creationSettings, isRecord, parseCreationInput, preflight, resolveLocations,
+  buildPlan, completePausedAd, createPausedObjects, creationSettings, instagramIdentity, isRecord, parseCreationInput, preflight, resolveLocations,
 } from './meta.ts';
 import { parseRecoveryInput, recoverySnapshot, verifyRecovery } from './recovery.ts';
 
@@ -13,7 +13,7 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
 });
-const columns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error,recovery_started_at';
+const columns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error,recovery_started_at,placement:request->>placement';
 
 export async function handler(request: Request) {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -35,7 +35,7 @@ export async function handler(request: Request) {
   if (!admin) return json({ error: 'Fresh admin verification is required to create paused campaigns.' }, 403);
   let payload: unknown;
   try { payload = await request.json(); } catch { return json({ error: 'Invalid JSON request.' }, 400); }
-  const setup = isRecord(payload) && payload.action === 'setup' && Object.keys(payload).length === 1;
+  const setup = isRecord(payload) && (payload.action === 'setup' || payload.action === 'setup-instagram') && Object.keys(payload).length === 1;
   let recovery;
   if (isRecord(payload) && (payload.action === 'review-recovery' || payload.action === 'recover')) {
     try { recovery = parseRecoveryInput(payload); } catch (error) {
@@ -65,7 +65,10 @@ export async function handler(request: Request) {
   }
   if (setup) {
     try {
-      return json({ setup: { ...await preflight(config, settings, false), pixelId: settings.pixelId ?? null } });
+      return json({ setup: {
+        ...await preflight(config, settings, false), pixelId: settings.pixelId ?? null,
+        ...(isRecord(payload) && payload.action === 'setup-instagram' ? { instagram: await instagramIdentity(config, settings) } : {}),
+      } });
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : 'Meta preflight failed.' }, 502);
     }
@@ -144,6 +147,7 @@ export async function handler(request: Request) {
   let geo;
   try {
     await preflight(config, settings, plan.goal === 'sales');
+    if (input.placement === 'instagram-feed') await instagramIdentity(config, settings, input.instagramUserId);
     geo = await resolveLocations(config, input.locations);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : 'Meta preflight failed.' }, 502);

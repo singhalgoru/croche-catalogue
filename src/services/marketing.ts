@@ -70,6 +70,7 @@ export interface MetaCreationSetup {
   pageId: string;
   pageName: string;
   pixelId: string | null;
+  instagram?: { id: string; username: string };
 }
 
 export interface MetaCampaignCreation {
@@ -82,6 +83,7 @@ export interface MetaCampaignCreation {
   ad_id: string | null;
   error: string | null;
   recovery_started_at?: string | null;
+  placement?: 'facebook-feed' | 'instagram-feed';
 }
 
 export interface MetaRecoveryReview {
@@ -112,6 +114,8 @@ export interface MetaCampaignCreationInput {
   headlineIndex: number;
   startTime: string;
   locations: MarketingLocation[] | null;
+  placement?: 'facebook-feed' | 'instagram-feed';
+  instagramUserId?: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -384,7 +388,7 @@ export async function reviewMarketingCampaignDraft(
   return parseSavedDraft(data);
 }
 
-const creationColumns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error,recovery_started_at';
+const creationColumns = 'draft_id,status,account_id,campaign_id,adset_id,creative_id,ad_id,error,recovery_started_at,placement:request->>placement';
 const metaId = (value: unknown): value is string => typeof value === 'string' && /^\d{1,30}$/.test(value);
 const parseCreation = (value: unknown): MetaCampaignCreation => {
   if (!isRecord(value) || !isText(value.draft_id) || !metaId(value.account_id)
@@ -392,6 +396,7 @@ const parseCreation = (value: unknown): MetaCampaignCreation => {
     || ![value.campaign_id, value.adset_id, value.creative_id, value.ad_id].every(id => id === null || metaId(id))
     || (value.status === 'created' && ![value.campaign_id, value.adset_id, value.creative_id, value.ad_id].every(metaId))
     || (value.error !== null && typeof value.error !== 'string')
+    || (value.placement !== undefined && value.placement !== null && value.placement !== 'facebook-feed' && value.placement !== 'instagram-feed')
     || (value.recovery_started_at !== undefined && value.recovery_started_at !== null
       && (typeof value.recovery_started_at !== 'string' || !Number.isFinite(Date.parse(value.recovery_started_at))))) {
     throw new Error('Invalid Meta creation response.');
@@ -401,20 +406,30 @@ const parseCreation = (value: unknown): MetaCampaignCreation => {
     campaign_id: value.campaign_id as string | null, adset_id: value.adset_id as string | null,
     creative_id: value.creative_id as string | null, ad_id: value.ad_id as string | null, error: value.error,
     ...(value.recovery_started_at !== undefined ? { recovery_started_at: value.recovery_started_at as string | null } : {}),
+    ...(value.placement === 'facebook-feed' || value.placement === 'instagram-feed' ? { placement: value.placement } : {}),
   };
 };
 
-export async function fetchMetaCreationSetup(): Promise<MetaCreationSetup> {
+export async function fetchMetaCreationSetup(placement: 'facebook-feed' | 'instagram-feed' = 'facebook-feed'): Promise<MetaCreationSetup> {
   const client = await loadSupabase();
   if (!client) throw new Error('Meta creation requires an online connection.');
-  const { data, error } = await client.functions.invoke('marketing-create', { body: { action: 'setup' } });
+  const { data, error } = await client.functions.invoke('marketing-create', {
+    body: { action: placement === 'instagram-feed' ? 'setup-instagram' : 'setup' },
+  });
   if (error) throw new Error(await errorMessage(error));
   if (!isRecord(data) || !isRecord(data.setup) || !metaId(data.setup.accountId)
     || !metaId(data.setup.pageId) || !isText(data.setup.accountName) || !isText(data.setup.pageName)
     || (data.setup.pixelId !== null && !metaId(data.setup.pixelId))) throw new Error('Invalid Meta setup response.');
+  const instagram = data.setup.instagram;
+  if ((instagram !== undefined || placement === 'instagram-feed') && (!isRecord(instagram) || !metaId(instagram.id)
+    || typeof instagram.username !== 'string' || !/^[a-zA-Z0-9._]{1,30}$/.test(instagram.username))) {
+    throw new Error('Invalid Instagram setup response.');
+  }
   return {
     accountId: data.setup.accountId, accountName: data.setup.accountName, pageId: data.setup.pageId,
     pageName: data.setup.pageName, pixelId: data.setup.pixelId,
+    ...(isRecord(instagram) && metaId(instagram.id) && typeof instagram.username === 'string'
+      ? { instagram: { id: instagram.id, username: instagram.username } } : {}),
   };
 }
 

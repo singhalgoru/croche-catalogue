@@ -109,6 +109,44 @@ it('shows verified setup without creating objects or reserving an attempt', asyn
   expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
 
+it('checks Instagram connection without reserving or writing any object', async () => {
+  fetcher.mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '999', username: 'luvia' } }))
+    .mockResolvedValueOnce(response({ data: [{ id: '999' }] }));
+  const result = await handle(request({ action: 'setup-instagram' }));
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({ setup: { instagram: { id: '999', username: 'luvia' } } });
+  expect(mocks.insert).not.toHaveBeenCalled();
+  expect(mocks.recoveryClaim).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+
+it('rejects changed Instagram identity before claiming or creating a campaign', async () => {
+  fetcher.mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '998', username: 'changed' } }));
+  const result = await handle(request({ ...input, placement: 'instagram-feed', instagramUserId: '999' }));
+  expect(result.status).toBe(502);
+  expect(await result.json()).toMatchObject({ error: expect.stringContaining('identity changed') });
+  expect(mocks.insert).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+
+it('persists Instagram placement and identity only after verification and before paused writes', async () => {
+  fetcher.mockResolvedValueOnce(response({ id: '456', instagram_business_account: { id: '999', username: 'luvia' } }))
+    .mockResolvedValueOnce(response({ data: [{ id: '999' }] }));
+  for (const body of [{ id: '10' }, { id: '20' }, { id: '30' }, { id: '40' },
+    { id: '10', status: 'PAUSED' }, { id: '20', status: 'PAUSED' }, { id: '40', status: 'PAUSED' }]) {
+    fetcher.mockResolvedValueOnce(response(body));
+  }
+  const result = await handle(request({ ...input, placement: 'instagram-feed', instagramUserId: '999' }));
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({ creation: { status: 'created' } });
+  expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({
+    request: expect.objectContaining({ placement: 'instagram-feed', instagramUserId: '999',
+      plan: expect.objectContaining({ placement: 'instagram-feed', instagramUserId: '999' }) }),
+  }));
+  const writes = fetcher.mock.calls.filter(([, options]) => options.method === 'POST');
+  expect(writes).toHaveLength(4);
+});
+
 it('returns an existing attempt without another provider call, even when creation is disabled', async () => {
   mocks.readCreation.mockResolvedValueOnce({ data: { ...creation, status: 'needs_attention', campaign_id: '10' }, error: null });
   env.META_PAUSED_CREATION_ENABLED = 'false';

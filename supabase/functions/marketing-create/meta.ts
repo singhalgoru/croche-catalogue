@@ -14,13 +14,18 @@ export interface CreationInput {
   headlineIndex: number;
   startTime: string;
   locations: MetaLocation[] | null;
+  placement?: 'facebook-feed' | 'instagram-feed';
+  instagramUserId?: string;
 }
 
 export function parseCreationInput(value: unknown): CreationInput {
   if (!isRecord(value) || value.action !== 'create' || value.confirmPaused !== true
     || Object.keys(value).some(key => ![
       'action', 'confirmPaused', 'draftId', 'productId', 'primaryTextIndex', 'headlineIndex', 'startTime', 'locations',
+      'placement', 'instagramUserId',
     ].includes(key))
+    || (value.placement !== undefined && value.placement !== 'facebook-feed' && value.placement !== 'instagram-feed')
+    || (value.placement !== 'instagram-feed' && value.instagramUserId !== undefined)
     || !text(value.draftId, 36) || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value.draftId)
     || !text(value.productId, 36) || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value.productId)
     || (value.primaryTextIndex !== 0 && value.primaryTextIndex !== 1)
@@ -32,6 +37,12 @@ export function parseCreationInput(value: unknown): CreationInput {
     throw new Error('Confirm paused creation with a saved draft, product image, copy, start time and target locations.');
   }
   const locations: MetaLocation[] | null = value.locations === null ? null : [];
+  const instagram: Pick<CreationInput, 'placement' | 'instagramUserId'> = {};
+  if (value.placement === 'instagram-feed') {
+    if (!numericId(value.instagramUserId)) throw new Error('Verify the Instagram identity before confirming paused creation.');
+    instagram.placement = value.placement;
+    instagram.instagramUserId = value.instagramUserId;
+  }
   if (Array.isArray(value.locations) && locations) {
     for (const item of value.locations) {
       if (!isRecord(item) || !text(item.key, 100) || !text(item.label, 250)
@@ -46,6 +57,7 @@ export function parseCreationInput(value: unknown): CreationInput {
     draftId: value.draftId, productId: value.productId,
     primaryTextIndex: value.primaryTextIndex, headlineIndex: value.headlineIndex,
     startTime: new Date(value.startTime).toISOString(), locations,
+    ...instagram,
   };
 }
 
@@ -71,6 +83,8 @@ export interface CreationPlan {
   startTime: string;
   endTime: string;
   lifetimeBudget: number;
+  placement?: 'instagram-feed';
+  instagramUserId?: string;
 }
 
 export function buildPlan(
@@ -126,12 +140,13 @@ export function buildPlan(
     imageUrl: image.href, startTime: input.startTime,
     endTime: new Date(end).toISOString(),
     lifetimeBudget: p.totalBudgetInr * 100,
+    ...(input.placement === 'instagram-feed' ? { placement: input.placement, instagramUserId: input.instagramUserId } : {}),
   };
 }
 
 export async function graph(
   config: MetaConfig, path: string, method: 'GET' | 'POST', parameters: Record<string, string>, fetcher: Fetcher,
-  operation: 'permission check' | 'ad account lookup' | 'Facebook Page lookup' | 'pixel lookup' | 'object request' = 'object request',
+  operation: 'permission check' | 'ad account lookup' | 'Facebook Page lookup' | 'Instagram account lookup' | 'pixel lookup' | 'object request' = 'object request',
 ) {
   const url = new URL(`https://graph.facebook.com/${config.graphApiVersion}/${path}`);
   if (method === 'GET') url.search = new URLSearchParams(parameters).toString();
@@ -154,13 +169,14 @@ export async function graph(
     const code = typeof details.code === 'number' && Number.isSafeInteger(details.code) ? details.code : null;
     const subcode = typeof details.error_subcode === 'number' && Number.isSafeInteger(details.error_subcode)
       ? details.error_subcode : null;
-    const permissions = ['ads_read', 'ads_management', 'pages_show_list', 'pages_read_engagement', 'pages_manage_ads']
+    const permissions = ['ads_read', 'ads_management', 'pages_show_list', 'pages_read_engagement', 'pages_manage_ads', 'instagram_basic']
       .filter(permission => typeof details.message === 'string' && details.message.includes(permission));
     console.error('Meta request failed.', { operation, status: response.status, code, subcode, permissions });
     const diagnostic = [`HTTP ${response.status}`, ...(code !== null ? [`code ${code}`] : []),
       ...(subcode !== null ? [`subcode ${subcode}`] : [])].join(', ');
     const recovery = code === 190 ? 'Reconnect Meta; its access token is invalid or expired.'
       : operation === 'Facebook Page lookup' ? 'Verify META_PAGE_ID, Page access for the connected login and the business login permissions, then reconnect Meta.'
+        : operation === 'Instagram account lookup' ? 'Verify the Page-linked Instagram professional account, its ad-account assignment and granted permissions; reconnect Meta if access changed.'
         : operation === 'ad account lookup' ? 'Verify the configured ad account and access for the connected login.'
           : 'Check permissions and account setup in Meta.';
     throw new Error(`Meta ${operation} failed (${diagnostic}). ${recovery}${permissions.length
@@ -205,6 +221,57 @@ export async function resolveLocations(config: MetaConfig, locations: MetaLocati
   return geo;
 }
 
+export async function listMetaObjects(
+  config: MetaConfig, path: string, fields: string, inspect: (item: Record<string, unknown>) => void,
+  fetcher: Fetcher, operation: 'object request' | 'Instagram account lookup' = 'object request',
+) {
+  let after = '';
+  const cursors = new Set<string>();
+  for (let page = 0; page < 10; page++) {
+    const result = await graph(config, path, 'GET', { fields, limit: '100', ...(after ? { after } : {}) }, fetcher, operation);
+    if (!Array.isArray(result.data)) throw new Error('Unable to verify existing Meta objects. No new writes were sent.');
+    for (const item of result.data) {
+      if (!isRecord(item) || !numericId(item.id)) throw new Error('Invalid Meta object listing. No new writes were sent.');
+      inspect(item);
+    }
+    if (result.paging === undefined) {
+      if (result.data.length >= 100) throw new Error('Meta listing may be incomplete. No new writes were sent.');
+      return;
+    }
+    if (!isRecord(result.paging)) throw new Error('Unable to verify complete Meta object listing.');
+    if (!result.paging.next) return;
+    if (!isRecord(result.paging.cursors) || typeof result.paging.cursors.after !== 'string'
+      || !result.paging.cursors.after || cursors.has(result.paging.cursors.after)) {
+      throw new Error('Unable to verify complete Meta object listing.');
+    }
+    after = result.paging.cursors.after;
+    cursors.add(after);
+  }
+  throw new Error('Meta object listing exceeds the verification safety limit. Inspect Ads Manager manually.');
+}
+
+export async function instagramIdentity(
+  config: MetaConfig, settings: ReturnType<typeof creationSettings>, expectedId?: string, fetcher: Fetcher = fetch,
+) {
+  const page = await graph(config, settings.pageId, 'GET', {
+    fields: 'id,instagram_business_account{id,username}',
+  }, fetcher, 'Instagram account lookup');
+  const account = page.instagram_business_account;
+  if (page.id !== settings.pageId || !isRecord(account) || !numericId(account.id)
+    || typeof account.username !== 'string' || !/^[a-zA-Z0-9._]{1,30}$/.test(account.username)) {
+    throw new Error('No verified Instagram professional account is linked to the configured Page. Check its connection and permissions in Meta.');
+  }
+  if (expectedId !== undefined && account.id !== expectedId) {
+    throw new Error('The linked Instagram identity changed. Check the connection again before confirming creation.');
+  }
+  let matches = 0;
+  await listMetaObjects(config, `act_${config.accountId}/instagram_accounts`, 'id', item => {
+    if (item.id === account.id) matches++;
+  }, fetcher, 'Instagram account lookup');
+  if (matches !== 1) throw new Error('The linked Instagram account is not uniquely authorized for the configured ad account. Check its asset assignment in Meta.');
+  return { id: account.id, username: account.username };
+}
+
 function objectWriter(
   config: MetaConfig, checkpoint: (ids: Record<string, string>) => Promise<unknown>, fetcher: Fetcher,
 ) {
@@ -221,6 +288,9 @@ export async function createPausedObjects(
   geo: Awaited<ReturnType<typeof resolveLocations>>,
   checkpoint: (ids: Record<string, string>) => Promise<unknown>, fetcher: Fetcher = fetch,
 ) {
+  if (plan.placement === 'instagram-feed' && !numericId(plan.instagramUserId)) {
+    throw new Error('Verify the Instagram identity before creating paused objects.');
+  }
   const post = objectWriter(config, checkpoint, fetcher);
   const campaignId = await post('campaigns', {
     name: plan.campaignName,
@@ -228,7 +298,7 @@ export async function createPausedObjects(
     special_ad_categories: '[]', status: 'PAUSED', buying_type: 'AUCTION', is_adset_budget_sharing_enabled: 'false',
   }, 'campaign_id');
   const adsetId = await post('adsets', {
-    name: `${plan.campaignName} - Facebook Feed`, campaign_id: campaignId, status: 'PAUSED',
+    name: `${plan.campaignName} - ${plan.placement === 'instagram-feed' ? 'Instagram' : 'Facebook'} Feed`, campaign_id: campaignId, status: 'PAUSED',
     lifetime_budget: String(plan.lifetimeBudget), start_time: plan.startTime, end_time: plan.endTime,
     billing_event: 'IMPRESSIONS', bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     optimization_goal: plan.goal === 'sales' ? 'OFFSITE_CONVERSIONS' : plan.goal === 'traffic' ? 'LINK_CLICKS' : 'REACH',
@@ -236,7 +306,10 @@ export async function createPausedObjects(
       : plan.goal === 'awareness' ? { promoted_object: JSON.stringify({ page_id: settings.pageId }) } : {}),
     ...(plan.goal !== 'awareness' ? { destination_type: 'WEBSITE' } : {}),
     targeting: JSON.stringify({
-      geo_locations: geo, age_min: 18, publisher_platforms: ['facebook'], facebook_positions: ['feed'],
+      geo_locations: geo, age_min: 18,
+      ...(plan.placement === 'instagram-feed'
+        ? { publisher_platforms: ['instagram'], instagram_positions: ['stream'] }
+        : { publisher_platforms: ['facebook'], facebook_positions: ['feed'] }),
       targeting_automation: { advantage_audience: 0 },
     }),
   }, 'adset_id');
@@ -248,11 +321,15 @@ export async function completePausedAd(
   campaignId: string, adsetId: string, checkpoint: (ids: Record<string, string>) => Promise<unknown>,
   fetcher: Fetcher = fetch,
 ) {
+  if (plan.placement === 'instagram-feed' && !numericId(plan.instagramUserId)) {
+    throw new Error('Verify the Instagram identity before creating the creative.');
+  }
   const post = objectWriter(config, checkpoint, fetcher);
   const creativeId = await post('adcreatives', {
     name: plan.campaignName,
     object_story_spec: JSON.stringify({
       page_id: settings.pageId,
+      ...(plan.placement === 'instagram-feed' ? { instagram_user_id: plan.instagramUserId } : {}),
       link_data: {
         link: plan.destination, picture: plan.imageUrl, message: plan.primaryText,
         name: plan.headline, description: plan.description,

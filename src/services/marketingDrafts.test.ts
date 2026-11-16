@@ -164,6 +164,34 @@ it('reads an existing creation ledger through RLS without invoking a Meta write'
   expect(invoke).not.toHaveBeenCalled();
 });
 
+it('treats a null placement projection on legacy ledger rows as the original Facebook attempt', async () => {
+  const creation = { draft_id: row.id, status: 'needs_attention', account_id: '123', campaign_id: '10', adset_id: '20',
+    creative_id: '30', ad_id: null, error: 'Billing check failed.' };
+  const maybeSingle = vi.fn().mockResolvedValue({ data: { ...creation, placement: null }, error: null });
+  from.mockReturnValueOnce({ select: () => ({ eq: () => ({ maybeSingle }) }) });
+  await expect(fetchMetaCampaignCreation(row.id)).resolves.toEqual(creation);
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it('validates Instagram setup and sends only the selected Feed placement and verified identity', async () => {
+  const setup = { accountId: '123', accountName: 'Luvia', pageId: '456', pageName: 'Page', pixelId: null,
+    instagram: { id: '999', username: 'luvia' } };
+  invoke.mockResolvedValueOnce({ data: { setup }, error: null });
+  await expect(fetchMetaCreationSetup('instagram-feed')).resolves.toEqual(setup);
+  expect(invoke).toHaveBeenLastCalledWith('marketing-create', { body: { action: 'setup-instagram' } });
+  invoke.mockResolvedValueOnce({ data: { setup: { ...setup, instagram: { id: 'bad', username: 'luvia' } } }, error: null });
+  await expect(fetchMetaCreationSetup('instagram-feed')).rejects.toThrow('Instagram setup');
+  const input = {
+    draftId: row.id, productId: 'product-1', primaryTextIndex: 0, headlineIndex: 1,
+    startTime: '2030-01-01T10:00:00Z', locations: null, placement: 'instagram-feed' as const, instagramUserId: '999',
+  };
+  const creation = { draft_id: row.id, status: 'created', account_id: '123', campaign_id: '10', adset_id: '20',
+    creative_id: '30', ad_id: '40', error: null, placement: 'instagram-feed' };
+  invoke.mockResolvedValueOnce({ data: { creation }, error: null });
+  await expect(createPausedMetaCampaign(input)).resolves.toEqual(creation);
+  expect(invoke).toHaveBeenLastCalledWith('marketing-create', { body: { ...input, action: 'create', confirmPaused: true } });
+});
+
 it('validates saved recovery review and sends no client replacement fields during recovery', async () => {
   const recovery = {
     accountId: '123', pageId: '456', campaignId: '10', adsetId: '20', locationLabel: 'India',
