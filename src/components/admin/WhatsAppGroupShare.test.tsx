@@ -70,6 +70,37 @@ it('offers caption/link copy and text-only WhatsApp when native file sharing is 
   expect(share).not.toHaveBeenCalled();
 });
 
+it('copies WhatsApp formatting markers for selected text without changing the product link', async () => {
+  renderShare();
+  const caption = screen.getByRole('textbox', { name: 'WhatsApp caption' }) as HTMLTextAreaElement;
+  fireEvent.change(caption, { target: { value: 'Lovely bag' } });
+  caption.setSelectionRange(0, 6);
+  fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
+  expect(caption.value).toBe('*Lovely* bag');
+  caption.setSelectionRange(9, 12);
+  fireEvent.click(screen.getByRole('button', { name: 'Italic' }));
+  expect(caption.value).toBe('*Lovely* _bag_');
+  fireEvent.click(screen.getByRole('button', { name: 'Copy WhatsApp caption' }));
+  await waitFor(() => expect(copy).toHaveBeenCalledWith(
+    `*Lovely* _bag_\n\nShop: ${window.location.origin}/p/crochet-bag/`,
+  ));
+  expect(screen.getByRole('link', { name: 'Open WhatsApp with text only' }).getAttribute('href'))
+    .toBe(`https://wa.me/?text=${encodeURIComponent(`*Lovely* _bag_\n\nShop: ${window.location.origin}/p/crochet-bag/`)}`);
+});
+
+it('adds WhatsApp list markers and emojis to the caption', () => {
+  renderShare();
+  const caption = screen.getByRole('textbox', { name: 'WhatsApp caption' }) as HTMLTextAreaElement;
+  fireEvent.change(caption, { target: { value: 'First\nSecond' } });
+  caption.setSelectionRange(0, caption.value.length);
+  fireEvent.click(screen.getByRole('button', { name: 'Bulleted list' }));
+  expect(caption.value).toBe('- First\n- Second');
+  caption.setSelectionRange(caption.value.length, caption.value.length);
+  fireEvent.click(screen.getByText('Add emoji to WhatsApp caption'));
+  fireEvent.click(screen.getByRole('button', { name: 'Insert Smiling face' }));
+  expect(caption.value).toBe('- First\n- Second😊');
+});
+
 it('surfaces preparation and clipboard failures and allows retry without sharing', async () => {
   jpeg.mockRejectedValueOnce(new Error('Photo download failed.'));
   copy.mockRejectedValueOnce(new Error('Clipboard permission denied.'));

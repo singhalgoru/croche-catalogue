@@ -3,13 +3,12 @@ import RichTextContent from '../RichTextContent';
 import { richTextToPlainText } from '../../utils/richText';
 import EmojiPicker from './EmojiPicker';
 
-interface Props {
+interface CommonProps {
   label: string;
   id?: string;
   value: string;
   onChange: (value: string) => void;
   rows?: number;
-  maxLength: number;
   required?: boolean;
   disabled?: boolean;
   className?: string;
@@ -17,9 +16,14 @@ interface Props {
   emojiLabel?: string;
 }
 
+type Props = CommonProps & (
+  | { format?: 'markdown'; maxLength: number }
+  | { format: 'whatsapp'; maxLength?: number }
+);
+
 export default function RichTextEditor({
   label, id, value, onChange, rows = 4, maxLength, required = false, disabled = false,
-  className = '', showPreview = true, emojiLabel = 'Add emoji',
+  className = '', showPreview = true, emojiLabel = 'Add emoji', format = 'markdown',
 }: Props) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
@@ -29,7 +33,9 @@ export default function RichTextEditor({
   const [limitError, setLimitError] = useState('');
   const limitMessage = label === 'Customer quote'
     ? 'The quote must stay within 1,000 characters.'
-    : `${label} must stay within ${maxLength.toLocaleString()} characters.`;
+    : `${label} must stay within ${maxLength?.toLocaleString()} characters.`;
+  const exceedsLimit = (text: string) => maxLength !== undefined
+    && (text.length > maxLength || richTextToPlainText(text).length > maxLength);
 
   const wrapSelection = (marker: string, placeholder: string) => {
     const input = textareaRef.current;
@@ -40,7 +46,7 @@ export default function RichTextEditor({
     const content = selection || placeholder;
     const replacement = `${marker}${content}${marker}`;
     const next = `${value.slice(0, start)}${replacement}${value.slice(end)}`;
-    if (next.length > maxLength || richTextToPlainText(next).length > maxLength) {
+    if (exceedsLimit(next)) {
       setLimitError(`${limitMessage} Remove some text before formatting.`);
       return;
     }
@@ -66,7 +72,7 @@ export default function RichTextEditor({
     const nextLines = selectedLines.map(line => `${prefix}${line}`);
     const replacement = nextLines.join('\n');
     const next = `${value.slice(0, lineStart)}${replacement}${value.slice(lineEnd)}`;
-    if (next.length > maxLength || richTextToPlainText(next).length > maxLength) {
+    if (exceedsLimit(next)) {
       setLimitError(`${limitMessage} Remove some text before adding a list.`);
       return;
     }
@@ -85,10 +91,10 @@ export default function RichTextEditor({
     const start = input.selectionStart;
     const end = input.selectionEnd;
     const next = `${value.slice(0, start)}${emoji}${value.slice(end)}`;
-    if (next.length > maxLength || richTextToPlainText(next).length > maxLength) {
+    if (exceedsLimit(next)) {
       setLimitError(label === 'Customer quote'
         ? 'The quote must stay within 1,000 characters. Shorten it before adding an emoji.'
-        : `${label} must stay within ${maxLength.toLocaleString()} characters.`);
+        : limitMessage);
       return;
     }
     setLimitError('');
@@ -105,10 +111,10 @@ export default function RichTextEditor({
     <label htmlFor={inputId} className="sr-only">{label}</label>
     <div role="toolbar" aria-label={`${label} formatting`} className="mb-1 flex flex-wrap gap-1">
       <button type="button" disabled={disabled} aria-label="Bold" onMouseDown={event => event.preventDefault()}
-        onClick={() => wrapSelection('**', 'bold text')}
+        onClick={() => wrapSelection(format === 'whatsapp' ? '*' : '**', 'bold text')}
         className="min-h-9 min-w-9 rounded-md border border-cocoa/20 bg-white px-2 text-sm font-semibold disabled:opacity-50"><strong>B</strong></button>
       <button type="button" disabled={disabled} aria-label="Italic" onMouseDown={event => event.preventDefault()}
-        onClick={() => wrapSelection('*', 'italic text')}
+        onClick={() => wrapSelection(format === 'whatsapp' ? '_' : '*', 'italic text')}
         className="min-h-9 min-w-9 rounded-md border border-cocoa/20 bg-white px-2 text-sm font-semibold disabled:opacity-50"><em>I</em></button>
       <button type="button" disabled={disabled} aria-label="Bulleted list" onMouseDown={event => event.preventDefault()}
         onClick={() => toggleList('- ')}
@@ -127,7 +133,7 @@ export default function RichTextEditor({
       rows={rows}
       value={value}
       onChange={event => {
-        if (event.target.value.length > maxLength || richTextToPlainText(event.target.value).length > maxLength) {
+        if (exceedsLimit(event.target.value)) {
           setLimitError(limitMessage);
           return;
         }
@@ -136,14 +142,16 @@ export default function RichTextEditor({
       }}
       className="w-full resize-y rounded-xl border border-cocoa/25 bg-white p-3 font-normal"
     />
-    <p id={helpId} className={`mt-1 text-xs ${plainText.length > maxLength ? 'text-red-700' : 'text-cocoa/70'}`}>
-      {plainText.length}/{maxLength} visible characters
-      {plainText.length !== value.length && ` · ${value.length}/${maxLength} stored`}
-      {' '}· Use **bold**, *italic*, and list formatting.
+    <p id={helpId} className={`mt-1 text-xs ${maxLength !== undefined && plainText.length > maxLength ? 'text-red-700' : 'text-cocoa/70'}`}>
+      {maxLength !== undefined && <>{plainText.length}/{maxLength} visible characters
+        {plainText.length !== value.length && ` · ${value.length}/${maxLength} stored`}{' · '}</>}
+      {format === 'whatsapp'
+        ? 'WhatsApp displays *bold*, _italic_, and list formatting. Review it in WhatsApp before sending.'
+        : 'Use **bold**, *italic*, and list formatting.'}
     </p>
     {limitError && <p role="alert" className="text-xs text-red-700">{limitError}</p>}
-    <EmojiPicker label={emojiLabel} onSelect={insertEmoji} />
-    {showPreview && <div aria-label={`${label} preview`} className="mt-2 rounded-lg border border-cocoa/15 bg-cream/40 p-3 text-sm">
+    <EmojiPicker label={emojiLabel} disabled={disabled} onSelect={insertEmoji} />
+    {showPreview && format === 'markdown' && <div aria-label={`${label} preview`} className="mt-2 rounded-lg border border-cocoa/15 bg-cream/40 p-3 text-sm">
       <p className="mb-1 text-xs font-semibold text-cocoa/60">Preview</p>
       <RichTextContent value={value} className="space-y-2 whitespace-normal break-words" />
     </div>}

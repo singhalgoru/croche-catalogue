@@ -126,6 +126,9 @@ it('selects distinct product photos, reorders the cover and requires every carou
   expect(mocks.prepare).toHaveBeenCalledWith(expect.objectContaining({
     sourceImageUrl: second, sourceImageUrls: [second, product.image],
   }), expect.arrayContaining([expect.any(File), expect.any(File)]));
+  const savedPhotos = screen.getByRole('list', { name: 'Instagram saved photos' });
+  expect(savedPhotos.textContent).toContain('Photo 1 - Cover');
+  expect(savedPhotos.textContent).toContain('Photo 2');
   fireEvent.load(screen.getByAltText('Saved Instagram post preview 1'));
   expect(confirmation()).toHaveProperty('disabled', true);
   fireEvent.load(screen.getByAltText('Saved Instagram post preview 2'));
@@ -204,10 +207,24 @@ it('refreshes processing without publishing and requires new consent for a ready
   await open();
   await screen.findByText(/Instagram is processing the image/);
   await check();
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh saved posting status (read-only)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Check Instagram status' }));
   await screen.findByText(/Instagram image ready - confirm to publish/);
+  expect(screen.getByRole('status').textContent).toContain('Instagram processing is complete');
   fireEvent.load(screen.getByAltText('Saved Instagram post preview'));
   expect(confirmation()).toHaveProperty('checked', false);
+  expect(mocks.publish).not.toHaveBeenCalled();
+  expect(mocks.prepare).not.toHaveBeenCalled();
+});
+
+it('explains when Instagram is still processing after a read-only status check', async () => {
+  mocks.list.mockResolvedValue([post('instagram', 'processing')]);
+  mocks.refresh.mockResolvedValue([post('instagram', 'processing')]);
+  render(<MarketingSocialPosts initialProduct={product} />);
+  await open();
+  await screen.findByText(/Instagram is processing the image/);
+  fireEvent.click(screen.getByRole('button', { name: 'Check Instagram status' }));
+  await screen.findByText(/Instagram is still processing the saved post/);
+  expect(mocks.refresh).toHaveBeenCalledWith(product.id);
   expect(mocks.publish).not.toHaveBeenCalled();
   expect(mocks.prepare).not.toHaveBeenCalled();
 });

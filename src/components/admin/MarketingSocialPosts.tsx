@@ -133,6 +133,13 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     setPosts(value);
     setPostsLoadError(false);
     setReviewIds(value.filter(post => post.status === 'draft' || post.status === 'ready').map(post => post.id));
+    if (value.some(post => post.platform === 'instagram' && post.status === 'processing')) {
+      setMessage('Instagram is still processing the saved post. Wait a little, then check the status again. Nothing new was published.');
+    } else if (value.some(post => post.platform === 'instagram' && post.status === 'ready')) {
+      setMessage('Instagram processing is complete. Review the saved preview, check publishing access and confirm before publishing.');
+    } else {
+      setMessage('Saved posting status refreshed. Review the results below.');
+    }
   });
   const prepare = () => run('Preparing', async () => {
     if (!product || !setup || !captionsValid || loadingPosts || postsLoadError) throw new Error('Select a product, verify publishing access and review captions first.');
@@ -274,17 +281,32 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
       {reviewDirty && <p role="status" className="text-sm">Photo or caption edits are not saved. Prepare new previews before publishing; checking access or refreshing status does not save edits.</p>}
       {posts.map(post => <article key={post.id} className="grid gap-2 rounded-xl border border-cocoa/25 bg-white p-3 text-sm">
         <h3 className="font-semibold">{labels[post.platform]}: {statuses[post.status]}</h3>
+        {post.status === 'processing' && <div className="rounded-xl border border-mustard/40 bg-cream/60 p-3">
+          <p>Instagram has not finished processing this saved post. Check its status again after a short wait.
+            Checking does not publish or create another post.</p>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void refresh()}
+            className="mt-2 min-h-11 rounded-full border border-cocoa/30 bg-white px-4 font-semibold disabled:opacity-50">
+            {busy === 'Refreshing' ? 'Checking Instagram status...' : 'Check Instagram status'}
+          </button>
+        </div>}
         <p>Product: {post.request.productName}. Page: {post.request.pageName}.
           {post.platform === 'instagram' && ` Instagram: @${post.request.instagramUsername}.`}</p>
-        <div className="flex gap-3 overflow-x-auto">{savedPhotos(post).map((url, index) => <img key={url} src={url}
-          alt={`Saved ${labels[post.platform]} post preview${savedPhotos(post).length > 1 ? ` ${index + 1}` : ''}`}
-          className="h-56 w-56 max-w-full shrink-0 rounded-xl object-contain"
-          onLoad={() => setPreviewReady(current => current.includes(url) ? current : [...current, url])}
-          onError={() => {
-            setPreviewReady(current => current.filter(image => image !== url));
-            setConfirmed(false);
-            setError('A saved JPEG preview could not be loaded. Restore public image access and reload the saved drafts before publishing.');
-          }} />)}</div>
+        <ol aria-label={`${labels[post.platform]} saved photos`} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {savedPhotos(post).map((url, index) => <li key={url} className="min-w-0">
+            <img src={url}
+              alt={`Saved ${labels[post.platform]} post preview${savedPhotos(post).length > 1 ? ` ${index + 1}` : ''}`}
+              className="aspect-square w-full max-w-56 rounded-xl bg-cream/40 object-contain"
+              onLoad={() => setPreviewReady(current => current.includes(url) ? current : [...current, url])}
+              onError={() => {
+                setPreviewReady(current => current.filter(image => image !== url));
+                setConfirmed(false);
+                setError('A saved JPEG preview could not be loaded. Restore public image access and reload the saved drafts before publishing.');
+              }} />
+            {savedPhotos(post).length > 1 && <p className="mt-1 text-xs text-cocoa/70">
+              Photo {index + 1}{index === 0 ? ' - Cover' : ''}
+            </p>}
+          </li>)}
+        </ol>
         <p className="whitespace-pre-wrap">{post.request.caption}</p>
         <a href={post.request.productUrl} target="_blank" rel="noopener noreferrer" className="break-all underline">Review product destination</a>
         {post.error && <p className="text-red-700"><strong>Saved publishing issue:</strong> {post.error}</p>}
