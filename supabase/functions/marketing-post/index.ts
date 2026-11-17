@@ -41,7 +41,7 @@ export async function handler(request: Request) {
   let input;
   let images: File[] = [];
   try {
-    if (Number(request.headers.get('Content-Length')) > 9 * 1024 * 1024 + 65536) throw new Error('The prepared image request is too large.');
+    if (Number(request.headers.get('Content-Length')) > 9 * 1024 * 1024 + 65536) throw new Error('The prepared media request is too large.');
     if (request.headers.get('Content-Type')?.includes('multipart/form-data')) {
       const form = await request.formData();
       const files = form.getAll('image');
@@ -63,7 +63,7 @@ export async function handler(request: Request) {
       const text = await request.text();
       if (text.length > 20000) throw new Error('The social publishing request is too large.');
       input = parsePostInput(JSON.parse(text));
-      if (input.action === 'prepare') throw new Error('Preparing a post requires its JPEG preview upload.');
+      if (input.action === 'prepare' && input.mediaType !== 'video') throw new Error('Preparing a photo post requires its JPEG preview upload.');
     }
   } catch (error) {
     return json({ error: error instanceof SyntaxError ? 'Invalid social publishing JSON.' : failureMessage(error) }, 400);
@@ -83,7 +83,8 @@ export async function handler(request: Request) {
   };
   const readProduct = async (productId: string) => {
     const { data, error } = await service.from('products')
-      .select('id,name,public_slug,image_url,published,product_variants(image_url,product_variant_images(image_url))').eq('id', productId).maybeSingle();
+      .select('id,name,public_slug,image_url,published,product_variants(image_url,product_variant_images(image_url)),product_making_videos(video_url,poster_url,duration_seconds,width,height,title)')
+      .eq('id', productId).maybeSingle();
     if (error) throw new Error('Unable to verify the published product.');
     if (!socialRecord(data) || data.published !== true || typeof data.name !== 'string' || !data.name.trim() || data.name.length > 300
       || typeof data.public_slug !== 'string' || !/^[a-z0-9][a-z0-9-]{0,199}$/.test(data.public_slug) || !socialHttpsUrl(data.image_url)) {
@@ -98,7 +99,19 @@ export async function handler(request: Request) {
         if (socialRecord(image) && socialHttpsUrl(image.image_url)) imageUrls.add(image.image_url);
       }
     }
-    return { name: data.name, imageUrls, productUrl: `https://luviacreations.com/p/${data.public_slug}/` };
+    const videoRow = Array.isArray(data.product_making_videos) ? data.product_making_videos[0] : data.product_making_videos;
+    let makingVideo: { videoUrl: string; posterUrl: string; durationSeconds: number; width: number; height: number } | undefined;
+    if (videoRow !== null && videoRow !== undefined) {
+      if (!socialRecord(videoRow) || !socialHttpsUrl(videoRow.video_url) || !socialHttpsUrl(videoRow.poster_url)
+        || typeof videoRow.duration_seconds !== 'number' || videoRow.duration_seconds < 1 || videoRow.duration_seconds > 60
+        || !Number.isSafeInteger(videoRow.width) || videoRow.width < 2
+        || !Number.isSafeInteger(videoRow.height) || videoRow.height < 2) {
+        throw new Error('The product making video metadata is invalid. Refresh product media before posting.');
+      }
+      makingVideo = { videoUrl: videoRow.video_url, posterUrl: videoRow.poster_url,
+        durationSeconds: videoRow.duration_seconds, width: videoRow.width, height: videoRow.height };
+    }
+    return { name: data.name, imageUrls, productUrl: `https://luviacreations.com/p/${data.public_slug}/`, makingVideo };
   };
   try {
     const pageId = env('META_PAGE_ID')?.trim();
@@ -106,30 +119,46 @@ export async function handler(request: Request) {
     const enabled = env('META_ORGANIC_PUBLISHING_ENABLED') === 'true';
     const { config } = await loadMetaAccess(env);
     if (input.action === 'setup') {
-      const access = await publishingAccess(config, pageId, input.platforms, enabled);
+      const access = await publishingAccess(config, pageId, input.platforms, enabled, fetch, env('META_APP_ID')?.trim());
       return json({ setup: access.setup });
     }
     if (input.action === 'prepare') {
-      if (!images.length) throw new Error('Prepared JPEG previews are required.');
+      if (input.mediaType === 'video' ? images.length !== 0 : !images.length) {
+        throw new Error('Prepare a photo post with JPEG previews or a video post without photo uploads.');
+      }
       const product = await readProduct(input.productId);
       const sources = input.sourceImageUrls ?? [input.sourceImageUrl];
       if (sources.some(source => !product.imageUrls.has(source))) throw new Error('A selected product image changed or does not belong to this product. Prepare new previews.');
+      if (input.mediaType === 'video' && (!product.makingVideo || input.videoUrl !== product.makingVideo.videoUrl)) {
+        throw new Error('The making video is no longer published for this product. Refresh product media before preparing the post.');
+      }
       const platforms = Object.keys(input.captions).filter((platform): platform is SocialPlatform => platform === 'facebook' || platform === 'instagram');
+      if (input.mediaType === 'video' && platforms.includes('instagram') && (product.makingVideo?.durationSeconds ?? 0) < 3) {
+        throw new Error('Instagram Reels require a video of at least 3 seconds. Choose a longer making video or post to Facebook only.');
+      }
       const existing = await readPosts(input.productId);
       if (existing.some(post => platforms.includes(post.platform) && post.status !== 'draft')) {
         throw new Error('A selected platform already has a publishing attempt for this product. Refresh its status; do not prepare a duplicate.');
       }
-      const access = await publishingAccess(config, pageId, platforms, enabled);
+      const access = await publishingAccess(config, pageId, platforms, enabled, fetch, env('META_APP_ID')?.trim());
+      if (input.mediaType === 'video' && platforms.includes('facebook') && !access.videoUpload) {
+        throw new Error('Facebook video upload is not configured. Contact the site operator before preparing this post.');
+      }
       if (input.pageId !== pageId || (platforms.includes('instagram') && input.instagramUserId !== access.setup.instagram?.id)) {
         throw new Error('The publishing identity changed. Check publishing access again before preparing the preview.');
       }
       const imageUrls: string[] = [];
-      for (const image of images) imageUrls.push(await storePostImage(env, input.productId, new Uint8Array(await image.arrayBuffer())));
+      if (input.mediaType !== 'video') {
+        for (const image of images) imageUrls.push(await storePostImage(env, input.productId, new Uint8Array(await image.arrayBuffer())));
+      }
       for (const platform of platforms) {
         const caption = input.captions[platform];
         if (!caption) throw new Error('A reviewed caption is missing.');
         const snapshot: SocialPostSnapshot = {
-          productName: product.name, productUrl: product.productUrl, sourceImageUrl: sources[0], imageUrl: imageUrls[0], caption,
+          productName: product.name, productUrl: product.productUrl,
+          sourceImageUrl: input.mediaType === 'video' ? input.sourceImageUrl : sources[0],
+          imageUrl: input.mediaType === 'video' ? product.makingVideo!.posterUrl : imageUrls[0], caption,
+          ...(input.mediaType === 'video' ? { mediaType: 'video' as const, videoUrl: product.makingVideo!.videoUrl } : {}),
           ...(input.sourceImageUrls ? { sourceImageUrls: sources, imageUrls } : {}),
           pageId, pageName: access.setup.pageName,
           ...(platform === 'instagram' && access.setup.instagram ? {
@@ -150,7 +179,7 @@ export async function handler(request: Request) {
       const refreshable = posts.filter(post => post.status !== 'draft' && post.status !== 'published'
         && (post.post_id || (post.platform === 'instagram' && post.container_id && !post.publish_started_at)));
       if (refreshable.length) {
-        const access = await publishingAccess(config, pageId, refreshable.map(post => post.platform), enabled);
+        const access = await publishingAccess(config, pageId, refreshable.map(post => post.platform), enabled, fetch, env('META_APP_ID')?.trim());
         for (const post of refreshable) {
           verifyPublishingIdentity(post, access);
           await checkpoint(post, post.post_id
@@ -171,12 +200,16 @@ export async function handler(request: Request) {
       throw new Error('A post was changed or already attempted. Refresh and review the saved status; do not retry publishing.');
     }
     const product = await readProduct(productId);
-    const access = await publishingAccess(config, pageId, posts.map(post => post.platform), enabled);
+    const access = await publishingAccess(config, pageId, posts.map(post => post.platform), enabled, fetch, env('META_APP_ID')?.trim());
     for (const post of posts) {
       verifyPublishingIdentity(post, access);
       if ((post.request.sourceImageUrls ?? [post.request.sourceImageUrl]).some(source => !product.imageUrls.has(source))
-        || product.productUrl !== post.request.productUrl) {
-        throw new Error('The product image or public URL changed after review. Do not publish this stale draft.');
+        || product.productUrl !== post.request.productUrl
+        || (post.request.mediaType === 'video' && product.makingVideo?.videoUrl !== post.request.videoUrl)) {
+        throw new Error('The product media or public URL changed after review. Do not publish this stale draft.');
+      }
+      if (post.platform === 'facebook' && post.request.mediaType === 'video' && !access.videoUpload) {
+        throw new Error('Facebook video upload is not configured. Contact the site operator before publishing.');
       }
     }
     for (const original of posts) {
@@ -190,7 +223,7 @@ export async function handler(request: Request) {
           post = await checkpoint(post, { request: { ...post.request, childMediaIds } });
         };
         if (post.platform === 'facebook') {
-          const postId = await createFacebookPost(post, access.config, fetch, saveChildren);
+          const postId = await createFacebookPost(post, access.config, fetch, saveChildren, access.videoUpload);
           post = await checkpoint(post, { post_id: postId });
         } else {
           if (!post.container_id) {

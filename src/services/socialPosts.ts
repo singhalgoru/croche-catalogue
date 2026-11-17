@@ -1,7 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import { getImageStorageErrorMessage } from './r2ImageStorage';
 import {
-  parseSocialPost, socialNumericId, socialRecord,
+  parseSocialPost, socialHttpsUrl, socialNumericId, socialRecord,
   type SocialPlatform, type SocialPost, type SocialPublishingSetup,
 } from '../../supabase/functions/_shared/socialPosts';
 import { socialPostColumns } from '../../supabase/functions/_shared/socialPosts';
@@ -51,8 +51,16 @@ export async function checkSocialPublishing(platforms: SocialPlatform[]): Promis
 
 export async function prepareProductSocialPosts(input: {
   productId: string; sourceImageUrl: string; sourceImageUrls?: string[]; pageId: string; instagramUserId?: string;
+  mediaType?: 'image' | 'video'; videoUrl?: string;
   captions: Partial<Record<SocialPlatform, string>>;
-}, image: File | File[]): Promise<SocialPost[]> {
+}, image?: File | File[]): Promise<SocialPost[]> {
+  if (input.mediaType === 'video') {
+    if (!socialHttpsUrl(input.videoUrl) || image !== undefined || input.sourceImageUrls !== undefined) {
+      throw new Error('Choose a current product making video without photo uploads.');
+    }
+    return parsePosts(await invoke({ ...input, action: 'prepare' }), input.productId);
+  }
+  if (!image || input.videoUrl !== undefined) throw new Error('Prepare a post with JPEG previews or a published making video.');
   const images = Array.isArray(image) ? image : [image];
   if (!images.length || images.length > 10 || (input.sourceImageUrls && input.sourceImageUrls.length !== images.length)) {
     throw new Error('Select between 1 and 10 product images with matching JPEG previews.');

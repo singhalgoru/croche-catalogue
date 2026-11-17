@@ -52,6 +52,19 @@ it('uploads ordered carousel JPEGs and rejects mismatched or oversized selection
   expect(mocks.invoke).not.toHaveBeenCalled();
 });
 
+it('prepares a published making video with a JSON request and no media re-upload', async () => {
+  const input = {
+    productId, sourceImageUrl: 'https://images.example.test/photo.webp', pageId: '456',
+    mediaType: 'video' as const, videoUrl: 'https://videos.example.test/making-videos/job/video.mp4',
+    captions: { instagram: 'Watch the making video' }, instagramUserId: '999',
+  };
+  await prepareProductSocialPosts(input);
+  expect(mocks.invoke).toHaveBeenCalledWith('marketing-post', { body: { ...input, action: 'prepare' } });
+  await expect(prepareProductSocialPosts({ ...input, videoUrl: 'http://videos.example.test/video.mp4' }))
+    .rejects.toThrow('current product making video');
+  expect(mocks.invoke).toHaveBeenCalledOnce();
+});
+
 it('surfaces permission diagnostics and rejects malformed saved-post responses', async () => {
   mocks.invoke.mockResolvedValueOnce({
     data: null, error: { message: 'Function error', context: new Response('{"error":"Reconnect Meta with pages_manage_posts granted."}') },

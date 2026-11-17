@@ -32,6 +32,15 @@ const post = (platform: SocialPlatform, status: SocialPost['status'] = 'draft'):
   container_id: status === 'ready' ? '300' : null, post_id: null, permalink: null, error: null,
   attempt_started_at: status === 'ready' ? '2026-01-01T00:00:00Z' : null, publish_started_at: null, updated_at: '2026-01-01T00:00:00Z',
 });
+const makingVideo = {
+  title: 'Making the bag', videoUrl: 'https://videos.example.test/making-videos/job/video.mp4',
+  posterUrl: 'https://images.example.test/making-videos/job/poster.webp',
+  durationSeconds: 20, width: 1280, height: 720,
+};
+const videoPost = (platform: SocialPlatform): SocialPost => ({
+  ...post(platform),
+  request: { ...post(platform).request, mediaType: 'video', videoUrl: makingVideo.videoUrl, imageUrl: makingVideo.posterUrl },
+});
 let restore: () => void;
 beforeEach(() => {
   vi.resetAllMocks();
@@ -99,6 +108,31 @@ it('prepares JPEG review first, requires loaded previews and explicit live confi
   fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish LIVE' }));
   await waitFor(() => expect(mocks.publish).toHaveBeenCalledWith(product.id, [
     { id: post('facebook').id, revision: 3 }, { id: post('instagram').id, revision: 3 },
+  ]));
+});
+
+it('prepares a published making video for both platforms and requires video previews before live confirmation', async () => {
+  const productWithVideo = { ...product, makingVideo };
+  mocks.products.mockResolvedValue([productWithVideo]);
+  mocks.prepare.mockResolvedValueOnce([videoPost('facebook'), videoPost('instagram')]);
+  render(<MarketingSocialPosts initialProduct={productWithVideo} />);
+  await open();
+  fireEvent.click(screen.getByRole('radio', { name: /Making video/ }));
+  expect(screen.getByLabelText('Crochet bag making video')).toBeTruthy();
+  await check();
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare post previews (does not publish)' }));
+  await screen.findByText(/Video post previews saved\. Nothing has been published\./);
+  expect(mocks.prepare).toHaveBeenCalledWith(expect.objectContaining({
+    mediaType: 'video', videoUrl: makingVideo.videoUrl, sourceImageUrl: product.image,
+  }));
+  expect(mocks.jpeg).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Confirm and publish LIVE' })).toHaveProperty('disabled', true);
+  fireEvent.loadedData(screen.getByLabelText('Saved Facebook Page video preview'));
+  fireEvent.loadedData(screen.getByLabelText('Saved Instagram video preview'));
+  fireEvent.click(confirmation());
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish LIVE' }));
+  await waitFor(() => expect(mocks.publish).toHaveBeenCalledWith(product.id, [
+    { id: videoPost('facebook').id, revision: 3 }, { id: videoPost('instagram').id, revision: 3 },
   ]));
 });
 

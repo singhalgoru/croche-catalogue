@@ -42,7 +42,7 @@ const productId = '00000000-0000-4000-8000-000000000002';
 const ids = { facebook: '00000000-0000-4000-8000-000000000003', instagram: '00000000-0000-4000-8000-000000000004' };
 const env: Record<string, string> = {
   SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon-fixture', SUPABASE_SERVICE_ROLE_KEY: 'service-fixture',
-  META_ORGANIC_PUBLISHING_ENABLED: 'true', META_PAGE_ID: '456',
+  META_ORGANIC_PUBLISHING_ENABLED: 'true', META_PAGE_ID: '456', META_APP_ID: '123',
 };
 const fixture = (platform: SocialPlatform, overrides: Partial<SocialPost> = {}): SocialPost => ({
   id: ids[platform], product_id: productId, platform, status: 'draft',
@@ -71,6 +71,15 @@ const prepare = (overrides = {}, files = [new File(['jpeg-fixture'], 'post.jpg',
   for (const file of files) body.append('image', file);
   return new Request('https://example.test/marketing-post', { method: 'POST', headers: { Authorization: 'Bearer fixture' }, body });
 };
+const prepareVideo = (videoUrl = 'https://videos.example.test/making-videos/job/video.mp4') => request({
+  action: 'prepare', productId, pageId: '456', sourceImageUrl: 'https://images.example.test/bag.webp',
+  mediaType: 'video', videoUrl, instagramUserId: '999', captions: { instagram: 'Watch the making video' },
+});
+const makingVideo = {
+  video_url: 'https://videos.example.test/making-videos/job/video.mp4',
+  poster_url: 'https://images.example.test/making-videos/job/poster.webp',
+  duration_seconds: 20, width: 1280, height: 720,
+};
 
 beforeAll(async () => {
   vi.stubGlobal('Deno', { env: { get: (name: string) => env[name] }, serve: (handler: typeof handle) => { handle = handler; } });
@@ -87,7 +96,7 @@ beforeEach(() => {
   mocks.readProduct.mockResolvedValue({ data: {
     id: productId, name: 'Bag', image_url: 'https://images.example.test/bag.webp', public_slug: 'bag', published: true,
     product_variants: [{ image_url: 'https://images.example.test/variant.webp',
-      product_variant_images: [{ image_url: 'https://images.example.test/gallery.webp' }] }],
+      product_variant_images: [{ image_url: 'https://images.example.test/gallery.webp' }] }], product_making_videos: null,
   }, error: null });
   mocks.readPosts.mockImplementation(async id => ({ data: structuredClone(rows.filter(row => row.product_id === id)), error: null }));
   mocks.readMany.mockImplementation(async values => ({ data: structuredClone(rows.filter(row => values.includes(row.id))), error: null }));
@@ -105,6 +114,7 @@ beforeEach(() => {
   mocks.publishingAccess.mockResolvedValue({
     config: { accessToken: 'page-token-fixture', accountId: '123', graphApiVersion: 'v27.0' },
     setup: { enabled: true, pageId: '456', pageName: 'Page', instagram: { id: '999', username: 'luvia' } },
+    videoUpload: { appId: '123', userAccessToken: 'login-token-fixture', graphApiVersion: 'v27.0' },
   });
   mocks.createFacebookPost.mockResolvedValue('456_100');
   mocks.createInstagramContainer.mockResolvedValue('300');
@@ -123,6 +133,54 @@ it('denies anonymous and password-only/non-admin requests before ledger/provider
   expect(mocks.rpc).toHaveBeenCalledWith('is_catalogue_admin');
   expect(mocks.loadMetaAccess).not.toHaveBeenCalled();
   expect(mocks.readMany).not.toHaveBeenCalled();
+});
+
+it('prepares and safely publishes a verified product making video without re-uploading it', async () => {
+  mocks.readProduct.mockResolvedValue({
+    data: {
+      id: productId, name: 'Bag', image_url: 'https://images.example.test/bag.webp', public_slug: 'bag', published: true,
+      product_variants: [{ image_url: 'https://images.example.test/variant.webp', product_variant_images: [] }],
+      product_making_videos: makingVideo,
+    }, error: null,
+  });
+  const prepared = await handle(prepareVideo());
+  expect(prepared.status).toBe(200);
+  expect(rows.find(row => row.platform === 'instagram')?.request).toMatchObject({
+    mediaType: 'video', videoUrl: makingVideo.video_url, imageUrl: makingVideo.poster_url,
+  });
+  expect(mocks.storePostImage).not.toHaveBeenCalled();
+  expect(mocks.createInstagramContainer).not.toHaveBeenCalled();
+
+  const saved = rows.find(row => row.platform === 'instagram')!;
+  const result = await handle(request({
+    action: 'publish', confirmLive: true, posts: [{ id: saved.id, revision: saved.revision }],
+  }));
+  expect(result.status).toBe(200);
+  expect(mocks.createInstagramContainer).toHaveBeenCalledWith(
+    expect.objectContaining({ request: expect.objectContaining({ videoUrl: makingVideo.video_url }) }),
+    expect.anything(), expect.anything(), expect.anything(),
+  );
+  expect(mocks.publishInstagramContainer).toHaveBeenCalledOnce();
+  expect(rows.find(row => row.id === saved.id)).toMatchObject({ status: 'published', post_id: '400' });
+});
+
+it('rejects stale making videos and too-short Instagram Reels before saving any draft', async () => {
+  mocks.readProduct.mockResolvedValueOnce({
+    data: {
+      id: productId, name: 'Bag', image_url: 'https://images.example.test/bag.webp', public_slug: 'bag', published: true,
+      product_variants: [], product_making_videos: { ...makingVideo, video_url: 'https://videos.example.test/making-videos/replaced.mp4' },
+    }, error: null,
+  });
+  expect((await handle(prepareVideo())).status).toBe(502);
+  expect(mocks.insert).not.toHaveBeenCalled();
+  mocks.readProduct.mockResolvedValueOnce({
+    data: {
+      id: productId, name: 'Bag', image_url: 'https://images.example.test/bag.webp', public_slug: 'bag', published: true,
+      product_variants: [], product_making_videos: { ...makingVideo, duration_seconds: 2 },
+    }, error: null,
+  });
+  expect((await handle(prepareVideo())).status).toBe(502);
+  expect(mocks.insert).not.toHaveBeenCalled();
 });
 
 it('requires explicit live consent and rejects injected payloads before writes', async () => {

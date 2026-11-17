@@ -9,10 +9,12 @@ type Fetcher = typeof fetch;
 export interface PublishingAccess {
   config: MetaConfig;
   setup: SocialPublishingSetup;
+  videoUpload?: { appId: string; userAccessToken: string; graphApiVersion: string };
 }
 
 export async function publishingAccess(
   config: MetaConfig, pageId: string, platforms: SocialPlatform[], enabled: boolean, fetcher: Fetcher = fetch,
+  appId?: string,
 ): Promise<PublishingAccess> {
   const permissions = await graph(config, 'me/permissions', 'GET', {}, fetcher, 'organic publishing request');
   const required = ['pages_show_list', 'pages_read_engagement',
@@ -70,7 +72,14 @@ export async function publishingAccess(
     }
     instagram = { id: account.id, username: account.username };
   }
-  return { config: pageConfig, setup: { enabled, pageId, pageName: page.name, ...(instagram ? { instagram } : {}) } };
+  const videoUpload = appId && /^\d{1,30}$/.test(appId)
+    ? { appId, userAccessToken: config.accessToken, graphApiVersion: config.graphApiVersion }
+    : undefined;
+  return {
+    config: pageConfig,
+    setup: { enabled, pageId, pageName: page.name, ...(instagram ? { instagram } : {}) },
+    ...(videoUpload ? { videoUpload } : {}),
+  };
 }
 
 export function verifyPublishingIdentity(post: SocialPost, access: PublishingAccess) {
@@ -82,13 +91,28 @@ export function verifyPublishingIdentity(post: SocialPost, access: PublishingAcc
 
 export async function readPublishedPost(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
   if (!post.post_id) throw new Error('No saved post ID is available. Inspect the destination profile; do not publish again.');
+  const isVideo = post.request.mediaType === 'video';
   const result = await graph(config, post.post_id, 'GET', {
-    fields: post.platform === 'facebook' ? 'id,permalink_url,is_published,from' : 'id,permalink,media_type',
+    fields: post.platform === 'facebook'
+      ? isVideo ? 'id,permalink_url,published,from,status' : 'id,permalink_url,is_published,from'
+      : isVideo ? 'id,permalink,media_type,media_product_type' : 'id,permalink,media_type',
   }, fetcher, 'organic publishing request');
+  if (post.platform === 'facebook' && isVideo) {
+    const videoStatus = socialRecord(result.status) ? result.status.video_status : undefined;
+    if (videoStatus === 'error') {
+      return { status: 'needs_attention' as const, error: 'Facebook could not process this video. Inspect the Page before taking further action.' };
+    }
+    if (result.published !== true || videoStatus === 'processing' || videoStatus === 'uploading') {
+      return { status: 'processing' as const, error: null };
+    }
+  }
   const permalink = post.platform === 'facebook' ? result.permalink_url : result.permalink;
   if (result.id !== post.post_id || !socialPermalink(permalink, post.platform)
-    || (post.platform === 'facebook' && (result.is_published !== true || !socialRecord(result.from) || result.from.id !== post.request.pageId))
-    || (post.platform === 'instagram' && result.media_type !== (socialPostImageUrls(post.request).length > 1 ? 'CAROUSEL_ALBUM' : 'IMAGE'))) {
+    || (post.platform === 'facebook' && ((isVideo ? result.published !== true : result.is_published !== true)
+      || !socialRecord(result.from) || result.from.id !== post.request.pageId))
+    || (post.platform === 'instagram' && (isVideo
+      ? result.media_type !== 'VIDEO' || result.media_product_type !== 'REELS'
+      : result.media_type !== (socialPostImageUrls(post.request).length > 1 ? 'CAROUSEL_ALBUM' : 'IMAGE')))) {
     throw new Error('Meta did not verify the published image post. Inspect the destination profile; do not publish again.');
   }
   return { status: 'published' as const, permalink, error: null };
@@ -125,7 +149,104 @@ async function createChildren(
   return ids;
 }
 
-export async function createFacebookPost(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren) {
+const MAX_FACEBOOK_VIDEO_BYTES = 500 * 1024 * 1024;
+const record = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+async function uploadFacebookVideo(
+  post: SocialPost, pageConfig: MetaConfig, uploadConfig: NonNullable<PublishingAccess['videoUpload']>, fetcher: Fetcher,
+) {
+  const videoUrl = post.request.videoUrl;
+  if (!videoUrl) throw new Error('A published product video is required. Inspect the product media before publishing.');
+
+  let source: Response;
+  try {
+    source = await fetcher(videoUrl, { method: 'HEAD', redirect: 'error', signal: AbortSignal.timeout(15_000) });
+  } catch {
+    throw new Error('The saved product video could not be reached. Inspect the product media; do not retry an uncertain post.');
+  }
+  const contentLength = source.headers.get('Content-Length');
+  const byteLength = contentLength && /^\d+$/.test(contentLength) ? Number(contentLength) : NaN;
+  if (!source.ok || source.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'video/mp4'
+    || !Number.isSafeInteger(byteLength) || byteLength < 1 || byteLength > MAX_FACEBOOK_VIDEO_BYTES) {
+    throw new Error('Facebook video upload requires a reachable MP4 up to 500 MB. Check the published product video; do not retry.');
+  }
+
+  const graphUrl = `https://graph.facebook.com/${uploadConfig.graphApiVersion}`;
+  let session: unknown;
+  try {
+    const response = await fetcher(`${graphUrl}/${uploadConfig.appId}/uploads?${new URLSearchParams({
+      file_name: 'product-making-video.mp4', file_length: String(byteLength), file_type: 'video/mp4',
+    })}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${uploadConfig.userAccessToken}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    session = await response.json();
+    if (!response.ok || !record(session)) throw new Error('upload session rejected');
+  } catch {
+    throw new Error('Meta could not start the Facebook video upload. Inspect the Page before taking further action.');
+  }
+  if (typeof session.id !== 'string' || !/^upload:[A-Za-z0-9._:-]{1,200}$/.test(session.id)) {
+    throw new Error('Meta returned an invalid Facebook video upload session. Inspect the Page; do not retry.');
+  }
+
+  let video: Response;
+  try {
+    video = await fetcher(videoUrl, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(90_000) });
+  } catch {
+    throw new Error('The saved product video download failed. Inspect the Page before taking further action.');
+  }
+  const downloadedLength = video.headers.get('Content-Length');
+  if (!video.ok || video.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'video/mp4'
+    || downloadedLength !== String(byteLength) || !video.body) {
+    await video.body?.cancel();
+    throw new Error('The published product video changed during upload. Inspect the Page; do not retry.');
+  }
+
+  let uploaded: unknown;
+  try {
+    const response = await fetcher(`${graphUrl}/${session.id}`, {
+      method: 'POST',
+      headers: { Authorization: `OAuth ${uploadConfig.userAccessToken}`, 'Content-Type': 'video/mp4', file_offset: '0' },
+      body: video.body,
+      signal: AbortSignal.timeout(120_000),
+    });
+    uploaded = await response.json();
+    if (!response.ok || !record(uploaded)) throw new Error('video bytes rejected');
+  } catch {
+    throw new Error('Meta could not receive the Facebook video. Inspect the Page before taking further action.');
+  }
+  if (typeof uploaded.h !== 'string' || !uploaded.h.trim() || uploaded.h.length > 10000) {
+    throw new Error('Meta returned an invalid Facebook video handle. Inspect the Page; do not retry.');
+  }
+
+  let published: unknown;
+  try {
+    const response = await fetcher(`https://graph-video.facebook.com/${pageConfig.graphApiVersion}/${post.request.pageId}/videos`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${pageConfig.accessToken}` },
+      body: new URLSearchParams({
+        title: post.request.productName, description: post.request.caption, fbuploader_video_file_chunk: uploaded.h,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    published = await response.json();
+    if (!response.ok || !record(published)) throw new Error('video publish rejected');
+  } catch {
+    throw new Error('Facebook could not publish the uploaded video. Inspect the Page before taking further action.');
+  }
+  if (!socialNumericId(published.id)) throw new Error('Facebook did not return a valid video ID. Inspect the Page; do not retry.');
+  return published.id;
+}
+
+export async function createFacebookPost(
+  post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren,
+  videoUpload?: PublishingAccess['videoUpload'],
+) {
+  if (post.request.mediaType === 'video') {
+    if (!videoUpload) throw new Error('Facebook video upload is not configured. Contact the site operator.');
+    return uploadFacebookVideo(post, config, videoUpload, fetcher);
+  }
   const images = socialPostImageUrls(post.request);
   let result: Record<string, unknown>;
   if (images.length > 1) {
@@ -150,6 +271,15 @@ export async function createFacebookPost(post: SocialPost, config: MetaConfig, f
 export async function createInstagramContainer(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren) {
   if (!socialNumericId(post.request.instagramUserId)) throw new Error('A verified Instagram publishing identity is required.');
   const path = `${post.request.instagramUserId}/media`;
+  if (post.request.mediaType === 'video') {
+    if (!post.request.videoUrl) throw new Error('A published product video is required. Inspect the product media before publishing.');
+    const result = await graph(config, path, 'POST', {
+      media_type: 'REELS', video_url: post.request.videoUrl, cover_url: post.request.imageUrl,
+      caption: post.request.caption, share_to_feed: 'true',
+    }, fetcher, 'organic publishing request');
+    if (!socialNumericId(result.id)) throw new Error('Instagram did not return a valid Reel container ID. Inspect Meta; do not retry.');
+    return result.id;
+  }
   const images = socialPostImageUrls(post.request);
   const parameters: Record<string, string> = images.length > 1
     ? { media_type: 'CAROUSEL', children: (await createChildren(post, url => graph(config, path, 'POST', {

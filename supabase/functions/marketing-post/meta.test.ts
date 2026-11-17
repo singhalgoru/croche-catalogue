@@ -142,6 +142,66 @@ it('uses only photo/container/publish endpoints with exact reviewed content and 
   ]);
 });
 
+it('creates an Instagram Reel and publishes a Facebook video through Meta resumable upload', async () => {
+  const pageConfig = { ...config, accessToken: page.access_token };
+  const videoPost = (platform: SocialPost['platform']): SocialPost => ({
+    ...post(platform),
+    request: { ...post(platform).request, mediaType: 'video', videoUrl: 'https://videos.example.test/making-videos/job/video.mp4' },
+  });
+  fetcher.mockResolvedValueOnce(response({ id: '300' }))
+    .mockResolvedValueOnce(new Response(null, { status: 200, headers: { 'Content-Type': 'video/mp4', 'Content-Length': '12' } }))
+    .mockResolvedValueOnce(response({ id: 'upload:session-1' }))
+    .mockResolvedValueOnce(new Response(new Uint8Array(12), { status: 200, headers: { 'Content-Type': 'video/mp4', 'Content-Length': '12' } }))
+    .mockResolvedValueOnce(response({ h: 'uploaded-file-handle' }))
+    .mockResolvedValueOnce(response({ id: '500' }));
+  await expect(createInstagramContainer(videoPost('instagram'), pageConfig, fetcher)).resolves.toBe('300');
+  await expect(createFacebookPost(videoPost('facebook'), pageConfig, fetcher, undefined, {
+    appId: '123', userAccessToken: config.accessToken, graphApiVersion: config.graphApiVersion,
+  })).resolves.toBe('500');
+  expect(fetcher.mock.calls.slice(0, 1).map(([url, options]) => ({
+    path: new URL(String(url)).pathname, body: Object.fromEntries(new URLSearchParams(String(options?.body))),
+  }))).toEqual([
+    { path: '/v27.0/999/media', body: {
+      media_type: 'REELS', video_url: 'https://videos.example.test/making-videos/job/video.mp4',
+      cover_url: 'https://images.example.test/post.jpg', caption: 'Handmade bag', share_to_feed: 'true',
+    } },
+  ]);
+  const calls = fetcher.mock.calls.slice(1);
+  expect(String(calls[0][0])).toBe('https://videos.example.test/making-videos/job/video.mp4');
+  expect(calls[0][1]?.method).toBe('HEAD');
+  expect(new URL(String(calls[1][0])).pathname).toBe('/v27.0/123/uploads');
+  expect(new URL(String(calls[1][0])).searchParams).toEqual(new URLSearchParams({
+    file_name: 'product-making-video.mp4', file_length: '12', file_type: 'video/mp4',
+  }));
+  expect(calls[2][1]?.method).toBe('GET');
+  expect(new URL(String(calls[3][0])).pathname).toBe('/v27.0/upload:session-1');
+  expect(calls[3][1]?.headers).toMatchObject({ Authorization: `OAuth ${config.accessToken}`, file_offset: '0' });
+  expect(calls[4][1]?.body).toEqual(new URLSearchParams({
+    title: 'Bag', description: 'Handmade bag', fbuploader_video_file_chunk: 'uploaded-file-handle',
+  }));
+  expect(new URL(String(calls[4][0])).hostname).toBe('graph-video.facebook.com');
+});
+
+it('checks video processing before confirming each platform publication', async () => {
+  const facebookVideo: SocialPost = { ...post('facebook'), request: {
+    ...post('facebook').request, mediaType: 'video', videoUrl: 'https://videos.example.test/making-videos/job/video.mp4',
+  }, post_id: '500' };
+  fetcher.mockResolvedValueOnce(response({ id: '500', published: false, status: { video_status: 'processing' } }));
+  await expect(readPublishedPost(facebookVideo, config, fetcher)).resolves.toEqual({ status: 'processing', error: null });
+  fetcher.mockResolvedValueOnce(response({
+    id: '500', published: true, status: { video_status: 'ready' },
+    from: { id: '456' }, permalink_url: 'https://www.facebook.com/456/videos/500',
+  }));
+  await expect(readPublishedPost(facebookVideo, config, fetcher)).resolves.toMatchObject({ status: 'published' });
+  const instagramVideo: SocialPost = { ...post('instagram'), request: {
+    ...post('instagram').request, mediaType: 'video', videoUrl: 'https://videos.example.test/making-videos/job/video.mp4',
+  }, post_id: '600' };
+  fetcher.mockResolvedValueOnce(response({
+    id: '600', media_type: 'VIDEO', media_product_type: 'REELS', permalink: 'https://www.instagram.com/p/abc/',
+  }));
+  await expect(readPublishedPost(instagramVideo, config, fetcher)).resolves.toMatchObject({ status: 'published' });
+});
+
 it.each([
   ['IN_PROGRESS', 'processing'], ['FINISHED', 'ready'], ['PUBLISHED', 'needs_attention'],
   ['ERROR', 'needs_attention'], ['EXPIRED', 'needs_attention'],

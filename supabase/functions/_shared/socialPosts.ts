@@ -32,6 +32,8 @@ export function socialPermalink(value: unknown, platform: SocialPlatform): value
 export interface SocialPostSnapshot {
   productName: string;
   productUrl: string;
+  mediaType?: 'image' | 'video';
+  videoUrl?: string;
   sourceImageUrl: string;
   imageUrl: string;
   sourceImageUrls?: string[];
@@ -87,6 +89,13 @@ export function parseSocialPost(value: unknown): SocialPost {
     throw new Error('Invalid saved social post response.');
   }
   const snapshot = value.request;
+  const mediaType = snapshot.mediaType ?? 'image';
+  if ((mediaType !== 'image' && mediaType !== 'video')
+    || (mediaType === 'video' && (!socialHttpsUrl(snapshot.videoUrl)
+      || snapshot.sourceImageUrls !== undefined || snapshot.imageUrls !== undefined || snapshot.childMediaIds !== undefined))
+    || (mediaType === 'image' && snapshot.videoUrl !== undefined)) {
+    throw new Error('Invalid saved social post media.');
+  }
   const hasImages = snapshot.sourceImageUrls !== undefined || snapshot.imageUrls !== undefined;
   if ((hasImages && (!socialImageUrlList(snapshot.sourceImageUrls) || !socialImageUrlList(snapshot.imageUrls)
     || snapshot.sourceImageUrls.length !== snapshot.imageUrls.length
@@ -103,9 +112,12 @@ export function parseSocialPost(value: unknown): SocialPost {
     || (value.attempt_started_at !== null && !timestamp(value.attempt_started_at))
     || (value.publish_started_at !== null && !timestamp(value.publish_started_at))
     || (value.permalink !== null && !socialPermalink(value.permalink, value.platform))
-    || (value.post_id !== null && !(value.platform === 'instagram' ? /^\d{1,30}$/ : /^\d{1,30}_\d{1,30}$/).test(value.post_id))
+    || (value.post_id !== null && !(value.platform === 'instagram' || mediaType === 'video'
+      ? /^\d{1,30}$/ : /^\d{1,30}_\d{1,30}$/).test(value.post_id))
     || (value.status === 'published' && (!value.post_id || !value.permalink))
-    || ((value.status === 'processing' || value.status === 'ready') && (value.platform !== 'instagram' || !value.container_id))) {
+    || (value.status === 'processing' && !((value.platform === 'instagram' && value.container_id)
+      || (value.platform === 'facebook' && mediaType === 'video' && value.post_id)))
+    || (value.status === 'ready' && (value.platform !== 'instagram' || !value.container_id))) {
     throw new Error('Invalid saved social post details.');
   }
   let instagram: Pick<SocialPostSnapshot, 'instagramUserId' | 'instagramUsername'> = {};
@@ -119,6 +131,8 @@ export function parseSocialPost(value: unknown): SocialPost {
     request: {
       productName: snapshot.productName, productUrl: snapshot.productUrl, sourceImageUrl: snapshot.sourceImageUrl,
       imageUrl: snapshot.imageUrl, caption: snapshot.caption, pageId: snapshot.pageId, pageName: snapshot.pageName, ...instagram,
+      ...(snapshot.mediaType !== undefined ? { mediaType } : {}),
+      ...(typeof snapshot.videoUrl === 'string' ? { videoUrl: snapshot.videoUrl } : {}),
       ...(hasImages ? { sourceImageUrls: [...snapshot.sourceImageUrls as string[]], imageUrls: [...snapshot.imageUrls as string[]] } : {}),
       ...(snapshot.childMediaIds !== undefined ? { childMediaIds: [...snapshot.childMediaIds as string[]] } : {}),
     },

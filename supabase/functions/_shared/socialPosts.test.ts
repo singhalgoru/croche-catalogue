@@ -23,6 +23,20 @@ it('preserves legacy singleton snapshots and ordered paired lists with partial c
   expect(socialPostImageUrls(parseSocialPost(value).request)).toEqual(value.request.imageUrls);
 });
 
+it('parses saved making-video media and allows a Facebook video to remain processing after upload', () => {
+  const video: SocialPost = {
+    ...fixture(), status: 'processing', post_id: '500', attempt_started_at: '2026-01-01T00:00:00Z',
+    publish_started_at: '2026-01-01T00:00:00Z',
+    request: { ...fixture().request, mediaType: 'video', videoUrl: 'https://videos.example.test/making-videos/job/video.mp4' },
+  };
+  expect(parseSocialPost(video)).toEqual(video);
+  const invalid = structuredClone(video);
+  invalid.request.videoUrl = 'http://videos.example.test/video.mp4';
+  expect(() => parseSocialPost(invalid)).toThrow('Invalid saved social post media');
+  const photo = { ...fixture(), status: 'processing' as const, post_id: '500' };
+  expect(() => parseSocialPost(photo)).toThrow('Invalid saved social post details');
+});
+
 it('rejects malformed, unpaired, mismatched and over-limit saved image lists or invalid child checkpoints', () => {
   const source = fixture().request.sourceImageUrl;
   const image = fixture().request.imageUrl;

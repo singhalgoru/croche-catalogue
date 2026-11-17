@@ -84,10 +84,12 @@ an India-based handmade crochet brand.
   Payment credentials and other server-side secrets remain
   deployment-managed.
   The product-post modal also supports manual WhatsApp group sharing with an
-  editable caption, photo preview and copy/download fallbacks. Select the group
+  editable WhatsApp-formatted caption, emoji picker, photo preview and copy/download fallbacks. Select the group
   and send inside WhatsApp; native photo sharing requires browser/device support.
   Facebook/Instagram posts can include up to 10 selected, ordered product photos:
-  an Instagram carousel or a Facebook multi-photo post.
+  an Instagram carousel or a Facebook multi-photo post. If a product has a
+  published making video, administrators can prepare and review it for Facebook
+  video or Instagram Reels before explicitly publishing it.
   Categories can be hidden from collection navigation without deleting their products.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
@@ -103,7 +105,8 @@ an India-based handmade crochet brand.
   captions, JPEG previews, explicit live-publish confirmation and per-platform
   results. Organic posting requires configured publishing permissions and a
   Page-linked professional Instagram account. Saving a product never posts or
-  boosts it automatically.
+  boosts it automatically. Instagram video posts require a making video of at
+  least three seconds.
 - The site builds a public Meta Commerce product feed from eligible published
   products at `/meta-catalog-feed.xml`; an administrator can connect its URL as
   a scheduled feed in Commerce Manager. Catalog creation and Meta permissions

@@ -2,6 +2,7 @@ import { isSocialPlatform, socialCaptionLimits, socialHttpsUrl, socialImageUrlLi
 
 type PrepareInput = {
   action: 'prepare'; productId: string; sourceImageUrl: string; pageId: string; instagramUserId?: string;
+  mediaType?: 'image' | 'video'; videoUrl?: string;
   sourceImageUrls?: string[];
   captions: Partial<Record<SocialPlatform, string>>;
 };
@@ -29,10 +30,16 @@ export function parsePostInput(value: unknown): PostInput {
     return { action: 'refresh', productId: value.productId };
   }
   if (value.action === 'prepare') {
-    keys(value, ['action', 'productId', 'sourceImageUrl', 'sourceImageUrls', 'pageId', 'instagramUserId', 'captions']);
+    keys(value, ['action', 'productId', 'sourceImageUrl', 'sourceImageUrls', 'pageId', 'instagramUserId', 'captions', 'mediaType', 'videoUrl']);
     if (!socialUuid(value.productId) || !socialHttpsUrl(value.sourceImageUrl) || !socialNumericId(value.pageId)
+      || (value.mediaType !== undefined && value.mediaType !== 'image' && value.mediaType !== 'video')
       || !socialRecord(value.captions) || Object.keys(value.captions).length < 1 || Object.keys(value.captions).length > 2) {
       throw new Error('Prepare a published product image, reviewed identity and editable captions.');
+    }
+    const mediaType = value.mediaType ?? 'image';
+    if ((mediaType === 'video' && (!socialHttpsUrl(value.videoUrl) || value.sourceImageUrls !== undefined))
+      || (mediaType === 'image' && value.videoUrl !== undefined)) {
+      throw new Error('Select one current product photo or its published making video.');
     }
     if (value.sourceImageUrls !== undefined && (!socialImageUrlList(value.sourceImageUrls)
       || value.sourceImageUrls[0] !== value.sourceImageUrl)) {
@@ -48,6 +55,8 @@ export function parsePostInput(value: unknown): PostInput {
     if (captions.instagram !== undefined && !socialNumericId(value.instagramUserId)) throw new Error('Verify the Instagram publishing identity first.');
     if (captions.instagram === undefined && value.instagramUserId !== undefined) throw new Error('Instagram identity requires an Instagram post.');
     return { action: 'prepare', productId: value.productId, sourceImageUrl: value.sourceImageUrl, pageId: value.pageId, captions,
+      ...(value.mediaType !== undefined ? { mediaType } : {}),
+      ...(typeof value.videoUrl === 'string' ? { videoUrl: value.videoUrl } : {}),
       ...(value.sourceImageUrls !== undefined ? { sourceImageUrls: [...value.sourceImageUrls as string[]] } : {}),
       ...(socialNumericId(value.instagramUserId) ? { instagramUserId: value.instagramUserId } : {}) };
   }

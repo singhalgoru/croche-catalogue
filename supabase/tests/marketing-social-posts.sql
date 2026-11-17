@@ -63,6 +63,20 @@ begin
     raise exception 'FAIL: Facebook accepted Instagram container state.';
   exception when check_violation then null;
   end;
+  update public.marketing_social_posts
+    set status='processing',request='{"mediaType":"video"}',post_id='500',
+      attempt_started_at=now(),publish_started_at=now()
+    where id=(select post_id from social_post_fixture);
+  if not found then raise exception 'FAIL: Facebook video could not retain its processing status.'; end if;
+  update public.marketing_social_posts
+    set request='{}',post_id=null,status='needs_attention'
+    where id=(select post_id from social_post_fixture);
+  begin
+    update public.marketing_social_posts set status='processing',post_id='500'
+    where id=(select post_id from social_post_fixture);
+    raise exception 'FAIL: Facebook photo accepted video processing state.';
+  exception when check_violation then null;
+  end;
   update public.marketing_social_posts set status='needs_attention',revision=revision+1
   where id=(select post_id from social_post_fixture);
   update public.marketing_social_posts set request='{"caption":"stale update"}'
