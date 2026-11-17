@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 import { readFileSync } from 'node:fs';
+import { injectShell } from '../scripts/prerender.mjs';
 
 const makingVideoUrl = 'https://videos.luviacreations.com/making-videos/release/video.mp4';
 const makingPosterUrl = 'https://videos.luviacreations.com/making-videos/release/poster.webp';
@@ -26,6 +27,44 @@ test('homepage introduction is visible and fits on mobile and desktop', async ({
       && element.scrollWidth <= element.clientWidth;
   });
   expect(fits).toBe(true);
+});
+
+test('the initial catalogue is styled and usable while the app script is delayed', async ({ browser, isMobile }) => {
+  const context = await browser.newContext({
+    viewport: isMobile ? { width: 390, height: 844 } : { width: 1280, height: 800 },
+    serviceWorkers: 'block',
+  });
+  const firstLoad = await context.newPage();
+  await installMockSupabase(firstLoad);
+  const template = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
+  const initialHtml = injectShell(template, []);
+  await firstLoad.route('**/?initial-shell-test=1', route => route.fulfill({
+    status: 200, contentType: 'text/html', body: initialHtml,
+  }));
+  let releaseScript: () => void = () => {};
+  const scriptGate = new Promise<void>(resolve => { releaseScript = resolve; });
+  await firstLoad.route('**/assets/index-*.js', async route => {
+    await scriptGate;
+    await route.continue();
+  });
+  try {
+    await firstLoad.goto('http://127.0.0.1:4187/?initial-shell-test=1', { waitUntil: 'commit' });
+    const shell = firstLoad.locator('.catalogue-shell');
+    await expect(shell).toBeVisible();
+    const heading = shell.getByRole('heading', { name: 'Premium Handmade Crochet Creations' });
+    await expect(heading).toBeVisible();
+    await expect(heading).toHaveCSS('font-weight', '700');
+    await expect(shell.locator('header')).toHaveCSS('text-align', 'center');
+    expect(await firstLoad.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await shell.getByText('Browse Luvia').click();
+    await expect(shell.getByRole('link', { name: 'Collections', exact: true })).toBeVisible();
+    releaseScript();
+    await expect(firstLoad.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
+    await expect(shell).toHaveCount(0);
+  } finally {
+    releaseScript();
+    await context.close();
+  }
 });
 
 test('shop-the-look attribution survives product navigation and reaches cart items', async ({ page }) => {

@@ -416,6 +416,39 @@ const compareInitialProducts = (left, right, now = Date.now()) => {
     || (left.sortOrder ?? 0) - (right.sortOrder ?? 0);
 };
 
+const SHELL_STYLE = `<style>
+.catalogue-shell{background:#fffaf0;color:#5d4037;font-family:"Quicksand Variable","Segoe UI",sans-serif;line-height:1.55}
+.catalogue-shell *{box-sizing:border-box}
+.catalogue-shell h1,.catalogue-shell h2,.catalogue-shell h3,.catalogue-shell h4{font-family:"Baloo 2 Variable","Segoe UI",sans-serif;font-weight:700;line-height:1.2}
+.catalogue-shell h1{font-size:clamp(1.35rem,3vw,2rem);margin:1rem 0 .75rem}
+.catalogue-shell h2{font-size:1.45rem;margin:0 0 .75rem}
+.catalogue-shell h3{font-size:1.25rem;margin:0 0 .75rem}
+.catalogue-shell h4{font-size:1.1rem;margin:0 0 .5rem}
+.catalogue-shell p{margin:0 0 .75rem}
+.catalogue-shell a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+.catalogue-shell a:focus-visible,.catalogue-shell summary:focus-visible{outline:3px solid #5d4037;outline-offset:3px}
+.catalogue-shell .shell-announcement{background:#5d4037;color:#fffaf0;text-align:center;padding:.5rem 1rem;font-size:.875rem;font-weight:700}
+.catalogue-shell header{text-align:center;border-bottom:4px solid #f6c453;padding:1.25rem 1rem 1.5rem}
+.catalogue-shell header img{width:7rem;height:7rem;border-radius:50%;object-fit:cover;margin:0 auto}
+.catalogue-shell header p{max-width:38rem;margin:0 auto}
+.catalogue-shell .shell-navigation,.catalogue-shell main,.catalogue-shell footer{max-width:72rem;margin:0 auto;padding:1rem}
+.catalogue-shell summary{cursor:pointer;font-weight:700;padding:.5rem 0}
+.catalogue-shell nav{line-height:2}
+.catalogue-shell main>section{margin:1.5rem 0}
+.catalogue-shell #brand-story-teaser-title{margin-top:.25rem}
+.catalogue-shell section[aria-labelledby="brand-story-teaser-title"]{min-height:12rem;border:1px solid #f6c45366;border-radius:1rem;background:#fff;padding:1rem;overflow:auto}
+.catalogue-shell section[aria-labelledby="brand-story-teaser-title"] img{float:left;width:6rem;height:8rem;object-fit:cover;border-radius:.75rem;margin:0 1rem .5rem 0}
+.catalogue-shell ul{list-style:none;padding:0}
+.catalogue-shell nav ul{display:flex;flex-wrap:wrap;gap:.5rem}
+.catalogue-shell nav ul a{display:inline-block;background:#fff;border:1px solid #f6c453;border-radius:999px;padding:.3rem .8rem}
+.catalogue-shell main>section>ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:1rem}
+.catalogue-shell article{height:100%;border:1px solid #f6c45366;border-radius:1rem;background:#fff;padding:1rem}
+.catalogue-shell article img{width:100%;height:auto;max-width:30rem;border-radius:.75rem}
+.catalogue-shell section[aria-labelledby="latest-product-title"] img{width:10rem;height:10rem;object-fit:contain}
+.catalogue-shell footer{border-top:1px solid #f6c453;line-height:2}
+@media(min-width:640px){.catalogue-shell header{padding:1.5rem 1rem 2rem}.catalogue-shell header img{width:9rem;height:9rem}.catalogue-shell .shell-navigation,.catalogue-shell main,.catalogue-shell footer{padding:1rem 2rem}.catalogue-shell section[aria-labelledby="brand-story-teaser-title"]{padding:1.5rem}}
+</style>`;
+
 const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_WHATSAPP_NUMBER) => {
   const orderedProducts = [...products].sort(compareInitialProducts);
   const latest = getLatestProduct(products);
@@ -461,11 +494,15 @@ const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_
     .join('');
 
   return [
+    SHELL_STYLE,
+    '<div class="catalogue-shell">',
+    `<div class="shell-announcement">${escapeHtml(storeContent.international.announcement)}</div>`,
     '<header>',
+    '<img src="/images/luvia-logo-320.webp" width="144" height="144" alt="Luvia Creations" />',
     '<h1>Premium Handmade Crochet Creations</h1>',
     "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>",
     '</header>',
-    '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/crochet-gift-guide/">Crochet gift guide</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
+    '<details class="shell-navigation"><summary>Browse Luvia</summary><nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/crochet-gift-guide/">Crochet gift guide</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav></details>',
     '<main>',
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
@@ -495,6 +532,7 @@ const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_
     `<p><a href="${bulkOrders.path}">${escapeHtml(bulkOrders.invitationCta)}</a></p></section>`,
     '</main>',
     '<footer><a href="/collections/">Explore collections</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a> · <a href="/international-quote/">International quotes</a></footer>',
+    '</div>',
   ].join('');
 };
 
@@ -802,6 +840,15 @@ export const injectCatalogueBootstrap = (html, rows, categories, homepage, bests
     JSON.stringify({ products: rows, categories, homepage, bestsellers }).replace(/</g, '\\u003c')
   }</script></head>`);
 
+export const updateShellCacheRevision = (worker, html) => {
+  const entry = /(\burl:\s*["']index\.html["']\s*,\s*revision:\s*["'])[^"']+(["'])/g;
+  if ([...worker.matchAll(entry)].length !== 1) {
+    throw new Error('Unable to update service worker: expected one precached index.html entry.');
+  }
+  const revision = createHash('sha256').update(html).digest('hex');
+  return worker.replace(entry, (_, before, after) => `${before}${revision}${after}`);
+};
+
 export const prioritizeAppStyles = (html, stylesheets) => {
   const stylesheetTags = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)].map(match => match[0]);
   if (stylesheetTags.length === 0) throw new Error('Unable to prioritize app styles: no stylesheet link was emitted.');
@@ -992,8 +1039,9 @@ const main = async () => {
   }));
   template = prioritizeAppStyles(template, stylesheets);
   template = injectCatalogueBootstrap(template, rows, categories, homepage, bestsellers);
-  await writeFile(indexPath, injectImagePreloads(injectShell(template, products, whatsappNumber, categories),
-    firstBestsellerImageUrls(rows, bestsellers)));
+  const indexHtml = injectImagePreloads(injectShell(template, products, whatsappNumber, categories),
+    firstBestsellerImageUrls(rows, bestsellers));
+  await writeFile(indexPath, indexHtml);
 
   for (const product of products) {
     const showCategoryLink = !categories.some(category => category.name === product.category && category.visible === false);
@@ -1061,6 +1109,9 @@ const main = async () => {
       discoveryPageLinks(contentPages), customerLove),
   );
 
+  const workerPath = path.join(DIST, 'sw.js');
+  const worker = await readFile(workerPath, 'utf8');
+  await writeFile(workerPath, updateShellCacheRevision(worker, indexHtml));
   console.log(`[prerender] Rendered ${products.length} products into the initial HTML.`);
 };
 

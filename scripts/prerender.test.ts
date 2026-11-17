@@ -12,6 +12,7 @@ import {
   getProductImageUrl as prerenderImageUrl,
   injectImagePreloads,
   prioritizeAppStyles,
+  updateShellCacheRevision,
   injectShell,
   injectCatalogueBootstrap,
   fetchBootstrapCategories,
@@ -394,7 +395,8 @@ describe('renderShell', () => {
   });
 
   it('does not add image requests for every catalogue item', () => {
-    expect(shell.match(/<img\b/g)).toHaveLength(3);
+    expect(shell.match(/<img\b/g)).toHaveLength(4);
+    expect(shell).toContain('src="/images/luvia-logo-320.webp"');
     expect(shell).toContain('src="/tanushree-mithal-small.webp"');
   });
 });
@@ -425,6 +427,18 @@ describe('injectShell', () => {
     expect(renderShell([product])).toContain('href="/collections/hair-accessories/"');
     expect(renderShell([product], [{ name: 'Hair Accessories', priority: 1, visible: false }]))
       .not.toContain('href="/collections/hair-accessories/"');
+  });
+
+  describe('service worker shell revision', () => {
+    it('uses the final prerendered homepage content so existing visitors get updates', () => {
+      const worker = 'precacheAndRoute([{url:"index.html",revision:"original"},{url:"other.html",revision:"other"}])';
+      const html = '<html>updated catalogue</html>';
+      const expected = createHash('sha256').update(html).digest('hex');
+      expect(updateShellCacheRevision(worker, html)).toContain(`url:"index.html",revision:"${expected}"`);
+      expect(updateShellCacheRevision(worker, html)).toContain('url:"other.html",revision:"other"');
+      expect(updateShellCacheRevision(worker, `${html}!`)).not.toContain(`url:"index.html",revision:"${expected}"`);
+      expect(() => updateShellCacheRevision('no precache entry', html)).toThrow('expected one precached index.html entry');
+    });
   });
 
   it('replaces the placeholder and adds the catalogue schema', () => {
