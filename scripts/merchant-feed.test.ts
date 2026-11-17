@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import { JSDOM } from 'jsdom';
 import { describe, expect, it, vi } from 'vitest';
 import { toProduct } from './prerender.mjs';
-import { cleanImageKey, merchantItems, renderMerchantFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
+import { cleanImageKey, merchantItems, renderMerchantFeed, renderMetaCatalogFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
 
 const product = toProduct({
   id: 'p1', public_slug: 'rose-coaster', name: 'Rose & Coaster', category: 'Decor', description: 'Handmade <rose> & leaves.',
@@ -153,6 +153,44 @@ describe('Merchant Center feed', () => {
     expect(xml).not.toContain('rose-coaster--p1');
   });
 
+  it('writes a Meta catalog feed with public JPEGs, product variants, exact prices and availability', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-meta-catalog-test-'));
+    try {
+      const input = await sharp({ create: { width: 640, height: 600, channels: 3, background: '#ffffff' } }).webp().toBuffer();
+      const items = merchantItems([{
+        ...product, discountPercent: 20,
+        variants: product.variants.map((variant, index) => ({
+          ...variant, image: product.image, ...(index === 0 ? { price: 360, regularPrice: 450 } : {}),
+        })),
+      }]);
+      const xmlOnlyItems = items.map((item) => ({
+        ...item, metaImage: 'https://luviacreations.com/meta-catalog-images/clean.jpg',
+      }));
+      const xml = renderMetaCatalogFeed(xmlOnlyItems);
+      const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+      const field = (name: string) => doc.getElementsByTagNameNS('http://base.google.com/ns/1.0', name);
+      expect(doc.querySelectorAll('item')).toHaveLength(2);
+      expect(Array.from(field('id'), item => item.textContent)).toEqual(['v1', 'v2']);
+      expect(Array.from(field('availability'), item => item.textContent)).toEqual(['in_stock', 'out_of_stock']);
+      expect(Array.from(field('price'), item => item.textContent)).toEqual(['450.00 INR', '500.00 INR']);
+      expect(field('sale_price')[0].textContent).toBe('360.00 INR');
+      expect(field('image_link')[0].textContent).toContain('/meta-catalog-images/clean.jpg');
+      expect(Array.from(field('item_group_id'), item => item.textContent)).toEqual(['p1', 'p1']);
+      expect(field('title')[0].textContent).toBe('Rose & Coaster - Red');
+      expect(field('brand')[0].textContent).toBe('Luvia Creations');
+
+      const getImage = vi.fn().mockResolvedValue(input);
+      await writeMerchantCatalogue(items, dir, getImage, '911234567890');
+      expect(getImage).toHaveBeenCalledTimes(1);
+      const feed = await readFile(path.join(dir, 'meta-catalog-feed.xml'), 'utf8');
+      const feedDoc = new JSDOM(feed, { contentType: 'text/xml' }).window.document;
+      const imageUrl = feedDoc.getElementsByTagNameNS('http://base.google.com/ns/1.0', 'image_link')[0].textContent!;
+      expect(imageUrl).toMatch(/^https:\/\/luviacreations\.com\/meta-catalog-images\/[a-f0-9]{64}\.jpg$/);
+      const image = await readFile(path.join(dir, 'meta-catalog-images', path.basename(imageUrl)));
+      expect(await sharp(image).metadata()).toMatchObject({ format: 'jpeg', width: 640, height: 600 });
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
   it('publishes clean images once and matching static landing pages without redirects', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-test-'));
     try {
@@ -163,6 +201,8 @@ describe('Merchant Center feed', () => {
       await writeMerchantCatalogue(items, dir, getImage, '911234567890');
       expect(getImage).toHaveBeenCalledTimes(1);
       expect(await readdir(path.join(dir, 'merchant-images'))).toHaveLength(1);
+      expect(await readdir(path.join(dir, 'meta-catalog-images'))).toHaveLength(1);
+      expect(await readFile(path.join(dir, 'meta-catalog-feed.xml'), 'utf8')).toContain('<g:brand>Luvia Creations</g:brand>');
       const page = await readFile(path.join(dir, 'shopping', 'rose-coaster', 'blue', 'index.html'), 'utf8');
       const doc = new JSDOM(page).window.document;
       for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {

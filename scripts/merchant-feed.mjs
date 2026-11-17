@@ -117,14 +117,45 @@ ${items.map((item) => `<item>${[
 `;
 };
 
+export const renderMetaCatalogFeed = (items) => {
+  const field = (name, value) => `<g:${name}>${escapeHtml(value)}</g:${name}>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel>
+<title>Luvia Creations Meta Product Catalog</title><link>${ORIGIN}/</link><description>Published Luvia Creations products, priced in INR.</description>
+${items.map((item) => `<item>${[
+    field('id', item.merchantId),
+    field('title', item.name.slice(0, 150)),
+    field('description', item.description.slice(0, 5000)),
+    field('availability', item.inStock ? 'in_stock' : 'out_of_stock'),
+    field('condition', 'new'),
+    field('price', `${(item.regularPrice > item.price ? item.regularPrice : item.price).toFixed(2)} INR`),
+    ...(item.regularPrice > item.price ? [field('sale_price', `${item.price.toFixed(2)} INR`)] : []),
+    field('link', item.url),
+    field('image_link', item.metaImage),
+    field('brand', 'Luvia Creations'),
+    field('identifier_exists', 'no'),
+    field('product_type', item.category),
+    ...(item.groupId ? [field('item_group_id', item.groupId)] : []),
+  ].join('')}</item>`).join('\n')}
+</channel></rss>
+`;
+};
+
 export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumber) => {
   const images = new Map();
+  const metaImages = new Map();
+  const sourceImages = new Map();
   await mkdir(path.join(dist, 'merchant-images'), { recursive: true });
+  await mkdir(path.join(dist, 'meta-catalog-images'), { recursive: true });
   const published = [];
+  const getSourceImage = async (key) => {
+    if (!sourceImages.has(key)) sourceImages.set(key, await getImage(key));
+    return sourceImages.get(key);
+  };
   const publishImage = async (key, name) => {
     let image = images.get(key);
     if (!image) {
-      const input = await getImage(key);
+      const input = await getSourceImage(key);
       const metadata = await sharp(input).metadata();
       if (metadata.format !== 'webp') throw new Error(`Merchant original is not processed WebP: ${key}`);
       if (Math.min(metadata.width, metadata.height) < 500) throw new Error(`Merchant image must be at least 500x500 pixels: ${name} (${key})`);
@@ -139,8 +170,30 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
     }
     return image;
   };
+  const publishMetaImage = async (key, name) => {
+    let image = metaImages.get(key);
+    if (!image) {
+      const input = await getSourceImage(key);
+      const metadata = await sharp(input).metadata();
+      if (metadata.format !== 'webp') throw new Error(`Meta catalog original is not processed WebP: ${key}`);
+      if (Math.min(metadata.width, metadata.height) < 500) throw new Error(`Meta catalog image must be at least 500x500 pixels: ${name} (${key})`);
+      const data = await sharp(input).rotate()
+        .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+        .flatten({ background: '#ffffff' })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      if (data.length > 16 * 1024 * 1024) throw new Error(`Meta catalog image exceeds 16 MB: ${name}`);
+      const filename = `${createHash('sha256').update(data).digest('hex')}.jpg`;
+      await writeFile(path.join(dist, 'meta-catalog-images', filename), data);
+      image = `${ORIGIN}/meta-catalog-images/${filename}`;
+      metaImages.set(key, image);
+    }
+    return image;
+  };
   for (const item of items) {
     const image = await publishImage(item.cleanKey, item.name);
+    const metaImage = await publishMetaImage(item.cleanKey, item.name);
+    sourceImages.delete(item.cleanKey);
     const additionalImages = [];
     for (const key of item.additionalCleanKeys ?? []) {
       const additionalImage = await publishImage(key, item.name);
@@ -153,7 +206,7 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
       const lifestyleImage = await publishImage(key, item.name);
       if (lifestyleImage !== image && !lifestyleImages.includes(lifestyleImage)) lifestyleImages.push(lifestyleImage);
     }
-    const publishedItem = { ...item, image, additionalImages, lifestyleImages };
+    const publishedItem = { ...item, image, metaImage, additionalImages, lifestyleImages };
     const dir = path.join(dist, ...new URL(item.url).pathname.split('/').filter(Boolean));
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'index.html'), renderProductPage(publishedItem, whatsappNumber, null, false));
@@ -165,6 +218,7 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
     published.push(publishedItem);
   }
   await writeFile(path.join(dist, 'merchant-feed.xml'), renderMerchantFeed(published));
+  await writeFile(path.join(dist, 'meta-catalog-feed.xml'), renderMetaCatalogFeed(published));
   console.log(`[merchant] Published ${published.length} items and ${images.size} clean images.`);
 };
 

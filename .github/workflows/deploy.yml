@@ -152,7 +152,7 @@ jobs:
           test -n "$asset"
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
 
-      - name: Generate Merchant Center feed and clean images
+      - name: Generate shopping feeds and clean images
         run: node scripts/merchant-feed.mjs
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -193,14 +193,27 @@ jobs:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
           ENTRY_ASSET: ${{ needs.build.outputs.entry_asset }}
         run: |
+          verified=0
           for attempt in $(seq 1 60); do
             if homepage="$(curl -fsS --connect-timeout 10 --max-time 20 "${PAGE_URL}?deploy-check=${GITHUB_RUN_ID}-${attempt}")" \
               && grep -Fq "$ENTRY_ASSET" <<< "$homepage" \
               && curl -fsS --connect-timeout 10 --max-time 20 "${PAGE_URL%/}/${ENTRY_ASSET}" -o /dev/null; then
               echo "Live site serves $ENTRY_ASSET"
-              exit 0
+              verified=1
+              break
             fi
             sleep 10
           done
-          echo "::error::The live site did not serve an accessible $ENTRY_ASSET within the retry window"
-          exit 1
+          if [ "$verified" != 1 ]; then
+            echo "::error::The live site did not serve an accessible $ENTRY_ASSET within the retry window"
+            exit 1
+          fi
+          feed_file="$(mktemp)"
+          trap 'rm -f "$feed_file"' EXIT
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/meta-catalog-feed.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq '<rss version="2.0"' "$feed_file"
+          grep -Fq '<g:id>' "$feed_file"
+          image_url="$(grep -o '<g:image_link>[^<]*</g:image_link>' "$feed_file" | head -n 1 | sed 's#<g:image_link>##;s#</g:image_link>##')"
+          test -n "$image_url"
+          curl -fsSI --connect-timeout 10 --max-time 20 "$image_url" | grep -Eiq '^content-type: image/jpeg'
+          echo "Live Meta catalog feed and JPEG are accessible."

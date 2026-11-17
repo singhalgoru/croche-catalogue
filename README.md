@@ -96,6 +96,10 @@ an India-based handmade crochet brand.
   results. Organic posting requires configured publishing permissions and a
   Page-linked professional Instagram account. Saving a product never posts or
   boosts it automatically.
+- The site builds a public Meta Commerce product feed from eligible published
+  products at `/meta-catalog-feed.xml`; an administrator can connect its URL as
+  a scheduled feed in Commerce Manager. Catalog creation and Meta permissions
+  remain separate setup steps.
 - Invited artisans can submit a private application; authorised administrators
   can send invitations and review applications in the Artisans workspace.
   The application supports English and Hindi; answers remain in their original language.
