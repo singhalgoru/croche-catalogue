@@ -97,11 +97,14 @@ export async function exchangeCode(
 ): Promise<{ token: string; expiresAt: string }> {
   const short = await tokenRequest(config, { redirect_uri: config.redirectUri, code }, fetcher);
   const long = await tokenRequest(config, { grant_type: 'fb_exchange_token', fb_exchange_token: short.accessToken }, fetcher);
-  if (typeof long.expiresIn !== 'number'
-    || !Number.isSafeInteger(long.expiresIn) || long.expiresIn <= 0 || long.expiresIn > 365 * 86400) {
-    throw new Error('Meta returned an invalid token expiry.');
+  const expiresIn = typeof long.expiresIn === 'string' && /^\d+$/.test(long.expiresIn)
+    ? Number(long.expiresIn)
+    : long.expiresIn;
+  if (typeof expiresIn !== 'number'
+    || !Number.isSafeInteger(expiresIn) || expiresIn <= 0 || expiresIn > 365 * 86400) {
+    throw new Error('Meta returned an invalid token expiry (expected expires_in as whole-number seconds).');
   }
   const readConfig = readMetaConfig(name => name === 'META_ACCESS_TOKEN' ? long.accessToken : env(name));
   await fetchMetaOverview(readConfig, fetcher);
-  return { token: long.accessToken, expiresAt: new Date(Date.now() + long.expiresIn * 1000).toISOString() };
+  return { token: long.accessToken, expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() };
 }

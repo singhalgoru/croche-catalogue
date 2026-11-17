@@ -43,6 +43,32 @@ it('exchanges the code and validates account access before returning the long-li
   await expect(exchangeCode(env, oauthConfig(env), 'code', fetcher)).rejects.toThrow('status 400');
 });
 
+it('accepts Meta expiry values encoded as numeric strings', async () => {
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(response({ access_token: 'short' }))
+    .mockResolvedValueOnce(response({ access_token: 'long', expires_in: '5183944' }))
+    .mockResolvedValueOnce(response({ id: 'act_1234', name: 'Account', currency: 'INR', timezone_name: 'Asia/Kolkata', account_status: 1 }))
+    .mockResolvedValueOnce(response({ data: [] }))
+    .mockResolvedValueOnce(response({ data: [] }));
+  const before = Date.now();
+  const result = await exchangeCode(env, oauthConfig(env), 'code', fetcher);
+  const expiry = Date.parse(result.expiresAt);
+  expect(result.token).toBe('long');
+  expect(expiry).toBeGreaterThan(before + 5183943 * 1000);
+  expect(expiry).toBeLessThanOrEqual(Date.now() + 5183944 * 1000);
+});
+
+it('rejects missing or malformed Meta expiry values without validating or saving the token', async () => {
+  for (const expiresIn of [undefined, 'not-a-duration', 0, 366 * 86400]) {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response({ access_token: 'short' }))
+      .mockResolvedValueOnce(response({ access_token: 'long', ...(expiresIn === undefined ? {} : { expires_in: expiresIn }) }));
+    await expect(exchangeCode(env, oauthConfig(env), 'code', fetcher))
+      .rejects.toThrow('expected expires_in as whole-number seconds');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  }
+});
+
 it('encrypts credentials with a fresh nonce and rejects a different key or tampering', async () => {
   const first = await encryptMetaToken('secret-token', values.META_TOKEN_ENCRYPTION_KEY);
   const second = await encryptMetaToken('secret-token', values.META_TOKEN_ENCRYPTION_KEY);

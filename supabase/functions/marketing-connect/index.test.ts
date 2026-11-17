@@ -45,7 +45,7 @@ it('saves only an encrypted validated token and does not replace it on failed au
   const { state } = await start.json();
   fetcher
     .mockResolvedValueOnce(upstream({ access_token: 'short' }))
-    .mockResolvedValueOnce(upstream({ access_token: 'long-secret', expires_in: 3600 }))
+    .mockResolvedValueOnce(upstream({ access_token: 'long-secret', expires_in: '5183944' }))
     .mockResolvedValueOnce(upstream({ id: 'act_1234', name: 'Account', currency: 'INR', timezone_name: 'Asia/Kolkata', account_status: 1 }))
     .mockResolvedValueOnce(upstream({ data: [] }))
     .mockResolvedValueOnce(upstream({ data: [] }));
