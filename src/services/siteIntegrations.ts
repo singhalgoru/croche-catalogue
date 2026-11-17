@@ -6,6 +6,10 @@ export interface SiteIntegrations {
   metaPixelId: string;
 }
 
+export interface AdminSiteIntegrations extends SiteIntegrations {
+  canEdit: boolean;
+}
+
 const defaults = (): SiteIntegrations => ({
   whatsappNumber: (import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350').replace(/\D/g, ''),
   googleAnalyticsMeasurementId: import.meta.env.VITE_GA_MEASUREMENT_ID?.trim() ?? '',
@@ -60,8 +64,16 @@ export async function loadPublicSiteIntegrations(): Promise<SiteIntegrations> {
   return current;
 }
 
-export async function fetchAdminSiteIntegrations(): Promise<SiteIntegrations> {
-  return readSettings();
+export async function fetchAdminSiteIntegrations(): Promise<AdminSiteIntegrations> {
+  const client = await loadSupabase();
+  if (!client) throw new Error('Site integration settings require an online connection.');
+  const [settings, { data, error }] = await Promise.all([
+    readSettings(),
+    client.rpc('can_update_site_integrations'),
+  ]);
+  if (error) throw new Error(`Unable to check site integration permissions: ${error.message}`);
+  if (typeof data !== 'boolean') throw new Error('Site integration permissions returned an invalid response.');
+  return { ...settings, canEdit: data };
 }
 
 export function validateSiteIntegrations(input: SiteIntegrations): SiteIntegrations {

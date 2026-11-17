@@ -61,7 +61,21 @@ describe('site integration settings', () => {
       whatsappNumber: '919999888877',
       googleAnalyticsMeasurementId: '',
       metaPixelId: '',
+      canEdit: true,
     });
+  });
+
+  it('uses the database permission result rather than treating every admin as an editor', async () => {
+    client.rpc.mockResolvedValue({ data: false, error: null });
+    await expect(fetchAdminSiteIntegrations()).resolves.toMatchObject({ canEdit: false });
+    expect(client.rpc).toHaveBeenCalledWith('can_update_site_integrations');
+  });
+
+  it('fails closed when the owner permission check is unavailable or malformed', async () => {
+    client.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Permission check unavailable.' } });
+    await expect(fetchAdminSiteIntegrations()).rejects.toThrow('Permission check unavailable.');
+    client.rpc.mockResolvedValueOnce({ data: 'true', error: null });
+    await expect(fetchAdminSiteIntegrations()).rejects.toThrow('invalid response');
   });
 
   it('saves validated integration values through the guarded admin RPC', async () => {
