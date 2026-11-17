@@ -8,7 +8,7 @@ import { parsePostInput } from './input.ts';
 import { storePostImage } from './image.ts';
 import {
   containerStatus, createFacebookPost, createInstagramContainer, publishInstagramContainer,
-  publishingAccess, readPublishedPost, verifyPublishingIdentity,
+  publishingAccess, readPublishedPost, verifyPublishingIdentity, instagramChildrenStatus,
 } from './meta.ts';
 
 const cors = {
@@ -129,16 +129,22 @@ export async function handler(request: Request) {
       const product = await readProduct(input.productId);
       const sources = input.sourceImageUrls ?? [input.sourceImageUrl];
       if (sources.some(source => !product.imageUrls.has(source))) throw new Error('A selected product image changed or does not belong to this product. Prepare new previews.');
-      if (input.mediaType === 'video' && (!product.makingVideo || input.videoUrl !== product.makingVideo.videoUrl)) {
+      if ((input.mediaType === 'video' || input.mediaType === 'mixed') && (!product.makingVideo || input.videoUrl !== product.makingVideo.videoUrl)) {
         throw new Error('The making video is no longer published for this product. Refresh product media before preparing the post.');
       }
       const platforms = Object.keys(input.captions).filter((platform): platform is SocialPlatform => platform === 'facebook' || platform === 'instagram');
-      if (input.mediaType === 'video' && platforms.includes('instagram') && (product.makingVideo?.durationSeconds ?? 0) < 3) {
-        throw new Error('Instagram Reels require a video of at least 3 seconds. Choose a longer making video or post to Facebook only.');
+      if ((input.mediaType === 'video' || input.mediaType === 'mixed') && platforms.includes('instagram') && (product.makingVideo?.durationSeconds ?? 0) < 3) {
+        throw new Error('Instagram video posts require a video of at least 3 seconds. Choose a longer making video or post photos instead.');
       }
       const existing = await readPosts(input.productId);
-      if (existing.some(post => platforms.includes(post.platform) && post.status !== 'draft')) {
+      if (existing.some(post => platforms.includes(post.platform) && post.status !== 'draft' && post.status !== 'published')) {
         throw new Error('A selected platform already has a publishing attempt for this product. Refresh its status; do not prepare a duplicate.');
+      }
+      for (const platform of platforms) {
+        const replacesPostId = input.replacesPostIds?.[platform];
+        if (replacesPostId && !existing.some(post => post.id === replacesPostId && post.platform === platform && post.status === 'published')) {
+          throw new Error('The original replacement post must be a verified published post for this product and platform.');
+        }
       }
       const access = await publishingAccess(config, pageId, platforms, enabled, fetch, env('META_APP_ID')?.trim());
       if (input.mediaType === 'video' && platforms.includes('facebook') && !access.videoUpload) {
@@ -159,13 +165,16 @@ export async function handler(request: Request) {
           sourceImageUrl: input.mediaType === 'video' ? input.sourceImageUrl : sources[0],
           imageUrl: input.mediaType === 'video' ? product.makingVideo!.posterUrl : imageUrls[0], caption,
           ...(input.mediaType === 'video' ? { mediaType: 'video' as const, videoUrl: product.makingVideo!.videoUrl } : {}),
+          ...(input.mediaType === 'mixed' ? { mediaType: 'mixed' as const, videoUrl: product.makingVideo!.videoUrl,
+            videoPosterUrl: product.makingVideo!.posterUrl } : {}),
+          ...(input.replacesPostIds?.[platform] ? { replacesPostId: input.replacesPostIds[platform] } : {}),
           ...(input.sourceImageUrls ? { sourceImageUrls: sources, imageUrls } : {}),
           pageId, pageName: access.setup.pageName,
           ...(platform === 'instagram' && access.setup.instagram ? {
             instagramUserId: access.setup.instagram.id, instagramUsername: access.setup.instagram.username,
           } : {}),
         };
-        const old = existing.find(post => post.platform === platform);
+        const old = existing.find(post => post.platform === platform && post.status === 'draft');
         if (old) await checkpoint(old, { request: snapshot });
         else {
           const { error } = await table().insert({ product_id: input.productId, platform, request: snapshot, requested_by: user.user.id });
@@ -177,14 +186,16 @@ export async function handler(request: Request) {
     if (input.action === 'refresh') {
       const posts = await readPosts(input.productId);
       const refreshable = posts.filter(post => post.status !== 'draft' && post.status !== 'published'
-        && (post.post_id || (post.platform === 'instagram' && post.container_id && !post.publish_started_at)));
+        && (post.post_id || (post.platform === 'instagram' && !post.publish_started_at
+          && (post.container_id || ((post.status === 'processing' || post.status === 'ready')
+            && post.request.mediaType === 'mixed' && post.request.childMediaIds?.length)))));
       if (refreshable.length) {
         const access = await publishingAccess(config, pageId, refreshable.map(post => post.platform), enabled, fetch, env('META_APP_ID')?.trim());
         for (const post of refreshable) {
           verifyPublishingIdentity(post, access);
           await checkpoint(post, post.post_id
             ? await readPublishedPost(post, access.config)
-            : await containerStatus(post, access.config));
+            : post.container_id ? await containerStatus(post, access.config) : await instagramChildrenStatus(post, access.config));
         }
       }
       return json({ posts: await readPosts(input.productId) });
@@ -205,7 +216,7 @@ export async function handler(request: Request) {
       verifyPublishingIdentity(post, access);
       if ((post.request.sourceImageUrls ?? [post.request.sourceImageUrl]).some(source => !product.imageUrls.has(source))
         || product.productUrl !== post.request.productUrl
-        || (post.request.mediaType === 'video' && product.makingVideo?.videoUrl !== post.request.videoUrl)) {
+        || ((post.request.mediaType === 'video' || post.request.mediaType === 'mixed') && product.makingVideo?.videoUrl !== post.request.videoUrl)) {
         throw new Error('The product media or public URL changed after review. Do not publish this stale draft.');
       }
       if (post.platform === 'facebook' && post.request.mediaType === 'video' && !access.videoUpload) {
@@ -215,7 +226,7 @@ export async function handler(request: Request) {
     for (const original of posts) {
       let post = await checkpoint(original, {
         status: 'publishing', attempt_started_at: original.attempt_started_at ?? new Date().toISOString(),
-        ...(original.platform === 'facebook' || original.status === 'ready'
+        ...(original.platform === 'facebook' || (original.status === 'ready' && original.container_id)
           ? { publish_started_at: new Date().toISOString(), published_by: user.user.id } : {}),
       });
       try {
@@ -228,6 +239,10 @@ export async function handler(request: Request) {
         } else {
           if (!post.container_id) {
             const containerId = await createInstagramContainer(post, access.config, fetch, saveChildren);
+            if (!containerId) {
+              await checkpoint(post, { status: 'processing' });
+              continue;
+            }
             post = await checkpoint(post, { container_id: containerId, status: 'processing' });
           }
           const state = await containerStatus(post, access.config);

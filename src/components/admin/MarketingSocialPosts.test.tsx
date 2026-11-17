@@ -136,6 +136,54 @@ it('prepares a published making video for both platforms and requires video prev
   ]));
 });
 
+it('creates a mixed Instagram replacement for an already published post and reviews every saved media item', async () => {
+  const withVideo = { ...product, makingVideo };
+  mocks.products.mockResolvedValue([withVideo]);
+  const original: SocialPost = {
+    ...post('instagram', 'published'), post_id: '600', permalink: 'https://www.instagram.com/p/original/',
+    attempt_started_at: '2026-01-01T00:00:00Z', publish_started_at: '2026-01-01T00:00:00Z',
+  };
+  const mixed: SocialPost = {
+    ...post('instagram'), id: '00000000-0000-4000-8000-000000000004',
+    request: {
+      ...post('instagram').request, mediaType: 'mixed', sourceImageUrls: [product.image],
+      imageUrls: [post('instagram').request.imageUrl], videoUrl: makingVideo.videoUrl, videoPosterUrl: makingVideo.posterUrl,
+      replacesPostId: original.id,
+    },
+  };
+  mocks.list.mockResolvedValue([original]);
+  mocks.prepare.mockResolvedValue([original, mixed]);
+  mocks.publish.mockResolvedValue([original, { ...mixed, status: 'published', post_id: '700', permalink: 'https://www.instagram.com/p/replacement/' }]);
+  render(<MarketingSocialPosts initialProduct={withVideo} />);
+  await open();
+  await screen.findByText('Instagram: Published');
+  fireEvent.click(screen.getByRole('button', { name: 'Replace this Instagram post' }));
+  expect(screen.getByRole('textbox', { name: 'Instagram caption' })).toHaveProperty('readOnly', false);
+  fireEvent.click(screen.getByRole('radio', { name: 'Photos + making video (one Instagram carousel)' }));
+  expect(screen.getByRole('checkbox', { name: 'Facebook Page' })).toHaveProperty('checked', false);
+  expect(screen.getByRole('checkbox', { name: 'Facebook Page' })).toHaveProperty('disabled', true);
+  await check();
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare post previews (does not publish)' }));
+  await screen.findByText(/One Instagram carousel: 1 photo/);
+  expect(mocks.prepare).toHaveBeenCalledWith(expect.objectContaining({
+    mediaType: 'mixed', videoUrl: makingVideo.videoUrl, sourceImageUrls: [product.image],
+    replacesPostIds: { instagram: original.id }, captions: { instagram: original.request.caption },
+  }), [expect.any(File)]);
+  expect(confirmation()).toHaveProperty('disabled', true);
+  // The original preview loading cannot satisfy the new video's review requirement.
+  fireEvent.load(screen.getAllByAltText('Saved Instagram post preview')[0]);
+  fireEvent.load(screen.getAllByAltText('Saved Instagram post preview')[1]);
+  expect(confirmation()).toHaveProperty('disabled', true);
+  fireEvent.loadedData(screen.getByLabelText('Saved Instagram video preview'));
+  expect(confirmation()).toHaveProperty('disabled', false);
+  fireEvent.click(confirmation());
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm and publish LIVE' }));
+  await waitFor(() => expect(mocks.publish).toHaveBeenCalledWith(product.id, [{ id: mixed.id, revision: mixed.revision }]));
+  const originalLink = await screen.findByRole('link', { name: 'Open original post' });
+  expect(originalLink.getAttribute('href')).toBe(original.permalink);
+  expect((await screen.findByText(/Replacement published\. The original is still live/)).textContent).toContain('remove it manually');
+});
+
 it('selects distinct product photos, reorders the cover and requires every carousel preview to load', async () => {
   const second = 'https://images.example.test/side.webp';
   const multiProduct: ManagedProduct = { ...product, variants: [{

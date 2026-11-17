@@ -29,6 +29,7 @@ const productPhotos = (product: ManagedProduct) => [...new Set([
 ].filter(Boolean))];
 const savedPhotos = (post: SocialPost) => post.request.imageUrls ?? [post.request.imageUrl];
 const isVideoPost = (post: SocialPost) => post.request.mediaType === 'video';
+const hasVideo = (post: SocialPost) => isVideoPost(post) || post.request.mediaType === 'mixed';
 
 function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedProduct; onClose: () => void }) {
   const [products, setProducts] = useState<ManagedProduct[]>([]);
@@ -49,13 +50,18 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
   const [previewReady, setPreviewReady] = useState<string[]>([]);
   const [reviewDirty, setReviewDirty] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>(initialProduct ? [initialProduct.image] : []);
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'mixed'>('image');
+  const [replacesPostIds, setReplacesPostIds] = useState<Partial<Record<SocialPlatform, string>>>({});
   const captionInputs = useRef<Partial<Record<SocialPlatform, HTMLTextAreaElement>>>({});
   const product = products.find(item => item.id === productId);
-  const eligible = posts.filter(post => !reviewDirty && selected.includes(post.platform) && reviewIds.includes(post.id) && (post.status === 'draft' || post.status === 'ready'));
-  const previewsReady = eligible.every(post => isVideoPost(post)
-    ? Boolean(post.request.videoUrl && previewReady.includes(post.request.videoUrl))
-    : savedPhotos(post).every(url => previewReady.includes(url)));
+  const eligible = posts.filter(post => !reviewDirty && selected.includes(post.platform) && reviewIds.includes(post.id)
+    && (post.request.mediaType ?? 'image') === mediaType && (post.status === 'draft' || post.status === 'ready'));
+  const previewsReady = eligible.every(post =>
+    (!hasVideo(post) || Boolean(post.request.videoUrl && previewReady.includes(post.request.videoUrl)))
+    && (isVideoPost(post) || savedPhotos(post).every(url => previewReady.includes(url))));
+  const maxPhotos = mediaType === 'mixed' ? 9 : 10;
+  const replacementInput = Object.fromEntries(selected.filter(platform => replacesPostIds[platform])
+    .map(platform => [platform, replacesPostIds[platform]!]));
   const captionsValid = selected.length > 0 && selected.every(platform =>
     captions[platform].trim() && captions[platform].length <= socialCaptionLimits[platform]);
   const invalidate = () => { setReviewIds([]); setConfirmed(false); setMessage(''); };
@@ -96,9 +102,17 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
       if (!active) return;
       setPosts(value);
       setCaptions(current => ({
-        facebook: value.find(post => post.platform === 'facebook')?.request.caption ?? current.facebook,
-        instagram: value.find(post => post.platform === 'instagram')?.request.caption ?? current.instagram,
+        facebook: value.find(post => post.platform === 'facebook' && post.status !== 'published')?.request.caption ?? current.facebook,
+        instagram: value.find(post => post.platform === 'instagram' && post.status !== 'published')?.request.caption ?? current.instagram,
       }));
+      const activePost = value.find(post => post.status === 'draft' || post.status === 'ready' || post.status === 'processing');
+      if (activePost) {
+        setMediaType(activePost.request.mediaType ?? 'image');
+        setSelectedImages(activePost.request.sourceImageUrls ?? [activePost.request.sourceImageUrl]);
+        if (activePost.request.mediaType === 'mixed') setSelected(['instagram']);
+      }
+      setReplacesPostIds(Object.fromEntries(value.filter(post => post.status !== 'published' && post.request.replacesPostId)
+        .map(post => [post.platform, post.request.replacesPostId!])));
       setReviewIds(value.filter(post => post.status === 'draft' || post.status === 'ready').map(post => post.id));
       setPostsLoadError(false);
     }).catch(failure => {
@@ -120,6 +134,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     const item = products.find(value => value.id === id);
     setSelectedImages(item ? [item.image] : []);
     setMediaType('image');
+    setReplacesPostIds({});
     setCaptions(item ? starterCaptions(item) : { facebook: '', instagram: '' });
   };
   const run = async (label: string, action: () => Promise<void>) => {
@@ -140,7 +155,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     setReviewIds(value.filter(post => post.status === 'draft' || post.status === 'ready').map(post => post.id));
     const processingPost = value.find(post => post.status === 'processing');
     if (processingPost) {
-      setMessage(`${labels[processingPost.platform]} is still processing the saved ${isVideoPost(processingPost) ? 'video' : 'post'}. Wait a little, then check the status again. Nothing new was published.`);
+      setMessage(`${labels[processingPost.platform]} is still processing the saved ${hasVideo(processingPost) ? 'video' : 'post'}. Wait a little, then check the status again. Nothing new was published.`);
     } else if (value.some(post => post.platform === 'instagram' && post.status === 'ready')) {
       setMessage('Instagram processing is complete. Review the saved preview, check publishing access and confirm before publishing.');
     } else {
@@ -160,6 +175,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
         mediaType: 'video', videoUrl: product.makingVideo.videoUrl,
         ...(selected.includes('instagram') && setup.instagram ? { instagramUserId: setup.instagram.id } : {}),
         captions: Object.fromEntries(selected.map(platform => [platform, captions[platform]])),
+        ...(Object.keys(replacementInput).length ? { replacesPostIds: replacementInput } : {}),
       });
       setPosts(value);
       setReviewDirty(false);
@@ -167,13 +183,19 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
       setMessage('Video post previews saved. Nothing has been published. Review the saved video before confirming.');
       return;
     }
-    if (!selectedImages.length || selectedImages.length > 10) throw new Error('Select between 1 and 10 product photos.');
+    if (!selectedImages.length || selectedImages.length > maxPhotos) throw new Error(`Select between 1 and ${maxPhotos} product photos.`);
+    if (mediaType === 'mixed' && (!product.makingVideo || product.makingVideo.durationSeconds < 3
+      || selected.length !== 1 || selected[0] !== 'instagram')) {
+      throw new Error('Photos + video requires Instagram only and a published making video of at least 3 seconds.');
+    }
     const images: File[] = [];
     for (const source of selectedImages) images.push(await prepareSocialPostJpeg(source));
     const value = await prepareProductSocialPosts({
       productId: product.id, sourceImageUrl: selectedImages[0], sourceImageUrls: selectedImages, pageId: setup.pageId,
       ...(selected.includes('instagram') && setup.instagram ? { instagramUserId: setup.instagram.id } : {}),
       captions: Object.fromEntries(selected.map(platform => [platform, captions[platform]])),
+      ...(mediaType === 'mixed' && product.makingVideo ? { mediaType: 'mixed', videoUrl: product.makingVideo.videoUrl } : {}),
+      ...(Object.keys(replacementInput).length ? { replacesPostIds: replacementInput } : {}),
     }, images);
     setPosts(value);
     setReviewDirty(false);
@@ -195,8 +217,19 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
   return <AdminDialog title="Facebook / Instagram / WhatsApp product post" onClose={onClose} busy={Boolean(busy)}>
     <div className="grid gap-4 p-4 sm:p-6">
       <p className="text-sm">Create an organic product photo or video post, not an ad. Publishing makes it LIVE immediately; it is not paused and creates no ad budget.
-        Facebook and Instagram permit one initial post per product per platform. Never use another product to bypass an uncertain result.
+        New posts keep previously published posts unchanged. Only one unfinished post per product and platform is allowed; resolve uncertain results before starting another.
         WhatsApp sharing is manual; check your group before sending again to avoid duplicates.</p>
+      {posts.some(post => post.status === 'published') && <p className="rounded-xl border border-mustard/40 bg-cream/60 p-3 text-sm">
+        This product already has published posts. Prepare previews to create a separate new post, or choose Replace below to link a replacement draft.
+        Published posts are never edited or deleted automatically.
+      </p>}
+      {Object.keys(replacementInput).length > 0 && <div role="status" className="rounded-xl border border-mustard/40 bg-cream/60 p-3 text-sm">
+        Replacement draft for {Object.keys(replacementInput).map(platform => labels[platform as SocialPlatform]).join(' + ')}.
+        Publishing creates a new post and link; likes and comments do not transfer. After success, open the original post below and remove it manually in Meta.
+        <button type="button" disabled={Boolean(busy)} className="ml-2 min-h-11 underline" onClick={() => {
+          invalidate(); setReviewDirty(true); setReplacesPostIds({});
+        }}>Make this a separate new post instead</button>
+      </div>}
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {message && <p role="status" className="text-sm">{message}</p>}
       <fieldset disabled={Boolean(busy) || loadingProducts || loadingPosts} className="grid gap-3">
@@ -210,7 +243,8 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           <legend className="mb-2 text-sm font-semibold">Post to</legend>
           {platforms.map(platform => <label key={platform} className="flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" checked={selected.includes(platform)}
-              disabled={platform === 'instagram' && mediaType === 'video' && Boolean(product?.makingVideo && product.makingVideo.durationSeconds < 3)}
+              disabled={(platform === 'facebook' && mediaType === 'mixed')
+                || (platform === 'instagram' && mediaType !== 'image' && Boolean(product?.makingVideo && product.makingVideo.durationSeconds < 3))}
               onChange={event => {
               invalidate(); setSetup(null);
               setSelected(current => event.target.checked ? [...current, platform] : current.filter(item => item !== platform));
@@ -219,7 +253,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
         </fieldset>
         {product && <div className="flex flex-wrap items-start gap-4">
           <img src={product.image} alt={`Source product photo: ${product.name}`} className="h-40 w-40 rounded-xl bg-white object-contain" />
-          <p className="max-w-sm text-sm">{mediaType === 'video'
+          <p className="max-w-sm text-sm">{mediaType !== 'image'
             ? 'The published making video is sent to Meta from its public video URL. Review the saved video and poster before publishing.'
             : 'The full photo is fitted into a 1080 x 1080 JPEG with white padding rather than cropped. Review the saved JPEG preview before publishing.'}
             Captions start from product details, not AI-generated claims. Meta captions are plain text; they support line breaks, emojis and hashtags but not rich-text formatting. Instagram caption links are not clickable; verify your profile&apos;s link in bio.</p>
@@ -228,13 +262,14 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           <legend className="text-sm font-semibold">Post media</legend>
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="radio" name="post-media-type" value="image" checked={mediaType === 'image'}
-              onChange={() => { invalidate(); setMediaType('image'); }} />
+              onChange={() => { invalidate(); setReviewDirty(true); setMediaType('image'); }} />
             Product photos
           </label>
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="radio" name="post-media-type" value="video" checked={mediaType === 'video'}
               onChange={() => {
                 invalidate();
+                setReviewDirty(true);
                 setMediaType('video');
                 if (product.makingVideo && product.makingVideo.durationSeconds < 3) {
                   setSelected(current => current.filter(platform => platform !== 'instagram'));
@@ -242,23 +277,35 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
               }} />
             Making video ({product.makingVideo.durationSeconds}s)
           </label>
-          {mediaType === 'video' && product.makingVideo.durationSeconds < 3 && <p className="text-sm">
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="radio" name="post-media-type" value="mixed" checked={mediaType === 'mixed'}
+              disabled={product.makingVideo.durationSeconds < 3}
+              onChange={() => {
+                invalidate(); setReviewDirty(true); setMediaType('mixed'); setSelected(['instagram']); setSetup(null);
+              }} />
+            Photos + making video (one Instagram carousel)
+          </label>
+          <p className="text-sm">Instagram can combine up to nine selected photos followed by the making video in one swipeable post.
+            The first photo is the cover; Instagram may crop the video to match it. Mixed posts are Instagram-only here.
+            Choose photos or video separately for Facebook.</p>
+          {mediaType !== 'image' && product.makingVideo.durationSeconds < 3 && <p className="text-sm">
             This video is too short for Instagram Reels. You can select Facebook only, or choose product photos for both platforms.
           </p>}
         </fieldset>}
-        {product && mediaType === 'video' && product.makingVideo && <div className="grid gap-2">
+        {product && mediaType !== 'image' && product.makingVideo && <div className="grid gap-2">
           <video src={product.makingVideo.videoUrl} poster={product.makingVideo.posterUrl} controls playsInline
             preload="metadata" className="max-h-96 max-w-full rounded-xl bg-black" aria-label={`${product.name} making video`} />
           <p className="text-sm">{product.makingVideo.title || `Making ${product.name}`} · {product.makingVideo.durationSeconds}s</p>
         </div>}
-        {product && mediaType === 'image' && <fieldset className="grid gap-3">
-          <legend className="text-sm font-semibold">Post photos ({selectedImages.length}/10)</legend>
-          <p className="text-sm">Select up to 10 photos. The first is the cover. Multiple photos create an Instagram carousel
-            and a Facebook multi-photo post. WhatsApp sharing stays separate.</p>
+        {product && mediaType !== 'video' && <fieldset className="grid gap-3">
+          <legend className="text-sm font-semibold">Post photos ({selectedImages.length}/{maxPhotos})</legend>
+          <p className="text-sm">Select up to {maxPhotos} photos. The first is the cover. {mediaType === 'mixed'
+            ? 'The making video is the last item in the same Instagram carousel.'
+            : 'Multiple photos create an Instagram carousel and a Facebook multi-photo post.'} WhatsApp sharing stays separate.</p>
           <button type="button" className="min-h-11 justify-self-start underline" onClick={() => {
             const photos = productPhotos(product);
-            if (photos.length > 10) {
-              setError('This product has more than 10 photos. Select up to 10 individually.');
+            if (photos.length > maxPhotos) {
+              setError(`This product has more than ${maxPhotos} photos. Select up to ${maxPhotos} individually.`);
               return;
             }
             invalidate(); setReviewDirty(true); setSelectedImages(photos);
@@ -267,7 +314,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
             {productPhotos(product).map((url, index) => <label key={url} className="grid gap-1 text-sm">
               <img src={url} alt={`Available product photo ${index + 1}`} className="h-24 w-24 rounded-lg object-contain" />
               <span><input type="checkbox" checked={selectedImages.includes(url)}
-                disabled={!selectedImages.includes(url) && selectedImages.length >= 10}
+                disabled={!selectedImages.includes(url) && selectedImages.length >= maxPhotos}
                 onChange={event => {
                   invalidate(); setReviewDirty(true);
                   setSelectedImages(current => event.target.checked ? [...current, url] : current.filter(image => image !== url));
@@ -296,7 +343,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           </ol>
         </fieldset>}
         {selected.map(platform => {
-          const readOnly = posts.some(post => post.platform === platform && post.status !== 'draft');
+          const readOnly = posts.some(post => post.platform === platform && post.status !== 'draft' && post.status !== 'published');
           return <div key={platform} className="grid gap-1 text-sm font-semibold">
             <label htmlFor={`caption-${platform}`}>{labels[platform]} caption</label>
             <EmojiPicker label={`Add emoji to ${labels[platform]} caption`} disabled={readOnly}
@@ -321,8 +368,9 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           {setup.instagram && <> Instagram: <strong>@{setup.instagram.username}</strong> ({setup.instagram.id}).</>}
           {!setup.enabled && <> Publishing is disabled until the operator enables it after permission and preview verification. Draft preparation is still available.</>}
         </p>}
-        <button type="button" disabled={!product || !setup || !captionsValid || (mediaType === 'image' && !selectedImages.length)
-          || (mediaType === 'video' && !product.makingVideo) || loadingPosts || postsLoadError}
+        <button type="button" disabled={!product || !setup || !captionsValid || (mediaType !== 'video' && !selectedImages.length)
+          || (mediaType !== 'image' && !product.makingVideo) || (mediaType !== 'video' && selectedImages.length > maxPhotos)
+          || loadingPosts || postsLoadError}
           onClick={() => void prepare()} className="min-h-11 rounded-full border border-cocoa/30 px-4 font-semibold disabled:opacity-50">
           {busy === 'Preparing' ? 'Preparing previews...' : 'Prepare post previews (does not publish)'}
         </button>
@@ -334,9 +382,12 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
         }} />}
       {loadingPosts && <p role="status" className="text-sm">Loading saved posting status...</p>}
       {reviewDirty && <p role="status" className="text-sm">Photo, video or caption edits are not saved. Prepare new previews before publishing; checking access or refreshing status does not save edits.</p>}
-      {posts.map(post => <article key={post.id} className="grid gap-2 rounded-xl border border-cocoa/25 bg-white p-3 text-sm">
-        <h3 className="font-semibold">{labels[post.platform]}: {post.status === 'processing' && isVideoPost(post)
-          ? `${labels[post.platform]} is processing the video` : statuses[post.status]}</h3>
+      {posts.map(post => {
+        const original = posts.find(item => item.id === post.request.replacesPostId);
+        return <article key={post.id} className="grid gap-2 rounded-xl border border-cocoa/25 bg-white p-3 text-sm">
+        <h3 className="font-semibold">{labels[post.platform]}: {post.status === 'processing' && hasVideo(post)
+          ? `${labels[post.platform]} is processing the video` : post.status === 'ready' && hasVideo(post)
+            ? 'Instagram media ready - confirm to continue publishing' : statuses[post.status]}</h3>
         {post.status === 'processing' && <div className="rounded-xl border border-mustard/40 bg-cream/60 p-3">
           <p>{post.platform === 'instagram'
             ? 'Instagram has not finished processing this saved post.'
@@ -349,18 +400,8 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
         </div>}
         <p>Product: {post.request.productName}. Page: {post.request.pageName}.
           {post.platform === 'instagram' && ` Instagram: @${post.request.instagramUsername}.`}</p>
-        {isVideoPost(post) && post.request.videoUrl
-          ? <video src={post.request.videoUrl} poster={post.request.imageUrl} controls playsInline preload="metadata"
-            aria-label={`Saved ${labels[post.platform]} video preview`}
-            onLoadedData={() => setPreviewReady(current => current.includes(post.request.videoUrl!)
-              ? current : [...current, post.request.videoUrl!])}
-            onError={() => {
-              setPreviewReady(current => current.filter(url => url !== post.request.videoUrl));
-              setConfirmed(false);
-              setError('The saved video preview could not be loaded. Restore public video access and reload the saved draft before publishing.');
-            }}
-            className="max-h-96 max-w-full rounded-xl bg-black" />
-          : <ol aria-label={`${labels[post.platform]} saved photos`} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {post.request.mediaType === 'mixed' && <p>One Instagram carousel: {savedPhotos(post).length} photo(s), then one making video. First photo is the cover.</p>}
+        {!isVideoPost(post) && <ol aria-label={`${labels[post.platform]} saved photos`} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {savedPhotos(post).map((url, index) => <li key={url} className="min-w-0">
               <img src={url}
                 alt={`Saved ${labels[post.platform]} post preview${savedPhotos(post).length > 1 ? ` ${index + 1}` : ''}`}
@@ -376,11 +417,39 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
               </p>}
             </li>)}
           </ol>}
+        {hasVideo(post) && post.request.videoUrl && <video src={post.request.videoUrl} poster={post.request.videoPosterUrl ?? post.request.imageUrl} controls playsInline preload="metadata"
+            aria-label={`Saved ${labels[post.platform]} video preview`}
+            onLoadedData={() => setPreviewReady(current => current.includes(post.request.videoUrl!)
+              ? current : [...current, post.request.videoUrl!])}
+            onError={() => {
+              setPreviewReady(current => current.filter(url => url !== post.request.videoUrl));
+              setConfirmed(false);
+              setError('The saved video preview could not be loaded. Restore public video access and reload the saved draft before publishing.');
+            }}
+            className="max-h-96 max-w-full rounded-xl bg-black" />}
         <p className="whitespace-pre-wrap">{post.request.caption}</p>
         <a href={post.request.productUrl} target="_blank" rel="noopener noreferrer" className="break-all underline">Review product destination</a>
         {post.error && <p className="text-red-700"><strong>Saved publishing issue:</strong> {post.error}</p>}
         {post.permalink && <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="min-h-11 py-2 font-semibold underline">View published {labels[post.platform]} post</a>}
-      </article>)}
+        {post.request.replacesPostId && <p className="rounded-lg bg-cream/60 p-3">
+          {post.status === 'published' ? 'Replacement published. The original is still live; remove it manually only after checking this replacement.' : 'This is a replacement draft. The original post remains unchanged.'}
+          {original?.permalink && <a
+            href={original.permalink}
+            target="_blank" rel="noopener noreferrer" className="ml-2 min-h-11 inline-block py-2 underline">Open original post</a>}
+        </p>}
+        {post.status === 'published' && <button type="button"
+          disabled={Boolean(busy) || posts.some(other => other.platform === post.platform && other.status !== 'draft' && other.status !== 'published')}
+          className="min-h-11 rounded-full border border-cocoa/30 px-4 font-semibold disabled:opacity-50"
+          onClick={() => {
+            invalidate(); setReviewDirty(true); setSetup(null);
+            setSelected([post.platform]); setReplacesPostIds({ [post.platform]: post.id });
+            setCaptions(current => ({ ...current, [post.platform]: post.request.caption }));
+            setMediaType('image'); setSelectedImages(product ? [product.image] : []);
+            setMessage('Replacement started. Choose photos, video or an Instagram mixed carousel above, check access, then prepare and review new previews. The original stays live.');
+            requestAnimationFrame(() => captionInputs.current[post.platform]?.focus());
+          }}>Replace this {labels[post.platform]} post</button>}
+      </article>;
+      })}
       <button type="button" disabled={!product || Boolean(busy)} onClick={() => void refresh()}
         className="min-h-11 rounded-full border border-cocoa/30 px-4 font-semibold disabled:opacity-50">
         Refresh saved posting status (read-only)

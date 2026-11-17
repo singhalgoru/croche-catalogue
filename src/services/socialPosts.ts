@@ -20,8 +20,9 @@ async function invoke(body: Record<string, unknown> | FormData): Promise<unknown
 function parsePosts(value: unknown, productId: string): SocialPost[] {
   if (!socialRecord(value) || !Array.isArray(value.posts)) throw new Error('Invalid social post response.');
   const posts = value.posts.map(parseSocialPost);
-  if (posts.some(post => post.product_id !== productId) || new Set(posts.map(post => post.platform)).size !== posts.length) {
-    throw new Error('Social posting returned a different product or duplicate platform.');
+  if (posts.some(post => post.product_id !== productId) || new Set(posts.map(post => post.id)).size !== posts.length
+    || new Set(posts.filter(post => post.status !== 'published').map(post => post.platform)).size !== posts.filter(post => post.status !== 'published').length) {
+    throw new Error('Social posting returned a different product, duplicate post or conflicting active platform.');
   }
   return posts;
 }
@@ -51,7 +52,8 @@ export async function checkSocialPublishing(platforms: SocialPlatform[]): Promis
 
 export async function prepareProductSocialPosts(input: {
   productId: string; sourceImageUrl: string; sourceImageUrls?: string[]; pageId: string; instagramUserId?: string;
-  mediaType?: 'image' | 'video'; videoUrl?: string;
+  mediaType?: 'image' | 'video' | 'mixed'; videoUrl?: string;
+  replacesPostIds?: Partial<Record<SocialPlatform, string>>;
   captions: Partial<Record<SocialPlatform, string>>;
 }, image?: File | File[]): Promise<SocialPost[]> {
   if (input.mediaType === 'video') {
@@ -60,10 +62,14 @@ export async function prepareProductSocialPosts(input: {
     }
     return parsePosts(await invoke({ ...input, action: 'prepare' }), input.productId);
   }
-  if (!image || input.videoUrl !== undefined) throw new Error('Prepare a post with JPEG previews or a published making video.');
+  if (!image || (input.mediaType !== 'mixed' && input.videoUrl !== undefined)) throw new Error('Prepare a post with JPEG previews or a published making video.');
   const images = Array.isArray(image) ? image : [image];
   if (!images.length || images.length > 10 || (input.sourceImageUrls && input.sourceImageUrls.length !== images.length)) {
     throw new Error('Select between 1 and 10 product images with matching JPEG previews.');
+  }
+  if (input.mediaType === 'mixed' && (!socialHttpsUrl(input.videoUrl) || !input.sourceImageUrls
+    || images.length > 9 || !input.captions.instagram || Object.keys(input.captions).some(platform => platform !== 'instagram'))) {
+    throw new Error('Instagram mixed posts require one to nine matching photos and one published making video, without Facebook selected.');
   }
   if (images.reduce((total, file) => total + file.size, 0) > 8 * 1024 * 1024) {
     throw new Error('Selected JPEG previews exceed 8 MB in total. Select fewer images.');

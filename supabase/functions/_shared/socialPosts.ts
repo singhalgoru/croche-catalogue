@@ -32,8 +32,10 @@ export function socialPermalink(value: unknown, platform: SocialPlatform): value
 export interface SocialPostSnapshot {
   productName: string;
   productUrl: string;
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'mixed';
   videoUrl?: string;
+  videoPosterUrl?: string;
+  replacesPostId?: string;
   sourceImageUrl: string;
   imageUrl: string;
   sourceImageUrls?: string[];
@@ -90,10 +92,14 @@ export function parseSocialPost(value: unknown): SocialPost {
   }
   const snapshot = value.request;
   const mediaType = snapshot.mediaType ?? 'image';
-  if ((mediaType !== 'image' && mediaType !== 'video')
+  if ((mediaType !== 'image' && mediaType !== 'video' && mediaType !== 'mixed')
     || (mediaType === 'video' && (!socialHttpsUrl(snapshot.videoUrl)
       || snapshot.sourceImageUrls !== undefined || snapshot.imageUrls !== undefined || snapshot.childMediaIds !== undefined))
-    || (mediaType === 'image' && snapshot.videoUrl !== undefined)) {
+    || (mediaType === 'mixed' && (value.platform !== 'instagram' || !socialHttpsUrl(snapshot.videoUrl)
+      || !socialHttpsUrl(snapshot.videoPosterUrl) || !socialImageUrlList(snapshot.imageUrls) || snapshot.imageUrls.length > 9))
+    || (mediaType === 'image' && snapshot.videoUrl !== undefined)
+    || (mediaType !== 'mixed' && snapshot.videoPosterUrl !== undefined)
+    || (snapshot.replacesPostId !== undefined && (!socialUuid(snapshot.replacesPostId) || snapshot.replacesPostId === value.id))) {
     throw new Error('Invalid saved social post media.');
   }
   const hasImages = snapshot.sourceImageUrls !== undefined || snapshot.imageUrls !== undefined;
@@ -101,10 +107,13 @@ export function parseSocialPost(value: unknown): SocialPost {
     || snapshot.sourceImageUrls.length !== snapshot.imageUrls.length
     || snapshot.sourceImageUrls[0] !== snapshot.sourceImageUrl || snapshot.imageUrls[0] !== snapshot.imageUrl))
     || (snapshot.childMediaIds !== undefined && (!Array.isArray(snapshot.childMediaIds)
-      || snapshot.childMediaIds.length < 1 || snapshot.childMediaIds.length > (Array.isArray(snapshot.imageUrls) ? snapshot.imageUrls.length : 1)
+      || snapshot.childMediaIds.length < 1 || snapshot.childMediaIds.length > (Array.isArray(snapshot.imageUrls) ? snapshot.imageUrls.length : 1) + (mediaType === 'mixed' ? 1 : 0)
       || !snapshot.childMediaIds.every(socialNumericId) || new Set(snapshot.childMediaIds).size !== snapshot.childMediaIds.length))) {
     throw new Error('Invalid saved social post images.');
   }
+  const mixedChildrenReady = mediaType === 'mixed' && Array.isArray(snapshot.childMediaIds)
+    && snapshot.childMediaIds.length === (Array.isArray(snapshot.imageUrls) ? snapshot.imageUrls.length : 0) + 1
+    && value.publish_started_at === null;
   if (!text(snapshot.productName, 300) || !socialHttpsUrl(snapshot.productUrl) || !socialHttpsUrl(snapshot.sourceImageUrl)
     || !socialHttpsUrl(snapshot.imageUrl) || !text(snapshot.caption, socialCaptionLimits[value.platform])
     || !socialNumericId(snapshot.pageId) || !text(snapshot.pageName, 300)
@@ -115,9 +124,9 @@ export function parseSocialPost(value: unknown): SocialPost {
     || (value.post_id !== null && !(value.platform === 'instagram' || mediaType === 'video'
       ? /^\d{1,30}$/ : /^\d{1,30}_\d{1,30}$/).test(value.post_id))
     || (value.status === 'published' && (!value.post_id || !value.permalink))
-    || (value.status === 'processing' && !((value.platform === 'instagram' && value.container_id)
+    || (value.status === 'processing' && !((value.platform === 'instagram' && (value.container_id || mixedChildrenReady))
       || (value.platform === 'facebook' && mediaType === 'video' && value.post_id)))
-    || (value.status === 'ready' && (value.platform !== 'instagram' || !value.container_id))) {
+    || (value.status === 'ready' && (value.platform !== 'instagram' || (!value.container_id && !mixedChildrenReady)))) {
     throw new Error('Invalid saved social post details.');
   }
   let instagram: Pick<SocialPostSnapshot, 'instagramUserId' | 'instagramUsername'> = {};
@@ -133,6 +142,8 @@ export function parseSocialPost(value: unknown): SocialPost {
       imageUrl: snapshot.imageUrl, caption: snapshot.caption, pageId: snapshot.pageId, pageName: snapshot.pageName, ...instagram,
       ...(snapshot.mediaType !== undefined ? { mediaType } : {}),
       ...(typeof snapshot.videoUrl === 'string' ? { videoUrl: snapshot.videoUrl } : {}),
+      ...(typeof snapshot.videoPosterUrl === 'string' ? { videoPosterUrl: snapshot.videoPosterUrl } : {}),
+      ...(typeof snapshot.replacesPostId === 'string' ? { replacesPostId: snapshot.replacesPostId } : {}),
       ...(hasImages ? { sourceImageUrls: [...snapshot.sourceImageUrls as string[]], imageUrls: [...snapshot.imageUrls as string[]] } : {}),
       ...(snapshot.childMediaIds !== undefined ? { childMediaIds: [...snapshot.childMediaIds as string[]] } : {}),
     },

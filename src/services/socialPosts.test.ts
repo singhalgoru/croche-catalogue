@@ -65,6 +65,28 @@ it('prepares a published making video with a JSON request and no media re-upload
   expect(mocks.invoke).toHaveBeenCalledOnce();
 });
 
+it('prepares mixed Instagram replacement media in one multipart request and enforces the ten-item total', async () => {
+  const input = {
+    productId, sourceImageUrl: 'https://images.example.test/photo.webp',
+    sourceImageUrls: ['https://images.example.test/photo.webp'], pageId: '456',
+    mediaType: 'mixed' as const, videoUrl: 'https://videos.example.test/video.mp4',
+    instagramUserId: '999', captions: { instagram: 'Photos and making video' },
+    replacesPostIds: { instagram: id },
+  };
+  const jpeg = new File(['jpeg'], 'photo.jpg', { type: 'image/jpeg' });
+  await prepareProductSocialPosts(input, [jpeg]);
+  const body: FormData = mocks.invoke.mock.calls[0][1].body;
+  expect(JSON.parse(String(body.get('input')))).toEqual({ ...input, action: 'prepare' });
+  expect(body.getAll('image')).toHaveLength(1);
+  mocks.invoke.mockClear();
+  await expect(prepareProductSocialPosts({
+    ...input, sourceImageUrls: Array.from({ length: 10 }, (_, i) => `https://images.example.test/${i}.webp`),
+  }, Array.from({ length: 10 }, () => jpeg))).rejects.toThrow('one to nine');
+  await expect(prepareProductSocialPosts({ ...input, captions: { ...input.captions, facebook: 'No silent fallback' } }, [jpeg]))
+    .rejects.toThrow('without Facebook');
+  expect(mocks.invoke).not.toHaveBeenCalled();
+});
+
 it('surfaces permission diagnostics and rejects malformed saved-post responses', async () => {
   mocks.invoke.mockResolvedValueOnce({
     data: null, error: { message: 'Function error', context: new Response('{"error":"Reconnect Meta with pages_manage_posts granted."}') },

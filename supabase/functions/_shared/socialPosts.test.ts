@@ -37,6 +37,28 @@ it('parses saved making-video media and allows a Facebook video to remain proces
   expect(() => parseSocialPost(photo)).toThrow('Invalid saved social post details');
 });
 
+it('preserves mixed carousel children, replacement identity and child-only processing states', () => {
+  const mixed: SocialPost = {
+    ...fixture(), platform: 'instagram', status: 'processing', attempt_started_at: '2026-01-01T00:00:00Z',
+    request: {
+      ...fixture().request, mediaType: 'mixed', instagramUserId: '999', instagramUsername: 'luvia',
+      sourceImageUrls: [fixture().request.sourceImageUrl], imageUrls: [fixture().request.imageUrl],
+      videoUrl: 'https://videos.example.test/video.mp4', videoPosterUrl: 'https://images.example.test/poster.webp',
+      childMediaIds: ['101', '102'], replacesPostId: '00000000-0000-4000-8000-000000000003',
+    },
+  };
+  expect(parseSocialPost(mixed)).toEqual(mixed);
+  expect(parseSocialPost({ ...mixed, status: 'ready' })).toMatchObject({ status: 'ready', container_id: null });
+  for (const invalid of [
+    { ...mixed, platform: 'facebook' },
+    { ...mixed, request: { ...mixed.request, videoUrl: undefined } },
+    { ...mixed, request: { ...mixed.request, videoPosterUrl: undefined } },
+    { ...mixed, request: { ...mixed.request, replacesPostId: mixed.id } },
+    { ...mixed, request: { ...mixed.request, childMediaIds: ['101'] } },
+    { ...mixed, publish_started_at: '2026-01-01T00:00:00Z' },
+  ]) expect(() => parseSocialPost(invalid)).toThrow('Invalid saved social post');
+});
+
 it('rejects malformed, unpaired, mismatched and over-limit saved image lists or invalid child checkpoints', () => {
   const source = fixture().request.sourceImageUrl;
   const image = fixture().request.imageUrl;

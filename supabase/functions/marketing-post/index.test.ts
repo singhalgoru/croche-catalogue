@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(), rpc: vi.fn(), loadMetaAccess: vi.fn(), readProduct: vi.fn(), readPosts: vi.fn(), readMany: vi.fn(),
   insert: vi.fn(), checkpoint: vi.fn(), storePostImage: vi.fn(), publishingAccess: vi.fn(),
   createFacebookPost: vi.fn(), createInstagramContainer: vi.fn(), publishInstagramContainer: vi.fn(),
-  containerStatus: vi.fn(), readPublishedPost: vi.fn(),
+  containerStatus: vi.fn(), readPublishedPost: vi.fn(), instagramChildrenStatus: vi.fn(),
 }));
 vi.mock('../_shared/loadMetaAccess.ts', () => ({ loadMetaAccess: mocks.loadMetaAccess }));
 vi.mock('./image.ts', () => ({ storePostImage: mocks.storePostImage }));
@@ -14,7 +14,7 @@ vi.mock('./meta.ts', async original => ({
   ...await original<typeof import('./meta')>(),
   publishingAccess: mocks.publishingAccess, createFacebookPost: mocks.createFacebookPost,
   createInstagramContainer: mocks.createInstagramContainer, publishInstagramContainer: mocks.publishInstagramContainer,
-  containerStatus: mocks.containerStatus, readPublishedPost: mocks.readPublishedPost,
+  containerStatus: mocks.containerStatus, readPublishedPost: mocks.readPublishedPost, instagramChildrenStatus: mocks.instagramChildrenStatus,
 }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
   createClient: () => ({
@@ -119,6 +119,7 @@ beforeEach(() => {
   mocks.createFacebookPost.mockResolvedValue('456_100');
   mocks.createInstagramContainer.mockResolvedValue('300');
   mocks.containerStatus.mockResolvedValue({ status: 'ready', error: null });
+  mocks.instagramChildrenStatus.mockResolvedValue({ status: 'ready', error: null });
   mocks.publishInstagramContainer.mockResolvedValue('400');
   mocks.readPublishedPost.mockImplementation(async post => ({
     status: 'published', error: null, permalink: post.platform === 'facebook'
@@ -181,6 +182,99 @@ it('rejects stale making videos and too-short Instagram Reels before saving any 
   });
   expect((await handle(prepareVideo())).status).toBe(502);
   expect(mocks.insert).not.toHaveBeenCalled();
+});
+
+const mixedInput = {
+  mediaType: 'mixed', videoUrl: makingVideo.video_url, sourceImageUrls: ['https://images.example.test/bag.webp'],
+  instagramUserId: '999', captions: { instagram: 'Photos and making video' },
+};
+const withMakingVideo = () => mocks.readProduct.mockResolvedValue({
+  data: { name: 'Bag', image_url: 'https://images.example.test/bag.webp', public_slug: 'bag', published: true,
+    product_variants: [], product_making_videos: makingVideo }, error: null,
+});
+
+it('prepares a mixed replacement after a published photo post without mutating its history', async () => {
+  const original = fixture('instagram', {
+    status: 'published', post_id: '600', permalink: 'https://www.instagram.com/p/original/',
+    attempt_started_at: '2026-01-01T00:00:00Z', publish_started_at: '2026-01-01T00:00:00Z',
+  });
+  rows = [original];
+  const preserved = structuredClone(original);
+  withMakingVideo();
+  mocks.insert.mockImplementationOnce(async value => {
+    rows.push({ ...fixture(value.platform), ...value, id: '00000000-0000-4000-8000-000000000005' });
+    return { error: null };
+  });
+  const result = await handle(prepare({ ...mixedInput, replacesPostIds: { instagram: original.id } }));
+  expect(result.status).toBe(200);
+  expect(rows[0]).toEqual(preserved);
+  expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({
+    platform: 'instagram', request: expect.objectContaining({
+      mediaType: 'mixed', imageUrls: ['https://images.example.test/prepared.jpg'],
+      videoUrl: makingVideo.video_url, videoPosterUrl: makingVideo.poster_url, replacesPostId: original.id,
+    }),
+  }));
+  expect(mocks.createInstagramContainer).not.toHaveBeenCalled();
+  expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
+});
+
+it('rejects mixed Facebook requests, ten photos, invalid replacement targets and stale videos before storage', async () => {
+  withMakingVideo();
+  expect((await handle(prepare({ ...mixedInput, captions: { facebook: 'Not supported' }, instagramUserId: undefined }))).status).toBe(400);
+  expect((await handle(prepare({
+    ...mixedInput, sourceImageUrls: Array.from({ length: 10 }, (_, i) => `https://images.example.test/${i}.webp`),
+  }))).status).toBe(400);
+  expect((await handle(prepare({ ...mixedInput, replacesPostIds: { instagram: ids.facebook } }))).status).toBe(502);
+  expect((await handle(prepare({ ...mixedInput, videoUrl: 'https://videos.example.test/stale.mp4' }))).status).toBe(502);
+  expect(mocks.storePostImage).not.toHaveBeenCalled();
+});
+
+it('waits for mixed video children and resumes with explicit consent without duplicate children or parent writes on refresh', async () => {
+  withMakingVideo();
+  rows = [fixture('instagram', { request: {
+    ...fixture('instagram').request, mediaType: 'mixed', videoUrl: makingVideo.video_url, videoPosterUrl: makingVideo.poster_url,
+    sourceImageUrls: ['https://images.example.test/bag.webp'], imageUrls: ['https://images.example.test/post.jpg'],
+  } })];
+  mocks.createInstagramContainer.mockImplementationOnce(async (_post, _config, _fetch, saveChildren) => {
+    await saveChildren(['101']);
+    await saveChildren(['101', '102']);
+    return null;
+  });
+  expect((await handle(publish(['instagram']))).status).toBe(200);
+  expect(rows[0]).toMatchObject({ status: 'processing', container_id: null, publish_started_at: null, request: { childMediaIds: ['101', '102'] } });
+  expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
+  expect((await handle(request({ action: 'refresh', productId }))).status).toBe(200);
+  expect(rows[0].status).toBe('ready');
+  expect(mocks.instagramChildrenStatus).toHaveBeenCalledOnce();
+  expect(mocks.createInstagramContainer).toHaveBeenCalledOnce();
+  mocks.containerStatus.mockResolvedValueOnce({ status: 'processing', error: null });
+  expect((await handle(request({ action: 'publish', confirmLive: true, posts: [{ id: ids.instagram, revision: rows[0].revision }] }))).status).toBe(200);
+  expect(rows[0]).toMatchObject({ status: 'processing', container_id: '300', publish_started_at: null });
+  expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
+  expect((await handle(request({ action: 'refresh', productId }))).status).toBe(200);
+  expect(rows[0].status).toBe('ready');
+  expect((await handle(request({ action: 'publish', confirmLive: true, posts: [{ id: ids.instagram, revision: rows[0].revision }] }))).status).toBe(200);
+  expect(rows[0]).toMatchObject({ status: 'published', post_id: '400' });
+  expect(mocks.createInstagramContainer).toHaveBeenCalledTimes(2);
+  expect(mocks.publishInstagramContainer).toHaveBeenCalledOnce();
+});
+
+it('does not make an uncertain mixed parent creation retryable through child-only refresh', async () => {
+  const mixed = fixture('instagram', {
+    status: 'publishing', attempt_started_at: '2026-01-01T00:00:00Z',
+    request: {
+      ...fixture('instagram').request, mediaType: 'mixed', videoUrl: makingVideo.video_url,
+      videoPosterUrl: makingVideo.poster_url, imageUrls: ['https://images.example.test/post.jpg'],
+      sourceImageUrls: ['https://images.example.test/bag.webp'], childMediaIds: ['101', '102'],
+    },
+  });
+  rows = [mixed];
+  expect((await handle(request({ action: 'refresh', productId }))).status).toBe(200);
+  expect(rows[0].status).toBe('publishing');
+  expect(mocks.instagramChildrenStatus).not.toHaveBeenCalled();
+  expect(mocks.createInstagramContainer).not.toHaveBeenCalled();
+  expect((await handle(publish(['instagram']))).status).toBe(502);
+  expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
 });
 
 it('requires explicit live consent and rejects injected payloads before writes', async () => {

@@ -38,7 +38,7 @@ begin
   begin
     insert into public.marketing_social_posts(product_id,platform,request)
     select product_id,'facebook','{}' from social_post_fixture;
-    raise exception 'FAIL: duplicate product/platform post permitted.';
+    raise exception 'FAIL: duplicate active product/platform post permitted.';
   exception when unique_violation then null;
   end;
   begin
@@ -84,12 +84,44 @@ begin
   get diagnostics claimed=row_count;
   if claimed<>0 then raise exception 'FAIL: a stale draft update overwrote a publishing attempt.'; end if;
 end $$;
+do $$
+begin
+  update public.marketing_social_posts
+    set status='processing',attempt_started_at=now(),
+      request='{"mediaType":"mixed","imageUrls":["https://images.example.test/photo.jpg"],"childMediaIds":["101","102"]}'
+    where product_id=(select product_id from social_post_fixture) and platform='instagram';
+  update public.marketing_social_posts set status='ready'
+    where product_id=(select product_id from social_post_fixture) and platform='instagram';
+  begin
+    update public.marketing_social_posts set request='{"mediaType":"mixed","imageUrls":["https://images.example.test/photo.jpg"],"childMediaIds":["101"]}'
+      where product_id=(select product_id from social_post_fixture) and platform='instagram';
+    raise exception 'FAIL: incomplete mixed children marked ready without parent.';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.marketing_social_posts set request='{}'
+      where product_id=(select product_id from social_post_fixture) and platform='instagram';
+    raise exception 'FAIL: missing mixed children passed processing constraints.';
+  exception when check_violation then null;
+  end;
+  update public.marketing_social_posts set status='published',post_id='456_100',
+    permalink='https://www.facebook.com/456/posts/100',publish_started_at=now()
+    where id=(select post_id from social_post_fixture);
+  insert into public.marketing_social_posts(product_id,platform,request)
+    select product_id,'facebook','{}' from social_post_fixture;
+  begin
+    insert into public.marketing_social_posts(product_id,platform,request)
+      select product_id,'facebook','{}' from social_post_fixture;
+    raise exception 'FAIL: published history allowed multiple unfinished replacements.';
+  exception when unique_violation then null;
+  end;
+end $$;
 reset role;
 
 set local role authenticated;
 do $$
 begin
-  if (select count(*) from public.marketing_social_posts where product_id=(select product_id from social_post_fixture))<>2 then
+  if (select count(*) from public.marketing_social_posts where product_id=(select product_id from social_post_fixture))<>3 then
     raise exception 'FAIL: fresh-MFA admin cannot inspect per-platform results.';
   end if;
   begin

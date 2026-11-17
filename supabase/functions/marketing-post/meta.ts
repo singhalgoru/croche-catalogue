@@ -112,8 +112,8 @@ export async function readPublishedPost(post: SocialPost, config: MetaConfig, fe
       || !socialRecord(result.from) || result.from.id !== post.request.pageId))
     || (post.platform === 'instagram' && (isVideo
       ? result.media_type !== 'VIDEO' || result.media_product_type !== 'REELS'
-      : result.media_type !== (socialPostImageUrls(post.request).length > 1 ? 'CAROUSEL_ALBUM' : 'IMAGE')))) {
-    throw new Error('Meta did not verify the published image post. Inspect the destination profile; do not publish again.');
+      : result.media_type !== (post.request.mediaType === 'mixed' || socialPostImageUrls(post.request).length > 1 ? 'CAROUSEL_ALBUM' : 'IMAGE')))) {
+    throw new Error('Meta did not verify the published post. Inspect the destination profile; do not publish again.');
   }
   return { status: 'published' as const, permalink, error: null };
 }
@@ -131,16 +131,31 @@ export async function containerStatus(post: SocialPost, config: MetaConfig, fetc
     : `Instagram container ${result.status_code === 'EXPIRED' ? 'expired' : 'failed'}. Operator reconciliation is required; do not create another post.` };
 }
 
+export async function instagramChildrenStatus(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+  const ids = post.request.childMediaIds;
+  if (post.request.mediaType !== 'mixed' || !ids || ids.length !== socialPostImageUrls(post.request).length + 1) {
+    throw new Error('The saved mixed carousel children are incomplete. Inspect Instagram; do not recreate them.');
+  }
+  let processing = false;
+  for (const id of ids) {
+    const state = await containerStatus({ ...post, container_id: id }, config, fetcher);
+    if (state.status === 'needs_attention') return state;
+    if (state.status === 'processing') processing = true;
+  }
+  return { status: processing ? 'processing' as const : 'ready' as const, error: null };
+}
+
 type SaveChildren = (ids: string[]) => Promise<void>;
 
 async function createChildren(
   post: SocialPost, create: (url: string) => Promise<Record<string, unknown>>, saveChildren?: SaveChildren,
+  mediaUrls = socialPostImageUrls(post.request),
 ) {
   if (!saveChildren || post.request.childMediaIds?.length) {
     throw new Error('Child media must be checkpointed before continuing. Inspect Meta; do not retry an attempted post.');
   }
   const ids: string[] = [];
-  for (const url of socialPostImageUrls(post.request)) {
+  for (const url of mediaUrls) {
     const result = await create(url);
     if (!socialNumericId(result.id) || ids.includes(result.id)) throw new Error('Meta did not return a unique child media ID. Inspect Meta; do not retry.');
     ids.push(result.id);
@@ -243,6 +258,7 @@ export async function createFacebookPost(
   post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren,
   videoUpload?: PublishingAccess['videoUpload'],
 ) {
+  if (post.request.mediaType === 'mixed') throw new Error('Mixed photo/video carousels are supported for Instagram only. No Facebook post was created.');
   if (post.request.mediaType === 'video') {
     if (!videoUpload) throw new Error('Facebook video upload is not configured. Contact the site operator.');
     return uploadFacebookVideo(post, config, videoUpload, fetcher);
@@ -271,6 +287,22 @@ export async function createFacebookPost(
 export async function createInstagramContainer(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren) {
   if (!socialNumericId(post.request.instagramUserId)) throw new Error('A verified Instagram publishing identity is required.');
   const path = `${post.request.instagramUserId}/media`;
+  if (post.request.mediaType === 'mixed') {
+    const videoUrl = post.request.videoUrl;
+    if (!videoUrl) throw new Error('A published making video is required for a mixed carousel.');
+    const ids = post.request.childMediaIds ?? await createChildren(post, url => graph(config, path, 'POST',
+      url === videoUrl ? { media_type: 'VIDEO', video_url: url, is_carousel_item: 'true' }
+        : { image_url: url, is_carousel_item: 'true' },
+      fetcher, 'organic publishing request'), saveChildren, [...socialPostImageUrls(post.request), videoUrl]);
+    const state = await instagramChildrenStatus({ ...post, request: { ...post.request, childMediaIds: ids } }, config, fetcher);
+    if (state.status === 'processing') return null;
+    if (state.status !== 'ready') throw new Error(state.error ?? 'Instagram could not process a carousel item. Inspect the profile; do not retry.');
+    const result = await graph(config, path, 'POST', {
+      media_type: 'CAROUSEL', children: ids.join(','), caption: post.request.caption,
+    }, fetcher, 'organic publishing request');
+    if (!socialNumericId(result.id)) throw new Error('Instagram did not return a valid mixed carousel ID. Inspect the profile; do not retry.');
+    return result.id;
+  }
   if (post.request.mediaType === 'video') {
     if (!post.request.videoUrl) throw new Error('A published product video is required. Inspect the product media before publishing.');
     const result = await graph(config, path, 'POST', {

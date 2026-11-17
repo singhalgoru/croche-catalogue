@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
+import { readFileSync } from 'node:fs';
 import { installMockSupabase } from './mockSupabase';
+import type { SocialPost } from '../supabase/functions/_shared/socialPosts';
 
 const signIn = async (page: Page, productSection?: 'add' | 'manage') => {
   await page.goto('./#admin', { waitUntil: 'domcontentloaded' });
@@ -31,6 +33,94 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     )
     .toBe(true);
 };
+
+test('admin reviews a mixed Instagram replacement without changing the original post', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const item = state.products[0];
+  item.id = '00000000-0000-4000-8000-000000000001';
+  item.image_url = 'https://images.luviacreations.com/products/source.jpg';
+  item.product_variants.forEach(variant => { variant.product_id = item.id; variant.image_url = item.image_url; });
+  item.product_making_videos = {
+    video_url: 'https://videos.luviacreations.com/making-videos/test/video.mp4',
+    poster_url: 'https://images.luviacreations.com/making-videos/test/poster.jpg',
+    duration_seconds: 20, width: 1280, height: 720,
+  };
+  const jpeg = await sharp({ create: { width: 640, height: 480, channels: 3, background: '#ffb6c1' } }).jpeg().toBuffer();
+  await page.route('https://images.luviacreations.com/**', route => route.fulfill({ contentType: 'image/jpeg', body: jpeg }));
+  await page.route(item.product_making_videos.video_url, route => route.fulfill({
+    contentType: 'video/mp4', body: readFileSync(new URL('./fixtures/making-video.mp4', import.meta.url)),
+  }));
+  const original: SocialPost = {
+    id: '00000000-0000-4000-8000-000000000002', product_id: item.id, platform: 'instagram',
+    status: 'published', revision: 3, request: {
+      productName: item.name, productUrl: 'https://luviacreations.com/p/bag/', sourceImageUrl: item.image_url,
+      imageUrl: 'https://images.luviacreations.com/social/original.jpg', caption: 'Original caption',
+      pageId: '456', pageName: 'Test Page', instagramUserId: '999', instagramUsername: 'luvia',
+    },
+    container_id: '300', post_id: '400', permalink: 'https://www.instagram.com/p/original/', error: null,
+    attempt_started_at: '2026-01-01T00:00:00Z', publish_started_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+  };
+  const replacement: SocialPost = {
+    ...original, id: '00000000-0000-4000-8000-000000000003', status: 'draft', revision: 1,
+    container_id: null, post_id: null, permalink: null, attempt_started_at: null, publish_started_at: null,
+    request: {
+      ...original.request, caption: 'Photos and making video', mediaType: 'mixed', replacesPostId: original.id,
+      sourceImageUrls: [item.image_url], imageUrls: ['https://images.luviacreations.com/social/new.jpg'],
+      imageUrl: 'https://images.luviacreations.com/social/new.jpg',
+      videoUrl: item.product_making_videos.video_url, videoPosterUrl: item.product_making_videos.poster_url,
+    },
+  };
+  await page.route('**/rest/v1/marketing_social_posts*', route => route.fulfill({ json: [original] }));
+  const actions: string[] = [];
+  await page.route('**/functions/v1/marketing-post', async route => {
+    const request = route.request();
+    if (request.headers()['content-type']?.includes('multipart/form-data')) {
+      actions.push('prepare');
+      expect(request.postData()).toContain('"mediaType":"mixed"');
+      expect(request.postData()).toContain(`"replacesPostIds":{"instagram":"${original.id}"}`);
+      await route.fulfill({ json: { posts: [original, replacement] } });
+      return;
+    }
+    const input = request.postDataJSON();
+    actions.push(input.action);
+    if (input.action === 'setup') {
+      expect(input.platforms).toEqual(['instagram']);
+      await route.fulfill({ json: { setup: {
+        enabled: true, pageId: '456', pageName: 'Test Page', instagram: { id: '999', username: 'luvia' },
+      } } });
+    } else {
+      expect(input).toEqual({ action: 'publish', confirmLive: true, posts: [{ id: replacement.id, revision: 1 }] });
+      await route.fulfill({ json: { posts: [original, {
+        ...replacement, status: 'published', post_id: '500', permalink: 'https://www.instagram.com/p/replacement/',
+        attempt_started_at: original.attempt_started_at, publish_started_at: original.publish_started_at,
+      }] } });
+    }
+  });
+  await signIn(page, 'manage');
+  const product = page.getByRole('article').filter({ has: page.getByRole('heading', { name: item.name, exact: true }) });
+  await product.getByRole('button', { name: 'Create Facebook / Instagram / WhatsApp post' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Facebook / Instagram / WhatsApp product post' });
+  await dialog.getByRole('button', { name: 'Replace this Instagram post' }).click();
+  await dialog.getByRole('radio', { name: 'Photos + making video (one Instagram carousel)' }).check();
+  await expect(dialog.getByRole('checkbox', { name: 'Facebook Page', exact: true })).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Instagram caption' }).fill('Photos and making video');
+  await dialog.getByRole('button', { name: 'Check publishing access (read-only)' }).click();
+  await expect(dialog.getByText('Test Page', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Prepare post previews (does not publish)' }).click();
+  await expect(dialog.getByText('One Instagram carousel: 1 photo(s), then one making video. First photo is the cover.')).toBeVisible();
+  const video = dialog.getByLabel('Saved Instagram video preview');
+  await video.evaluate(async element => {
+    const media = element as HTMLVideoElement;
+    media.muted = true;
+    await media.play();
+  });
+  await dialog.getByRole('checkbox', { name: /I reviewed the saved images/ }).check();
+  await expectNoHorizontalOverflow(page);
+  await dialog.getByRole('button', { name: 'Confirm and publish LIVE' }).click();
+  await expect(dialog.getByText(/Replacement published\. The original is still live/)).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Open original post' })).toHaveAttribute('href', original.permalink!);
+  expect(actions).toEqual(['setup', 'prepare', 'publish']);
+});
 
 test('admin prepares a WhatsApp group photo and shares manually without Meta writes', async ({ page }) => {
   const state = await installMockSupabase(page);

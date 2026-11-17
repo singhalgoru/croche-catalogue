@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from 'vitest';
-import { containerStatus, createFacebookPost, createInstagramContainer, publishInstagramContainer, publishingAccess, readPublishedPost } from './meta';
+import { containerStatus, createFacebookPost, createInstagramContainer, instagramChildrenStatus, publishInstagramContainer, publishingAccess, readPublishedPost } from './meta';
 import type { SocialPost } from '../_shared/socialPosts';
 
 const config = { accessToken: 'login-token-fixture', accountId: '123', graphApiVersion: 'v27.0' };
@@ -242,6 +242,63 @@ const calls = () => fetcher.mock.calls.map(([url, options]) => ({
   path: new URL(String(url)).pathname, method: options?.method,
   body: Object.fromEntries(new URLSearchParams(String(options?.body))),
 }));
+
+const mixedPost = (): SocialPost => ({
+  ...post('instagram'), container_id: null,
+  request: {
+    ...post('instagram').request, mediaType: 'mixed',
+    sourceImageUrls: [post('instagram').request.sourceImageUrl], imageUrls: [post('instagram').request.imageUrl],
+    videoUrl: 'https://videos.example.test/video.mp4', videoPosterUrl: 'https://images.example.test/poster.webp',
+  },
+});
+
+it('checkpoints ordered photo and VIDEO children and waits without creating a parent while video processes', async () => {
+  fetcher.mockResolvedValueOnce(response({ id: '101' })).mockResolvedValueOnce(response({ id: '102' }))
+    .mockResolvedValueOnce(response({ id: '101', status_code: 'FINISHED' }))
+    .mockResolvedValueOnce(response({ id: '102', status_code: 'IN_PROGRESS' }));
+  const save = vi.fn(async () => {});
+  await expect(createInstagramContainer(mixedPost(), config, fetcher, save)).resolves.toBeNull();
+  expect(calls().slice(0, 2)).toEqual([
+    { path: '/v27.0/999/media', method: 'POST', body: { image_url: post('instagram').request.imageUrl, is_carousel_item: 'true' } },
+    { path: '/v27.0/999/media', method: 'POST', body: { media_type: 'VIDEO', video_url: 'https://videos.example.test/video.mp4', is_carousel_item: 'true' } },
+  ]);
+  expect(save.mock.calls).toEqual([[['101']], [['101', '102']]]);
+  expect(save.mock.invocationCallOrder[1]).toBeLessThan(fetcher.mock.invocationCallOrder[2]);
+  expect(fetcher).toHaveBeenCalledTimes(4);
+});
+
+it('checks existing mixed children read-only and creates exactly one ordered parent without re-uploading', async () => {
+  const value = mixedPost();
+  value.request.childMediaIds = ['101', '102'];
+  fetcher.mockResolvedValueOnce(response({ id: '101', status_code: 'FINISHED' }))
+    .mockResolvedValueOnce(response({ id: '102', status_code: 'FINISHED' }));
+  await expect(instagramChildrenStatus(value, config, fetcher)).resolves.toEqual({ status: 'ready', error: null });
+  expect(fetcher.mock.calls.every(([, options]) => options?.method === 'GET')).toBe(true);
+  fetcher.mockReset().mockResolvedValueOnce(response({ id: '101', status_code: 'FINISHED' }))
+    .mockResolvedValueOnce(response({ id: '102', status_code: 'FINISHED' }))
+    .mockResolvedValueOnce(response({ id: '300' }));
+  await expect(createInstagramContainer(value, config, fetcher)).resolves.toBe('300');
+  expect(calls().filter(call => call.method === 'POST')).toEqual([{
+    path: '/v27.0/999/media', method: 'POST',
+    body: { media_type: 'CAROUSEL', children: '101,102', caption: 'Handmade bag' },
+  }]);
+  fetcher.mockReset().mockResolvedValueOnce(response({ id: '400', media_type: 'CAROUSEL_ALBUM', permalink: 'https://www.instagram.com/p/mixed/' }));
+  await expect(readPublishedPost({ ...value, post_id: '400' }, config, fetcher)).resolves.toMatchObject({ status: 'published' });
+});
+
+it('does not resume incomplete, failed or mismatched mixed children or send mixed posts to Facebook', async () => {
+  const value = mixedPost();
+  value.request.childMediaIds = ['101'];
+  await expect(createInstagramContainer(value, config, fetcher)).rejects.toThrow('incomplete');
+  expect(fetcher).not.toHaveBeenCalled();
+  value.request.childMediaIds = ['101', '102'];
+  fetcher.mockResolvedValueOnce(response({ id: '101', status_code: 'ERROR' }));
+  await expect(createInstagramContainer(value, config, fetcher)).rejects.toThrow('failed');
+  expect(fetcher).toHaveBeenCalledOnce();
+  fetcher.mockReset();
+  await expect(createFacebookPost({ ...value, platform: 'facebook' }, config, fetcher)).rejects.toThrow('Instagram only');
+  expect(fetcher).not.toHaveBeenCalled();
+});
 
 it('creates ordered Instagram children and checkpoints each before creating the carousel parent', async () => {
   fetcher.mockResolvedValueOnce(response({ id: '101' })).mockResolvedValueOnce(response({ id: '102' }))

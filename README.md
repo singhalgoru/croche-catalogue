@@ -89,7 +89,9 @@ an India-based handmade crochet brand.
   Facebook/Instagram posts can include up to 10 selected, ordered product photos:
   an Instagram carousel or a Facebook multi-photo post. If a product has a
   published making video, administrators can prepare and review it for Facebook
-  video or Instagram Reels before explicitly publishing it.
+  video or Instagram Reels before explicitly publishing it. Instagram also
+  supports one carousel with up to nine photos followed by the making video;
+  Facebook offers photos or video separately.
   Categories can be hidden from collection navigation without deleting their products.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
@@ -106,7 +108,9 @@ an India-based handmade crochet brand.
   results. Organic posting requires configured publishing permissions and a
   Page-linked professional Instagram account. Saving a product never posts or
   boosts it automatically. Instagram video posts require a making video of at
-  least three seconds.
+  least three seconds. New posts preserve published history. A replacement draft
+  creates a new post after review; remove the original manually in Meta after
+  checking the replacement. Existing likes and comments do not transfer.
 - The site builds a public Meta Commerce product feed from eligible published
   products at `/meta-catalog-feed.xml`; an administrator can connect its URL as
   a scheduled feed in Commerce Manager. Catalog creation and Meta permissions
