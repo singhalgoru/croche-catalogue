@@ -19,4 +19,9 @@ describe('publication requirements', () => {
       expect(getProductPublishError({ ...complete, price })).not.toBeNull();
     }
   });
+  it('counts formatted descriptions as visible text', () => {
+    expect(getProductPublishError({ ...complete, description: '**Handmade** crochet rose.' })).toBeNull();
+    expect(getProductPublishError({ ...complete, description: '**Rose**' })).toContain('10 characters');
+    expect(getProductPublishError({ ...complete, description: 'a'.repeat(1001) })).toContain('including formatting');
+  });
 });

@@ -60,6 +60,16 @@ describe('ProductDetailsEditor', () => {
     expect(screen.getByRole('status').textContent).toContain('nothing has been published');
   });
 
+  it('sends plain product description text to Gemini when a saved description is formatted', async () => {
+    const formattedValue = { ...value, description: '**Existing** handmade coaster.' };
+    render(<ProductDetailsEditor value={formattedValue} categories={['Home']} imageFile={imageFile} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));
+    await screen.findByText('Review Gemini suggestions');
+    expect(analyzeProductImage).toHaveBeenCalledWith(imageFile, ['Home'], {
+      ...formattedValue, description: 'Existing handmade coaster.', notes: '',
+    });
+  });
+
   it('identifies missing confirmations without supplying guessed details', async () => {
     render(<ProductDetailsEditor value={value} categories={['Home']} imageFile={imageFile} onChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Suggest details from photo & notes' }));

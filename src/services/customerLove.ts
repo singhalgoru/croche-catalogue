@@ -1,6 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import { convertImageForUpload, createResizedWebp } from '../utils/imageUploadConversion';
 import { localDate } from '../utils/date';
+import { richTextToPlainText } from '../utils/richText';
 
 export interface Testimonial {
   id: string;
@@ -103,8 +104,9 @@ async function functionErrorMessage(error: { message: string; context?: unknown 
   return error.message || fallback;
 }
 export function validateTestimonial(entry: AdminTestimonial) {
+  const quoteText = richTextToPlainText(entry.quote);
   if (!entry.display_name.trim() || entry.display_name.trim().length > 80
-    || entry.quote.trim().length < 10 || entry.quote.trim().length > 1000) {
+    || quoteText.length < 10 || quoteText.length > 1000 || entry.quote.length > 1000) {
     throw new Error('Enter a display name and a quote between 10 and 1,000 characters.');
   }
   if (!Number.isInteger(entry.sort_order) || entry.sort_order < 0 || entry.sort_order > 9999) {

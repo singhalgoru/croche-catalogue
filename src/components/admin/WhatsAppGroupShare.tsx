@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ManagedProduct } from '../../services/products';
 import { prepareSocialPostJpeg } from '../../utils/imageUploadConversion';
 import { toProductPageUrl } from '../../utils/productLink';
 import { toShareFileName } from '../../utils/shareImage';
+import { richTextToPlainText } from '../../utils/richText';
+import EmojiPicker from './EmojiPicker';
 
 export default function WhatsAppGroupShare({ product, disabled, onBusyChange }: {
   product: ManagedProduct; disabled: boolean; onBusyChange: (busy: boolean) => void;
 }) {
-  const [caption, setCaption] = useState(`${product.name}\n\n${product.description}`);
+  const [caption, setCaption] = useState(`${product.name}\n\n${richTextToPlainText(product.description)}`);
+  const captionInput = useRef<HTMLTextAreaElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [photoReady, setPhotoReady] = useState(false);
@@ -35,17 +38,32 @@ export default function WhatsAppGroupShare({ product, disabled, onBusyChange }: 
     } finally { setBusy(false); onBusyChange(false); }
   };
   const buttonClass = 'min-h-11 rounded-full border border-cocoa/30 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50';
+  const insertEmoji = (emoji: string) => {
+    const input = captionInput.current;
+    if (!input) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    setCaption(`${caption.slice(0, start)}${emoji}${caption.slice(end)}`);
+    setMessage(''); setError('');
+    requestAnimationFrame(() => {
+      if (!input.isConnected) return;
+      input.focus();
+      input.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  };
 
   return <section aria-label="WhatsApp group sharing" className="grid gap-3 rounded-xl border border-cocoa/25 bg-white p-3">
     <h3 className="font-semibold">WhatsApp group post (manual send)</h3>
     <p className="text-sm">No Meta access check is needed. Prepare and review the photo, then choose WhatsApp in your device&apos;s share menu,
       select your group and tap Send there. This website cannot select a group or verify delivery.
       Share only to groups where promotion is welcome.</p>
-    <label className="grid gap-1 text-sm font-semibold">WhatsApp caption
-      <textarea rows={5} value={caption} disabled={blocked} onChange={event => {
+    <div className="grid gap-1 text-sm font-semibold">
+      <label htmlFor="whatsapp-caption">WhatsApp caption</label>
+      <EmojiPicker label="Add emoji to WhatsApp caption" disabled={blocked} onSelect={insertEmoji} />
+      <textarea id="whatsapp-caption" ref={captionInput} rows={5} value={caption} disabled={blocked} onChange={event => {
         setCaption(event.target.value); setMessage(''); setError('');
       }} className="rounded-xl border border-cocoa/25 p-3 font-normal" />
-    </label>
+    </div>
     <p className="select-text break-all text-sm">Shop: {toProductPageUrl(product)}</p>
     <button type="button" disabled={blocked || Boolean(photo)} className={buttonClass} onClick={() => void run(async () => {
       const jpeg = await prepareSocialPostJpeg(product.image);

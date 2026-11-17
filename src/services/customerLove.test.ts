@@ -18,6 +18,8 @@ it('requires recorded permission before publication, but allows a private draft'
 it('validates quote, order, photo descriptions and consent dates', () => {
   const draft = valid();
   expect(() => validateTestimonial({ ...draft, quote: 'Short' })).toThrow('quote');
+  expect(() => validateTestimonial({ ...draft, quote: '**A lovely handmade keepsake.**' })).not.toThrow();
+  expect(() => validateTestimonial({ ...draft, quote: `**${'a'.repeat(997)}**` })).toThrow('quote');
   expect(() => validateTestimonial({ ...draft, sort_order: 1.5 })).toThrow('whole number');
   expect(() => validateTestimonial({ ...draft, has_image: true })).toThrow('Describe the photo');
   expect(() => validateTestimonial({ ...draft, consent_date: '2999-01-01' })).toThrow('future');

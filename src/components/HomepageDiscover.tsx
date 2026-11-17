@@ -7,6 +7,8 @@ import { toProductPageUrl } from '../utils/productLink';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { formatINR } from '../utils/currency';
 import { productImageProtection } from '../utils/imageProtection';
+import RichTextContent from './RichTextContent';
+import { richTextToPlainText } from '../utils/richText';
 
 export function HomepageCustomisation() {
   return <section aria-labelledby="customisation-title" className="flex flex-col items-start justify-center gap-3 rounded-2xl border border-mustard/40 bg-cream-dark p-5 text-cocoa sm:p-7">
@@ -43,7 +45,7 @@ export function HomepageSpotlight({ products, onSelect }: {
           <span className="block break-words font-heading text-lg font-bold lg:text-2xl">{product.name}</span>
           {price !== null && <span className="block text-sm font-semibold lg:text-base">{formatINR(price)}</span>}
         </div>
-        {product.description.trim() && <span className="col-span-2 line-clamp-2 max-w-xl text-sm leading-relaxed text-cocoa/75 lg:col-span-1 lg:col-start-1 lg:row-start-3">{product.description}</span>}
+        {richTextToPlainText(product.description).trim() && <RichTextContent value={product.description} className="col-span-2 line-clamp-2 max-w-xl space-y-1 text-sm leading-relaxed text-cocoa/75 lg:col-span-1 lg:col-start-1 lg:row-start-3" />}
         <span className="col-span-2 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4 group-hover:text-cocoa-dark lg:col-span-1 lg:col-start-1 lg:row-start-4">Explore this piece</span>
       </a>
     </section>;

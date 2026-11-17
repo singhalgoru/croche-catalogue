@@ -1,10 +1,11 @@
 import type { Product } from '../types/product';
+import { richTextToPlainText } from './richText';
 
 export const getProductMetaDescription = (
   product: Pick<Product, 'name' | 'category' | 'description' | 'seoDescription'>,
 ) => {
   if (product.seoDescription?.trim()) return product.seoDescription.trim();
-  const text = product.description.replace(/\s+/g, ' ').trim();
+  const text = richTextToPlainText(product.description).replace(/\s+/g, ' ').trim();
   if (/[.!?]$/.test(text) && text.length <= 160) return text;
   const first = text.match(/^.+?[.!?](?=\s|$)/)?.[0];
   if (first && first.length <= 160) return first;

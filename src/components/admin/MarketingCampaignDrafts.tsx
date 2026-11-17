@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { fetchManagedProducts } from '../../services/products';
 import type { Product } from '../../types/product';
 import { toProductPageUrl } from '../../utils/productLink';
+import { richTextToPlainText } from '../../utils/richText';
 import MarketingLocationPicker from './MarketingLocationPicker';
 import MarketingMetaCreation from './MarketingMetaCreation';
 import {
@@ -95,7 +96,7 @@ export default function MarketingCampaignDrafts() {
       setProductsError('The selected product is no longer available. Reload published products.');
       return;
     }
-    const facts = [product.name, product.description].filter(Boolean).join(': ').replace(/\s+/g, ' ').trim();
+    const facts = [product.name, richTextToPlainText(product.description)].filter(Boolean).join(': ').replace(/\s+/g, ' ').trim();
     const page = new URL(toProductPageUrl(product));
     setBrief(current => ({
       ...current,

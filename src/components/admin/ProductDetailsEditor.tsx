@@ -5,6 +5,7 @@ import ProductDetails from '../ProductDetails';
 import { PRODUCT_DETAIL_FIELDS } from '../../utils/productDetails';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 import RequiredMark from './RequiredMark';
+import { richTextToPlainText } from '../../utils/richText';
 
 export interface DetailDraft {
   seoDescription?: string;
@@ -81,7 +82,9 @@ export default function ProductDetailsEditor({
         file = new File([blob], 'product.webp', { type: blob.type });
       }
       if (!file) throw new Error('Add a main product photo before requesting suggestions.');
-      const suggestion = await analyzeProductImage(file, categories, { ...value, notes });
+      const suggestion = await analyzeProductImage(file, categories, {
+        ...value, description: richTextToPlainText(value.description), notes,
+      });
       if (id !== requestId.current) return;
       setAnalysis(suggestion);
       setSelected(new Set(SUGGESTION_FIELDS

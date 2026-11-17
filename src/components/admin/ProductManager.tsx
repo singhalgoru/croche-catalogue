@@ -16,6 +16,8 @@ import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import ProductVideoManager from './ProductVideoManager';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
+import RichTextEditor from './RichTextEditor';
+import { richTextToPlainText } from '../../utils/richText';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import AdminDialog from './AdminDialog';
 import MarketingSocialPosts from './MarketingSocialPosts';
@@ -122,7 +124,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
       (!attentionFilter || attention.get(product.id)?.[attentionFilter]) && (!query || [
         product.name,
         product.category,
-        product.description,
+        richTextToPlainText(product.description),
         ...product.variants.map((variant) => variant.name),
       ].some((value) => value.toLocaleLowerCase().includes(query))),
     );
@@ -841,22 +843,18 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                         ))}
                       </select>
                     </label>
-                    <label className="text-sm font-semibold text-cocoa sm:col-span-2">
-                      Description <RequiredMark />
-                      <textarea
+                    <div className="text-sm font-semibold text-cocoa sm:col-span-2">
+                      <label>Description <RequiredMark /></label>
+                      <RichTextEditor
+                        label="Description"
                         value={draft.description}
-                        onChange={(event) =>
-                          setDraft((current) =>
-                            current ? { ...current, description: event.target.value } : current,
-                          )
-                        }
+                        onChange={description => setDraft(current =>
+                          current ? { ...current, description } : current)}
                         required
-                        minLength={10}
                         maxLength={1000}
-                        rows={4}
-                        className="mt-1 w-full resize-y rounded-xl border border-mustard/60 px-3 py-2"
+                        className="mt-1"
                       />
-                    </label>
+                    </div>
                     <label className="text-sm font-semibold text-cocoa">
                       Price (₹) {draft.showPrice && <RequiredMark />}
                       <input

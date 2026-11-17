@@ -30,6 +30,8 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import { getShareableImageFile, toShareFileName } from '../utils/shareImage';
 import { toProductPageUrl, toPublicVariantSlug } from '../utils/productLink';
 import { normalizeMinimumOrderQuantity } from '../utils/minimumOrderQuantity';
+import RichTextContent from './RichTextContent';
+import { richTextToPlainText } from '../utils/richText';
 import storeContent from '../content/storeContent.json';
 
 interface Props {
@@ -641,7 +643,7 @@ export default function ProductModal({
             </p>
           )}
           <WatchMakingVideoLink product={product} />
-          <p className="text-cocoa/80 mt-3">{product.description}</p>
+          <RichTextContent value={product.description} className="mt-3 space-y-2 text-cocoa/80" />
           <ProductMakingVideo key={`${product.id}:${product.makingVideo?.videoUrl ?? ''}`} product={product} />
           <ProductDetails product={product} collapsible={!isPage} />
           <ProductDeliveryInfo productId={product.id} />
@@ -856,7 +858,7 @@ export default function ProductModal({
                 </div>
                 {isRedditShareOpen && <RedditShareOptions key={`${activeImage}-${shareDetails.title}`}
                   image={getProductImageUrl(activeImage, 1080)} title={shareDetails.title}
-                  description={product.description}
+                  description={richTextToPlainText(product.description)}
                   url={shareDetails.redditProductUrl} redditUrl={shareDetails.redditUrl} />}
                 <p className="mt-2 text-xs text-cocoa/60">
                   Instagram and Snapchat open your device share menu with the product photo

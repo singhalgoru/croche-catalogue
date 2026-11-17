@@ -1,4 +1,5 @@
 import type { Product } from '../types/product';
+import { richTextToPlainText } from './richText';
 
 const normalizeSearchText = (value: string) => value.trim().toLowerCase();
 
@@ -7,7 +8,7 @@ export const getProductSearchText = (product: Product) =>
     [
       product.name,
       product.category,
-      product.description,
+      richTextToPlainText(product.description),
       product.seoDescription,
       product.materials,
       ...product.variants.map((variant) => variant.name),

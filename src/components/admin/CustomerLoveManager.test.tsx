@@ -34,7 +34,7 @@ it('adds a private draft and previews the exact quote before saving', async () =
   fireEvent.click(await screen.findByRole('button', { name: 'Add testimonial' }));
   fireEvent.change(screen.getByLabelText('Customer display name'), { target: { value: 'Happy customer' } });
   fireEvent.change(screen.getByLabelText('Customer quote'), { target: { value: 'My favourite handmade accessory.' } });
-  expect(screen.getByText(/My favourite handmade accessory./, { selector: 'blockquote' })).toBeTruthy();
+  expect(screen.getAllByText('My favourite handmade accessory.', { selector: 'p' })).toHaveLength(2);
   fireEvent.submit(screen.getByRole('form', { name: 'Testimonial editor' }));
   await screen.findByText('Testimonial saved as a private draft.');
   expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ published: false, consent_confirmed: false }), null);
@@ -63,7 +63,7 @@ it('inserts emojis at the cursor, replaces selected text and saves the exact quo
   fireEvent.click(screen.getByRole('button', { name: 'Insert Red heart' }));
   const quote = 'I love \u2764\uFE0F keepsake!';
   expect(input.value).toBe(quote);
-  expect(screen.getByText(quote, { selector: 'blockquote', exact: false })).toBeTruthy();
+  expect(screen.getAllByText(quote, { selector: 'p', exact: false })).toHaveLength(2);
   await waitFor(() => expect(input.selectionStart).toBe(9));
   expect(document.activeElement).toBe(input);
   fireEvent.submit(screen.getByRole('form', { name: 'Testimonial editor' }));

@@ -3,6 +3,7 @@ import ProductDetailsEditor from './ProductDetailsEditor';
 import AdminDialog from './AdminDialog';
 import ProductVideoManager from './ProductVideoManager';
 import RequiredMark from './RequiredMark';
+import RichTextEditor from './RichTextEditor';
 import { getProductPublishError } from '../../utils/productPublishValidation';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
 import {
@@ -492,20 +493,17 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
               ))}
             </select>
           </label>
-          <label className="text-sm font-semibold text-cocoa md:col-span-2">
-            Description <RequiredMark />
-            <textarea
+          <div className="text-sm font-semibold text-cocoa md:col-span-2">
+            <label>Description <RequiredMark /></label>
+            <RichTextEditor
+              label="Description"
               value={draft.description}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, description: event.target.value }))
-              }
+              onChange={description => setDraft(current => ({ ...current, description }))}
               required
-              minLength={10}
               maxLength={1000}
-              rows={4}
-              className="mt-1 w-full resize-y rounded-xl border border-mustard/60 px-3 py-2"
+              className="mt-1"
             />
-          </label>
+          </div>
           <label className="text-sm font-semibold text-cocoa">
             Price (₹) {draft.showPrice && <RequiredMark />}
             <input

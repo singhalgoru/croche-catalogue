@@ -69,6 +69,19 @@ it('opens an accessible modal on demand without fetching while closed or posting
   expect(mocks.publish).not.toHaveBeenCalled();
 });
 
+it('starts captions with plain product copy and inserts emojis at the cursor', async () => {
+  const formattedProduct = { ...product, description: '**Handmade** crochet bag.' };
+  render(<MarketingSocialPosts initialProduct={formattedProduct} />);
+  await open();
+  const caption = screen.getByRole('textbox', { name: /Facebook Page caption/ }) as HTMLTextAreaElement;
+  expect(caption.value).toContain('Handmade crochet bag.');
+  expect(caption.value).not.toContain('**');
+  caption.setSelectionRange(0, 0);
+  fireEvent.click(screen.getByText('Add emoji to Facebook Page caption'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Insert Red heart' })[0]);
+  expect(caption.value.startsWith('❤️')).toBe(true);
+});
+
 it('prepares JPEG review first, requires loaded previews and explicit live confirmation, and sends exact saved revisions', async () => {
   render(<MarketingSocialPosts initialProduct={product} />);
   await open();

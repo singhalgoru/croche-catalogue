@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AdminDialog from './AdminDialog';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import {
@@ -8,6 +8,8 @@ import {
 import { prepareSocialPostJpeg } from '../../utils/imageUploadConversion';
 import { toProductPageUrl } from '../../utils/productLink';
 import WhatsAppGroupShare from './WhatsAppGroupShare';
+import { richTextToPlainText } from '../../utils/richText';
+import EmojiPicker from './EmojiPicker';
 
 const platforms: SocialPlatform[] = ['facebook', 'instagram'];
 const labels = { facebook: 'Facebook Page', instagram: 'Instagram' };
@@ -17,8 +19,8 @@ const statuses = {
   published: 'Published', needs_attention: 'Needs operator attention - do not retry',
 };
 const starterCaptions = (product: ManagedProduct) => ({
-  facebook: `${product.name}\n\n${product.description}\n\nShop: ${toProductPageUrl(product)}`,
-  instagram: `${product.name}\n\n${product.description}\n\nShop via the link in our bio.\n\n#LuviaCreations #HandmadeCrochet`,
+  facebook: `${product.name}\n\n${richTextToPlainText(product.description)}\n\nShop: ${toProductPageUrl(product)}`,
+  instagram: `${product.name}\n\n${richTextToPlainText(product.description)}\n\nShop via the link in our bio.\n\n#LuviaCreations #HandmadeCrochet`,
 });
 
 function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedProduct; onClose: () => void }) {
@@ -39,11 +41,32 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
   const [postsLoadError, setPostsLoadError] = useState(false);
   const [previewReady, setPreviewReady] = useState<string[]>([]);
   const [reviewDirty, setReviewDirty] = useState(false);
+  const captionInputs = useRef<Partial<Record<SocialPlatform, HTMLTextAreaElement>>>({});
   const product = products.find(item => item.id === productId);
   const eligible = posts.filter(post => !reviewDirty && selected.includes(post.platform) && reviewIds.includes(post.id) && (post.status === 'draft' || post.status === 'ready'));
   const imagesReady = eligible.every(post => previewReady.includes(post.request.imageUrl));
   const captionsValid = selected.length > 0 && selected.every(platform =>
     captions[platform].trim() && captions[platform].length <= socialCaptionLimits[platform]);
+  const invalidate = () => { setReviewIds([]); setConfirmed(false); setMessage(''); };
+  const insertCaptionEmoji = (platform: SocialPlatform, emoji: string) => {
+    const input = captionInputs.current[platform];
+    if (!input || input.readOnly) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const caption = `${captions[platform].slice(0, start)}${emoji}${captions[platform].slice(end)}`;
+    if (caption.length > socialCaptionLimits[platform]) {
+      setError(`${labels[platform]} caption must stay within ${socialCaptionLimits[platform].toLocaleString()} characters.`);
+      return;
+    }
+    invalidate();
+    setReviewDirty(true);
+    setCaptions(current => ({ ...current, [platform]: caption }));
+    requestAnimationFrame(() => {
+      if (!input.isConnected) return;
+      input.focus();
+      input.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -75,7 +98,6 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     return () => { active = false; };
   }, [productId, loadAttempt]);
 
-  const invalidate = () => { setReviewIds([]); setConfirmed(false); setMessage(''); };
   const selectProduct = (id: string) => {
     invalidate();
     setError('');
@@ -156,17 +178,23 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
         {product && <div className="flex flex-wrap items-start gap-4">
           <img src={product.image} alt={`Source product photo: ${product.name}`} className="h-40 w-40 rounded-xl bg-white object-contain" />
           <p className="max-w-sm text-sm">The full photo is fitted into a 1080 x 1080 JPEG with white padding rather than cropped. Review the saved JPEG preview before publishing.
-            Captions start from product details, not AI-generated claims. Instagram caption links are not clickable; verify your profile&apos;s link in bio.</p>
+            Captions start from product details, not AI-generated claims. Meta captions are plain text; they support line breaks, emojis and hashtags but not rich-text formatting. Instagram caption links are not clickable; verify your profile&apos;s link in bio.</p>
         </div>}
-        {selected.map(platform => <label key={platform} className="grid gap-1 text-sm font-semibold">
-          {labels[platform]} caption
-          <textarea rows={5} value={captions[platform]} readOnly={posts.some(post => post.platform === platform && post.status !== 'draft')} onChange={event => {
-            invalidate(); setReviewDirty(true); setCaptions(current => ({ ...current, [platform]: event.target.value }));
-          }} className="rounded-xl border border-cocoa/25 p-3 font-normal" />
-          <span className={captions[platform].length > socialCaptionLimits[platform] ? 'text-red-700' : 'font-normal'}>
-            {captions[platform].length}/{socialCaptionLimits[platform]} characters
-          </span>
-        </label>)}
+        {selected.map(platform => {
+          const readOnly = posts.some(post => post.platform === platform && post.status !== 'draft');
+          return <div key={platform} className="grid gap-1 text-sm font-semibold">
+            <label htmlFor={`caption-${platform}`}>{labels[platform]} caption</label>
+            <EmojiPicker label={`Add emoji to ${labels[platform]} caption`} disabled={readOnly}
+              onSelect={emoji => insertCaptionEmoji(platform, emoji)} />
+            <textarea id={`caption-${platform}`} ref={input => { captionInputs.current[platform] = input ?? undefined; }}
+              rows={5} value={captions[platform]} readOnly={readOnly} onChange={event => {
+                invalidate(); setReviewDirty(true); setCaptions(current => ({ ...current, [platform]: event.target.value }));
+              }} className="rounded-xl border border-cocoa/25 p-3 font-normal" />
+            <span className={captions[platform].length > socialCaptionLimits[platform] ? 'text-red-700' : 'font-normal'}>
+              {captions[platform].length}/{socialCaptionLimits[platform]} characters
+            </span>
+          </div>;
+        })}
         <button type="button" disabled={!selected.length} onClick={() => void run('Checking', async () => {
           setConfirmed(false); setSetup(null);
           setSetup(await checkSocialPublishing(selected));

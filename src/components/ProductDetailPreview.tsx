@@ -4,6 +4,7 @@ import ProductDetails from './ProductDetails';
 import ProductDeliveryInfo from './ProductDeliveryInfo';
 import { findProductVariantByReference } from '../utils/productLink';
 import { productImageProtection } from '../utils/imageProtection';
+import RichTextContent from './RichTextContent';
 
 export default function ProductDetailPreview({ product, variantReference }: { product: Product; variantReference?: string }) {
   const variant = variantReference ? findProductVariantByReference(product, variantReference) : undefined;
@@ -16,7 +17,7 @@ export default function ProductDetailPreview({ product, variantReference }: { pr
       <div className="space-y-4 text-cocoa">
         <p className="text-sm">{product.category}</p>
         <h1 className="font-heading text-2xl font-bold sm:text-3xl">{product.name}</h1>
-        <p className="whitespace-pre-line">{product.description}</p>
+        <RichTextContent value={product.description} className="space-y-2" />
         <ProductDetails product={product} />
         <ProductDeliveryInfo productId={product.id} />
         <p role="status" className="text-sm text-cocoa/70">Preparing interactive photo and shopping controls…</p>

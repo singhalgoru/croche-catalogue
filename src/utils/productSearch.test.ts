@@ -52,4 +52,9 @@ describe('matchesProductSearch', () => {
   it('uses confirmed material and SEO descriptions as searchable content', () => {
     expect(matchesProductSearch({ ...product, materials: 'Cotton yarn', seoDescription: 'Amigurumi gift' }, 'cotton amigurumi')).toBe(true);
   });
+  it('searches formatted descriptions without exposing formatting markers', () => {
+    const formatted = { ...product, description: '**Handmade** crochet\n- Plush toy' };
+    expect(matchesProductSearch(formatted, 'handmade plush')).toBe(true);
+    expect(matchesProductSearch(formatted, '**')).toBe(false);
+  });
 });

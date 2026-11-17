@@ -6,6 +6,8 @@ import RotatingCarousel from './RotatingCarousel';
 import { productImageProtection } from '../utils/imageProtection';
 import { findTestimonialBySlug, testimonialPath } from '../utils/testimonialLink';
 import { getCustomerStoryWhatsAppLink } from '../utils/whatsapp';
+import RichTextContent from './RichTextContent';
+import { richTextToPlainText } from '../utils/richText';
 
 /** Splits an approved display name like "Shalini, Meerut" into a name and a subtle location label. */
 export const splitDisplayName = (displayName: string) => {
@@ -45,7 +47,9 @@ function FeaturedStory({ entry, products, imageUrl }: { entry: Testimonial; prod
     {photo && <div className="flex items-center justify-center bg-cream md:col-span-3">{photo}</div>}
     <div className={`flex flex-col justify-center gap-4 p-6 sm:p-8 ${photo ? 'md:col-span-2' : ''}`}>
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">Featured story</p>
-      <blockquote className="line-clamp-6 whitespace-pre-line font-heading text-2xl leading-snug sm:text-3xl">&ldquo;{entry.quote}&rdquo;</blockquote>
+      <blockquote className="line-clamp-6 font-heading text-2xl leading-snug sm:text-3xl">
+        <span>&ldquo;</span><RichTextContent value={entry.quote} className="inline" /><span>&rdquo;</span>
+      </blockquote>
       <StoryAttribution entry={entry} />
       <ShopLinks products={products} />
       <ReadStoryLink entry={entry} />
@@ -61,7 +65,9 @@ function GalleryStory({ entry, products, imageUrl }: { entry: Testimonial; produ
     {photo}
     <div className="space-y-2 p-5">
       {!photo && <p aria-hidden="true" className="font-heading text-3xl leading-none text-mustard-dark">♡</p>}
-      <blockquote className={`line-clamp-3 whitespace-pre-line break-words ${photo ? 'text-base' : 'font-heading text-xl'} leading-relaxed`}>&ldquo;{entry.quote}&rdquo;</blockquote>
+      <blockquote className={`line-clamp-3 break-words ${photo ? 'text-base' : 'font-heading text-xl'} leading-relaxed`}>
+        <span>&ldquo;</span><RichTextContent value={entry.quote} className="inline" /><span>&rdquo;</span>
+      </blockquote>
       <StoryAttribution entry={entry} />
       <ShopLinks products={products} />
       <ReadStoryLink entry={entry} />
@@ -83,11 +89,14 @@ export function TestimonialCard({ entry, products = [], imageUrl, fullQuote = fa
   const source = imageUrl ?? entry.image_url;
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const imageFailed = failedSource === source;
-  const characters = Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(entry.quote), part => part.segment);
+  const plainQuote = richTextToPlainText(entry.quote);
+  const characters = Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(plainQuote), part => part.segment);
   const shortened = !fullQuote && characters.length > 240;
   const quote = <blockquote className={fullQuote ? 'whitespace-pre-line text-base leading-relaxed text-cocoa'
     : 'line-clamp-3 whitespace-pre-line break-words text-sm leading-6 text-cocoa'}>
-    &ldquo;{shortened ? `${characters.slice(0, 240).join('').trimEnd()}...` : entry.quote}&rdquo;
+    <span>&ldquo;</span>{shortened
+      ? `${characters.slice(0, 240).join('').trimEnd()}...`
+      : <RichTextContent value={entry.quote} className="inline" />}<span>&rdquo;</span>
   </blockquote>;
   return <figure id={fullQuote ? `testimonial-${entry.id}` : undefined} tabIndex={fullQuote ? -1 : undefined}
     className={`${fullQuote ? 'h-full' : 'flex h-[30rem] flex-col'} scroll-mt-24 overflow-hidden rounded-2xl border border-mustard/40 bg-white shadow-sm`}>

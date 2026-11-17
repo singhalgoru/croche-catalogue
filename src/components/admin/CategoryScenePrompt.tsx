@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Product } from '../../types/product';
+import { richTextToPlainText } from '../../utils/richText';
 
 export default function CategoryScenePrompt({ category, products, disabled }: {
   category: string; products: Product[]; disabled: boolean;
@@ -23,7 +24,7 @@ export default function CategoryScenePrompt({ category, products, disabled }: {
       'PRODUCT REFERENCES AND PRACTICAL USE:',
       ...chosen.map((product, index) => [
         `${index + 1}. ${product.name} (${product.category}).`,
-        `Product description: ${product.description}`,
+        `Product description: ${richTextToPlainText(product.description)}`,
         `Original colour: ${product.color}. Match the attached photo; do not change its colour.`,
         product.materials ? `Materials: ${product.materials}.` : '',
         product.dimensions ? `Real dimensions: ${product.dimensions}. Preserve realistic scale.` : '',

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { analyzeProductImage } from '../../services/productAnalysis';
 import { bulkUpdateProductDescriptions, type ManagedProduct, type ProductDescriptionChange } from '../../services/products';
+import RichTextEditor from './RichTextEditor';
+import { richTextToPlainText } from '../../utils/richText';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 import type { Category } from '../../types/product';
 
@@ -62,7 +64,7 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
           const suggestion = await analyzeProductImage(
             new File([blob], 'product.webp', { type: blob.type }), categories,
             {
-              name: product.name, category: product.category, description: product.description,
+              name: product.name, category: product.category, description: richTextToPlainText(product.description),
               seoDescription: product.seoDescription, materials: product.materials,
               dimensions: product.dimensions, includedItems: product.includedItems,
               careInstructions: product.careInstructions,
@@ -173,12 +175,12 @@ export default function BulkDescriptionEditor({ products, categories, disabled, 
           {reviews.map(review => <div key={review.id} className="rounded-xl border border-mustard/40 bg-white p-3">
             <label className="font-semibold"><input type="checkbox" checked={review.approved}
               onChange={event => updateReview(review.id, { approved: event.target.checked })} /> Save {review.name}</label>
-            <p className="my-2 whitespace-pre-wrap text-xs text-cocoa/70">Current description: {review.originalDescription}</p>
-            <label className="block text-sm">Description for {review.name}
-              <textarea rows={4} maxLength={2000} value={review.description}
-                onChange={event => updateReview(review.id, { description: event.target.value })}
-                className="mt-1 w-full rounded-lg border border-mustard/50 p-2" />
-            </label>
+            <p className="my-2 whitespace-pre-wrap text-xs text-cocoa/70">Current description: {richTextToPlainText(review.originalDescription)}</p>
+            <div className="block text-sm">Description for {review.name}
+              <RichTextEditor label={`Description for ${review.name}`} rows={4} maxLength={2000} value={review.description}
+                onChange={description => updateReview(review.id, { description })}
+                className="mt-1" />
+            </div>
             <p className="my-2 text-xs text-cocoa/70">Current SEO: {review.originalSeoDescription || 'Automatic summary'}</p>
             <label className="block text-sm">SEO description for {review.name}
               <textarea rows={2} maxLength={160} value={review.seoDescription}

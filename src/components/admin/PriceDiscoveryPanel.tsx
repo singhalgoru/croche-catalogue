@@ -14,6 +14,7 @@ import {
   type PriceDiscoveryDefaults,
   type PriceDiscoveryInputs,
 } from './priceDiscovery';
+import { richTextToPlainText } from '../../utils/richText';
 
 interface Props {
   product: Pick<ManagedProduct, 'name' | 'category' | 'description' | 'materials' | 'includedItems'>;
@@ -108,7 +109,7 @@ export default function PriceDiscoveryPanel({
       setGstSuggestion(await suggestProductGstRate({
         name: product.name,
         category: product.category,
-        description: product.description,
+        description: richTextToPlainText(product.description),
         materials: product.materials ?? '',
         includedItems: product.includedItems ?? '',
       }));
