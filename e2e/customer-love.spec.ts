@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
+import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 
 test('extracts review text locally without uploading the image or publishing it', async ({ page }) => {
@@ -16,7 +17,7 @@ test('extracts review text locally without uploading the image or publishing it'
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('button', { name: 'Customer Love', exact: true }).click();
+  await goToAdminSection(page, 'Customer Love');
   await page.getByRole('button', { name: 'Add testimonial', exact: true }).click();
   await page.getByText('Extract quote from a photo', { exact: true }).click();
   const image = await sharp(Buffer.from('<svg width="1000" height="180"><rect width="100%" height="100%" fill="white"/><text x="35" y="100" font-family="Arial" font-size="48" fill="black">Such a beautiful handmade gift!</text></svg>')).png().toBuffer();
@@ -198,10 +199,10 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('button', { name: 'Customer Love', exact: true }).click();
+  await goToAdminSection(page, 'Customer Love');
   await page.getByRole('button', { name: 'Add testimonial', exact: true }).click();
   await page.getByLabel('Customer display name').fill('Synthetic customer');
-  await page.getByLabel('Customer quote').fill('A thoughtful handmade gift that makes me smile.');
+  await page.getByLabel('Customer quote', { exact: true }).fill('A thoughtful handmade gift that makes me smile.');
   await page.getByRole('group', { name: 'Related products', exact: true }).getByLabel(catalogue.products[0].name, { exact: true }).check();
   await page.getByRole('group', { name: 'Related products', exact: true }).getByLabel(catalogue.products[1].name, { exact: true }).check();
   const photo = await sharp({ create: { width: 400, height: 300, channels: 3, background: '#f3cf74' } })
@@ -226,7 +227,7 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   await expect(page.getByRole('heading', { name: 'Customer Love', exact: true })).toBeVisible();
   await expect(page.getByText('Synthetic customer', { exact: true })).toHaveCount(0);
   await page.goto('./#admin');
-  await page.getByRole('button', { name: 'Customer Love', exact: true }).click();
+  await goToAdminSection(page, 'Customer Love');
   await page.getByRole('button', { name: 'Edit Synthetic customer', exact: true }).click();
   await page.getByLabel('Visibility').selectOption('published');
   await page.getByRole('button', { name: 'Save testimonial', exact: true }).click();
@@ -252,7 +253,7 @@ test('admin drafts and publishes a permission-based photo story, then withdraws 
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Customer Love', exact: true })).toBeVisible();
   await page.goto('./#admin');
-  await page.getByRole('button', { name: 'Customer Love', exact: true }).click();
+  await goToAdminSection(page, 'Customer Love');
   await page.getByRole('button', { name: 'Edit Synthetic customer', exact: true }).click();
   await page.getByLabel(/Customer explicitly permitted/).uncheck();
   await expect(page.getByLabel('Visibility')).toHaveValue('draft');

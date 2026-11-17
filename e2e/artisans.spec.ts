@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
+import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 
 const token = 'a'.repeat(64);
@@ -223,7 +224,7 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('button', { name: 'Artisans', exact: true }).click();
+  await goToAdminSection(page, 'Artisans');
   const form = page.getByRole('form', { name: 'Invite artisan' });
   await form.getByLabel('Artisan name').fill('Sample Maker');
   await form.getByLabel('Artisan email').fill('maker@example.test');

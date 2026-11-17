@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 import { readFileSync } from 'node:fs';
 
@@ -450,7 +451,7 @@ test('product labour overrides persist and prefill an independently editable sal
   await product.getByRole('button', { name: 'Save values for this product' }).click();
   await expect(product.getByText('Price discovery values saved for this product.')).toBeVisible();
   expect(pricing.labour_rate).toBe(180);
-  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await goToAdminSection(page, 'Sales');
   await page.getByRole('button', { name: /Sales dashboard/ }).click();
   await page.getByRole('button', { name: 'Record sale', exact: true }).click();
   await page.getByLabel('Sale product', { exact: true }).selectOption('product-1');
@@ -499,7 +500,7 @@ test('recurring business expenses generate a due entry and can be paused and res
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('button', { name: 'Sales', exact: true }).click();
+  await goToAdminSection(page, 'Sales');
   await page.getByRole('button', { name: /Sales dashboard/ }).click();
   await page.getByRole('button', { name: 'Business expenses', exact: true }).click();
   await page.getByRole('button', { name: 'Add recurring expense', exact: true }).click();
