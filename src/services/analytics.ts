@@ -9,6 +9,7 @@ import { analyticsPage } from './analyticsPage';
 import type { Cart, CartItem } from '../types/cart';
 import { getCartTotals } from '../utils/cartMessage';
 import { productPromotion, rememberPromotion } from './promotionAttribution';
+import { getSiteIntegrations } from './siteIntegrations';
 
 type AnalyticsParameters = Record<string, unknown>;
 
@@ -19,11 +20,10 @@ declare global {
   }
 }
 
-const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
-
 const isAdminRoute = () => window.location.hash === '#admin' || /^\/artisans(?:\/|$)/.test(window.location.pathname);
 
 export const initializeAnalytics = () => {
+  const measurementId = getSiteIntegrations().googleAnalyticsMeasurementId;
   if (!measurementId || isAdminRoute() || isAutomatedVisit() || window.gtag) return;
 
   window.dataLayer = window.dataLayer ?? [];
@@ -51,7 +51,8 @@ export const initializeAnalytics = () => {
   });
 };
 
-export const canTrackAnalytics = () => Boolean(measurementId && !isAdminRoute() && !isAutomatedVisit() && window.gtag);
+export const canTrackAnalytics = () =>
+  Boolean(getSiteIntegrations().googleAnalyticsMeasurementId && !isAdminRoute() && !isAutomatedVisit() && window.gtag);
 
 export const trackEvent = (name: string, parameters: AnalyticsParameters = {}) => {
   if (!canTrackAnalytics()) return false;

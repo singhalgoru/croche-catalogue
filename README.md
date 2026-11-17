@@ -79,6 +79,9 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
+  Admin Settings can update the public WhatsApp contact number and GA4/Meta
+  tracking IDs; payment credentials and other server-side secrets remain
+  deployment-managed.
   The product-post modal also supports manual WhatsApp group sharing with an
   editable caption, photo preview and copy/download fallbacks. Select the group
   and send inside WhatsApp; native photo sharing requires browser/device support.

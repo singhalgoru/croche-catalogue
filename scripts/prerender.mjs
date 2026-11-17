@@ -757,6 +757,26 @@ export const fetchBootstrapCategories = async (supabaseUrl, anonKey) => {
     .sort((a, b) => Number(b.isSeasonal) - Number(a.isSeasonal) || a.priority - b.priority || a.name.localeCompare(b.name));
 };
 
+export const fetchSiteWhatsAppNumber = async (supabaseUrl, anonKey, fallbackNumber = FALLBACK_WHATSAPP_NUMBER) => {
+  const endpoint = new URL('/rest/v1/site_integrations', supabaseUrl);
+  endpoint.searchParams.set('select', 'whatsapp_number');
+  endpoint.searchParams.set('id', 'eq.true');
+  const response = await fetch(endpoint, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Unable to load site WhatsApp settings: HTTP ${response.status}. Apply the site integrations migration before deployment.`);
+  const rows = await response.json();
+  if (!Array.isArray(rows) || rows.length !== 1) throw new Error('Supabase returned invalid site WhatsApp settings.');
+  const saved = rows[0]?.whatsapp_number;
+  if (typeof saved !== 'string' && saved !== null && saved !== undefined) {
+    throw new Error('Supabase returned an invalid site WhatsApp number.');
+  }
+  const number = (saved === null || saved === undefined ? fallbackNumber : saved).replace(/\D/g, '');
+  if (!/^[0-9]{8,15}$/.test(number)) throw new Error('Supabase returned an invalid site WhatsApp number.');
+  return number;
+};
+
 export const fetchBootstrapBestsellers = async (supabaseUrl, anonKey) => {
   try {
     const response = await fetch(new URL('/rest/v1/rpc/get_catalogue_bestsellers', supabaseUrl), {
@@ -903,7 +923,7 @@ const main = async () => {
   const env = { ...loadEnv('production', ROOT, 'VITE_'), ...process.env };
   const supabaseUrl = env.VITE_SUPABASE_URL;
   const anonKey = env.VITE_SUPABASE_ANON_KEY;
-  const whatsappNumber = env.VITE_WHATSAPP_NUMBER?.trim() || FALLBACK_WHATSAPP_NUMBER;
+  let whatsappNumber = env.VITE_WHATSAPP_NUMBER?.trim() || FALLBACK_WHATSAPP_NUMBER;
 
   if (!supabaseUrl || !anonKey) {
     if (process.env.CI) {
@@ -913,13 +933,15 @@ const main = async () => {
     return;
   }
 
-  const [rows, categories, bestsellers, testimonials, customerLoveLastmod] = await Promise.all([
+  const [rows, categories, bestsellers, testimonials, customerLoveLastmod, configuredWhatsAppNumber] = await Promise.all([
     fetchProductRows(supabaseUrl, anonKey),
     fetchBootstrapCategories(supabaseUrl, anonKey),
     fetchBootstrapBestsellers(supabaseUrl, anonKey),
     fetchPublicTestimonials(supabaseUrl, anonKey),
     fetchCustomerLoveLastChanged(supabaseUrl, anonKey),
+    fetchSiteWhatsAppNumber(supabaseUrl, anonKey, whatsappNumber),
   ]);
+  whatsappNumber = configuredWhatsAppNumber;
   const products = rows.map(toProduct);
   await Promise.all(products.filter(product => product.makingVideo).map(async product => {
     product.makingVideo.uploadDate = await fetchVideoUploadDate(product);

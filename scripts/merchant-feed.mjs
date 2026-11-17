@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AwsClient } from 'aws4fetch';
 import sharp from 'sharp';
 import { loadEnv } from 'vite';
-import { escapeHtml, fetchBootstrapCategories, fetchProducts, renderProductPage, toProductReference, toProductSlug, toVariantSlug } from './prerender.mjs';
+import { escapeHtml, fetchBootstrapCategories, fetchProducts, fetchSiteWhatsAppNumber, renderProductPage, toProductReference, toProductSlug, toVariantSlug } from './prerender.mjs';
 import { getCategoryHotspots } from '../src/utils/categoryImage.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -228,9 +228,11 @@ const main = async () => {
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ORIGINALS_BUCKET'];
   const missing = required.filter((name) => !env[name]);
   if (missing.length) throw new Error(`Missing Merchant configuration: ${missing.join(', ')}`);
-  const [products, categories] = await Promise.all([
+  const [products, categories, whatsappNumber] = await Promise.all([
     fetchProducts(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
     fetchBootstrapCategories(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
+    fetchSiteWhatsAppNumber(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY,
+      env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350'),
   ]);
   const items = merchantItems(products, categories);
   if (!items.length) throw new Error('Refusing to publish an empty Merchant feed');
@@ -239,7 +241,7 @@ const main = async () => {
     const response = await r2.fetch(`https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_ORIGINALS_BUCKET}/${key}`);
     if (!response.ok) throw new Error(`Clean Merchant image download failed (${response.status}): ${key}`);
     return Buffer.from(await response.arrayBuffer());
-  }, env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350');
+  }, whatsappNumber);
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

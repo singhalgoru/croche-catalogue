@@ -4,6 +4,7 @@ import { isAutomatedVisit } from '../utils/automatedVisit';
 import { isInternalTraffic } from '../utils/internalTraffic';
 import { getPublicVariantPrice } from '../utils/productPrice';
 import { hasAnalyticsAuthTokens } from './analyticsPage';
+import { getSiteIntegrations } from './siteIntegrations';
 
 export type MetaParameters = Record<string, unknown>;
 
@@ -23,11 +24,10 @@ declare global {
   }
 }
 
-const pixelId = import.meta.env.VITE_META_PIXEL_ID?.trim();
-
 const isAdminRoute = () => window.location.hash === '#admin' || /^\/artisans(?:\/|$)/.test(window.location.pathname);
 
 export const initializeMetaPixel = () => {
+  const pixelId = getSiteIntegrations().metaPixelId;
   // Meta has no equivalent of GA4's internal traffic filter, so our own visits
   // are never sent to the pixel at all.
   if (!pixelId || isAdminRoute() || isInternalTraffic() || isAutomatedVisit() || hasAnalyticsAuthTokens() || window.fbq) {
@@ -61,7 +61,8 @@ export const initializeMetaPixel = () => {
 };
 
 export const canTrackMeta = () =>
-  Boolean(pixelId && !isAdminRoute() && !isInternalTraffic() && !isAutomatedVisit() && !hasAnalyticsAuthTokens() && window.fbq);
+  Boolean(getSiteIntegrations().metaPixelId && !isAdminRoute() && !isInternalTraffic() && !isAutomatedVisit()
+    && !hasAnalyticsAuthTokens() && window.fbq);
 
 export const trackMetaEvent = (name: string, parameters: MetaParameters = {}, eventId?: string) => {
   if (!canTrackMeta()) return false;

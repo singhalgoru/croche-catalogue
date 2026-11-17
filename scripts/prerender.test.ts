@@ -14,6 +14,7 @@ import {
   injectShell,
   injectCatalogueBootstrap,
   fetchBootstrapCategories,
+  fetchSiteWhatsAppNumber,
   priceRange,
   renderProductPage,
   variantShareProduct,
@@ -120,6 +121,23 @@ describe('fetchProducts', () => {
   it('fails a build if the category snapshot cannot be fetched', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: 'Unavailable' }));
     await expect(fetchBootstrapCategories('https://example.supabase.co', 'public-key')).rejects.toThrow('503');
+  });
+  it('uses the saved WhatsApp number for generated pages and keeps the deployment default before the first save', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ whatsapp_number: '919999888877' }] })
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ whatsapp_number: null }] });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchSiteWhatsAppNumber('https://example.supabase.co', 'public-key'))
+      .resolves.toBe('919999888877');
+    await expect(fetchSiteWhatsAppNumber('https://example.supabase.co', 'public-key', '+91 98765 43210'))
+      .resolves.toBe('919876543210');
+    expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe('/rest/v1/site_integrations');
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('select')).toBe('whatsapp_number');
+  });
+  it('fails the build rather than silently using an invalid saved WhatsApp number', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [{ whatsapp_number: 'not-a-number' }] }));
+    await expect(fetchSiteWhatsAppNumber('https://example.supabase.co', 'public-key'))
+      .rejects.toThrow('invalid site WhatsApp number');
   });
   it('snapshots up to six distinct bestseller ids from the public RPC', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () =>

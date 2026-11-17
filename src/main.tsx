@@ -8,6 +8,7 @@ import { captureCampaign } from './utils/campaign'
 import { captureInternalTrafficPreference } from './utils/internalTraffic'
 import { installChunkLoadRecovery } from './utils/chunkLoadRecovery'
 import { installMediaProtection } from './utils/imageProtection'
+import { loadPublicSiteIntegrations } from './services/siteIntegrations'
 
 if (import.meta.env.DEV && window.location.pathname === '/__preview/customer-love/') {
   void import('./dev/CustomerLovePreview').then(({ default: Preview }) => {
@@ -21,15 +22,19 @@ if (import.meta.env.DEV && window.location.pathname === '/__preview/customer-lov
   installMediaProtection()
   captureCampaign()
   captureInternalTrafficPreference()
-  initializeAnalytics()
-  initializeMetaPixel()
-  initializePageTracking()
+  void loadPublicSiteIntegrations().catch(error => {
+    console.error('Unable to load public site integration settings; using deployment defaults.', error)
+  }).finally(() => {
+    initializeAnalytics()
+    initializeMetaPixel()
+    initializePageTracking()
 
-  document.getElementById('product-fallback-style')?.remove()
+    document.getElementById('product-fallback-style')?.remove()
 
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+  })
 }

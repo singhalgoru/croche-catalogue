@@ -24,6 +24,7 @@ import AdminUsers from './AdminUsers';
 import ArtisanManager from './ArtisanManager';
 import CustomerLoveManager from './CustomerLoveManager';
 import MarketingDashboard from './MarketingDashboard';
+import IntegrationSettings from './IntegrationSettings';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -272,6 +273,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Marketing: marketingOpened ? <MarketingDashboard /> : null,
           Settings: <>
+            <IntegrationSettings />
             <AdminUsers />
             <WelcomeOfferManager />
             <CouponGenerator />

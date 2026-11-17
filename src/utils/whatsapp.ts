@@ -5,11 +5,9 @@ import { buildWhatsAppCartMessage } from './cartMessage';
 import { toProductPageUrl, toPublicVariantSlug } from './productLink';
 import bulkOrders from '../content/bulkOrders.json';
 import storeContent from '../content/storeContent.json';
+import { getSiteIntegrations } from '../services/siteIntegrations';
 
-// Fallback keeps local dev working if the env var isn't set; production reads
-// VITE_WHATSAPP_NUMBER so the number can be rotated without a code change.
-export const getWhatsAppNumber = () =>
-  (import.meta.env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350').replace(/\D/g, '');
+export const getWhatsAppNumber = () => getSiteIntegrations().whatsappNumber;
 
 export const formatWhatsAppNumber = (number = getWhatsAppNumber()) => {
   const digits = number.replace(/\D/g, '');
