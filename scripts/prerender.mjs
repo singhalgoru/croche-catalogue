@@ -802,6 +802,34 @@ export const injectCatalogueBootstrap = (html, rows, categories, homepage, bests
     JSON.stringify({ products: rows, categories, homepage, bestsellers }).replace(/</g, '\\u003c')
   }</script></head>`);
 
+export const prioritizeAppStyles = (html, stylesheets) => {
+  const stylesheetTags = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)].map(match => match[0]);
+  if (stylesheetTags.length === 0) throw new Error('Unable to prioritize app styles: no stylesheet link was emitted.');
+
+  const fontHrefs = new Set();
+  for (const tag of stylesheetTags) {
+    const href = tag.match(/\bhref="([^"]+)"/)?.[1];
+    if (!href) throw new Error('Unable to prioritize app styles: a stylesheet has no href.');
+    const stylesheet = stylesheets.find(asset => asset.href === href);
+    if (!stylesheet) throw new Error(`Unable to prioritize app styles: stylesheet ${href} is unavailable.`);
+    for (const match of stylesheet.css.matchAll(/url\((["']?)([^"')]+\.woff2)\1\)/g)) {
+      fontHrefs.add(new URL(match[2], `https://build.invalid${href}`).pathname);
+    }
+  }
+
+  if (fontHrefs.size === 0) throw new Error('Unable to prioritize app styles: no local WOFF2 fonts were found.');
+  const cspMeta = html.match(/<meta\s+http-equiv="Content-Security-Policy"[\s\S]*?\/>/)?.[0];
+  if (!cspMeta) throw new Error('Unable to prioritize app styles: Content Security Policy meta tag is missing.');
+
+  const earlyStyles = [
+    ...[...fontHrefs].map(href => `<link rel="preload" href="${href}" as="font" type="font/woff2" crossorigin>`),
+    ...stylesheetTags,
+  ].join('\n    ');
+  return html
+    .replace(/<link\b[^>]*rel="stylesheet"[^>]*>\s*/g, '')
+    .replace(cspMeta, `${cspMeta}\n    ${earlyStyles}`);
+};
+
 /** Mirrors Bestsellers.tsx: the first ranked product with a purchasable variant, as its blurred-backdrop and card URLs. */
 export const firstBestsellerImageUrls = (rows, bestsellers) => {
   for (const id of bestsellers) {
@@ -872,7 +900,8 @@ const attachProductApp = (page, template) => {
   const csp = template.match(cspPattern)?.[0];
   const scripts = template.match(/<script\b[^>]*type="module"[^>]*>[\s\S]*?<\/script>/g) ?? [];
   const links = (template.match(/<link\b[^>]*>/g) ?? [])
-    .filter((link) => /rel="(?:stylesheet|modulepreload|manifest)"/.test(link));
+    .filter((link) => /rel="(?:stylesheet|modulepreload|manifest)"/.test(link)
+      || /rel="preload"[^>]*as="font"/.test(link));
   if (!csp || scripts.length === 0 || links.length === 0) {
     throw new Error('Built template is missing the product app assets or CSP.');
   }
@@ -953,7 +982,16 @@ const main = async () => {
   };
 
   const indexPath = path.join(DIST, 'index.html');
-  const template = injectCatalogueBootstrap(await readFile(indexPath, 'utf8'), rows, categories, homepage, bestsellers);
+  let template = await readFile(indexPath, 'utf8');
+  const stylesheetTags = [...template.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)].map(match => match[0]);
+  const stylesheets = await Promise.all(stylesheetTags.map(async tag => {
+    const href = tag.match(/\bhref="([^"]+)"/)?.[1];
+    if (!href) throw new Error('Built stylesheet link has no href.');
+    const assetPath = decodeURIComponent(new URL(href, 'https://build.invalid').pathname.slice(1));
+    return { href, css: await readFile(path.join(DIST, assetPath), 'utf8') };
+  }));
+  template = prioritizeAppStyles(template, stylesheets);
+  template = injectCatalogueBootstrap(template, rows, categories, homepage, bestsellers);
   await writeFile(indexPath, injectImagePreloads(injectShell(template, products, whatsappNumber, categories),
     firstBestsellerImageUrls(rows, bestsellers)));
 

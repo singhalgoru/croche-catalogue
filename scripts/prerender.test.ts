@@ -11,6 +11,7 @@ import {
   firstBestsellerImageUrls,
   getProductImageUrl as prerenderImageUrl,
   injectImagePreloads,
+  prioritizeAppStyles,
   injectShell,
   injectCatalogueBootstrap,
   fetchBootstrapCategories,
@@ -711,6 +712,7 @@ describe('renderProductPage', () => {
 describe('interactive product page generation', () => {
   const template = `<head><meta http-equiv="Content-Security-Policy" content="script-src 'self'; connect-src https://*.supabase.co" />
     <script type="module" crossorigin src="/assets/app.js"></script>
+  <link rel="preload" href="/assets/quicksand.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" crossorigin href="/assets/app.css">
     <link rel="manifest" href="/manifest.webmanifest"></head><body></body>`;
 
@@ -718,6 +720,7 @@ describe('interactive product page generation', () => {
     const page = attachProductApp(renderProductPage(product, '91', null, false), template);
     expect(page).toContain('<div id="root">');
     expect(page).toContain('src="/assets/app.js"');
+    expect(page).toContain('href="/assets/quicksand.woff2" as="font"');
     expect(page).toContain('href="/assets/app.css"');
     expect(page).toContain('href="/manifest.webmanifest"');
     expect(page).toContain('connect-src https://*.supabase.co');
@@ -849,5 +852,16 @@ describe('bestseller LCP preload', () => {
     expect(injectImagePreloads(html, [])).toBe(html);
     const result = injectImagePreloads(html, ['https://images.luviacreations.com/a&b.webp', 'https://images.luviacreations.com/c.webp']);
     expect(result).toContain('<head>\n    <link rel="preload" as="image" href="https://images.luviacreations.com/a&amp;b.webp" fetchpriority="high" />\n    <link rel="preload" as="image" href="https://images.luviacreations.com/c.webp" fetchpriority="high" /><title>');
+  });
+
+  it('preloads local fonts and moves the stylesheet before app scripts', () => {
+    const html = '<head><meta http-equiv="Content-Security-Policy" content="default-src \'self\'" /><script type="module" src="/app.js"></script><link rel="stylesheet" href="/assets/app.css"></head>';
+    const result = prioritizeAppStyles(html, [{
+      href: '/assets/app.css',
+      css: '@font-face{src:url(/assets/quicksand.woff2)}@font-face{src:url(/assets/baloo-2.woff2)}',
+    }]);
+    expect(result.indexOf('rel="stylesheet"')).toBeLessThan(result.indexOf('<script type="module"'));
+    expect(result).toMatch(/rel="preload" href="\/assets\/quicksand\.woff2" as="font" type="font\/woff2" crossorigin/);
+    expect(result).toMatch(/rel="preload" href="\/assets\/baloo-2\.woff2" as="font" type="font\/woff2" crossorigin/);
   });
 });
