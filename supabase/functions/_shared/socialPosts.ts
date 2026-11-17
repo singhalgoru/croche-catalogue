@@ -34,11 +34,23 @@ export interface SocialPostSnapshot {
   productUrl: string;
   sourceImageUrl: string;
   imageUrl: string;
+  sourceImageUrls?: string[];
+  imageUrls?: string[];
+  childMediaIds?: string[];
   caption: string;
   pageId: string;
   pageName: string;
   instagramUserId?: string;
   instagramUsername?: string;
+}
+
+export function socialPostImageUrls(snapshot: SocialPostSnapshot): string[] {
+  return snapshot.imageUrls ?? [snapshot.imageUrl];
+}
+
+export function socialImageUrlList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length >= 1 && value.length <= 10
+    && value.every(socialHttpsUrl) && new Set(value).size === value.length;
 }
 
 export interface SocialPost {
@@ -75,6 +87,15 @@ export function parseSocialPost(value: unknown): SocialPost {
     throw new Error('Invalid saved social post response.');
   }
   const snapshot = value.request;
+  const hasImages = snapshot.sourceImageUrls !== undefined || snapshot.imageUrls !== undefined;
+  if ((hasImages && (!socialImageUrlList(snapshot.sourceImageUrls) || !socialImageUrlList(snapshot.imageUrls)
+    || snapshot.sourceImageUrls.length !== snapshot.imageUrls.length
+    || snapshot.sourceImageUrls[0] !== snapshot.sourceImageUrl || snapshot.imageUrls[0] !== snapshot.imageUrl))
+    || (snapshot.childMediaIds !== undefined && (!Array.isArray(snapshot.childMediaIds)
+      || snapshot.childMediaIds.length < 1 || snapshot.childMediaIds.length > (Array.isArray(snapshot.imageUrls) ? snapshot.imageUrls.length : 1)
+      || !snapshot.childMediaIds.every(socialNumericId) || new Set(snapshot.childMediaIds).size !== snapshot.childMediaIds.length))) {
+    throw new Error('Invalid saved social post images.');
+  }
   if (!text(snapshot.productName, 300) || !socialHttpsUrl(snapshot.productUrl) || !socialHttpsUrl(snapshot.sourceImageUrl)
     || !socialHttpsUrl(snapshot.imageUrl) || !text(snapshot.caption, socialCaptionLimits[value.platform])
     || !socialNumericId(snapshot.pageId) || !text(snapshot.pageName, 300)
@@ -98,6 +119,8 @@ export function parseSocialPost(value: unknown): SocialPost {
     request: {
       productName: snapshot.productName, productUrl: snapshot.productUrl, sourceImageUrl: snapshot.sourceImageUrl,
       imageUrl: snapshot.imageUrl, caption: snapshot.caption, pageId: snapshot.pageId, pageName: snapshot.pageName, ...instagram,
+      ...(hasImages ? { sourceImageUrls: [...snapshot.sourceImageUrls as string[]], imageUrls: [...snapshot.imageUrls as string[]] } : {}),
+      ...(snapshot.childMediaIds !== undefined ? { childMediaIds: [...snapshot.childMediaIds as string[]] } : {}),
     },
     container_id: value.container_id, post_id: value.post_id, permalink: value.permalink, error: value.error,
     attempt_started_at: value.attempt_started_at, publish_started_at: value.publish_started_at, revision: value.revision, updated_at: value.updated_at,

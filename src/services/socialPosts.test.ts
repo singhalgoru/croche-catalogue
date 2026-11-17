@@ -34,6 +34,24 @@ it('parses only safe setup fields and requires a verified Instagram identity whe
   await expect(checkSocialPublishing(['instagram'])).rejects.toThrow('Instagram publishing setup');
 });
 
+it('uploads ordered carousel JPEGs and rejects mismatched or oversized selections before invoking', async () => {
+  const sources = ['https://images.example.test/front.webp', 'https://images.example.test/back.webp'];
+  const images = [new File(['first'], 'first.jpg'), new File(['second'], 'second.jpg')];
+  const input = { productId, sourceImageUrl: sources[0], sourceImageUrls: sources, pageId: '456', captions: { facebook: 'Caption' } };
+  await prepareProductSocialPosts(input, images);
+  const body: FormData = mocks.invoke.mock.calls[0][1].body;
+  expect(JSON.parse(String(body.get('input'))).sourceImageUrls).toEqual(sources);
+  expect(body.getAll('image').map(file => ({ name: (file as File).name, size: (file as File).size }))).toEqual([
+    { name: 'social-post-1.jpg', size: 5 }, { name: 'social-post-2.jpg', size: 6 },
+  ]);
+  mocks.invoke.mockClear();
+  await expect(prepareProductSocialPosts(input, [images[0]])).rejects.toThrow('matching JPEG');
+  await expect(prepareProductSocialPosts(input, [
+    new File([new Uint8Array(8 * 1024 * 1024)], 'large.jpg'), images[1],
+  ])).rejects.toThrow('8 MB in total');
+  expect(mocks.invoke).not.toHaveBeenCalled();
+});
+
 it('surfaces permission diagnostics and rejects malformed saved-post responses', async () => {
   mocks.invoke.mockResolvedValueOnce({
     data: null, error: { message: 'Function error', context: new Response('{"error":"Reconnect Meta with pages_manage_posts granted."}') },

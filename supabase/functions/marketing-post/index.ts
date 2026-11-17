@@ -39,22 +39,26 @@ export async function handler(request: Request) {
   if (adminError) return json({ error: 'Unable to verify admin access.' }, 500);
   if (!admin) return json({ error: 'Fresh admin verification is required to manage organic posts.' }, 403);
   let input;
-  let image: File | undefined;
+  let images: File[] = [];
   try {
-    if (Number(request.headers.get('Content-Length')) > 9 * 1024 * 1024) throw new Error('The prepared image request exceeds 9 MB.');
+    if (Number(request.headers.get('Content-Length')) > 9 * 1024 * 1024 + 65536) throw new Error('The prepared image request is too large.');
     if (request.headers.get('Content-Type')?.includes('multipart/form-data')) {
       const form = await request.formData();
-      if ([...form.keys()].some(field => field !== 'input' && field !== 'image') || form.getAll('input').length !== 1 || form.getAll('image').length !== 1) {
-        throw new Error('Upload one prepared JPEG and its post details.');
+      const files = form.getAll('image');
+      if ([...form.keys()].some(field => field !== 'input' && field !== 'image') || form.getAll('input').length !== 1
+        || files.length < 1 || files.length > 10) {
+        throw new Error('Upload one to ten prepared JPEGs and their post details.');
       }
       const metadata = form.get('input');
-      const file = form.get('image');
-      if (typeof metadata !== 'string' || metadata.length > 16000 || !(file instanceof File) || file.type !== 'image/jpeg' || file.size > 8 * 1024 * 1024) {
-        throw new Error('Upload a prepared JPEG up to 8 MB.');
+      if (typeof metadata !== 'string' || metadata.length > 40000 || !files.every((file): file is File =>
+        file instanceof File && file.type === 'image/jpeg' && file.size > 0 && file.size <= 8 * 1024 * 1024)) {
+        throw new Error('Upload prepared JPEGs up to 8 MB each.');
       }
+      if (files.reduce((total, file) => total + file.size, 0) > 9 * 1024 * 1024) throw new Error('Prepared JPEGs must total at most 9 MB.');
       input = parsePostInput(JSON.parse(metadata));
       if (input.action !== 'prepare') throw new Error('Image uploads are only allowed when preparing post previews.');
-      image = file;
+      if (files.length !== (input.sourceImageUrls?.length ?? 1)) throw new Error('Upload one JPEG for each selected source image in the same order.');
+      images = files;
     } else {
       const text = await request.text();
       if (text.length > 20000) throw new Error('The social publishing request is too large.');
@@ -78,13 +82,23 @@ export async function handler(request: Request) {
     return parseSocialPost(data);
   };
   const readProduct = async (productId: string) => {
-    const { data, error } = await service.from('products').select('id,name,public_slug,image_url,published').eq('id', productId).maybeSingle();
+    const { data, error } = await service.from('products')
+      .select('id,name,public_slug,image_url,published,product_variants(image_url,product_variant_images(image_url))').eq('id', productId).maybeSingle();
     if (error) throw new Error('Unable to verify the published product.');
     if (!socialRecord(data) || data.published !== true || typeof data.name !== 'string' || !data.name.trim() || data.name.length > 300
       || typeof data.public_slug !== 'string' || !/^[a-z0-9][a-z0-9-]{0,199}$/.test(data.public_slug) || !socialHttpsUrl(data.image_url)) {
       throw new Error('Select a currently published product with a public product page and image.');
     }
-    return { name: data.name, imageUrl: data.image_url, productUrl: `https://luviacreations.com/p/${data.public_slug}/` };
+    if (!Array.isArray(data.product_variants)) throw new Error('Unable to verify the product image gallery.');
+    const imageUrls = new Set([data.image_url]);
+    for (const variant of data.product_variants) {
+      if (!socialRecord(variant) || !Array.isArray(variant.product_variant_images)) throw new Error('Unable to verify the product image gallery.');
+      if (socialHttpsUrl(variant.image_url)) imageUrls.add(variant.image_url);
+      for (const image of variant.product_variant_images) {
+        if (socialRecord(image) && socialHttpsUrl(image.image_url)) imageUrls.add(image.image_url);
+      }
+    }
+    return { name: data.name, imageUrls, productUrl: `https://luviacreations.com/p/${data.public_slug}/` };
   };
   try {
     const pageId = env('META_PAGE_ID')?.trim();
@@ -96,9 +110,10 @@ export async function handler(request: Request) {
       return json({ setup: access.setup });
     }
     if (input.action === 'prepare') {
-      if (!image) throw new Error('A prepared JPEG preview is required.');
+      if (!images.length) throw new Error('Prepared JPEG previews are required.');
       const product = await readProduct(input.productId);
-      if (product.imageUrl !== input.sourceImageUrl) throw new Error('The product image changed. Select the product again and prepare a new preview.');
+      const sources = input.sourceImageUrls ?? [input.sourceImageUrl];
+      if (sources.some(source => !product.imageUrls.has(source))) throw new Error('A selected product image changed or does not belong to this product. Prepare new previews.');
       const platforms = Object.keys(input.captions).filter((platform): platform is SocialPlatform => platform === 'facebook' || platform === 'instagram');
       const existing = await readPosts(input.productId);
       if (existing.some(post => platforms.includes(post.platform) && post.status !== 'draft')) {
@@ -108,12 +123,14 @@ export async function handler(request: Request) {
       if (input.pageId !== pageId || (platforms.includes('instagram') && input.instagramUserId !== access.setup.instagram?.id)) {
         throw new Error('The publishing identity changed. Check publishing access again before preparing the preview.');
       }
-      const imageUrl = await storePostImage(env, input.productId, new Uint8Array(await image.arrayBuffer()));
+      const imageUrls: string[] = [];
+      for (const image of images) imageUrls.push(await storePostImage(env, input.productId, new Uint8Array(await image.arrayBuffer())));
       for (const platform of platforms) {
         const caption = input.captions[platform];
         if (!caption) throw new Error('A reviewed caption is missing.');
         const snapshot: SocialPostSnapshot = {
-          productName: product.name, productUrl: product.productUrl, sourceImageUrl: product.imageUrl, imageUrl, caption,
+          productName: product.name, productUrl: product.productUrl, sourceImageUrl: sources[0], imageUrl: imageUrls[0], caption,
+          ...(input.sourceImageUrls ? { sourceImageUrls: sources, imageUrls } : {}),
           pageId, pageName: access.setup.pageName,
           ...(platform === 'instagram' && access.setup.instagram ? {
             instagramUserId: access.setup.instagram.id, instagramUsername: access.setup.instagram.username,
@@ -157,7 +174,8 @@ export async function handler(request: Request) {
     const access = await publishingAccess(config, pageId, posts.map(post => post.platform), enabled);
     for (const post of posts) {
       verifyPublishingIdentity(post, access);
-      if (product.imageUrl !== post.request.sourceImageUrl || product.productUrl !== post.request.productUrl) {
+      if ((post.request.sourceImageUrls ?? [post.request.sourceImageUrl]).some(source => !product.imageUrls.has(source))
+        || product.productUrl !== post.request.productUrl) {
         throw new Error('The product image or public URL changed after review. Do not publish this stale draft.');
       }
     }
@@ -168,12 +186,17 @@ export async function handler(request: Request) {
           ? { publish_started_at: new Date().toISOString(), published_by: user.user.id } : {}),
       });
       try {
+        const saveChildren = async (childMediaIds: string[]) => {
+          post = await checkpoint(post, { request: { ...post.request, childMediaIds } });
+        };
         if (post.platform === 'facebook') {
-          post = await checkpoint(post, { post_id: await createFacebookPost(post, access.config) });
+          const postId = await createFacebookPost(post, access.config, fetch, saveChildren);
+          post = await checkpoint(post, { post_id: postId });
         } else {
-          if (!post.container_id) post = await checkpoint(post, {
-            container_id: await createInstagramContainer(post, access.config), status: 'processing',
-          });
+          if (!post.container_id) {
+            const containerId = await createInstagramContainer(post, access.config, fetch, saveChildren);
+            post = await checkpoint(post, { container_id: containerId, status: 'processing' });
+          }
           const state = await containerStatus(post, access.config);
           if (state.status !== 'ready') {
             if (post.publish_started_at) throw new Error('The reviewed Instagram container is no longer ready. Inspect the profile; do not retry.');

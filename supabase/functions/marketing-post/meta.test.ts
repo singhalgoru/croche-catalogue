@@ -170,3 +170,99 @@ it('sanitizes organic HTTP errors without importing paid-ad billing advice', asy
   expect(error.message).not.toMatch(/Billing|page-token-fixture|secret provider message/);
   log.mockRestore();
 });
+
+const carousel = (platform: SocialPost['platform']) => {
+  const value = post(platform);
+  value.container_id = null;
+  value.request.sourceImageUrls = [value.request.sourceImageUrl, 'https://images.example.test/second.webp'];
+  value.request.imageUrls = [value.request.imageUrl, 'https://images.example.test/second.jpg'];
+  return value;
+};
+const calls = () => fetcher.mock.calls.map(([url, options]) => ({
+  path: new URL(String(url)).pathname, method: options?.method,
+  body: Object.fromEntries(new URLSearchParams(String(options?.body))),
+}));
+
+it('creates ordered Instagram children and checkpoints each before creating the carousel parent', async () => {
+  fetcher.mockResolvedValueOnce(response({ id: '101' })).mockResolvedValueOnce(response({ id: '102' }))
+    .mockResolvedValueOnce(response({ id: '300' }));
+  const checkpoint = vi.fn(async () => {});
+  await expect(createInstagramContainer(carousel('instagram'), config, fetcher, checkpoint)).resolves.toBe('300');
+  expect(calls()).toEqual([
+    { path: '/v27.0/999/media', method: 'POST', body: { image_url: 'https://images.example.test/post.jpg', is_carousel_item: 'true' } },
+    { path: '/v27.0/999/media', method: 'POST', body: { image_url: 'https://images.example.test/second.jpg', is_carousel_item: 'true' } },
+    { path: '/v27.0/999/media', method: 'POST', body: { media_type: 'CAROUSEL', children: '101,102', caption: 'Handmade bag' } },
+  ]);
+  expect(checkpoint.mock.calls).toEqual([[['101']], [['101', '102']]]);
+  expect(checkpoint.mock.invocationCallOrder[0]).toBeLessThan(fetcher.mock.invocationCallOrder[1]);
+  expect(checkpoint.mock.invocationCallOrder[1]).toBeLessThan(fetcher.mock.invocationCallOrder[2]);
+});
+
+it('uploads unpublished Facebook photos and attaches their ordered IDs to a single feed post', async () => {
+  fetcher.mockResolvedValueOnce(response({ id: '101' })).mockResolvedValueOnce(response({ id: '102' }))
+    .mockResolvedValueOnce(response({ id: '456_100' }));
+  const checkpoint = vi.fn(async () => {});
+  await expect(createFacebookPost(carousel('facebook'), config, fetcher, checkpoint)).resolves.toBe('456_100');
+  expect(calls()).toEqual([
+    { path: '/v27.0/456/photos', method: 'POST', body: { url: 'https://images.example.test/post.jpg', published: 'false' } },
+    { path: '/v27.0/456/photos', method: 'POST', body: { url: 'https://images.example.test/second.jpg', published: 'false' } },
+    { path: '/v27.0/456/feed', method: 'POST', body: { message: 'Handmade bag',
+      attached_media: '[{"media_fbid":"101"},{"media_fbid":"102"}]' } },
+  ]);
+  expect(checkpoint.mock.calls).toEqual([[['101']], [['101', '102']]]);
+  expect(checkpoint.mock.invocationCallOrder[1]).toBeLessThan(fetcher.mock.invocationCallOrder[2]);
+});
+
+it.each(['facebook', 'instagram'] as const)('does not continue or retry after a partial %s upload or checkpoint failure', async platform => {
+  const create = platform === 'facebook' ? createFacebookPost : createInstagramContainer;
+  const checkpoint = vi.fn(async () => {});
+  fetcher.mockResolvedValueOnce(response({ id: '101' })).mockRejectedValueOnce(new Error('uncertain network'));
+  await expect(create(carousel(platform), config, fetcher, checkpoint)).rejects.toThrow('Publishing may have completed');
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(checkpoint.mock.calls).toEqual([[['101']]]);
+
+  fetcher.mockReset().mockResolvedValueOnce(response({ id: '101' }));
+  checkpoint.mockRejectedValueOnce(new Error('checkpoint unavailable'));
+  await expect(create(carousel(platform), config, fetcher, checkpoint)).rejects.toThrow('checkpoint unavailable');
+  expect(fetcher).toHaveBeenCalledOnce();
+});
+
+it.each(['facebook', 'instagram'] as const)('requires durable child checkpoints and refuses to recreate existing %s children', async platform => {
+  const create = platform === 'facebook' ? createFacebookPost : createInstagramContainer;
+  await expect(create(carousel(platform), config, fetcher)).rejects.toThrow('must be checkpointed');
+  const value = carousel(platform);
+  value.request.childMediaIds = ['101'];
+  await expect(create(value, config, fetcher, async () => {})).rejects.toThrow('do not retry');
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it.each(['facebook', 'instagram'] as const)('retains all %s child checkpoints when the final parent write is uncertain', async platform => {
+  const create = platform === 'facebook' ? createFacebookPost : createInstagramContainer;
+  const checkpoint = vi.fn(async () => {});
+  fetcher.mockResolvedValueOnce(response({ id: '101' })).mockResolvedValueOnce(response({ id: '102' }))
+    .mockRejectedValueOnce(new Error('uncertain parent write'));
+  await expect(create(carousel(platform), config, fetcher, checkpoint)).rejects.toThrow('Publishing may have completed');
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect(checkpoint.mock.calls).toEqual([[['101']], [['101', '102']]]);
+});
+
+it.each(['facebook', 'instagram'] as const)('stops after malformed or duplicate %s child IDs without publishing a parent', async platform => {
+  const create = platform === 'facebook' ? createFacebookPost : createInstagramContainer;
+  for (const second of [{}, { id: 'not-numeric' }, { id: '101' }]) {
+    fetcher.mockReset().mockResolvedValueOnce(response({ id: '101' })).mockResolvedValueOnce(response(second));
+    const checkpoint = vi.fn(async () => {});
+    await expect(create(carousel(platform), config, fetcher, checkpoint)).rejects.toThrow('unique child media ID');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(checkpoint.mock.calls).toEqual([[['101']]]);
+  }
+});
+
+it('verifies Instagram carousel publication as CAROUSEL_ALBUM, not IMAGE, while preserving singleton verification', async () => {
+  const value = { ...carousel('instagram'), post_id: '400' };
+  fetcher.mockResolvedValueOnce(response({ id: '400', media_type: 'IMAGE', permalink: 'https://www.instagram.com/p/abc/' }))
+    .mockResolvedValueOnce(response({ id: '400', media_type: 'CAROUSEL_ALBUM', permalink: 'https://www.instagram.com/p/abc/' }))
+    .mockResolvedValueOnce(response({ id: '400', media_type: 'IMAGE', permalink: 'https://www.instagram.com/p/abc/' }));
+  await expect(readPublishedPost(value, config, fetcher)).rejects.toThrow('did not verify');
+  await expect(readPublishedPost(value, config, fetcher)).resolves.toMatchObject({ status: 'published' });
+  await expect(readPublishedPost({ ...post('instagram'), post_id: '400' }, config, fetcher)).resolves.toMatchObject({ status: 'published' });
+});

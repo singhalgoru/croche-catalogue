@@ -86,6 +86,8 @@ an India-based handmade crochet brand.
   The product-post modal also supports manual WhatsApp group sharing with an
   editable caption, photo preview and copy/download fallbacks. Select the group
   and send inside WhatsApp; native photo sharing requires browser/device support.
+  Facebook/Instagram posts can include up to 10 selected, ordered product photos:
+  an Instagram carousel or a Facebook multi-photo post.
   Categories can be hidden from collection navigation without deleting their products.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.

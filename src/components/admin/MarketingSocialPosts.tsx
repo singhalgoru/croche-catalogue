@@ -23,6 +23,12 @@ const starterCaptions = (product: ManagedProduct) => ({
   instagram: `${product.name}\n\n${richTextToPlainText(product.description)}\n\nShop via the link in our bio.\n\n#LuviaCreations #HandmadeCrochet`,
 });
 
+const productPhotos = (product: ManagedProduct) => [...new Set([
+  product.image,
+  ...product.variants.flatMap(variant => [variant.image, ...variant.gallery.map(image => image.image)]),
+].filter(Boolean))];
+const savedPhotos = (post: SocialPost) => post.request.imageUrls ?? [post.request.imageUrl];
+
 function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedProduct; onClose: () => void }) {
   const [products, setProducts] = useState<ManagedProduct[]>([]);
   const [productId, setProductId] = useState(initialProduct?.id ?? '');
@@ -41,10 +47,11 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
   const [postsLoadError, setPostsLoadError] = useState(false);
   const [previewReady, setPreviewReady] = useState<string[]>([]);
   const [reviewDirty, setReviewDirty] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<string[]>(initialProduct ? [initialProduct.image] : []);
   const captionInputs = useRef<Partial<Record<SocialPlatform, HTMLTextAreaElement>>>({});
   const product = products.find(item => item.id === productId);
   const eligible = posts.filter(post => !reviewDirty && selected.includes(post.platform) && reviewIds.includes(post.id) && (post.status === 'draft' || post.status === 'ready'));
-  const imagesReady = eligible.every(post => previewReady.includes(post.request.imageUrl));
+  const imagesReady = eligible.every(post => savedPhotos(post).every(url => previewReady.includes(url)));
   const captionsValid = selected.length > 0 && selected.every(platform =>
     captions[platform].trim() && captions[platform].length <= socialCaptionLimits[platform]);
   const invalidate = () => { setReviewIds([]); setConfirmed(false); setMessage(''); };
@@ -107,6 +114,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     setLoadingPosts(Boolean(id));
     setProductId(id);
     const item = products.find(value => value.id === id);
+    setSelectedImages(item ? [item.image] : []);
     setCaptions(item ? starterCaptions(item) : { facebook: '', instagram: '' });
   };
   const run = async (label: string, action: () => Promise<void>) => {
@@ -129,12 +137,14 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
   const prepare = () => run('Preparing', async () => {
     if (!product || !setup || !captionsValid || loadingPosts || postsLoadError) throw new Error('Select a product, verify publishing access and review captions first.');
     invalidate();
-    const image = await prepareSocialPostJpeg(product.image);
+    if (!selectedImages.length || selectedImages.length > 10) throw new Error('Select between 1 and 10 product photos.');
+    const images: File[] = [];
+    for (const source of selectedImages) images.push(await prepareSocialPostJpeg(source));
     const value = await prepareProductSocialPosts({
-      productId: product.id, sourceImageUrl: product.image, pageId: setup.pageId,
+      productId: product.id, sourceImageUrl: selectedImages[0], sourceImageUrls: selectedImages, pageId: setup.pageId,
       ...(selected.includes('instagram') && setup.instagram ? { instagramUserId: setup.instagram.id } : {}),
       captions: Object.fromEntries(selected.map(platform => [platform, captions[platform]])),
-    }, image);
+    }, images);
     setPosts(value);
     setReviewDirty(false);
     setReviewIds(value.filter(post => selected.includes(post.platform) && post.status === 'draft').map(post => post.id));
@@ -180,6 +190,50 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           <p className="max-w-sm text-sm">The full photo is fitted into a 1080 x 1080 JPEG with white padding rather than cropped. Review the saved JPEG preview before publishing.
             Captions start from product details, not AI-generated claims. Meta captions are plain text; they support line breaks, emojis and hashtags but not rich-text formatting. Instagram caption links are not clickable; verify your profile&apos;s link in bio.</p>
         </div>}
+        {product && <fieldset className="grid gap-3">
+          <legend className="text-sm font-semibold">Post photos ({selectedImages.length}/10)</legend>
+          <p className="text-sm">Select up to 10 photos. The first is the cover. Multiple photos create an Instagram carousel
+            and a Facebook multi-photo post. WhatsApp sharing stays separate.</p>
+          <button type="button" className="min-h-11 justify-self-start underline" onClick={() => {
+            const photos = productPhotos(product);
+            if (photos.length > 10) {
+              setError('This product has more than 10 photos. Select up to 10 individually.');
+              return;
+            }
+            invalidate(); setReviewDirty(true); setSelectedImages(photos);
+          }}>Select all product photos</button>
+          <div className="flex flex-wrap gap-3">
+            {productPhotos(product).map((url, index) => <label key={url} className="grid gap-1 text-sm">
+              <img src={url} alt={`Available product photo ${index + 1}`} className="h-24 w-24 rounded-lg object-contain" />
+              <span><input type="checkbox" checked={selectedImages.includes(url)}
+                disabled={!selectedImages.includes(url) && selectedImages.length >= 10}
+                onChange={event => {
+                  invalidate(); setReviewDirty(true);
+                  setSelectedImages(current => event.target.checked ? [...current, url] : current.filter(image => image !== url));
+                }} /> Photo {index + 1}</span>
+            </label>)}
+          </div>
+          <ol className="grid gap-2">
+            {selectedImages.map((url, index) => <li key={url} className="flex flex-wrap items-center gap-3 text-sm">
+              <img src={url} alt={`Selected photo ${index + 1}`} className="h-12 w-12 object-contain" />
+              <span>{index + 1}{index === 0 ? ' - Cover' : ''}</span>
+              <button type="button" disabled={index === 0} className="min-h-11 underline disabled:opacity-40"
+                aria-label={`Move photo ${index + 1} earlier`} onClick={() => {
+                  invalidate(); setReviewDirty(true);
+                  setSelectedImages(current => {
+                    const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next;
+                  });
+                }}>Earlier</button>
+              <button type="button" disabled={index === selectedImages.length - 1} className="min-h-11 underline disabled:opacity-40"
+                aria-label={`Move photo ${index + 1} later`} onClick={() => {
+                  invalidate(); setReviewDirty(true);
+                  setSelectedImages(current => {
+                    const next = [...current]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next;
+                  });
+                }}>Later</button>
+            </li>)}
+          </ol>
+        </fieldset>}
         {selected.map(platform => {
           const readOnly = posts.some(post => post.platform === platform && post.status !== 'draft');
           return <div key={platform} className="grid gap-1 text-sm font-semibold">
@@ -206,7 +260,7 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           {setup.instagram && <> Instagram: <strong>@{setup.instagram.username}</strong> ({setup.instagram.id}).</>}
           {!setup.enabled && <> Publishing is disabled until the operator enables it after permission and preview verification. Draft preparation is still available.</>}
         </p>}
-        <button type="button" disabled={!product || !setup || !captionsValid || loadingPosts || postsLoadError}
+        <button type="button" disabled={!product || !setup || !captionsValid || !selectedImages.length || loadingPosts || postsLoadError}
           onClick={() => void prepare()} className="min-h-11 rounded-full border border-cocoa/30 px-4 font-semibold disabled:opacity-50">
           {busy === 'Preparing' ? 'Preparing previews...' : 'Prepare post previews (does not publish)'}
         </button>
@@ -217,18 +271,20 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           setConfirmed(false);
         }} />}
       {loadingPosts && <p role="status" className="text-sm">Loading saved posting status...</p>}
-      {reviewDirty && <p role="status" className="text-sm">Caption edits are not saved. Prepare new previews before publishing; checking access or refreshing status does not save edits.</p>}
+      {reviewDirty && <p role="status" className="text-sm">Photo or caption edits are not saved. Prepare new previews before publishing; checking access or refreshing status does not save edits.</p>}
       {posts.map(post => <article key={post.id} className="grid gap-2 rounded-xl border border-cocoa/25 bg-white p-3 text-sm">
         <h3 className="font-semibold">{labels[post.platform]}: {statuses[post.status]}</h3>
         <p>Product: {post.request.productName}. Page: {post.request.pageName}.
           {post.platform === 'instagram' && ` Instagram: @${post.request.instagramUsername}.`}</p>
-        <img src={post.request.imageUrl} alt={`Saved ${labels[post.platform]} post preview`} className="h-56 w-56 max-w-full rounded-xl object-contain"
-          onLoad={() => setPreviewReady(current => current.includes(post.request.imageUrl) ? current : [...current, post.request.imageUrl])}
+        <div className="flex gap-3 overflow-x-auto">{savedPhotos(post).map((url, index) => <img key={url} src={url}
+          alt={`Saved ${labels[post.platform]} post preview${savedPhotos(post).length > 1 ? ` ${index + 1}` : ''}`}
+          className="h-56 w-56 max-w-full shrink-0 rounded-xl object-contain"
+          onLoad={() => setPreviewReady(current => current.includes(url) ? current : [...current, url])}
           onError={() => {
-            setPreviewReady(current => current.filter(url => url !== post.request.imageUrl));
+            setPreviewReady(current => current.filter(image => image !== url));
             setConfirmed(false);
             setError('A saved JPEG preview could not be loaded. Restore public image access and reload the saved drafts before publishing.');
-          }} />
+          }} />)}</div>
         <p className="whitespace-pre-wrap">{post.request.caption}</p>
         <a href={post.request.productUrl} target="_blank" rel="noopener noreferrer" className="break-all underline">Review product destination</a>
         {post.error && <p className="text-red-700"><strong>Saved publishing issue:</strong> {post.error}</p>}

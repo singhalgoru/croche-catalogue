@@ -102,6 +102,56 @@ it('prepares JPEG review first, requires loaded previews and explicit live confi
   ]));
 });
 
+it('selects distinct product photos, reorders the cover and requires every carousel preview to load', async () => {
+  const second = 'https://images.example.test/side.webp';
+  const multiProduct: ManagedProduct = { ...product, variants: [{
+    id: 'variant', name: 'Pink', color: 'Pink', price: 500, inStock: true, availableQuantity: 3,
+    image: product.image, imagePath: '', gallery: [{ id: 'side', image: second, imagePath: '' }],
+  }] };
+  mocks.products.mockResolvedValue([multiProduct]);
+  const multiPost = { ...post('instagram'), request: { ...post('instagram').request,
+    imageUrls: ['https://images.example.test/first.jpg', 'https://images.example.test/second.jpg'],
+    sourceImageUrls: [second, product.image] } };
+  mocks.prepare.mockResolvedValue([multiPost]);
+  render(<MarketingSocialPosts initialProduct={multiProduct} />);
+  await open();
+  await waitFor(() => expect(screen.getByRole('combobox')).toHaveProperty('disabled', false));
+  expect(screen.getAllByAltText(/Available product photo/)).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Select all product photos' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Move photo 2 earlier' }));
+  await check();
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare post previews (does not publish)' }));
+  await screen.findByText('Reviewed instagram caption', { selector: 'p' });
+  expect(mocks.jpeg.mock.calls.map(call => call[0])).toEqual([second, product.image]);
+  expect(mocks.prepare).toHaveBeenCalledWith(expect.objectContaining({
+    sourceImageUrl: second, sourceImageUrls: [second, product.image],
+  }), expect.arrayContaining([expect.any(File), expect.any(File)]));
+  fireEvent.load(screen.getByAltText('Saved Instagram post preview 1'));
+  expect(confirmation()).toHaveProperty('disabled', true);
+  fireEvent.load(screen.getByAltText('Saved Instagram post preview 2'));
+  expect(confirmation()).toHaveProperty('disabled', false);
+  fireEvent.click(confirmation());
+  fireEvent.click(screen.getByRole('checkbox', { name: /Photo 2$/ }));
+  expect(confirmation()).toHaveProperty('checked', false);
+  expect(confirmation()).toHaveProperty('disabled', true);
+});
+
+it('does not silently truncate Select all when a product has over ten photos', async () => {
+  const many: ManagedProduct = { ...product, variants: [{
+    id: 'variant', name: 'Pink', color: 'Pink', price: 500, inStock: true, availableQuantity: 3,
+    image: product.image, imagePath: '', gallery: Array.from({ length: 10 }, (_, index) => ({
+      id: String(index), image: `https://images.example.test/${index}.webp`, imagePath: '',
+    })),
+  }] };
+  mocks.products.mockResolvedValue([many]);
+  render(<MarketingSocialPosts initialProduct={many} />);
+  await open();
+  await waitFor(() => expect(screen.getByRole('combobox')).toHaveProperty('disabled', false));
+  fireEvent.click(screen.getByRole('button', { name: 'Select all product photos' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('more than 10 photos');
+  expect(screen.getAllByAltText(/Selected photo/)).toHaveLength(1);
+});
+
 it('publishes only the selected platform', async () => {
   mocks.list.mockResolvedValue([post('facebook'), post('instagram')]);
   render(<MarketingSocialPosts initialProduct={product} />);

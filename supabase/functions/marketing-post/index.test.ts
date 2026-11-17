@@ -62,13 +62,13 @@ const request = (body: unknown) => new Request('https://example.test/marketing-p
 const publish = (platforms: SocialPlatform[] = ['facebook']) => request({
   action: 'publish', confirmLive: true, posts: platforms.map(platform => ({ id: ids[platform], revision: 1 })),
 });
-const prepare = (overrides = {}) => {
+const prepare = (overrides = {}, files = [new File(['jpeg-fixture'], 'post.jpg', { type: 'image/jpeg' })]) => {
   const body = new FormData();
   body.append('input', JSON.stringify({
     action: 'prepare', productId, pageId: '456', sourceImageUrl: 'https://images.example.test/bag.webp',
     captions: { facebook: 'Reviewed new caption' }, ...overrides,
   }));
-  body.append('image', new File(['jpeg-fixture'], 'post.jpg', { type: 'image/jpeg' }));
+  for (const file of files) body.append('image', file);
   return new Request('https://example.test/marketing-post', { method: 'POST', headers: { Authorization: 'Bearer fixture' }, body });
 };
 
@@ -86,6 +86,8 @@ beforeEach(() => {
   mocks.loadMetaAccess.mockResolvedValue({ config: { accessToken: 'login-token-fixture', accountId: '123', graphApiVersion: 'v27.0' } });
   mocks.readProduct.mockResolvedValue({ data: {
     id: productId, name: 'Bag', image_url: 'https://images.example.test/bag.webp', public_slug: 'bag', published: true,
+    product_variants: [{ image_url: 'https://images.example.test/variant.webp',
+      product_variant_images: [{ image_url: 'https://images.example.test/gallery.webp' }] }],
   }, error: null });
   mocks.readPosts.mockImplementation(async id => ({ data: structuredClone(rows.filter(row => row.product_id === id)), error: null }));
   mocks.readMany.mockImplementation(async values => ({ data: structuredClone(rows.filter(row => values.includes(row.id))), error: null }));
@@ -239,4 +241,110 @@ it('reconciles a saved post ID with GET-only refresh, never an uncertain publish
   expect(mocks.containerStatus).not.toHaveBeenCalled();
   expect(mocks.createFacebookPost).not.toHaveBeenCalled();
   expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
+});
+
+const sources = ['https://images.example.test/bag.webp', 'https://images.example.test/variant.webp', 'https://images.example.test/gallery.webp'];
+const jpegs = () => sources.map((_, index) => new File([`jpeg-${index}`], `${index}.jpg`, { type: 'image/jpeg' }));
+
+it('prepares ordered product, variant and gallery images with matching legacy first-image fields', async () => {
+  mocks.storePostImage.mockImplementation(async (_env, _id, bytes) =>
+    `https://images.example.test/${new TextDecoder().decode(bytes)}.jpg`);
+  expect((await handle(prepare({ sourceImageUrls: sources }, jpegs()))).status).toBe(200);
+  expect(rows[0].request).toMatchObject({
+    sourceImageUrl: sources[0], sourceImageUrls: sources,
+    imageUrl: 'https://images.example.test/jpeg-0.jpg',
+    imageUrls: sources.map((_, index) => `https://images.example.test/jpeg-${index}.jpg`),
+  });
+  expect(mocks.storePostImage).toHaveBeenCalledTimes(3);
+});
+
+it.each([
+  [], Array.from({ length: 11 }, (_, i) => `https://images.example.test/${i}.webp`),
+  [sources[0], sources[0]], [sources[1], sources[0]], [sources[0], 'http://images.example.test/insecure.webp'],
+  'not-an-array', [sources[0], 123],
+])('rejects malformed or over-limit selected image lists before provider/storage access (%j)', async sourceImageUrls => {
+  expect((await handle(prepare({ sourceImageUrls }))).status).toBe(400);
+  expect(mocks.loadMetaAccess).not.toHaveBeenCalled();
+  expect(mocks.storePostImage).not.toHaveBeenCalled();
+});
+
+it('rejects missing/extra, oversized, empty and incorrectly typed files before writing', async () => {
+  const file = (size: number, type = 'image/jpeg') => new File([new Uint8Array(size)], 'image.jpg', { type });
+  const cases = [
+    prepare({ sourceImageUrls: sources }, jpegs().slice(0, 2)),
+    prepare({}, jpegs()),
+    prepare({}, [file(8 * 1024 * 1024 + 1)]),
+    prepare({ sourceImageUrls: sources.slice(0, 2) }, [file(5 * 1024 * 1024), file(4 * 1024 * 1024 + 1)]),
+    prepare({}, [file(0)]),
+    prepare({}, [file(10, 'image/png')]),
+    prepare({}, Array.from({ length: 11 }, () => file(1))),
+  ];
+  for (const request of cases) expect((await handle(request)).status).toBe(400);
+  expect(mocks.loadMetaAccess).not.toHaveBeenCalled();
+  expect(mocks.storePostImage).not.toHaveBeenCalled();
+});
+
+it('accepts ten long source URLs and ordered JPEGs within the total file limit', async () => {
+  const longSources = Array.from({ length: 10 }, (_, index) => `https://images.example.test/${index}/${'x'.repeat(1750)}.webp`);
+  mocks.readProduct.mockResolvedValueOnce({ data: {
+    name: 'Bag', public_slug: 'bag', published: true, image_url: longSources[0], product_variants: [{
+      image_url: longSources[1], product_variant_images: longSources.slice(2).map(image_url => ({ image_url })),
+    }],
+  }, error: null });
+  mocks.storePostImage.mockImplementation(async () => `https://images.example.test/${mocks.storePostImage.mock.calls.length}.jpg`);
+  expect((await handle(prepare({ sourceImageUrl: longSources[0], sourceImageUrls: longSources },
+    longSources.map(() => new File(['jpeg'], 'image.jpg', { type: 'image/jpeg' }))))).status).toBe(200);
+  expect(rows[0].request.sourceImageUrls).toEqual(longSources);
+  expect(rows[0].request.imageUrls).toHaveLength(10);
+});
+
+it('rejects unowned selected images at prepare and removed selected gallery images at publish', async () => {
+  expect((await handle(prepare({ sourceImageUrls: [sources[0], 'https://images.example.test/other-product.webp'] },
+    jpegs().slice(0, 2)))).status).toBe(502);
+  expect(mocks.storePostImage).not.toHaveBeenCalled();
+  rows[0].request.sourceImageUrls = [sources[0], 'https://images.example.test/removed.webp'];
+  rows[0].request.imageUrls = [rows[0].request.imageUrl, 'https://images.example.test/second.jpg'];
+  expect((await handle(publish())).status).toBe(502);
+  expect(mocks.checkpoint).not.toHaveBeenCalled();
+  expect(mocks.createFacebookPost).not.toHaveBeenCalled();
+});
+
+it.each(['facebook', 'instagram'] as const)('durably retains partial %s child IDs and never recreates failed attempts', async platform => {
+  rows = [fixture(platform)];
+  rows[0].request.sourceImageUrls = sources;
+  rows[0].request.imageUrls = [rows[0].request.imageUrl, 'https://images.example.test/second.jpg', 'https://images.example.test/third.jpg'];
+  const create = platform === 'facebook' ? mocks.createFacebookPost : mocks.createInstagramContainer;
+  create.mockImplementationOnce(async (_post, _config, _fetcher, saveChildren) => {
+    await saveChildren(['101']);
+    await saveChildren(['101', '102']);
+    throw new Error('Uncertain third child upload. Inspect Meta; do not retry.');
+  });
+  expect((await handle(publish([platform]))).status).toBe(200);
+  expect(rows[0]).toMatchObject({ status: 'needs_attention', request: { childMediaIds: ['101', '102'] } });
+  expect((await handle(publish([platform]))).status).toBe(502);
+  expect((await handle(request({ action: 'refresh', productId }))).status).toBe(200);
+  expect(rows[0].status).toBe('needs_attention');
+  expect(create).toHaveBeenCalledOnce();
+  expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
+});
+
+it.each(['facebook', 'instagram'] as const)('uses the latest child checkpoint revision when saving a completed %s carousel', async platform => {
+  rows = [fixture(platform)];
+  rows[0].request.sourceImageUrls = sources.slice(0, 2);
+  rows[0].request.imageUrls = [rows[0].request.imageUrl, 'https://images.example.test/second.jpg'];
+  const create = platform === 'facebook' ? mocks.createFacebookPost : mocks.createInstagramContainer;
+  create.mockImplementationOnce(async (_post, _config, _fetcher, saveChildren) => {
+    await saveChildren(['101']);
+    await saveChildren(['101', '102']);
+    return platform === 'facebook' ? '456_100' : '300';
+  });
+  expect((await handle(publish([platform]))).status).toBe(200);
+  expect(rows[0]).toMatchObject({ status: 'published', request: { childMediaIds: ['101', '102'] } });
+  if (platform === 'instagram') {
+    expect(rows[0].container_id).toBe('300');
+    expect(mocks.publishInstagramContainer).toHaveBeenCalledOnce();
+  } else {
+    expect(rows[0].post_id).toBe('456_100');
+    expect(mocks.publishInstagramContainer).not.toHaveBeenCalled();
+  }
 });

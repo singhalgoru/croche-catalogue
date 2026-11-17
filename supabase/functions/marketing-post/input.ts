@@ -1,7 +1,8 @@
-import { isSocialPlatform, socialCaptionLimits, socialHttpsUrl, socialNumericId, socialRecord, socialUuid, type SocialPlatform } from '../_shared/socialPosts.ts';
+import { isSocialPlatform, socialCaptionLimits, socialHttpsUrl, socialImageUrlList, socialNumericId, socialRecord, socialUuid, type SocialPlatform } from '../_shared/socialPosts.ts';
 
 type PrepareInput = {
   action: 'prepare'; productId: string; sourceImageUrl: string; pageId: string; instagramUserId?: string;
+  sourceImageUrls?: string[];
   captions: Partial<Record<SocialPlatform, string>>;
 };
 type PostInput = { action: 'setup'; platforms: SocialPlatform[] } | PrepareInput
@@ -28,10 +29,14 @@ export function parsePostInput(value: unknown): PostInput {
     return { action: 'refresh', productId: value.productId };
   }
   if (value.action === 'prepare') {
-    keys(value, ['action', 'productId', 'sourceImageUrl', 'pageId', 'instagramUserId', 'captions']);
+    keys(value, ['action', 'productId', 'sourceImageUrl', 'sourceImageUrls', 'pageId', 'instagramUserId', 'captions']);
     if (!socialUuid(value.productId) || !socialHttpsUrl(value.sourceImageUrl) || !socialNumericId(value.pageId)
       || !socialRecord(value.captions) || Object.keys(value.captions).length < 1 || Object.keys(value.captions).length > 2) {
       throw new Error('Prepare a published product image, reviewed identity and editable captions.');
+    }
+    if (value.sourceImageUrls !== undefined && (!socialImageUrlList(value.sourceImageUrls)
+      || value.sourceImageUrls[0] !== value.sourceImageUrl)) {
+      throw new Error('Select one to ten unique product images in preview order; the first must match the source image.');
     }
     const captions: PrepareInput['captions'] = {};
     for (const [platform, caption] of Object.entries(value.captions)) {
@@ -43,6 +48,7 @@ export function parsePostInput(value: unknown): PostInput {
     if (captions.instagram !== undefined && !socialNumericId(value.instagramUserId)) throw new Error('Verify the Instagram publishing identity first.');
     if (captions.instagram === undefined && value.instagramUserId !== undefined) throw new Error('Instagram identity requires an Instagram post.');
     return { action: 'prepare', productId: value.productId, sourceImageUrl: value.sourceImageUrl, pageId: value.pageId, captions,
+      ...(value.sourceImageUrls !== undefined ? { sourceImageUrls: [...value.sourceImageUrls as string[]] } : {}),
       ...(socialNumericId(value.instagramUserId) ? { instagramUserId: value.instagramUserId } : {}) };
   }
   if (value.action === 'publish') {

@@ -1,7 +1,7 @@
 import { graph, listMetaObjects } from '../marketing-create/meta.ts';
 import type { MetaConfig } from '../marketing-read/meta.ts';
 import {
-  socialNumericId, socialPermalink, socialRecord,
+  socialNumericId, socialPermalink, socialPostImageUrls, socialRecord,
   type SocialPlatform, type SocialPost, type SocialPublishingSetup,
 } from '../_shared/socialPosts.ts';
 
@@ -88,7 +88,7 @@ export async function readPublishedPost(post: SocialPost, config: MetaConfig, fe
   const permalink = post.platform === 'facebook' ? result.permalink_url : result.permalink;
   if (result.id !== post.post_id || !socialPermalink(permalink, post.platform)
     || (post.platform === 'facebook' && (result.is_published !== true || !socialRecord(result.from) || result.from.id !== post.request.pageId))
-    || (post.platform === 'instagram' && result.media_type !== 'IMAGE')) {
+    || (post.platform === 'instagram' && result.media_type !== (socialPostImageUrls(post.request).length > 1 ? 'CAROUSEL_ALBUM' : 'IMAGE'))) {
     throw new Error('Meta did not verify the published image post. Inspect the destination profile; do not publish again.');
   }
   return { status: 'published' as const, permalink, error: null };
@@ -107,21 +107,56 @@ export async function containerStatus(post: SocialPost, config: MetaConfig, fetc
     : `Instagram container ${result.status_code === 'EXPIRED' ? 'expired' : 'failed'}. Operator reconciliation is required; do not create another post.` };
 }
 
-export async function createFacebookPost(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
-  const result = await graph(config, `${post.request.pageId}/photos`, 'POST', {
-    url: post.request.imageUrl, caption: post.request.caption, published: 'true',
-  }, fetcher, 'organic publishing request');
+type SaveChildren = (ids: string[]) => Promise<void>;
+
+async function createChildren(
+  post: SocialPost, create: (url: string) => Promise<Record<string, unknown>>, saveChildren?: SaveChildren,
+) {
+  if (!saveChildren || post.request.childMediaIds?.length) {
+    throw new Error('Child media must be checkpointed before continuing. Inspect Meta; do not retry an attempted post.');
+  }
+  const ids: string[] = [];
+  for (const url of socialPostImageUrls(post.request)) {
+    const result = await create(url);
+    if (!socialNumericId(result.id) || ids.includes(result.id)) throw new Error('Meta did not return a unique child media ID. Inspect Meta; do not retry.');
+    ids.push(result.id);
+    await saveChildren([...ids]);
+  }
+  return ids;
+}
+
+export async function createFacebookPost(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren) {
+  const images = socialPostImageUrls(post.request);
+  let result: Record<string, unknown>;
+  if (images.length > 1) {
+    const ids = await createChildren(post, url => graph(config, `${post.request.pageId}/photos`, 'POST', {
+      url, published: 'false',
+    }, fetcher, 'organic publishing request'), saveChildren);
+    result = await graph(config, `${post.request.pageId}/feed`, 'POST', {
+      message: post.request.caption, attached_media: JSON.stringify(ids.map(id => ({ media_fbid: id }))),
+    }, fetcher, 'organic publishing request');
+    result = { post_id: result.id };
+  } else {
+    result = await graph(config, `${post.request.pageId}/photos`, 'POST', {
+      url: post.request.imageUrl, caption: post.request.caption, published: 'true',
+    }, fetcher, 'organic publishing request');
+  }
   if (typeof result.post_id !== 'string' || !new RegExp(`^${post.request.pageId}_\\d{1,30}$`).test(result.post_id)) {
     throw new Error('Facebook may have published the photo but did not return a valid post ID. Inspect the Page; do not retry.');
   }
   return result.post_id;
 }
 
-export async function createInstagramContainer(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch) {
+export async function createInstagramContainer(post: SocialPost, config: MetaConfig, fetcher: Fetcher = fetch, saveChildren?: SaveChildren) {
   if (!socialNumericId(post.request.instagramUserId)) throw new Error('A verified Instagram publishing identity is required.');
-  const result = await graph(config, `${post.request.instagramUserId}/media`, 'POST', {
-    image_url: post.request.imageUrl, caption: post.request.caption,
-  }, fetcher, 'organic publishing request');
+  const path = `${post.request.instagramUserId}/media`;
+  const images = socialPostImageUrls(post.request);
+  const parameters: Record<string, string> = images.length > 1
+    ? { media_type: 'CAROUSEL', children: (await createChildren(post, url => graph(config, path, 'POST', {
+      image_url: url, is_carousel_item: 'true',
+    }, fetcher, 'organic publishing request'), saveChildren)).join(','), caption: post.request.caption }
+    : { image_url: post.request.imageUrl, caption: post.request.caption };
+  const result = await graph(config, path, 'POST', parameters, fetcher, 'organic publishing request');
   if (!socialNumericId(result.id)) throw new Error('Instagram did not return a valid container ID. Inspect Meta; do not retry.');
   return result.id;
 }

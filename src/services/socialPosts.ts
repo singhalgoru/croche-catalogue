@@ -50,12 +50,19 @@ export async function checkSocialPublishing(platforms: SocialPlatform[]): Promis
 }
 
 export async function prepareProductSocialPosts(input: {
-  productId: string; sourceImageUrl: string; pageId: string; instagramUserId?: string;
+  productId: string; sourceImageUrl: string; sourceImageUrls?: string[]; pageId: string; instagramUserId?: string;
   captions: Partial<Record<SocialPlatform, string>>;
-}, image: File): Promise<SocialPost[]> {
+}, image: File | File[]): Promise<SocialPost[]> {
+  const images = Array.isArray(image) ? image : [image];
+  if (!images.length || images.length > 10 || (input.sourceImageUrls && input.sourceImageUrls.length !== images.length)) {
+    throw new Error('Select between 1 and 10 product images with matching JPEG previews.');
+  }
+  if (images.reduce((total, file) => total + file.size, 0) > 8 * 1024 * 1024) {
+    throw new Error('Selected JPEG previews exceed 8 MB in total. Select fewer images.');
+  }
   const body = new FormData();
   body.append('input', JSON.stringify({ ...input, action: 'prepare' }));
-  body.append('image', image, 'social-post.jpg');
+  images.forEach((file, index) => body.append('image', file, `social-post-${index + 1}.jpg`));
   return parsePosts(await invoke(body), input.productId);
 }
 
