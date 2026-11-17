@@ -714,7 +714,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             products.findIndex((item) => item.id === product.id) === 0
                           }
                           aria-label={`Move ${product.name} up`}
-                          className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-40 sm:px-4 sm:text-sm"
+                          className="min-h-11 rounded-full border-2 border-cocoa/30 px-3 py-2 text-sm font-semibold text-cocoa disabled:opacity-40 sm:px-4"
                         >
                           Move up
                         </button>
@@ -731,7 +731,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                               products.length - 1
                           }
                           aria-label={`Move ${product.name} down`}
-                          className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-40 sm:px-4 sm:text-sm"
+                          className="min-h-11 rounded-full border-2 border-cocoa/30 px-3 py-2 text-sm font-semibold text-cocoa disabled:opacity-40 sm:px-4"
                         >
                           Move down
                         </button>
@@ -739,7 +739,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                           type="button"
                           onClick={() => void copyProductLink(product)}
                           disabled={isBusy || isAnalyzing}
-                          className="rounded-full border-2 border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
+                          className="min-h-11 rounded-full border-2 border-cocoa/30 px-3 py-2 text-sm font-semibold text-cocoa disabled:opacity-60 sm:px-4"
                         >
                           {copiedId === product.id ? 'Copied!' : 'Copy link'}
                         </button>
@@ -748,7 +748,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                           type="button"
                           onClick={() => startEditing(product)}
                           disabled={isBusy || isAnalyzing}
-                          className="rounded-full border-2 border-mustard px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-60 sm:px-4 sm:text-sm"
+                          className="min-h-11 rounded-full border-2 border-mustard px-3 py-2 text-sm font-semibold text-cocoa disabled:opacity-60 sm:px-4"
                         >
                           Edit
                         </button>
@@ -760,7 +760,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             setDraft(null);
                           }}
                           disabled={isBusy || isAnalyzing}
-                          className="rounded-full border-2 border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-60 sm:px-4 sm:text-sm"
+                          className="min-h-11 rounded-full border-2 border-red-300 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-60 sm:px-4"
                         >
                           Remove
                         </button>
@@ -844,9 +844,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                       </select>
                     </label>
                     <div className="text-sm font-semibold text-cocoa sm:col-span-2">
-                      <label>Description <RequiredMark /></label>
+                      <label htmlFor={`product-description-${product.id}`}>Description <RequiredMark /></label>
                       <RichTextEditor
                         label="Description"
+                        id={`product-description-${product.id}`}
                         value={draft.description}
                         onChange={description => setDraft(current =>
                           current ? { ...current, description } : current)}

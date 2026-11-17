@@ -334,7 +334,7 @@ describe('Product detail admin integration', () => {
     expect(screen.getByLabelText('Dimensions')).toHaveProperty('required', false);
     for (const label of ['Product name', 'Category', 'Description', 'Materials', "What's included",
       'Minimum order quantity (pieces)']) {
-      expect(screen.getByLabelText(label).closest('label')?.querySelector('.text-red-600')).toBeTruthy();
+      expect(screen.getByLabelText(label)).toHaveProperty('required', true);
     }
     const priceInput = screen.getByLabelText('Price (₹)');
     expect(priceInput.closest('label')?.querySelector('.text-red-600')).toBeNull();

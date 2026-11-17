@@ -494,9 +494,10 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             </select>
           </label>
           <div className="text-sm font-semibold text-cocoa md:col-span-2">
-            <label>Description <RequiredMark /></label>
+            <label htmlFor="new-product-description">Description <RequiredMark /></label>
             <RichTextEditor
               label="Description"
+              id="new-product-description"
               value={draft.description}
               onChange={description => setDraft(current => ({ ...current, description }))}
               required

@@ -10,10 +10,24 @@ export default function AdminWorkspace({ children, onSectionChange, initialSecti
 }) {
   const [active, setActive] = useState<Section>(initialSection);
   const id = useId();
+  const changeSection = (section: Section) => {
+    setActive(section);
+    onSectionChange?.(section);
+  };
   return <>
-    <nav aria-label="Admin workspace" className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-white p-2 shadow-sm sm:grid-cols-4 lg:grid-cols-9">
+    <div className="sticky top-0 z-10 -mx-3 mb-4 bg-cream/95 px-3 py-2 backdrop-blur sm:hidden">
+      <label htmlFor={`${id}-section`} className="block text-xs font-semibold uppercase tracking-wide text-cocoa/70">
+        Jump to section
+      </label>
+      <select id={`${id}-section`} aria-label="Jump to admin section" value={active}
+        onChange={event => changeSection(event.target.value as Section)}
+        className="mt-1 min-h-12 w-full rounded-xl border border-cocoa/25 bg-white px-3 text-base font-semibold text-cocoa">
+        {sections.map(section => <option key={section} value={section}>{section}</option>)}
+      </select>
+    </div>
+    <nav aria-label="Admin workspace" className="mb-4 hidden grid-cols-4 gap-2 rounded-2xl bg-white p-2 shadow-sm sm:grid lg:grid-cols-9">
       {sections.map(section => <button key={section} type="button" aria-pressed={active === section}
-        aria-controls={`${id}-${section}`} onClick={() => { setActive(section); onSectionChange?.(section); }}
+        aria-controls={`${id}-${section}`} onClick={() => changeSection(section)}
         className={`min-h-11 rounded-xl px-2 text-sm font-semibold ${active === section ? 'bg-cocoa text-cream' : 'text-cocoa hover:bg-mustard/20'}`}>
         {section}
       </button>)}

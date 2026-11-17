@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import AdminWorkspace from './AdminWorkspace';
 
 afterEach(cleanup);
@@ -29,4 +29,18 @@ it('shows only one workspace while preserving entries when switching sections', 
   expect(screen.getByRole('region', { name: 'Marketing workspace' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Products' }));
   expect(screen.getByLabelText('Product draft')).toHaveProperty('value', 'Rose');
+});
+
+it('provides a touch-friendly mobile section picker and notifies the workspace owner', () => {
+  const onSectionChange = vi.fn();
+  render(<AdminWorkspace onSectionChange={onSectionChange}>{{
+    Products: <p>Product tools</p>,
+    'Customer Love': <p>Customer stories</p>,
+    Orders: <p>Cart orders</p>, Customers: <p>Registered customers</p>, Artisans: <p>Artisan applications</p>, Sales: <p>Monthly sales</p>, Snapshots: <p>Sales snapshots</p>, Marketing: <p>Marketing overview</p>, Settings: <p>Store settings</p>,
+  }}</AdminWorkspace>);
+  const picker = screen.getByRole('combobox', { name: 'Jump to admin section' });
+  expect(picker.className).toContain('min-h-12');
+  fireEvent.change(picker, { target: { value: 'Marketing' } });
+  expect(onSectionChange).toHaveBeenCalledWith('Marketing');
+  expect(screen.getByRole('region', { name: 'Marketing workspace' })).toBeTruthy();
 });

@@ -5,6 +5,7 @@ import EmojiPicker from './EmojiPicker';
 
 interface Props {
   label: string;
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   rows?: number;
@@ -17,10 +18,11 @@ interface Props {
 }
 
 export default function RichTextEditor({
-  label, value, onChange, rows = 4, maxLength, required = false, disabled = false,
+  label, id, value, onChange, rows = 4, maxLength, required = false, disabled = false,
   className = '', showPreview = true, emojiLabel = 'Add emoji',
 }: Props) {
-  const inputId = useId();
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   const helpId = useId();
   const localInputRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = localInputRef;
