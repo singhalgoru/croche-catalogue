@@ -92,19 +92,64 @@ async function tokenRequest(config: ReturnType<typeof oauthConfig>, parameters: 
   };
 }
 
+function epochSeconds(value: unknown): number | undefined {
+  const parsed = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+async function inspectTokenExpiry(
+  config: ReturnType<typeof oauthConfig>, token: string, fetcher: Fetcher,
+): Promise<string | null> {
+  const url = new URL(`https://graph.facebook.com/${config.version}/debug_token`);
+  url.searchParams.set('input_token', token);
+  let response: Response;
+  try {
+    response = await fetcher(url, {
+      headers: { Authorization: `Bearer ${config.appId}|${config.appSecret}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new Error('Unable to verify the Meta token expiry.');
+  }
+  if (!response.ok) throw new Error(`Meta token inspection failed (status ${response.status}).`);
+  let result: unknown;
+  try { result = await response.json(); } catch { throw new Error('Meta returned invalid token inspection data.'); }
+  if (!result || typeof result !== 'object' || !('data' in result)
+    || !result.data || typeof result.data !== 'object' || Array.isArray(result.data)) {
+    throw new Error('Meta returned invalid token inspection data.');
+  }
+  const data = result.data;
+  if (!('is_valid' in data) || data.is_valid !== true
+    || !('app_id' in data) || data.app_id !== config.appId) {
+    throw new Error('Meta did not confirm that the new token is valid for this app.');
+  }
+  const expiresAt = 'expires_at' in data ? epochSeconds(data.expires_at) : undefined;
+  const dataAccessExpiresAt = 'data_access_expires_at' in data
+    ? epochSeconds(data.data_access_expires_at)
+    : 0;
+  if (expiresAt === undefined || dataAccessExpiresAt === undefined) {
+    throw new Error('Meta returned invalid token expiry data.');
+  }
+  const finiteExpiries = [expiresAt, dataAccessExpiresAt].filter(value => value > 0);
+  if (!finiteExpiries.length) return null;
+  const earliestExpiry = Math.min(...finiteExpiries);
+  if (earliestExpiry <= Math.floor(Date.now() / 1000)) throw new Error('Meta confirmed that the new token is expired.');
+  return new Date(earliestExpiry * 1000).toISOString();
+}
+
 export async function exchangeCode(
   env: Env, config: ReturnType<typeof oauthConfig>, code: string, fetcher: Fetcher = fetch,
-): Promise<{ token: string; expiresAt: string }> {
+): Promise<{ token: string; expiresAt: string | null }> {
   const short = await tokenRequest(config, { redirect_uri: config.redirectUri, code }, fetcher);
   const long = await tokenRequest(config, { grant_type: 'fb_exchange_token', fb_exchange_token: short.accessToken }, fetcher);
   const expiresIn = typeof long.expiresIn === 'string' && /^\d+$/.test(long.expiresIn)
     ? Number(long.expiresIn)
     : long.expiresIn;
-  if (typeof expiresIn !== 'number'
-    || !Number.isSafeInteger(expiresIn) || expiresIn <= 0 || expiresIn > 365 * 86400) {
-    throw new Error('Meta returned an invalid token expiry (expected expires_in as whole-number seconds).');
-  }
+  const expiresAt = typeof expiresIn === 'number' && Number.isSafeInteger(expiresIn)
+    && expiresIn > 0 && expiresIn <= 365 * 86400
+    ? new Date(Date.now() + expiresIn * 1000).toISOString()
+    : await inspectTokenExpiry(config, long.accessToken, fetcher);
   const readConfig = readMetaConfig(name => name === 'META_ACCESS_TOKEN' ? long.accessToken : env(name));
   await fetchMetaOverview(readConfig, fetcher);
-  return { token: long.accessToken, expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() };
+  return { token: long.accessToken, expiresAt };
 }

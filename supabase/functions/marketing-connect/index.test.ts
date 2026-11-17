@@ -71,3 +71,19 @@ it('does not replace the credential when the new token cannot read the configure
   expect((await handler(request({ action: 'complete', code: 'code', state }))).status).toBe(502);
   expect(upsert).not.toHaveBeenCalled();
 });
+
+it('stores a Meta-verified non-expiring token without inventing an expiry date', async () => {
+  const { state } = await (await handler(request({ action: 'start' }))).json();
+  fetcher.mockReset()
+    .mockResolvedValueOnce(upstream({ access_token: 'short' }))
+    .mockResolvedValueOnce(upstream({ access_token: 'long' }))
+    .mockResolvedValueOnce(upstream({ data: {
+      app_id: '123', is_valid: true, expires_at: 0, data_access_expires_at: 0,
+    } }))
+    .mockResolvedValueOnce(upstream({ id: 'act_1234', name: 'Account', currency: 'INR', timezone_name: 'Asia/Kolkata', account_status: 1 }))
+    .mockResolvedValueOnce(upstream({ data: [] }))
+    .mockResolvedValueOnce(upstream({ data: [] }));
+  const result = await handler(request({ action: 'complete', code: 'code', state }));
+  expect(result.status).toBe(200);
+  expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ expires_at: null }));
+});

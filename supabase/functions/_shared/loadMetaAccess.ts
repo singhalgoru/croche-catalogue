@@ -24,8 +24,10 @@ export async function loadMetaAccess(env: (name: string) => string | undefined) 
         throw new Error('Unable to decrypt the stored Meta credential.');
       }
       expiresAt = data.expires_at;
-      if (!expiresAt || !Number.isFinite(Date.parse(expiresAt))) throw new Error('Stored Meta credential expiry is invalid.');
-      if (Date.parse(expiresAt) <= Date.now()) throw new Error('Meta access has expired. Reconnect Meta.');
+      if (expiresAt !== null && !Number.isFinite(Date.parse(expiresAt))) {
+        throw new Error('Stored Meta credential expiry is invalid.');
+      }
+      if (expiresAt && Date.parse(expiresAt) <= Date.now()) throw new Error('Meta access has expired. Reconnect Meta.');
     }
   }
   return {

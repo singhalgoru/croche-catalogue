@@ -100,6 +100,14 @@ it('uses the encrypted credential instead of the legacy secret and reports its e
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('Bearer stored-token');
     maybeSingle.mockResolvedValue({ data: { ciphertext, expires_at: '2000-01-01T00:00:00Z' }, error: null });
     expect((await handle(request())).status).toBe(503);
+    fetcher.mockReset()
+      .mockResolvedValueOnce(upstream({ id: 'act_12345', name: 'Luvia', currency: 'INR', timezone_name: 'Asia/Kolkata', account_status: 1 }))
+      .mockResolvedValueOnce(upstream({ data: [] }))
+      .mockResolvedValueOnce(upstream({ data: [] }));
+    maybeSingle.mockResolvedValue({ data: { ciphertext, expires_at: null }, error: null });
+    const nonExpiring = await handle(request());
+    expect(nonExpiring.status).toBe(200);
+    expect(await nonExpiring.json()).toMatchObject({ tokenExpiresAt: null });
   } finally {
     delete env.SUPABASE_SERVICE_ROLE_KEY;
     delete env.META_TOKEN_ENCRYPTION_KEY;

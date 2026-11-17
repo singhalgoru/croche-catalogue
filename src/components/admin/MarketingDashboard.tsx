@@ -133,6 +133,9 @@ export default function MarketingDashboard() {
       Meta access expires {new Date(overview.tokenExpiresAt).toLocaleDateString('en-IN')}.
       {Date.parse(overview.tokenExpiresAt) - now <= 7 * 86400_000 && ' Reconnect Meta soon.'}
     </p>}
+    {overview && overview.tokenExpiresAt === null && <p className="mt-4 text-sm text-cocoa/70">
+      Meta access has no scheduled expiry or its expiry is not tracked.
+    </p>}
     {overview && <>
       <div className="mt-4 rounded-xl bg-cream p-4 text-sm text-cocoa">
         <h3 className="font-semibold">{overview.account.name}</h3>

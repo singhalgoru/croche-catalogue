@@ -58,15 +58,45 @@ it('accepts Meta expiry values encoded as numeric strings', async () => {
   expect(expiry).toBeLessThanOrEqual(Date.now() + 5183944 * 1000);
 });
 
-it('rejects missing or malformed Meta expiry values without validating or saving the token', async () => {
-  for (const expiresIn of [undefined, 'not-a-duration', 0, 366 * 86400]) {
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(response({ access_token: 'short' }))
-      .mockResolvedValueOnce(response({ access_token: 'long', ...(expiresIn === undefined ? {} : { expires_in: expiresIn }) }));
-    await expect(exchangeCode(env, oauthConfig(env), 'code', fetcher))
-      .rejects.toThrow('expected expires_in as whole-number seconds');
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  }
+it('uses Meta token inspection when the exchange response has no usable expiry', async () => {
+  const expiry = Math.floor(Date.now() / 1000) + 3600;
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(response({ access_token: 'short' }))
+    .mockResolvedValueOnce(response({ access_token: 'long' }))
+    .mockResolvedValueOnce(response({ data: {
+      app_id: '123', is_valid: true, expires_at: expiry, data_access_expires_at: 0,
+    } }))
+    .mockResolvedValueOnce(response({ id: 'act_1234', name: 'Account', currency: 'INR', timezone_name: 'Asia/Kolkata', account_status: 1 }))
+    .mockResolvedValueOnce(response({ data: [] }))
+    .mockResolvedValueOnce(response({ data: [] }));
+  const result = await exchangeCode(env, oauthConfig(env), 'code', fetcher);
+  expect(result.expiresAt).toBe(new Date(expiry * 1000).toISOString());
+  expect(new URL(fetcher.mock.calls[2][0]).pathname).toBe('/v27.0/debug_token');
+  expect(new URL(fetcher.mock.calls[2][0]).searchParams.get('input_token')).toBe('long');
+  expect(fetcher.mock.calls[2][1].headers.Authorization).toBe('Bearer 123|secret-fixture');
+  expect(fetcher.mock.calls[3][1].headers.Authorization).toBe('Bearer long');
+});
+
+it('supports verified non-expiring tokens and rejects unverified tokens', async () => {
+  const permanentTokenFetcher = vi.fn()
+    .mockResolvedValueOnce(response({ access_token: 'short' }))
+    .mockResolvedValueOnce(response({ access_token: 'long', expires_in: '0' }))
+    .mockResolvedValueOnce(response({ data: {
+      app_id: '123', is_valid: true, expires_at: 0, data_access_expires_at: 0,
+    } }))
+    .mockResolvedValueOnce(response({ id: 'act_1234', name: 'Account', currency: 'INR', timezone_name: 'Asia/Kolkata', account_status: 1 }))
+    .mockResolvedValueOnce(response({ data: [] }))
+    .mockResolvedValueOnce(response({ data: [] }));
+  await expect(exchangeCode(env, oauthConfig(env), 'code', permanentTokenFetcher))
+    .resolves.toMatchObject({ token: 'long', expiresAt: null });
+
+  const invalidTokenFetcher = vi.fn()
+    .mockResolvedValueOnce(response({ access_token: 'short' }))
+    .mockResolvedValueOnce(response({ access_token: 'long' }))
+    .mockResolvedValueOnce(response({ data: { app_id: 'other-app', is_valid: true, expires_at: 0 } }));
+  await expect(exchangeCode(env, oauthConfig(env), 'code', invalidTokenFetcher))
+    .rejects.toThrow('did not confirm that the new token is valid');
+  expect(invalidTokenFetcher).toHaveBeenCalledTimes(3);
 });
 
 it('encrypts credentials with a fresh nonce and rejects a different key or tampering', async () => {
