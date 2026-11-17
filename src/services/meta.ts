@@ -74,7 +74,7 @@ export const trackMetaEvent = (name: string, parameters: MetaParameters = {}, ev
 export const metaProductParameters = (product: Product, variant?: ProductVariant) => {
   const price = getPublicVariantPrice(product, variant);
   return {
-    content_ids: [product.id],
+    content_ids: [variant?.id ?? product.id],
     content_name: variant ? `${product.name} — ${variant.name}` : product.name,
     content_category: product.category,
     content_type: 'product',

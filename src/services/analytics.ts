@@ -112,7 +112,7 @@ export const trackCartStep = (name: 'view_cart' | 'begin_checkout' | 'add_shippi
   if (name === 'begin_checkout' || name === 'add_payment_info') {
     const { items: _items, ...parameters } = cartParameters(cart);
     trackMetaEvent(name === 'begin_checkout' ? 'InitiateCheckout' : 'AddPaymentInfo', {
-      ...parameters, content_ids: cart.items.map(item => item.productId), content_type: 'product',
+      ...parameters, content_ids: cart.items.map(item => item.variantId || item.productId), content_type: 'product',
       num_items: cart.items.reduce((count, item) => count + item.quantity, 0),
     });
   }
@@ -132,7 +132,7 @@ export const trackCartChanges = (previous: Cart | null, next: Cart) => {
     trackEvent(delta > 0 ? 'add_to_cart' : 'remove_from_cart', parameters);
     if (delta > 0) trackMetaEvent('AddToCart', {
       currency: 'INR', ...(snapshot.unitPrice !== null ? { value: snapshot.unitPrice * quantity } : {}),
-      content_ids: [snapshot.productId], content_name: snapshot.productName, content_type: 'product',
+      content_ids: [snapshot.variantId || snapshot.productId], content_name: snapshot.productName, content_type: 'product',
       variant_id: snapshot.variantId, num_items: quantity,
     });
   }
@@ -221,7 +221,7 @@ export const trackWhatsAppCart = (cart: Cart) => {
   trackEvent('generate_lead', { ...cartParameters(cart), lead_source: 'whatsapp', contact_location: 'cart' });
   const { items: _items, ...parameters } = cartParameters(cart);
   trackMetaEvent('Lead', { ...parameters, lead_source: 'whatsapp',
-    content_ids: cart.items.map(item => item.productId), content_type: 'product', num_items: itemCount });
+    content_ids: cart.items.map(item => item.variantId || item.productId), content_type: 'product', num_items: itemCount });
 };
 
 export const trackContactClick = (channel: string, location: string) => {

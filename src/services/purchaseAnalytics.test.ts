@@ -23,7 +23,8 @@ it('uses the paid server snapshot, excluding shipping from GA revenue and includ
   expect(ga).toHaveBeenCalledExactlyOnceWith('purchase', { transaction_id: 'LUV-PAID', currency: 'INR',
     value: 900, shipping: 100, items: [{ ...purchase.items[0], price: 225, discount: 25 }] });
   expect(meta).toHaveBeenCalledWith('Purchase', expect.objectContaining({
-    currency: 'INR', value: 1000, num_items: 4,
+    currency: 'INR', value: 1000, num_items: 4, content_ids: ['pink'],
+    contents: [expect.objectContaining({ id: 'pink', quantity: 4 })],
   }), 'purchase-LUV-PAID');
 });
 it('carries only matching product promotions into verified purchases after a module reload', async () => {

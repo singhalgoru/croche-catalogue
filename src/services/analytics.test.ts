@@ -39,7 +39,9 @@ it('tracks actual added quantities and both GA and Meta values, then removal del
   expect(ga).toHaveBeenCalledWith('event', 'add_to_cart', expect.objectContaining({
     currency: 'INR', value: 600, items: [expect.objectContaining({ quantity: 3, price: 200 })],
   }));
-  expect(meta).toHaveBeenCalledWith('track', 'AddToCart', expect.objectContaining({ value: 600, num_items: 3 }));
+  expect(meta).toHaveBeenCalledWith('track', 'AddToCart', expect.objectContaining({
+    value: 600, num_items: 3, content_ids: ['pink'],
+  }));
   ga.mockClear(); meta.mockClear();
   const increased = { ...cart, items: [{ ...cart.items[0], quantity: 4 }] };
   trackCartChanges(cart, increased);
@@ -57,6 +59,8 @@ it('tracks the full checkout funnel without customer details or unknown prices a
   for (const step of ['view_cart', 'begin_checkout', 'add_shipping_info', 'add_payment_info'] as const) trackCartStep(step, cart);
   expect(ga.mock.calls.map(call => call[1])).toEqual(['view_cart', 'begin_checkout', 'add_shipping_info', 'add_payment_info']);
   expect(meta.mock.calls.map(call => call[1])).toEqual(['InitiateCheckout', 'AddPaymentInfo']);
+  expect(meta.mock.calls[0][2]).toMatchObject({ content_ids: ['pink'], content_type: 'product' });
+  expect(meta.mock.calls[1][2]).toMatchObject({ content_ids: ['pink'], content_type: 'product' });
   const payload = JSON.stringify([ga.mock.calls, meta.mock.calls]);
   for (const privateValue of ['Private Buyer', 'private@example.test', '9876543210', 'Private Street', 'private-cart-id']) {
     expect(payload).not.toContain(privateValue);
@@ -112,7 +116,9 @@ it('records WhatsApp cart purchase intent as a lead, never as a purchase', async
     lead_source: 'whatsapp', contact_location: 'cart', currency: 'INR', value: 600,
     items: [expect.objectContaining({ item_id: 'rose', quantity: 3 })],
   }));
-  expect(meta).toHaveBeenCalledWith('track', 'Lead', expect.objectContaining({ lead_source: 'whatsapp', num_items: 3 }));
+  expect(meta).toHaveBeenCalledWith('track', 'Lead', expect.objectContaining({
+    lead_source: 'whatsapp', num_items: 3, content_ids: ['pink'],
+  }));
   expect(ga.mock.calls.some(call => call[1] === 'purchase')).toBe(false);
   const payload = JSON.stringify([ga.mock.calls, meta.mock.calls]);
   for (const privateValue of ['Private Buyer', 'private@example.test', '9876543210', 'Private Street', 'private-cart-id']) {
@@ -121,6 +127,23 @@ it('records WhatsApp cart purchase intent as a lead, never as a purchase', async
   ga.mockClear(); meta.mockClear();
   trackContactClick('whatsapp', 'footer');
   expect(ga.mock.calls.some(call => call[1] === 'generate_lead')).toBe(false);
+});
+it('uses the catalog feed variant ID for Meta product-view and add-to-cart events', async () => {
+  const { trackProductViewed, trackAddToCart } = await import('./analytics');
+  const product: Product = {
+    id: 'rose', name: 'Rose', category: 'Decor', price: 200, showPrice: true,
+    description: '', color: 'pink', inStock: true, image: '/rose.webp',
+    variants: [{
+      id: 'pink', name: 'Pink', color: 'pink', price: 200, inStock: true,
+      availableQuantity: 3, image: '/rose-pink.webp', imagePath: '/rose-pink.webp', gallery: [],
+    }],
+  };
+  const variant = product.variants[0];
+  trackProductViewed(product, variant);
+  expect(meta).toHaveBeenCalledWith('track', 'ViewContent', expect.objectContaining({ content_ids: ['pink'] }));
+  meta.mockClear();
+  trackAddToCart(product, variant);
+  expect(meta).toHaveBeenCalledWith('track', 'AddToCart', expect.objectContaining({ content_ids: ['pink'] }));
 });
 it('records shop-the-look impressions, hotspot taps and product opens as promotion events', async () => {
   const { trackShopTheLookViewed, trackShopTheLookHotspot, trackShopTheLookProductOpened } = await import('./analytics');

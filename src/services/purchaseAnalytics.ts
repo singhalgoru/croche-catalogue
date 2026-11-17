@@ -79,8 +79,8 @@ export const trackVerifiedPurchase = (requestId: string): Promise<void> => {
     })) markSent(gaKey);
     if (!wasSent(metaKey) && trackMetaEvent('Purchase', {
       currency: purchase.currency, value: purchase.total, content_type: 'product',
-      content_ids: purchase.items.map(item => item.item_id),
-      contents: items.map(item => ({ id: item.item_id, quantity: item.quantity, item_price: item.price })),
+      content_ids: purchase.items.map(item => item.variant_id || item.item_id),
+      contents: items.map(item => ({ id: item.variant_id || item.item_id, quantity: item.quantity, item_price: item.price })),
       num_items: purchase.items.reduce((count, item) => count + item.quantity, 0),
     }, `purchase-${purchase.transaction_id}`)) markSent(metaKey);
   })().catch(error => {
