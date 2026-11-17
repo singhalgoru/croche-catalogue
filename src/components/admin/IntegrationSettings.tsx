@@ -100,6 +100,35 @@ export default function IntegrationSettings() {
     </form>}
     {message && <p role="status" className="mt-3 text-sm text-green-800">{message}</p>}
     {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+    {settings && <details className="mt-5 rounded-xl border border-mustard/40 p-4 text-sm text-cocoa/80">
+      <summary className="min-h-11 cursor-pointer font-semibold text-cocoa">Verify GA4 tracking</summary>
+      <p className="mt-2">
+        A saved measurement ID does not prove that Google receives events. This checklist does not send test events
+        or change your Analytics property. Admin activity is excluded from tracking.
+      </p>
+      <ol className="mt-3 list-decimal space-y-3 pl-5">
+        <li>Open <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Analytics</a>.
+          Select the correct property, then Admin → Data streams → your web stream. Match its measurement ID
+          to the saved value above. Save any intended changes, then reload the storefront.</li>
+        <li>In the web stream&apos;s Enhanced measurement settings, disable page changes based on browser history events
+          and automatic form interactions. The storefront sends its own page and draft-preparation events.</li>
+        <li>Open the public storefront in a normal browser tab, not Admin or browser automation.
+          Open a product and add an available item to your cart. Check GA4 Realtime for
+          {' '}<code>page_view</code>, <code>view_item</code> and <code>add_to_cart</code>.
+          Use Google Tag Assistant with DebugView if you need individual event parameters.</li>
+        <li>Preparing an international quote emits <code>quote_request_prepared</code>;
+          preparing a bulk email emits <code>bulk_enquiry_prepared</code>.
+          Opening a contact link emits <code>contact_click</code> with its channel and location.
+          These actions do not prove that a message was sent or an order was placed.</li>
+        <li>Verify <code>purchase</code> from an existing approved, paid live-order check; do not make a payment
+          just to test analytics. Mark <code>purchase</code> as a key event in GA4.
+          Keep draft and contact events separate from sales.</li>
+        <li>If events are missing, check the property, saved ID, browser blockers and GA4 data filters.
+          An active internal-traffic filter may exclude this browser. Do not disable privacy protections
+          or resend old purchases to make a test pass.</li>
+      </ol>
+      <p className="mt-3">Microsoft Clarity is not configured by this guide. Review consent, disclosure and masking requirements before enabling session recording.</p>
+    </details>}
     <div className="mt-5 rounded-xl bg-cream/70 p-4 text-sm text-cocoa/75">
       <h3 className="font-semibold text-cocoa">Managed during deployment</h3>
       <p className="mt-1">
