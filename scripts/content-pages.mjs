@@ -15,7 +15,7 @@ export { collectionPath };
 const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
-const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
+const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/crochet-gift-guide/">Crochet gift guide</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
   + `<a href="${internationalQuote.path}">International quotes</a>`
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 export const renderSiteHeader = () => `<a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-160.webp" width="48" height="48" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation()}</nav></header>`;
@@ -145,6 +145,17 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <nav aria-label="Explore collections"><ul class="grid collection-grid">${collectionLinks.join('')}</ul></nav>`,
     baseSchema('CollectionPage', '/collections/', title, description)));
   const story = storeContent.brandStory;
+  const guide = storeContent.giftGuide;
+  pages.set(guide.path, page(guide.path, guide.title, guide.description,
+    `<article class="intro"><p>${escapeHtml(guide.intro)}</p>${guide.sections.map(section =>
+      `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></section>`).join('')}
+    <p><a href="/return-policy/">Read the return and refund policy</a> · <a href="${internationalQuote.path}">Request an international quote</a></p></article>`,
+    { ...baseSchema('WebPage', guide.path, guide.title, guide.description),
+      breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+        { '@type': 'ListItem', position: 2, name: guide.title, item: `${ORIGIN}${guide.path}` },
+      ] },
+    }));
   pages.set('/search/', page('/search/', 'Search products', 'Search Luvia Creations handmade crochet products by name, category, description or colour.',
     '<form role="search" action="/search/" method="get"><label for="product-search">Search products</label><input id="product-search" name="q" type="search" enterkeyhint="search" aria-describedby="search-help" placeholder="Try keychain, gajra or bunny"></form><p id="search-help">Results update as you type. Press Enter to save a shareable search URL.</p><p>Enable JavaScript for search results, or <a href="/collections/">browse our collections</a>.</p>',
     baseSchema('WebPage', '/search/', 'Search products', 'Find handmade crochet products.'))

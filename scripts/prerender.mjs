@@ -465,7 +465,7 @@ const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_
     '<h1>Premium Handmade Crochet Creations</h1>',
     "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>",
     '</header>',
-    '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
+    '<nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/crochet-gift-guide/">Crochet gift guide</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav>',
     '<main>',
     `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,

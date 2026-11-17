@@ -1,6 +1,42 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 import { buildContentPages } from '../scripts/content-pages.mjs';
+import storeContent from '../src/content/storeContent.json' with { type: 'json' };
+
+test('gift guide is readable in initial HTML without JavaScript', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: { width: 320, height: 640 } });
+  try {
+    const page = await context.newPage();
+    const guide = storeContent.giftGuide;
+    await page.route('**/crochet-gift-guide/', route => route.fulfill({
+      contentType: 'text/html', body: buildContentPages([], '919205907350').get(guide.path)!,
+    }));
+    await page.goto(guide.path);
+    await expect(page.getByRole('heading', { level: 1, name: guide.title })).toBeVisible();
+    for (const section of guide.sections) await expect(page.getByText(section.text, { exact: true })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://luviacreations.com${guide.path}`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  } finally {
+    await context.close();
+  }
+});
+
+test('gift guide is reachable from navigation and links to current gift collections', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Crochet gift guide' }).click();
+  await expect(page).toHaveURL(/\/crochet-gift-guide\/$/);
+  await expect(page.getByRole('heading', { level: 1, name: storeContent.giftGuide.title })).toBeVisible();
+  await expect(page).toHaveTitle(`${storeContent.giftGuide.title} | Luvia Creations`);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', storeContent.giftGuide.description);
+  const main = page.getByRole('main');
+  await expect(main.getByRole('link', { name: 'Enquire about bulk orders and corporate gifting' })).toHaveAttribute('href', '/bulk-orders/');
+  await expect(main.getByRole('link', { name: 'Read customer stories' })).toHaveAttribute('href', '/customer-love/');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await main.getByRole('link', { name: 'Explore current collections' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Explore our handmade collections' })).toBeVisible();
+});
 
 test('initial Collections HTML keeps compact branding and fixed mobile navigation before JavaScript', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });

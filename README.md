@@ -21,6 +21,8 @@ an India-based handmade crochet brand.
 - Discover bestsellers and featured products in homepage carousels and on
   dedicated, crawlable pages at `/bestsellers/` and `/featured/`.
 - Discover the latest available piece and discuss a customisation idea from the homepage.
+- Use the crawlable `/crochet-gift-guide/` for gift-selection advice, suitability
+  checks, customisation questions and delivery planning.
 - Customer Love presents selected, permission-based customer stories on the
   homepage, matching product pages and `/customer-love/`. Administrators manage
   private drafts, photos, multiple product tags and publication consent. Long

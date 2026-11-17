@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorePages from './StorePages';
 import storeContent from '../content/storeContent.json';
 import type { Product } from '../types/product';
+import { isStorePage } from '../utils/storePageRoute';
 
 vi.mock('./Header', () => ({ default: ({ categories }: { categories: string[] }) => <header>{categories.join(', ')}</header> }));
 vi.mock('./Footer', () => ({ default: () => <footer /> }));
@@ -16,6 +17,34 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it.each(['/crochet-gift-guide/', '/crochet-gift-guide'])('renders the gift guide at %s even when catalogue loading fails', pathname => {
+    window.history.replaceState(null, '', pathname);
+    expect(isStorePage()).toBe(true);
+    const guide = storeContent.giftGuide;
+    const meta = document.createElement('meta');
+    meta.name = 'description';
+    const canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.append(meta, canonical);
+    try {
+      render(<StorePages {...initial} products={[]} hasCatalogueSnapshot={false} loadError="Catalogue unavailable" />);
+      expect(screen.getByRole('heading', { level: 1, name: guide.title })).toBeTruthy();
+      expect(screen.getByText('Catalogue unavailable')).toBeTruthy();
+      for (const section of guide.sections) {
+        expect(screen.getByRole('heading', { level: 2, name: section.title })).toBeTruthy();
+        expect(screen.getByText(section.text)).toBeTruthy();
+        expect(screen.getByRole('link', { name: section.link.label }).getAttribute('href')).toBe(section.link.href);
+      }
+      expect(screen.getByRole('link', { name: 'Read the return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
+      expect(document.title).toBe(`${guide.title} | Luvia Creations`);
+      expect(meta.content).toBe(guide.description);
+      expect(canonical.href).toBe(`${window.location.origin}${guide.path}`);
+      expect(screen.queryByText('Find your favourites by collection, then open a product for photos and details.')).toBeNull();
+    } finally {
+      meta.remove();
+      canonical.remove();
+    }
+  });
   it('renders the dedicated international quote form and preselects a linked catalogue product', () => {
     window.history.replaceState(null, '', '/international-quote/?product=p1');
     render(<StorePages {...initial} />);

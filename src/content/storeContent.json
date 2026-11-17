@@ -7,6 +7,49 @@
     "Anklets": "Browse handmade anklets from Luvia Creations. View each design for sizing, materials and available variants.",
     "Brooches": "Explore handmade crochet brooches for adding a decorative touch to your outfit. View product photos, dimensions and available designs."
   },
+  "giftGuide": {
+    "path": "/crochet-gift-guide/",
+    "title": "How to choose a handmade crochet gift",
+    "description": "Choose handmade crochet gifts in India: compare accessories, toys and decor, plan your budget, and check customisation, suitability and delivery before ordering.",
+    "intro": "A useful crochet gift starts with the person receiving it: what they wear, carry or enjoy at home. Luvia Creations makes handmade crochet accessories, toys, gifts and decor in India. Use this guide to narrow your choices, then check the current catalogue for product details, prices and availability.",
+    "sections": [
+      {
+        "title": "Small gifts for friends, birthdays and thank-you gestures",
+        "text": "Consider a charm or keychain for someone who enjoys decorating a bag or keeping a favourite detail close. Hair accessories can suit someone whose everyday style you know well. Compare the dimensions, attachment and available colours on the product page rather than choosing from a styled photograph alone.",
+        "link": { "href": "/collections/", "label": "Explore current collections" }
+      },
+      {
+        "title": "Choosing a crochet toy or a piece for the home",
+        "text": "A crochet toy may appeal to someone who collects handmade characters; decor may suit someone who enjoys seasonal styling. For a child, ask Luvia to confirm age suitability, construction and any small or detachable parts before ordering. Do not assume a handmade toy is suitable for a baby. For decor, check size and intended use, and confirm what is included rather than assuming props in a photograph are part of the gift.",
+        "link": { "href": "/faq/", "label": "Check materials, sizing and care guidance" }
+      },
+      {
+        "title": "Set a budget using the final checkout total",
+        "text": "Compare the selected variant's price and quantity, not just a starting price. Leave room for shipping and review the final total before paying. Bestsellers can be a starting point for browsing, but popularity does not guarantee a good fit for your recipient. Current prices and availability are shown on the product page and at checkout.",
+        "link": { "href": "/bestsellers/", "label": "Browse current bestsellers" }
+      },
+      {
+        "title": "Personal colours, packaging and gift messages",
+        "text": "If a favourite colour or a personal detail would make the gift more meaningful, share the product link and your idea with Luvia before ordering. Customisation depends on the design, and the price and dispatch timing must be confirmed. Ask whether gift packaging, a message or direct delivery to the recipient can be arranged; do not assume these options are included.",
+        "link": { "href": "/about/", "label": "Contact Luvia about your gift" }
+      },
+      {
+        "title": "Plan for the occasion, not just the dispatch date",
+        "text": "Dispatch is the handover to the courier, not the day a gift reaches its recipient. Check the ordering FAQ for the current India dispatch window and shipping terms, and ask about your destination and occasion date before paying. International gifts require an individual quote; Indian online checkout and its shipping offers do not apply.",
+        "link": { "href": "/faq/", "label": "Read dispatch and delivery information" }
+      },
+      {
+        "title": "Return gifts, team gifts and larger quantities",
+        "text": "For a celebration, team or client gifting enquiry, share the product ideas, quantity, budget, destination and required delivery date. Ask which designs and colours can be supplied consistently and whether any personalisation is possible. Availability, pricing and timelines are agreed individually; sending an enquiry does not confirm an order.",
+        "link": { "href": "/bulk-orders/", "label": "Enquire about bulk orders and corporate gifting" }
+      },
+      {
+        "title": "A final check before ordering",
+        "text": "Review the materials, dimensions, care instructions, selected variant, availability and return policy. Ask about any missing detail before payment, especially for a customised or date-sensitive gift. Customer Love contains selected stories shared with permission; these are testimonials, not independent ratings or a guarantee of your experience.",
+        "link": { "href": "/customer-love/", "label": "Read customer stories" }
+      }
+    ]
+  },
   "orderingDisclosure": {
     "title": "Before you order",
     "request": "Choose your items, save your delivery address, review your coupon, shipping and total, then pay securely through Razorpay. Your online order is confirmed after payment verification. Adding items to a cart or sending a WhatsApp message does not take payment or confirm an order.",

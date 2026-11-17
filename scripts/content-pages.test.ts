@@ -21,6 +21,33 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('publishes the gift guide without catalogue data, with matching metadata, useful links and automatic discovery', () => {
+    const guide = storeContent.giftGuide;
+    const generated = buildContentPages([], '919205907350');
+    const doc = new JSDOM(generated.get(guide.path)).window.document;
+    expect(doc.querySelector('h1')?.textContent).toBe(guide.title);
+    expect(doc.querySelector('article')?.textContent).toContain(guide.intro);
+    for (const section of guide.sections) {
+      expect([...doc.querySelectorAll('article h2')].map(heading => heading.textContent)).toContain(section.title);
+      expect(doc.querySelector('article')?.textContent).toContain(section.text);
+      expect(doc.querySelector(`article a[href="${section.link.href}"]`)).toBeTruthy();
+      expect(generated.has(section.link.href)).toBe(true);
+    }
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${guide.path}`);
+    for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
+      expect(doc.querySelector(selector)?.getAttribute('content')).toBe(guide.description);
+    }
+    const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(schema['@type']).toBe('WebPage');
+    expect(schema.url).toBe(`https://luviacreations.com${guide.path}`);
+    expect(schema.breadcrumb.itemListElement.map((item: { name: string }) => item.name)).toEqual(['Home', guide.title]);
+    expect(new JSDOM(generated.get('/collections/')).window.document.querySelector(`header a[href="${guide.path}"]`)).toBeTruthy();
+    expect(doc.querySelector(`footer a[href="${guide.path}"]`)).toBeTruthy();
+    expect(doc.querySelector('meta[name="robots"]')).toBeNull();
+    expect(renderContentSitemap([], '2026-11-17', generated)).toContain(`<loc>https://luviacreations.com${guide.path}</loc>`);
+    const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
+    expect(renderLlms(template, [], undefined, [], discoveryPageLinks(generated))).toContain(`](${schema.url})`);
+  });
   it('prerenders consented customer stories with escaped quotes, product links and discovery but no ratings', () => {
     const generated = buildContentPages([toy, hair], '919205907350', [], [], [{
       id: 'story-1', display_name: '<Customer>', quote: 'A lovely gift & handmade keepsake.', product_ids: [toy.id, hair.id],
@@ -367,7 +394,7 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
