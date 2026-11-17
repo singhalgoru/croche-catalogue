@@ -4,12 +4,14 @@ import policies from '../src/content/policies.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import artisanOnboarding from '../src/content/artisanOnboarding.json' with { type: 'json' };
 import internationalQuote from '../src/content/internationalQuote.json' with { type: 'json' };
+import contentArticles from '../src/content/contentArticles.json' with { type: 'json' };
 import { collectionBreadcrumbList, collectionPath } from '../src/utils/collectionLink.js';
 import { limitCategoryOverview } from '../src/utils/categoryOverview.js';
 import { getCategoryHotspots, getCategoryImage } from '../src/utils/categoryImage.js';
 import { getBestsellerProducts, getFeaturedProducts, productCollections } from '../src/utils/productCollections.js';
 import { publicContentPages } from './public-discovery.mjs';
 import { testimonialPath } from '../src/utils/testimonialLink.js';
+import { getBoundedMetaTitle } from '../src/utils/productMetaTitle.js';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -21,16 +23,18 @@ const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search prod
 export const renderSiteHeader = () => `<a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-160.webp" width="48" height="48" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation()}</nav></header>`;
 const renderMobileNavigation = pathname => `<nav class="static-mobile-navigation" aria-label="Mobile navigation"><a href="/">Home</a><a href="/collections/"${pathname.startsWith('/collections/') ? ' aria-current="page"' : ''}>Collections</a><a href="/?checkout=cart">Cart</a><a href="/?account=orders">Account</a><a href="#store-links">More</a></nav>`;
 export const renderSiteFooter = () => `<footer><nav aria-label="Footer navigation">${navigation()}<a href="/return-policy/">Return and refund policy</a></nav><p>Handmade crochet accessories, toys, gifts and decor, crafted with love in India.</p><p>Gurugram, Haryana, India</p><section aria-label="Payment methods"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px"><span>We accept</span><img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy"><img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy"><img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy"><img src="/images/payments/amex.png" alt="American Express" width="50" height="50" loading="lazy"><img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy"><span style="display:inline-flex;align-items:center;gap:8px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8"/><path d="M20 12h-5a2 2 0 0 0 0 4h5z"/></svg>Wallet</span></div><p class="note">Secure payments via Razorpay. Available payment methods are shown at checkout.</p></section><p>Orders: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a> · General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p></footer>`;
-const page = (pathname, title, description, body, schema, socialImage = `${ORIGIN}/images/luvia-logo.jpg`) => `<!doctype html>
+const page = (pathname, title, description, body, schema, socialImage = `${ORIGIN}/images/luvia-logo.jpg`) => {
+  const metaTitle = getBoundedMetaTitle(title);
+  return `<!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' https://images.luviacreations.com https://*.supabase.co https://*.r2.dev; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
-<title>${escapeHtml(title)} | Luvia Creations</title><meta name="description" content="${escapeHtml(description)}">
+<title>${escapeHtml(metaTitle)}</title><meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${ORIGIN}${pathname}"><link rel="icon" href="/images/favicon-96.png">
-<meta property="og:type" content="website"><meta property="og:title" content="${escapeHtml(title)} | Luvia Creations">
+<meta property="og:type" content="website"><meta property="og:title" content="${escapeHtml(metaTitle)}">
 <meta property="og:description" content="${escapeHtml(description)}"><meta property="og:url" content="${ORIGIN}${pathname}">
 <meta property="og:image" content="${escapeHtml(socialImage)}">
 <meta name="twitter:image" content="${escapeHtml(socialImage)}">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(title)} | Luvia Creations">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(metaTitle)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <script type="application/ld+json">${JSON.stringify({ ...schema, ...(pathname.startsWith('/collections/') ? { breadcrumb: collectionBreadcrumbList(pathname, title, ORIGIN) } : {}) }).replace(/</g, '\\u003c')}</script>
 <style>
@@ -50,6 +54,7 @@ nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:7
 </style></head><body>${renderSiteHeader()}
 <main id="main"><nav aria-label="Breadcrumb"><a href="/">Home</a>${pathname.startsWith('/collections/') && pathname !== '/collections/' ? '<a href="/collections/">Collections</a>' : ''}<span aria-current="page">${escapeHtml(title)}</span></nav><h1>${escapeHtml(title)}</h1>${body}</main>
 <div id="store-links">${renderSiteFooter()}</div>${renderMobileNavigation(pathname)}</body></html>`;
+};
 
 const productCards = items => items.map((product, index) => {
   const range = priceRange(product);
@@ -149,6 +154,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   pages.set(guide.path, page(guide.path, guide.title, guide.description,
     `<article class="intro"><p>${escapeHtml(guide.intro)}</p>${guide.sections.map(section =>
       `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></section>`).join('')}
+    <nav aria-label="Related guides">${contentArticles.map(article => `<a href="${escapeHtml(article.path)}">${escapeHtml(article.title)}</a>`).join('')}</nav>
     <p><a href="/return-policy/">Read the return and refund policy</a> · <a href="${internationalQuote.path}">Request an international quote</a></p></article>`,
     { ...baseSchema('WebPage', guide.path, guide.title, guide.description),
       breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
@@ -156,6 +162,35 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         { '@type': 'ListItem', position: 2, name: guide.title, item: `${ORIGIN}${guide.path}` },
       ] },
     }));
+  for (const article of contentArticles) {
+    const body = `<article class="intro"><p>${escapeHtml(article.intro)}</p>
+      ${article.sections ? article.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2>
+        ${section.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}
+        ${section.links.map(link => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join(' · ')}
+      </section>`).join('') : ''}
+      ${article.budgetBands ? article.budgetBands.map((band, index) => {
+        const minimumPrice = index === 0 ? 0 : article.budgetBands[index - 1].maximumPrice;
+        const items = products.filter(product => {
+          const range = priceRange(product);
+          return range && range.low > minimumPrice && range.low <= band.maximumPrice;
+        });
+        return `<section><h2>${escapeHtml(band.title)}</h2><p>${escapeHtml(band.text)}</p>
+          ${items.length ? `<ul class="grid">${productCards(items)}</ul>` : '<p>No products currently match this price range. Check the latest catalogue for current options.</p>'}
+        </section>`;
+      }).join('') : ''}
+      ${article.closing ? `<p>${escapeHtml(article.closing)}</p>` : ''}
+      <nav aria-label="Related guides"><a href="${guide.path}">${escapeHtml(guide.title)}</a>
+        ${contentArticles.filter(related => related.path !== article.path).map(related =>
+          `<a href="${escapeHtml(related.path)}">${escapeHtml(related.title)}</a>`).join('')}
+      </nav></article>`;
+    pages.set(article.path, page(article.path, article.title, article.description, body,
+      { ...baseSchema('Article', article.path, article.title, article.description),
+        breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+          { '@type': 'ListItem', position: 2, name: article.title, item: `${ORIGIN}${article.path}` },
+        ] },
+      }));
+  }
   pages.set('/search/', page('/search/', 'Search products', 'Search Luvia Creations handmade crochet products by name, category, description or colour.',
     '<form role="search" action="/search/" method="get"><label for="product-search">Search products</label><input id="product-search" name="q" type="search" enterkeyhint="search" aria-describedby="search-help" placeholder="Try keychain, gajra or bunny"></form><p id="search-help">Results update as you type. Press Enter to save a shareable search URL.</p><p>Enable JavaScript for search results, or <a href="/collections/">browse our collections</a>.</p>',
     baseSchema('WebPage', '/search/', 'Search products', 'Find handmade crochet products.'))

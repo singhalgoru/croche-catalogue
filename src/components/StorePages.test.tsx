@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorePages from './StorePages';
 import storeContent from '../content/storeContent.json';
+import contentArticles from '../content/contentArticles.json';
 import type { Product } from '../types/product';
 import { isStorePage } from '../utils/storePageRoute';
 
@@ -44,6 +45,29 @@ describe('live store pages', () => {
       meta.remove();
       canonical.remove();
     }
+  });
+  it('renders the budget article with current public catalogue prices and recognizes its clean route', () => {
+    window.history.replaceState(null, '', '/handmade-gifts-by-budget/');
+    const article = contentArticles.find(item => item.path === '/handmade-gifts-by-budget/')!;
+    expect(isStorePage()).toBe(true);
+    const bunny = { ...products[0], variants: [
+      products[0].variants[0],
+      { ...products[0].variants[0], id: 'v2', name: 'Gold', price: 1200 },
+    ] };
+    render(<StorePages {...initial} products={[
+      bunny,
+      { ...products[0], id: 'hidden', name: 'Private price', price: 250, showPrice: false },
+      { ...products[0], id: 'outside', name: 'Over budget', price: 2500 },
+    ]} />);
+    expect(screen.getByRole('heading', { level: 1, name: article.title })).toBeTruthy();
+    const firstBudget = screen.getByRole('heading', { name: 'Gift ideas under ₹500' }).closest('section')!;
+    const secondBudget = screen.getByRole('heading', { name: 'Gift ideas under ₹1,000' }).closest('section')!;
+    expect(new URL(screen.getByRole('link', { name: 'Bunny' }).getAttribute('href')!).pathname).toBe('/p/bunny/');
+    expect(within(firstBudget).getByRole('link', { name: 'Bunny' })).toBeTruthy();
+    expect(within(secondBudget).queryByRole('link', { name: 'Bunny' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Private price' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Over budget' })).toBeNull();
+    expect(document.title.length).toBeLessThanOrEqual(60);
   });
   it('renders the dedicated international quote form and preselects a linked catalogue product', () => {
     window.history.replaceState(null, '', '/international-quote/?product=p1');

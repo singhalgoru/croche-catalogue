@@ -654,6 +654,21 @@ describe('renderProductPage', () => {
     expect(schema.offers.availability).toBe('https://schema.org/InStock');
   });
 
+  it('renders the toy suitability notice and accurate handling-time and material data', () => {
+    const toy = { ...product, category: 'Toys', materials: 'Cotton yarn and polyester filling' };
+    const html = renderProductPage(toy, '91');
+    const schema = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+    const productSchema = schema['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product');
+    expect(html).toContain('Toy suitability');
+    expect(html).toContain('Do not assume a handmade crochet toy is suitable for babies or young children.');
+    expect(productSchema.material).toBe(toy.materials);
+    expect(productSchema.offers.shippingDetails.deliveryTime.handlingTime.maxValue).toBe(5);
+    expect(productSchema.offers.hasMerchantReturnPolicy).toBeUndefined();
+    const unspecifiedMaterials = renderProductPage({ ...product, materials: undefined }, '91');
+    const unspecifiedSchema = JSON.parse(unspecifiedMaterials.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+    expect(unspecifiedSchema['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product').material).toBeUndefined();
+  });
+
   it('keeps sold-out wording consistent with structured availability', () => {
     const soldOut = renderProductPage({ ...product, inStock: false }, '91');
     expect(soldOut).toContain('Out of stock.');
@@ -712,7 +727,7 @@ describe('renderProductPage', () => {
     expect(html).toContain('after coupon discounts');
     expect(html).not.toContain('when online checkout is available');
     expect(html).not.toContain('Admin Razorpay');
-    expect(html).toContain(`<title>${product.name} | Luvia Creations</title>`);
+    expect(html).toContain(`<title>${product.name} | Handmade Crochet ${product.category} | Luvia</title>`);
     expect(html.indexOf('Choose options in the catalogue')).toBeLessThan(html.indexOf('Ask on WhatsApp'));
   });
 

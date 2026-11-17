@@ -7,6 +7,7 @@ import { renderLlms, toProduct } from './prerender.mjs';
 import { discoveryPageLinks } from './public-discovery.mjs';
 import storeContent from '../src/content/storeContent.json';
 import artisanOnboarding from '../src/content/artisanOnboarding.json';
+import contentArticles from '../src/content/contentArticles.json';
 
 const toy = toProduct({
   id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
@@ -47,6 +48,26 @@ describe('collection and information pages', () => {
     expect(renderContentSitemap([], '2026-11-17', generated)).toContain(`<loc>https://luviacreations.com${guide.path}</loc>`);
     const template = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     expect(renderLlms(template, [], undefined, [], discoveryPageLinks(generated))).toContain(`](${schema.url})`);
+  });
+  it('publishes both editorial articles with dynamic catalogue products and sitemap discovery', () => {
+    const variedToy = { ...toy, variants: [{ price: 500 }, { price: 1200 }] };
+    const generated = buildContentPages([variedToy, hair], '919205907350');
+    const gajra = contentArticles.find(article => article.path === '/how-to-style-crochet-gajra/')!;
+    const gajraDoc = new JSDOM(generated.get(gajra.path)).window.document;
+    expect(gajraDoc.querySelector('h1')?.textContent).toBe(gajra.title);
+    expect(gajraDoc.body.textContent).toContain('A crochet gajra brings a handmade floral detail');
+    expect(gajraDoc.querySelector('a[href="/p/og-mogra-gajra/"]')).toBeTruthy();
+
+    const budget = contentArticles.find(article => article.path === '/handmade-gifts-by-budget/')!;
+    const budgetDoc = new JSDOM(generated.get(budget.path)).window.document;
+    expect(budgetDoc.querySelector('h1')?.textContent).toBe(budget.title);
+    expect([...budgetDoc.querySelectorAll('a[href="/p/bunny/"]')].some(link => link.textContent?.trim() === 'Bunny')).toBe(true);
+    expect([...budgetDoc.querySelectorAll('section')].find(section => section.querySelector('h2')?.textContent === 'Gift ideas under ₹1,000')
+      ?.querySelector('a[href="/p/bunny/"]')).toBeNull();
+    expect(budgetDoc.querySelector('a[href="/p/clip/"]')).toBeNull();
+    expect(budgetDoc.querySelector('a[href="/crochet-gift-guide/"]')).toBeTruthy();
+    expect(renderContentSitemap([variedToy, hair], '2026-11-17', generated)).toContain(`<loc>https://luviacreations.com${gajra.path}</loc>`);
+    expect(renderContentSitemap([variedToy, hair], '2026-11-17', generated)).toContain(`<loc>https://luviacreations.com${budget.path}</loc>`);
   });
   it('prerenders consented customer stories with escaped quotes, product links and discovery but no ratings', () => {
     const generated = buildContentPages([toy, hair], '919205907350', [], [], [{
@@ -394,7 +415,7 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/how-to-style-crochet-gajra/', '/handmade-gifts-by-budget/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');

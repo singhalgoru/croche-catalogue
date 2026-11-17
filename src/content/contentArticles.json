@@ -1,0 +1,67 @@
+[
+  {
+    "path": "/how-to-style-crochet-gajra/",
+    "title": "How to Style a Crochet Gajra for Weddings and Festivals",
+    "description": "A practical guide to choosing and styling a handmade crochet gajra, with product details, fit and delivery checks for weddings and festivals.",
+    "intro": "A crochet gajra brings a handmade floral detail to a wedding or festival hairstyle. Start with the design and attachment that suit your hairstyle, then confirm the current product details, colour and dispatch timing before ordering.",
+    "sections": [
+      {
+        "title": "Choose a design for the hairstyle",
+        "paragraphs": [
+          "A curved flower trail can frame a bun, while a longer or more flexible design may work differently. The OG Mogra Gajra product page describes its white blooms and green vine as designed to wrap around a bun. Check the dimensions and photos of the individual piece rather than assuming every gajra fits every hairstyle.",
+          "For braids or open hair, ask Luvia how the selected design attaches and whether it is suitable for the style you have in mind. Secure the accessory gently and avoid pulling on the crochet stitches."
+        ],
+        "links": [
+          { "href": "/p/og-mogra-gajra/", "label": "View the OG Mogra Gajra" },
+          { "href": "/p/ivory-rose-gajra/", "label": "View the Rose Gajra" }
+        ]
+      },
+      {
+        "title": "Coordinate colour and occasion",
+        "paragraphs": [
+          "Ivory, white and red flowers can complement different outfit colours, but screen previews are only a guide. Check the current product photos and available variants, and ask about a colour change before ordering. Customisation depends on the design and must be confirmed, including any price or timing change.",
+          "For a coordinated look, compare the gajra with the outfit and other accessories in natural light. A handmade piece may have small variations; use the product page for the confirmed materials and details."
+        ],
+        "links": [
+          { "href": "/collections/hair-accessories/", "label": "Browse Hair Accessories" },
+          { "href": "/about/", "label": "Ask Luvia about customisation" }
+        ]
+      },
+      {
+        "title": "Plan for fit, care and delivery",
+        "paragraphs": [
+          "Review the selected product's dimensions, materials and care instructions before ordering. If a detail is missing, ask Luvia rather than estimating from a styled photo. Follow the care guidance on the product page and store the piece so it is not snagged or compressed.",
+          "For orders within India, dispatch is within five days or earlier; dispatch is the handover to the courier, not the delivery date. Check the current delivery estimate and final checkout total, especially if the gajra is needed for a specific event."
+        ],
+        "links": [
+          { "href": "/faq/", "label": "Read shipping and care information" },
+          { "href": "/return-policy/", "label": "Read the return and refund policy" }
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/handmade-gifts-by-budget/",
+    "title": "Handmade Gift Ideas Under ₹500, ₹1,000 and ₹2,000",
+    "description": "Browse Luvia's current handmade crochet gifts by budget. Compare product variants, check shipping and confirm gift customisation before ordering.",
+    "intro": "A useful gift starts with the recipient and the amount you want to spend. The suggestions below are drawn from the current published catalogue and grouped by listed product price. Variant prices and availability can change; shipping is separate and the final total appears at checkout.",
+    "budgetBands": [
+      {
+        "maximumPrice": 500,
+        "title": "Gift ideas under ₹500",
+        "text": "Browse smaller accessories, charms and home accents. Check the product page for the selected colour, dimensions, materials and current price."
+      },
+      {
+        "maximumPrice": 1000,
+        "title": "Gift ideas under ₹1,000",
+        "text": "This range may include statement hair accessories, decor and other handmade pieces. Compare the selected variant's price and product details before deciding."
+      },
+      {
+        "maximumPrice": 2000,
+        "title": "Gift ideas under ₹2,000",
+        "text": "Consider a larger accessory or toy only after checking its dimensions, intended use and suitability. Ask Luvia about any missing detail before ordering for a child."
+      }
+    ],
+    "closing": "Ask whether gift packaging, a message or direct delivery can be arranged; these options are not guaranteed. For team or event gifts, share the quantity, budget and required date on the bulk orders page. A request does not confirm availability or an order."
+  }
+]

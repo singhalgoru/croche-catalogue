@@ -59,6 +59,7 @@ import {
   type CataloguePriceRange,
 } from './utils/cataloguePrice';
 import { getProductMetaDescription } from './utils/productMetaDescription';
+import { getProductMetaTitle } from './utils/productMetaTitle.js';
 import { collectionPath } from './utils/collectionLink.js';
 import { reloadWithFreshAssets } from './utils/chunkLoadRecovery';
 
@@ -283,7 +284,7 @@ function App() {
     } else if (resolvedVariant) params.set('variant', toPublicVariantSlug(resolvedVariant));
     url.search = params.toString();
     window.history.replaceState(window.history.state, '', url);
-    document.title = `${selectedProduct.name} | Luvia Creations`;
+    document.title = getProductMetaTitle(selectedProduct);
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = resolvedVariant && isVariantPath
       ? toProductVariantPageUrl(selectedProduct, resolvedVariant) : toProductPageUrl(selectedProduct);

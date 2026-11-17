@@ -644,6 +644,17 @@ export default function ProductModal({
           )}
           <WatchMakingVideoLink product={product} />
           <RichTextContent value={product.description} className="mt-3 space-y-2 text-cocoa/80" />
+          {product.category.toLowerCase() === 'toys' && (
+            <aside aria-labelledby="toy-suitability-title" className="mt-4 rounded-xl border border-mustard/40 bg-cream/70 p-3 text-sm">
+              <h2 id="toy-suitability-title" className="font-semibold">Toy suitability</h2>
+              <p className="mt-1">{storeContent.toySafetyNotice}</p>
+            </aside>
+          )}
+          {product.category.toLowerCase() === 'hair accessories' && (
+            <a href="/how-to-style-crochet-gajra/" className="mt-3 inline-flex min-h-11 items-center underline underline-offset-4">
+              Read our guide to styling a crochet gajra
+            </a>
+          )}
           <ProductMakingVideo key={`${product.id}:${product.makingVideo?.videoUrl ?? ''}`} product={product} />
           <ProductDetails product={product} collapsible={!isPage} />
           <ProductDeliveryInfo productId={product.id} />

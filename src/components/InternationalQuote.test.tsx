@@ -3,9 +3,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import InternationalQuote from './InternationalQuote';
 import type { Product } from '../types/product';
 import { buildInternationalQuote, type InternationalQuoteDetails } from '../utils/internationalQuote';
-import { trackContactClick } from '../services/analytics';
+import { trackContactClick, trackEvent } from '../services/analytics';
 
-vi.mock('../services/analytics', () => ({ trackContactClick: vi.fn() }));
+vi.mock('../services/analytics', () => ({ trackContactClick: vi.fn(), trackEvent: vi.fn() }));
 const products: Product[] = [
   { id: 'p1', publicSlug: 'bunny', name: 'Bunny & friend', category: 'Toys', price: 500, description: '', color: '', image: '', inStock: true, variants: [] },
   { id: 'p2', publicSlug: 'clip', name: 'Rose Clip', category: 'Hair', price: null, description: '', color: '', image: '', inStock: false, variants: [], minimumOrderQuantity: 3 },
@@ -35,6 +35,7 @@ it('preselects a linked product and prepares matching email/WhatsApp drafts with
   expect((within(screen.getByLabelText('Product 2')).getByRole('option', { name: 'Bunny & friend' }) as HTMLOptionElement).disabled).toBe(true);
   fillDetails();
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
+  expect(trackEvent).toHaveBeenCalledWith('quote_request_prepared', { item_count: 2 });
   const email = screen.getByRole('link', { name: 'Send via email' });
   const whatsapp = screen.getByRole('link', { name: 'Send via WhatsApp' });
   const emailUrl = new URL(email.getAttribute('href')!);
@@ -55,8 +56,10 @@ it('preselects a linked product and prepares matching email/WhatsApp drafts with
   }
   expect(trackContactClick).toHaveBeenCalledWith('email', 'international_quote');
   expect(trackContactClick).toHaveBeenCalledWith('whatsapp', 'international_quote');
+  vi.mocked(trackEvent).mockClear();
   fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Oxford' } });
   expect(screen.queryByRole('link', { name: 'Send via email' })).toBeNull();
+  expect(trackEvent).not.toHaveBeenCalled();
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
   fireEvent.click(screen.getByRole('button', { name: 'Remove item 1' }));
   expect(screen.queryByRole('link', { name: 'Send via WhatsApp' })).toBeNull();

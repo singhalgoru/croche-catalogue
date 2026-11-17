@@ -3,7 +3,7 @@ import type { Product } from '../types/product';
 import internationalQuote from '../content/internationalQuote.json';
 import storeContent from '../content/storeContent.json';
 import { buildInternationalQuote, type InternationalQuoteDetails, type InternationalQuoteItem } from '../utils/internationalQuote';
-import { trackContactClick } from '../services/analytics';
+import { trackContactClick, trackEvent } from '../services/analytics';
 
 const fields: { key: keyof InternationalQuoteDetails; label: string; type: string; required?: boolean; autoComplete?: string; maxLength: number }[] = [
   { key: 'name', label: 'Your name', type: 'text', required: true, autoComplete: 'name', maxLength: 80 },
@@ -40,6 +40,7 @@ export default function InternationalQuote({ products, isLoading, loadError }: {
         if (isLoading || loadError) { setError('Please wait for the catalogue to load successfully before preparing your request.'); return; }
         try {
           setDraft(buildInternationalQuote(details, items, products));
+          trackEvent('quote_request_prepared', { item_count: items.length });
           setError('');
         } catch (cause) {
           if (!(cause instanceof Error)) throw cause;

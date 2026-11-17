@@ -8,6 +8,7 @@ import CollectionGrid from './CollectionGrid';
 import CategoryShareButton from './CategoryShareButton';
 import CategoryLook from './CategoryLook';
 import storeContent from '../content/storeContent.json';
+import contentArticles from '../content/contentArticles.json';
 import { productImageProtection } from '../utils/imageProtection';
 import policies from '../content/policies.json';
 import bulkOrders from '../content/bulkOrders.json';
@@ -31,8 +32,16 @@ import artisanOnboarding from '../content/artisanOnboarding.json';
 import CustomerLove from './CustomerLove';
 import type { Testimonial } from '../services/customerLove';
 import { readTestimonialSlug } from '../utils/testimonialLink';
+import { getBoundedMetaTitle } from '../utils/productMetaTitle.js';
+import { getPublicVariantPrice } from '../utils/productPrice';
 
 const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
+
+const listedPriceRange = (product: Product) => {
+  const prices = [...product.variants.map(variant => getPublicVariantPrice(product, variant)), getPublicVariantPrice(product)]
+    .filter((price): price is number => price !== null && Number.isFinite(price));
+  return prices.length ? { low: Math.min(...prices), high: Math.max(...prices) } : null;
+};
 
 interface Props {
   products: Product[];
@@ -82,6 +91,7 @@ export default function StorePages({
   const isInternationalQuote = requestedPath === internationalQuote.path;
   const isAbout = requestedPath === '/about/';
   const isGiftGuide = requestedPath === storeContent.giftGuide.path;
+  const article = contentArticles.find(item => item.path.replace(/\/?$/, '/') === requestedPath);
   const isCustomerLove = requestedPath === '/customer-love/';
   const storySlug = readTestimonialSlug(requestedPath) ?? undefined;
   const isStory = storySlug !== undefined;
@@ -138,10 +148,10 @@ export default function StorePages({
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
   const title = productCollection?.title ?? policy?.title ?? (isStory ? story ? `Customer story from ${story.display_name}` : story === null ? 'Customer story unavailable' : 'Customer story'
-    : isCustomerLove ? 'Customer Love' : isGiftGuide ? storeContent.giftGuide.title : isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
+    : isCustomerLove ? 'Customer Love' : isGiftGuide ? storeContent.giftGuide.title : article?.title ?? (isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
-        : 'Explore our handmade collections');
+        : 'Explore our handmade collections'));
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
@@ -153,7 +163,7 @@ export default function StorePages({
     if (isStory) {
       // Prerendered story pages already carry accurate metadata; only correct it once data is known.
       if (story === undefined) return;
-      document.title = `${title} | Luvia Creations`;
+      document.title = getBoundedMetaTitle(title);
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
       if (story === null) {
         const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement('meta');
@@ -163,7 +173,7 @@ export default function StorePages({
       }
       return;
     }
-    document.title = `${title} | Luvia Creations`;
+    document.title = getBoundedMetaTitle(title);
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = `${window.location.origin}${requestedPath}`;
     if (isSearch || isArtisans) {
@@ -172,8 +182,8 @@ export default function StorePages({
       robots.content = 'noindex,follow';
       if (!robots.isConnected) document.head.append(robots);
     }
-    if (productCollection || policy || isBulkOrders || isInternationalQuote || isAbout || isArtisans || isCustomerLove || isGiftGuide) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (isGiftGuide ? storeContent.giftGuide.description : isCustomerLove ? 'Customer stories and handmade moments, shared with permission by Luvia Creations customers.' : isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description);
+    if (productCollection || policy || isBulkOrders || isInternationalQuote || isAbout || isArtisans || isCustomerLove || isGiftGuide || article) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (article?.description ?? (isGiftGuide ? storeContent.giftGuide.description : isCustomerLove ? 'Customer stories and handmade moments, shared with permission by Luvia Creations customers.' : isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description));
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -211,7 +221,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isGiftGuide, isCustomerLove, isStory, story, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isGiftGuide, isCustomerLove, isStory, story, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts, article]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -257,9 +267,44 @@ export default function StorePages({
           <p>{section.text}</p>
           <a href={section.link.href} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{section.link.label}</a>
         </section>)}
+        <nav aria-label="Related guides" className="flex flex-wrap gap-4">
+          {contentArticles.map(item => <a key={item.path} href={item.path} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{item.title}</a>)}
+        </nav>
         <nav aria-label="Gift ordering information" className="flex flex-wrap gap-4">
           <a href="/return-policy/" className="inline-flex min-h-11 items-center underline">Read the return and refund policy</a>
           <a href={internationalQuote.path} className="inline-flex min-h-11 items-center underline">Request an international quote</a>
+        </nav>
+      </article> : article ? <article className="max-w-3xl space-y-6 leading-relaxed">
+        <p>{article.intro}</p>
+        {'sections' in article && article.sections?.map(section => <section key={section.title} className="space-y-2">
+          <h2 className="font-heading text-xl font-bold">{section.title}</h2>
+          {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+          <nav aria-label={`${section.title} links`} className="flex flex-wrap gap-4">
+            {section.links.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{link.label}</a>)}
+          </nav>
+        </section>)}
+        {'budgetBands' in article && article.budgetBands?.map((band, index) => {
+          const minimumPrice = index === 0 ? 0 : article.budgetBands[index - 1].maximumPrice;
+          const matchingProducts = showCatalogue ? products.filter(product => {
+            const range = listedPriceRange(product);
+            return range !== null && range.low > minimumPrice && range.low <= band.maximumPrice;
+          }) : [];
+          return <section key={band.title} className="space-y-2">
+            <h2 className="font-heading text-xl font-bold">{band.title}</h2>
+            <p>{band.text}</p>
+            {matchingProducts.length ? <ul className="list-disc space-y-2 pl-6">
+              {matchingProducts.map(product => <li key={product.id}>
+                <a href={toProductPageUrl(product)} className="font-semibold underline underline-offset-4">{product.name}</a>
+                <span> — From ₹{listedPriceRange(product)!.low.toLocaleString('en-IN')}</span>
+              </li>)}
+            </ul> : <p>No products currently match this price range. Check the latest catalogue for current options.</p>}
+          </section>;
+        })}
+        {'closing' in article && article.closing && <p>{article.closing}</p>}
+        <nav aria-label="Related guides" className="flex flex-wrap gap-4">
+          <a href={storeContent.giftGuide.path} className="inline-flex min-h-11 items-center underline">{storeContent.giftGuide.title}</a>
+          {contentArticles.filter(item => item.path !== article.path).map(item =>
+            <a key={item.path} href={item.path} className="inline-flex min-h-11 items-center underline">{item.title}</a>)}
         </nav>
       </article> : isArtisans ? <Suspense fallback={<p role="status">Loading application...</p>}><ArtisanApplicationForm /></Suspense> : isSearch ? <>
         <p className="hidden sm:block">Find handmade favourites by name, category, description or colour.</p>

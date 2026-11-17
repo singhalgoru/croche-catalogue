@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import BulkOrders from './BulkOrders';
 import bulkOrders from '../content/bulkOrders.json';
-import { trackContactClick } from '../services/analytics';
+import { trackContactClick, trackEvent } from '../services/analytics';
 
-vi.mock('../services/analytics', () => ({ trackContactClick: vi.fn() }));
+vi.mock('../services/analytics', () => ({ trackContactClick: vi.fn(), trackEvent: vi.fn() }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 it('keeps the homepage invitation compact with a single dedicated-page link', () => {
@@ -54,6 +54,7 @@ it('prepares a branded email from the form without sending automatically and cle
     ['Required delivery date (optional)', '2026-12-01'],
   ]) fireEvent.change(screen.getByLabelText(label), { target: { value } });
   fireEvent.click(screen.getByRole('button', { name: 'Prepare email draft' }));
+  expect(trackEvent).toHaveBeenCalledWith('bulk_enquiry_prepared');
   const draft = screen.getByRole('link', { name: 'Open email draft' });
   const url = new URL(draft.getAttribute('href')!);
   expect(url.pathname).toBe(bulkOrders.email);

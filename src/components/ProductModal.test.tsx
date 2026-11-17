@@ -92,6 +92,18 @@ it('describes meaningful angle thumbnails and hides decorative duplicate variant
   cleanup();
 });
 
+it('shows age-suitability guidance for toys and links hair accessories to their styling guide', () => {
+  const callbacks = { onClose: vi.fn(), onPrevious: vi.fn(), onNext: vi.fn() };
+  const view = render(<ProductModal product={{ ...product, category: 'Toys' }} currentIndex={0} totalProducts={1} {...callbacks} />);
+  expect(screen.getByRole('heading', { name: 'Toy suitability' })).toBeTruthy();
+  expect(screen.getByText(/Do not assume a handmade crochet toy is suitable for babies or young children/)).toBeTruthy();
+
+  view.rerender(<ProductModal product={{ ...product, category: 'Hair Accessories' }} currentIndex={0} totalProducts={1} {...callbacks} />);
+  expect(screen.queryByRole('heading', { name: 'Toy suitability' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Read our guide to styling a crochet gajra' }).getAttribute('href'))
+    .toBe('/how-to-style-crochet-gajra/');
+});
+
 it('counts one product view per open, not per rotated or selected image', () => {
   vi.useFakeTimers();
   trackProductViewed.mockClear();
@@ -166,9 +178,11 @@ describe('ProductModal touch controls', () => {
   it('shows dispatch and shipping expectations beside the purchase actions', () => {
     render(<ProductModal product={product} presentation="page" currentIndex={0} totalProducts={1}
       onClose={vi.fn()} onPrevious={vi.fn()} onNext={vi.fn()} />);
-    const actions = screen.getByLabelText('Product purchase actions');
-    const assurance = screen.getByRole('region', { name: 'Delivery summary' });
-    expect(actions.contains(assurance)).toBe(true);
+    const actions = screen.getAllByLabelText('Product purchase actions');
+    const summaries = screen.getAllByRole('region', { name: 'Delivery summary' });
+    expect(summaries).toHaveLength(actions.length);
+    actions.forEach((action, index) => expect(action.contains(summaries[index])).toBe(true));
+    const assurance = summaries[0];
     expect(assurance.textContent).toContain('Within 5 days');
     expect(assurance.textContent).toContain('transit varies by destination');
     expect(assurance.textContent).toContain('₹500');

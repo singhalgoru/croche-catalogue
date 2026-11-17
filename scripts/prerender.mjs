@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
 import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
+import { getProductMetaTitle } from '../src/utils/productMetaTitle.js';
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { getCategoryImage } from '../src/utils/categoryImage.js';
 import { getLatestProduct } from '../src/utils/productCollections.js';
@@ -223,6 +224,19 @@ const availability = (product) =>
 const productJsonLd = (product, showCategoryLink = true) => {
   const range = priceRange(product);
   const url = productUrl(product);
+  const shippingDetails = {
+    '@type': 'OfferShippingDetails',
+    shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
+    deliveryTime: {
+      '@type': 'ShippingDeliveryTime',
+      handlingTime: {
+        '@type': 'QuantitativeValue',
+        minValue: 0,
+        maxValue: 5,
+        unitCode: 'DAY',
+      },
+    },
+  };
   const data = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -233,7 +247,7 @@ const productJsonLd = (product, showCategoryLink = true) => {
     url,
     image: product.image ? getProductImageUrl(product.image, 960) : undefined,
     brand: { '@type': 'Brand', name: 'Luvia Creations' },
-    material: 'Crochet yarn',
+    material: product.materials?.trim() || undefined,
     additionalProperty: {
       '@type': 'PropertyValue',
       name: 'Handmade',
@@ -258,6 +272,7 @@ const productJsonLd = (product, showCategoryLink = true) => {
             availability: availability(product),
             url,
             seller: { '@id': `${ORIGIN}/#store` },
+            shippingDetails,
           }
         : {
             '@type': 'AggregateOffer',
@@ -268,6 +283,7 @@ const productJsonLd = (product, showCategoryLink = true) => {
             availability: availability(product),
             url,
             seller: { '@id': `${ORIGIN}/#store` },
+            shippingDetails,
           };
   }
 
@@ -588,7 +604,7 @@ const scriptHash = (source) => `'sha256-${createHash('sha256').update(source).di
 
 const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, socialImage = null, redirectToApp = true, showCategoryLink = true) => {
   const url = productUrl(product);
-  const title = `${product.name} | Luvia Creations`;
+  const title = getProductMetaTitle(product);
   const description = getProductMetaDescription(product);
   const image = product.image ? getProductImageUrl(product.image, 960) : `${ORIGIN}/images/luvia-logo.jpg`;
   // Keep JPEG social previews for WhatsApp; use the sized image in the page.
@@ -676,6 +692,8 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
       <p class="stock">${stockLabel(product)}.</p>
       <p>Free shipping on items worth ₹500 or more after coupon discounts.</p>
       <p>${escapeHtml(product.description)}</p>
+      ${product.category.toLowerCase() === 'toys' ? `<aside aria-labelledby="toy-suitability-title"><h2 id="toy-suitability-title">Toy suitability</h2><p>${escapeHtml(storeContent.toySafetyNotice)}</p></aside>` : ''}
+      ${product.category.toLowerCase() === 'hair accessories' ? `<p><a href="/how-to-style-crochet-gajra/">Read our guide to styling a crochet gajra</a></p>` : ''}
       ${details}
       ${product.makingVideo ? `<section id="making-video"><h2>See how it is made</h2>${videoPlayer(product)}<p><a href="${videoPath(product)}">Open making video page</a></p></section>` : ''}
       ${

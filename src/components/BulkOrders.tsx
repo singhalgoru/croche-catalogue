@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import bulkOrders from '../content/bulkOrders.json';
-import { trackContactClick } from '../services/analytics';
+import { trackContactClick, trackEvent } from '../services/analytics';
 import { getBulkOrderWhatsAppLink } from '../utils/whatsapp';
 import { WhatsAppIcon } from './SocialIcons';
 import { buildBulkOrderEmail, type BulkOrderEnquiry } from '../utils/bulkOrders';
@@ -73,6 +73,7 @@ export default function BulkOrders({ presentation = 'section' }: { presentation?
             }
             setError('');
             setDraft(buildBulkOrderEmail(enquiry));
+            trackEvent('bulk_enquiry_prepared');
           }}>
           <h3 className="font-heading text-xl font-bold">Tell us about your gifting plans</h3>
           <p className="mt-2 text-sm">Prepare your enquiry below, then open the draft in your email app to review and send it to {bulkOrders.email}. This form does not send an email automatically or save your details on our server.</p>
