@@ -306,7 +306,7 @@ export default function Header({
             compact ? 'text-lg sm:text-xl' : 'text-lg leading-snug sm:text-3xl'
           }`}
         >
-          Premium Handmade Crochet Creations
+          {storeContent.homepage.headline}
         </h1>}
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
@@ -319,6 +319,16 @@ export default function Header({
             </span>
           </p>
         )}
+        {!compact && showHeading && <nav aria-label="Shop and gift ideas" className="flex flex-wrap justify-center gap-3 px-2">
+          <a href={`${import.meta.env.BASE_URL}#products`}
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-cocoa px-5 py-3 text-sm font-semibold text-cream hover:bg-cocoa-dark">
+            {storeContent.homepage.shopLabel}
+          </a>
+          <a href={`${import.meta.env.BASE_URL}crochet-gift-guide/`}
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-cocoa px-5 py-3 text-sm font-semibold text-cocoa hover:bg-cream-dark">
+            {storeContent.homepage.giftLabel}
+          </a>
+        </nav>}
         {showInstallPrompt && <InstallAppButton />}
       </div>
     </header>

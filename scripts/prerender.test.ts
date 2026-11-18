@@ -367,9 +367,13 @@ describe('renderShell', () => {
     expect(section.textContent).not.toContain('Sending an enquiry');
     expect(page.querySelector('footer a[href="/bulk-orders/"]')).toBeTruthy();
   });
-  it('uses premium brand positioning in the non-JavaScript homepage introduction', () => {
-    expect(shell).toContain('<h1>Premium Handmade Crochet Creations</h1>');
+  it('includes the shopping and gifting introduction without JavaScript', () => {
+    const page = new DOMParser().parseFromString(shell, 'text/html');
+    expect(page.querySelector('h1')?.textContent).toBe('Premium Handmade Crochet Gifts, Accessories & Cute Creations');
     expect(shell).toContain('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.');
+    expect(page.querySelector('nav[aria-label="Shop and gift ideas"] a[href="/#products"]')?.textContent).toBe('Shop Handmade Collection');
+    expect(page.querySelector('nav[aria-label="Shop and gift ideas"] a[href="/crochet-gift-guide/"]')?.textContent).toBe('Explore Gift Ideas');
+    expect(page.querySelector('#products')).not.toBeNull();
   });
 
   it('links to the static product page', () => {
@@ -458,14 +462,14 @@ describe('injectShell', () => {
     const result = injectShell(source, [product, { ...product, category: 'Brooches' }]);
     for (const key of ['name="description"', 'property="og:description"', 'name="twitter:description"']) {
       const description = result.match(new RegExp(`${key}\\s+content="([^"]+)"`))?.[1];
-      expect(description).toContain('Shop handmade crochet gajras, hair accessories');
-      expect(description).toContain('Secure online checkout.');
+      expect(description).toContain('Shop premium handmade crochet gifts and accessories in India.');
+      expect(description).toContain('Customisation by enquiry.');
       expect(description!.length).toBeLessThanOrEqual(160);
       expect(description).not.toContain('…');
     }
     const scripts = [...result.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
     const store = JSON.parse(scripts[0][1])['@graph'][0];
-    expect(store.description).toContain('Shop handmade crochet gajras, hair accessories');
+    expect(store.description).toContain('Shop premium handmade crochet gifts and accessories in India.');
   });
 
   it('advertises machine-readable discovery files from the homepage head', () => {

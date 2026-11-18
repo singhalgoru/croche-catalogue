@@ -27,6 +27,13 @@ test('homepage introduction is visible and fits on mobile and desktop', async ({
       && element.scrollWidth <= element.clientWidth;
   });
   expect(fits).toBe(true);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Premium Handmade Crochet Gifts, Accessories & Cute Creations');
+  await expect(page).toHaveTitle('Premium Handmade Crochet Gifts & Accessories India | Luvia');
+  await page.getByRole('link', { name: 'Shop Handmade Collection', exact: true }).click();
+  await expect(page).toHaveURL(/#products$/);
+  await expect(page.getByRole('heading', { name: 'Shop the Collection', exact: true })).toBeInViewport();
+  await page.getByRole('link', { name: 'Explore Gift Ideas', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'How to choose a handmade crochet gift', exact: true })).toBeVisible();
 });
 
 test('the initial catalogue is styled and usable while the app script is delayed', async ({ browser, isMobile }) => {
@@ -51,7 +58,7 @@ test('the initial catalogue is styled and usable while the app script is delayed
     await firstLoad.goto('http://127.0.0.1:4187/?initial-shell-test=1', { waitUntil: 'commit' });
     const shell = firstLoad.locator('.catalogue-shell');
     await expect(shell).toBeVisible();
-    const heading = shell.getByRole('heading', { name: 'Premium Handmade Crochet Creations' });
+    const heading = shell.getByRole('heading', { name: 'Premium Handmade Crochet Gifts, Accessories & Cute Creations' });
     await expect(heading).toBeVisible();
     await expect(heading).toHaveCSS('font-weight', '700');
     await expect(shell.locator('header')).toHaveCSS('text-align', 'center');

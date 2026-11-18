@@ -324,7 +324,7 @@ const groupByCategory = (products) => {
 };
 
 const catalogueDescription = () =>
-  'Shop handmade crochet gajras, hair accessories, charms, toys and home decor by Luvia Creations. Crafted in India, shipped nationwide. Secure online checkout.';
+  storeContent.homepage.description;
 
 const stockLabel = (product) => product.inStock ? 'In stock' : 'Out of stock';
 
@@ -515,12 +515,13 @@ const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_
     `<div class="shell-announcement">${escapeHtml(storeContent.international.announcement)}</div>`,
     '<header>',
     '<img src="/images/luvia-logo-320.webp" width="144" height="144" alt="Luvia Creations" />',
-    '<h1>Premium Handmade Crochet Creations</h1>',
+    `<h1>${escapeHtml(storeContent.homepage.headline)}</h1>`,
     "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>",
+    `<nav aria-label="Shop and gift ideas"><a href="/#products">${escapeHtml(storeContent.homepage.shopLabel)}</a> · <a href="${storeContent.giftGuide.path}">${escapeHtml(storeContent.homepage.giftLabel)}</a></nav>`,
     '</header>',
     '<details class="shell-navigation"><summary>Browse Luvia</summary><nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/crochet-gift-guide/">Crochet gift guide</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav></details>',
     '<main>',
-    `<h2>Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
+    `<h2 id="products">Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
     )}</p>`,
     `<section aria-labelledby="brand-story-teaser-title"><img src="${escapeHtml(storeContent.brandStory.portrait.thumbnail)}" alt="${escapeHtml(storeContent.brandStory.portrait.alt)}" width="150" height="200" draggable="false" style="pointer-events:none;user-select:none;-webkit-touch-callout:none"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}</h2>`,
@@ -1041,7 +1042,7 @@ const main = async () => {
     product.makingVideo.uploadDate = await fetchVideoUploadDate(product);
   }));
   const homepage = {
-    title: 'Premium Handmade Crochet in India | Luvia Creations',
+    title: storeContent.homepage.title,
     description: catalogueDescription(products),
     canonical: `${ORIGIN}/`,
   };

@@ -208,7 +208,9 @@ describe('Header', () => {
     const introduction = screen.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.');
     expect(introduction.className).toBe('hidden sm:inline');
     expect(screen.getByText('Handmade crochet accessories, gifts, toys & decor. Crafted in India, shipped nationwide and internationally.').className).toBe('sm:hidden');
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Premium Handmade Crochet Creations');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Premium Handmade Crochet Gifts, Accessories & Cute Creations');
+    expect(screen.getByRole('link', { name: 'Shop Handmade Collection' }).getAttribute('href')).toBe(`${import.meta.env.BASE_URL}#products`);
+    expect(screen.getByRole('link', { name: 'Explore Gift Ideas' }).getAttribute('href')).toBe(`${import.meta.env.BASE_URL}crochet-gift-guide/`);
     fireEvent.click(screen.getByRole('button', { name: 'Open cart with 2 items' }));
     expect(onOpenCart).toHaveBeenCalledOnce();
   });
@@ -218,6 +220,7 @@ describe('Header', () => {
     expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
     expect(screen.getByText('Luvia Creations')).toBeTruthy();
     expect(screen.queryByText(/Discover thoughtfully crafted crochet accessories/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Shop and gift ideas' })).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
   });
 

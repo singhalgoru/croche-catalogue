@@ -150,7 +150,7 @@ describe('Hybrid product navigation', () => {
     window.history.replaceState(null, '', '/watch/test-coaster/');
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Handcrafting a coaster', level: 1 })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'Premium Handmade Crochet Creations' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: storeContent.homepage.headline })).toBeNull();
     expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
     expect(screen.getByRole('button', { name: 'Open navigation' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));

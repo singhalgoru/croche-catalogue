@@ -8,6 +8,8 @@ an India-based handmade crochet brand.
 - Browse products and collections, search the catalogue, and filter by price.
 - The homepage uses compact brand copy on mobile, retaining the full introduction
   on desktop and in crawler-visible HTML.
+  Premium handmade crochet gifts and accessories lead the homepage messaging,
+  with direct actions to shop the collection or explore gift ideas.
 - Open `/search/` from the desktop header icon or mobile sticky search bar and share keyword searches using
   `?q=...`. Results update as you type; press Enter to save the search URL. Search matches names,
   categories, descriptions, materials and variants;
@@ -87,6 +89,9 @@ an India-based handmade crochet brand.
   The product-post modal also supports manual WhatsApp group sharing with an
   editable WhatsApp-formatted caption, emoji picker, photo preview and copy/download fallbacks. Select the group
   and send inside WhatsApp; native photo sharing requires browser/device support.
+  Pinterest preparation offers a branded vertical image, editable title/description
+  and copyable product link. Download and publish manually in Pinterest; this
+  website does not select boards, publish pins or verify their publication.
   Facebook/Instagram posts can include up to 10 selected, ordered product photos:
   an Instagram carousel or a Facebook multi-photo post. If a product has a
   published making video, administrators can prepare and review it for Facebook
@@ -104,7 +109,8 @@ an India-based handmade crochet brand.
   budget. Instagram requires a verified Page-linked identity and ad-account access.
   Activation remains manual in Meta Ads Manager. Eligible incomplete attempts offer a separate saved-details
   recovery review without recreating the campaign or ad set.
-- Published products have a Facebook / Instagram posting modal with editable
+- Published products have a **Create social post** dialog with Facebook / Instagram
+  publishing, plus manual WhatsApp and Pinterest preparation. Meta posts have editable
   captions, JPEG previews, explicit live-publish confirmation and per-platform
   results. Organic posting requires configured publishing permissions and a
   Page-linked professional Instagram account. Saving a product never posts or

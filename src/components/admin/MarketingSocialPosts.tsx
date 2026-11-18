@@ -8,6 +8,7 @@ import {
 import { prepareSocialPostJpeg } from '../../utils/imageUploadConversion';
 import { toProductPageUrl } from '../../utils/productLink';
 import WhatsAppGroupShare from './WhatsAppGroupShare';
+import PinterestShare from './PinterestShare';
 import { richTextToPlainText } from '../../utils/richText';
 import EmojiPicker from './EmojiPicker';
 
@@ -214,11 +215,12 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
     });
   };
 
-  return <AdminDialog title="Facebook / Instagram / WhatsApp product post" onClose={onClose} busy={Boolean(busy)}>
+  return <AdminDialog title="Product social post" onClose={onClose} busy={Boolean(busy)}>
     <div className="grid gap-4 p-4 sm:p-6">
-      <p className="text-sm">Create an organic product photo or video post, not an ad. Publishing makes it LIVE immediately; it is not paused and creates no ad budget.
-        New posts keep previously published posts unchanged. Only one unfinished post per product and platform is allowed; resolve uncertain results before starting another.
-        WhatsApp sharing is manual; check your group before sending again to avoid duplicates.</p>
+      <p className="text-sm">Create an organic Facebook/Instagram product photo or video post, not an ad. Publishing there makes it LIVE immediately; it is not paused and creates no ad budget.
+        New Meta posts keep previously published posts unchanged. Only one unfinished Meta post per product and platform is allowed; resolve uncertain results before starting another.
+        Pinterest preparation and WhatsApp sharing are manual and do not use the Meta LIVE button.
+        Check the destination app before posting again to avoid duplicates.</p>
       {posts.some(post => post.status === 'published') && <p className="rounded-xl border border-mustard/40 bg-cream/60 p-3 text-sm">
         This product already has published posts. Prepare previews to create a separate new post, or choose Replace below to link a replacement draft.
         Published posts are never edited or deleted automatically.
@@ -380,6 +382,11 @@ function PostComposer({ initialProduct, onClose }: { initialProduct?: ManagedPro
           setBusy(value ? 'WhatsApp' : '');
           setConfirmed(false);
         }} />}
+      {product && <PinterestShare key={`pinterest:${product.id}:${product.image}:${product.name}`} product={product}
+        disabled={Boolean(busy)} onBusyChange={value => {
+          setBusy(value ? 'Pinterest' : '');
+          setConfirmed(false);
+        }} />}
       {loadingPosts && <p role="status" className="text-sm">Loading saved posting status...</p>}
       {reviewDirty && <p role="status" className="text-sm">Photo, video or caption edits are not saved. Prepare new previews before publishing; checking access or refreshing status does not save edits.</p>}
       {posts.map(post => {
@@ -479,7 +486,7 @@ export default function MarketingSocialPosts({ initialProduct, disabled = false 
   return <>
     <button type="button" onClick={() => setOpen(true)} disabled={disabled}
       className="min-h-11 rounded-full border border-cocoa/30 px-4 text-sm font-semibold text-cocoa">
-      Create Facebook / Instagram / WhatsApp post
+      Create social post
     </button>
     {open && <PostComposer initialProduct={initialProduct} onClose={() => setOpen(false)} />}
   </>;

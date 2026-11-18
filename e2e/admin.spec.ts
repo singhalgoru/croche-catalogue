@@ -98,8 +98,8 @@ test('admin reviews a mixed Instagram replacement without changing the original 
   });
   await signIn(page, 'manage');
   const product = page.getByRole('article').filter({ has: page.getByRole('heading', { name: item.name, exact: true }) });
-  await product.getByRole('button', { name: 'Create Facebook / Instagram / WhatsApp post' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Facebook / Instagram / WhatsApp product post' });
+  await product.getByRole('button', { name: 'Create social post' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Product social post' });
   await dialog.getByRole('button', { name: 'Replace this Instagram post' }).click();
   await dialog.getByRole('radio', { name: 'Photos + making video (one Instagram carousel)' }).check();
   await expect(dialog.getByRole('checkbox', { name: 'Facebook Page', exact: true })).toBeDisabled();
@@ -122,7 +122,7 @@ test('admin reviews a mixed Instagram replacement without changing the original 
   expect(actions).toEqual(['setup', 'prepare', 'publish']);
 });
 
-test('admin prepares a WhatsApp group photo and shares manually without Meta writes', async ({ page }) => {
+test('admin prepares WhatsApp and Pinterest posts manually without Meta writes', async ({ page }) => {
   const state = await installMockSupabase(page);
   const source = await sharp({ create: { width: 640, height: 480, channels: 3, background: '#ffb6c1' } }).png().toBuffer();
   await page.route('**/storage/v1/object/public/product-images/**', route =>
@@ -133,6 +133,9 @@ test('admin prepares a WhatsApp group photo and shares manually without Meta wri
     if (request.url().includes('/functions/v1/marketing-post')) metaRequests.push(request.url());
   });
   await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: async (text: string) => { Reflect.set(window, 'pinterestCopiedText', text); },
+    } });
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
     Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => {
       Object.assign(window, { whatsappTestShare: {
@@ -142,9 +145,9 @@ test('admin prepares a WhatsApp group photo and shares manually without Meta wri
   });
   await signIn(page, 'manage');
   const product = page.getByRole('article').filter({ has: page.getByRole('heading', { name: state.products[0].name, exact: true }) });
-  await product.getByRole('button', { name: 'Create Facebook / Instagram / WhatsApp post' }).click();
+  await product.getByRole('button', { name: 'Create social post' }).click();
   const section = page.getByRole('region', { name: 'WhatsApp group sharing' });
-  await section.getByLabel('WhatsApp caption').fill('Our new handmade bag!');
+  await section.getByRole('textbox', { name: 'WhatsApp caption', exact: true }).fill('Our new handmade bag!');
   await section.getByRole('button', { name: 'Prepare WhatsApp photo (does not send)' }).click();
   await expect(section.getByRole('img', { name: 'WhatsApp product photo preview' })).toBeVisible();
   const share = section.getByRole('button', { name: 'Share photo to WhatsApp group' });
@@ -162,6 +165,25 @@ test('admin prepares a WhatsApp group photo and shares manually without Meta wri
     text: expect.stringContaining('Our new handmade bag!\n\nShop: http://127.0.0.1:4187/p/'),
     type: 'image/jpeg',
   });
+  const pinterest = page.getByRole('region', { name: 'Pinterest pin preparation' });
+  await pinterest.getByLabel(/Pinterest title/).fill('Premium handmade rose charm');
+  await pinterest.getByLabel(/Pinterest description/).fill('A colourful handmade accessory.');
+  await pinterest.getByRole('button', { name: 'Prepare Pinterest image (does not publish)' }).click();
+  await expect(pinterest.getByRole('img', { name: 'Pinterest pin preview' })).toBeVisible();
+  const pinDownloadPromise = page.waitForEvent('download');
+  await pinterest.getByRole('link', { name: 'Download Pinterest image' }).click();
+  const pinDownload = await pinDownloadPromise;
+  expect(pinDownload.suggestedFilename()).toMatch(/-pinterest\.jpg$/);
+  const pinFile = await pinDownload.path();
+  if (!pinFile) throw new Error('Pinterest JPEG download is missing.');
+  expect(await sharp(pinFile).metadata()).toMatchObject({ format: 'jpeg', width: 1000, height: 1500 });
+  await pinterest.getByRole('button', { name: 'Copy Pinterest title' }).click();
+  expect(await page.evaluate(() => Reflect.get(window, 'pinterestCopiedText'))).toBe('Premium handmade rose charm');
+  await pinterest.getByRole('button', { name: 'Copy Pinterest product link' }).click();
+  expect(await page.evaluate(() => Reflect.get(window, 'pinterestCopiedText'))).toMatch(/^https:\/\/luviacreations\.com\/p\//);
+  await expect(pinterest.getByRole('link', { name: 'Open Pinterest to create pin' }))
+    .toHaveAttribute('href', 'https://www.pinterest.com/pin-creation-tool/');
+  await expect(pinterest.getByRole('status')).toContainText('review before publishing');
   expect(metaRequests).toEqual([]);
   await expectNoHorizontalOverflow(page);
 });
