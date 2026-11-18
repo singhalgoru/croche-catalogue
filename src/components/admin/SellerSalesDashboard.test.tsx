@@ -337,8 +337,8 @@ describe('SellerSalesDashboard', () => {
   });
 
   it.each([
-    [65, 'text-green-800'],
-    [65.01, 'text-red-800'],
+    [80, 'text-green-800'],
+    [80.01, 'text-red-800'],
   ])('colors monthly and individual sale margins with cost %s', async (materialCost, color) => {
     vi.mocked(fetchSellerSales).mockResolvedValue([{
       ...sale,
