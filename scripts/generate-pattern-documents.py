@@ -140,9 +140,9 @@ def branded(title, subtitle):
     document.core_properties.author = "Luvia Creations"
     document.core_properties.title = title
     table(document, ["Document control", "Details"], [
-        ("Product / SKU", "[Enter product name and SKU]"),
-        ("Pattern ID / revision / date", "[Pattern ID] / [Version] / [Date]"),
-        ("Prepared by / reviewed by", "[Name] / [Name - pending review]"),
+        ("Product / SKU", "[Filled automatically during admin preparation]"),
+        ("Pattern ID / revision / date", "[Assigned automatically during admin preparation] / [Version] / [Date]"),
+        ("Prepared by / reviewed by", "Luvia Creations / [Reviewer - pending review]"),
         ("Skill level / terminology", "[Beginner / Intermediate / Advanced] / US crochet terms"),
         ("Finished size / tolerance", "[Dimensions in cm] / [Allowed variation]"),
         ("Hook / yarn / gauge", "[Hook size in mm] / [Yarn specification] / [Gauge and swatch size]"),
@@ -310,9 +310,9 @@ def hindi_template(destination):
     for name in ["Title", "Heading 1", "Heading 2"]:
         document.styles[name].font.name = "Noto Sans Devanagari"
     controls = [
-        ("दस्तावेज़ नियंत्रण", "विवरण"), ("उत्पाद / SKU", "[उत्पाद का नाम और SKU]"),
-        ("पैटर्न ID / संस्करण / तिथि", "[पैटर्न ID] / [संस्करण] / [तिथि]"),
-        ("तैयार किया / समीक्षा की", "[नाम] / [समीक्षक का नाम]"),
+        ("दस्तावेज़ नियंत्रण", "विवरण"), ("उत्पाद / SKU", "[एडमिन में तैयारी के समय अपने आप भरा जाएगा]"),
+        ("पैटर्न ID / संस्करण / तिथि", "[एडमिन में अपने आप बनेगा] / [संस्करण] / [तिथि]"),
+        ("तैयार किया / समीक्षा की", "Luvia Creations / [समीक्षक का नाम]"),
         ("कौशल स्तर / शब्दावली", "[आसान / मध्यम / उन्नत] / US crochet terms"),
         ("तैयार आकार / स्वीकार्य अंतर", "[सेमी में माप] / [स्वीकार्य अंतर]"),
         ("हुक / धागा / गेज", "[हुक का आकार] / [धागे का विवरण] / [गेज]"),
@@ -396,7 +396,7 @@ if __name__ == "__main__":
     if bool(args.source) != bool(args.output):
         parser.error("--source and --output must be supplied together")
     if not args.skip_templates:
-        template(ROOT / "public" / "templates" / "Luvia_Standard_Crochet_Pattern_v3.docx")
-        hindi_template(ROOT / "public" / "templates" / "Luvia_Standard_Crochet_Pattern_Hindi_v3.docx")
+        template(ROOT / "public" / "templates" / "Luvia_Standard_Crochet_Pattern_v4.docx")
+        hindi_template(ROOT / "public" / "templates" / "Luvia_Standard_Crochet_Pattern_Hindi_v4.docx")
     if args.source:
         lotus(args.source, args.output, args.product_url, args.product_photo, args.pdf)

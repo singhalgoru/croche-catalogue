@@ -92,6 +92,16 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('shows assigned SKUs read-only and finds products by SKU', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{ ...product, sku: 'LUV-000001' }]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    fireEvent.change(screen.getByLabelText('Search products'), { target: { value: 'luv-000001' } });
+    expect(screen.getByText('SKU: LUV-000001')).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'SKU' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Search products'), { target: { value: 'LUV-999999' } });
+    expect(screen.queryByText('SKU: LUV-000001')).toBeNull();
+  });
   it('reports a failed local draft migration while still loading shared drafts', async () => {
     vi.mocked(migrateLocalSavedDrafts).mockRejectedValueOnce(new Error('Local drafts could not be shared'));
     vi.mocked(listSharedProductDrafts).mockResolvedValueOnce([{
@@ -353,6 +363,7 @@ describe('Product detail admin integration', () => {
   });
 
   it('discovers a GST-inclusive price for a new product and publishes saved costs, overrides and minimum quantity', async () => {
+    vi.mocked(publishProduct).mockResolvedValueOnce({ ...product, sku: 'LUV-000001' });
     render(<ProductUploadForm categories={['Home']} onPublished={vi.fn().mockResolvedValue(undefined)} />);
     fireEvent.click(screen.getByRole('button', { name: /Add product/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Attach test photo' }));
@@ -380,6 +391,7 @@ describe('Product detail admin integration', () => {
         shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '45' },
     });
     expect(saveProductPriceDiscoveryInputs).not.toHaveBeenCalled();
+    expect(await screen.findByText(/was published to the catalogue\. SKU: LUV-000001\./)).toBeTruthy();
   });
 
   it('keeps incomplete pricing in the draft and prevents publishing until it is completed', async () => {

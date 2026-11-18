@@ -6,6 +6,7 @@ export interface ProductRow {
     video_url: string; poster_url: string; duration_seconds: number; width: number; height: number;
   } | null;
   id: string;
+  sku?: string | null;
   sort_order: number;
   name: string;
   category: string;
@@ -281,6 +282,7 @@ export async function installMockSupabase(
   page: Page,
   draftStorage = createMockDraftStorage(),
 ): Promise<MockCatalogueState> {
+  let skuSequence = 0;
   const state: MockCatalogueState = {
     categories: ['Charms', 'Home Decor', 'Empty Category'],
     categorySettings: {
@@ -874,6 +876,7 @@ export async function installMockSupabase(
         >(route);
         const product: ProductRow = {
           ...body,
+          sku: `LUV-${String(++skuSequence).padStart(6, '0')}`,
           id: `product-${state.products.length + 1}`,
           created_at: new Date().toISOString(),
           published_at: body.published ? new Date().toISOString() : null,

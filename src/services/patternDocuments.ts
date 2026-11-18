@@ -6,18 +6,20 @@ import type { Product } from '../types/product';
 import { Buffer } from 'buffer';
 
 export type PatternLanguage = 'en' | 'hi';
-export type PatternProduct = Pick<Product, 'id' | 'name' | 'image' | 'publicSlug'>;
+export type PatternProduct = Pick<Product, 'id' | 'name' | 'image' | 'publicSlug' | 'sku'>;
 type Block = { kind: 'text' | 'heading'; text: string }
   | { kind: 'table'; rows: string[][] } | { kind: 'image'; data: string };
 export interface PreparedPattern { word: File; pdf: File; warnings: string[] }
 export const patternLabels = {
   en: {
     title: 'Artisan working pattern', link: 'Product page', photo: 'Main product photo',
+    patternId: 'Pattern ID', preparedBy: 'Prepared by',
     copyright: 'Copyright © Luvia Creations. All rights reserved. Copying, editing, sharing or distributing this document without the prior explicit written consent of Luvia Creations is prohibited, except as permitted by applicable law. Printing for the agreed artisan work is allowed.',
     terms: 'Private working copy. Confirm the sample, quantity, rate, materials and deadline separately before starting production.',
   },
   hi: {
     title: 'कारीगर के लिए क्रोशिया पैटर्न', link: 'उत्पाद का पेज', photo: 'उत्पाद की मुख्य तस्वीर',
+    patternId: 'पैटर्न ID', preparedBy: 'तैयार किया',
     copyright: 'कॉपीराइट © Luvia Creations। सर्वाधिकार सुरक्षित। Luvia Creations की पूर्व स्पष्ट लिखित अनुमति के बिना इस दस्तावेज़ की नकल, संपादन, साझाकरण या वितरण निषिद्ध है, सिवाय लागू कानून द्वारा अनुमत उपयोग के। सहमत कारीगर कार्य के लिए प्रिंट करना अनुमत है।',
     terms: 'निजी कार्य प्रति। काम शुरू करने से पहले नमूना, मात्रा, दर, सामग्री और समय-सीमा पर अलग से सहमति लें।',
   },
@@ -52,7 +54,27 @@ async function imageData(source: string): Promise<{ data: string; bytes: Uint8Ar
   } finally { bitmap.close(); }
 }
 
-export function patternBlocks(html: string): Block[] {
+export const productPatternId = (product: Pick<PatternProduct, 'id' | 'name' | 'sku'>): string =>
+  `${product.name.trim()}-${product.sku ?? product.id}`;
+
+function patternControlValue(label: string, value: string, product: PatternProduct): string {
+  const field = label.trim();
+  if (/^(?:Product|उत्पाद)\s*\/\s*SKU$/i.test(field)) {
+    return `${product.name}${product.sku ? ` / ${product.sku}` : ''}`;
+  }
+  const identity = /^(?:Pattern ID|पैटर्न ID)(?:\s*\/.*)?$/i.test(field) ? productPatternId(product)
+    : /^(?:Prepared by|तैयार किया)(?:\s*\/.*)?$/i.test(field) ? 'Luvia Creations' : undefined;
+  if (identity === undefined) return value;
+  const separator = field.includes('/') ? value.indexOf('/') : -1;
+  return identity + (separator >= 0 ? ` ${value.slice(separator).trim()}` : '');
+}
+
+function patternControlText(text: string, product: PatternProduct): string {
+  const field = text.match(/^((?:Pattern ID|Prepared by|पैटर्न ID|तैयार किया)(?:\s*\/[^:：]+)?)\s*[:：]\s*(.*)$/i);
+  return field ? `${field[1]}: ${patternControlValue(field[1]!, field[2]!, product)}` : text;
+}
+
+export function patternBlocks(html: string, product?: PatternProduct): Block[] {
   const root = new DOMParser().parseFromString(html, 'text/html').body;
   const blocks: Block[] = [];
   function visit(element: Element) {
@@ -60,9 +82,13 @@ export function patternBlocks(html: string): Block[] {
       if (element.querySelector('img,table')) throw new Error('Move nested tables or images out of table cells before preparing the pattern.');
       const rows = [...element.querySelectorAll('tr')].map(row => [...row.querySelectorAll('th,td')].map(cell => cell.textContent ?? ''));
       if (rows.some(row => row.length !== rows[0]?.length)) throw new Error('Use a regular table without merged cells in the pattern.');
+      if (product) for (const row of rows) {
+        if (row.length === 2) row[1] = patternControlValue(row[0]!, row[1]!, product);
+      }
       if (rows.length) blocks.push({ kind: 'table', rows });
     } else if (['P', 'H1', 'H2', 'H3', 'H4', 'LI'].includes(element.tagName)) {
-      const text = element.textContent?.trim();
+      let text = element.textContent?.trim();
+      if (text && product) text = patternControlText(text, product);
       if (text) blocks.push({ kind: /^H/.test(element.tagName) ? 'heading' : 'text', text });
       for (const image of element.querySelectorAll('img')) visit(image);
     } else if (element.tagName === 'IMG') {
@@ -97,13 +123,14 @@ export async function preparePatternDocuments(product: PatternProduct, language:
   let blocks: Block[];
   if (typeof input === 'string') {
     if (!input.trim() || input.length > 60000) throw new Error('Enter pattern instructions up to 60,000 characters.');
-    blocks = input.split(/\r?\n/).filter(line => line.trim()).map(text => ({ kind: 'text', text }));
+    blocks = input.split(/\r?\n/).filter(line => line.trim())
+      .map(text => ({ kind: 'text', text: patternControlText(text.trim(), product) }));
   } else {
     const mammoth = await import('mammoth');
     const result = await mammoth.convertToHtml({ arrayBuffer: await input.arrayBuffer() });
     if (result.messages.some(message => message.type === 'error')) throw new Error('Word conversion reported an error. Check this document before preparing it.');
     warnings.push(...result.messages.map(message => message.message));
-    blocks = patternBlocks(result.value);
+    blocks = patternBlocks(result.value, product);
     if (!blocks.length) throw new Error('This Word document has no supported pattern content.');
   }
   onProgress?.('Loading document tools, branding, product photo and fonts…');
@@ -127,6 +154,7 @@ export async function preparePatternDocuments(product: PatternProduct, language:
   }
   onProgress?.('Preparing Word and PDF layout…');
   const labels = patternLabels[language];
+  const patternId = productPatternId(product);
   const url = `https://luviacreations.com${new URL(toProductUrl(product)).pathname}`;
   const font = language === 'hi' ? 'Noto Sans Devanagari' : 'Calibri';
   const paragraph = (text: string, bold = false, centered = false) => new docx.Paragraph({
@@ -138,6 +166,8 @@ export async function preparePatternDocuments(product: PatternProduct, language:
       transformation: { width, height: width * image.height / image.width } })] });
   const children: (InstanceType<typeof docx.Paragraph> | InstanceType<typeof docx.Table>)[] = [
     paragraph(labels.copyright, true), paragraph(product.name, true, true), paragraph(labels.title, false, true),
+    paragraph(`${labels.patternId}: ${patternId}`), paragraph(`${labels.preparedBy}: Luvia Creations`),
+    ...(product.sku ? [paragraph(`SKU: ${product.sku}`)] : []),
     new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children: [
       new docx.ExternalHyperlink({ link: url, children: [new docx.TextRun({ text: `${labels.link}: ${url}`, style: 'Hyperlink', font })] }),
     ] }), picture(photo, Math.min(280, 220 * photo.width / photo.height)), paragraph(labels.terms),
@@ -147,6 +177,9 @@ export async function preparePatternDocuments(product: PatternProduct, language:
     { text: labels.copyright, bold: true, fontSize: 9, margin: [0, 0, 0, 14] },
     { text: product.name, bold: true, fontSize: 21, alignment: 'center' },
     { text: labels.title, alignment: 'center', margin: [0, 8, 0, 8] },
+    { text: `${labels.patternId}: ${patternId}`, fontSize: 9, margin: [0, 0, 0, 5] },
+    { text: `${labels.preparedBy}: Luvia Creations`, fontSize: 9, margin: [0, 0, 0, 5] },
+    ...(product.sku ? [{ text: `SKU: ${product.sku}`, fontSize: 9, margin: [0, 0, 0, 5] } satisfies Content] : []),
     { text: `${labels.link}: ${url}`, link: url, alignment: 'center', margin: [0, 0, 0, 12] },
     { image: photo.data, fit: [250, 190], alignment: 'center', margin: [0, 0, 0, 14] },
     { text: labels.terms, margin: [0, 0, 0, 12] },

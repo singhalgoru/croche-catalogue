@@ -79,6 +79,7 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
+  New products receive a unique, permanent SKU automatically when first published.
   The site owner can update the public WhatsApp contact number and GA4/Meta
   tracking IDs in collapsible Admin Settings; other admins have read-only access.
   Payment credentials and other server-side secrets remain
@@ -131,6 +132,8 @@ an India-based handmade crochet brand.
   Product-level artisan patterns support Luvia-branded English/Hindi authoring,
   private editable Word masters and print-restricted PDFs (up to 2 MB each),
   with centred branding, a copyright notice, product link and main photo.
+  Pattern IDs start with the product name and are generated automatically;
+  the preparer is always Luvia Creations.
   Only the reviewed PDF is emailed, after explicit confirmation, to Approved
   artisans with an application email. PDF restrictions are reader-enforced,
   not a guarantee against redistribution.

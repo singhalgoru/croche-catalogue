@@ -73,6 +73,7 @@ export interface Product extends ProductDetails {
   makingVideo?: MakingVideo;
   id: string;
   publicSlug?: string;
+  sku?: string;
   /** Shared display order used in the full catalogue and category filters. */
   sortOrder?: number;
   name: string;

@@ -124,6 +124,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
       (productView !== 'featured' || product.featured === true) &&
       (!attentionFilter || attention.get(product.id)?.[attentionFilter]) && (!query || [
         product.name,
+        product.sku ?? '',
         product.category,
         richTextToPlainText(product.description),
         ...product.variants.map((variant) => variant.name),
@@ -623,6 +624,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                       <div>
                         <h3 className="font-heading text-lg font-bold text-cocoa">{product.name}</h3>
                         <p className="text-sm text-cocoa/60">{product.category}</p>
+                        {product.sku && <p className="text-sm text-cocoa/70">SKU: {product.sku}</p>}
                         <p aria-label={`${product.name} pieces sold`} className="mt-1 text-sm font-semibold text-cocoa">
                           Pieces sold (all time): {soldQuantities === null
                             ? salesError ? 'Unavailable' : 'Loading…'

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
+import { extractRawText } from 'mammoth';
 import { installMockSupabase } from './mockSupabase';
 
 for (const language of ['en', 'hi'] as const) {
@@ -14,7 +15,8 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   await page.route('http://supabase.test/storage/v1/object/public/product-images/**',
     route => route.fulfill({ contentType: 'image/png', body: photo }));
   const product = state.products[0];
-  const document = readFileSync(join('public', 'templates', 'Luvia_Standard_Crochet_Pattern_v3.docx'));
+  if (language === 'en') product.sku = 'LUV-000001';
+  const document = readFileSync(join('public', 'templates', 'Luvia_Standard_Crochet_Pattern_v4.docx'));
   let pattern: { revision: string; filename: string; size: number; pdf_filename: string; pdf_size: number;
     language: string; updated_at: string } | null = null;
   let attachment = '';
@@ -56,13 +58,14 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   await article.getByRole('button', { name: 'Artisan pattern' }).click();
   const dialog = page.getByRole('dialog', { name: `Artisan pattern - ${product.name}` });
   await expect(dialog.getByText('No pattern attached.')).toBeVisible();
-  const template = await page.request.get('/templates/Luvia_Standard_Crochet_Pattern_v3.docx');
+  const template = await page.request.get('/templates/Luvia_Standard_Crochet_Pattern_v4.docx');
   expect(template.ok()).toBe(true);
   expect(await template.body()).toEqual(document);
   await dialog.getByRole('combobox', { name: 'Document language', exact: true }).selectOption(language);
   if (language === 'hi') {
     await dialog.getByRole('combobox', { name: 'Pattern source', exact: true }).selectOption('write');
-    await dialog.getByLabel('पैटर्न के निर्देश (हिन्दी)').fill('कमल का फूल\nR1: 5 चेन बनाएं।\nR2: 16 hdc बनाएं।');
+    await dialog.getByLabel('पैटर्न के निर्देश (हिन्दी)').fill(
+      'कमल का फूल\nपैटर्न ID: OLD-PATTERN-ID\nतैयार किया: Other company\nR1: 5 चेन बनाएं।\nR2: 16 hdc बनाएं।');
   } else {
     await dialog.getByLabel('Choose Word pattern (.docx, up to 2 MB)').setInputFiles({
       name: 'Completed_Lotus.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: document,
@@ -76,6 +79,12 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/\.docx$/);
   expect(readFileSync((await download.path())!)).toEqual(Buffer.from(attachment, 'base64'));
+  const { value: wordText } = await extractRawText({ buffer: Buffer.from(attachment, 'base64') });
+  expect(wordText).toContain(`${product.name}-${product.sku ?? product.id}`);
+  expect(wordText).toContain(`${language === 'hi' ? 'तैयार किया' : 'Prepared by'}: Luvia Creations`);
+  expect(wordText).not.toContain('Assigned automatically during admin preparation');
+  expect(wordText).not.toContain('Other company');
+  expect(wordText).not.toContain('OLD-PATTERN-ID');
   await download.saveAs(testInfo.outputPath(`prepared-${language}.docx`));
   const pdfDownloadEvent = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Review / download protected PDF' }).click();

@@ -63,6 +63,7 @@ interface ProductVariantRow {
 interface ProductRow {
   product_making_videos?: MakingVideoRow | MakingVideoRow[] | null;
   id: string;
+  sku?: string | null;
   public_slug: string;
   sort_order: number;
   name: string;
@@ -268,6 +269,7 @@ const mapProductRow = (row: ProductRow): ManagedProduct => {
 
   return {
     id: row.id,
+    sku: row.sku ?? undefined,
     publicSlug: row.public_slug,
     sortOrder: row.sort_order,
     name: row.name,

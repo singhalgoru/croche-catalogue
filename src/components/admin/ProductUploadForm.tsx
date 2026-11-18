@@ -288,7 +288,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
       void clearProductDraft();
       setSuccessMessage(`${product.name} with ${product.variants.length} variant${
         product.variants.length === 1 ? '' : 's'
-      } was published to the catalogue.`);
+      } was published to the catalogue.${product.sku ? ` SKU: ${product.sku}.` : ''}`);
       try {
         await onPublished();
         setRefreshFailed(false);
@@ -462,6 +462,7 @@ export default function ProductUploadForm({ categories, onPublished }: Props) {
             </h2>
             <p className="mt-1 text-sm text-cocoa/65">
               Enter the details yourself or review Gemini suggestions from the main photo and your confirmed notes.
+              {' '}A unique SKU is assigned automatically when you publish and stays unchanged on edits.
             </p>
           </div>
         </div>

@@ -34,6 +34,7 @@ public/images/Key chains, ba charms/file_*.png
 *.njsproj
 *.sln
 *.sw?
+~$*.docx
 
 # Local R2 image backups (scripts/backup-r2-images.mjs)
 r2-image-backup/

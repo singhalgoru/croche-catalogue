@@ -100,6 +100,12 @@ describe('atomic bulk descriptions', () => {
 });
 
 describe('product detail loading', () => {
+  it('loads persisted SKUs while supporting older products without one', async () => {
+    queueQuery([{ ...row, sku: 'LUV-000001' }, { ...row, id: 'legacy', sku: null }]);
+    const products = await fetchManagedProducts();
+    expect(products[0].sku).toBe('LUV-000001');
+    expect(products[1].sku).toBeUndefined();
+  });
   it('loads only published making-video metadata in live queries and catalogue bootstrap', async () => {
     const video = { video_url: 'https://images.luviacreations.com/making-videos/id/video.mp4',
       poster_url: 'https://images.luviacreations.com/making-videos/id/poster.webp',
@@ -507,6 +513,7 @@ describe('product detail persistence', () => {
     expect(insert.insert.mock.calls[0][0]).toHaveProperty('materials', 'Cotton yarn');
     expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('dimensions');
     expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('seo_description');
+    expect(insert.insert.mock.calls[0][0]).not.toHaveProperty('sku');
   });
 
   it('rejects overlong details before uploads and propagates database errors', async () => {

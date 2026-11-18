@@ -61,11 +61,12 @@ function PatternDialog({ product, onClose }: { product: PatternProduct; onClose:
     <section aria-label="Product artisan pattern" className="space-y-4 p-4">
       <p className="text-sm">Private working pattern; never shown in the public catalogue.
         Create instructions here in English or Hindi, or import Word content. Preparation adds centred branding,
-        a copyright warning, this product's page link and main photo to editable Word and print-restricted PDF copies.</p>
-      <a href="/templates/Luvia_Standard_Crochet_Pattern_v3.docx" download className="inline-block min-h-11 py-2 font-semibold underline">
+        a copyright warning, this product's page link and main photo to editable Word and print-restricted PDF copies.
+        Pattern ID starts with the product name and uses its SKU (or existing product ID). Prepared by is always Luvia Creations.</p>
+      <a href="/templates/Luvia_Standard_Crochet_Pattern_v4.docx" download className="inline-block min-h-11 py-2 font-semibold underline">
         Download Luvia Word template
       </a>
-      <a href="/templates/Luvia_Standard_Crochet_Pattern_Hindi_v3.docx" download className="ml-3 inline-block min-h-11 py-2 font-semibold underline">
+      <a href="/templates/Luvia_Standard_Crochet_Pattern_Hindi_v4.docx" download className="ml-3 inline-block min-h-11 py-2 font-semibold underline">
         Download Hindi Word template
       </a>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
