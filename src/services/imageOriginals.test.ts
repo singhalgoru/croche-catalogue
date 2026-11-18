@@ -55,10 +55,27 @@ describe('archiveImageOriginal', () => {
     for (const file of [
       new File(['x'], 'x.gif', { type: 'image/gif' }),
       new File([], 'x.png', { type: 'image/png' }),
-      new File([new Uint8Array(6 * 1024 * 1024 + 1)], 'x.png', { type: 'image/png' }),
+      new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'x.png', { type: 'image/png' }),
     ]) {
-      await expect(archiveImageOriginal(file)).rejects.toThrow('no larger than 6 MB');
+      await expect(archiveImageOriginal(file)).rejects.toThrow('no larger than 20 MB');
     }
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it.each([6 * 1024 * 1024 + 1, 20 * 1024 * 1024])(
+    'accepts a %i-byte source but archives only the converted clean WebP',
+    async size => {
+      const file = new File([new Uint8Array(size)], 'large.jpg', { type: 'image/jpeg' });
+      await archiveImageOriginal(file);
+      expect(convert).toHaveBeenCalledWith(file, { watermark: false });
+      expect(invoke.mock.calls[0][1].body.get('original').size).toBe(9);
+    },
+  );
+
+  it('still rejects a converted private WebP larger than 6 MB', async () => {
+    convert.mockResolvedValue(new File([new Uint8Array(6 * 1024 * 1024 + 1)], 'photo.webp', { type: 'image/webp' }));
+    await expect(archiveImageOriginal(new File(['x'], 'photo.png', { type: 'image/png' })))
+      .rejects.toThrow('The processed private image exceeds 6 MB.');
     expect(invoke).not.toHaveBeenCalled();
   });
 

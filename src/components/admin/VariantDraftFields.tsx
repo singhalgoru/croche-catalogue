@@ -4,6 +4,7 @@ import ImageFilePicker from './ImageFilePicker';
 import VariantNameSuggestButton from './VariantNameSuggestButton';
 import { suggestVariantColor } from './variantColor';
 import { createEmptyVariant, type VariantDraft } from './variantDraft';
+import { MAX_PRODUCT_IMAGE_SOURCE_SIZE, PRODUCT_IMAGE_SOURCE_LIMIT_MB } from '../../utils/imageUploadLimits';
 
 interface Props {
   variants: VariantDraft[];
@@ -12,7 +13,7 @@ interface Props {
   productName?: string;
 }
 
-const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
+const MAX_IMAGE_SIZE = MAX_PRODUCT_IMAGE_SOURCE_SIZE;
 const MAX_GALLERY_IMAGES = 6;
 
 const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
@@ -52,7 +53,7 @@ export default function VariantDraftFields({
       return;
     }
     if (file && file.size > MAX_IMAGE_SIZE) {
-      event.target.setCustomValidity('Please choose an image smaller than 6 MB.');
+      event.target.setCustomValidity('Please choose an image no larger than 20 MB.');
       event.target.reportValidity();
       event.target.value = '';
       return;
@@ -69,11 +70,15 @@ export default function VariantDraftFields({
     const files = [...(event.target.files ?? [])];
     event.target.value = '';
     if (files.length === 0) return;
+    if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > MAX_IMAGE_SIZE)) {
+      event.target.setCustomValidity('Choose JPG, PNG or WebP images no larger than 20 MB each.');
+      event.target.reportValidity();
+      return;
+    }
+    event.target.setCustomValidity('');
 
     const remainingSlots = MAX_GALLERY_IMAGES - variant.galleryFiles.length;
     const validFiles = files
-      .filter((file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
-      .filter((file) => file.size <= MAX_IMAGE_SIZE)
       .slice(0, Math.max(remainingSlots, 0));
     if (validFiles.length === 0) return;
 
@@ -225,7 +230,7 @@ export default function VariantDraftFields({
                 disabled={disabled}
               />
               </div>
-              <ImageFilePicker
+              <ImageFilePicker maxSizeMB={PRODUCT_IMAGE_SOURCE_LIMIT_MB}
                 label="Variant image"
                 file={variant.imageFile}
                 onChange={(event) => selectImage(event, variant)}

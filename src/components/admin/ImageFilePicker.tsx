@@ -8,6 +8,7 @@ interface Props {
   required?: boolean;
   disabled?: boolean;
   showRequiredMark?: boolean;
+  maxSizeMB?: number;
 }
 
 export default function ImageFilePicker({
@@ -17,6 +18,7 @@ export default function ImageFilePicker({
   required = false,
   disabled = false,
   showRequiredMark = required,
+  maxSizeMB = 6,
 }: Props) {
   return (
     <div className="min-w-0">
@@ -56,7 +58,7 @@ export default function ImageFilePicker({
             {file?.name ?? 'Browse image'}
           </span>
           <span className="mt-0.5 block text-xs font-normal text-cocoa/55">
-            {file ? 'Tap to choose a different image' : 'JPG, PNG or WebP · Max 6 MB'}
+            {file ? 'Tap to choose a different image' : `JPG, PNG or WebP · Max ${maxSizeMB} MB`}
           </span>
         </span>
         <span className="shrink-0 rounded-full bg-cocoa px-3 py-1.5 text-xs font-semibold text-cream">

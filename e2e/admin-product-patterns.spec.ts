@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { convertToHtml, extractRawText } from 'mammoth';
-import { Document, Packer, Paragraph, Table, TableCell, TableRow } from 'docx';
+import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow } from 'docx';
 import { installMockSupabase } from './mockSupabase';
 
 for (const { language, merged } of [
@@ -22,12 +22,18 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   const document = readFileSync(join('public', 'templates', 'Luvia_Standard_Crochet_Pattern_v4.docx'));
   const sourceDocument = merged ? await Packer.toBuffer(new Document({ sections: [{ children: [
     new Paragraph('Pattern ID: OLD-PATTERN-ID'), new Paragraph('Prepared by: Other company'),
+    new Paragraph({ text: '3. Abbreviations & special stitches', heading: HeadingLevel.HEADING_1 }),
+    new Paragraph('US terms: ch = chain; Ch 3 Picot = ch 3, join into the third chain.'),
+    new Paragraph({ text: '5. Instructions', heading: HeadingLevel.HEADING_1 }),
     new Table({ rows: [
-      new TableRow({ children: ['Round', 'Instructions', 'Count'].map(text =>
+      new TableRow({ children: ['Round', 'Instructions / repeats', 'Count'].map(text =>
         new TableCell({ children: [new Paragraph(text)] })) }),
       new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph('Centre - Yellow')] })] }),
-      new TableRow({ children: ['R1', 'Work into the ring.', '10 hdc'].map(text =>
-        new TableCell({ children: [new Paragraph(text)] })) }),
+      new TableRow({ children: [
+        new TableCell({ children: [new Paragraph('R1')] }),
+        new TableCell({ children: [new Paragraph('Work into the ring.'), new Paragraph('Repeat, then join.')] }),
+        new TableCell({ children: [new Paragraph('10 hdc')] }),
+      ] }),
       new TableRow({ children: [
         new TableCell({ columnSpan: 2, children: [new Paragraph('Petal rounds')] }),
         new TableCell({ children: [new Paragraph('8 petals')] }),
@@ -84,7 +90,11 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
     await dialog.getByLabel('पैटर्न के निर्देश (हिन्दी)').fill(
       'कमल का फूल\nपैटर्न ID: OLD-PATTERN-ID\nतैयार किया: Other company\nR1: 5 चेन बनाएं।\nR2: 16 hdc बनाएं।');
   } else {
-    await dialog.getByLabel('Choose Word pattern (.docx, up to 2 MB)').setInputFiles({
+    const wordPicker = dialog.getByLabel('Choose Word pattern (.docx, up to 2 MB)');
+    await expect(wordPicker).toHaveCSS('cursor', 'pointer');
+    expect(await wordPicker.evaluate(input => getComputedStyle(input, '::file-selector-button').textDecorationLine))
+      .toContain('underline');
+    await wordPicker.setInputFiles({
       name: 'Completed_Lotus.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: sourceDocument,
     });
   }
@@ -102,10 +112,23 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   expect(wordText).not.toContain('Assigned automatically during admin preparation');
   expect(wordText).not.toContain('Other company');
   expect(wordText).not.toContain('OLD-PATTERN-ID');
+  expect(wordText).not.toMatch(/reviewed by/i);
+  expect(wordText).not.toContain("[Insert this product's main photo]");
+  expect(wordText).not.toContain('[Insert approved product photos and colour references here.]');
+  expect(wordText).not.toContain('[Paste the product page URL]');
+  expect(wordText.match(/Copyright © Luvia Creations/g)?.length ?? 0).toBe(language === 'en' ? 1 : 0);
+  expect(wordText).not.toContain('Copyright (c) Luvia Creations');
+  const { value: wordHtml } = await convertToHtml({ buffer: Buffer.from(attachment, 'base64') });
+  if (language === 'en') {
+    const tables = wordHtml.match(/<table>[\s\S]*?<\/table>/g) ?? [];
+    const abbreviations = tables.find(table => table.includes('Abbreviation / stitch'));
+    expect(abbreviations).toContain('Meaning / instructions');
+    expect(abbreviations).toContain('chain');
+  }
   if (merged) {
-    const { value: wordHtml } = await convertToHtml({ buffer: Buffer.from(attachment, 'base64') });
     expect(wordHtml).toContain('<td colspan="3"><p>Centre - Yellow</p></td>');
     expect(wordHtml).toContain('<td colspan="2"><p>Petal rounds</p></td>');
+    expect(wordHtml).toMatch(/Work into the ring\.<br\s*\/?>Repeat, then join\./);
     expect(wordText).toContain('10 hdc');
     expect(wordText).toContain('8 petals');
   }

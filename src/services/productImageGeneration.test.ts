@@ -20,11 +20,11 @@ describe('productImageGeneration', () => {
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
-  it('rejects files larger than 6 MB before calling Supabase', async () => {
-    const largeBuffer = new Uint8Array(6 * 1024 * 1024 + 1);
+  it('rejects sources larger than 20 MB before calling Supabase', async () => {
+    const largeBuffer = new Uint8Array(20 * 1024 * 1024 + 1);
     const file = new File([largeBuffer], 'large.jpg', { type: 'image/jpeg' });
     await expect(generateProductImage(file, 'studio')).rejects.toThrow(
-      'Please choose an image smaller than 6 MB.',
+      'Choose a product image no larger than 20 MB.',
     );
     expect(mockInvoke).not.toHaveBeenCalled();
   });

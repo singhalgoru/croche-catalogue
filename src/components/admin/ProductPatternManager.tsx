@@ -119,7 +119,7 @@ function PatternDialog({ product, onClose }: { product: PatternProduct; onClose:
             onChange={event => { setInstructions(event.target.value); resetPreparation(); }} />
         </label> : <label className="block text-sm font-semibold">Choose Word pattern (.docx, up to 2 MB)
           <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="mt-2 block w-full text-sm" onChange={event => {
+            className="mt-2 block w-full cursor-pointer text-sm file:cursor-pointer file:underline file:underline-offset-4 hover:file:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa" onChange={event => {
               const next = event.target.files?.[0];
               event.target.value = '';
               if (!next) return;

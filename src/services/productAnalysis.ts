@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { prepareProductImageForRequest } from '../utils/imageUploadConversion';
 import type { Category, ProductDetails } from '../types/product';
 
 export interface ProductAnalysis extends ProductDetails {
@@ -61,7 +62,6 @@ const validateContext = (context: ProductAnalysisContext): ProductAnalysisContex
   return normalized;
 };
 
-const MAX_ANALYSIS_FILE_SIZE = 6 * 1024 * 1024;
 
 const fileToBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -229,20 +229,17 @@ export async function analyzeProductImage(
     throw new Error('Please select an image file.');
   }
 
-  if (file.size > MAX_ANALYSIS_FILE_SIZE) {
-    throw new Error('Please use an image smaller than 6 MB for AI analysis.');
-  }
-
   if (categories.length === 0) {
     throw new Error('Create at least one product category before running AI analysis.');
   }
 
   const normalizedContext = context === undefined ? undefined : validateContext(context);
-  const imageBase64 = await fileToBase64(file);
+  const image = await prepareProductImageForRequest(file);
+  const imageBase64 = await fileToBase64(image);
   const { data, error } = await supabase.functions.invoke('analyze-product', {
     body: {
       imageBase64,
-      mimeType: file.type,
+      mimeType: image.type,
       ...(mode === undefined ? {} : { mode }),
       ...(normalizedContext === undefined ? {} : { context: normalizedContext }),
     },
@@ -302,19 +299,16 @@ export async function suggestVariantName(
     throw new Error('Please select an image file.');
   }
 
-  if (file.size > MAX_ANALYSIS_FILE_SIZE) {
-    throw new Error('Please use an image smaller than 6 MB for AI naming.');
-  }
-
   const existingVariantNames = (context.existingVariantNames ?? [])
     .map((name) => name.trim())
     .filter(Boolean);
-  const imageBase64 = await fileToBase64(file);
+  const image = await prepareProductImageForRequest(file);
+  const imageBase64 = await fileToBase64(image);
   const { data, error } = await supabase.functions.invoke('analyze-product', {
     body: {
       mode: 'variant-name',
       imageBase64,
-      mimeType: file.type,
+      mimeType: image.type,
       productName: context.productName?.trim() ?? '',
       existingVariantNames,
     },

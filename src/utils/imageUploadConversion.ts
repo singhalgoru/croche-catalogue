@@ -1,4 +1,5 @@
 import { drawWatermark, loadWatermarkLogo } from './imageWatermark';
+import { MAX_PRODUCT_IMAGE_SOURCE_SIZE, MAX_PROCESSED_IMAGE_SIZE } from './imageUploadLimits';
 
 const WEBP_UPLOAD_QUALITY = 0.82;
 const MAX_IMAGE_DIMENSION = 1600;
@@ -49,6 +50,9 @@ export async function convertImageForUpload(
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
     throw new Error('Upload a JPG, PNG or WebP product image.');
   }
+  if (!file.size || file.size > MAX_PRODUCT_IMAGE_SOURCE_SIZE) {
+    throw new Error('Choose a product image no larger than 20 MB.');
+  }
 
   const [image, logo] = await Promise.all([
     loadImageElement(file),
@@ -74,6 +78,18 @@ export async function convertImageForUpload(
     type: 'image/webp',
     lastModified: file.lastModified,
   });
+}
+
+export async function prepareProductImageForRequest(file: File): Promise<File> {
+  if (!file.size || file.size > MAX_PRODUCT_IMAGE_SOURCE_SIZE) {
+    throw new Error('Choose a product image no larger than 20 MB.');
+  }
+  const image = file.size > MAX_PROCESSED_IMAGE_SIZE
+    ? await convertImageForUpload(file, { watermark: false }) : file;
+  if (image.size > MAX_PROCESSED_IMAGE_SIZE) {
+    throw new Error('The converted image exceeds 6 MB. Choose a smaller source image.');
+  }
+  return image;
 }
 
 const RESIZED_WEBP_QUALITY = 0.75;

@@ -23,8 +23,9 @@ import { parseOptionalPrice } from './price';
 import { suggestVariantColor } from './variantColor';
 import { formatINR } from '../../utils/currency';
 import { getVariantPrice } from '../../utils/productPrice';
+import { MAX_PRODUCT_IMAGE_SOURCE_SIZE, PRODUCT_IMAGE_SOURCE_LIMIT_MB } from '../../utils/imageUploadLimits';
 
-const MAX_IMAGE_SIZE = 6 * 1024 * 1024;
+const MAX_IMAGE_SIZE = MAX_PRODUCT_IMAGE_SOURCE_SIZE;
 const MAX_GALLERY_IMAGES = 6;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -132,7 +133,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       return;
     }
     if (file && file.size > MAX_IMAGE_SIZE) {
-      event.target.setCustomValidity('Please choose an image smaller than 6 MB.');
+      event.target.setCustomValidity('Please choose an image no larger than 20 MB.');
       event.target.reportValidity();
       event.target.value = '';
       return;
@@ -152,12 +153,15 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     const files = [...(event.target.files ?? [])];
     event.target.value = '';
     if (files.length === 0) return;
+    if (files.some(file => !ACCEPTED_IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_SIZE)) {
+      setError('Choose JPG, PNG or WebP images no larger than 20 MB each.');
+      return;
+    }
+    setError(null);
 
     setDraft((current) => {
       const remainingSlots = MAX_GALLERY_IMAGES - current.galleryFiles.length;
       const validFiles = files
-        .filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type))
-        .filter((file) => file.size <= MAX_IMAGE_SIZE)
         .slice(0, Math.max(remainingSlots, 0));
       if (validFiles.length === 0) return current;
       return {
@@ -220,7 +224,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setError('Please choose an image smaller than 6 MB.');
+      setError('Please choose an image no larger than 20 MB.');
       return;
     }
     if (pendingGalleryImage) URL.revokeObjectURL(pendingGalleryImage.previewUrl);
@@ -666,7 +670,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
         disabled={isBusy}
       />
       </div>
-      <ImageFilePicker
+      <ImageFilePicker maxSizeMB={PRODUCT_IMAGE_SOURCE_LIMIT_MB}
         label={requiresImage ? 'Variant image' : 'Replace image (optional)'}
         file={draft.imageFile}
         onChange={selectImage}

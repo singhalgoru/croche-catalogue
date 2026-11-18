@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { convertImageForUpload, createResizedWebp, prepareSocialPostJpeg } from './imageUploadConversion';
+import { convertImageForUpload, createResizedWebp, prepareProductImageForRequest, prepareSocialPostJpeg } from './imageUploadConversion';
 
 const { encodeWebp } = vi.hoisted(() => ({ encodeWebp: vi.fn() }));
 vi.mock('./webpEncoder', () => ({ encodeWebp }));
@@ -80,6 +80,36 @@ describe('organic post JPEG preparation', () => {
 });
 
 describe('image upload compression', () => {
+  it.each([6 * 1024 * 1024 + 1, 20 * 1024 * 1024])(
+    'converts a %i-byte product source to an unwatermarked WebP for bounded AI requests',
+    async size => {
+      const { drawImage, context } = mockImageEncoding(3200, 1600, 50_000);
+      const file = new File([new Uint8Array(size)], 'large.png', { type: 'image/png' });
+      const image = await prepareProductImageForRequest(file);
+      expect(image.type).toBe('image/webp');
+      expect(image.size).toBe(50_000);
+      expect(drawImage).toHaveBeenCalledExactlyOnceWith(expect.anything(), 0, 0, 1600, 800);
+      expect(context.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves an existing 6 MB request but rejects sources over 20 MB before decoding', async () => {
+    const { drawImage } = mockImageEncoding(3200, 1600, 50_000);
+    const image = new File([new Uint8Array(6 * 1024 * 1024)], 'photo.jpg', { type: 'image/jpeg' });
+    expect(await prepareProductImageForRequest(image)).toBe(image);
+    const oversized = new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'photo.jpg', { type: 'image/jpeg' });
+    await expect(prepareProductImageForRequest(oversized)).rejects.toThrow('20 MB');
+    await expect(convertImageForUpload(oversized)).rejects.toThrow('20 MB');
+    expect(drawImage).not.toHaveBeenCalled();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('does not send an oversized converted AI image', async () => {
+    mockImageEncoding(3200, 1600, 6 * 1024 * 1024 + 1);
+    const file = new File([new Uint8Array(7 * 1024 * 1024)], 'large.png', { type: 'image/png' });
+    await expect(prepareProductImageForRequest(file)).rejects.toThrow('converted image exceeds 6 MB');
+  });
+
   it('creates a processed clean WebP with the same size and quality limits but no badge', async () => {
     const { drawImage, toBlob, context } = mockImageEncoding(3200, 1600, 50_000);
     const original = new File([new Uint8Array(1_000_000)], 'photo.png', { type: 'image/png' });

@@ -15,12 +15,14 @@ export const patternLabels = {
   en: {
     title: 'Artisan working pattern', link: 'Product page', photo: 'Main product photo',
     patternId: 'Pattern ID', preparedBy: 'Prepared by',
+    abbreviation: 'Abbreviation / stitch', meaning: 'Meaning / instructions',
     copyright: 'Copyright © Luvia Creations. All rights reserved. Copying, editing, sharing or distributing this document without the prior explicit written consent of Luvia Creations is prohibited, except as permitted by applicable law. Printing for the agreed artisan work is allowed.',
     terms: 'Private working copy. Confirm the sample, quantity, rate, materials and deadline separately before starting production.',
   },
   hi: {
     title: 'कारीगर के लिए क्रोशिया पैटर्न', link: 'उत्पाद का पेज', photo: 'उत्पाद की मुख्य तस्वीर',
     patternId: 'पैटर्न ID', preparedBy: 'तैयार किया',
+    abbreviation: 'संक्षिप्त रूप / टांका', meaning: 'अर्थ / निर्देश',
     copyright: 'कॉपीराइट © Luvia Creations। सर्वाधिकार सुरक्षित। Luvia Creations की पूर्व स्पष्ट लिखित अनुमति के बिना इस दस्तावेज़ की नकल, संपादन, साझाकरण या वितरण निषिद्ध है, सिवाय लागू कानून द्वारा अनुमत उपयोग के। सहमत कारीगर कार्य के लिए प्रिंट करना अनुमत है।',
     terms: 'निजी कार्य प्रति। काम शुरू करने से पहले नमूना, मात्रा, दर, सामग्री और समय-सीमा पर अलग से सहमति लें।',
   },
@@ -58,8 +60,25 @@ async function imageData(source: string): Promise<{ data: string; bytes: Uint8Ar
 export const productPatternId = (product: Pick<PatternProduct, 'id' | 'name' | 'sku'>): string =>
   `${product.name.trim()}-${product.sku ?? product.id}`;
 
+const patternControlLabel = (label: string): string =>
+  label.trim().replace(/^(Prepared by|तैयार किया)\s*\/\s*(?:reviewed by|समीक्षा की)$/i, '$1');
+const reviewedBy = /^(?:Reviewed by|समीक्षा की)(?:\s*[:：]|$)/i;
+const generatedCoverPlaceholders = new Set([
+  'Product link: [Paste the product page URL]',
+  "[Insert this product's main photo]",
+  '[Insert approved product photos and colour references here.]',
+  'उत्पाद का लिंक: [उत्पाद के पेज का URL लिखें]',
+  '[उत्पाद की मुख्य तस्वीर जोड़ें]',
+]);
+
+function generatedPatternText(text: string): boolean {
+  const copyright = text.replace(/\(c\)/gi, '©').replace(/\s+/g, ' ');
+  return generatedCoverPlaceholders.has(text) || reviewedBy.test(text)
+    || Object.values(patternLabels).some(labels => copyright === labels.copyright);
+}
+
 function patternControlValue(label: string, value: string, product: PatternProduct): string {
-  const field = label.trim();
+  const field = patternControlLabel(label);
   if (/^(?:Product|उत्पाद)\s*\/\s*SKU$/i.test(field)) {
     return `${product.name}${product.sku ? ` / ${product.sku}` : ''}`;
   }
@@ -72,10 +91,21 @@ function patternControlValue(label: string, value: string, product: PatternProdu
 
 function patternControlText(text: string, product: PatternProduct): string {
   const field = text.match(/^((?:Pattern ID|Prepared by|पैटर्न ID|तैयार किया)(?:\s*\/[^:：]+)?)\s*[:：]\s*(.*)$/i);
-  return field ? `${field[1]}: ${patternControlValue(field[1]!, field[2]!, product)}` : text;
+  return field ? `${patternControlLabel(field[1]!)}: ${patternControlValue(field[1]!, field[2]!, product)}` : text;
 }
 
-export function patternBlocks(html: string, product?: PatternProduct): Block[] {
+function patternText(element: Element): string {
+  function read(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
+    if (!(node instanceof Element)) return '';
+    if (node.tagName === 'BR') return '\n';
+    const text = [...node.childNodes].map(read).join('');
+    return /^(P|DIV|LI|H[1-6])$/.test(node.tagName) ? `\n${text}\n` : text;
+  }
+  return read(element).replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n+/g, '\n').trim();
+}
+
+export function patternBlocks(html: string, product?: PatternProduct, language: PatternLanguage = 'en'): Block[] {
   const root = new DOMParser().parseFromString(html, 'text/html').body;
   const blocks: Block[] = [];
   function visit(element: Element) {
@@ -83,8 +113,8 @@ export function patternBlocks(html: string, product?: PatternProduct): Block[] {
       if (element.querySelector('img,table')) throw new Error('Move nested tables or images out of table cells before preparing the pattern.');
       const rows = [...element.querySelectorAll('tr')].map(row => [...row.querySelectorAll<HTMLTableCellElement>('th,td')].map(cell => {
         if (cell.rowSpan !== 1) throw new Error('Unmerge vertically merged table cells before preparing the pattern. Horizontal merged headings are supported.');
-        return { text: cell.textContent ?? '', columnSpan: cell.colSpan };
-      }));
+        return { text: patternText(cell), columnSpan: cell.colSpan };
+      })).filter(row => !product || row.length !== 2 || row.some(cell => cell.columnSpan !== 1) || !reviewedBy.test(row[0]!.text));
       const columns = rows[0]?.reduce((total, cell) => total + cell.columnSpan, 0);
       if (rows.some(row => !row.length || row.reduce((total, cell) => total + cell.columnSpan, 0) !== columns)) {
         throw new Error('Use table rows with the same total number of columns in the pattern.');
@@ -92,13 +122,16 @@ export function patternBlocks(html: string, product?: PatternProduct): Block[] {
       if (product) for (const row of rows) {
         if (row.length === 2 && row.every(cell => cell.columnSpan === 1)) {
           row[1]!.text = patternControlValue(row[0]!.text, row[1]!.text, product);
+          row[0]!.text = patternControlLabel(row[0]!.text);
         }
       }
       if (rows.length) blocks.push({ kind: 'table', rows });
     } else if (['P', 'H1', 'H2', 'H3', 'H4', 'LI'].includes(element.tagName)) {
-      let text = element.textContent?.trim();
+      let text = patternText(element);
       if (text && product) text = patternControlText(text, product);
-      if (text) blocks.push({ kind: /^H/.test(element.tagName) ? 'heading' : 'text', text });
+      if (text && !(product && generatedPatternText(text))) {
+        blocks.push({ kind: /^H/.test(element.tagName) ? 'heading' : 'text', text });
+      }
       for (const image of element.querySelectorAll('img')) visit(image);
     } else if (element.tagName === 'IMG') {
       const data = element.getAttribute('src') ?? '';
@@ -109,7 +142,38 @@ export function patternBlocks(html: string, product?: PatternProduct): Block[] {
     }
   }
   for (const element of root.children) visit(element);
-  return blocks;
+  const formatted: Block[] = [];
+  let abbreviationSection = false;
+  let abbreviationTable: Extract<Block, { kind: 'table' }> | undefined;
+  for (const block of blocks) {
+    if (block.kind === 'heading') abbreviationSection = /abbreviations|संक्षिप्त|संक्षेप/i.test(block.text);
+    if (!abbreviationSection || block.kind !== 'text') {
+      abbreviationTable = undefined;
+      formatted.push(block);
+      continue;
+    }
+    const lines = block.text.replace(/^(US terms:)\s*/i, '$1\n').split(/\n|;\s*(?=[^;=\n]+?=)/);
+    for (const line of lines.filter(line => line.trim())) {
+      const definition = line.match(/^([^=]+?)\s*=\s*(.+)$/);
+      if (!definition) {
+        abbreviationTable = undefined;
+        formatted.push({ kind: 'text', text: line.trim() });
+        continue;
+      }
+      if (!abbreviationTable) {
+        abbreviationTable = { kind: 'table', rows: [[
+          { text: patternLabels[language].abbreviation, columnSpan: 1 },
+          { text: patternLabels[language].meaning, columnSpan: 1 },
+        ]] };
+        formatted.push(abbreviationTable);
+      }
+      abbreviationTable.rows.push([
+        { text: definition[1]!.trim(), columnSpan: 1 },
+        { text: definition[2]!.trim().replace(/;$/, ''), columnSpan: 1 },
+      ]);
+    }
+  }
+  return formatted;
 }
 
 export function protectedPdfDefinition(language: PatternLanguage, content: Content[]): TDocumentDefinitions {
@@ -132,16 +196,17 @@ export async function preparePatternDocuments(product: PatternProduct, language:
   let blocks: Block[];
   if (typeof input === 'string') {
     if (!input.trim() || input.length > 60000) throw new Error('Enter pattern instructions up to 60,000 characters.');
-    blocks = input.split(/\r?\n/).filter(line => line.trim())
+    blocks = input.split(/\r?\n/).filter(line => line.trim() && !generatedPatternText(line.trim()))
       .map(text => ({ kind: 'text', text: patternControlText(text.trim(), product) }));
   } else {
     const mammoth = await import('mammoth');
     const result = await mammoth.convertToHtml({ arrayBuffer: await input.arrayBuffer() });
     if (result.messages.some(message => message.type === 'error')) throw new Error('Word conversion reported an error. Check this document before preparing it.');
     warnings.push(...result.messages.map(message => message.message));
-    blocks = patternBlocks(result.value, product);
+    blocks = patternBlocks(result.value, product, language);
     if (!blocks.length) throw new Error('This Word document has no supported pattern content.');
   }
+  if (!blocks.length) throw new Error('Add pattern instructions; generated cover fields alone are not pattern content.');
   onProgress?.('Loading document tools, branding, product photo and fonts…');
   const [docx, pdfModule, fonts, logo, photo, hindiResponse] = await Promise.all([
     import('docx'), import('pdfmake/build/pdfmake'), import('pdfmake/build/vfs_fonts'),
@@ -167,7 +232,9 @@ export async function preparePatternDocuments(product: PatternProduct, language:
   const url = `https://luviacreations.com${new URL(toProductUrl(product)).pathname}`;
   const font = language === 'hi' ? 'Noto Sans Devanagari' : 'Calibri';
   const paragraph = (text: string, bold = false, centered = false) => new docx.Paragraph({
-    children: [new docx.TextRun({ text, bold, font, color: '5D4037' })],
+    children: text.split('\n').map((line, index) => new docx.TextRun({
+      text: line, break: index > 0 ? 1 : 0, bold, font, color: '5D4037',
+    })),
     alignment: centered ? docx.AlignmentType.CENTER : docx.AlignmentType.LEFT, spacing: { after: 120 },
   });
   const picture = (image: typeof photo, width: number) => new docx.Paragraph({ alignment: docx.AlignmentType.CENTER,
@@ -201,7 +268,12 @@ export async function preparePatternDocuments(product: PatternProduct, language:
           shading: { fill: index === 0 ? 'F6C453' : 'FFFAF0' }, children: [paragraph(text, index === 0)],
         })) })) }));
       const columns = block.rows[0]!.reduce((total, cell) => total + cell.columnSpan, 0);
-      pdfContent.push({ table: { headerRows: 1, widths: Array.from({ length: columns }, () => '*'),
+      const instructionTable = columns === 3 && block.rows[0]!.length === 3
+        && /^(?:Instructions|निर्देश)(?:\s|\/|$)/i.test(block.rows[0]![1]!.text);
+      const abbreviationTable = columns === 2 && block.rows[0]![0]!.text === labels.abbreviation;
+      pdfContent.push({ table: { headerRows: 1,
+        widths: instructionTable ? ['18%', '64%', '18%']
+          : abbreviationTable ? ['28%', '72%'] : Array.from({ length: columns }, () => '*'),
         body: block.rows.map((row, index) => row.flatMap(({ text, columnSpan }) => [
           { text, colSpan: columnSpan, fillColor: index === 0 ? '#f6c453' : '#fffaf0' },
           ...Array.from({ length: columnSpan - 1 }, () => ({})),

@@ -1,6 +1,7 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 import { convertImageForUpload } from '../utils/imageUploadConversion';
 import { getImageStorageErrorMessage } from './r2ImageStorage';
+import { MAX_PRODUCT_IMAGE_SOURCE_SIZE, MAX_PROCESSED_IMAGE_SIZE } from '../utils/imageUploadLimits';
 
 const ORIGINAL_EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -10,13 +11,13 @@ const ORIGINAL_EXTENSIONS: Record<string, string> = {
 
 export async function archiveImageOriginal(file: File): Promise<string> {
   const extension = ORIGINAL_EXTENSIONS[file.type];
-  if (!extension || file.size === 0 || file.size > 6 * 1024 * 1024) {
-    throw new Error('Choose a JPG, PNG or WebP image no larger than 6 MB to preserve its original.');
+  if (!extension || file.size === 0 || file.size > MAX_PRODUCT_IMAGE_SOURCE_SIZE) {
+    throw new Error('Choose a JPG, PNG or WebP image no larger than 20 MB to preserve its original.');
   }
   const client = await loadSupabase();
   if (!client) throw new Error('Supabase is not configured.');
   const cleanImage = await convertImageForUpload(file, { watermark: false });
-  if (cleanImage.size > 6 * 1024 * 1024) throw new Error('The processed private image exceeds 6 MB.');
+  if (cleanImage.size > MAX_PROCESSED_IMAGE_SIZE) throw new Error('The processed private image exceeds 6 MB.');
   const imageId = crypto.randomUUID();
   const form = new FormData();
   form.append('action', 'archive-original');

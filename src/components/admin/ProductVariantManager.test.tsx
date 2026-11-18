@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ProductVariantManager from './ProductVariantManager';
 import { reduceVariantStock, recordVariantSale, type ManagedProduct } from '../../services/products';
+import VariantDraftFields from './VariantDraftFields';
+import { createEmptyVariant } from './variantDraft';
 
 vi.mock('../../services/products', async original => ({
   ...await original<typeof import('../../services/products')>(),
@@ -20,7 +22,39 @@ const product: ManagedProduct = {
 };
 
 beforeEach(() => vi.clearAllMocks());
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+it.each([6 * 1024 * 1024 + 1, 20 * 1024 * 1024])(
+  'accepts a %i-byte primary and gallery image in new-product drafts',
+  size => {
+    vi.stubGlobal('URL', class extends URL {
+      static createObjectURL = vi.fn(() => 'blob:source');
+      static revokeObjectURL = vi.fn();
+    });
+    const variant = createEmptyVariant();
+    const onChange = vi.fn();
+    const { container } = render(<VariantDraftFields variants={[variant]} onChange={onChange} />);
+    const file = new File([new Uint8Array(size)], 'large.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Variant image'), { target: { files: [file] } });
+    expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ imageFile: file })]);
+    fireEvent.change(container.querySelector('input[type="file"][multiple]')!, { target: { files: [file] } });
+    expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ galleryFiles: [file] })]);
+  },
+);
+
+it('accepts a 20 MB managed gallery photo and explicitly rejects one byte over the source limit', () => {
+  vi.stubGlobal('URL', class extends URL {
+    static createObjectURL = vi.fn(() => 'blob:source');
+    static revokeObjectURL = vi.fn();
+  });
+  render(<ProductVariantManager product={product} onSaved={vi.fn()} />);
+  const input = screen.getByLabelText('Add an additional photo to Pink');
+  fireEvent.change(input, { target: { files: [new File([new Uint8Array(20 * 1024 * 1024)], 'large.png', { type: 'image/png' })] } });
+  expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+  fireEvent.change(input, { target: { files: [new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'too-large.png', { type: 'image/png' })] } });
+  expect(screen.getByText('Please choose an image no larger than 20 MB.')).toBeTruthy();
+  expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+});
 
 it('offers a separate reduction and reports confirmed success without recording a sale', async () => {
   const saved = { ...product, variants: [{ ...product.variants[0], availableQuantity: 3 }] };

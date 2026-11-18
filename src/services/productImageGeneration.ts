@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { prepareProductImageForRequest } from '../utils/imageUploadConversion';
+import { MAX_PROCESSED_IMAGE_SIZE } from '../utils/imageUploadLimits';
 
 export type ProductImageMode = 'studio' | 'lifestyle';
 export type ImageGenerationProvider = 'auto' | 'gemini' | 'cloudflare' | 'openai';
@@ -76,15 +78,12 @@ export async function generateProductImage(
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
     throw new Error('Please choose a JPG, PNG, or WebP image.');
   }
-  if (file.size > 6 * 1024 * 1024) {
-    throw new Error('Please choose an image smaller than 6 MB.');
-  }
-
-  const imageBase64 = await fileToBase64(file);
+  const image = await prepareProductImageForRequest(file);
+  const imageBase64 = await fileToBase64(image);
   const { data, error } = await supabase.functions.invoke('enhance-product-image', {
     body: {
       imageBase64,
-      mimeType: file.type,
+      mimeType: image.type,
       mode,
       styleSuggestion: styleSuggestion?.trim() || undefined,
       provider,
@@ -105,7 +104,7 @@ export async function generateProductImage(
   }
 
   const generatedFile = base64ToFile(payload.imageBase64, payload.mimeType, mode);
-  if (generatedFile.size > 6 * 1024 * 1024) {
+  if (generatedFile.size > MAX_PROCESSED_IMAGE_SIZE) {
     throw new Error('The generated image is larger than 6 MB. Try again.');
   }
   return generatedFile;
