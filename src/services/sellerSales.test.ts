@@ -50,7 +50,8 @@ describe('seller sales persistence', () => {
   it.each(['create', 'update'])('persists zero GST only in the sales ledger on %s', async operation => {
     const query = {
       insert: vi.fn(), update: vi.fn(), eq: vi.fn(), select: vi.fn(),
-      single: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: { ...row, gst_percent: '0.00' }, error: null }),
+      single: vi.fn(),overrideTypes: vi.fn().mockResolvedValue({ data: { ...row, gst_percent: '0.00',
+        marketing_percent: '0.00', returns_reserve_percent: '4.00', overhead_percent: '5.00' }, error: null }),
     };
     query.insert.mockReturnValue(query);
     query.update.mockReturnValue(query);
@@ -58,14 +59,16 @@ describe('seller sales persistence', () => {
     query.select.mockReturnValue(query);
     query.single.mockReturnValue(query);
     from.mockReturnValue(query);
-    const input = { ...sale, gstPercent: 0 };
+    const input = { ...sale, gstPercent: 0, marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5 };
     const saved = operation === 'create'
       ? await createSellerSale(input) : await updateSellerSale(row.id, input);
     expect(saved.gstPercent).toBe(0);
+    expect(saved).toMatchObject({ marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5 });
     expect(from).toHaveBeenCalledTimes(1);
     expect(from).toHaveBeenCalledWith('seller_sales');
     expect(operation === 'create' ? query.insert : query.update).toHaveBeenCalledWith(
-      expect.objectContaining({ product_id: sale.productId, gst_percent: 0 }),
+      expect.objectContaining({ product_id: sale.productId, gst_percent: 0,
+        marketing_percent: 0, returns_reserve_percent: 4, overhead_percent: 5 }),
     );
   });
 
@@ -141,6 +144,9 @@ describe('seller sales persistence', () => {
   });
 
   it('rejects invalid sales before any database request', async () => {
+    for (const marketingPercent of [-1, 101, NaN, Infinity]) {
+      await expect(createSellerSale({ ...sale, marketingPercent })).rejects.toThrow('allocations');
+    }
     await expect(createSellerSale({ ...sale, quantity: 0 })).rejects.toThrow('Quantity');
     await expect(createSellerSale({ ...sale, channel: 'unknown' as SellerSaleInput['channel'] }))
       .rejects.toThrow('sales channel');

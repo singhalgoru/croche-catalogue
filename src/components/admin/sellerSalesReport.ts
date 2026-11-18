@@ -34,6 +34,15 @@ const REPORT_HEADERS = [
   'Labour Time Per Piece',
   'Labour Time Unit',
   'Labour Hourly Rate',
+  'Marketing Allocation Percent',
+  'Returns Allocation Percent',
+  'Overhead Allocation Percent',
+  'Marketing Allocation',
+  'Returns Allocation',
+  'Overhead Allocation',
+  'Total Allocations',
+  'Profit After Allocations',
+  'Margin After Allocations',
 ] as const;
 
 const csvCell = (value: string | number) => {
@@ -80,6 +89,15 @@ export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
       sale.labourTimeSpent ?? '',
       sale.labourTimeUnit ?? '',
       sale.labourRate ?? '',
+      sale.marketingPercent ?? 0,
+      sale.returnsReservePercent ?? 0,
+      sale.overheadPercent ?? 0,
+      financials.marketingAllocation.toFixed(2),
+      financials.returnsAllocation.toFixed(2),
+      financials.overheadAllocation.toFixed(2),
+      financials.allocations.toFixed(2),
+      financials.profitAfterAllocations.toFixed(2),
+      financials.marginAfterAllocations?.toFixed(2) ?? '',
     ]);
   });
   const summary = summarizeSellerSales(monthly);
@@ -109,6 +127,13 @@ export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
       summary.costs.toFixed(2),
       summary.profit.toFixed(2),
       summary.marginPercent?.toFixed(2) ?? '',
+      ...Array<string>(12).fill(''),
+      summary.marketingAllocation.toFixed(2),
+      summary.returnsAllocation.toFixed(2),
+      summary.overheadAllocation.toFixed(2),
+      summary.allocations.toFixed(2),
+      summary.profitAfterAllocations.toFixed(2),
+      summary.marginAfterAllocations?.toFixed(2) ?? '',
     ]),
   ].join('\r\n');
 };
@@ -190,6 +215,22 @@ export const parseSellerSalesCsv = (
     if (recordId.toLocaleUpperCase() === 'MONTH TOTAL') return;
     const saleDate = parseDateInput(dateValue);
     const invalid: string[] = [];
+    const allocationRates: Pick<SellerSaleInput, 'marketingPercent' | 'returnsReservePercent' | 'overheadPercent'> = {};
+    for (const [field, header] of [
+      ['marketingPercent', 'marketing allocation percent'],
+      ['returnsReservePercent', 'returns allocation percent'],
+      ['overheadPercent', 'overhead allocation percent'],
+    ] as const) {
+      const column = headers.indexOf(header);
+      if (column < 0) continue;
+      const value = row[column]?.trim() ?? '';
+      const percent = Number(value);
+      if (!value || !Number.isFinite(percent) || percent < 0 || percent > 100) {
+        invalid.push(`${header} between 0 and 100`);
+      } else {
+        allocationRates[field] = percent;
+      }
+    }
     const channel = channelValue.toLocaleLowerCase();
     if (!productName || productName.length > 150) invalid.push('product name');
     if (!isValidDate(saleDate) || !saleDate.startsWith(`${month}-`)) {
@@ -242,6 +283,7 @@ export const parseSellerSalesCsv = (
       shippingCost: numeric[5],
       gatewayFeePercent: numeric[6],
       gatewayFeeGstPercent: numeric[7],
+      ...allocationRates,
       notes,
     });
     existingIds.push(normalizedId);

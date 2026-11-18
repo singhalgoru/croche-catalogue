@@ -14,6 +14,16 @@ const expense: BusinessExpense = {
 };
 
 describe('period sales snapshots', () => {
+  it('keeps planning allocations separate from recorded expenses instead of subtracting both from actual profit', () => {
+    const summary = summarizeSalesPeriod([{
+      ...sale, marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5,
+    }], [expense], '2026');
+    expect(summary.profit).toBe(55);
+    expect(summary.allocations).toBe(24);
+    expect(summary.profitAfterAllocations).toBe(31);
+    expect(summary.profitAfterOverheads).toBe(45);
+    expect(summary.marginAfterOverheads).toBe(45);
+  });
   it('includes whole-order costs once in annual and quarterly cost breakdowns', () => {
     const order = { id: 'order',reference: 'LUV-1',paymentOrderId: 'payment',packagingCost: 25,shippingCost: 100,
       shippingCollected: 0,shippingSource: 'courier' as const,itemRevenue: 315 };

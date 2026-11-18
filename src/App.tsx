@@ -72,7 +72,10 @@ const readCheckoutStep = () => {
   const value = new URLSearchParams(window.location.search).get('checkout');
   return (['cart','delivery','review','confirmation'] as const).find(step => step === value) ?? null;
 };
-const sectionHashes = ['#collaborate', '#bulk-orders', '#products'];
+const sectionHashes = [
+  '#collaborate', '#bulk-orders', '#products', '#contact-luvia',
+  ...Object.values(storeContent.faqAnchors).map(id => `#${id}`),
+];
 
 function App() {
   const watchReference = window.location.pathname.match(/^\/watch\/([^/]+)\/?$/)?.[1];

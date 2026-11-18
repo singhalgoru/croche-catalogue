@@ -209,7 +209,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <h2>Thoughtfully crafted crochet, made to be treasured</h2><p>${escapeHtml(storeContent.about[0])}</p>
     <p>${escapeHtml(storeContent.about[1])}</p>
     <h2>Personal touches, confirmed with you</h2><p>${escapeHtml(storeContent.about[2])}</p>
-    <h2>Contact Luvia</h2><p>Luvia Creations<br>Gurugram, Haryana, India</p><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>
+    <h2 id="contact-luvia">Contact Luvia</h2><p>Luvia Creations<br>Gurugram, Haryana, India</p><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>
     <p>Order enquiries: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a><br>General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p>
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
     <p>Questions about ordering? <a href="/faq/">Read our FAQ</a>.</p></section>`,
@@ -217,7 +217,10 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   const faqTitle = 'Ordering, delivery & care FAQ';
   const faqDescription = 'Answers to Luvia Creations ordering questions: India checkout, international enquiries, custom colours, shipping, product care and returns.';
   const questions = storeContent.questions;
-  const faqBody = questions.map(([question, answer]) => `<details><summary>${escapeHtml(question)}</summary><p>${escapeHtml(answer)}</p></details>`).join('');
+  const faqBody = questions.map(([question, answer]) => {
+    const id = storeContent.faqAnchors[question];
+    return `<details${id ? ` id="${escapeHtml(id)}"` : ''}><summary>${escapeHtml(question)}</summary><p>${escapeHtml(answer)}</p></details>`;
+  }).join('');
   pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<p class="intro">${faqDescription}</p>${faqBody}
     <details><summary>What is the return and refund policy?</summary><p>Please read our <a href="/return-policy/">return and refund policy</a> before ordering. Contact us about your specific order if you need clarification.</p></details>
     <p><a class="button" href="${internationalQuote.path}">Request an international quote</a></p>

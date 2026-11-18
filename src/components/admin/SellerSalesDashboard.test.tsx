@@ -109,6 +109,47 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it('defaults new sale allocations to 15/4/5 and persists independently disabled zero rates', async () => {
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
+    fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
+    for (const [label, value] of [
+      ['Marketing allocation (%)', '15'], ['Returns / damage allocation (%)', '4'], ['Overhead allocation (%)', '5'],
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveProperty('value', value);
+      fireEvent.change(screen.getByLabelText(label), { target: { value: '0' } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale' }));
+    await waitFor(() => expect(createSellerOrder).toHaveBeenCalledWith(
+      [expect.objectContaining({ marketingPercent: 0, returnsReservePercent: 0, overheadPercent: 0 })], 0, 0,
+    ));
+  });
+
+  it('loads saved allocations for editing and keeps legacy sales disabled', async () => {
+    vi.mocked(fetchSellerSales).mockResolvedValue([
+      { ...sale, saleDate: localDate() },
+      { ...sale, id: 'planned', saleDate: localDate(), productName: 'Planned flower',
+        marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5 },
+    ]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    const legacy = await screen.findByTestId('sale-record-sale-1');
+    fireEvent.click(within(legacy).getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Marketing allocation (%)')).toHaveProperty('value', '0');
+    expect(screen.getByLabelText('Returns / damage allocation (%)')).toHaveProperty('value', '0');
+    fireEvent.click(within(legacy).getByRole('button', { name: 'Close edit' }));
+    fireEvent.click(within(screen.getByTestId('sale-record-planned')).getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Marketing allocation (%)')).toHaveProperty('value', '0');
+    expect(screen.getByLabelText('Returns / damage allocation (%)')).toHaveProperty('value', '4');
+    expect(screen.getByLabelText('Overhead allocation (%)')).toHaveProperty('value', '5');
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale changes' }));
+    await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith('planned', expect.objectContaining({
+      marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5,
+      packagingCost: 8, shippingCost: 60,
+    })));
+  });
   it('uses the saved product labour rate and persists a sale-only override with its time', async () => {
     vi.mocked(fetchManagedProducts).mockResolvedValue([{ ...product,
       priceDiscoveryInputs: { ...product.priceDiscoveryInputs!, labourRate: '180' } }]);

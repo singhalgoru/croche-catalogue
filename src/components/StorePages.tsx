@@ -145,6 +145,7 @@ export default function StorePages({
     [collectionProducts, activePriceRange],
   );
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
+  const faqAnchors: Record<string, string> = storeContent.faqAnchors;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
   const title = productCollection?.title ?? policy?.title ?? (isStory ? story ? `Customer story from ${story.display_name}` : story === null ? 'Customer story unavailable' : 'Customer story'
@@ -152,6 +153,22 @@ export default function StorePages({
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections'));
+
+  useEffect(() => {
+    const revealSection = () => {
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (!target) return;
+      if (target instanceof HTMLDetailsElement) target.open = true;
+      if (target.id === 'materials-sizing-care') {
+        const care = document.getElementById('product-care');
+        if (care instanceof HTMLDetailsElement) care.open = true;
+      }
+      target.scrollIntoView?.({ block: 'start' });
+    };
+    revealSection();
+    window.addEventListener('hashchange', revealSection);
+    return () => window.removeEventListener('hashchange', revealSection);
+  }, [requestedPath]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCatalogueTime(Date.now()), 60_000);
@@ -418,7 +435,7 @@ export default function StorePages({
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
-        <h2 className="font-heading text-xl font-bold">Contact Luvia</h2>
+        <h2 id="contact-luvia" className="scroll-mt-24 font-heading text-xl font-bold">Contact Luvia</h2>
         <p>Gurugram, Haryana, India</p>
         <a href={getGeneralWhatsAppLink()} className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Ask us on WhatsApp</a>
         <p>WhatsApp / mobile: <a href={getGeneralWhatsAppLink()} className="underline">{formatWhatsAppNumber()}</a></p>
@@ -430,7 +447,7 @@ export default function StorePages({
       </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
         <p>Answers about ordering, custom colours, shipping across India, international enquiries, care and returns.</p>
         <a href={internationalQuote.path} className="inline-flex min-h-11 items-center underline">Request an international quote</a>
-        {storeContent.questions.map(([question, answer]) => <details key={question} className="rounded-xl border border-mustard/40 bg-white p-4">
+        {storeContent.questions.map(([question, answer]) => <details key={question} id={faqAnchors[question]} className="scroll-mt-24 rounded-xl border border-mustard/40 bg-white p-4">
           <summary className="cursor-pointer font-semibold">{question}</summary><p className="mt-3">{answer}</p>
         </details>)}
         <details className="rounded-xl border border-mustard/40 bg-white p-4"><summary className="cursor-pointer font-semibold">What is the return and refund policy?</summary>

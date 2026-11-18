@@ -29,7 +29,7 @@ describe('seller sales report CSV', () => {
       labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 180, labourCost: 10,
     });
     expect(() => parseSellerSalesCsv(csv.replace(',30,minutes,180', ',30,minutes,'), '2026-10', new Set())).toThrow('labour time');
-    const legacy = csv.split('\r\n').map(line => line.split(',').slice(0, -3).join(',')).join('\r\n');
+    const legacy = csv.split('\r\n').map(line => line.split(',').slice(0, -12).join(',')).join('\r\n');
     expect(parseSellerSalesCsv(legacy, '2026-10', new Set()).sales[0].labourCost).toBe(10);
     expect(parseSellerSalesCsv(legacy, '2026-10', new Set()).sales[0].labourRate).toBeUndefined();
   });
@@ -74,8 +74,30 @@ describe('seller sales report CSV', () => {
       shippingCost: 30,
       gatewayFeePercent: 2,
       gatewayFeeGstPercent: 18,
+      marketingPercent: 0,
+      returnsReservePercent: 0,
+      overheadPercent: 0,
       notes: 'Gift, packed',
     }]);
+  });
+
+  it('round-trips allocation percentages, exports aligned totals, and preserves missing legacy rates', () => {
+    const csv = buildSellerSalesCsv('2026-10', [{
+      ...sale, productName: 'Rose', notes: '', marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 0,
+    }]);
+    expect(parseSellerSalesCsv(csv, '2026-10', new Set()).sales[0]).toMatchObject({
+      marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 0,
+    });
+    const rows = csv.split('\r\n').map(line => line.split(','));
+    expect(rows.every(row => row.length === 40)).toBe(true);
+    expect(Number(rows[2][37])).toBeCloseTo(200 / 1.05 * 0.19, 2);
+    const legacy = rows.map(row => row.slice(0, -9).join(',')).join('\r\n');
+    const input = parseSellerSalesCsv(legacy, '2026-10', new Set()).sales[0];
+    expect(input.marketingPercent).toBeUndefined();
+    expect(input.returnsReservePercent).toBeUndefined();
+    expect(input.overheadPercent).toBeUndefined();
+    expect(() => parseSellerSalesCsv(csv.replace(',15,4,0,', ',101,4,0,'), '2026-10', new Set()))
+      .toThrow('marketing allocation percent');
   });
 
   it('rejects malformed rows and records outside the selected month before saving any rows', () => {

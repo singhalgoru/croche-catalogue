@@ -66,6 +66,19 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it.each([
+    ['/faq/', 'materials-sizing-care'],
+    ['/faq/', 'product-care'],
+    ['/faq/', 'dispatch-delivery'],
+    ['/about/', 'contact-luvia'],
+  ])('preserves the informational section %s#%s through route cleanup', (path, id) => {
+    window.history.replaceState(null, '', `${path}#${id}`);
+    render(<App />);
+    expect(window.location.hash).toBe(`#${id}`);
+    const target = document.getElementById(id);
+    expect(target).not.toBeNull();
+    if (target instanceof HTMLDetailsElement) expect(target.open).toBe(true);
+  });
   it('places the latest product above featured products and the customisation section', () => {
     catalogueProducts = [{ ...product, featured: true, publishedAt: '2020-01-01T00:00:00Z' }];
     render(<App />);

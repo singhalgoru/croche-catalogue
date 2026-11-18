@@ -460,7 +460,7 @@ test('feedback page keeps its storefront navigation and back-to-top control', as
   await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 15_000 }).toBeLessThan(10);
 });
 
-test('product labour overrides persist and prefill an independently editable sale rate', async ({ page }) => {
+test('product labour overrides and optional sale allocations persist independently', async ({ page }) => {
   const state = await installMockSupabase(page);
   let pricing: Record<string, string | number | null> = { profit_margin_percent: null, gst_percent: 5, time_spent: 90, time_unit: 'minutes',
     labour_rate: null, material_cost: 50, shipping_cost: 100, packaging_cost: 10, target_margin_percent: 35 };
@@ -478,11 +478,15 @@ test('product labour overrides persist and prefill an independently editable sal
     pricing = { ...pricing, ...route.request().postDataJSON() };
     await route.fulfill({ json: null });
   });
-  await page.route('**/rest/v1/seller_sales*', route => route.fulfill({ json: [] }));
+  const sales: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/seller_sales*', route => route.fulfill({ json: sales }));
   await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
   const orders: Record<string, unknown>[] = [];
   await page.route('**/rest/v1/rpc/create_seller_order', async route => {
-    orders.push(route.request().postDataJSON()); await route.fulfill({ json: 'saved-order' });
+    const body = route.request().postDataJSON();
+    orders.push(body);
+    sales.push({ ...body.p_items[0], id: 'allocation-sale', created_at: new Date().toISOString() });
+    await route.fulfill({ json: 'saved-order' });
   });
   await page.goto('./#admin');
   await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
@@ -505,11 +509,17 @@ test('product labour overrides persist and prefill an independently editable sal
   await expect(page.getByLabel('Labour per piece (₹)', { exact: true })).toHaveValue('270');
   await page.getByLabel('Sale labour rate per hour').fill('200');
   await expect(page.getByLabel('Labour per piece (₹)', { exact: true })).toHaveValue('300');
+  await expect(page.getByLabel('Marketing allocation (%)', { exact: true })).toHaveValue('15');
+  await expect(page.getByLabel('Returns / damage allocation (%)', { exact: true })).toHaveValue('4');
+  await expect(page.getByLabel('Overhead allocation (%)', { exact: true })).toHaveValue('5');
+  await page.getByLabel('Marketing allocation (%)', { exact: true }).fill('0');
   await page.getByRole('button', { name: 'Save sale', exact: true }).click();
   await expect(page.getByText('Sale recorded.', { exact: true })).toBeVisible();
   expect(orders[0]).toMatchObject({ p_items: [expect.objectContaining({
     labour_cost: 300, labour_rate: 200, labour_time_spent: 90, labour_time_unit: 'minutes',
+    marketing_percent: 0, returns_reserve_percent: 4, overhead_percent: 5,
   })] });
+  await expect(page.getByTestId('sale-record-allocation-sale').getByText(/Profit after allocations:/)).toBeVisible();
   expect(pricing.labour_rate).toBe(180);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

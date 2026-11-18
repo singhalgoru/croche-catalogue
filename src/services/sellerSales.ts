@@ -33,6 +33,9 @@ export interface SellerSale {
   shippingCost: number;
   gatewayFeePercent: number;
   gatewayFeeGstPercent: number;
+  marketingPercent?: number;
+  returnsReservePercent?: number;
+  overheadPercent?: number;
   notes: string;
   createdAt: string;
 }
@@ -63,12 +66,15 @@ interface SellerSaleRow {
   shipping_cost: number;
   gateway_fee_percent: number;
   gateway_fee_gst_percent: number;
+  marketing_percent?: number;
+  returns_reserve_percent?: number;
+  overhead_percent?: number;
   notes: string;
   created_at: string;
 }
 
 const SALE_COLUMNS =
-  'id, product_id, product_name, variant_name, sale_date, channel, quantity, unit_price, gst_percent, material_cost, labour_cost, labour_time_spent, labour_time_unit, labour_rate, packaging_cost, shipping_cost, gateway_fee_percent, gateway_fee_gst_percent, notes, created_at, order:seller_orders!seller_sales_order_id_fkey(id,reference,payment_order_id,packaging_cost,shipping_cost,shipping_collected,shipping_source,items:seller_sales!seller_sales_order_id_fkey(unit_price,quantity))';
+  'id, product_id, product_name, variant_name, sale_date, channel, quantity, unit_price, gst_percent, material_cost, labour_cost, labour_time_spent, labour_time_unit, labour_rate, packaging_cost, shipping_cost, gateway_fee_percent, gateway_fee_gst_percent, marketing_percent, returns_reserve_percent, overhead_percent, notes, created_at, order:seller_orders!seller_sales_order_id_fkey(id,reference,payment_order_id,packaging_cost,shipping_cost,shipping_collected,shipping_source,items:seller_sales!seller_sales_order_id_fkey(unit_price,quantity))';
 
 const requireSupabase = async () => {
   const client = await loadSupabase();
@@ -101,11 +107,19 @@ const mapSale = (row: SellerSaleRow): SellerSale => ({
   shippingCost: Number(row.shipping_cost),
   gatewayFeePercent: Number(row.gateway_fee_percent),
   gatewayFeeGstPercent: Number(row.gateway_fee_gst_percent),
+  marketingPercent: Number(row.marketing_percent ?? 0),
+  returnsReservePercent: Number(row.returns_reserve_percent ?? 0),
+  overheadPercent: Number(row.overhead_percent ?? 0),
   notes: row.notes,
   createdAt: row.created_at,
 });
 
 const saleColumns = (sale: SellerSaleInput) => {
+  const allocations = [sale.marketingPercent, sale.returnsReservePercent, sale.overheadPercent];
+  if (allocations.some(value => value !== undefined
+    && (!Number.isFinite(value) || value < 0 || value > 100))) {
+    throw new Error('Marketing, returns and overhead allocations must be between 0 and 100%.');
+  }
   const hasLabourCalculation = sale.labourTimeSpent != null || sale.labourTimeUnit != null || sale.labourRate != null;
   if (hasLabourCalculation && (sale.labourTimeSpent == null || !Number.isFinite(sale.labourTimeSpent) || sale.labourTimeSpent < 0
     || !['hours', 'minutes'].includes(sale.labourTimeUnit ?? '') || sale.labourRate == null
@@ -169,6 +183,9 @@ const saleColumns = (sale: SellerSaleInput) => {
     shipping_cost: sale.shippingCost,
     gateway_fee_percent: sale.gatewayFeePercent,
     gateway_fee_gst_percent: sale.gatewayFeeGstPercent,
+    ...(sale.marketingPercent === undefined ? {} : { marketing_percent: sale.marketingPercent }),
+    ...(sale.returnsReservePercent === undefined ? {} : { returns_reserve_percent: sale.returnsReservePercent }),
+    ...(sale.overheadPercent === undefined ? {} : { overhead_percent: sale.overheadPercent }),
     notes: sale.notes.trim(),
   };
 };

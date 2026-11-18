@@ -47,6 +47,9 @@ interface SaleDraft {
   shippingCost: string;
   gatewayFeePercent: string;
   gatewayFeeGstPercent: string;
+  marketingPercent: string;
+  returnsReservePercent: string;
+  overheadPercent: string;
   notes: string;
 }
 
@@ -70,6 +73,9 @@ const blankDraft = (): SaleDraft => ({
   shippingCost: '',
   gatewayFeePercent: '0',
   gatewayFeeGstPercent: '18',
+  marketingPercent: String(DEFAULT_PRICE_DISCOVERY_DEFAULTS.marketingPercent),
+  returnsReservePercent: String(DEFAULT_PRICE_DISCOVERY_DEFAULTS.returnsReservePercent),
+  overheadPercent: String(DEFAULT_PRICE_DISCOVERY_DEFAULTS.overheadPercent),
   notes: '',
 });
 
@@ -91,6 +97,9 @@ const saleToDraft = (sale: SellerSale): SaleDraft => ({
   shippingCost: String(sale.shippingCost),
   gatewayFeePercent: String(sale.gatewayFeePercent),
   gatewayFeeGstPercent: String(sale.gatewayFeeGstPercent),
+  marketingPercent: String(sale.marketingPercent ?? 0),
+  returnsReservePercent: String(sale.returnsReservePercent ?? 0),
+  overheadPercent: String(sale.overheadPercent ?? 0),
   notes: sale.notes,
 });
 
@@ -103,6 +112,11 @@ const parseAmount = (value: string, label: string) => {
 };
 
 const toSaleInput = (draft: SaleDraft): SellerSaleInput => {
+  const allocation = (value: string, label: string) => {
+    const percent = parseAmount(value, label);
+    if (percent > 100) throw new Error(`${label} cannot exceed 100%.`);
+    return percent;
+  };
   const calculatedLabour = draft.labourTimeSpent.trim() ? calculateLabourCost({
     timeSpent: draft.labourTimeSpent, timeUnit: draft.labourTimeUnit, labourRate: draft.labourRate,
   }) : null;
@@ -132,6 +146,9 @@ const toSaleInput = (draft: SaleDraft): SellerSaleInput => {
     shippingCost: parseAmount(draft.shippingCost, 'Shipping cost for this sale'),
     gatewayFeePercent: parseAmount(draft.gatewayFeePercent, 'Payment fee rate'),
     gatewayFeeGstPercent: parseAmount(draft.gatewayFeeGstPercent, 'GST on payment fee'),
+    marketingPercent: allocation(draft.marketingPercent, 'Marketing allocation'),
+    returnsReservePercent: allocation(draft.returnsReservePercent, 'Returns / damage allocation'),
+    overheadPercent: allocation(draft.overheadPercent, 'Overhead allocation'),
     notes: draft.notes,
   };
 };
@@ -312,7 +329,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
     setMessage(null);
     try {
       const input = editingId || draft.productName.trim() || draft.productId || draft.unitPrice.trim() || !orderItems.length
-        ? toSaleInput({ ...draft,packagingCost: '0',shippingCost: '0' }) : null;
+        ? toSaleInput(editingId ? draft : { ...draft,packagingCost: '0',shippingCost: '0' }) : null;
       if (editingId && input) {
         await updateSellerSale(editingId,input);
       } else {
@@ -612,6 +629,28 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
               />
             </label>
           ))}
+          <div className="sm:col-span-2 lg:col-span-3">
+            <h4 className="font-semibold text-cocoa">Planning allocations for this sale</h4>
+            <p className="mt-1 text-xs text-cocoa/65">
+              Percentages of this sale&apos;s revenue excluding GST. Set 0% to disable an allocation.
+              These reduce profit after allocations, not profit after actual business expenses.
+              They are reserves, not recorded spending or actual CAC.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {([
+                ['marketingPercent', 'Marketing allocation (%)'],
+                ['returnsReservePercent', 'Returns / damage allocation (%)'],
+                ['overheadPercent', 'Overhead allocation (%)'],
+              ] as const).map(([field, label]) => (
+                <label key={field} className="text-sm font-semibold text-cocoa">
+                  {label}
+                  <input aria-label={label} type="number" min="0" max="100" step="0.01"
+                    value={draft[field]} onChange={event => updateDraft({ [field]: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-mustard/60 bg-white px-3 py-2" />
+                </label>
+              ))}
+            </div>
+          </div>
           <label className="text-sm font-semibold text-cocoa sm:col-span-2 lg:col-span-3">
             Notes (optional)
             <textarea
@@ -769,6 +808,11 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           </article>
         ))}
       </div>
+      <div className="mt-3 rounded-xl bg-cream/70 p-3 text-sm text-cocoa">
+        <p>Planning allocations: marketing {formatINR(summary.marketingAllocation)} · returns / damage {formatINR(summary.returnsAllocation)} · overhead {formatINR(summary.overheadAllocation)}</p>
+        <p className="mt-1 font-semibold">Profit after allocations: {formatINR(summary.profitAfterAllocations)} · {formatMargin(summary.marginAfterAllocations)}</p>
+        <p className="mt-1 text-xs text-cocoa/65">Planning view before actual business expenses. The actual-expense view below does not deduct these reserves again.</p>
+      </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <article className="rounded-xl bg-cream/70 p-3">
           <p className="text-xs font-semibold text-cocoa/60">Business expenses</p>
@@ -885,6 +929,10 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
                   <p><span className="text-cocoa/60">Costs + fees</span><br /><strong>{formatINR(financials.costs + financials.gatewayFee)}</strong></p>
                   <p><MarginLabel margin={financials.marginPercent} className="inline-block"><span>Est. profit · margin</span><br /><strong>{formatINR(financials.profit)} · {formatMargin(financials.marginPercent)}</strong></MarginLabel></p>
                 </div>
+                <p className="mt-2 text-xs text-cocoa/70">
+                  Planning allocations: marketing {formatINR(financials.marketingAllocation)} · returns / damage {formatINR(financials.returnsAllocation)} · overhead {formatINR(financials.overheadAllocation)}.
+                  {' '}Profit after allocations: {formatINR(financials.profitAfterAllocations)} · {formatMargin(financials.marginAfterAllocations)} (before actual business expenses).
+                </p>
                 {deleting && (
                   <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">
                     <p>Delete this sale record? Its amounts will be removed from your monthly totals.</p>

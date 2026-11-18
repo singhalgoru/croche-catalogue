@@ -23,6 +23,37 @@ const sale: SellerSale = {
 };
 
 describe('seller sales profit calculations', () => {
+  it('calculates independent allocations on revenue excluding GST without changing sale costs or profit', () => {
+    const planned = calculateSaleFinancials({
+      ...sale, marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5,
+    });
+    expect(planned).toMatchObject({
+      marketingAllocation: 30, returnsAllocation: 8, overheadAllocation: 10, allocations: 48,
+      costs: 100,
+    });
+    expect(planned.profit).toBeCloseTo(95.044);
+    expect(planned.profitAfterAllocations).toBeCloseTo(47.044);
+    expect(planned.marginAfterAllocations).toBeCloseTo(23.522);
+    const disabled = calculateSaleFinancials({
+      ...sale, marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5,
+    });
+    expect(disabled.allocations).toBe(18);
+    expect(disabled.profitAfterAllocations).toBeCloseTo(planned.profitAfterAllocations + 30);
+    expect(calculateSaleFinancials(sale).profitAfterAllocations).toBeCloseTo(planned.profit);
+  });
+
+  it('weights different sale allocations and shared-order revenue exactly once', () => {
+    const order = { id: 'order', reference: 'LUV-1', paymentOrderId: null, packagingCost: 30,
+      shippingCost: 100, shippingCollected: 50, shippingSource: 'manual' as const, itemRevenue: 315 };
+    const first = { ...sale, order, marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5 };
+    const second = { ...first, id: 'second', quantity: 1, marketingPercent: 0 };
+    const total = summarizeSellerSales([first, second]);
+    expect(total.marketingAllocation).toBeCloseTo((210 + 50 * 2 / 3) / 1.05 * 0.15);
+    expect(total.returnsAllocation).toBeCloseTo(365 / 1.05 * 0.04);
+    expect(total.overheadAllocation).toBeCloseTo(365 / 1.05 * 0.05);
+    expect(total.profitAfterAllocations).toBeCloseTo(total.profit - total.allocations);
+    expect(total.marginAfterAllocations).toBeCloseTo(total.profitAfterAllocations / (365 / 1.05) * 100);
+  });
   it('counts one multi-product order and allocates shared costs and shipping collected exactly once', () => {
     const order = { id: 'order',reference: 'LUV-1',paymentOrderId: 'payment',packagingCost: 30,shippingCost: 100,
       shippingCollected: 50,shippingSource: 'courier' as const,itemRevenue: 315 };

@@ -38,6 +38,33 @@ test('gift guide is reachable from navigation and links to current gift collecti
   await expect(page.getByRole('heading', { level: 1, name: 'Explore our handmade collections' })).toBeVisible();
 });
 
+test('every gift guide content link reaches its page or specific section', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto(storeContent.giftGuide.path);
+  await expect(page.locator('main article a')).toHaveCount(11);
+  const links = await page.locator('main article a').evaluateAll(nodes =>
+    nodes.map(node => ({ label: node.textContent!.trim(), href: node.getAttribute('href')! })));
+  for (const link of links) {
+    await page.goto(storeContent.giftGuide.path);
+    const destination = new URL(link.href, page.url());
+    await page.locator('main article').getByRole('link', { name: link.label, exact: true }).click();
+    await expect(page).toHaveURL(destination.href);
+    await expect(page.locator('main h1')).toBeVisible();
+    if (destination.hash) {
+      const target = page.locator(destination.hash);
+      await expect(target).toBeInViewport();
+      if (destination.pathname === '/faq/') await expect(target).toHaveJSProperty('open', true);
+      if (destination.hash === '#materials-sizing-care') {
+        await expect(page.locator('#product-care')).toHaveJSProperty('open', true);
+      }
+      await page.reload();
+      await expect(target).toBeInViewport();
+      if (destination.pathname === '/faq/') await expect(target).toHaveJSProperty('open', true);
+    }
+    await expect(page).toHaveURL(destination.href);
+  }
+});
+
 test('initial Collections HTML keeps compact branding and fixed mobile navigation before JavaScript', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   const html = buildContentPages([], '919205907350').get('/collections/')!;

@@ -28,7 +28,7 @@
       {
         "title": "Choosing a crochet toy or a piece for the home",
         "text": "A crochet toy may appeal to someone who collects handmade characters; decor may suit someone who enjoys seasonal styling. For a child, ask Luvia to confirm age suitability, construction and any small or detachable parts before ordering. Do not assume a handmade toy is suitable for a baby. For decor, check size and intended use, and confirm what is included rather than assuming props in a photograph are part of the gift.",
-        "link": { "href": "/faq/", "label": "Check materials, sizing and care guidance" }
+        "link": { "href": "/faq/#materials-sizing-care", "label": "Read materials, sizing and care FAQs" }
       },
       {
         "title": "Set a budget using the final checkout total",
@@ -38,12 +38,12 @@
       {
         "title": "Personal colours, packaging and gift messages",
         "text": "If a favourite colour or a personal detail would make the gift more meaningful, share the product link and your idea with Luvia before ordering. Customisation depends on the design, and the price and dispatch timing must be confirmed. Ask whether gift packaging, a message or direct delivery to the recipient can be arranged; do not assume these options are included.",
-        "link": { "href": "/about/", "label": "Contact Luvia about your gift" }
+        "link": { "href": "/about/#contact-luvia", "label": "Contact Luvia about your gift" }
       },
       {
         "title": "Plan for the occasion, not just the dispatch date",
         "text": "Dispatch is the handover to the courier, not the day a gift reaches its recipient. Check the ordering FAQ for the current India dispatch window and shipping terms, and ask about your destination and occasion date before paying. International gifts require an individual quote; Indian online checkout and its shipping offers do not apply.",
-        "link": { "href": "/faq/", "label": "Read dispatch and delivery information" }
+        "link": { "href": "/faq/#dispatch-delivery", "label": "Read dispatch and delivery information" }
       },
       {
         "title": "Return gifts, team gifts and larger quantities",
@@ -137,6 +137,11 @@
     "Interested in a particular colour or a customised piece? Send the product link and your preferences. Customisation depends on the product and must be confirmed with us, including price and dispatch timing.",
     "Guest checkout is available; creating an account is optional."
   ],
+  "faqAnchors": {
+    "What materials and sizes are used?": "materials-sizing-care",
+    "How should I care for my crochet product?": "product-care",
+    "When will my order be dispatched?": "dispatch-delivery"
+  },
   "questions": [
     ["Are your product images generated using AI?", "Some lifestyle and styled images are generated or enhanced using AI, using photographs of our actual handmade products as references. AI helps illustrate different settings and use cases, such as gifting, styling or hanging a product; it is not how the physical product is made. These images are illustrative and may not reproduce every stitch, colour or proportion exactly. People, backgrounds and props in styled scenes are not necessarily real or included with your order. Please refer to the selected product's description, materials, dimensions and What's included details rather than judging size from a styled scene. Handmade pieces can have small variations, and screen colours can differ. If you would like to see an actual product photograph or clarify a detail before ordering, ask us on WhatsApp."],
     ["How do I place an order?", "Choose the product and variant, add your items to the cart, and save your contact and delivery address. Review your coupon, shipping and total, then pay securely through Razorpay. Your online order is confirmed after payment verification; you do not need to confirm it again on WhatsApp. Guest ordering is available; email signup is optional. Saved delivery details stay with your cart for up to 30 days and are visible to Luvia for order fulfilment. Use WhatsApp for help or assisted ordering if online checkout is unavailable. Adding items or sending a message does not confirm an order."],

@@ -18,6 +18,19 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it.each([
+    ['materials-sizing-care', 'What materials and sizes are used?'],
+    ['dispatch-delivery', 'When will my order be dispatched?'],
+  ])('opens the FAQ section addressed by #%s', (anchor, question) => {
+    window.history.replaceState(null, '', `/faq/#${anchor}`);
+    render(<StorePages {...initial} />);
+    const target = screen.getByText(question).closest('details')!;
+    expect(target.id).toBe(anchor);
+    expect(target.open).toBe(true);
+    if (anchor === 'materials-sizing-care') {
+      expect(screen.getByText('How should I care for my crochet product?').closest('details')!.open).toBe(true);
+    }
+  });
   it.each(['/crochet-gift-guide/', '/crochet-gift-guide'])('renders the gift guide at %s even when catalogue loading fails', pathname => {
     window.history.replaceState(null, '', pathname);
     expect(isStorePage()).toBe(true);

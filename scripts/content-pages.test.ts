@@ -32,7 +32,11 @@ describe('collection and information pages', () => {
       expect([...doc.querySelectorAll('article h2')].map(heading => heading.textContent)).toContain(section.title);
       expect(doc.querySelector('article')?.textContent).toContain(section.text);
       expect(doc.querySelector(`article a[href="${section.link.href}"]`)).toBeTruthy();
-      expect(generated.has(section.link.href)).toBe(true);
+      const destination = new URL(section.link.href, 'https://luviacreations.com');
+      expect(generated.has(destination.pathname)).toBe(true);
+      if (destination.hash) {
+        expect(new JSDOM(generated.get(destination.pathname)).window.document.getElementById(destination.hash.slice(1))).not.toBeNull();
+      }
     }
     expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${guide.path}`);
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
