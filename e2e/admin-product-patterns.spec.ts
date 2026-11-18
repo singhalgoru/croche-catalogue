@@ -2,11 +2,14 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { extractRawText } from 'mammoth';
+import { convertToHtml, extractRawText } from 'mammoth';
+import { Document, Packer, Paragraph, Table, TableCell, TableRow } from 'docx';
 import { installMockSupabase } from './mockSupabase';
 
-for (const language of ['en', 'hi'] as const) {
-test(`admin attaches a private editable pattern and emails only a protected PDF (${language})`, async ({ page }, testInfo) => {
+for (const { language, merged } of [
+  { language: 'en', merged: false }, { language: 'hi', merged: false }, { language: 'en', merged: true },
+] as const) {
+test(`admin attaches a private editable pattern and emails only a protected PDF (${language}${merged ? ', merged headings' : ''})`, async ({ page }, testInfo) => {
   test.setTimeout(90000);
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -17,6 +20,20 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   const product = state.products[0];
   if (language === 'en') product.sku = 'LUV-000001';
   const document = readFileSync(join('public', 'templates', 'Luvia_Standard_Crochet_Pattern_v4.docx'));
+  const sourceDocument = merged ? await Packer.toBuffer(new Document({ sections: [{ children: [
+    new Paragraph('Pattern ID: OLD-PATTERN-ID'), new Paragraph('Prepared by: Other company'),
+    new Table({ rows: [
+      new TableRow({ children: ['Round', 'Instructions', 'Count'].map(text =>
+        new TableCell({ children: [new Paragraph(text)] })) }),
+      new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph('Centre - Yellow')] })] }),
+      new TableRow({ children: ['R1', 'Work into the ring.', '10 hdc'].map(text =>
+        new TableCell({ children: [new Paragraph(text)] })) }),
+      new TableRow({ children: [
+        new TableCell({ columnSpan: 2, children: [new Paragraph('Petal rounds')] }),
+        new TableCell({ children: [new Paragraph('8 petals')] }),
+      ] }),
+    ] }),
+  ] }] })) : document;
   let pattern: { revision: string; filename: string; size: number; pdf_filename: string; pdf_size: number;
     language: string; updated_at: string } | null = null;
   let attachment = '';
@@ -68,7 +85,7 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
       'कमल का फूल\nपैटर्न ID: OLD-PATTERN-ID\nतैयार किया: Other company\nR1: 5 चेन बनाएं।\nR2: 16 hdc बनाएं।');
   } else {
     await dialog.getByLabel('Choose Word pattern (.docx, up to 2 MB)').setInputFiles({
-      name: 'Completed_Lotus.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: document,
+      name: 'Completed_Lotus.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: sourceDocument,
     });
   }
   await dialog.getByRole('button', { name: 'Prepare and attach pattern documents' }).click();
@@ -85,6 +102,13 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   expect(wordText).not.toContain('Assigned automatically during admin preparation');
   expect(wordText).not.toContain('Other company');
   expect(wordText).not.toContain('OLD-PATTERN-ID');
+  if (merged) {
+    const { value: wordHtml } = await convertToHtml({ buffer: Buffer.from(attachment, 'base64') });
+    expect(wordHtml).toContain('<td colspan="3"><p>Centre - Yellow</p></td>');
+    expect(wordHtml).toContain('<td colspan="2"><p>Petal rounds</p></td>');
+    expect(wordText).toContain('10 hdc');
+    expect(wordText).toContain('8 petals');
+  }
   await download.saveAs(testInfo.outputPath(`prepared-${language}.docx`));
   const pdfDownloadEvent = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Review / download protected PDF' }).click();

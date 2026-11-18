@@ -52,7 +52,7 @@ function PatternDialog({ product, onClose }: { product: PatternProduct; onClose:
   const action = async (work: () => Promise<void>) => {
     setBusy(true); setError(''); setNotice('');
     try { await work(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Pattern action failed.'); }
+    catch (reason) { setNotice(''); setError(reason instanceof Error ? reason.message : 'Pattern action failed.'); }
     finally { setBusy(false); }
   };
   const resetEmail = () => { emailRequest.current = crypto.randomUUID(); setConfirmed(false); };
@@ -130,7 +130,8 @@ function PatternDialog({ product, onClose }: { product: PatternProduct; onClose:
         </label>}
         {source === 'upload' && file && <p className="break-all text-sm">Selected: {file.name}</p>}
         <p className="text-sm">Imported content is reformatted into the standard layout. Check both documents before sharing,
-          especially tables and diagrams. Only the PDF is emailed; the editable Word master stays private.
+          especially tables and diagrams. Horizontal merged table headings are supported; unmerge vertical cells before importing.
+          Only the PDF is emailed; the editable Word master stays private.
           PDF permissions allow printing and restrict copying/editing in compliant readers, but cannot prevent screenshots,
           OCR, printing to another PDF or tools that ignore permissions.</p>
         <button type="button" className={buttonClass} disabled={source === 'upload' ? !file : !instructions.trim()}

@@ -7,8 +7,9 @@ import { Buffer } from 'buffer';
 
 export type PatternLanguage = 'en' | 'hi';
 export type PatternProduct = Pick<Product, 'id' | 'name' | 'image' | 'publicSlug' | 'sku'>;
+type PatternTableCell = { text: string; columnSpan: number };
 type Block = { kind: 'text' | 'heading'; text: string }
-  | { kind: 'table'; rows: string[][] } | { kind: 'image'; data: string };
+  | { kind: 'table'; rows: PatternTableCell[][] } | { kind: 'image'; data: string };
 export interface PreparedPattern { word: File; pdf: File; warnings: string[] }
 export const patternLabels = {
   en: {
@@ -80,10 +81,18 @@ export function patternBlocks(html: string, product?: PatternProduct): Block[] {
   function visit(element: Element) {
     if (element.tagName === 'TABLE') {
       if (element.querySelector('img,table')) throw new Error('Move nested tables or images out of table cells before preparing the pattern.');
-      const rows = [...element.querySelectorAll('tr')].map(row => [...row.querySelectorAll('th,td')].map(cell => cell.textContent ?? ''));
-      if (rows.some(row => row.length !== rows[0]?.length)) throw new Error('Use a regular table without merged cells in the pattern.');
+      const rows = [...element.querySelectorAll('tr')].map(row => [...row.querySelectorAll<HTMLTableCellElement>('th,td')].map(cell => {
+        if (cell.rowSpan !== 1) throw new Error('Unmerge vertically merged table cells before preparing the pattern. Horizontal merged headings are supported.');
+        return { text: cell.textContent ?? '', columnSpan: cell.colSpan };
+      }));
+      const columns = rows[0]?.reduce((total, cell) => total + cell.columnSpan, 0);
+      if (rows.some(row => !row.length || row.reduce((total, cell) => total + cell.columnSpan, 0) !== columns)) {
+        throw new Error('Use table rows with the same total number of columns in the pattern.');
+      }
       if (product) for (const row of rows) {
-        if (row.length === 2) row[1] = patternControlValue(row[0]!, row[1]!, product);
+        if (row.length === 2 && row.every(cell => cell.columnSpan === 1)) {
+          row[1]!.text = patternControlValue(row[0]!.text, row[1]!.text, product);
+        }
       }
       if (rows.length) blocks.push({ kind: 'table', rows });
     } else if (['P', 'H1', 'H2', 'H3', 'H4', 'LI'].includes(element.tagName)) {
@@ -187,11 +196,16 @@ export async function preparePatternDocuments(product: PatternProduct, language:
   for (const block of blocks) {
     if (block.kind === 'table') {
       children.push(new docx.Table({ width: { size: 100, type: docx.WidthType.PERCENTAGE },
-        rows: block.rows.map((row, index) => new docx.TableRow({ children: row.map(text => new docx.TableCell({
+        rows: block.rows.map((row, index) => new docx.TableRow({ children: row.map(({ text, columnSpan }) => new docx.TableCell({
+          columnSpan,
           shading: { fill: index === 0 ? 'F6C453' : 'FFFAF0' }, children: [paragraph(text, index === 0)],
         })) })) }));
-      pdfContent.push({ table: { headerRows: 1, widths: block.rows[0]!.map(() => '*'),
-        body: block.rows.map((row, index) => row.map(text => ({ text, fillColor: index === 0 ? '#f6c453' : '#fffaf0' }))) },
+      const columns = block.rows[0]!.reduce((total, cell) => total + cell.columnSpan, 0);
+      pdfContent.push({ table: { headerRows: 1, widths: Array.from({ length: columns }, () => '*'),
+        body: block.rows.map((row, index) => row.flatMap(({ text, columnSpan }) => [
+          { text, colSpan: columnSpan, fillColor: index === 0 ? '#f6c453' : '#fffaf0' },
+          ...Array.from({ length: columnSpan - 1 }, () => ({})),
+        ])) },
         margin: [0, 6, 0, 10] });
     } else if (block.kind === 'image') {
       const image = await imageData(block.data);

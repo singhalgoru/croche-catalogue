@@ -66,6 +66,22 @@ it('shows load failures with retry and does not show a false empty pattern', asy
   fireEvent.click(screen.getByRole('button', { name: 'Refresh pattern and email status' }));
   await screen.findByText('Lotus.docx');
 });
+it('clears reading progress and does not upload or email after a document preparation failure', async () => {
+  vi.mocked(preparePatternDocuments).mockImplementationOnce(async (_product, _language, _input, onProgress) => {
+    onProgress?.('Reading pattern instructions…');
+    throw new Error('Unmerge vertically merged table cells before preparing the pattern.');
+  });
+  await open();
+  fireEvent.change(screen.getByLabelText('Choose Word pattern (.docx, up to 2 MB)'), {
+    target: { files: [new File(['x'.repeat(200)], 'Merged.docx')] },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare and replace pattern documents' }));
+  await screen.findByRole('alert');
+  expect(screen.getByRole('alert').textContent).toContain('Unmerge vertically merged table cells');
+  expect(screen.queryByText('Reading pattern instructions…')).toBeNull();
+  expect(uploadProductPattern).not.toHaveBeenCalled();
+  expect(queuePatternEmail).not.toHaveBeenCalled();
+});
 it('authors Hindi instructions in admin and prepares Hindi Word/PDF documents without sending email', async () => {
   await open();
   fireEvent.change(screen.getByLabelText('Document language'), { target: { value: 'hi' } });
