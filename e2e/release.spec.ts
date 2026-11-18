@@ -519,7 +519,7 @@ test('product labour overrides and optional sale allocations persist independent
     labour_cost: 300, labour_rate: 200, labour_time_spent: 90, labour_time_unit: 'minutes',
     marketing_percent: 0, returns_reserve_percent: 4, overhead_percent: 5,
   })] });
-  await expect(page.getByTestId('sale-record-allocation-sale').getByText(/Profit after allocations:/)).toBeVisible();
+  await expect(page.getByTestId('sale-record-allocation-sale').getByText('Est. profit · margin (after allocations)', { exact: true })).toBeVisible();
   expect(pricing.labour_rate).toBe(180);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

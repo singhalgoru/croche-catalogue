@@ -63,7 +63,7 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                 <h4 className="font-heading text-lg font-bold text-cocoa">{label}</h4>
                 <dl className="mt-3 grid gap-3 lg:grid-cols-2">
                   {([
-                    ['Estimated sales profit', 'Margin before business expenses', totals.profit, totals.marginPercent],
+                    ['Estimated sales profit', 'Margin before business expenses', totals.profitAfterAllocations, totals.marginAfterAllocations],
                     ['Profit after business expenses', 'Margin after business expenses', totals.profitAfterOverheads, totals.marginAfterOverheads],
                   ] as const).map(([name, marginLabel, profit, margin]) => (
                     <div key={name} className={`min-w-0 rounded-xl border p-4 ${
@@ -91,6 +91,8 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     ['Labour cost', formatINR(totals.labourCost)],
                     ['Packaging cost', formatINR(totals.packagingCost)],
                     ['Shipping cost', formatINR(totals.shippingCost)],
+                    ['Planning allocations', formatINR(totals.allocations)],
+                    ['Profit before allocations', formatINR(totals.profit)],
                     ['Business expenses', formatINR(totals.overheads)],
                   ].map(([name, value]) => (
                     <div key={name} className="min-w-0">
@@ -104,10 +106,10 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
           </div>
         )}
         <p className="mt-3 text-xs text-cocoa/65">
-          Revenue includes GST. Profit subtracts included GST, sale costs, fees and recorded overheads.
+          Revenue includes GST. Estimated sales profit subtracts included GST, sale costs, fees and saved planning allocations.
           Material, labour and packaging costs include all pieces sold; shipping cost is recorded once per sale.
           Both margins use total revenue before GST, not an average of individual margins.
-          Sales profit is before business expenses; the after-expenses figure deducts recorded overheads.
+          Sales profit is before actual business expenses; the after-expenses figure uses profit before allocations minus recorded expenses, without deducting planning allowances again.
         </p>
         </>}
       </div>

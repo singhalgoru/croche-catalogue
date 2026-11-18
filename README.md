@@ -104,7 +104,9 @@ an India-based handmade crochet brand.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
   Product pricing estimates include configurable marketing, returns and overhead reserves,
   with a default 20% target profit margin; recorded sales and expenses stay separate.
-  Manual sales support optional per-sale allocations and a separate planning-profit view.
+  Headline sale margins include saved marketing, returns and overhead allocations.
+  New manual and paid website sales start with editable 15% / 4% / 5% allocations;
+  previously recorded sales keep their saved rates. Actual business expenses stay separate.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
 - The admin Marketing workspace can show read-only Meta delivery data, reconnect
   Meta, and create AI campaign proposals with model provenance and location

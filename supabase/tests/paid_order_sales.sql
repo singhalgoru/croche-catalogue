@@ -36,6 +36,7 @@ begin
     or ledger.unit_price <> 225 or ledger.variant_name <> '' or ledger.gst_percent <> 12
     or ledger.material_cost <> 40 or ledger.labour_cost <> 150 or ledger.packaging_cost <> 0
     or ledger.shipping_cost <> 0 or ledger.gateway_fee_percent <> 2 or ledger.gateway_fee_gst_percent <> 18
+    or ledger.marketing_percent <> 15 or ledger.returns_reserve_percent <> 4 or ledger.overhead_percent <> 5
     or ledger.sale_date <> (now() at time zone 'Asia/Kolkata')::date
     or ledger.notes not like '%Customer paid ₹50.00 shipping%' then
     raise exception 'Paid line was recorded with wrong values: %', row_to_json(ledger);
@@ -47,14 +48,20 @@ begin
   select s.* into ledger from public.seller_sales s join public.payment_order_items i on i.id = s.payment_order_item_id
   where i.order_id = paid_order and i.product_name = 'Removed Product';
   if ledger.product_id is not null or ledger.unit_price <> 112.5 or ledger.shipping_cost <> 0
-    or ledger.labour_cost <> 0 or ledger.gst_percent <> 5 or ledger.variant_name <> '' then
+    or ledger.labour_cost <> 0 or ledger.gst_percent <> 5 or ledger.variant_name <> ''
+    or ledger.marketing_percent <> 15 or ledger.returns_reserve_percent <> 4 or ledger.overhead_percent <> 5 then
     raise exception 'Second line must take the discount remainder and no extra shipping: %', row_to_json(ledger);
   end if;
 
+  update public.seller_sales set marketing_percent=0,returns_reserve_percent=2,overhead_percent=7 where id=ledger.id;
   update public.payment_orders set fulfilment_status = 'shipped' where id = paid_order;
   update public.payment_orders set status = 'paid' where id = paid_order;
   select count(*) into line_count from public.seller_sales s join public.payment_order_items i on i.id = s.payment_order_item_id where i.order_id = paid_order;
   if line_count <> 2 then raise exception 'Repeated paid updates duplicated sales.'; end if;
+  if not exists(select 1 from public.seller_sales where id=ledger.id
+    and marketing_percent=0 and returns_reserve_percent=2 and overhead_percent=7) then
+    raise exception 'Repeated payment updates replaced edited sale allocations.';
+  end if;
 
   insert into public.payment_orders(reference, request_key, created_by, customer_name, customer_contact, subtotal_paise,
     discount_paise, shipping_paise, total_paise, expires_at, status, is_live_checkout, razorpay_link_id, payment_url)

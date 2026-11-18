@@ -109,6 +109,35 @@ afterEach(() => {
 });
 
 describe('SellerSalesDashboard', () => {
+  it.each([
+    [undefined, undefined, undefined, '₹1,550', '44.3%', '₹1,950'],
+    [0, 0, 0, '₹1,550', '44.3%', '₹1,950'],
+    [15, 4, 5, '₹710', '20.3%', '₹2,790'],
+  ])('uses only saved allocation rates (%s/%s/%s) in headline figures without rewriting sales', async (
+    marketingPercent, returnsReservePercent, overheadPercent, profit, margin, costs,
+  ) => {
+    const saved = { ...sale, saleDate: localDate(), unitPrice: 3500, gstPercent: 0,
+      materialCost: 1950, labourCost: 0, packagingCost: 0, shippingCost: 0,
+      marketingPercent, returnsReservePercent, overheadPercent };
+    const original = structuredClone(saved);
+    vi.mocked(fetchSellerSales).mockResolvedValue([saved]);
+    vi.mocked(fetchBusinessExpenses).mockResolvedValue([{
+      id: 'ads', description: 'Recorded ads', expenseDate: localDate(), amount: 100, category: 'Advertising', notes: '',
+    }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    const record = within(await screen.findByTestId('sale-record-sale-1'));
+    expect(screen.getByText('Estimated sales profit').parentElement?.textContent).toContain(profit);
+    expect(screen.getByText('Profit margin').closest('article')?.textContent).toContain(margin);
+    expect(record.getByText('Est. profit · margin (after allocations)').parentElement?.textContent).toContain(`${profit} · ${margin}`);
+    expect(record.getByText('Costs + fees + allocations').parentElement?.textContent).toContain(costs);
+    expect(record.getByText(/Before allocations:/).textContent).toContain('profit ₹1,550 · margin 44.3%');
+    expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('₹1,450');
+    expect(saved).toEqual(original);
+    expect(updateSellerSale).not.toHaveBeenCalled();
+    expect(createSellerOrder).not.toHaveBeenCalled();
+    expect(createSellerSale).not.toHaveBeenCalled();
+  });
   it('defaults new sale allocations to 15/4/5 and persists independently disabled zero rates', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
@@ -148,6 +177,22 @@ describe('SellerSalesDashboard', () => {
     await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith('planned', expect.objectContaining({
       marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5,
       packagingCost: 8, shippingCost: 60,
+    })));
+  });
+  it('lets an admin edit allocations on an existing online sale without changing its channel', async () => {
+    vi.mocked(fetchSellerSales).mockResolvedValue([{
+      ...sale, saleDate: localDate(), channel: 'online',
+      marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5,
+    }]);
+    render(<SellerSalesDashboard refreshKey={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
+    fireEvent.click(within(await screen.findByTestId('sale-record-sale-1')).getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Marketing allocation (%)'), { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText('Returns / damage allocation (%)'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Overhead allocation (%)'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save sale changes' }));
+    await waitFor(() => expect(updateSellerSale).toHaveBeenCalledWith('sale-1', expect.objectContaining({
+      channel: 'online', marketingPercent: 0, returnsReservePercent: 2, overheadPercent: 7,
     })));
   });
   it('uses the saved product labour rate and persists a sale-only override with its time', async () => {
@@ -378,8 +423,8 @@ describe('SellerSalesDashboard', () => {
   });
 
   it.each([
-    [80, 'text-green-800'],
-    [80.01, 'text-red-800'],
+    [56, 'text-green-800'],
+    [56.01, 'text-red-800'],
   ])('colors monthly and individual sale margins with cost %s', async (materialCost, color) => {
     vi.mocked(fetchSellerSales).mockResolvedValue([{
       ...sale,
@@ -390,12 +435,15 @@ describe('SellerSalesDashboard', () => {
       labourCost: 0,
       packagingCost: 0,
       shippingCost: 0,
+      marketingPercent: 15,
+      returnsReservePercent: 4,
+      overheadPercent: 5,
     }]);
     render(<SellerSalesDashboard refreshKey={0} />);
     fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     await waitFor(() => {
       expect(screen.getByText('Profit margin').parentElement?.className).toContain(color);
-      expect(screen.getByText('Est. profit · margin').parentElement?.className).toContain(color);
+      expect(screen.getByText('Est. profit · margin (after allocations)').parentElement?.className).toContain(color);
     });
   });
 

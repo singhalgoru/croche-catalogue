@@ -31,13 +31,14 @@ export default function SellerOrderSummary({ sales, onChanged }: { sales: Seller
   return <header className="rounded-xl bg-cream/80 p-4" aria-label={`Order ${order.reference}`}>
     <h4 className="font-heading text-lg font-bold">Order {order.reference}</h4>
     <p className="mt-1 text-sm">{sales.length} product lines · {totals.piecesSold} pieces · Revenue {formatINR(totals.revenue)}</p>
-    <MarginLabel margin={totals.marginPercent} className="mt-2 inline-block">
-      <span>Estimated order profit: {formatINR(totals.profit)} · margin {totals.marginPercent === null ? '—' : `${totals.marginPercent.toFixed(1)}%`}</span>
+    <MarginLabel margin={totals.marginAfterAllocations} className="mt-2 inline-block">
+      <span>Estimated order profit: {formatINR(totals.profitAfterAllocations)} · margin {totals.marginAfterAllocations === null ? '—' : `${totals.marginAfterAllocations.toFixed(1)}%`} (after allocations)</span>
     </MarginLabel>
+    <p className="mt-1 text-xs text-cocoa/70">Before allocations: profit {formatINR(totals.profit)} · margin {totals.marginPercent === null ? '—' : `${totals.marginPercent.toFixed(1)}%`}.</p>
     <p className="mt-2 text-sm">Whole-order packaging {formatINR(order.packagingCost)} · shipping {formatINR(order.shippingCost)}
       {' '}({order.shippingSource === 'courier' ? 'approved booked courier' : order.shippingSource === 'estimate' ? 'provisional; enter actual cost or book a courier' : 'manual'})
       {' '}· Customer shipping collected {formatINR(order.shippingCollected)}</p>
-    <p className="mt-1 text-xs text-cocoa/70">Shipping and packaging are charged once per order. Item shipping and packaging are zero; item profit includes a revenue-weighted share of order costs and shipping collected. Verify the saved packaging estimate for the actual parcel. Estimates exclude monthly overheads and later adjustments.</p>
+    <p className="mt-1 text-xs text-cocoa/70">Shipping and packaging are charged once per order. Item shipping and packaging are zero; item profit includes a revenue-weighted share of order costs and shipping collected. Verify the saved packaging estimate for the actual parcel. Estimated profit includes saved planning allocations but excludes actual business expenses and later adjustments.</p>
     <details className="mt-3">
       <summary className="cursor-pointer text-sm font-semibold">Edit whole-order costs</summary>
       <form className="mt-2 flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); void save(); }}>

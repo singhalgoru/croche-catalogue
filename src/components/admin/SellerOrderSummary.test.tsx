@@ -11,6 +11,17 @@ const sale: SellerSale = {
   order: { id: 'order',reference: 'LUV-1',paymentOrderId: 'payment',packagingCost: 30,shippingCost: 100,
     shippingCollected: 0,shippingSource: 'courier',itemRevenue: 400 },
 };
+it('shows allocation-inclusive order profit while preserving saved sale data', () => {
+  const saved = { ...sale, quantity: 1, unitPrice: 3500, materialCost: 1950, labourCost: 0,
+    marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5,
+    order: { ...sale.order!, packagingCost: 0, shippingCost: 0, itemRevenue: 3500 } };
+  const original = structuredClone(saved);
+  render(<SellerOrderSummary sales={[saved]} onChanged={vi.fn()} />);
+  expect(screen.getByText(/Estimated order profit:/).textContent).toContain('₹710 · margin 20.3% (after allocations)');
+  expect(screen.getByText(/Before allocations:/).textContent).toContain('profit ₹1,550 · margin 44.3%');
+  expect(saved).toEqual(original);
+  expect(saveSellerOrderCosts).not.toHaveBeenCalled();
+});
 it('shows total multi-product order margin, persists a manual override once and refreshes',async () => {
   const refresh = vi.fn().mockResolvedValue(undefined);
   render(<SellerOrderSummary sales={[sale,{ ...sale,id: 'second' }]} onChanged={refresh} />);

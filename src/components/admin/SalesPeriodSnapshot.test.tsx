@@ -68,15 +68,18 @@ describe('SalesPeriodSnapshot', () => {
       channel: 'offline', quantity: 2, unitPrice: 105, gstPercent: 5,
       materialCost: 20, labourCost: 10, packagingCost: 5, shippingCost: 10,
       gatewayFeePercent: 0, gatewayFeeGstPercent: 18, notes: '', createdAt: '',
+      marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5,
     };
     render(<SalesPeriodSnapshot sales={[sale]} expenses={[{ ...expense, amount: 150 }]} available initiallyExpanded />);
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     const annual = within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }));
-    expect(annual.getByText('Estimated sales profit').parentElement?.querySelector('dd')?.textContent).toBe('₹120');
+    expect(annual.getByText('Estimated sales profit').parentElement?.querySelector('dd')?.textContent).toBe('₹72');
+    expect(annual.getByText('Profit before allocations').parentElement?.querySelector('dd')?.textContent).toBe('₹120');
+    expect(annual.getByText('Planning allocations').parentElement?.querySelector('dd')?.textContent).toBe('₹48');
     const net = annual.getByText('Profit after business expenses').parentElement;
     expect(net?.querySelector('dd')?.textContent).toBe('-₹30');
     expect(net?.className).toContain('bg-red-50');
-    expect(annual.getByText('Margin before business expenses: 60.0%')).toBeTruthy();
+    expect(annual.getByText('Margin before business expenses: 36.0%')).toBeTruthy();
     expect(annual.getByText('Margin after business expenses: -15.0%')).toBeTruthy();
   });
 });

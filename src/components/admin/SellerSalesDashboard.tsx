@@ -787,14 +787,14 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
         {[
           ['Sales revenue', formatINR(summary.revenue), 'GST-inclusive'],
-          ['Estimated sales profit', formatINR(summary.profit), 'After GST, fees and sale costs; before overheads'],
-          ['Profit margin', formatMargin(summary.marginPercent), 'On revenue before GST'],
+          ['Estimated sales profit', formatINR(summary.profitAfterAllocations), 'After sale costs, fees and saved planning allocations; before actual business expenses'],
+          ['Profit margin', formatMargin(summary.marginAfterAllocations), 'After allocations, on revenue before GST'],
           ['Sales / pieces', `${summary.salesCount} / ${summary.piecesSold}`, 'Transactions / units'],
           ['GST collected', formatINR(summary.gst), 'Calculated from recorded GST rate'],
         ].map(([label, value, description]) => (
           <article key={label} className="rounded-xl bg-cream/70 p-3">
             {label === 'Profit margin' ? (
-              <MarginLabel margin={summary.marginPercent} className="block">
+              <MarginLabel margin={summary.marginAfterAllocations} className="block">
                 <span className="block text-xs font-semibold">{label}</span>
                 <span className="mt-1 block font-heading text-xl font-bold">{value}</span>
               </MarginLabel>
@@ -810,7 +810,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
       </div>
       <div className="mt-3 rounded-xl bg-cream/70 p-3 text-sm text-cocoa">
         <p>Planning allocations: marketing {formatINR(summary.marketingAllocation)} · returns / damage {formatINR(summary.returnsAllocation)} · overhead {formatINR(summary.overheadAllocation)}</p>
-        <p className="mt-1 font-semibold">Profit after allocations: {formatINR(summary.profitAfterAllocations)} · {formatMargin(summary.marginAfterAllocations)}</p>
+        <p className="mt-1">Profit before allocations: {formatINR(summary.profit)} · {formatMargin(summary.marginPercent)}</p>
         <p className="mt-1 text-xs text-cocoa/65">Planning view before actual business expenses. The actual-expense view below does not deduct these reserves again.</p>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -824,7 +824,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           <p className={`mt-1 font-heading text-xl font-bold ${financialsLoaded && profitAfterOverheads < 0 ? 'text-red-800' : 'text-cocoa'}`}>
             {financialsLoaded ? formatINR(profitAfterOverheads) : '—'}
           </p>
-          <p className="mt-1 text-xs text-cocoa/55">Estimated sales profit minus monthly overheads</p>
+          <p className="mt-1 text-xs text-cocoa/55">Profit before allocations minus recorded business expenses; planning allowances are not deducted again</p>
         </article>
         <article className="rounded-xl bg-cream/70 p-3">
           <MarginLabel margin={financialsLoaded ? marginAfterOverheads : null} className="block">
@@ -926,12 +926,12 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
                 <div className="mt-3 grid grid-cols-2 gap-2 border-t border-cocoa/10 pt-3 text-sm sm:grid-cols-4">
                   <p><span className="text-cocoa/60">Revenue</span><br /><strong>{formatINR(financials.revenue)}</strong></p>
                   <p><span className="text-cocoa/60">GST</span><br /><strong>{formatINR(financials.gst)}</strong></p>
-                  <p><span className="text-cocoa/60">Costs + fees</span><br /><strong>{formatINR(financials.costs + financials.gatewayFee)}</strong></p>
-                  <p><MarginLabel margin={financials.marginPercent} className="inline-block"><span>Est. profit · margin</span><br /><strong>{formatINR(financials.profit)} · {formatMargin(financials.marginPercent)}</strong></MarginLabel></p>
+                  <p><span className="text-cocoa/60">Costs + fees + allocations</span><br /><strong>{formatINR(financials.costs + financials.gatewayFee + financials.allocations)}</strong></p>
+                  <p><MarginLabel margin={financials.marginAfterAllocations} className="inline-block"><span>Est. profit · margin (after allocations)</span><br /><strong>{formatINR(financials.profitAfterAllocations)} · {formatMargin(financials.marginAfterAllocations)}</strong></MarginLabel></p>
                 </div>
                 <p className="mt-2 text-xs text-cocoa/70">
                   Planning allocations: marketing {formatINR(financials.marketingAllocation)} · returns / damage {formatINR(financials.returnsAllocation)} · overhead {formatINR(financials.overheadAllocation)}.
-                  {' '}Profit after allocations: {formatINR(financials.profitAfterAllocations)} · {formatMargin(financials.marginAfterAllocations)} (before actual business expenses).
+                  {' '}Before allocations: costs + fees {formatINR(financials.costs + financials.gatewayFee)} · profit {formatINR(financials.profit)} · margin {formatMargin(financials.marginPercent)}. Estimates are before actual business expenses.
                 </p>
                 {deleting && (
                   <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">
