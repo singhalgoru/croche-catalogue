@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendArtisanApplicationEmail, type ArtisanApplicationEmailJob } from '../_shared/artisanApplicationEmail.ts';
+import { isProductPatternEmailJob, sendProductPatternEmail } from '../_shared/productPatternEmail.ts';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   { status, headers: { 'Content-Type': 'application/json' } });
@@ -82,5 +83,32 @@ Deno.serve(async request => {
       if (saveError) console.error('Unable to record artisan email failure:', candidate.id, saveError.message);
     }
   }
+  const { data: patternJobs, error: patternError } = await admin.rpc('claim_product_pattern_emails');
+  if (patternError || !Array.isArray(patternJobs)) {
+    console.error('Unable to claim product pattern emails:', patternError?.message);
+    return json({ accepted, failed, error: 'Unable to claim product pattern emails.' }, 500);
+  }
+  await Promise.all(patternJobs.map(async candidate => {
+    try {
+      if (!isProductPatternEmailJob(candidate)) throw new Error('Invalid queued product pattern email.');
+      const providerId = await sendProductPatternEmail(candidate, apiKey);
+      const { data: saved, error: saveError } = await admin.from('product_pattern_emails')
+        .update({ accepted_at: new Date().toISOString(), provider_id: providerId, last_error: null, content: null })
+        .eq('id', candidate.id).select('id').single();
+      if (saveError || saved?.id !== candidate.id) {
+        throw new Error('Unable to record pattern email acceptance; retry will use the same provider idempotency key.');
+      }
+      accepted++;
+    } catch (failure) {
+      failed++;
+      const message = failure instanceof Error ? failure.message : 'Pattern email failed.';
+      console.error('Product pattern email failed:', isRecord(candidate) ? candidate.id : 'invalid job', message);
+      if (isRecord(candidate) && typeof candidate.id === 'string') {
+        const { error: saveError } = await admin.from('product_pattern_emails')
+          .update({ last_error: message.slice(0, 500) }).eq('id', candidate.id);
+        if (saveError) console.error('Unable to record pattern email failure:', candidate.id, saveError.message);
+      }
+    }
+  }));
   return json({ accepted, failed }, failed ? 502 : 200);
 });

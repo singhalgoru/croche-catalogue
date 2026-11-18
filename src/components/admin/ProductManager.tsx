@@ -15,6 +15,7 @@ import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import ProductVideoManager from './ProductVideoManager';
+import ProductPatternManager from './ProductPatternManager';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import RichTextEditor from './RichTextEditor';
 import { richTextToPlainText } from '../../utils/richText';
@@ -744,6 +745,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                           {copiedId === product.id ? 'Copied!' : 'Copy link'}
                         </button>
                         {product.published && <MarketingSocialPosts initialProduct={product} disabled={isBusy || isAnalyzing} />}
+                        <ProductPatternManager product={product} disabled={isBusy || isAnalyzing} />
                         <button
                           type="button"
                           onClick={() => startEditing(product)}

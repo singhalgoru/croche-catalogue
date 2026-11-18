@@ -78,6 +78,7 @@ const supabasePreconnect = (): Plugin => {
 export default defineConfig({
   // The catalogue is published at the root of luviacreations.com.
   base: '/',
+  resolve: { alias: [{ find: /^buffer$/, replacement: 'buffer/' }] },
   build: {
     // No source maps in the deployed build: the shipped JS should be
     // minified/mangled, not a readable 1:1 copy of the source.
