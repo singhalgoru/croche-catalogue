@@ -34,6 +34,38 @@ const expectNoHorizontalOverflow = async (page: Page) => {
     .toBe(true);
 };
 
+test('admin can copy images with right-click only while the verified console is open', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await page.goto('/');
+  const collections = page.getByRole('navigation', { name: 'Explore collections' });
+  const publicPhoto = collections.locator('img').first();
+  await expect(publicPhoto).toBeVisible();
+  expect(await publicPhoto.evaluate(image =>
+    image.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(false);
+  await signIn(page, 'manage');
+  const product = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: state.products[0].name, exact: true }),
+  });
+  const adminPhoto = product.locator('img').first();
+  await expect(adminPhoto).toBeVisible();
+  expect(await adminPhoto.evaluate(image =>
+    image.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(true);
+  expect(await page.evaluate(() => {
+    const image = document.createElement('img');
+    document.body.append(image);
+    const allowed = image.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    image.remove();
+    return allowed;
+  })).toBe(true);
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toHaveAttribute('data-allow-media-save');
+  await page.goto('/');
+  await expect(publicPhoto).toBeVisible();
+  expect(await publicPhoto.evaluate(image =>
+    image.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(false);
+});
+
 test('admin reviews a mixed Instagram replacement without changing the original post', async ({ page }) => {
   const state = await installMockSupabase(page);
   const item = state.products[0];

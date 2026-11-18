@@ -72,6 +72,16 @@ export default function AdminPage({ onProductPublished }: Props) {
   const verified = adminCheck?.userId === sessionUserId && adminCheck?.verified === true;
 
   useEffect(() => {
+    if (!isAdmin || !verified || adminCheck?.locked) return;
+    const previous = document.body.getAttribute('data-allow-media-save');
+    document.body.setAttribute('data-allow-media-save', '');
+    return () => {
+      if (previous === null) document.body.removeAttribute('data-allow-media-save');
+      else document.body.setAttribute('data-allow-media-save', previous);
+    };
+  }, [isAdmin, verified, adminCheck?.locked]);
+
+  useEffect(() => {
     if (!supabase) return;
 
     const client = supabase;

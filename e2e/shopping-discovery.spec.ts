@@ -89,6 +89,40 @@ test('dedicated bestsellers reports ranking failures and supports retry instead 
   await expect(page.getByText('Unable to load the latest bestsellers. Please try again.')).toHaveCount(0);
 });
 
+test('seasonal collection cards match neighbouring card and label heights when names wrap', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const longName = 'Handmade Gifts for Every Celebration';
+  state.products[0].category = longName;
+  state.products[1].category = 'Brooches';
+  state.categories.push('Winter Special', longName, 'Brooches');
+  state.categorySettings['Winter Special'] = { priority: 1, isSeasonal: true, productIds: [state.products[0].id] };
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const collections = page.getByRole('navigation', { name: 'Explore collections' });
+  await expect(collections.getByRole('link', { name: longName, exact: true })).toBeVisible();
+  const viewport = page.viewportSize()!;
+  for (const width of viewport.width < 640 ? [320, 393, 430] : [1280]) {
+    await page.setViewportSize({ width, height: viewport.height });
+    await page.evaluate(() => document.fonts.ready);
+    const cards = await collections.locator('a:not([aria-hidden="true"])').evaluateAll(links => links.map(link => {
+      const card = link.getBoundingClientRect();
+      const image = link.querySelector('img')!.getBoundingClientRect();
+      const label = link.querySelector('span')!;
+      return { height: card.height, bottom: card.bottom, labelHeight: label.getBoundingClientRect().height,
+        imageHeight: image.height, imageWidth: image.width, textFits: label.scrollHeight <= label.clientHeight };
+    }));
+    expect(cards.length).toBeGreaterThanOrEqual(3);
+    for (const metric of ['height', 'bottom', 'labelHeight', 'imageHeight'] as const) {
+      const values = cards.map(card => card[metric]);
+      expect(Math.max(...values) - Math.min(...values), `${metric} at ${width}px`).toBeLessThan(1);
+    }
+    for (const card of cards) {
+      expect(Math.abs(card.imageHeight - card.imageWidth)).toBeLessThan(1);
+      expect(card.textFits).toBe(true);
+    }
+  }
+});
+
 test('homepage collections auto-rotate in a compact carousel above bestsellers and the catalogue', async ({ page }) => {
   const state = await installMockSupabase(page);
   for (const product of state.products.slice(0, 2)) {
@@ -109,7 +143,7 @@ test('homepage collections auto-rotate in a compact carousel above bestsellers a
   const bestsellers = page.getByRole('region', { name: 'Bestsellers' });
   await expect(bestsellers).toBeVisible();
   expect((await collections.boundingBox())!.y).toBeLessThan((await bestsellers.boundingBox())!.y);
-  expect((await page.getByRole('searchbox').boundingBox())!.y).toBeGreaterThan(
+  expect((await page.getByRole('heading', { name: 'Shop the Collection', exact: true }).boundingBox())!.y).toBeGreaterThan(
     (await bestsellers.boundingBox())!.y + (await bestsellers.boundingBox())!.height);
   const geometry = await collections.evaluate(element => ({
     width: element.clientWidth, overflow: element.scrollWidth > element.clientWidth,

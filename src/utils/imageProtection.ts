@@ -6,14 +6,17 @@ import type { MouseEvent } from 'react';
  * find the image URL) — it only raises the bar for the common case of a
  * visitor right-clicking or dragging a product photo off the page.
  */
+const allowsMediaSave = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest('[data-allow-media-save]'));
+
 export const preventImageContextMenu = (event: MouseEvent<HTMLElement>) => {
-  event.preventDefault();
+  if (!allowsMediaSave(event.target)) event.preventDefault();
 };
 
 const isProtectedMedia = (target: EventTarget | null) =>
   target instanceof Element
   && (target instanceof HTMLImageElement || target instanceof HTMLVideoElement || target instanceof HTMLPictureElement)
-  && !target.closest('[data-allow-media-save]');
+  && !allowsMediaSave(target);
 
 /** Site-wide safety net so every current and future image/video is covered. */
 export const installMediaProtection = (root: Document = document) => {

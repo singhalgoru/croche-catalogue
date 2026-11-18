@@ -98,7 +98,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
       <Track ref={element => { track.current = element; }} id={`${id}-track`} aria-label={title} role={navigation ? undefined : 'group'}
         onScroll={measure} className="no-scrollbar flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {pinned && (
-          <div data-pinned="true" className="sticky left-0 z-10 shrink-0 bg-cream w-[38%] sm:w-[calc((100%-36px)/4)] lg:w-[calc((100%-60px)/6)]">
+          <div data-pinned="true" className="sticky left-0 z-10 flex shrink-0 bg-cream w-[38%] sm:w-[calc((100%-36px)/4)] lg:w-[calc((100%-60px)/6)]">
             {pinned}
           </div>
         )}

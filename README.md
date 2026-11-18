@@ -33,7 +33,9 @@ an India-based handmade crochet brand.
   An optional on-device English text reader helps prepare quotes from review
   images; administrators review the extracted text before applying it.
   Published stories are listed automatically in `sitemap.xml` and `llms.txt`.
-- Site photos and videos block casual right-click saving and dragging.
+- Storefront photos and videos block casual right-click saving and dragging.
+  Verified administrators can right-click images to copy or save them while the
+  admin console is open.
 - Meet the founder in the homepage story card above collections, with a link to
   the full About page, where her LinkedIn profile is available. Both use a cropped, optimised founder portrait.
   Empty-cart “Shop now” opens the product-grid heading.

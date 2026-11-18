@@ -1,11 +1,24 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
-import { installMediaProtection } from './imageProtection';
+import { createElement } from 'react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
+import { installMediaProtection, productImageProtection } from './imageProtection';
 
 let uninstall = () => {};
 afterEach(() => {
+  cleanup();
   uninstall();
   document.body.innerHTML = '';
+});
+
+it('honours the same save opt-out in React image handlers and the document listener', () => {
+  uninstall = installMediaProtection();
+  const { container } = render(createElement('div', { 'data-allow-media-save': '' },
+    createElement('img', { ...productImageProtection, alt: 'Admin preview' })));
+  const image = container.querySelector('img')!;
+  expect(fireEvent.contextMenu(image)).toBe(true);
+  container.firstElementChild!.removeAttribute('data-allow-media-save');
+  expect(fireEvent.contextMenu(image)).toBe(false);
 });
 
 const dispatch = (target: Element, type: string) =>
