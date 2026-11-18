@@ -90,7 +90,9 @@ an India-based handmade crochet brand.
   editable WhatsApp-formatted caption, emoji picker, photo preview and copy/download fallbacks. Select the group
   and send inside WhatsApp; native photo sharing requires browser/device support.
   Pinterest preparation offers a branded vertical image, editable title/description
-  and copyable product link. Download and publish manually in Pinterest; this
+  and copyable product link. Choose a branded poster or photo-first layout with a
+  larger original photo; both resize locally to 1000 x 1500 without AI, cropping
+  or stretching. Download and publish manually in Pinterest; this
   website does not select boards, publish pins or verify their publication.
   Facebook/Instagram posts can include up to 10 selected, ordered product photos:
   an Instagram carousel or a Facebook multi-photo post. If a product has a

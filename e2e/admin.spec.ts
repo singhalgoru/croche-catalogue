@@ -168,6 +168,7 @@ test('admin prepares WhatsApp and Pinterest posts manually without Meta writes',
   const pinterest = page.getByRole('region', { name: 'Pinterest pin preparation' });
   await pinterest.getByLabel(/Pinterest title/).fill('Premium handmade rose charm');
   await pinterest.getByLabel(/Pinterest description/).fill('A colourful handmade accessory.');
+  await pinterest.getByRole('radio', { name: 'Photo-first resize (larger original photo)' }).check();
   await pinterest.getByRole('button', { name: 'Prepare Pinterest image (does not publish)' }).click();
   await expect(pinterest.getByRole('img', { name: 'Pinterest pin preview' })).toBeVisible();
   const pinDownloadPromise = page.waitForEvent('download');
@@ -177,6 +178,10 @@ test('admin prepares WhatsApp and Pinterest posts manually without Meta writes',
   const pinFile = await pinDownload.path();
   if (!pinFile) throw new Error('Pinterest JPEG download is missing.');
   expect(await sharp(pinFile).metadata()).toMatchObject({ format: 'jpeg', width: 1000, height: 1500 });
+  const photoEdge = await sharp(pinFile).extract({ left: 20, top: 750, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+  for (const [channel, expected] of [255, 182, 193].entries()) {
+    expect(Math.abs(photoEdge[channel]! - expected)).toBeLessThanOrEqual(8);
+  }
   await pinterest.getByRole('button', { name: 'Copy Pinterest title' }).click();
   expect(await page.evaluate(() => Reflect.get(window, 'pinterestCopiedText'))).toBe('Premium handmade rose charm');
   await pinterest.getByRole('button', { name: 'Copy Pinterest product link' }).click();

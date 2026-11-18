@@ -32,7 +32,7 @@ it('prepares only on request, copies separate editable fields and keeps publicat
   fireEvent.change(screen.getByLabelText(/Pinterest description/), { target: { value: 'A colourful gift idea.' } });
   fireEvent.click(prepareButton());
   await screen.findByAltText('Pinterest pin preview');
-  expect(prepare).toHaveBeenCalledWith(product, 'Premium handmade bag');
+  expect(prepare).toHaveBeenCalledWith(product, 'Premium handmade bag', 'branded');
   const download = screen.getByRole('link', { name: 'Download Pinterest image' });
   expect(download.getAttribute('href')).toBe('blob:pinterest');
   expect(download.getAttribute('download')).toBe('crochet-bag-pinterest.jpg');
@@ -58,7 +58,7 @@ it('invalidates and releases the generated image when the title changes', async 
   expect(screen.getByText('Download Pinterest image').getAttribute('href')).toBeNull();
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pinterest');
   fireEvent.click(prepareButton());
-  await waitFor(() => expect(prepare).toHaveBeenLastCalledWith(product, 'Updated title'));
+  await waitFor(() => expect(prepare).toHaveBeenLastCalledWith(product, 'Updated title', 'branded'));
   await screen.findByAltText('Pinterest pin preview');
   view.unmount();
   expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
@@ -77,6 +77,21 @@ it('reports preparation and clipboard failures, permits retry and never claims p
   await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Clipboard permission denied.'));
   expect(onBusyChange).toHaveBeenLastCalledWith(false);
   expect(screen.queryByText(/^Published/)).toBeNull();
+});
+
+it('releases the previous image and prepares a photo-first version only after explicit layout selection', async () => {
+  renderShare();
+  fireEvent.click(prepareButton());
+  await screen.findByAltText('Pinterest pin preview');
+  fireEvent.click(screen.getByRole('radio', { name: 'Photo-first resize (larger original photo)' }));
+  expect(screen.queryByAltText('Pinterest pin preview')).toBeNull();
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pinterest');
+  expect(prepare).toHaveBeenCalledTimes(1);
+  fireEvent.click(prepareButton());
+  await screen.findByAltText('Pinterest pin preview');
+  expect(prepare).toHaveBeenLastCalledWith(product, 'Crochet bag', 'photo-first');
+  expect(screen.getByLabelText(/Pinterest title/)).toHaveProperty('value', 'Crochet bag');
+  expect(screen.getByText(/free and without AI/)).toBeTruthy();
 });
 
 it('blocks incomplete preparation and explains unavailable clipboard access', async () => {

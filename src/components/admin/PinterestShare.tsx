@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ManagedProduct } from '../../services/products';
-import { preparePinterestPin } from '../../utils/pinterestShare';
+import { preparePinterestPin, type PinterestImageLayout } from '../../utils/pinterestShare';
 import { toProductPageUrl } from '../../utils/productLink';
 import { richTextToPlainText } from '../../utils/richText';
 
@@ -9,6 +9,8 @@ export default function PinterestShare({ product, disabled, onBusyChange }: {
 }) {
   const [title, setTitle] = useState(product.name.trim().slice(0, 100));
   const [description, setDescription] = useState(richTextToPlainText(product.description).slice(0, 500));
+  const [layout, setLayout] = useState<PinterestImageLayout>('branded');
+  const layoutGroup = useId();
   const [photo, setPhoto] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -20,6 +22,9 @@ export default function PinterestShare({ product, disabled, onBusyChange }: {
   useEffect(() => {
     if (previewUrl) return () => URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+  const clearImage = () => {
+    setPhoto(null); setPreviewUrl(''); setMessage(''); setError('');
+  };
   const run = async (action: () => Promise<void>) => {
     if (blocked) return;
     setBusy(true); onBusyChange(true); setError(''); setMessage('');
@@ -41,7 +46,7 @@ export default function PinterestShare({ product, disabled, onBusyChange }: {
     <label className="grid gap-1 text-sm font-semibold">Pinterest title ({title.length}/100)
       <input value={title} maxLength={100} disabled={blocked} className="min-h-11 rounded-xl border border-cocoa/25 px-3"
         onChange={event => {
-          setTitle(event.target.value); setPhoto(null); setPreviewUrl(''); setMessage(''); setError('');
+          setTitle(event.target.value); clearImage();
         }} />
     </label>
     <label className="grid gap-1 text-sm font-semibold">Pinterest description ({description.length}/500)
@@ -53,9 +58,23 @@ export default function PinterestShare({ product, disabled, onBusyChange }: {
     <label className="grid gap-1 text-sm font-semibold">Pinterest product link
       <input value={link} readOnly className="min-h-11 min-w-0 rounded-xl border border-cocoa/25 px-3 font-normal" />
     </label>
+    <fieldset disabled={blocked} className="grid gap-1">
+      <legend className="text-sm font-semibold">Pinterest image layout</legend>
+      {([
+        ['branded', 'Branded poster (title above photo)'],
+        ['photo-first', 'Photo-first resize (larger original photo)'],
+      ] as const).map(([value, label]) => <label key={value} className="flex min-h-11 items-center gap-2 text-sm">
+        <input type="radio" name={layoutGroup} value={value} checked={layout === value}
+          onChange={() => { setLayout(value); clearImage(); }} />
+        {label}
+      </label>)}
+    </fieldset>
+    <p className="text-sm">Both layouts resize to 1000 x 1500 (2:3), free and without AI.
+      Photo-first makes the original photo larger. Neither layout crops, stretches or invents product details.
+      Choose a different layout to prepare a new version.</p>
     <button type="button" className={buttonClass} disabled={blocked || !valid || Boolean(photo)}
       onClick={() => void run(async () => {
-        const file = await preparePinterestPin(product, title.trim());
+        const file = await preparePinterestPin(product, title.trim(), layout);
         const url = URL.createObjectURL(file);
         setPhoto(file); setPreviewUrl(url);
         setMessage('Pinterest image prepared locally. Nothing was uploaded or published. Review the image before posting.');
