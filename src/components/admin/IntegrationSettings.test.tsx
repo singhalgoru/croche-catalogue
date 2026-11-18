@@ -60,6 +60,19 @@ it('allows other admins to view but not edit integration settings', async () => 
   expect(saveSettings).not.toHaveBeenCalled();
 });
 
+it('provides a read-only GA4 verification guide without saving settings or claiming receipt', async () => {
+  fetchSettings.mockResolvedValue({ ...initial, canEdit: false });
+  render(<IntegrationSettings />);
+  fireEvent.click(screen.getByRole('button', { name: 'Site integrations' }));
+  const summary = await screen.findByText('Verify GA4 tracking');
+  fireEvent.click(summary);
+  expect(summary.closest('details')).toHaveProperty('open', true);
+  expect(screen.getByRole('link', { name: 'Google Analytics' }).getAttribute('href')).toBe('https://analytics.google.com/');
+  expect(screen.getByText(/A saved measurement ID does not prove that Google receives events/)).toBeTruthy();
+  expect(screen.getByText(/These actions do not prove that a message was sent or an order was placed/)).toBeTruthy();
+  expect(saveSettings).not.toHaveBeenCalled();
+});
+
 it('does not retain edit access when reopening fails to refresh permissions', async () => {
   render(<IntegrationSettings />);
   const toggle = screen.getByRole('button', { name: 'Site integrations' });

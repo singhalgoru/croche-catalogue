@@ -92,6 +92,26 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('isolates published and hidden toys for manual safety review without changing products', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([
+      product,
+      { ...product, id: 'toy', name: 'Bunny Toy', category: 'Toys' },
+      { ...product, id: 'hidden-toy', name: 'Hidden Bunny', category: 'Toys', published: false },
+    ]);
+    render(<ProductManager categories={['Home', 'Toys']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Toy safety review (2)' }));
+    expect(screen.getByRole('heading', { name: 'Bunny Toy' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Hidden Bunny' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Coaster' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Move Bunny Toy down' })).toHaveProperty('disabled', true);
+    fireEvent.change(screen.getByLabelText('Search products'), { target: { value: 'Hidden' } });
+    expect(screen.queryByRole('heading', { name: 'Bunny Toy' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+    expect(screen.getByRole('region', { name: 'Toy safety checklist' })).toBeTruthy();
+    expect(updateProduct).not.toHaveBeenCalled();
+  });
+
   it('reports a failed local draft migration while still loading shared drafts', async () => {
     vi.mocked(migrateLocalSavedDrafts).mockRejectedValueOnce(new Error('Local drafts could not be shared'));
     vi.mocked(listSharedProductDrafts).mockResolvedValueOnce([{

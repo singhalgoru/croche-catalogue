@@ -133,6 +133,22 @@ export default function ProductDetailsEditor({
         leave blank for an automatic summary. Use a complete, product-specific sentence with
         confirmed facts, not keyword lists or unsupported promises. Google may choose a different snippet.
       </p>
+      {value.category.trim().toLowerCase() === 'toys' && (
+        <section aria-label="Toy safety checklist" className="space-y-2 rounded-xl border border-mustard bg-white p-3 text-sm text-cocoa">
+          <h3 className="font-heading text-lg font-bold">Toy safety review</h3>
+          <p>Confirm these facts with the maker before describing this product as suitable for children:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Intended use and age suitability, supported by appropriate safety assessment; do not infer an age from a photo.</li>
+            <li>Eyes, beads, buttons, accessories and other small or detachable parts, including how they are attached.</li>
+            <li>Yarn, filling and other materials; dimensions; what is included; and confirmed care instructions.</li>
+            <li>Applicable testing, certification and labelling requirements. Keep supporting records privately; publish only verified claims.</li>
+          </ul>
+          <p>Add confirmed intended-use and warning information to the description, and fill in the specifications below.
+            Review existing baby, child-safe and playtime claims, including in the SEO description.
+            Gemini suggestions and the storefront notice are not safety verification.</p>
+          <p>This checklist does not save an approval status or certify the product.</p>
+        </section>
+      )}
       <h3 className="font-heading text-lg font-bold text-cocoa">Specifications &amp; care</h3>
       <p className="text-sm text-cocoa/70">
         {requirePublishDetails ? "Materials and what's included are required to publish. Dimensions and care are optional." : 'Optional. Only filled fields appear to customers.'}

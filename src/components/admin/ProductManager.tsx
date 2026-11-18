@@ -103,7 +103,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [productView, setProductView] = useState<'all' | 'featured'>('all');
+  const [productView, setProductView] = useState<'all' | 'featured' | 'toys'>('all');
   const [attentionFilter, setAttentionFilter] = useState<AttentionFilter | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showPriceDefaults, setShowPriceDefaults] = useState(false);
@@ -122,6 +122,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
     const query = searchQuery.trim().toLocaleLowerCase();
     return products.filter((product) =>
       (productView !== 'featured' || product.featured === true) &&
+      (productView !== 'toys' || product.category.trim().toLowerCase() === 'toys') &&
       (!attentionFilter || attention.get(product.id)?.[attentionFilter]) && (!query || [
         product.name,
         product.category,
@@ -432,6 +433,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         {([
           ['all', 'All products', products.length],
           ['featured', 'Featured products', products.filter(product => product.featured === true).length],
+          ['toys', 'Toy safety review', products.filter(product => product.category.trim().toLowerCase() === 'toys').length],
         ] as const).map(([view, label, count]) => (
           <button key={view} type="button" aria-pressed={productView === view}
             disabled={isAnalyzing || busyId !== null || editingId !== null}
@@ -448,6 +450,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
       </nav>
       {productView === 'featured' && <p className="mb-4 text-sm text-cocoa/70">
         Products marked Featured, including hidden products. Use Edit to change their featured status.
+      </p>}
+      {productView === 'toys' && <p className="mb-4 text-sm text-cocoa/70">
+        All products in the Toys category, including hidden products. Open Edit for the toy safety checklist.
+        This is a review list, not a record of safety approval or certification.
       </p>}
       <BulkDescriptionEditor products={filteredProducts} categories={categories}
         disabled={busyId !== null || editingId !== null || isLoading}
@@ -550,8 +556,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             Showing {filteredProducts.length} of {products.length} product
             {products.length === 1 ? '' : 's'}
             {productView === 'featured' && ' · Featured products'}
+            {productView === 'toys' && ' · Toy safety review'}
             {attentionFilter && ` · ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label}`}
-            {(searchQuery.trim() || attentionFilter || productView === 'featured') && ' · Show all products and clear filters to change display order'}
+            {(searchQuery.trim() || attentionFilter || productView !== 'all') && ' · Show all products and clear filters to change display order'}
           </p>
         </div>
       )}
@@ -564,6 +571,8 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         <p className="py-10 text-center text-cocoa/60">
           {productView === 'featured'
             ? searchQuery.trim() ? `No featured products match “${searchQuery.trim()}”.` : 'No featured products yet. Edit a product and mark it Featured to include it here.'
+            : productView === 'toys'
+            ? searchQuery.trim() ? `No toys match “${searchQuery.trim()}”.` : 'No products in the Toys category.'
             : attentionFilter
             ? `No products need attention for ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
             : `No products match “${searchQuery.trim()}”.`}
@@ -711,7 +720,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
                             attentionFilter !== null ||
-                            productView === 'featured' ||
+                            productView !== 'all' ||
                             products.findIndex((item) => item.id === product.id) === 0
                           }
                           aria-label={`Move ${product.name} up`}
@@ -727,7 +736,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
                             attentionFilter !== null ||
-                            productView === 'featured' ||
+                            productView !== 'all' ||
                             products.findIndex((item) => item.id === product.id) ===
                               products.length - 1
                           }

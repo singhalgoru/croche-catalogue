@@ -79,8 +79,12 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
+  A Toy safety review view includes published and hidden Toys listings, with a
+  factual-check checklist in the editor; it does not record approval or certify products.
   The site owner can update the public WhatsApp contact number and GA4/Meta
   tracking IDs in collapsible Admin Settings; other admins have read-only access.
+  Site integrations includes a read-only GA4 verification guide; saved IDs alone
+  do not confirm event receipt.
   Payment credentials and other server-side secrets remain
   deployment-managed.
   The product-post modal also supports manual WhatsApp group sharing with an

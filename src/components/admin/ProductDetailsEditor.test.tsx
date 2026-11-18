@@ -26,6 +26,19 @@ afterEach(() => {
 });
 
 describe('ProductDetailsEditor', () => {
+  it('shows a factual toy review checklist without modifying or approving the product', () => {
+    const onChange = vi.fn();
+    const view = render(<ProductDetailsEditor value={{ ...value, category: 'Toys' }} categories={['Home', 'Toys']}
+      onChange={onChange} />);
+    const checklist = screen.getByRole('region', { name: 'Toy safety checklist' });
+    expect(checklist.textContent).toContain('small or detachable parts');
+    expect(checklist.textContent).toContain('does not save an approval status or certify the product');
+    expect(checklist.textContent).toContain('Gemini suggestions and the storefront notice are not safety verification');
+    expect(onChange).not.toHaveBeenCalled();
+    view.rerender(<ProductDetailsEditor value={value} categories={['Home', 'Toys']} onChange={onChange} />);
+    expect(screen.queryByRole('region', { name: 'Toy safety checklist' })).toBeNull();
+  });
+
   it('allows manual SEO editing and requires review before applying generated SEO copy', async () => {
     const onChange = vi.fn();
     render(<ProductDetailsEditor value={{ ...value, seoDescription: '' }} categories={['Home']}
