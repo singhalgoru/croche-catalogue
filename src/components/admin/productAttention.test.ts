@@ -27,7 +27,7 @@ describe('product attention checks', () => {
   });
   it('uses the exact saved margin threshold, including negative margins', () => {
     expect(check().margin).toBe(false);
-    for (const profitMarginPercent of [34.99, 0, -10]) {
+    for (const profitMarginPercent of [19.99, 0, -10]) {
       expect(check({ ...product, profitMarginPercent }).margin).toBe(true);
     }
     expect(check({ ...product, profitMarginPercent: NaN }).margin).toBe(false);

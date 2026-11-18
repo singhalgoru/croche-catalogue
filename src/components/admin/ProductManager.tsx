@@ -477,6 +477,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
               Shared by every product calculator during this admin session. The payment gateway
               charges GST on its fee; this estimate includes that fee GST.
               Default product GST prefills calculators without a saved GST rate; saved product rates and edited inputs stay unchanged.
+              Marketing, returns and overhead reserves are percentages of selling revenue excluding GST.
+              Target margin is after these reserves. Defaults prefill new estimates; saved product inputs stay unchanged.
+              Gateway fee is charged on the GST-inclusive customer total, with fee GST added separately.
+              These are pricing estimates; actual sales and business expenses remain separate.
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {([
@@ -484,6 +488,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                 ['gatewayFeePercent', 'Gateway fee (%)', 0, 100, 0.1],
                 ['gatewayFeeGstPercent', 'GST on gateway fee (%)', 0, 100, 0.1],
                 ['gstPercent', 'Default product GST (%)', 0, 100, 0.1],
+                ['marketingPercent', 'Marketing reserve (% of net sales)', 0, 100, 0.1],
+                ['returnsReservePercent', 'Returns / damage reserve (%)', 0, 100, 0.1],
+                ['overheadPercent', 'Overhead allocation (%)', 0, 100, 0.1],
+                ['targetMarginPercent', 'Default target profit margin (%)', 0, 95, 0.5],
               ] as const).map(([field, label, min, max, step]) => (
                 <label key={field} className="text-sm font-semibold text-cocoa">
                   {label}

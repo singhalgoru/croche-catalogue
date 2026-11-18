@@ -186,11 +186,14 @@ describe('Product detail admin integration', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Price discovery defaults' }));
     expect(screen.getByLabelText('Default product GST (%)')).toHaveProperty('value', '5');
+    expect(screen.getByLabelText('Marketing reserve (% of net sales)')).toHaveProperty('value', '15');
+    fireEvent.change(screen.getByLabelText('Marketing reserve (% of net sales)'), { target: { value: '20' } });
     fireEvent.change(screen.getByLabelText('Default product GST (%)'), { target: { value: '12' } });
     fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
     fireEvent.click(screen.getByRole('button', { name: /Price discoveryEstimate/ }));
     expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '12');
     fireEvent.click(screen.getByRole('button', { name: 'Reset defaults' }));
+    expect(screen.getByLabelText('Marketing reserve (% of net sales)')).toHaveProperty('value', '15');
     expect(screen.getByLabelText('Default product GST (%)')).toHaveProperty('value', '5');
     expect(screen.getByLabelText('Coaster GST rate for estimate')).toHaveProperty('value', '5');
     fireEvent.change(screen.getByLabelText('Coaster GST rate for estimate'), { target: { value: '18' } });
@@ -271,7 +274,7 @@ describe('Product detail admin integration', () => {
     expect(screen.queryByRole('heading', { name: 'Zero' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Positive' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Move Coaster up' })).toHaveProperty('disabled', true);
-    fireEvent.click(screen.getByRole('button', { name: '3 Below 35% margin' }));
+    fireEvent.click(screen.getByRole('button', { name: '3 Below 20% margin' }));
     expect(screen.getByRole('heading', { name: 'Zero' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
     expect(screen.getByRole('heading', { name: 'Positive' })).toBeTruthy();
@@ -279,7 +282,7 @@ describe('Product detail admin integration', () => {
 
   it('filters attention groups from the collapsed manager and combines them with search', async () => {
     const pricedProduct: ManagedProduct = {
-      ...product, profitMarginPercent: 34.99,
+      ...product, profitMarginPercent: 19.99,
       priceDiscoveryInputs: {
         ...createDefaultPriceInputs(), timeSpent: '0', materialCost: '0',
       },
@@ -289,7 +292,7 @@ describe('Product detail admin integration', () => {
       { ...product, id: 'bunny', name: 'Bunny', profitMarginPercent: 35, inStock: false },
     ]);
     render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
-    const lowMargin = await screen.findByRole('button', { name: '1 Below 35% margin' });
+    const lowMargin = await screen.findByRole('button', { name: '1 Below 20% margin' });
     expect(screen.getByRole('button', { name: /Manage products/ })).toHaveProperty('ariaExpanded', 'false');
     fireEvent.click(lowMargin);
     expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
@@ -307,7 +310,7 @@ describe('Product detail admin integration', () => {
     expect(screen.getByRole('heading', { name: 'Bunny' })).toBeTruthy();
   });
 
-  it('shows prominent profit margin and a 35 percent suggested price without changing the product', async () => {
+  it('shows prominent profit margin and a 20 percent suggested price without changing the product', async () => {
     vi.mocked(fetchManagedProducts).mockResolvedValue([{
       ...product,
       profitMarginPercent: 20,
@@ -322,7 +325,7 @@ describe('Product detail admin integration', () => {
     expect(margin.textContent).toContain('Profit margin: 20.0%');
     expect(margin.textContent).not.toContain('Saved');
     expect(screen.getByText('Profit margin: 20.0%').className).toContain('text-base');
-    expect(screen.getByLabelText('Coaster suggested price for minimum 35% margin').textContent).toContain('₹437');
+    expect(screen.getByLabelText('Coaster suggested price for minimum 20% margin').textContent).toContain('₹517');
     expect(screen.getByText('GST included · Estimate for 1 piece')).toBeTruthy();
     expect(updateProduct).not.toHaveBeenCalled();
   });
@@ -330,7 +333,7 @@ describe('Product detail admin integration', () => {
   it('explains missing cost data instead of guessing the minimum-margin price', async () => {
     render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
-    expect((await screen.findByLabelText('Coaster suggested price for minimum 35% margin')).textContent)
+    expect((await screen.findByLabelText('Coaster suggested price for minimum 20% margin')).textContent)
       .toContain('Complete valid time, cost and GST inputs');
   });
 
@@ -386,9 +389,9 @@ describe('Product detail admin integration', () => {
     await waitFor(() => expect(publishProduct).toHaveBeenCalled());
     expect(vi.mocked(publishProduct).mock.calls[0][0]).toMatchObject({
       price: 400, showPrice: true, minimumOrderQuantity: 3, gstPercent: 5,
-      profitMarginPercent: expect.closeTo(29.272, 2),
+      profitMarginPercent: expect.closeTo(4.6525, 2),
       priceDiscoveryInputs: { timeSpent: '1', timeUnit: 'hours', materialCost: '50',
-        shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '45' },
+        shippingCost: '100', packagingCost: '10', gstPercent: '5', targetMarginPercent: '20' },
     });
     expect(saveProductPriceDiscoveryInputs).not.toHaveBeenCalled();
     expect(await screen.findByText(/was published to the catalogue\. SKU: LUV-000001\./)).toBeTruthy();
@@ -522,7 +525,8 @@ describe('Product detail admin integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /Manage products/ }));
     fireEvent.click(screen.getByRole('button', { name: /Estimate costs and a selling price/ }));
     expect(screen.getByLabelText('Coaster packaging cost')).toHaveProperty('value', '10');
-    expect(screen.getByLabelText('Coaster target profit margin')).toHaveProperty('value', '45');
+    expect(screen.getByLabelText('Coaster target profit margin')).toHaveProperty('value', '20');
+    fireEvent.change(screen.getByLabelText('Coaster target profit margin'), { target: { value: '45' } });
     fireEvent.change(screen.getByLabelText('Coaster time spent'), { target: { value: '120' } });
     fireEvent.change(screen.getByLabelText('Coaster time unit'), { target: { value: 'minutes' } });
     fireEvent.change(screen.getByLabelText('Coaster materials cost'), { target: { value: '100' } });
@@ -564,16 +568,16 @@ describe('Product detail admin integration', () => {
     expect(screen.getByText(/Match confidence 84%/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Use 5% GST rate in estimate' }));
     fireEvent.click(screen.getByRole('button', { name: 'Suggest price' }));
-    expect(await screen.findByText('Suggested customer price: ₹820 including GST')).toBeTruthy();
+    expect(await screen.findByText('Suggested customer price: ₹1,545 including GST')).toBeTruthy();
     const sellingPrice = screen.getByLabelText('Coaster customer price including GST');
     fireEvent.change(sellingPrice, { target: { value: '1100' } });
     expect(screen.getByText('Product profit margin')).toBeTruthy();
-    expect(screen.getByText('58.4%')).toBeTruthy();
+    expect(screen.getByText('33.8%')).toBeTruthy();
     expect(screen.getByText('Product profit margin').parentElement?.className).toContain('text-green-800');
     fireEvent.change(sellingPrice, { target: { value: '400' } });
     expect(screen.getByText('Product profit margin').parentElement?.className).toContain('text-red-800');
     fireEvent.change(sellingPrice, { target: { value: '1100' } });
-    expect(screen.getByText('₹612')).toBeTruthy();
+    expect(screen.getByText('₹354')).toBeTruthy();
     fireEvent.change(sellingPrice, { target: { value: '' } });
     expect(screen.getByLabelText('Coaster customer price including GST')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Use in product editor' })).toHaveProperty('disabled', true);
@@ -585,21 +589,21 @@ describe('Product detail admin integration', () => {
     expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
       .toContain('₹57 GST is included');
     expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
-      .toContain('gateway fee: ₹28');
+      .toContain('gateway fee: ₹35');
     expect(screen.getByLabelText('Coaster price override GST and margin').textContent)
-      .toContain('61.6%');
+      .toContain('37.0%');
     vi.mocked(updateProduct).mockResolvedValueOnce({
       ...product,
       price: 1200,
-      profitMarginPercent: 61.647,
+      profitMarginPercent: 37.0275,
       gstPercent: 5,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalled());
-    expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(61.647, 2);
+    expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].profitMarginPercent).toBeCloseTo(37.0275, 2);
     expect(vi.mocked(updateProduct).mock.calls.at(-1)?.[1].gstPercent).toBe(5);
-    expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('61.6%');
-    expect(screen.getByText(/Profit margin: 61.6%/).className).toContain('text-green-800');
+    expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('37.0%');
+    expect(screen.getByText(/Profit margin: 37.0%/).className).toContain('text-green-800');
     expect((await screen.findByLabelText('Coaster profit margin')).textContent).toContain('GST 5% (₹57 included)');
     expect(suggestProductGstRate).toHaveBeenCalledWith({
       name: 'Coaster', category: 'Home', description: 'A handmade coaster.',
@@ -632,7 +636,7 @@ describe('Product detail admin integration', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /Price discovery/ })[1]);
     const coasterRate = screen.getByLabelText('Coaster GST rate for estimate');
-    expect(screen.getByLabelText('Coaster target profit margin')).toHaveProperty('value', '45');
+    expect(screen.getByLabelText('Coaster target profit margin')).toHaveProperty('value', '20');
     expect(coasterRate).toHaveProperty('value', '5');
     fireEvent.change(coasterRate, { target: { value: '12' } });
 

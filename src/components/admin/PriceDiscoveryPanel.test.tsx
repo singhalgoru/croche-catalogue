@@ -37,11 +37,13 @@ describe('PriceDiscoveryPanel summary', () => {
       onApplyPrice={vi.fn()}
       onSaveInputs={vi.fn()}
     />);
-    expect(screen.getByText('Suggested ₹440 including GST · 35.5% estimated margin')).toBeTruthy();
+    expect(screen.getByText('Suggested ₹725 including GST · 35.2% estimated margin')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Price discovery/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Suggest price' }));
     fireEvent.change(screen.getByLabelText('Coaster customer price including GST'), { target: { value: '1000' } });
-    expect(screen.getByText('Suggested ₹440 including GST · 35.5% estimated margin')).toBeTruthy();
+    expect(screen.getByText('Suggested ₹725 including GST · 35.2% estimated margin')).toBeTruthy();
+    expect(screen.getByText('Marketing reserve (15% of net sales)')).toBeTruthy();
+    expect(screen.getByText(/Record real marketing spending in Business expenses/)).toBeTruthy();
   });
 
   it('retains the input prompt without displaying a made-up margin when costs are missing', () => {

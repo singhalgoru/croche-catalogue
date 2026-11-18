@@ -5,6 +5,10 @@ export interface PriceDiscoveryDefaults {
   gatewayFeePercent: number;
   gatewayFeeGstPercent: number;
   gstPercent: number;
+  marketingPercent: number;
+  returnsReservePercent: number;
+  overheadPercent: number;
+  targetMarginPercent: number;
 }
 
 export type PriceDiscoveryInputs = ProductPricingInputs;
@@ -14,6 +18,10 @@ export interface PriceDiscoveryEstimate {
   materialCost: number;
   shippingCost: number;
   packagingCost: number;
+  baseCost: number;
+  marketingAllowance: number;
+  returnsReserve: number;
+  overheadAllowance: number;
   totalCost: number;
   suggestedCustomerPrice: number;
   gstAmount: number;
@@ -29,13 +37,17 @@ export interface PriceAtSellingPrice extends PriceDiscoveryEstimate {
 
 export const DEFAULT_PRICE_DISCOVERY_DEFAULTS: PriceDiscoveryDefaults = {
   labourRate: 100,
-  gatewayFeePercent: 2,
+  gatewayFeePercent: 2.5,
   gatewayFeeGstPercent: 18,
   gstPercent: 5,
+  marketingPercent: 15,
+  returnsReservePercent: 4,
+  overheadPercent: 5,
+  targetMarginPercent: 20,
 };
 
-export const DEFAULT_TARGET_MARGIN_PERCENT = 45;
-export const GOOD_MARGIN_PERCENT = 35;
+export const DEFAULT_TARGET_MARGIN_PERCENT = 20;
+export const GOOD_MARGIN_PERCENT = 20;
 
 export const createDefaultPriceInputs = (product: {
   priceDiscoveryInputs?: PriceDiscoveryInputs | null;
@@ -48,7 +60,7 @@ export const createDefaultPriceInputs = (product: {
   shippingCost: '100',
   packagingCost: '10',
   gstPercent: String(product.gstPercent ?? defaults.gstPercent),
-  targetMarginPercent: String(product.profitMarginPercent ?? DEFAULT_TARGET_MARGIN_PERCENT),
+  targetMarginPercent: String(product.profitMarginPercent ?? defaults.targetMarginPercent),
 };
 
 const parseNonNegative = (value: string): number | null => {
@@ -78,21 +90,39 @@ const calculateCostBasis = (
   const shippingCost = parseNonNegative(inputs.shippingCost);
   const packagingCost = parseNonNegative(inputs.packagingCost);
   const gstPercent = parseNonNegative(inputs.gstPercent);
+  const percentages = [defaults.marketingPercent, defaults.returnsReservePercent,
+    defaults.overheadPercent, defaults.gatewayFeePercent, defaults.gatewayFeeGstPercent];
   if (
     labourCost === null || materialCost === null || shippingCost === null
     || packagingCost === null || gstPercent === null || gstPercent > 100
+    || percentages.some(value => !Number.isFinite(value) || value < 0 || value > 100)
   ) return null;
 
   const roundedMaterialCost = Math.round(materialCost);
   const roundedShippingCost = Math.round(shippingCost);
   const roundedPackagingCost = Math.round(packagingCost);
+  const baseCost = labourCost + roundedMaterialCost + roundedShippingCost + roundedPackagingCost;
+  if (!Number.isFinite(baseCost)) return null;
   return {
     labourCost,
     materialCost: roundedMaterialCost,
     shippingCost: roundedShippingCost,
     packagingCost: roundedPackagingCost,
-    totalCost: labourCost + roundedMaterialCost + roundedShippingCost + roundedPackagingCost,
+    baseCost,
     gstPercent,
+  };
+};
+
+const reserveRate = (defaults: PriceDiscoveryDefaults) =>
+  (defaults.marketingPercent + defaults.returnsReservePercent + defaults.overheadPercent) / 100;
+
+const calculateAllowances = (baseCost: number, netSales: number, defaults: PriceDiscoveryDefaults) => {
+  const marketingAllowance = netSales * defaults.marketingPercent / 100;
+  const returnsReserve = netSales * defaults.returnsReservePercent / 100;
+  const overheadAllowance = netSales * defaults.overheadPercent / 100;
+  return {
+    marketingAllowance, returnsReserve, overheadAllowance,
+    totalCost: baseCost + marketingAllowance + returnsReserve + overheadAllowance,
   };
 };
 
@@ -107,10 +137,10 @@ export const estimateProductPrice = (
   const gatewayFeeRate =
     (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
   const gstRate = costBasis.gstPercent / 100;
-  const denominator = 1 - gatewayFeeRate * (1 + gstRate) - targetMarginPercent / 100;
+  const denominator = 1 - gatewayFeeRate * (1 + gstRate) - reserveRate(defaults) - targetMarginPercent / 100;
   if (!Number.isFinite(denominator) || denominator <= 0) return null;
 
-  const saleValueExcludingGst = costBasis.totalCost / denominator;
+  const saleValueExcludingGst = costBasis.baseCost / denominator;
   // Round up so the whole-rupee price never falls below the target margin.
   const customerTotal = Math.ceil(saleValueExcludingGst * (1 + gstRate) - 1e-9);
   const gatewayFee = customerTotal * gatewayFeeRate;
@@ -121,7 +151,8 @@ export const estimateProductPrice = (
     materialCost: costBasis.materialCost,
     shippingCost: costBasis.shippingCost,
     packagingCost: costBasis.packagingCost,
-    totalCost: costBasis.totalCost,
+    baseCost: costBasis.baseCost,
+    ...calculateAllowances(costBasis.baseCost, customerTotal - gstAmount, defaults),
     suggestedCustomerPrice: customerTotal,
     gstAmount,
     customerTotal,
@@ -146,10 +177,12 @@ export const calculatePriceAtSellingPrice = (
   const customerTotal = price;
   const gatewayFee = customerTotal * gatewayFeeRate;
   const expectedNet = customerTotal - gstAmount - gatewayFee;
-  const profit = expectedNet - costBasis.totalCost;
+  const allowances = calculateAllowances(costBasis.baseCost, saleValueExcludingGst, defaults);
+  const profit = expectedNet - allowances.totalCost;
 
   return {
     ...costBasis,
+    ...allowances,
     suggestedCustomerPrice: price,
     gstAmount,
     customerTotal,
@@ -177,11 +210,9 @@ export const calculateMinimumOrderQuantity = (
     (defaults.gatewayFeePercent / 100) * (1 + defaults.gatewayFeeGstPercent / 100);
   const revenueAfterGst = price / (1 + costBasis.gstPercent / 100);
   const contributionPerPiece =
-    revenueAfterGst * (1 - targetMarginPercent / 100)
+    revenueAfterGst * (1 - reserveRate(defaults) - targetMarginPercent / 100)
     - price * gatewayFeeRate
-    - costBasis.labourCost
-    - costBasis.materialCost
-    - costBasis.packagingCost;
+    - costBasis.labourCost - costBasis.materialCost - costBasis.packagingCost;
   if (contributionPerPiece <= 0) return null;
   return Math.max(1, Math.ceil(costBasis.shippingCost / contributionPerPiece));
 };

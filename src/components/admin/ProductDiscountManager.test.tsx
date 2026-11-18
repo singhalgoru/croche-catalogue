@@ -94,7 +94,7 @@ it('previews post-discount variant margins from original prices and saved costs'
   await screen.findByRole('option', { name: 'Rose - 20% off applied' });
   fireEvent.change(screen.getByLabelText('Discount product'), { target: { value: 'p1' } });
   expect(screen.getByText('Regular: ₹750 · Offer: ₹600')).toBeTruthy();
-  expect(screen.getByText('Post-discount margin: 60.8%')).toBeTruthy();
+  expect(screen.getByText('Post-discount margin: 36.2%')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Discount percentage'), { target: { value: '90' } });
   expect(screen.getByText('Regular: ₹750 · Offer: ₹75')).toBeTruthy();
   expect(screen.getByText(/Estimated profit: -₹/)).toBeTruthy();

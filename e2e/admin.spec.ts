@@ -548,12 +548,18 @@ test('shows prominent minimum-margin price guidance without changing the catalog
   const coaster = page.locator('article').filter({
     has: page.getByRole('heading', { name: 'Flower Coaster', exact: true }),
   });
-  const suggestion = coaster.getByLabel('Flower Coaster suggested price for minimum 35% margin');
+  const suggestion = coaster.getByLabel('Flower Coaster suggested price for minimum 20% margin');
   await expect(suggestion).toContainText('Complete valid time, cost and GST inputs');
   await coaster.getByRole('button', { name: /Price discovery Estimate/ }).click();
   await coaster.getByLabel('Flower Coaster time spent', { exact: true }).fill('1');
   await coaster.getByLabel('Flower Coaster materials cost', { exact: true }).fill('50');
-  await expect(suggestion).toContainText('₹437');
+  await expect(suggestion).toContainText('₹517');
+  await page.getByRole('button', { name: 'Price discovery defaults', exact: true }).click();
+  await expect(page.getByLabel('Marketing reserve (% of net sales)', { exact: true })).toHaveValue('15');
+  await page.getByLabel('Marketing reserve (% of net sales)', { exact: true }).fill('0');
+  await expect(suggestion).toContainText('₹403');
+  await page.getByRole('button', { name: 'Reset defaults', exact: true }).click();
+  await expect(suggestion).toContainText('₹517');
   await expect(suggestion).toContainText('GST included');
   expect(state.products.find(product => product.id === 'product-2')?.price).toBe(249);
   await expectNoHorizontalOverflow(page);

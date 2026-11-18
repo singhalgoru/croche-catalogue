@@ -102,6 +102,8 @@ an India-based handmade crochet brand.
   Facebook offers photos or video separately.
   Categories can be hidden from collection navigation without deleting their products.
   Price discovery and sale recording support calculated labour costs and hourly-rate overrides.
+  Product pricing estimates include configurable marketing, returns and overhead reserves,
+  with a default 20% target profit margin; recorded sales and expenses stay separate.
   Business expenses support automatic recurring schedules with configurable frequency and pause/resume.
 - The admin Marketing workspace can show read-only Meta delivery data, reconnect
   Meta, and create AI campaign proposals with model provenance and location

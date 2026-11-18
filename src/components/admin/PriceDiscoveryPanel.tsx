@@ -257,6 +257,7 @@ export default function PriceDiscoveryPanel({
               <span className="mt-1 block text-xs font-normal text-cocoa/60">
                 Set a product-specific margin. The calculation uses profit divided by the selling
                 price before GST.
+                Marketing, returns and overhead reserves are deducted before estimating profit.
               </span>
             </label>
             <div className="sm:col-span-2">
@@ -360,7 +361,15 @@ export default function PriceDiscoveryPanel({
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <span className="text-cocoa/70">Labour ({formatRupees(defaults.labourRate)}/hour)</span>
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.labourCost)}</span>
-                <span className="text-cocoa/70">Total cost basis</span>
+                <span className="text-cocoa/70">Fixed costs before reserves</span>
+                <span className="text-right font-medium text-cocoa">{formatRupees(estimate.baseCost)}</span>
+                <span className="text-cocoa/70">Marketing reserve ({defaults.marketingPercent}% of net sales)</span>
+                <span className="text-right font-medium text-cocoa">{formatRupees(estimate.marketingAllowance)}</span>
+                <span className="text-cocoa/70">Returns / damage reserve ({defaults.returnsReservePercent}%)</span>
+                <span className="text-right font-medium text-cocoa">{formatRupees(estimate.returnsReserve)}</span>
+                <span className="text-cocoa/70">Overhead allocation ({defaults.overheadPercent}%)</span>
+                <span className="text-right font-medium text-cocoa">{formatRupees(estimate.overheadAllowance)}</span>
+                <span className="text-cocoa/70">Total planning cost basis</span>
                 <span className="text-right font-medium text-cocoa">{formatRupees(estimate.totalCost)}</span>
                 <MarginLabel margin={Number(inputs.targetMarginPercent)} className="col-span-2 flex flex-wrap items-center gap-2">
                   <span>Target profit margin</span>
@@ -448,7 +457,15 @@ export default function PriceDiscoveryPanel({
                       : `Suggested minimum order: ${suggestedMinimumOrderQuantity} piece${suggestedMinimumOrderQuantity === 1 ? '' : 's'} to reach the target margin.`}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-cocoa/10 pt-3 text-sm">
-                  <span className="text-cocoa/70">Total cost basis</span>
+                  <span className="text-cocoa/70">Fixed costs before reserves</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.baseCost)}</span>
+                  <span className="text-cocoa/70">Marketing reserve ({defaults.marketingPercent}% of net sales)</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.marketingAllowance)}</span>
+                  <span className="text-cocoa/70">Returns / damage reserve ({defaults.returnsReservePercent}%)</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.returnsReserve)}</span>
+                  <span className="text-cocoa/70">Overhead allocation ({defaults.overheadPercent}%)</span>
+                  <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.overheadAllowance)}</span>
+                  <span className="text-cocoa/70">Total planning cost basis</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.totalCost)}</span>
                   <span className="text-cocoa/70">GST included in customer price</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.gstAmount)}</span>
@@ -458,7 +475,7 @@ export default function PriceDiscoveryPanel({
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.gatewayFee)}</span>
                   <span className="text-cocoa/70">Estimated net after GST and fee</span>
                   <span className="text-right font-medium text-cocoa">{formatRupees(priceOutcome.expectedNet)}</span>
-                  <span className="font-semibold text-cocoa">Estimated profit after costs</span>
+                  <span className="font-semibold text-cocoa">Estimated profit after costs and reserves</span>
                   <span className="text-right font-semibold text-cocoa">{formatRupees(priceOutcome.profit)}</span>
                   <MarginLabel margin={priceOutcome.profitMarginPercent} className="col-span-2 flex flex-wrap items-center gap-2 font-bold">
                     <span>Product profit margin</span>
@@ -471,6 +488,11 @@ export default function PriceDiscoveryPanel({
                   Enter a positive selling price to calculate profit and margin.
                 </p>
               )}
+              <p className="text-xs text-cocoa/65">
+                Reserves are pricing allowances, not recorded expenses or actual profit.
+                Record real marketing spending in Business expenses; sales reports do not deduct these reserves again.
+                Applying an estimate changes the editor only until you save the product.
+              </p>
               <div className="mt-4 flex justify-end border-t border-cocoa/10 pt-3">
                 <button
                   type="button"
