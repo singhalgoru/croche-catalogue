@@ -151,13 +151,13 @@ function PatternDialog({ product, onClose }: { product: PatternProduct; onClose:
         </div>}
         {workspace.pattern && <fieldset className="space-y-3 rounded-xl border border-cocoa/20 p-3">
           <legend className="font-semibold">Share with an onboarded artisan</legend>
-          <p className="text-sm">Only Approved artisans with an application email can receive patterns.
+          <p className="text-sm">Trial and Approved artisans with an application email can receive patterns.
             No email is sent when uploading or replacing a document.</p>
-          {!workspace.recipients.length ? <p>No eligible artisans. Approve an artisan with an email in the Artisans workspace first.</p> : <>
+          {!workspace.recipients.length ? <p>No eligible artisans. Set an artisan with an email to Trial or Approved in the Artisans workspace first.</p> : <>
             <label className="block text-sm font-semibold">Artisan
               <select className="mt-1 block w-full rounded-lg border border-cocoa/30 p-2" value={recipient}
                 onChange={event => { setRecipient(event.target.value); resetEmail(); }}>
-                <option value="">Choose an Approved artisan</option>
+                <option value="">Choose a Trial or Approved artisan</option>
                 {workspace.recipients.map(row => <option key={row.id} value={row.id}>{row.name} — {row.email}</option>)}
               </select>
             </label>

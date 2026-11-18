@@ -2,7 +2,7 @@
 begin;
 create temporary table pattern_fixture as select gen_random_uuid() admin_id,gen_random_uuid() session_id,
   gen_random_uuid() factor_id,gen_random_uuid() product_id,gen_random_uuid() invitation_id,gen_random_uuid() artisan_id,
-  gen_random_uuid() revision,gen_random_uuid() replacement,gen_random_uuid() email_id,
+  gen_random_uuid() revision,gen_random_uuid() replacement,gen_random_uuid() email_id,gen_random_uuid() trial_email_id,
   encode(decode('504b0304','hex')||convert_to(repeat('pattern',20),'UTF8'),'base64') document_data,
   replace(encode(convert_to('%PDF-1.7 /Encrypt 1 0 R /P -1852 '||repeat('pdf',40),'UTF8'),'base64'),E'\n','') pdf_data;
 grant select on pattern_fixture to authenticated,anon,service_role;
@@ -87,37 +87,58 @@ begin
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
 end $$;
 reset role;
-do $$ declare f record; begin
+do $$ declare f record; bad text; begin
   select * into f from pattern_fixture;
   if (select count(*) from public.product_pattern_emails where id=f.email_id)<>1
     or not exists(select 1 from public.product_pattern_emails where id=f.email_id and filename='Lotus.pdf'
       and revision=f.revision and content=decode(f.pdf_data,'base64') and language='hi') then
     raise exception 'FAIL: email not deduplicated or queued attachment changed on replacement.';
   end if;
-  update public.artisan_applications set status='Trial' where id=f.artisan_id;
+  foreach bad in array array['New','Contacted','More information required','Declined','Inactive'] loop
+    update public.artisan_applications set status=bad where id=f.artisan_id;
+    if exists(select 1 from jsonb_array_elements(public.product_pattern_workspace(f.product_id)->'recipients') r
+      where r->>'id'=f.artisan_id::text) then raise exception 'FAIL: ineligible % recipient included.',bad; end if;
+    begin
+      perform public.queue_product_pattern_email(f.product_id,f.replacement,f.artisan_id,gen_random_uuid(),'');
+      raise exception 'FAIL: ineligible artisan received pattern.';
+    exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  end loop;
+  update public.artisan_applications set status='Trial',contact_email=null where id=f.artisan_id;
+  if exists(select 1 from jsonb_array_elements(public.product_pattern_workspace(f.product_id)->'recipients') r
+    where r->>'id'=f.artisan_id::text) then raise exception 'FAIL: Trial recipient without email included.'; end if;
+  begin
+    perform public.queue_product_pattern_email(f.product_id,f.replacement,f.artisan_id,gen_random_uuid(),'');
+    raise exception 'FAIL: Trial artisan without email received pattern.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  update public.artisan_applications set contact_email='maker@example.test' where id=f.artisan_id;
 end $$;
 set local role authenticated;
 do $$ declare f record; begin
   select * into f from pattern_fixture;
-  if exists(select 1 from jsonb_array_elements(public.product_pattern_workspace(f.product_id)->'recipients') r
-    where r->>'id'=f.artisan_id::text) then raise exception 'FAIL: Trial recipient included.'; end if;
-  begin
-    perform public.queue_product_pattern_email(f.product_id,f.replacement,f.artisan_id,gen_random_uuid(),'');
-    raise exception 'FAIL: non-Approved artisan received pattern.';
-  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  if not exists(select 1 from jsonb_array_elements(public.product_pattern_workspace(f.product_id)->'recipients') r
+    where r->>'id'=f.artisan_id::text) then raise exception 'FAIL: Trial recipient excluded.'; end if;
+  perform public.queue_product_pattern_email(f.product_id,f.replacement,f.artisan_id,f.trial_email_id,'Trial sample');
+  perform public.queue_product_pattern_email(f.product_id,f.replacement,f.artisan_id,f.trial_email_id,'Trial sample');
 end $$;
 reset role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 set local role service_role;
 update public.product_pattern_emails set next_attempt_at=now()+interval '1 day'
-  where id<>(select email_id from pattern_fixture);
+  where id not in (select email_id from pattern_fixture union all select trial_email_id from pattern_fixture);
 do $$ declare jobs jsonb; f record; begin
   select * into f from pattern_fixture;
   jobs:=public.claim_product_pattern_emails();
-  if exists(select 1 from jsonb_array_elements(jobs) j where j->>'id'=f.email_id::text) then
-    raise exception 'FAIL: queued email claimed after artisan lost Approved status.';
+  if not exists(select 1 from jsonb_array_elements(jobs) j where j->>'id'=f.email_id::text and j->>'data'=f.pdf_data)
+    or not exists(select 1 from jsonb_array_elements(jobs) j where j->>'id'=f.trial_email_id::text and j->>'data'=f.pdf_data) then
+    raise exception 'FAIL: Trial artisan emails or Approved-to-Trial queued email not claimed.';
   end if;
-  if not exists(select 1 from public.product_pattern_emails where id=f.email_id and attempts=8 and content is null) then
+  update public.artisan_applications set status='Inactive' where id=f.artisan_id;
+  jobs:=public.claim_product_pattern_emails();
+  if exists(select 1 from jsonb_array_elements(jobs) j where j->>'id'=f.email_id::text) then
+    raise exception 'FAIL: queued email claimed after artisan became ineligible.';
+  end if;
+  if (select count(*) from public.product_pattern_emails where id in (f.email_id,f.trial_email_id)
+    and attempts=8 and content is null)<>2 then
     raise exception 'FAIL: ineligible queued email not stopped.';
   end if;
   update public.artisan_applications set status='Approved' where id=f.artisan_id;

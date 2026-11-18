@@ -101,7 +101,7 @@ export async function removeProductPattern(productId: string, revision: string):
   await receipt('remove_product_pattern', { target_product: productId, expected_revision: revision }, revision);
 }
 export async function queuePatternEmail(productId: string, revision: string, artisanId: string, requestId: string, message: string): Promise<void> {
-  if (!artisanId || message.length > 1500) throw new Error('Choose an Approved artisan and a message up to 1,500 characters.');
+  if (!artisanId || message.length > 1500) throw new Error('Choose a Trial or Approved artisan and a message up to 1,500 characters.');
   await receipt('queue_product_pattern_email', { target_product: productId, expected_revision: revision,
     artisan_id: artisanId, request_id: requestId, artisan_message: message }, requestId);
 }

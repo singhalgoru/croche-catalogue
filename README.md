@@ -147,7 +147,8 @@ an India-based handmade crochet brand.
   with the logo beside a centred product title, a copyright notice, product link
   and main photo. Internal Pattern IDs are omitted; the centred preparer is
   always Luvia Creations. PDFs omit unfilled template fields.
-  Only the reviewed PDF is emailed, after explicit confirmation, to Approved
+  Imported Word document titles are omitted in favour of the catalogue name.
+  Only the reviewed PDF is emailed, after explicit confirmation, to Trial or Approved
   artisans with an application email. PDF restrictions are reader-enforced,
   not a guarantee against redistribution.
 

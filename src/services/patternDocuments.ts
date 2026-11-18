@@ -141,7 +141,7 @@ export function patternBlocks(html: string, product?: PatternProduct, language: 
     } else if (['P', 'H1', 'H2', 'H3', 'H4', 'LI'].includes(element.tagName)) {
       const importedText = patternText(element);
       const text = importedText && product ? patternControlText(importedText, product) : importedText;
-      if (text && !(product && generatedPatternText(text))) {
+      if (text && !(product && (generatedPatternText(text) || element.classList.contains('pattern-document-title')))) {
         blocks.push({ kind: /^H/.test(element.tagName) ? 'heading' : 'text', text });
       }
       for (const image of element.querySelectorAll('img')) visit(image);
@@ -269,7 +269,8 @@ export async function preparePatternDocuments(product: PatternProduct, language:
       });
   } else {
     const mammoth = await import('mammoth');
-    const result = await mammoth.convertToHtml({ arrayBuffer: await input.arrayBuffer() });
+    const result = await mammoth.convertToHtml({ arrayBuffer: await input.arrayBuffer() },
+      { styleMap: ["p[style-name='Title'] => p.pattern-document-title:fresh"] });
     if (result.messages.some(message => message.type === 'error')) throw new Error('Word conversion reported an error. Check this document before preparing it.');
     warnings.push(...result.messages.map(message => message.message));
     blocks = patternBlocks(result.value, product, language);

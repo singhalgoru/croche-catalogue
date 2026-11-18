@@ -3,6 +3,16 @@ import { patternBlocks, patternLabels, pdfPatternBlocks, preparePatternDocuments
 
 const product = { id: 'existing-product-id', sku: 'LUV-000001', name: 'Lotus Flower Decor', image: '/lotus.jpg' };
 
+it('omits the imported Word document title without removing introductory notes or section headings', () => {
+  const html = '<p class="pattern-document-title">Crochet Lotus Flower</p><p>Written pattern (US terms)</p>'
+    + '<h1>1. Instructions</h1><p>R1: 10 hdc.</p>';
+  expect(patternBlocks(html, product)).toEqual([
+    { kind: 'text', text: 'Written pattern (US terms)' },
+    { kind: 'heading', text: '1. Instructions' }, { kind: 'text', text: 'R1: 10 hdc.' },
+  ]);
+  expect(patternBlocks(html)[0]).toEqual({ kind: 'text', text: 'Crochet Lotus Flower' });
+});
+
 it('omits internal pattern IDs and imported preparers in both languages while retaining revision, date and instructions', () => {
   expect(patternBlocks(`<table>
     <tr><td>Product / SKU</td><td>[Enter product and SKU]</td></tr>

@@ -21,6 +21,7 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   if (language === 'en') product.sku = 'LUV-000001';
   const document = readFileSync(join('public', 'templates', 'Luvia_Standard_Crochet_Pattern_v4.docx'));
   const sourceDocument = merged ? await Packer.toBuffer(new Document({ sections: [{ children: [
+    new Paragraph({ text: 'Crochet Lotus Flower', heading: HeadingLevel.TITLE }),
     new Paragraph('Pattern ID: OLD-PATTERN-ID'), new Paragraph('Prepared by: Other company'),
     new Paragraph({ text: '1. Reference & construction', heading: HeadingLevel.HEADING_1 }),
     new Paragraph('Work in rounds. Do not turn.'),
@@ -134,6 +135,7 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
     expect(abbreviations).toContain('chain');
   }
   if (merged) {
+    expect(wordText).not.toContain('Crochet Lotus Flower');
     expect(wordHtml).toContain('<td colspan="3"><p>Centre - Yellow</p></td>');
     expect(wordHtml).toContain('<td colspan="2"><p>Petal rounds</p></td>');
     expect(wordHtml).toMatch(/Work into the ring\.<br\s*\/?>Repeat, then join\./);
