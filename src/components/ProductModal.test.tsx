@@ -268,7 +268,8 @@ describe('ProductModal touch controls', () => {
     expect(container.querySelectorAll('details')).toHaveLength(2);
     expect(Array.from(container.querySelectorAll('summary'), node => node.textContent)).toEqual(['Delivery and returns', 'Before you order']);
     expect(screen.getByText(/does not take payment or confirm an order/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Shipping & payment information' }).getAttribute('href')).toBe('/faq/');
+    expect(screen.getByRole('link', { name: 'Shipping information' }).getAttribute('href')).toBe('/faq/#faq-delivery');
+    expect(screen.getByRole('link', { name: 'Payment information' }).getAttribute('href')).toBe('/faq/#payment-options');
     expect(screen.getByRole('heading', { name: 'Product details', level: 2 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Care instructions', level: 2 })).toBeTruthy();
     expect(screen.getByText('Cotton yarn').closest('details')).toBeNull();

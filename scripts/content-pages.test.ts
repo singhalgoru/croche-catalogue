@@ -61,6 +61,19 @@ describe('collection and information pages', () => {
     expect(gajraDoc.querySelector('h1')?.textContent).toBe(gajra.title);
     expect(gajraDoc.body.textContent).toContain('A crochet gajra brings a handmade floral detail');
     expect(gajraDoc.querySelector('a[href="/p/og-mogra-gajra/"]')).toBeTruthy();
+    const styled = new JSDOM(buildContentPages([{
+      ...toy, publicSlug: 'og-mogra-gajra', name: 'OG Mogra Gajra',
+    }], '919205907350').get(gajra.path)).window.document;
+    expect(styled.querySelector('img[alt="OG Mogra Gajra styling inspiration"]')?.getAttribute('src')).toContain('bunny');
+    for (const section of gajra.sections!) {
+      for (const link of section.links) {
+        expect(styled.querySelector(`article a[href="${link.href}"]`)).toBeTruthy();
+        const destination = new URL(link.href, 'https://luviacreations.com');
+        if (destination.hash) {
+          expect(new JSDOM(generated.get(destination.pathname)).window.document.getElementById(destination.hash.slice(1))).not.toBeNull();
+        }
+      }
+    }
 
     const budget = contentArticles.find(article => article.path === '/handmade-gifts-by-budget/')!;
     const budgetDoc = new JSDOM(generated.get(budget.path)).window.document;
@@ -72,6 +85,29 @@ describe('collection and information pages', () => {
     expect(budgetDoc.querySelector('a[href="/crochet-gift-guide/"]')).toBeTruthy();
     expect(renderContentSitemap([variedToy, hair], '2026-11-17', generated)).toContain(`<loc>https://luviacreations.com${gajra.path}</loc>`);
     expect(renderContentSitemap([variedToy, hair], '2026-11-17', generated)).toContain(`<loc>https://luviacreations.com${budget.path}</loc>`);
+  });
+  it('prerenders compact budget cards, precise ranges and expandable remaining gifts', () => {
+    const gifts = Array.from({ length: 7 }, (_, index) =>
+      ({ ...toy, id: `gift-${index}`, publicSlug: `gift-${index}`, name: `Gift ${index}`, price: 100 + index, inStock: true }));
+    const generated = buildContentPages([toy, hair, ...gifts,
+      { ...toy, id: 'variant', name: 'Variant gift', price: 100, variants: [{ price: 900 }, { price: 1200 }] },
+      ...[1000, 2000, 2000.01].map(price => ({ ...toy, id: `edge-${price}`, name: `Edge ${price}`, price })),
+    ], '919205907350');
+    const doc = new JSDOM(generated.get('/handmade-gifts-by-budget/')).window.document;
+    const first = doc.getElementById('budget-500')!;
+    expect(first.querySelectorAll(':scope > ul > li')).toHaveLength(6);
+    expect(first.querySelectorAll('details li')).toHaveLength(2);
+    expect(first.querySelector('summary')?.textContent).toBe('Show 2 more gifts in this range');
+    expect(doc.querySelectorAll('nav[aria-label="Choose a gift budget"] a')).toHaveLength(3);
+    expect(doc.querySelector('a[aria-label="Choose options for Gift 0"]')?.getAttribute('href')).toBe('/p/gift-0/');
+    expect(first.querySelector('img')?.getAttribute('src')).toContain('bunny');
+    expect(first.textContent).not.toContain('Variant gift');
+    expect(doc.getElementById('budget-1000')?.textContent).toContain('Variant gift');
+    expect(doc.getElementById('budget-1000')?.textContent).toContain('Edge 1000');
+    expect(doc.getElementById('budget-2000')?.textContent).toContain('Edge 2000');
+    expect(doc.querySelector('article')?.textContent).not.toContain('Edge 2000.01');
+    expect(doc.querySelector('article a[href="/about/#contact-luvia"]')).toBeTruthy();
+    expect(doc.querySelector('article a[aria-label="Share Bunny"]')).toBeNull();
   });
   it('prerenders consented customer stories with escaped quotes, product links and discovery but no ratings', () => {
     const generated = buildContentPages([toy, hair], '919205907350', [], [], [{
@@ -212,7 +248,7 @@ describe('collection and information pages', () => {
     expect(doc.querySelector('a[href="mailto:hello@luviacreations.com"]')).toBeTruthy();
     expect(doc.body.textContent).not.toContain(storeContent.dispatch);
     expect(doc.body.textContent).not.toContain('Ordering across India');
-    expect([...doc.querySelectorAll('a')].find(link => link.textContent === 'Read our FAQ')?.getAttribute('href')).toBe('/faq/');
+    expect([...doc.querySelectorAll('a')].find(link => link.textContent === 'Read our FAQ')?.getAttribute('href')).toBe('/faq/#faq-ordering');
     expect(renderContentSitemap([toy], '2026-10-25', pages)).toContain('https://luviacreations.com/about/');
     const llms = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     expect(llms).toContain('https://luviacreations.com/about/');
@@ -498,6 +534,22 @@ describe('collection and information pages', () => {
     expect(faq.body.textContent).toContain('does not confirm an order');
     expect(faq.body.textContent).toContain('before you pay');
     expect(faq.querySelector('a[href="/return-policy/"]')).toBeTruthy();
+    for (const group of storeContent.faqGroups) {
+      expect(faq.querySelector(`nav[aria-label="FAQ topics"] a[href="#${group.id}"]`)).toBeTruthy();
+      expect(faq.getElementById(group.id)?.querySelector('h2')?.textContent).toBe(group.title);
+    }
+    for (const [question, answer] of storeContent.questions) {
+      const details = [...faq.querySelectorAll('details')].filter(item => item.querySelector('summary')?.textContent === question);
+      expect(details).toHaveLength(1);
+      expect(details[0].textContent).toContain(answer);
+    }
+    for (const html of pages.values()) {
+      const doc = new JSDOM(html).window.document;
+      for (const link of doc.querySelectorAll('a[href^="/faq/"]')) {
+        const destination = new URL(link.getAttribute('href')!, 'https://luviacreations.com');
+        if (destination.hash) expect(faq.getElementById(destination.hash.slice(1))).not.toBeNull();
+      }
+    }
     expect(JSON.parse(faq.querySelector('script')!.textContent!)['@type']).toBe('WebPage');
   });
 

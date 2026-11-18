@@ -581,7 +581,8 @@ describe('renderProductPage', () => {
     expect(page).toContain('Prices are in Indian rupees');
     expect(page).not.toContain('include GST');
     expect(page).toContain('Shipping charges, if applicable, are shown before payment.');
-    expect(page).toContain('href="/faq/"');
+    expect(page).toContain('href="/faq/#faq-delivery"');
+    expect(page).toContain('href="/faq/#payment-options"');
     expect(page).toContain('href="/about/"');
   });
 

@@ -53,7 +53,7 @@ export default function OrderingGuide() {
       <p className="mt-2 text-sm text-cocoa/80">{storeContent.international.customs}</p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
         <a href="/international-quote/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Request an international quote</a>
-        <a href="/faq/" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Read the ordering FAQ</a>
+        <a href="/faq/#faq-ordering" className="py-2 underline underline-offset-4 hover:text-cocoa-dark">Read the ordering FAQ</a>
         <a
           href={getGeneralWhatsAppLink()}
           target="_blank"

@@ -664,7 +664,8 @@ export default function ProductModal({
             <p className="mt-2">{storeContent.orderingDisclosure.price}</p>
             <p className="mt-2">{storeContent.orderingDisclosure.payment}</p>
             <div className="mt-2 flex flex-wrap gap-4">
-              <a href="/faq/" className="inline-block py-2 underline">Shipping &amp; payment information</a>
+              <a href="/faq/#faq-delivery" className="inline-block py-2 underline">Shipping information</a>
+              <a href="/faq/#payment-options" className="inline-block py-2 underline">Payment information</a>
               <a href="/return-policy/" className="inline-block py-2 underline">Return and refund policy</a>
               <a href="/about/" className="inline-block py-2 underline">About &amp; contact</a>
             </div>

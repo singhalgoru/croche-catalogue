@@ -50,6 +50,14 @@ nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:7
 .product-photo{display:block;position:relative;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.product-photo img{position:relative;width:100%;height:100%;object-fit:contain}.product-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}.product-copy{padding:16px}.product-copy h2{margin:0;font-weight:600}.product-copy a{text-decoration:none}.product-copy a:hover{text-decoration:underline}.product-price{font-weight:700}
 .collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-tile{display:block;height:100%;color:inherit;text-decoration:none}.collection-tile:hover h2{text-decoration:underline}.collection-photo{position:relative;display:block;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.collection-photo img{position:relative;width:100%;height:100%;object-fit:contain}.collection-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}@media(min-width:640px){.collection-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1024px){.collection-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .button{display:inline-block;background:#604239;color:white;padding:10px 18px;border-radius:24px;text-decoration:none;margin:8px 0}.note{font-size:.9rem}details{margin:12px 0}summary{cursor:pointer;font-weight:600}footer{border-top:1px solid #edc357;margin-top:32px}main{min-height:50vh}
+.budget-intro{padding:24px;border:1px solid #edc35766;border-radius:24px;background:#edc35719}.budget-eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em}.budget-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.budget-picker a{padding:12px;border:1px solid #60423922;border-radius:16px;background:white;text-decoration:none}.budget-picker span,.budget-picker strong{display:block}.budget-picker strong{font-size:clamp(1.2rem,4vw,2rem)}.budget-picker span{font-size:.75rem}
+.budget-band{scroll-margin-top:96px;margin:40px 0}.budget-band h2{margin-bottom:8px}.budget-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;list-style:none;padding:0}.budget-card{min-width:0;overflow:hidden;border:1px solid #60423922;border-radius:16px;background:white}.budget-card .product-copy{padding:12px}.budget-card h3{margin:8px 0;font-size:1rem;line-height:1.4}.budget-card h3 a{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}.budget-card p{margin:8px 0}.budget-card .budget-category{font-size:.65rem;text-transform:uppercase;letter-spacing:.05em}.budget-card .product-price{font-size:1.15rem}.budget-card .note{font-size:.75rem}.budget-band details{padding:0;border:0;background:transparent}.budget-band summary{width:fit-content;margin:auto;padding:12px 20px;border:1px solid #60423944;border-radius:28px;text-align:center;font-size:.875rem}
+.budget-help{display:grid;gap:20px;padding:24px;background:#604239;color:#fffaf0;border-radius:24px}.budget-help h2{font-size:1.25rem}.budget-help a{display:inline-flex;align-items:center;min-height:44px}.budget-help p{font-size:.875rem}.budget-help>div+div{border-top:1px solid #fffaf033;padding-top:16px}@media(min-width:640px){.budget-help{grid-template-columns:repeat(2,minmax(0,1fr))}.budget-help>div+div{border-top:0;border-left:1px solid #fffaf033;padding:0 0 0 24px}}@media(min-width:1024px){.budget-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}}
+.budget-purchase{display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:44px}.budget-purchase .product-price{min-width:0;font-size:1rem}.budget-cart{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#604239;color:white}
+.gift-guide>section,.gift-guide>nav,.gift-steps{margin-bottom:32px}.gift-hero h2{font-size:clamp(1.5rem,4vw,2rem)}.gift-hero ol{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0}.gift-hero li{padding:8px 12px;border:1px solid #60423922;border-radius:24px;background:white;font-size:.75rem;font-weight:600}.gift-start,.gift-steps{display:grid;gap:20px}.gift-start>a,.gift-step{padding:24px;border:1px solid #60423922;border-radius:16px;background:white}.gift-start>a{text-decoration:none;border-color:#edc35788}.gift-start strong{display:block;font-size:1.25rem}.gift-start a:hover strong{text-decoration:underline}.gift-start span{display:block;margin:0 0 12px}.gift-step{display:flex;flex-direction:column;align-items:flex-start}.gift-step h2{font-size:1.25rem;margin:0}.gift-step>p:not(.budget-eyebrow){font-size:.875rem}.gift-step>a{display:inline-flex;align-items:center;min-height:44px;margin-top:auto;font-size:.875rem;font-weight:600}.gift-step:last-child{background:#604239;color:#fffaf0}.gift-ordering{justify-content:space-between;padding:16px;border:1px solid #60423922;border-radius:16px;font-size:.875rem}.gift-ordering a{display:inline-flex;align-items:center;min-height:44px}@media(min-width:640px){.gift-start,.gift-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.gift-step:last-child{grid-column:span 2}}
+.styling-guide>section,.styling-guide>nav{margin-bottom:32px}.styling-hero{display:grid;overflow:hidden;border:1px solid #edc35766;border-radius:24px;background:#edc35719}.styling-intro{display:flex;flex-direction:column;justify-content:center;padding:24px}.styling-intro h2{font-size:clamp(1.5rem,4vw,2rem);margin:8px 0}.styling-hero figure{margin:0;aspect-ratio:4/3;overflow:hidden}.styling-hero img{display:block;width:100%;height:100%;object-fit:cover}.styling-step{display:grid;gap:16px;border:1px solid #60423922;border-radius:24px;padding:24px;background:white}.styling-step h2{font-size:1.5rem;margin-top:8px}.styling-step .styling-copy{font-size:.875rem}.styling-step nav{gap:8px}.styling-step nav a{display:inline-flex;align-items:center;min-height:44px;border:1px solid #60423933;border-radius:24px;padding:8px 16px;font-weight:600;text-decoration:none}.styling-step nav a:hover{background:#edc35719}.article-related{padding:20px;border:1px solid #edc35766;border-radius:16px;background:#edc35719;font-size:.875rem}.article-related a{display:inline-flex;align-items:center;min-height:44px}@media(min-width:768px){.styling-hero.has-photo{grid-template-columns:repeat(2,minmax(0,1fr))}.styling-hero figure{aspect-ratio:1}.styling-step{grid-template-columns:.7fr 1.3fr}}
+.policy-layout{display:grid;align-items:start;gap:24px;margin-top:24px}.policy-toc,.policy-section{padding:24px;border:1px solid #60423922;border-radius:16px;background:white}.policy-toc{display:block;margin:0;padding:16px}.policy-toc h2{font-size:1.125rem;margin:0 0 8px}.policy-toc a{display:flex;align-items:center;min-height:44px;padding:8px 0;font-size:.875rem;text-decoration:none;line-height:1.4}.policy-toc a:hover{text-decoration:underline}.policy-section{scroll-margin-top:96px;margin-bottom:16px}.policy-section h2{font-size:1.25rem;margin-top:0}.policy-section p{font-size:.875rem}.policy-updated{font-size:.75rem}@media(min-width:1024px){.policy-layout{grid-template-columns:240px minmax(0,1fr)}.policy-toc{position:sticky;top:96px}}
+.faq-topics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}.faq-topics a{padding:16px;border:1px solid #60423922;border-radius:16px;background:white;text-decoration:none}.faq-topics strong,.faq-topics span{display:block}.faq-topics strong{font-size:1.125rem}.faq-topics span{margin-top:8px;font-size:.75rem}.faq-group{display:grid;gap:16px;scroll-margin-top:96px;margin:40px 0}.faq-group h2{font-size:1.5rem;margin:0}.faq-group>div>p{font-size:.875rem}.faq-answers details{scroll-margin-top:96px;border-color:#60423922;padding:0 20px}.faq-answers summary{padding:16px 0}.faq-answers details p{margin:0;padding:0 0 20px;font-size:.875rem}.faq-help{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;padding:24px;border-radius:24px;background:#604239;color:#fffaf0}.faq-help h2{font-size:1.25rem}.faq-help p{max-width:560px;font-size:.875rem}.faq-help a{display:inline-flex;align-items:center;min-height:44px;font-size:.875rem}@media(min-width:768px){.faq-group{grid-template-columns:.7fr 1.3fr;gap:32px}}@media(min-width:1024px){.faq-topics{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .static-mobile-navigation{display:none}@media(max-width:639px){body{padding-bottom:calc(4rem + env(safe-area-inset-bottom))}header{padding:12px 16px;border-bottom:1px solid #edc357}header>nav{display:none}.static-mobile-navigation{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;inset:auto 0 0;z-index:80;margin:0;gap:4px;height:calc(4rem + env(safe-area-inset-bottom));padding:4px 8px env(safe-area-inset-bottom);background:#fffaf0;border-top:1px solid #edc357;box-shadow:0 -2px 8px #60423915}.static-mobile-navigation a{display:flex;align-items:center;justify-content:center;min-height:44px;font-size:11px;font-weight:600;text-decoration:none}.static-mobile-navigation [aria-current]{background:#edc357;border-radius:8px}}
 </style></head><body>${renderSiteHeader()}
 <main id="main"><nav aria-label="Breadcrumb"><a href="/">Home</a>${pathname.startsWith('/collections/') && pathname !== '/collections/' ? '<a href="/collections/">Collections</a>' : ''}<span aria-current="page">${escapeHtml(title)}</span></nav><h1>${escapeHtml(title)}</h1>${body}</main>
@@ -67,6 +75,41 @@ const productCards = items => items.map((product, index) => {
   <a class="button" href="/p/${toProductSlug(product)}/">Choose options &amp; add to cart</a>
   <a class="button" href="https://wa.me/?text=${encodeURIComponent(`${product.name} — ${ORIGIN}/p/${toProductSlug(product)}/`)}" aria-label="Share ${escapeHtml(product.name)}">Share</a></div></li>`;
 }).join('');
+
+const budgetGiftGuide = (article, products) => {
+  const money = value => `₹${value.toLocaleString('en-IN')}`;
+  const priced = products.flatMap(product => {
+    const range = priceRange(product);
+    return range && Number.isFinite(range.low) ? [{ product, ...range }] : [];
+  }).sort((a, b) => a.low - b.low);
+  const bands = article.budgetBands.map((band, index) => {
+    const minimum = index === 0 ? 0 : article.budgetBands[index - 1].maximumPrice;
+    return { ...band, minimum, id: `budget-${band.maximumPrice}`,
+      items: priced.filter(item => item.low > minimum && item.low <= band.maximumPrice) };
+  });
+  const cards = items => `<ul class="budget-grid">${items.map(({ product, low, high }) =>
+    `<li class="budget-card"><a class="product-photo" href="/p/${toProductSlug(product)}/" aria-label="View ${escapeHtml(product.name)}">
+      ${product.image ? `<img src="${escapeHtml(getProductImageUrl(product.image, 480))}" alt="${escapeHtml(product.name)}" width="480" height="480" loading="lazy" decoding="async">` : ''}</a>
+      <div class="product-copy"><p class="budget-category">${escapeHtml(product.category)}</p>
+        <h3><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></h3>
+        <div class="budget-purchase"><p class="product-price">${low !== high ? 'From ' : ''}${money(low)}</p>
+          ${product.inStock ? `<a class="budget-cart" href="/p/${toProductSlug(product)}/" aria-label="Choose options for ${escapeHtml(product.name)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H7M14 9v4M12 11h4"/></svg></a>` : ''}</div>
+        <p class="note">${product.inStock ? 'Choose colours &amp; add to cart' : 'Currently out of stock'}</p></div></li>`).join('')}</ul>`;
+  return `<section class="budget-intro" aria-label="Find a gift by budget">
+    <p class="budget-eyebrow">Thoughtful gifting, made simple</p><p class="intro">${escapeHtml(article.intro)}</p>
+    <nav class="budget-picker" aria-label="Choose a gift budget">${bands.map(band =>
+      `<a href="#${band.id}"><span>Up to</span><strong>${money(band.maximumPrice)}</strong><span>${band.items.length} gift ${band.items.length === 1 ? 'idea' : 'ideas'} &rarr;</span></a>`).join('')}</nav>
+    <p class="note">Grouped by starting product price, without repeats. Variant prices may differ. Shipping is separate; review your final checkout total.</p></section>
+    ${bands.map(band => `<section class="budget-band" id="${band.id}" aria-labelledby="${band.id}-title">
+      <p class="budget-eyebrow">${band.minimum === 0 ? `Up to ${money(band.maximumPrice)}` : `Over ${money(band.minimum)}, up to ${money(band.maximumPrice)}`}</p>
+      <h2 id="${band.id}-title">${escapeHtml(band.title)}</h2><p class="note">${band.items.length} to explore</p><p>${escapeHtml(band.text)}</p>
+      ${band.items.length ? cards(band.items.slice(0, 6)) : '<p>No gifts in this range right now. <a href="/collections/">Explore all collections</a>.</p>'}
+      ${band.items.length > 6 ? `<details><summary>Show ${band.items.length - 6} more ${band.items.length === 7 ? 'gift' : 'gifts'} in this range</summary>${cards(band.items.slice(6))}</details>` : ''}</section>`).join('')}
+    <aside class="budget-help"><div><h2>A more personal touch</h2><p>${escapeHtml(article.closing ?? '')}</p>
+      <a href="/about/#contact-luvia">Ask Luvia about your gift &rarr;</a></div>
+      <div><h2>Gifting for a group?</h2><p>Share your quantity, budget and occasion date. We will confirm options and timing before you order.</p>
+      <a href="/bulk-orders/">Explore bulk gifting &rarr;</a></div></aside>`;
+};
 
 export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = []) => {
   const pages = new Map();
@@ -152,10 +195,15 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   const story = storeContent.brandStory;
   const guide = storeContent.giftGuide;
   pages.set(guide.path, page(guide.path, guide.title, guide.description,
-    `<article class="intro"><p>${escapeHtml(guide.intro)}</p>${guide.sections.map(section =>
-      `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></section>`).join('')}
-    <nav aria-label="Related guides">${contentArticles.map(article => `<a href="${escapeHtml(article.path)}">${escapeHtml(article.title)}</a>`).join('')}</nav>
-    <p><a href="/return-policy/">Read the return and refund policy</a> · <a href="${internationalQuote.path}">Request an international quote</a></p></article>`,
+    `<article class="gift-guide"><section class="budget-intro gift-hero" aria-label="Thoughtful gifts, without the guesswork">
+      <p class="budget-eyebrow">A little thought. A lot of love.</p><h2>Thoughtful gifts, without the guesswork</h2>
+      <p class="intro">${escapeHtml(guide.intro)}</p>
+      <ol><li>1. Choose for their everyday</li><li>2. Add a personal touch</li><li>3. Check the date &amp; total</li></ol></section>
+    <nav class="gift-start" aria-label="Related guides">${contentArticles.map(article =>
+      `<a href="${escapeHtml(article.path)}" aria-label="${escapeHtml(article.title)}"><span class="budget-eyebrow">${article.budgetBands ? 'Find your budget' : 'A little inspiration'}</span><strong>${escapeHtml(article.title)}</strong><span aria-hidden="true">&rarr;</span></a>`).join('')}</nav>
+    <div class="gift-steps">${guide.sections.map((section, index) =>
+      `<section class="gift-step"><p class="budget-eyebrow" aria-hidden="true">${String(index + 1).padStart(2, '0')}</p><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></section>`).join('')}</div>
+    <nav class="gift-ordering" aria-label="Gift ordering information"><a href="/return-policy/">Read the return and refund policy</a><a href="${internationalQuote.path}">Request an international quote</a></nav></article>`,
     { ...baseSchema('WebPage', guide.path, guide.title, guide.description),
       breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
@@ -163,23 +211,20 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       ] },
     }));
   for (const article of contentArticles) {
-    const body = `<article class="intro"><p>${escapeHtml(article.intro)}</p>
-      ${article.sections ? article.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2>
-        ${section.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}
-        ${section.links.map(link => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join(' · ')}
+    const heroHref = article.sections?.[0]?.links[0]?.href;
+    const heroProduct = heroHref ? products.find(product => `/p/${toProductSlug(product)}/` === heroHref) : undefined;
+    const body = `<article class="${article.budgetBands ? 'budget-guide' : 'styling-guide'}">
+      ${article.budgetBands ? budgetGiftGuide(article, products) : `<section class="styling-hero${heroProduct?.image ? ' has-photo' : ''}" aria-label="Handmade florals, styled your way">
+        <div class="styling-intro"><p class="budget-eyebrow">The finishing touch</p><h2>Handmade florals, styled your way</h2><p>${escapeHtml(article.intro)}</p>
+        <p class="note">For wedding mornings, festive evenings and little moments worth dressing up for.</p></div>
+        ${heroProduct?.image ? `<figure><img src="${escapeHtml(getProductImageUrl(heroProduct.image, 1080))}" alt="${escapeHtml(heroProduct.name)} styling inspiration" width="1080" height="1080"></figure>` : ''}</section>`}
+      ${article.sections ? article.sections.map((section, index) => `<section class="styling-step">
+        <div><p class="budget-eyebrow">Style note ${String(index + 1).padStart(2, '0')}</p><h2>${escapeHtml(section.title)}</h2></div>
+        <div class="styling-copy">${section.paragraphs.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}
+        <nav aria-label="${escapeHtml(section.title)} links">${section.links.map(link => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`).join('')}</nav></div>
       </section>`).join('') : ''}
-      ${article.budgetBands ? article.budgetBands.map((band, index) => {
-        const minimumPrice = index === 0 ? 0 : article.budgetBands[index - 1].maximumPrice;
-        const items = products.filter(product => {
-          const range = priceRange(product);
-          return range && range.low > minimumPrice && range.low <= band.maximumPrice;
-        });
-        return `<section><h2>${escapeHtml(band.title)}</h2><p>${escapeHtml(band.text)}</p>
-          ${items.length ? `<ul class="grid">${productCards(items)}</ul>` : '<p>No products currently match this price range. Check the latest catalogue for current options.</p>'}
-        </section>`;
-      }).join('') : ''}
-      ${article.closing ? `<p>${escapeHtml(article.closing)}</p>` : ''}
-      <nav aria-label="Related guides"><a href="${guide.path}">${escapeHtml(guide.title)}</a>
+      ${article.closing && !article.budgetBands ? `<p>${escapeHtml(article.closing)}</p>` : ''}
+      <nav class="article-related" aria-label="Related guides"><a href="${guide.path}">${escapeHtml(guide.title)}</a>
         ${contentArticles.filter(related => related.path !== article.path).map(related =>
           `<a href="${escapeHtml(related.path)}">${escapeHtml(related.title)}</a>`).join('')}
       </nav></article>`;
@@ -212,25 +257,37 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <h2 id="contact-luvia">Contact Luvia</h2><p>Luvia Creations<br>Gurugram, Haryana, India</p><p><a class="button" href="${contact}">Ask us on WhatsApp</a></p><p>WhatsApp / mobile: <a href="${contact}">+${escapeHtml(whatsappNumber)}</a></p>
     <p>Order enquiries: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a><br>General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p>
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
-    <p>Questions about ordering? <a href="/faq/">Read our FAQ</a>.</p></section>`,
+    <p>Questions about ordering? <a href="/faq/#faq-ordering">Read our FAQ</a>.</p></section>`,
     baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription)));
   const faqTitle = 'Ordering, delivery & care FAQ';
   const faqDescription = 'Answers to Luvia Creations ordering questions: India checkout, international enquiries, custom colours, shipping, product care and returns.';
   const questions = storeContent.questions;
-  const faqBody = questions.map(([question, answer]) => {
-    const id = storeContent.faqAnchors[question];
-    return `<details${id ? ` id="${escapeHtml(id)}"` : ''}><summary>${escapeHtml(question)}</summary><p>${escapeHtml(answer)}</p></details>`;
-  }).join('');
-  pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<p class="intro">${faqDescription}</p>${faqBody}
-    <details><summary>What is the return and refund policy?</summary><p>Please read our <a href="/return-policy/">return and refund policy</a> before ordering. Contact us about your specific order if you need clarification.</p></details>
-    <p><a class="button" href="${internationalQuote.path}">Request an international quote</a></p>
-    <p><a class="button" href="${contact}">Ask another question on WhatsApp</a></p>`,
+  const faqBody = storeContent.faqGroups.map(group => `<section class="faq-group" id="${group.id}" aria-labelledby="${group.id}-title">
+    <div><h2 id="${group.id}-title">${escapeHtml(group.title)}</h2><p>${escapeHtml(group.description)}</p></div>
+    <div class="faq-answers">${group.questionIds.map(id => {
+      const entry = questions.find(([question]) => storeContent.faqAnchors[question] === id);
+      if (!entry) throw new Error(`Unknown FAQ question: ${id}`);
+      return `<details id="${id}"><summary>${escapeHtml(entry[0])}</summary><p>${escapeHtml(entry[1])}</p></details>`;
+    }).join('')}
+    ${group.id === 'faq-care' ? '<details id="returns-refunds"><summary>What is the return and refund policy?</summary><p>Read our <a href="/return-policy/">return and refund policy</a> before ordering. Contact us if you need clarification about your order.</p></details>' : ''}</div></section>`).join('');
+  pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<section class="budget-intro">
+    <p class="budget-eyebrow">Good to know</p><h2>Little questions, clear answers</h2>
+    <p class="intro">From your first pick to caring for your handmade piece, find the details that help you order with confidence.</p>
+    <nav class="faq-topics" aria-label="FAQ topics">${storeContent.faqGroups.map(group =>
+      `<a href="#${group.id}"><strong>${escapeHtml(group.title)}</strong><span>${escapeHtml(group.description)}</span><span aria-hidden="true">&rarr;</span></a>`).join('')}</nav></section>${faqBody}
+    <aside class="faq-help"><div><h2>Still have a little question?</h2><p>For a personal request or a detail about your order, get in touch before ordering. We will help you confirm what is possible.</p></div>
+    <nav aria-label="More ordering help"><a href="/about/#contact-luvia">Contact Luvia</a><a href="${internationalQuote.path}">Request an international quote</a></nav></aside>`,
     baseSchema('WebPage', '/faq/', faqTitle, faqDescription)));
   for (const policy of policies) {
-    const body = `<p class="note">Last updated: ${escapeHtml(policy.updated)}</p>`
-      + policy.sections.map(section => `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p>${section.link
+    const body = `<article><div class="budget-intro"><p class="budget-eyebrow">Clear details, considered care</p>
+      <p class="intro">${escapeHtml(policy.description)}</p><p class="policy-updated">Last updated: ${escapeHtml(policy.updated)}</p></div>
+      <div class="policy-layout"><nav class="policy-toc" aria-label="On this page"><h2>On this page</h2>
+      ${policy.sections.map((section, index) => `<a href="#policy-section-${index + 1}">${escapeHtml(section.title)}</a>`).join('')}</nav><div>`
+      + policy.sections.map((section, index) => `<section class="policy-section" id="policy-section-${index + 1}"><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p>${section.link
         ? `<p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></p>` : ''}</section>`).join('')
-      + '<p><a href="/return-policy/">Return and refund policy</a> · <a href="/about/">About &amp; contact</a></p>';
+      + '</div></div><nav class="article-related" aria-label="Related policies">'
+      + policies.filter(item => item.path !== policy.path).map(item => `<a href="${item.path}">${escapeHtml(item.title)}</a>`).join('')
+      + '<a href="/return-policy/">Return and refund policy</a><a href="/about/">About &amp; contact</a></nav></article>';
     pages.set(policy.path, page(policy.path, policy.title, policy.description, body,
       baseSchema('WebPage', policy.path, policy.title, policy.description)));
   }

@@ -14,7 +14,7 @@ export default function ProductDeliveryInfo({ productId }: { productId?: string 
         <p>{storeContent.international.returns}</p>
         <p>Returns are accepted for defective, damaged or incorrect items only, not change of mind. Customised items remain eligible for remedies if defective, damaged or incorrectly fulfilled.</p>
         <div className="flex flex-wrap gap-x-4">
-          <a href="/faq/" className="inline-flex min-h-11 items-center underline">Delivery FAQ</a>
+          <a href="/faq/#faq-delivery" className="inline-flex min-h-11 items-center underline">Delivery FAQ</a>
           <a href="/return-policy/" className="inline-flex min-h-11 items-center underline">Full return and refund policy</a>
         </div>
       </div>

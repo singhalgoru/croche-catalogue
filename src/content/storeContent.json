@@ -18,41 +18,41 @@
     "path": "/crochet-gift-guide/",
     "title": "How to choose a handmade crochet gift",
     "description": "Choose handmade crochet gifts in India: compare accessories, toys and decor, plan your budget, and check customisation, suitability and delivery before ordering.",
-    "intro": "A useful crochet gift starts with the person receiving it: what they wear, carry or enjoy at home. Luvia Creations makes handmade crochet accessories, toys, gifts and decor in India. Use this guide to narrow your choices, then check the current catalogue for product details, prices and availability.",
+    "intro": "The best handmade gift feels like them. Think about what they wear, carry or love having around, then find a crochet piece that fits their everyday. Here is a simple way to choose with care.",
     "sections": [
       {
-        "title": "Small gifts for friends, birthdays and thank-you gestures",
-        "text": "Consider a charm or keychain for someone who enjoys decorating a bag or keeping a favourite detail close. Hair accessories can suit someone whose everyday style you know well. Compare the dimensions, attachment and available colours on the product page rather than choosing from a styled photograph alone.",
+        "title": "Little gifts, big smiles",
+        "text": "For a birthday, a thank-you or a just-because surprise, consider a charm, keychain or hair accessory that suits their style. Check the dimensions, attachment and available colours on the product page, not just the styled photograph.",
         "link": { "href": "/collections/", "label": "Explore current collections" }
       },
       {
-        "title": "Choosing a crochet toy or a piece for the home",
-        "text": "A crochet toy may appeal to someone who collects handmade characters; decor may suit someone who enjoys seasonal styling. For a child, ask Luvia to confirm age suitability, construction and any small or detachable parts before ordering. Do not assume a handmade toy is suitable for a baby. For decor, check size and intended use, and confirm what is included rather than assuming props in a photograph are part of the gift.",
+        "title": "For their home or collection",
+        "text": "Think handmade characters for a collector, or decor for someone who loves styling a space. Check size, materials, care and what is included; photo props may not be part of the gift. For children, confirm age suitability, construction and small parts with Luvia. Never assume a handmade toy is baby-safe.",
         "link": { "href": "/faq/#materials-sizing-care", "label": "Read materials, sizing and care FAQs" }
       },
       {
-        "title": "Set a budget using the final checkout total",
-        "text": "Compare the selected variant's price and quantity, not just a starting price. Leave room for shipping and review the final total before paying. Bestsellers can be a starting point for browsing, but popularity does not guarantee a good fit for your recipient. Current prices and availability are shown on the product page and at checkout.",
+        "title": "Find your comfort budget",
+        "text": "Start with an amount that feels right, then check your selected colour or variant, quantity and shipping. The final checkout total matters more than a starting price. Bestsellers offer ideas, but choose what fits your person rather than popularity alone.",
         "link": { "href": "/bestsellers/", "label": "Browse current bestsellers" }
       },
       {
-        "title": "Personal colours, packaging and gift messages",
-        "text": "If a favourite colour or a personal detail would make the gift more meaningful, share the product link and your idea with Luvia before ordering. Customisation depends on the design, and the price and dispatch timing must be confirmed. Ask whether gift packaging, a message or direct delivery to the recipient can be arranged; do not assume these options are included.",
+        "title": "Make it personal",
+        "text": "Have a favourite colour or a little message in mind? Share the product link and your idea before ordering. Customisation, gift packaging, messages and direct delivery need confirmation, including any price or dispatch changes. They are not automatically included.",
         "link": { "href": "/about/#contact-luvia", "label": "Contact Luvia about your gift" }
       },
       {
-        "title": "Plan for the occasion, not just the dispatch date",
-        "text": "Dispatch is the handover to the courier, not the day a gift reaches its recipient. Check the ordering FAQ for the current India dispatch window and shipping terms, and ask about your destination and occasion date before paying. International gifts require an individual quote; Indian online checkout and its shipping offers do not apply.",
+        "title": "Give it time to arrive",
+        "text": "Share the occasion date and destination before paying. Dispatch means handing the parcel to the courier, not arrival at your recipient's door. Check current India dispatch and shipping terms. International gifts require an individual quote; Indian checkout and shipping offers do not apply.",
         "link": { "href": "/faq/#dispatch-delivery", "label": "Read dispatch and delivery information" }
       },
       {
-        "title": "Return gifts, team gifts and larger quantities",
-        "text": "For a celebration, team or client gifting enquiry, share the product ideas, quantity, budget, destination and required delivery date. Ask which designs and colours can be supplied consistently and whether any personalisation is possible. Availability, pricing and timelines are agreed individually; sending an enquiry does not confirm an order.",
+        "title": "Gifting for a group?",
+        "text": "For return gifts, a team or a celebration, share your product ideas, quantity, budget, destination and required date. We will confirm available designs, colours, personalisation, pricing and timelines individually. An enquiry does not confirm an order.",
         "link": { "href": "/bulk-orders/", "label": "Enquire about bulk orders and corporate gifting" }
       },
       {
-        "title": "A final check before ordering",
-        "text": "Review the materials, dimensions, care instructions, selected variant, availability and return policy. Ask about any missing detail before payment, especially for a customised or date-sensitive gift. Customer Love contains selected stories shared with permission; these are testimonials, not independent ratings or a guarantee of your experience.",
+        "title": "One last check, then gift with care",
+        "text": "Review materials, dimensions, care, your selected variant, availability and the return policy. Ask about anything missing before payment, especially for a custom or date-sensitive gift. Customer Love shares selected, consented stories: testimonials, not independent ratings or a guarantee.",
         "link": { "href": "/customer-love/", "label": "Read customer stories" }
       }
     ]
@@ -138,10 +138,24 @@
     "Guest checkout is available; creating an account is optional."
   ],
   "faqAnchors": {
+    "How do I place an order?": "placing-an-order",
+    "How do I pay?": "payment-options",
+    "Are shipping charges included in the displayed price?": "product-prices",
+    "Can I order from outside India?": "international-orders",
+    "Do you ship across India, and how much does shipping cost?": "india-shipping",
+    "Can I request different colours or customisation?": "custom-colours",
+    "Are your product images generated using AI?": "product-imagery",
     "What materials and sizes are used?": "materials-sizing-care",
     "How should I care for my crochet product?": "product-care",
-    "When will my order be dispatched?": "dispatch-delivery"
+    "When will my order be dispatched?": "dispatch-delivery",
+    "What is the return and refund policy?": "returns-refunds"
   },
+  "faqGroups": [
+    { "id": "faq-ordering", "title": "Ordering & payment", "description": "Your cart, checkout and final total.", "questionIds": ["placing-an-order", "payment-options", "product-prices"] },
+    { "id": "faq-delivery", "title": "Shipping & delivery", "description": "Across India, overseas and in time.", "questionIds": ["india-shipping", "dispatch-delivery", "international-orders"] },
+    { "id": "faq-products", "title": "Products & personal touches", "description": "Colours, sizing and what you see.", "questionIds": ["custom-colours", "materials-sizing-care", "product-imagery"] },
+    { "id": "faq-care", "title": "Care & returns", "description": "Looking after your handmade piece.", "questionIds": ["product-care"] }
+  ],
   "questions": [
     ["Are your product images generated using AI?", "Some lifestyle and styled images are generated or enhanced using AI, using photographs of our actual handmade products as references. AI helps illustrate different settings and use cases, such as gifting, styling or hanging a product; it is not how the physical product is made. These images are illustrative and may not reproduce every stitch, colour or proportion exactly. People, backgrounds and props in styled scenes are not necessarily real or included with your order. Please refer to the selected product's description, materials, dimensions and What's included details rather than judging size from a styled scene. Handmade pieces can have small variations, and screen colours can differ. If you would like to see an actual product photograph or clarify a detail before ordering, ask us on WhatsApp."],
     ["How do I place an order?", "Choose the product and variant, add your items to the cart, and save your contact and delivery address. Review your coupon, shipping and total, then pay securely through Razorpay. Your online order is confirmed after payment verification; you do not need to confirm it again on WhatsApp. Guest ordering is available; email signup is optional. Saved delivery details stay with your cart for up to 30 days and are visible to Luvia for order fulfilment. Use WhatsApp for help or assisted ordering if online checkout is unavailable. Adding items or sending a message does not confirm an order."],

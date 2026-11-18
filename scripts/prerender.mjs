@@ -716,7 +716,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
         <p>${escapeHtml(storeContent.orderingDisclosure.request)}</p>
         <p>${escapeHtml(storeContent.orderingDisclosure.price)}</p>
         <p>${escapeHtml(storeContent.orderingDisclosure.payment)}</p>
-        <p><a href="/faq/">Shipping &amp; payment information</a> · <a href="/about/">About &amp; contact</a></p>
+        <p><a href="/faq/#faq-delivery">Shipping information</a> · <a href="/faq/#payment-options">Payment information</a> · <a href="/about/">About &amp; contact</a></p>
       </section>
       <footer>
         <p><a href="/return-policy/">Return and refund policy</a> · <a href="/terms-and-conditions/">Terms &amp; Conditions</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a> · <a href="/international-quote/">International quotes</a> · <a href="mailto:orders@luviacreations.com">Contact us</a></p>

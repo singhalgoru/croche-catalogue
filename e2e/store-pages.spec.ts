@@ -2,6 +2,97 @@ import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 import { buildContentPages } from '../scripts/content-pages.mjs';
 import storeContent from '../src/content/storeContent.json' with { type: 'json' };
+import contentArticles from '../src/content/contentArticles.json' with { type: 'json' };
+import { productCollections } from '../src/utils/productCollections.js';
+
+test('FAQ topic links survive refresh and keep answers accessible', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const group of storeContent.faqGroups) {
+    await page.goto('/faq/');
+    await page.locator(`nav[aria-label="FAQ topics"] a[href="#${group.id}"]`).click();
+    await expect(page.locator(`#${group.id}`)).toBeInViewport();
+    await page.reload();
+    await expect(page).toHaveURL(new RegExp(`#${group.id}$`));
+    await expect(page.locator(`#${group.id}`)).toBeInViewport();
+  }
+  await page.goto('/faq/#payment-options');
+  await expect(page.locator('#payment-options')).toHaveJSProperty('open', true);
+  await expect(page.locator('#payment-options')).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('footer destinations stay correct and the desktop footer is compact', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/faq/');
+  const footer = page.getByRole('contentinfo');
+  await footer.scrollIntoViewIfNeeded();
+  if (page.viewportSize()!.width >= 1024) {
+    expect((await footer.boundingBox())!.height).toBeLessThanOrEqual(480);
+    expect((await page.locator('#collaborate').boundingBox())!.height).toBeLessThanOrEqual(190);
+  } else {
+    await footer.getByRole('button', { name: 'Help & information' }).click();
+  }
+  const links = await footer.getByRole('navigation', { name: 'Store information' }).getByRole('link').evaluateAll(nodes =>
+    nodes.map(node => ({ href: node.getAttribute('href')!, label: node.textContent!.trim() })));
+  const expected: Record<string, string> = {
+    '/collections/': 'Explore our handmade collections',
+    ...Object.fromEntries(productCollections.map(collection => [collection.path, collection.title])),
+    '/crochet-gift-guide/': storeContent.giftGuide.title,
+    '/customer-love/': 'Customer Love', '/about/': storeContent.brandStory.title,
+    '/faq/': 'Ordering, delivery & care FAQ', '/bulk-orders/': 'Bulk Orders & Corporate Gifting',
+    '/international-quote/': 'Request an international quote', '/terms-and-conditions/': 'Terms & Conditions',
+    '/privacy-policy/': 'Privacy Policy', '/return-policy/': 'Return and Refund Policy',
+  };
+  for (const link of links) {
+    await page.goto('/faq/');
+    await footer.scrollIntoViewIfNeeded();
+    const toggle = footer.getByRole('button', { name: 'Help & information' });
+    if (await toggle.isVisible()) await toggle.click();
+    const destination = new URL(link.href, page.url());
+    await footer.getByRole('navigation', { name: 'Store information' }).getByRole('link', { name: link.label, exact: true }).click();
+    await expect(page).toHaveURL(destination.href);
+    if (destination.hash) await expect(page.locator(destination.hash)).toBeInViewport();
+    else {
+      expect(expected[destination.pathname], `Unreviewed footer destination ${destination.pathname}`).toBeTruthy();
+      await expect(page.locator('main h1')).toHaveText(expected[destination.pathname]);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  }
+  await page.goto('/faq/');
+  await footer.getByRole('link', { name: 'Share feedback', exact: true }).click();
+  await expect(page.getByRole('form', { name: 'Share feedback form' })).toBeVisible();
+});
+
+test('policy contents links reach readable sections without changing pages', async ({ page }) => {
+  await installMockSupabase(page);
+  for (const path of ['/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/return-policy/']) {
+    await page.goto(path);
+    const contents = page.getByRole('navigation', { name: 'On this page' });
+    const link = contents.getByRole('link').first();
+    const href = await link.getAttribute('href');
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${path}${href}$`));
+    await expect(page.locator(href!)).toBeInViewport();
+    await page.reload();
+    await expect(page.locator(href!)).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  }
+});
+
+test('gajra styling guide shows its featured photo and clear sections without mobile overflow', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].name = 'OG Mogra Gajra';
+  await page.goto('/how-to-style-crochet-gajra/');
+  await expect(page.getByRole('img', { name: 'OG Mogra Gajra styling inspiration' })).toBeVisible();
+  const article = contentArticles.find(item => item.path === '/how-to-style-crochet-gajra/')!;
+  for (const section of article.sections!) {
+    await expect(page.getByRole('heading', { name: section.title, exact: true })).toBeVisible();
+    for (const link of section.links) {
+      await expect(page.getByRole('link', { name: link.label, exact: true })).toHaveAttribute('href', link.href);
+    }
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
 
 test('gift guide is readable in initial HTML without JavaScript', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: { width: 320, height: 640 } });
@@ -15,6 +106,66 @@ test('gift guide is readable in initial HTML without JavaScript', async ({ brows
     await expect(page.getByRole('heading', { level: 1, name: guide.title })).toBeVisible();
     for (const section of guide.sections) await expect(page.getByText(section.text, { exact: true })).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://luviacreations.com${guide.path}`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  } finally {
+    await context.close();
+  }
+});
+
+test('budget gifts keep navigation, expansion and variant-aware cart actions usable', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const original = state.products[0];
+  state.products.push(...Array.from({ length: 6 }, (_, index) => ({
+    ...original, id: `budget-${index}`, name: `Budget gift ${index}`,
+    product_variants: original.product_variants.map(variant =>
+      ({ ...variant, id: `${variant.id}-budget-${index}`, product_id: `budget-${index}` })),
+  })));
+  await page.goto('/handmade-gifts-by-budget/');
+  const first = page.locator('#budget-500');
+  await expect(first.locator('li:visible')).toHaveCount(6);
+  const details = first.locator('details');
+  await details.locator('summary').click();
+  await expect(first.locator('li:visible')).toHaveCount(7);
+  await details.locator('summary').click();
+  for (const maximum of [1000, 2000, 500]) {
+    await page.locator(`nav[aria-label="Choose a gift budget"] a[href="#budget-${maximum}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`#budget-${maximum}$`));
+    await expect(page.locator(`#budget-${maximum}`)).toBeInViewport();
+    await page.reload();
+    await expect(page.locator(`#budget-${maximum}`)).toBeInViewport();
+    await expect(page).toHaveURL(new RegExp(`#budget-${maximum}$`));
+  }
+  await first.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rose Charm', exact: true });
+  await expect(dialog.getByRole('heading', { name: 'Choose a variant' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Add to cart — Rose Charm', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Added! — Rose Charm', exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close product details' }).click();
+  await expect(page.getByRole('button', { name: 'Open cart with 1 item', exact: true })).toBeVisible();
+  await expect(first.getByRole('button', { name: 'Add to cart — Rose Charm (1 in cart)', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('budget gifts have compact cards and working navigation without JavaScript', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: { width: 320, height: 640 } });
+  try {
+    const page = await context.newPage();
+    const gifts = Array.from({ length: 7 }, (_, index) => ({
+      id: `gift-${index}`, name: `Gift ${index}`, category: 'Gifts', price: 100 + index, variants: [],
+      image: '/images/luvia-logo-160.webp', inStock: true,
+    }));
+    const path = '/handmade-gifts-by-budget/';
+    await page.route('**/handmade-gifts-by-budget/', route => route.fulfill({
+      contentType: 'text/html', body: buildContentPages(gifts, '919205907350').get(path)!,
+    }));
+    await page.goto(path);
+    const first = page.locator('#budget-500');
+    await expect(first.locator('li:visible')).toHaveCount(6);
+    await first.locator('summary').click();
+    await expect(first.locator('li:visible')).toHaveCount(7);
+    await expect(first.getByRole('link', { name: 'Choose options for Gift 0' })).toHaveAttribute('href', '/p/gift-0/');
+    await page.locator('nav[aria-label="Choose a gift budget"] a[href="#budget-2000"]').click();
+    await expect(page.locator('#budget-2000')).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   } finally {
     await context.close();
@@ -38,18 +189,34 @@ test('gift guide is reachable from navigation and links to current gift collecti
   await expect(page.getByRole('heading', { level: 1, name: 'Explore our handmade collections' })).toBeVisible();
 });
 
-test('every gift guide content link reaches its page or specific section', async ({ page }) => {
-  await installMockSupabase(page);
-  await page.goto(storeContent.giftGuide.path);
-  await expect(page.locator('main article a')).toHaveCount(11);
+for (const guide of [
+  { name: 'gift guide', path: storeContent.giftGuide.path, links: 11 },
+  { name: 'gajra styling guide', path: '/how-to-style-crochet-gajra/', links: 9 },
+]) test(`every ${guide.name} content link reaches its page or specific section`, async ({ page }) => {
+  const state = await installMockSupabase(page);
+  if (guide.name === 'gajra styling guide') {
+    const gajra = state.products[0];
+    gajra.name = 'OG Mogra Gajra';
+    gajra.category = 'Hair Accessories';
+    state.categories.push('Hair Accessories');
+    state.categorySettings['Hair Accessories'] = { priority: 40 };
+    const rose = { ...gajra, id: 'rose-gajra', name: 'Rose Gajra', public_slug: 'ivory-rose-gajra',
+      product_variants: gajra.product_variants.map(variant =>
+        ({ ...variant, id: `${variant.id}-rose`, product_id: 'rose-gajra' })) };
+    state.products.push(rose);
+  }
+  await page.goto(guide.path);
+  await expect(page.locator('main article a')).toHaveCount(guide.links);
   const links = await page.locator('main article a').evaluateAll(nodes =>
-    nodes.map(node => ({ label: node.textContent!.trim(), href: node.getAttribute('href')! })));
+    nodes.map(node => ({ label: node.getAttribute('aria-label') ?? node.textContent!.trim(), href: node.getAttribute('href')! })));
   for (const link of links) {
-    await page.goto(storeContent.giftGuide.path);
+    await page.goto(guide.path);
     const destination = new URL(link.href, page.url());
     await page.locator('main article').getByRole('link', { name: link.label, exact: true }).click();
     await expect(page).toHaveURL(destination.href);
     await expect(page.locator('main h1')).toBeVisible();
+    if (destination.pathname === '/p/og-mogra-gajra/') await expect(page.locator('main h1')).toHaveText('OG Mogra Gajra');
+    if (destination.pathname === '/p/ivory-rose-gajra/') await expect(page.locator('main h1')).toHaveText('Rose Gajra');
     if (destination.hash) {
       const target = page.locator(destination.hash);
       await expect(target).toBeInViewport();

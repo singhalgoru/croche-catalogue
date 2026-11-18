@@ -33,15 +33,10 @@ import CustomerLove from './CustomerLove';
 import type { Testimonial } from '../services/customerLove';
 import { readTestimonialSlug } from '../utils/testimonialLink';
 import { getBoundedMetaTitle } from '../utils/productMetaTitle.js';
-import { getPublicVariantPrice } from '../utils/productPrice';
+import { getProductImageUrl } from '../utils/productImageUrl';
+import BudgetGiftGuide from './BudgetGiftGuide';
 
 const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
-
-const listedPriceRange = (product: Product) => {
-  const prices = [...product.variants.map(variant => getPublicVariantPrice(product, variant)), getPublicVariantPrice(product)]
-    .filter((price): price is number => price !== null && Number.isFinite(price));
-  return prices.length ? { low: Math.min(...prices), high: Math.max(...prices) } : null;
-};
 
 interface Props {
   products: Product[];
@@ -92,6 +87,8 @@ export default function StorePages({
   const isAbout = requestedPath === '/about/';
   const isGiftGuide = requestedPath === storeContent.giftGuide.path;
   const article = contentArticles.find(item => item.path.replace(/\/?$/, '/') === requestedPath);
+  const articleHeroHref = article?.sections?.[0]?.links[0]?.href;
+  const articleHeroProduct = articleHeroHref ? products.find(product => toProductPageUrl(product).endsWith(articleHeroHref)) : undefined;
   const isCustomerLove = requestedPath === '/customer-love/';
   const storySlug = readTestimonialSlug(requestedPath) ?? undefined;
   const isStory = storySlug !== undefined;
@@ -261,14 +258,28 @@ export default function StorePages({
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">Little moments, beautifully handmade</p>
         <p className="font-heading text-xl">Made with love. Loved in real life.</p></div>
         <CustomerLove products={products} page /></>}
-      {policy && <article className="max-w-3xl space-y-5">
-        <p className="text-sm">Last updated: {policy.updated}</p>
-        {policy.sections.map(section => <section key={section.title} className="space-y-2">
-          <h2 className="font-heading text-xl font-bold">{section.title}</h2>
-          <p>{section.text}</p>
-          {section.link && <a href={section.link.href} className="inline-flex min-h-11 items-center font-semibold underline">{section.link.label}</a>}
-        </section>)}
-        <nav aria-label="Related policies" className="flex flex-wrap gap-4">
+      {policy && <article className="space-y-6">
+        <div className="rounded-3xl border border-mustard/40 bg-mustard/10 p-5 sm:p-7">
+          <p className="text-xs font-semibold uppercase tracking-wider text-cocoa/60">Clear details, considered care</p>
+          <p className="mt-3 max-w-2xl leading-relaxed">{policy.description}</p>
+          <p className="mt-3 text-xs text-cocoa/65">Last updated: {policy.updated}</p>
+        </div>
+        <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <nav aria-label="On this page" className="rounded-2xl border border-cocoa/10 bg-white p-4 lg:sticky lg:top-24">
+            <h2 className="mb-2 font-heading text-lg font-bold">On this page</h2>
+            {policy.sections.map((section, index) => <a key={section.title} href={`#policy-section-${index + 1}`}
+              className="flex min-h-11 items-center py-2 text-sm leading-snug hover:underline">{section.title}</a>)}
+          </nav>
+          <div className="space-y-4">
+            {policy.sections.map((section, index) => <section key={section.title} id={`policy-section-${index + 1}`}
+              className="scroll-mt-24 space-y-3 rounded-2xl border border-cocoa/10 bg-white p-5 sm:p-6">
+              <h2 className="font-heading text-xl font-bold">{section.title}</h2>
+              <p className="text-sm leading-relaxed">{section.text}</p>
+              {section.link && <a href={section.link.href} className="inline-flex min-h-11 items-center text-sm font-semibold underline">{section.link.label}</a>}
+            </section>)}
+          </div>
+        </div>
+        <nav aria-label="Related policies" className="flex flex-wrap gap-4 rounded-2xl border border-mustard/40 bg-mustard/10 p-4 text-sm">
           {policies.filter(item => item.path !== policy.path).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
           <a href="/return-policy/" className="min-h-11 underline">Return and refund policy</a>
@@ -277,48 +288,70 @@ export default function StorePages({
       </article>}
       {loadError && !isArtisans && <CatalogueNotice message={loadError} onRetry={onRetry} />}
       {isLoading && !isArtisans && <p role="status">Checking the latest collections and availability…</p>}
-      {policy ? null : isGiftGuide ? <article className="max-w-3xl space-y-6 leading-relaxed">
-        <p>{storeContent.giftGuide.intro}</p>
-        {storeContent.giftGuide.sections.map(section => <section key={section.title} className="space-y-2">
-          <h2 className="font-heading text-xl font-bold">{section.title}</h2>
-          <p>{section.text}</p>
-          <a href={section.link.href} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{section.link.label}</a>
-        </section>)}
-        <nav aria-label="Related guides" className="flex flex-wrap gap-4">
-          {contentArticles.map(item => <a key={item.path} href={item.path} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{item.title}</a>)}
+      {policy ? null : isGiftGuide ? <article className="space-y-8">
+        <section aria-label="Thoughtful gifts, without the guesswork" className="rounded-3xl border border-mustard/40 bg-mustard/10 p-5 sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cocoa/65">A little thought. A lot of love.</p>
+          <h2 className="mt-3 font-heading text-2xl font-bold sm:text-3xl">Thoughtful gifts, without the guesswork</h2>
+          <p className="mt-3 max-w-2xl leading-relaxed">{storeContent.giftGuide.intro}</p>
+          <ol className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
+            {['Choose for their everyday', 'Add a personal touch', 'Check the date & total'].map((step, index) =>
+              <li key={step} className="rounded-full border border-cocoa/10 bg-white px-3 py-2">{index + 1}. {step}</li>)}
+          </ol>
+        </section>
+        <nav aria-label="Related guides" className="grid gap-4 sm:grid-cols-2">
+          {contentArticles.map(item => <a key={item.path} href={item.path} aria-label={item.title}
+            className="group rounded-2xl border border-mustard/50 bg-white p-5 transition-colors hover:border-cocoa/40 sm:p-6">
+            <span className="mb-3 block text-xs font-semibold uppercase tracking-wider text-cocoa/60">
+              {'budgetBands' in item ? 'Find your budget' : 'A little inspiration'}
+            </span>
+            <span className="font-heading text-xl font-bold group-hover:underline">{item.title}</span>
+            <span aria-hidden="true" className="mt-4 block text-xl">&rarr;</span>
+          </a>)}
         </nav>
-        <nav aria-label="Gift ordering information" className="flex flex-wrap gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+          {storeContent.giftGuide.sections.map((section, index) => <section key={section.title}
+            className={`flex flex-col items-start rounded-2xl border border-cocoa/10 p-5 sm:p-6 ${index === storeContent.giftGuide.sections.length - 1 ? 'bg-cocoa text-cream sm:col-span-2' : 'bg-white'}`}>
+            <p aria-hidden="true" className="mb-3 font-heading text-2xl font-bold opacity-50">{String(index + 1).padStart(2, '0')}</p>
+            <h2 className="font-heading text-xl font-bold">{section.title}</h2>
+            <p className="mb-4 mt-3 max-w-3xl text-sm leading-relaxed">{section.text}</p>
+            <a href={section.link.href} className="mt-auto inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">{section.link.label}</a>
+          </section>)}
+        </div>
+        <nav aria-label="Gift ordering information" className="flex flex-wrap justify-between gap-3 rounded-2xl border border-cocoa/10 p-4 text-sm">
           <a href="/return-policy/" className="inline-flex min-h-11 items-center underline">Read the return and refund policy</a>
           <a href={internationalQuote.path} className="inline-flex min-h-11 items-center underline">Request an international quote</a>
         </nav>
-      </article> : article ? <article className="max-w-3xl space-y-6 leading-relaxed">
-        <p>{article.intro}</p>
-        {'sections' in article && article.sections?.map(section => <section key={section.title} className="space-y-2">
-          <h2 className="font-heading text-xl font-bold">{section.title}</h2>
-          {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
-          <nav aria-label={`${section.title} links`} className="flex flex-wrap gap-4">
-            {section.links.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">{link.label}</a>)}
-          </nav>
+      </article> : article ? <article className="space-y-8">
+        {'budgetBands' in article && article.budgetBands
+          ? <BudgetGiftGuide article={article} products={products} showCatalogue={showCatalogue}
+            onAddToCart={onAddToCart} isCartBusy={isCartBusy || isLoading || Boolean(loadError)} getCartQuantity={getCartQuantity} />
+          : <section aria-label="Handmade florals, styled your way"
+            className={`grid overflow-hidden rounded-3xl border border-mustard/40 bg-mustard/10 ${articleHeroProduct?.image ? 'md:grid-cols-2' : ''}`}>
+            <div className="flex flex-col justify-center space-y-4 p-5 sm:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-cocoa/65">The finishing touch</p>
+              <h2 className="font-heading text-2xl font-bold sm:text-3xl">Handmade florals, styled your way</h2>
+              <p className="max-w-2xl leading-relaxed">{article.intro}</p>
+              <p className="text-sm text-cocoa/70">For wedding mornings, festive evenings and little moments worth dressing up for.</p>
+            </div>
+            {articleHeroProduct?.image && <figure className="m-0 aspect-[4/3] overflow-hidden md:aspect-square">
+              <img src={getProductImageUrl(articleHeroProduct.image, 1080)} alt={`${articleHeroProduct.name} styling inspiration`}
+                width={1080} height={1080} {...productImageProtection} className="h-full w-full object-cover" />
+            </figure>}
+          </section>}
+        {'sections' in article && article.sections?.map((section, index) => <section key={section.title}
+          className="grid gap-4 rounded-3xl border border-cocoa/10 bg-white p-5 sm:p-7 md:grid-cols-[0.7fr_1.3fr]">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cocoa/55">Style note {String(index + 1).padStart(2, '0')}</p>
+            <h2 className="font-heading text-2xl font-bold">{section.title}</h2>
+          </div>
+          <div className="space-y-4">
+            {section.paragraphs.map(paragraph => <p key={paragraph} className="text-sm leading-relaxed text-cocoa/85">{paragraph}</p>)}
+            <nav aria-label={`${section.title} links`} className="flex flex-wrap gap-2">
+              {section.links.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-11 items-center rounded-full border border-cocoa/20 px-4 py-2 text-sm font-semibold hover:bg-mustard/10">{link.label}</a>)}
+            </nav>
+          </div>
         </section>)}
-        {'budgetBands' in article && article.budgetBands?.map((band, index) => {
-          const minimumPrice = index === 0 ? 0 : article.budgetBands[index - 1].maximumPrice;
-          const matchingProducts = showCatalogue ? products.filter(product => {
-            const range = listedPriceRange(product);
-            return range !== null && range.low > minimumPrice && range.low <= band.maximumPrice;
-          }) : [];
-          return <section key={band.title} className="space-y-2">
-            <h2 className="font-heading text-xl font-bold">{band.title}</h2>
-            <p>{band.text}</p>
-            {matchingProducts.length ? <ul className="list-disc space-y-2 pl-6">
-              {matchingProducts.map(product => <li key={product.id}>
-                <a href={toProductPageUrl(product)} className="font-semibold underline underline-offset-4">{product.name}</a>
-                <span> — From ₹{listedPriceRange(product)!.low.toLocaleString('en-IN')}</span>
-              </li>)}
-            </ul> : <p>No products currently match this price range. Check the latest catalogue for current options.</p>}
-          </section>;
-        })}
-        {'closing' in article && article.closing && <p>{article.closing}</p>}
-        <nav aria-label="Related guides" className="flex flex-wrap gap-4">
+        <nav aria-label="Related guides" className="flex flex-wrap gap-4 rounded-2xl border border-mustard/40 bg-mustard/10 p-5 text-sm">
           <a href={storeContent.giftGuide.path} className="inline-flex min-h-11 items-center underline">{storeContent.giftGuide.title}</a>
           {contentArticles.filter(item => item.path !== article.path).map(item =>
             <a key={item.path} href={item.path} className="inline-flex min-h-11 items-center underline">{item.title}</a>)}
@@ -442,16 +475,54 @@ export default function StorePages({
         <p>Orders: <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a></p>
         <p>General enquiries: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a></p>
         <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-block underline">Follow Luvia on Instagram</a>
-        <p>Questions about ordering? <a href="/faq/" className="inline-flex min-h-11 items-center underline underline-offset-4">Read our FAQ</a>.</p>
+        <p>Questions about ordering? <a href="/faq/#faq-ordering" className="inline-flex min-h-11 items-center underline underline-offset-4">Read our FAQ</a>.</p>
         </div>
-      </section> : pathname.startsWith('/faq') ? <section className="max-w-3xl space-y-3">
-        <p>Answers about ordering, custom colours, shipping across India, international enquiries, care and returns.</p>
-        <a href={internationalQuote.path} className="inline-flex min-h-11 items-center underline">Request an international quote</a>
-        {storeContent.questions.map(([question, answer]) => <details key={question} id={faqAnchors[question]} className="scroll-mt-24 rounded-xl border border-mustard/40 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">{question}</summary><p className="mt-3">{answer}</p>
-        </details>)}
-        <details className="rounded-xl border border-mustard/40 bg-white p-4"><summary className="cursor-pointer font-semibold">What is the return and refund policy?</summary>
-          <p className="mt-3">Read our <a href="/return-policy/" className="underline">return and refund policy</a> before ordering. Contact us if you need clarification about your order.</p></details>
+      </section> : pathname.startsWith('/faq') ? <section className="space-y-10">
+        <div className="rounded-3xl border border-mustard/40 bg-mustard/10 p-5 sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cocoa/65">Good to know</p>
+          <h2 className="mt-3 font-heading text-2xl font-bold sm:text-3xl">Little questions, clear answers</h2>
+          <p className="mt-3 max-w-2xl leading-relaxed">From your first pick to caring for your handmade piece, find the details that help you order with confidence.</p>
+          <nav aria-label="FAQ topics" className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {storeContent.faqGroups.map(group => <a key={group.id} href={`#${group.id}`}
+              className="rounded-2xl border border-cocoa/10 bg-white p-4 transition-colors hover:border-cocoa/40">
+              <strong className="block font-heading text-lg">{group.title}</strong>
+              <span className="mt-2 block text-xs leading-relaxed text-cocoa/65">{group.description}</span>
+              <span aria-hidden="true" className="mt-3 block">&rarr;</span>
+            </a>)}
+          </nav>
+        </div>
+        {storeContent.faqGroups.map(group => <section key={group.id} id={group.id} aria-labelledby={`${group.id}-title`}
+          className="grid scroll-mt-24 gap-4 md:grid-cols-[0.7fr_1.3fr] md:gap-8">
+          <div>
+            <h2 id={`${group.id}-title`} className="font-heading text-2xl font-bold">{group.title}</h2>
+            <p className="mt-2 text-sm text-cocoa/65">{group.description}</p>
+          </div>
+          <div className="space-y-3">
+            {group.questionIds.map(id => {
+              const entry = storeContent.questions.find(([question]) => faqAnchors[question] === id);
+              if (!entry) throw new Error(`Unknown FAQ question: ${id}`);
+              return <details key={entry[0]} id={id}
+                className="scroll-mt-24 rounded-2xl border border-cocoa/10 bg-white px-5">
+                <summary className="cursor-pointer py-4 font-semibold marker:text-cocoa/50">{entry[0]}</summary>
+                <p className="pb-5 text-sm leading-relaxed text-cocoa/85">{entry[1]}</p>
+              </details>;
+             })}
+            {group.id === 'faq-care' && <details id="returns-refunds" className="scroll-mt-24 rounded-2xl border border-cocoa/10 bg-white px-5">
+              <summary className="cursor-pointer py-4 font-semibold marker:text-cocoa/50">What is the return and refund policy?</summary>
+              <p className="pb-5 text-sm leading-relaxed text-cocoa/85">Read our <a href="/return-policy/" className="underline">return and refund policy</a> before ordering. Contact us if you need clarification about your order.</p>
+            </details>}
+          </div>
+        </section>)}
+        <aside className="flex flex-wrap items-center justify-between gap-5 rounded-3xl bg-cocoa p-5 text-cream sm:p-7">
+          <div>
+            <h2 className="font-heading text-xl font-bold">Still have a little question?</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed">For a personal request or a detail about your order, get in touch before ordering. We will help you confirm what is possible.</p>
+          </div>
+          <nav aria-label="More ordering help" className="flex flex-wrap gap-4 text-sm font-semibold">
+            <a href="/about/#contact-luvia" className="inline-flex min-h-11 items-center underline underline-offset-4">Contact Luvia</a>
+            <a href={internationalQuote.path} className="inline-flex min-h-11 items-center underline underline-offset-4">Request an international quote</a>
+          </nav>
+        </aside>
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
@@ -488,7 +559,7 @@ export default function StorePages({
         <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
-      {showCatalogue && !isCollectionsHub && !isCustomerLove && !isStory && !policy && !isArtisans && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
+      {showCatalogue && !isCollectionsHub && !isCustomerLove && !isStory && !policy && !isArtisans && !isGiftGuide && !article && !pathname.startsWith('/faq') && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
     </main><Footer showCollaboration={!isArtisans} showBulkOrders={!isArtisans && !isBulkOrders} />
   </div>;
 }

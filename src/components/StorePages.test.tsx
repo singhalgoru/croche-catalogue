@@ -18,6 +18,21 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it('groups every FAQ answer once and keeps all topic links valid', () => {
+    window.history.replaceState(null, '', '/faq/');
+    render(<StorePages {...initial} />);
+    const topics = screen.getByRole('navigation', { name: 'FAQ topics' });
+    for (const group of storeContent.faqGroups) {
+      expect(topics.querySelector(`a[href="#${group.id}"]`)).toBeTruthy();
+      expect(document.getElementById(group.id)?.querySelector('h2')?.textContent).toBe(group.title);
+    }
+    for (const [question, answer] of storeContent.questions) {
+      expect(screen.getAllByText(question)).toHaveLength(1);
+      expect(screen.getByText(answer)).toBeTruthy();
+      expect(screen.getByText(question).closest('details')?.id).toBe(storeContent.faqAnchors[question as keyof typeof storeContent.faqAnchors]);
+    }
+    expect(document.querySelectorAll('main details')).toHaveLength(storeContent.questions.length + 1);
+  });
   it.each([
     ['materials-sizing-care', 'What materials and sizes are used?'],
     ['dispatch-delivery', 'When will my order be dispatched?'],
@@ -80,7 +95,79 @@ describe('live store pages', () => {
     expect(within(secondBudget).queryByRole('link', { name: 'Bunny' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Private price' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Over budget' })).toBeNull();
+    expect(within(firstBudget).getByRole('img', { name: 'Bunny' }).getAttribute('src')).toContain('bunny');
+    expect(screen.getByRole('navigation', { name: 'Choose a gift budget' }).querySelectorAll('a')).toHaveLength(3);
+    expect(screen.queryByRole('heading', { name: 'Explore collections' })).toBeNull();
     expect(document.title.length).toBeLessThanOrEqual(60);
+  });
+  it('uses non-overlapping budget boundaries and actual variant prices instead of an overridden base', () => {
+    window.history.replaceState(null, '', '/handmade-gifts-by-budget/');
+    const priced = [500, 500.01, 1000, 1000.01, 2000, 2000.01].map(price =>
+      ({ ...products[0], id: `price-${price}`, name: `Gift ${price}`, price }));
+    render(<StorePages {...initial} products={[...priced, {
+      ...products[0], id: 'overridden', name: 'Variant-priced gift', price: 100,
+      variants: [{ ...products[0].variants[0], price: 900 }, { ...products[0].variants[0], id: 'v2', price: 1200 }],
+    }]} />);
+    const band = (maximum: number) => document.getElementById(`budget-${maximum}`)!;
+    for (const [price, maximum] of [[500, 500], [500.01, 1000], [1000, 1000], [1000.01, 2000], [2000, 2000]]) {
+      expect(within(band(maximum)).getByRole('link', { name: `Gift ${price}` })).toBeTruthy();
+      expect(screen.getAllByRole('link', { name: `Gift ${price}` })).toHaveLength(1);
+    }
+    expect(screen.queryByRole('link', { name: 'Gift 2000.01' })).toBeNull();
+    expect(within(band(500)).queryByRole('link', { name: 'Variant-priced gift' })).toBeNull();
+    expect(within(band(1000)).getByRole('link', { name: 'Variant-priced gift' })).toBeTruthy();
+    expect(within(band(1000)).getByText('From ₹900')).toBeTruthy();
+  });
+  it.each([
+    { isLoading: true, loadError: null },
+    { isLoading: false, loadError: 'Catalogue unavailable' },
+  ])('does not present unavailable catalogue data as empty budget ranges: %j', state => {
+    window.history.replaceState(null, '', '/handmade-gifts-by-budget/');
+    render(<StorePages {...initial} {...state} hasCatalogueSnapshot={false} products={[]} />);
+    expect(screen.queryByText(/No gifts in this range/)).toBeNull();
+    expect(screen.queryByText('0 to explore')).toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Choose a gift budget' })).toBeTruthy();
+    expect(state.isLoading ? screen.getByRole('status') : screen.getByText('Catalogue unavailable')).toBeTruthy();
+  });
+  it('lets shoppers choose a variant through the budget cart icon before adding it', async () => {
+    window.history.replaceState(null, '', '/handmade-gifts-by-budget/');
+    const bunny = { ...products[0], variants: [
+      { ...products[0].variants[0], price: 1200 },
+      { ...products[0].variants[0], id: 'gold', name: 'Gold', price: 500 },
+    ] };
+    const onAddToCart = vi.fn().mockResolvedValue(true);
+    const view = render(<StorePages {...initial} products={[bunny]} onAddToCart={onAddToCart} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart — Bunny' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bunny' });
+    expect(onAddToCart).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole('button', { name: 'Gold' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'White' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add to cart — Bunny' }));
+    await waitFor(() => expect(onAddToCart).toHaveBeenCalledWith(bunny, bunny.variants[0]));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close product details' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    view.rerender(<StorePages {...initial} products={[bunny]} isCartBusy={true} />);
+    expect((screen.getByRole('button', { name: 'Add to cart — Bunny' }) as HTMLButtonElement).disabled).toBe(true);
+    view.rerender(<StorePages {...initial} products={[{ ...bunny, inStock: false }]} />);
+    expect((screen.getByRole('button', { name: 'Add to cart — Bunny' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it('keeps the styled gajra guide readable with or without its featured catalogue photo', () => {
+    window.history.replaceState(null, '', '/how-to-style-crochet-gajra/');
+    const article = contentArticles.find(item => item.path === '/how-to-style-crochet-gajra/')!;
+    const view = render(<StorePages {...initial} products={[{
+      ...products[0], publicSlug: 'og-mogra-gajra', name: 'OG Mogra Gajra',
+    }]} />);
+    expect(screen.getByRole('img', { name: 'OG Mogra Gajra styling inspiration' }).getAttribute('draggable')).toBe('false');
+    for (const section of article.sections!) {
+      expect(screen.getByRole('heading', { name: section.title })).toBeTruthy();
+      for (const paragraph of section.paragraphs) expect(screen.getByText(paragraph)).toBeTruthy();
+      for (const link of section.links) expect(screen.getByRole('link', { name: link.label }).getAttribute('href')).toBe(link.href);
+    }
+    expect(screen.queryByRole('heading', { name: 'Explore collections' })).toBeNull();
+    view.rerender(<StorePages {...initial} products={[]} hasCatalogueSnapshot={false} isLoading={true} />);
+    expect(screen.getByRole('heading', { level: 1, name: article.title })).toBeTruthy();
+    expect(screen.getByText(article.intro)).toBeTruthy();
+    expect(screen.queryByRole('img', { name: 'OG Mogra Gajra styling inspiration' })).toBeNull();
   });
   it('renders the dedicated international quote form and preselects a linked catalogue product', () => {
     window.history.replaceState(null, '', '/international-quote/?product=p1');
@@ -181,7 +268,7 @@ describe('live store pages', () => {
       expect(screen.queryByText(storeContent.dispatch)).toBeNull();
       expect(screen.queryByRole('heading', { name: 'Ordering across India' })).toBeNull();
       expect(screen.queryByRole('heading', { name: storeContent.orderingDisclosure.title })).toBeNull();
-      expect(screen.getByRole('link', { name: 'Read our FAQ' }).getAttribute('href')).toBe('/faq/');
+      expect(screen.getByRole('link', { name: 'Read our FAQ' }).getAttribute('href')).toBe('/faq/#faq-ordering');
       expect(screen.getByRole('banner')).toBeTruthy();
       expect(screen.getByRole('contentinfo')).toBeTruthy();
       expect(document.title).toBe(`${storeContent.brandStory.title} | Luvia Creations`);
@@ -345,7 +432,7 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     expect(screen.queryByText(/then pay securely through Razorpay/)).toBeNull();
     expect(screen.queryByText(/Prices are in Indian rupees/)).toBeNull();
-    expect(screen.getByRole('link', { name: 'Read our FAQ' }).getAttribute('href')).toBe('/faq/');
+    expect(screen.getByRole('link', { name: 'Read our FAQ' }).getAttribute('href')).toBe('/faq/#faq-ordering');
     expect(screen.getByRole('link', { name: '+91 92059 07350' }).getAttribute('href')).toContain('https://wa.me/');
     expect(screen.getByRole('contentinfo')).toBeTruthy();
   });
@@ -398,14 +485,16 @@ describe('live store pages', () => {
     for (const pathname of ['/collections/', '/collections/toys/', '/about/', '/faq/']) {
       window.history.replaceState(null, '', pathname);
       const { rerender, unmount } = render(<StorePages {...initial} categorySettings={settings} />);
-      const nav = screen.getByRole('navigation', { name: 'Explore collections' });
-      expect(within(nav).queryByRole('link', { name: 'Rakhi' })).toBeNull();
+      const nav = screen.queryByRole('navigation', { name: 'Explore collections' });
+      if (pathname === '/faq/') expect(nav).toBeNull();
+      else expect(nav).not.toBeNull();
+      if (nav) expect(within(nav).queryByRole('link', { name: 'Rakhi' })).toBeNull();
       expect(screen.getByRole('banner').textContent).not.toContain('Rakhi');
       rerender(<StorePages {...initial} categorySettings={settings} products={[...products, { ...products[0], id: 'r1', category: 'Rakhi' }]} />);
-      expect(within(nav).getByRole('link', { name: 'Rakhi' })).toBeTruthy();
+      if (nav) expect(within(nav).getByRole('link', { name: 'Rakhi' })).toBeTruthy();
       expect(screen.getByRole('banner').textContent).toContain('Rakhi');
       rerender(<StorePages {...initial} categorySettings={settings} />);
-      expect(within(nav).queryByRole('link', { name: 'Rakhi' })).toBeNull();
+      if (nav) expect(within(nav).queryByRole('link', { name: 'Rakhi' })).toBeNull();
       unmount();
     }
   });
@@ -485,12 +574,13 @@ describe('live store pages', () => {
     expect(screen.getByRole('alert').textContent).toContain('Retrying automatically');
   });
 
-  it('shows the shared factual FAQ and live category links', () => {
+  it('keeps factual FAQ answers without duplicating collection navigation', () => {
     window.history.replaceState(null, '', '/faq/');
     render(<StorePages {...initial} />);
     expect(screen.getByText('How do I place an order?')).toBeTruthy();
     expect(screen.getByText(/sending a message does not confirm an order/)).toBeTruthy();
-    expect(within(screen.getByRole('navigation', { name: 'Explore collections' })).getByRole('link', { name: 'Toys' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Explore collections' })).toBeNull();
+    expect(screen.getByRole('banner').textContent).toContain('Toys');
   });
 
   it('positions the brand as premium on the about page without changing product details', () => {

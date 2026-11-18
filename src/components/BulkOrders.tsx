@@ -32,7 +32,7 @@ export default function BulkOrders({ presentation = 'section' }: { presentation?
   };
   if (!isPage) return (
     <section id="bulk-orders" aria-labelledby="bulk-orders-heading"
-      className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16">
+      className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16 md:mt-8">
       <div className="flex flex-col gap-4 rounded-2xl border border-mustard/50 bg-mustard/10 p-5 text-cocoa sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="bulk-orders-heading" className="font-heading text-lg font-bold">{bulkOrders.title}</h2>

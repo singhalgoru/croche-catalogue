@@ -6,6 +6,8 @@ import Footer from './components/Footer';
 import ProductMakingVideo from './components/ProductMakingVideo';
 import OrderingGuide from './components/OrderingGuide';
 import storeContent from './content/storeContent.json';
+import contentArticles from './content/contentArticles.json';
+import policies from './content/policies.json';
 import { productImageProtection } from './utils/imageProtection';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
@@ -75,6 +77,9 @@ const readCheckoutStep = () => {
 const sectionHashes = [
   '#collaborate', '#bulk-orders', '#products', '#contact-luvia',
   ...Object.values(storeContent.faqAnchors).map(id => `#${id}`),
+  ...storeContent.faqGroups.map(group => `#${group.id}`),
+  ...policies.flatMap(policy => policy.sections.map((_, index) => `#policy-section-${index + 1}`)),
+  ...contentArticles.flatMap(article => article.budgetBands?.map(band => `#budget-${band.maximumPrice}`) ?? []),
 ];
 
 function App() {

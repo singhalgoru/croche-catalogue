@@ -67,9 +67,9 @@ afterEach(() => {
 
 describe('Hybrid product navigation', () => {
   it.each([
-    ['/faq/', 'materials-sizing-care'],
-    ['/faq/', 'product-care'],
-    ['/faq/', 'dispatch-delivery'],
+    ...Object.values(storeContent.faqAnchors).map(id => ['/faq/', id]),
+    ...storeContent.faqGroups.map(group => ['/faq/', group.id]),
+    ['/terms-and-conditions/', 'policy-section-3'],
     ['/about/', 'contact-luvia'],
   ])('preserves the informational section %s#%s through route cleanup', (path, id) => {
     window.history.replaceState(null, '', `${path}#${id}`);
