@@ -144,9 +144,9 @@ an India-based handmade crochet brand.
   the application-to-paid-trial process.
   Product-level artisan patterns support Luvia-branded English/Hindi authoring,
   private editable Word masters and print-restricted PDFs (up to 2 MB each),
-  with centred branding, a copyright notice, product link and main photo.
-  Pattern IDs start with the product name and are generated automatically;
-  the preparer is always Luvia Creations.
+  with the logo beside a centred product title, a copyright notice, product link
+  and main photo. Internal Pattern IDs are omitted; the centred preparer is
+  always Luvia Creations. PDFs omit unfilled template fields.
   Only the reviewed PDF is emailed, after explicit confirmation, to Approved
   artisans with an application email. PDF restrictions are reader-enforced,
   not a guarantee against redistribution.

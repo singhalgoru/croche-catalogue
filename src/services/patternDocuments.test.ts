@@ -1,15 +1,9 @@
 import { expect, it } from 'vitest';
-import { patternBlocks, patternLabels, preparePatternDocuments, productPatternId, protectedPdfDefinition } from './patternDocuments';
+import { patternBlocks, patternLabels, pdfPatternBlocks, preparePatternDocuments, protectedPdfDefinition } from './patternDocuments';
 
 const product = { id: 'existing-product-id', sku: 'LUV-000001', name: 'Lotus Flower Decor', image: '/lotus.jpg' };
 
-it('uses the product name and permanent SKU, with the full product ID for older products without SKUs', () => {
-  expect(productPatternId(product)).toBe('Lotus Flower Decor-LUV-000001');
-  expect(productPatternId({ ...product, name: 'कमल का फूल' })).toBe('कमल का फूल-LUV-000001');
-  expect(productPatternId({ ...product, sku: undefined })).toBe('Lotus Flower Decor-existing-product-id');
-});
-
-it('replaces imported identity fields in both languages, omits reviewed-by fields and retains revision and instructions', () => {
+it('omits internal pattern IDs and imported preparers in both languages while retaining revision, date and instructions', () => {
   expect(patternBlocks(`<table>
     <tr><td>Product / SKU</td><td>[Enter product and SKU]</td></tr>
     <tr><td>Pattern ID / revision / date</td><td>OLD-ID / V2 / 2026-11-18</td></tr>
@@ -20,13 +14,10 @@ it('replaces imported identity fields in both languages, omits reviewed-by field
     <p>Prepared by: Other company</p><p>पैटर्न ID: पुराना</p>`, product)).toEqual([
     { kind: 'table', rows: [
       ['Product / SKU', 'Lotus Flower Decor / LUV-000001'],
-      ['Pattern ID / revision / date', 'Lotus Flower Decor-LUV-000001 / V2 / 2026-11-18'],
-      ['Prepared by', 'Luvia Creations'],
-      ['पैटर्न ID / संस्करण / तिथि', 'Lotus Flower Decor-LUV-000001 / V2 / 2026-11-18'],
-      ['तैयार किया', 'Luvia Creations'],
+      ['Revision / date', 'V2 / 2026-11-18'],
+      ['संस्करण / तिथि', 'V2 / 2026-11-18'],
       ['R1', '5 चेन बनाएं।'],
-    ].map(row => row.map(text => ({ text, columnSpan: 1 }))) }, { kind: 'text', text: 'Prepared by: Luvia Creations' },
-    { kind: 'text', text: 'पैटर्न ID: Lotus Flower Decor-LUV-000001' },
+    ].map(row => row.map(text => ({ text, columnSpan: 1 }))) },
   ]);
 });
 
@@ -67,7 +58,7 @@ it('preserves paragraph, list and manual line breaks without separating inline s
     { kind: 'text', text: 'R6: ch 4,\nturn.' },
   ]);
 });
-it('omits only the standard imported copyright already supplied by the generated cover', () => {
+it('omits only the standard imported copyright already supplied by the generated document', () => {
   const html = `<p>${patternLabels.en.copyright.replace('©', '(c)')}</p>
     <p>${patternLabels.hi.copyright}</p><p>Custom copyright and review notes.</p>
     <h2>5. Instructions</h2><p>R1: 10 hdc.</p>`;
@@ -83,8 +74,18 @@ it('imports only the remaining author-supplied sections without adding template 
   ]);
 });
 it('does not prepare a cover-only document when every directly authored line is omitted boilerplate', async () => {
-  await expect(preparePatternDocuments(product, 'en', `Reviewed by: Reviewer\n${patternLabels.en.copyright}`))
+  await expect(preparePatternDocuments(product, 'en',
+    `Pattern ID: OLD-ID\nPrepared by: Someone\nReviewed by: Reviewer\n${patternLabels.en.copyright}`))
     .rejects.toThrow('Add pattern instructions');
+});
+it('preserves revision/date suffixes in paragraphs without repeating cover fields', () => {
+  expect(patternBlocks(`<p>Pattern ID / revision / date: OLD-ID / V3 / 18/11/2026</p>
+    <p>Prepared by / date: Someone / 18/11/2026</p><p>Pattern ID: OLD-ID</p>
+    <p>Prepared by: Someone</p><p>R1: 10 hdc.</p>`, product)).toEqual([
+    { kind: 'text', text: 'Revision / date: V3 / 18/11/2026' },
+    { kind: 'text', text: 'Date: 18/11/2026' },
+    { kind: 'text', text: 'R1: 10 hdc.' },
+  ]);
 });
 it('omits redundant product-photo/link prompts and separate reviewer fields without removing real reference notes', () => {
   expect(patternBlocks(`<p>Product link: [Paste the product page URL]</p>
@@ -94,9 +95,7 @@ it('omits redundant product-photo/link prompts and separate reviewer fields with
     <table><tr><td>Prepared by / reviewed by</td><td>Someone / Reviewer</td></tr>
     <tr><td>Reviewed by</td><td>Reviewer</td></tr><tr><td>R1</td><td>10 hdc</td></tr></table>
     <p>Reference photo: use pale pink for the outer layer.</p>`, product)).toEqual([
-    { kind: 'text', text: 'तैयार किया: Luvia Creations' },
     { kind: 'table', rows: [
-      [{ text: 'Prepared by', columnSpan: 1 }, { text: 'Luvia Creations', columnSpan: 1 }],
       [{ text: 'R1', columnSpan: 1 }, { text: '10 hdc', columnSpan: 1 }],
     ] },
     { kind: 'text', text: 'Reference photo: use pale pink for the outer layer.' },
@@ -116,6 +115,47 @@ it('formats abbreviation definitions as a table and leaves other sections and ex
   const html = '<h2>3. Abbreviations &amp; special stitches</h2><table><tr><td>ch</td><td>chain</td></tr></table>';
   expect(patternBlocks(html, product).filter(block => block.kind === 'table')).toHaveLength(1);
 });
+it('formats reference/construction notes as a table without changing their technical wording', () => {
+  expect(patternBlocks(`<h2>1. Reference &amp; construction</h2><p>Work in rounds. Do not turn.</p>
+    <p>Light pink: R4-R8.</p><h2>2. Materials</h2><p>Cotton yarn.</p>`, product)).toEqual([
+    { kind: 'heading', text: '1. Reference & construction' },
+    { kind: 'table', rows: [
+      [{ text: 'Construction details', columnSpan: 1 }],
+      [{ text: 'Work in rounds. Do not turn.', columnSpan: 1 }],
+      [{ text: 'Light pink: R4-R8.', columnSpan: 1 }],
+    ] },
+    { kind: 'heading', text: '2. Materials' }, { kind: 'text', text: 'Cotton yarn.' },
+  ]);
+});
+it('omits empty PDF details and sections but retains filled values, dates and real bracketed stitch instructions', () => {
+  const blocks = patternBlocks(`<table><tr><td>Document control</td><td>Details</td></tr>
+    <tr><td>Finished size / tolerance</td><td>[Dimensions in cm] / [Allowed variation]</td></tr>
+    <tr><td>Skill level / terminology</td><td>[Beginner / Intermediate / Advanced] / US crochet terms</td></tr>
+    <tr><td>Revision / date</td><td>V3 / 18/11/2026</td></tr>
+    <tr><td>Yarn</td><td>[Cotton]</td></tr></table>
+    <h2>Empty section</h2><p>[Add measurements here.]</p>
+    <h2>Instructions</h2><p>R1: [sc, ch 2, dc] x 8. [Add 2 dc] in the next loop. See [R2].</p>`, product);
+  expect(pdfPatternBlocks(blocks)).toEqual([
+    { kind: 'table', rows: [
+      ['Pattern details', 'Details'], ['Skill level / terminology', 'US crochet terms'],
+      ['Revision / date', 'V3 / 18/11/2026'], ['Yarn', '[Cotton]'],
+    ].map(row => row.map(text => ({ text, columnSpan: 1 }))) },
+    { kind: 'heading', text: 'Instructions' },
+    { kind: 'text', text: 'R1: [sc, ch 2, dc] x 8. [Add 2 dc] in the next loop. See [R2].' },
+  ]);
+  expect(blocks[0]).toMatchObject({ rows: expect.arrayContaining([
+    [{ text: 'Finished size / tolerance', columnSpan: 1 }, { text: '[Dimensions in cm] / [Allowed variation]', columnSpan: 1 }],
+  ]) });
+});
+it('omits all-placeholder tables, Hindi fields and empty headings from the PDF', () => {
+  expect(pdfPatternBlocks(patternBlocks(`<h2>Sample approval</h2>
+    <table><tr><td>Check</td><td>Notes</td></tr><tr><td>Size</td><td>[Match approved sample and agreed tolerance]</td></tr></table>
+    <h2>माप</h2><p>[सेमी में माप]</p>`, product))).toEqual([]);
+});
+it('rejects PDF creation when no filled pattern content remains', async () => {
+  await expect(preparePatternDocuments(product, 'en', '[Write full instructions]'))
+    .rejects.toThrow('Fill in pattern instructions');
+});
 it('uses AES-256 and permits only high-quality printing, with a different owner password for each preparation', () => {
   const first = protectedPdfDefinition('hi', []);
   const second = protectedPdfDefinition('hi', []);
@@ -127,4 +167,7 @@ it('uses AES-256 and permits only high-quality printing, with a different owner 
   expect(first.defaultStyle?.font).toBe('NotoDevanagari');
   expect(patternLabels.hi.copyright).toContain('स्पष्ट लिखित अनुमति');
   expect(patternLabels.en.copyright).toContain('explicit written consent');
+  if (typeof first.footer !== 'function') throw new Error('Expected the last-page footer');
+  expect(JSON.stringify(first.footer(1, 2, { width: 595, height: 842, orientation: 'portrait' }))).not.toContain(patternLabels.hi.copyright);
+  expect(JSON.stringify(first.footer(2, 2, { width: 595, height: 842, orientation: 'portrait' }))).toContain(patternLabels.hi.copyright);
 });

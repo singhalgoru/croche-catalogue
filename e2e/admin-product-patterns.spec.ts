@@ -22,6 +22,8 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   const document = readFileSync(join('public', 'templates', 'Luvia_Standard_Crochet_Pattern_v4.docx'));
   const sourceDocument = merged ? await Packer.toBuffer(new Document({ sections: [{ children: [
     new Paragraph('Pattern ID: OLD-PATTERN-ID'), new Paragraph('Prepared by: Other company'),
+    new Paragraph({ text: '1. Reference & construction', heading: HeadingLevel.HEADING_1 }),
+    new Paragraph('Work in rounds. Do not turn.'),
     new Paragraph({ text: '3. Abbreviations & special stitches', heading: HeadingLevel.HEADING_1 }),
     new Paragraph('US terms: ch = chain; Ch 3 Picot = ch 3, join into the third chain.'),
     new Paragraph({ text: '5. Instructions', heading: HeadingLevel.HEADING_1 }),
@@ -107,8 +109,11 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   expect(download.suggestedFilename()).toMatch(/\.docx$/);
   expect(readFileSync((await download.path())!)).toEqual(Buffer.from(attachment, 'base64'));
   const { value: wordText } = await extractRawText({ buffer: Buffer.from(attachment, 'base64') });
-  expect(wordText).toContain(`${product.name}-${product.sku ?? product.id}`);
-  expect(wordText).toContain(`${language === 'hi' ? 'तैयार किया' : 'Prepared by'}: Luvia Creations`);
+  expect(wordText).not.toContain(`${product.name}-${product.sku ?? product.id}`);
+  expect(wordText).not.toMatch(/Pattern ID|पैटर्न ID/i);
+  expect(wordText.split(`${language === 'hi' ? 'तैयार किया' : 'Prepared by'}: Luvia Creations`)).toHaveLength(2);
+  expect(wordText).not.toContain('Pattern ID / revision / date');
+  if (language === 'en' && !merged) expect(wordText).toContain('Revision / date');
   expect(wordText).not.toContain('Assigned automatically during admin preparation');
   expect(wordText).not.toContain('Other company');
   expect(wordText).not.toContain('OLD-PATTERN-ID');
@@ -121,6 +126,9 @@ test(`admin attaches a private editable pattern and emails only a protected PDF 
   const { value: wordHtml } = await convertToHtml({ buffer: Buffer.from(attachment, 'base64') });
   if (language === 'en') {
     const tables = wordHtml.match(/<table>[\s\S]*?<\/table>/g) ?? [];
+    expect(tables.some(table => table.includes('Construction details'))).toBe(true);
+    expect(wordText).not.toContain('Document control');
+    if (!merged) expect(wordText).toContain('Pattern details');
     const abbreviations = tables.find(table => table.includes('Abbreviation / stitch'));
     expect(abbreviations).toContain('Meaning / instructions');
     expect(abbreviations).toContain('chain');
