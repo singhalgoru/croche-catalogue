@@ -1,5 +1,5 @@
 begin;
-create temporary table artisan_fixture as select gen_random_uuid() admin_id,gen_random_uuid() applicant_id,
+create temporary table artisan_fixture as select gen_random_uuid() admin_id,gen_random_uuid() applicant_id,gen_random_uuid() legacy_applicant_id,
   gen_random_uuid() session_id,gen_random_uuid() factor_id,gen_random_uuid() invite_id,gen_random_uuid() application_id,
   gen_random_uuid() legacy_invite_id,gen_random_uuid() legacy_application_id,
   gen_random_uuid() addressless_invite_id,gen_random_uuid() addressless_application_id,
@@ -10,6 +10,7 @@ create temporary table artisan_fixture as select gen_random_uuid() admin_id,gen_
 grant select on artisan_fixture to authenticated,anon;
 insert into auth.users(id) select admin_id from artisan_fixture;
 insert into auth.users(id,is_anonymous) select applicant_id,true from artisan_fixture;
+insert into auth.users(id,is_anonymous) select legacy_applicant_id,true from artisan_fixture;
 insert into public.catalogue_admins(user_id) select admin_id from artisan_fixture;
 insert into auth.mfa_factors(id,user_id,factor_type,status,created_at,updated_at,secret)
 select factor_id,admin_id,'totp','verified',now(),now(),'fixture' from artisan_fixture;
@@ -131,9 +132,11 @@ do $$ declare f record; result uuid; begin
     perform public.submit_artisan_application(f.application_id,f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'changed@example.test');
     raise exception 'FAIL: idempotent retry changed applicant email.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.legacy_applicant_id,'role','authenticated')::text,true);
   result:=public.submit_artisan_application(f.legacy_application_id,f.details,'2026-10-29.2',f.legacy_token,'2026-10-29.1',null,null,null);
   if result<>f.legacy_application_id then raise exception 'FAIL: older cached application form cannot submit.'; end if;
   perform public.submit_artisan_application(f.legacy_application_id,f.details,'2026-10-29.2',f.legacy_token,'2026-10-29.1',null,null,null);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',f.applicant_id,'role','authenticated')::text,true);
   if public.artisan_invitation_status(f.token)<>'submitted' then raise exception 'FAIL: submitted invitation not marked.'; end if;
   begin
     perform public.submit_artisan_application(gen_random_uuid(),f.details,'2026-11-01.1',f.token,'2026-10-29.1',null,null,'maker@example.test');
@@ -195,11 +198,12 @@ do $$ declare f record; result jsonb; expired_id uuid:=gen_random_uuid(); revoke
   result:=public.list_artisan_applications('','More information required',0);
   if (result->>'total')::integer<>1 or result->'applications'->0->>'contact_email'<>'maker@example.test' then
     raise exception 'FAIL: new status or applicant email missing from admin directory.'; end if;
+  perform public.save_artisan_payment_details(f.application_id,'{"name":"Sample Maker","method":"UPI","upi":"maker@bank"}',true);
   result:=public.update_artisan_application(f.application_id,4,'Trial','Trial note');
   if result->>'status'<>'Trial' then raise exception 'FAIL: trial review receipt.'; end if;
   result:=public.update_artisan_application(f.application_id,5,'Approved','Approval note');
   if result->>'status'<>'Approved' then raise exception 'FAIL: approval review receipt.'; end if;
-  if (select count(*) from public.artisan_application_history where application_id=f.application_id)<>6 then raise exception 'FAIL: review history after email statuses.'; end if;
+  if (select count(*) from public.artisan_application_history where application_id=f.application_id)<>7 then raise exception 'FAIL: review history after email statuses.'; end if;
   begin
     perform public.update_artisan_application(f.application_id,1,'Approved','Stale');
     raise exception 'FAIL: stale review overwrote newer changes.';

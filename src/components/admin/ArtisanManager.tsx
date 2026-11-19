@@ -4,6 +4,8 @@ import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fe
 import type { ArtisanApplication, ArtisanHistory, ArtisanStatus } from '../../services/artisans';
 import ArtisanInvitations from './ArtisanInvitations';
 import ArtisanProfile from './ArtisanProfile';
+import ArtisanPaymentDetails from './ArtisanPaymentDetails';
+import { paymentStatus, requestPaymentDetails } from '../../services/artisanPaymentDetails';
 
 function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
   application: ArtisanApplication; onClose: () => void; onChanged: () => void; onUpdated: (application: ArtisanApplication) => void;
@@ -15,7 +17,9 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
   const [historyError, setHistoryError] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyKey, setHistoryKey] = useState(0);
+  const [paymentKey, setPaymentKey] = useState(0);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [identity, setIdentity] = useState<{ source: string; expiresAt: string } | null>(null);
@@ -94,9 +98,27 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
     <p className="text-xs">Portfolio links are unverified. Review only for selection; do not republish without separate permission.</p>
     <ArtisanProfile application={application} onUpdated={onUpdated} disabled={busy} onBusyChange={setBusy}
       onActivityChanged={() => setHistoryKey(value => value + 1)} />
+    <ArtisanPaymentDetails id={application.id} refreshKey={paymentKey} />
     <form aria-label="Review artisan" className="space-y-3" onSubmit={event => {
-      event.preventDefault(); setBusy(true); setError('');
-      void updateArtisanApplication(application, status, notes, applicantMessage).then(onChanged)
+      event.preventDefault(); setBusy(true); setError(''); setNotice('');
+      void (async () => {
+        if (status === 'Trial' && application.status !== 'Trial') {
+          const payment = await paymentStatus(application.id);
+          if (!payment.verified) {
+            if (payment.provided) {
+              setPaymentKey(value => value + 1);
+              throw new Error('Review the payment details and confirm the artisan’s name before starting Trial.');
+            }
+            if (!payment.requested) await requestPaymentDetails(application.id);
+            setPaymentKey(value => value + 1);
+            setHistoryKey(value => value + 1);
+            setNotice('Payment request queued or already active. Trial has not started; save the review after details are confirmed.');
+            return;
+          }
+        }
+        await updateArtisanApplication(application, status, notes, applicantMessage);
+        onChanged();
+      })()
         .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to save review.'))
         .finally(() => setBusy(false));
     }}>
@@ -116,6 +138,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
         onChange={event => setNotes(event.target.value)} className="mt-1 block w-full rounded border p-2" /></label>
       <p className="text-xs">Record work-related decisions only. Do not enter bank details, identity documents or sensitive personal information.</p>
       {error && <p role="alert" className="text-red-700">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
       <button disabled={busy} className="min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-50">{busy ? 'Saving...' : 'Save review'}</button>
     </form>
     <section aria-label="Application history" className="space-y-2">

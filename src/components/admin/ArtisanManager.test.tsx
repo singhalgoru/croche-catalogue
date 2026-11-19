@@ -7,6 +7,13 @@ const { list, history, update, remove, invites, create, revoke, readId, removeId
   list: vi.fn(), history: vi.fn(), update: vi.fn(), remove: vi.fn(), invites: vi.fn(), create: vi.fn(), revoke: vi.fn(),
   readId: vi.fn(), removeId: vi.fn(),
 }));
+const { paymentStatus, requestPaymentDetails, readPaymentDetails, savePaymentDetails } = vi.hoisted(() => ({
+  paymentStatus: vi.fn(),requestPaymentDetails: vi.fn(),readPaymentDetails: vi.fn(),savePaymentDetails: vi.fn(),
+}));
+vi.mock('../../services/artisanPaymentDetails',async importOriginal => ({
+  ...await importOriginal<typeof import('../../services/artisanPaymentDetails')>(),
+  paymentStatus,requestPaymentDetails,readPaymentDetails,savePaymentDetails,
+}));
 vi.mock('../../services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/artisans')>(),
   fetchArtisanApplications: list, fetchArtisanHistory: history, updateArtisanApplication: update, deleteArtisanApplication: remove,
@@ -23,7 +30,29 @@ beforeEach(() => {
   vi.clearAllMocks(); list.mockResolvedValue({ applications: [application], total: 1 });
   history.mockResolvedValue([{ id: 1, action: 'Submitted', new_status: 'New', old_status: null, created_at: application.created_at }]);
   invites.mockResolvedValue([]); update.mockResolvedValue({ ...application, version: 2 }); remove.mockResolvedValue(undefined);
+  paymentStatus.mockResolvedValue({ provided: false,verified: false,requested: false });
+  requestPaymentDetails.mockResolvedValue(undefined);
+  readPaymentDetails.mockResolvedValue(null);
+  savePaymentDetails.mockResolvedValue(undefined);
   create.mockImplementation(async input => ({ link: `https://luviacreations.com/artisans/#invite=${input.token}`, message: 'Email accepted' }));
+});
+it('requests payment details instead of starting Trial and allows manual entry and confirmation', async () => {
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button',{ name: 'Review Sample Maker' }));
+  await screen.findByText('No payment details saved');
+  fireEvent.change(screen.getByLabelText('Application status'),{ target: { value: 'Trial' } });
+  fireEvent.submit(screen.getByRole('form',{ name: 'Review artisan' }));
+  await screen.findByText(/Trial has not started/);
+  expect(requestPaymentDetails).toHaveBeenCalledWith(application.id);
+  expect(update).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{ name: 'Enter payment details manually' }));
+  fireEvent.change(await screen.findByLabelText('Account holder name'),{ target: { value: 'Sample Maker' } });
+  fireEvent.change(screen.getByLabelText('UPI ID'),{ target: { value: 'maker@bank' } });
+  fireEvent.click(screen.getByRole('checkbox',{ name: /I confirmed with the artisan/ }));
+  fireEvent.click(screen.getByRole('button',{ name: 'Save and confirm name' }));
+  await waitFor(() => expect(savePaymentDetails).toHaveBeenCalledWith(application.id,expect.objectContaining({
+    name: 'Sample Maker',method: 'UPI',upi: 'maker@bank',
+  })));
 });
 it('fetches ID bytes only after an explicit view and requires removal confirmation', async () => {
   const withId = { ...application, identity_type: 'masked_aadhaar', identity_expires_at: '2026-11-28T00:00:00Z' };

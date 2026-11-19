@@ -10,7 +10,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 function isJob(value: unknown): value is ArtisanApplicationEmailJob {
   const isKind = isRecord(value) && (value.kind === 'submitted' || value.kind === 'Trial' || value.kind === 'Approved'
-    || value.kind === 'Declined' || value.kind === 'More information required');
+    || value.kind === 'Declined' || value.kind === 'More information required' || value.kind === 'Payment details required');
   if (!isRecord(value) || typeof value.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(value.id)
     || !isKind
     || typeof value.recipient_email !== 'string' || !emailPattern.test(value.recipient_email)
@@ -30,6 +30,9 @@ function isJob(value: unknown): value is ArtisanApplicationEmailJob {
     || typeof payload.message !== 'string' || payload.message.length > 1500) return false;
   if (value.kind === 'submitted') return value.recipient_email === 'info@luviacreations.com';
   return value.recipient_email === payload.applicant_email
+    && (value.kind !== 'Payment details required' || (typeof payload.payment_token === 'string'
+      && /^[a-f0-9]{64}$/.test(payload.payment_token) && typeof payload.payment_expires_at === 'string'
+      && Date.parse(payload.payment_expires_at) > Date.now()))
     && (value.kind !== 'More information required' || Boolean(payload.message.trim()));
 }
 
@@ -59,8 +62,12 @@ Deno.serve(async request => {
     if (!isJob(candidate)) {
       failed++;
       if (isRecord(candidate) && typeof candidate.id === 'string') {
+        const expiredPayment = candidate.kind === 'Payment details required' && isRecord(candidate.payload)
+          && typeof candidate.payload.payment_expires_at === 'string'
+          && Date.parse(candidate.payload.payment_expires_at) <= Date.now();
         const { error: saveError } = await admin.from('artisan_application_emails')
-          .update({ last_error: 'Invalid queued artisan email job.' }).eq('id', candidate.id);
+          .update(expiredPayment ? { last_error: 'Payment request expired before sending.',attempts: 8,
+            payload: { ...candidate.payload, payment_token: '' } } : { last_error: 'Invalid queued artisan email job.' }).eq('id', candidate.id);
         if (saveError) console.error('Unable to record invalid artisan email job.');
       }
       continue;
@@ -68,7 +75,9 @@ Deno.serve(async request => {
     try {
       const providerId = await sendArtisanApplicationEmail(candidate, apiKey);
       const { data: saved, error: saveError } = await admin.from('artisan_application_emails')
-        .update({ accepted_at: new Date().toISOString(), provider_id: providerId, last_error: null })
+        .update({ accepted_at: new Date().toISOString(), provider_id: providerId, last_error: null,
+          ...(candidate.kind === 'Payment details required'
+            ? { payload: { ...candidate.payload, payment_token: '' } } : {}) })
         .eq('id', candidate.id).select('id').single();
       if (saveError || saved?.id !== candidate.id) {
         throw new Error(`Unable to record email provider acceptance: ${saveError?.message ?? 'job receipt mismatch'}`);

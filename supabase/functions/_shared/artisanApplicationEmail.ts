@@ -1,4 +1,4 @@
-export type ArtisanApplicationEmailKind = 'submitted' | 'Trial' | 'Approved' | 'Declined' | 'More information required';
+export type ArtisanApplicationEmailKind = 'submitted' | 'Trial' | 'Approved' | 'Declined' | 'More information required' | 'Payment details required';
 
 export interface ArtisanApplicationEmailJob {
   id: string;
@@ -14,6 +14,8 @@ export interface ArtisanApplicationEmailJob {
     skills: string;
     availability: string;
     message: string;
+    payment_token?: string;
+    payment_expires_at?: string;
   };
 }
 
@@ -56,12 +58,19 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
   const message = payload.message.replace(/\r\n?/g, '\n').split('\n').map(emailText).join('\n').trim();
   const isSubmission = job.kind === 'submitted';
   const isInformationRequest = job.kind === 'More information required';
+  const isPaymentRequest = job.kind === 'Payment details required';
+  const paymentLink = isPaymentRequest ? `https://luviacreations.com/artisans/#payment=${payload.payment_token}` : '';
+  if (isPaymentRequest && (!payload.payment_token || !/^[a-f0-9]{64}$/.test(payload.payment_token))) {
+    throw new Error('Invalid payment request link.');
+  }
   const subject = isSubmission ? `New artisan application to review - ${applicantName} - Luvia Creations`
+    : isPaymentRequest ? 'Payment details for your Luvia paid trial'
     : job.kind === 'Trial' ? 'Welcome to Luvia Creations - your paid trial is next'
     : job.kind === 'Approved' ? 'Welcome to Luvia Creations - welcome to the Luvia family!'
       : job.kind === 'Declined' ? 'An update on your Luvia artisan application'
         : 'More information needed for your Luvia artisan application';
   const heading = isSubmission ? 'New artisan application'
+    : isPaymentRequest ? 'Payment details for your paid trial'
     : job.kind === 'Trial' ? 'Welcome to Luvia'
     : job.kind === 'Approved' ? 'Welcome to the Luvia family!'
       : job.kind === 'Declined' ? 'An update on your application'
@@ -74,6 +83,12 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
     `Skills: ${skills}`,
     `Availability: ${availability}`,
     'Please review the private application in the admin console.',
+  ] : isPaymentRequest ? [
+    `Hello ${applicantName},`,
+    'Before starting your paid trial, please provide your UPI ID or bank account details using the private link below. The account or UPI ID must be in your own name.',
+    'This link expires after 24 hours and can be used once. Please do not email your bank details, and never share your UPI PIN, password or OTP.',
+    paymentLink,
+    'We will review your details and contact you to agree the trial terms before any work begins.',
   ] : job.kind === 'Trial' ? [
     `Hello ${applicantName},`,
     'Welcome to Luvia Creations! Thank you for sharing your craft with us. We loved your application and would like to invite you to a small paid trial.',
@@ -120,7 +135,9 @@ export function buildArtisanApplicationEmail(job: ArtisanApplicationEmailJob) {
       <p style="margin:0;color:#604239;font-size:17px;font-weight:bold;line-height:1.65;overflow-wrap:anywhere">${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>
       <p style="margin:16px 0 0;font-size:14px;line-height:1.65"><strong>How to respond:</strong> Reply to this email with an answer to each requested detail above.</p>
       </section>`
-    : `<p style="margin:0 0 16px;line-height:1.65;overflow-wrap:anywhere">${escapeHtml(paragraph)}</p>`).join('');
+    : isPaymentRequest && paragraph === paymentLink
+      ? `<p style="margin:0 0 16px"><a href="${escapeHtml(paymentLink)}">Submit payment details securely</a></p>`
+      : `<p style="margin:0 0 16px;line-height:1.65;overflow-wrap:anywhere">${escapeHtml(paragraph)}</p>`).join('');
   const submissionDetails = isSubmission ? `<div style="margin:20px 0;padding:16px;background:#fffaf0;border-left:4px solid #d4ab58">
     <p style="margin:0 0 8px"><strong>Application reference:</strong> ${escapeHtml(payload.application_id)}</p>
     <p style="margin:0 0 8px"><strong>Email:</strong> ${escapeHtml(applicantEmail || 'Not provided')}</p>

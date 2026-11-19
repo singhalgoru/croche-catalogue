@@ -71,6 +71,19 @@ it('welcomes approved artisans to the Luvia family separately from the paid-tria
   expect(email.html).not.toContain('Details we need from you');
 });
 
+it('requests payment details before Trial without asking for secrets by email', () => {
+  const token = 'a'.repeat(64);
+  const email = buildArtisanApplicationEmail({ id: 'payment-job', kind: 'Payment details required',
+    recipient_email: payload.applicant_email, payload: { ...payload,payment_token: token } });
+  for (const body of [email.text,email.html]) {
+    expect(body).toContain(`https://luviacreations.com/artisans/#payment=${token}`);
+    expect(body).toContain('must be in your own name');
+    expect(body).toContain('never share your UPI PIN');
+  }
+  expect(() => buildArtisanApplicationEmail({ id: 'bad',kind: 'Payment details required',
+    recipient_email: payload.applicant_email,payload })).toThrow('Invalid payment request link');
+});
+
 it('explains the declined outcome after reviewing the paid trial without inviting further work', () => {
   const email = buildArtisanApplicationEmail({ id: 'declined-job', kind: 'Declined',
     recipient_email: payload.applicant_email, payload });

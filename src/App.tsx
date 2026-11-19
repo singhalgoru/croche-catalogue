@@ -247,7 +247,7 @@ function App() {
     // The lazy auth client must consume email-link credentials before route cleanup.
     const authParams = new URLSearchParams(window.location.hash.slice(1));
     if (authParams.has('access_token') || authParams.has('error_description')) return;
-    if (/^\/artisans\/?$/.test(window.location.pathname) && authParams.has('invite')) return;
+    if (/^\/artisans\/?$/.test(window.location.pathname) && (authParams.has('invite') || authParams.has('payment'))) return;
     if (/^\/customer-love\/?$/.test(window.location.pathname) && window.location.hash.startsWith('#testimonial-')) return;
     const { pathname, search } = window.location;
     const hash = selectedProduct ? toProductHash(selectedProduct)

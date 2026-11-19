@@ -146,6 +146,8 @@ an India-based handmade crochet brand.
   records, with onboarding details and separately consented profile photos.
   Applicants receive review updates by email, and the form and emails explain
   the application-to-paid-trial process.
+  Before a new paid trial, artisans provide payment details in their own name
+  for administrator confirmation.
   Product-level artisan patterns support Luvia-branded English/Hindi authoring,
   private editable Word masters and print-restricted PDFs (up to 2 MB each),
   with the logo beside a centred product title, a copyright notice, product link

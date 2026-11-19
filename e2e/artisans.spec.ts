@@ -4,6 +4,26 @@ import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 
 const token = 'a'.repeat(64);
+test('artisan privately submits payment details before Trial',async ({ page }) => {
+  await installMockSupabase(page);
+  const submissions: unknown[] = [];
+  await page.route('**/rest/v1/rpc/submit_artisan_payment_details',async route => {
+    submissions.push(route.request().postDataJSON());
+    await route.fulfill({ json: true });
+  });
+  await page.goto(`./artisans/#payment=${token}`);
+  await expect(page.getByRole('heading',{ name: 'Payment details for your paid trial' })).toBeVisible();
+  await page.getByLabel('Account holder name').fill('Sample Maker');
+  await page.getByLabel('UPI ID').fill('maker@bank');
+  await page.getByRole('checkbox',{ name: /These payment details are in my own name/ }).check();
+  await page.getByRole('button',{ name: 'Submit payment details' }).click();
+  await expect(page.getByText(/Payment details submitted for review/)).toBeVisible();
+  expect(submissions).toEqual([{ token,details: { name: 'Sample Maker',method: 'UPI',upi: 'maker@bank' },consent: true }]);
+  await expect(page).toHaveURL(/\/artisans\/$/);
+  expect(await page.evaluate(() => ({ ga: typeof window.gtag, meta: typeof window.fbq,
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth })))
+    .toEqual({ ga: 'undefined',meta: 'undefined',overflow: false });
+});
 for (const { withIdentity, nativeWebp, scalarEncoder = false } of [
   { withIdentity: false, nativeWebp: true },
   { withIdentity: true, nativeWebp: true },
