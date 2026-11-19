@@ -88,7 +88,7 @@ test('admin approves a packed parcel before booking, then generates a label, req
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
-test('admin can approve Delhivery without creating a per-order warehouse pickup',async ({ page }) => {
+test('admin can approve Delhivery and schedule a warehouse pickup',async ({ page }) => {
   await installMockSupabase(page);
   const fulfilment = { status: 'confirmed' as const,courierName: '',trackingNumber: '',trackingUrl: '',updatedAt: null };
   const order: CustomerOrder = {
@@ -116,6 +116,10 @@ test('admin can approve Delhivery without creating a per-order warehouse pickup'
       shipping = { ...shipping,awb: '1234567890',courierName: 'Delhivery Surface' };
     } else if (body.action === 'label') {
       shipping = { ...shipping,labelUrl: 'https://labels.example/delhivery.pdf' };
+    } else if (body.action === 'pickup') {
+      expect(body).toMatchObject({ pickupDate: '2099-12-01',pickupTime: '12:30',packageCount: 2,confirmed: true });
+      shipping = { ...shipping,warehousePickup: { id: 'pickup',date: body.pickupDate,time: '12:30:00',
+        count: 2,state: 'confirmed',pickupId: 'PUR123',createdAt: new Date().toISOString(),lastError: null } };
     } else if (body.action === 'sync') {
       shipping = { ...shipping,trackingStatus: 'IN TRANSIT',syncedAt: new Date().toISOString(),fulfilment: {
         ...fulfilment,status: 'shipped',courierName: 'Delhivery Surface',trackingNumber: '1234567890',
@@ -147,12 +151,50 @@ test('admin can approve Delhivery without creating a per-order warehouse pickup'
   await shippingPanel.getByRole('checkbox').check();
   await book.click();
   await expect(shippingPanel.getByText(/AWB: 1234567890/)).toBeVisible();
-  await expect(shippingPanel.getByText(/Pickup requests cover the warehouse/)).toBeVisible();
-  await expect(shippingPanel.getByRole('button',{ name: 'Request pickup' })).toHaveCount(0);
+  await expect(shippingPanel.getByText(/pickup covers the entire warehouse/)).toBeVisible();
+  await shippingPanel.getByLabel('Pickup date').fill('2099-12-01');
+  await shippingPanel.getByLabel('Pickup time (IST)').fill('12:30');
+  await shippingPanel.getByLabel('Expected parcels').fill('2');
+  await shippingPanel.getByRole('checkbox').check();
+  await shippingPanel.getByRole('button',{ name: 'Request pickup' }).click();
+  await expect(shippingPanel.getByText(/ID PUR123/)).toBeVisible();
   await shippingPanel.getByRole('button',{ name: 'Generate label' }).click();
   await expect(shippingPanel.getByRole('link',{ name: 'Open shipping label' }))
     .toHaveAttribute('href','https://labels.example/delhivery.pdf');
   await shippingPanel.getByRole('button',{ name: 'Sync courier tracking' }).click();
   await expect(article.getByRole('link',{ name: 'Track shipment' })).toHaveAttribute('href','https://www.delhivery.com/tracking');
-  expect(actions).toEqual(['status','quote','book','label','sync']);
+  expect(actions).toEqual(['status','quote','book','pickup','label','sync']);
+});
+
+test('admin compares a sample parcel without creating an order',async ({ page }) => {
+  await installMockSupabase(page);
+  await page.route('**/rest/v1/rpc/get_admin_live_orders',route => route.fulfill({ json: [] }));
+  await page.route('**/functions/v1/order-shipping',async route => {
+    expect(route.request().postDataJSON()).toEqual({ action: 'sample-rates',pincode: '110001',
+      parcel: { weight: 0.5,length: 20,breadth: 15,height: 10 } });
+    await route.fulfill({ json: { providers: [
+      { provider: 'shiprocket',quotes: [
+        { id: 1,name: 'Courier A',charge: 80,days: 3,recommended: true },
+        { id: 2,name: 'Courier B',charge: 100,days: 4,recommended: false },
+      ],error: null },
+      { provider: 'delhivery',quotes: [{ id: 1,name: 'Delhivery Surface',charge: 90,days: null,recommended: false }],error: null },
+    ] } });
+  });
+  await page.goto('./#admin');
+  await page.getByLabel('Email',{ exact: true }).fill('admin@luvia.test');
+  await page.getByLabel('Password').fill('test-password');
+  await page.getByRole('button',{ name: 'Sign in',exact: true }).click();
+  await goToAdminSection(page,'Orders');
+  const panel = page.getByRole('region',{ name: 'Online orders',exact: true });
+  await panel.getByRole('button',{ name: 'Online orders',exact: true }).click();
+  await panel.getByText('Compare sample shipping rates').click();
+  await panel.getByLabel('Delivery pincode').fill('110001');
+  await panel.getByLabel('Packed weight (kg)').fill('0.5');
+  await panel.getByLabel('Length (cm)').fill('20');
+  await panel.getByLabel('Width (cm)').fill('15');
+  await panel.getByLabel('Height (cm)').fill('10');
+  await panel.getByRole('button',{ name: 'Compare rates' }).click();
+  await expect(panel.getByText(/Courier A: ₹80/)).toBeVisible();
+  await expect(panel.getByText(/Courier B: ₹100/)).toBeVisible();
+  await expect(panel.getByText(/Delhivery Surface: ₹90/)).toBeVisible();
 });

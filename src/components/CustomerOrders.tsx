@@ -5,6 +5,7 @@ import { formatINR } from '../utils/currency';
 import { deliveryAddressText, fulfilmentLabels } from '../utils/customer';
 import OrderFulfilmentForm from './admin/OrderFulfilmentForm';
 import OrderShippingPanel from './admin/OrderShippingPanel';
+import SampleShippingRates from './admin/SampleShippingRates';
 import OrderDeliveryEstimate from './OrderDeliveryEstimate';
 import { trackEvent } from '../services/analytics';
 
@@ -98,6 +99,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
       <p className={admin ? 'mb-3 mt-4 text-sm text-cocoa/65' : 'mb-3 text-xs text-cocoa/70'}>{admin
         ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled or expired entry hides it from this list, not from payment records.'
         : 'Track your order status and delivery progress here. WhatsApp/email enquiries are not confirmed orders. Refresh orders for the latest updates.'}</p>
+      {admin && <SampleShippingRates />}
       {loading && <p role="status">Loading your orders...</p>}
       {!loading && !error && displayedOrders.length === 0 && <p>{showHidden ? 'No hidden orders loaded.' : orders.length ? 'No visible orders loaded.' : 'No orders yet.'}</p>}
       <div className="space-y-3">
@@ -191,7 +193,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
                   } } : value));
                   setActionMessage(`${order.reference}: ${message}`);
                 }} />}
-              {admin && <OrderShippingPanel orderId={order.id} fulfilment={order.fulfilment}
+              {admin && <OrderShippingPanel orderId={order.id} fulfilment={order.fulfilment} items={order.items}
                 onSaved={(fulfilment, message) => {
                   setOrders(current => current.map(value => value.id === order.id ? { ...value, fulfilment } : value));
                   setActionMessage(`${order.reference}: ${message}`);

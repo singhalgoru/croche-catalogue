@@ -24,6 +24,7 @@ const order = { id,status: 'paid',is_live_checkout: true,is_test_checkout: false
     addressLine1: '12 Test Street',city: 'Delhi',state: 'Delhi',pincode: '110001' } };
 type Result = { data: unknown; error: { message: string } | null };
 let shipping: Record<string, unknown> | null;
+let warehousePickup: Record<string, unknown> | null;
 let currentOrder: typeof order;
 let updates: Record<string, unknown>[];
 let failSave: boolean;
@@ -33,7 +34,7 @@ let environment: Record<string,string>;
 class Query {
   private many = false;
   constructor(private table: string,private changes?: Record<string, unknown>) {}
-  select() { return this; } eq() { return this; } not() { return this; } neq() { return this; }
+  select() { return this; } eq() { return this; } is() { return this; } not() { return this; } neq() { return this; }
   gt() { return this; } or() { return this; } order() { return this; }
   limit() { this.many=true; return this; }
   update(changes: Record<string, unknown>) { this.changes=changes; return this; }
@@ -41,6 +42,10 @@ class Query {
     if (this.changes) {
       updates.push(this.changes);
       if (failSave) return { data: null,error: { message: 'Database offline' } };
+      if (this.table === 'delhivery_warehouse_pickups') {
+        warehousePickup = { ...warehousePickup,...this.changes };
+        return { data: { id: warehousePickup.id },error: null };
+      }
       shipping = { ...shipping,...this.changes };
       return { data: { order_id: id },error: null };
     }
@@ -49,6 +54,7 @@ class Query {
       : this.table === 'payment_order_items' ? [{ product_name: 'Rose',variant_name: 'Pink',variant_id: 'variant',quantity: 1,unit_price_paise: 50000,
         line_total_paise: 50000,seller_sales: [{ quantity: 1,gst_percent: 5,material_cost: 100,labour_cost: 50,
           packaging_cost: 10,gateway_fee_percent: 2,gateway_fee_gst_percent: 18 }] }]
+      : this.table === 'delhivery_warehouse_pickups' ? warehousePickup
       : this.many ? jobs : shipping,error: null };
   }
   single() { return this.result(); } maybeSingle() { return this.result(); }
@@ -61,7 +67,7 @@ beforeAll(async () => {
 });
 afterAll(() => vi.unstubAllGlobals());
 beforeEach(() => {
-  vi.clearAllMocks(); currentOrder={ ...order }; updates=[]; failSave=false; claimError=false; jobs=[];
+  vi.clearAllMocks(); currentOrder={ ...order }; updates=[]; failSave=false; claimError=false; jobs=[]; warehousePickup=null;
   environment = { SUPABASE_URL: 'https://example.test',SUPABASE_ANON_KEY: 'anon',SUPABASE_SERVICE_ROLE_KEY: 'service',
     SHIPROCKET_EMAIL: 'api@example.test',SHIPROCKET_PASSWORD: 'fixture',SHIPROCKET_PICKUP_PINCODE: '110001',
     SHIPROCKET_PICKUP_LOCATION: 'Primary',CUSTOMER_WELCOME_WORKER_SECRET: 'worker-fixture',
@@ -72,9 +78,17 @@ beforeEach(() => {
   getUser.mockResolvedValue({ data: { user: { id: actor,email_confirmed_at: quotedAt,is_anonymous: false } },error: null });
   permission.mockResolvedValue({ data: true,error: null });
   from.mockImplementation((table: string) => new Query(table));
-  rpc.mockImplementation(async (name: string) => name === 'claim_order_shipping' && claimError
-    ? { data: null,error: { message: 'Shipment already exists or needs reconciliation.' } }
-    : { data: name === 'claim_order_shipping' ? shipping : true,error: null });
+  rpc.mockImplementation(async (name: string,args: Record<string, unknown>) => {
+    if (name === 'claim_delhivery_pickup') {
+      if (warehousePickup) return { data: null,error: { message: 'This warehouse already has an open pickup request.' } };
+      warehousePickup = { id: args.p_id,pickup_date: args.p_date,pickup_time: args.p_time,package_count: args.p_count,
+        state: 'pending',pickup_id: null,created_at: new Date().toISOString(),last_error: null };
+    }
+    if (name === 'resolve_delhivery_pickup') warehousePickup = null;
+    return name === 'claim_order_shipping' && claimError
+      ? { data: null,error: { message: 'Shipment already exists or needs reconciliation.' } }
+      : { data: name === 'claim_order_shipping' ? shipping : true,error: null };
+  });
   api.mockImplementation(async (path: string) => {
     if (path.startsWith('/courier/serviceability')) return { data: {
       recommended_courier_company_id: 10,available_courier_companies: [
@@ -324,13 +338,63 @@ it('does not manifest if Delhivery raises the price or rejects the destination',
   expect(delhiveryApi).not.toHaveBeenCalledWith('/api/cmu/create.json',expect.anything());
 });
 
-it('does not request per-shipment Delhivery pickups and syncs return tracking safely',async () => {
+it('reports missing pickup configuration while preserving return tracking',async () => {
   shipping = { ...shipping,provider: 'delhivery',shipment_id: null,awb: '1234567890' };
   delete environment.DELHIVERY_PICKUP_LOCATION;
-  expect((await handle(request({ action: 'pickup',orderId: id }))).status).toBe(400);
+  expect((await handle(request({ action: 'pickup',orderId: id }))).status).toBe(503);
   expect(delhiveryApi).not.toHaveBeenCalled();
   delhiveryApi.mockResolvedValueOnce({ ShipmentData: [{ Shipment: { Waybill: '1234567890',
     Status: { StatusType: 'RT',Status: 'Delivered' } } }] });
   expect((await handle(request({ action: 'sync',orderId: id }))).status).toBe(200);
   expect(rpc).toHaveBeenCalledWith('sync_order_shipping',{ p_order_id: id,p_status: 'RTO DELIVERED' });
+});
+
+it('compares sample prepaid rates without reading or creating an order',async () => {
+  delhiveryApi.mockImplementation(async (path: string) => path.startsWith('/c/api/pin-codes')
+    ? { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] } : [{ total_amount: 90 }]);
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ providers: [
+    { provider: 'shiprocket',quotes: [{ name: 'Courier',charge: 85 }],error: null },
+    { provider: 'delhivery',quotes: [{ name: 'Delhivery Surface',charge: 90 }],error: null },
+  ] });
+  expect(from).not.toHaveBeenCalled(); expect(rpc).not.toHaveBeenCalled();
+  expect(delhiveryApi.mock.calls.every(([path]) => path.startsWith('/c/api/pin-codes') || path.startsWith('/api/kinko'))).toBe(true);
+});
+
+it('reports one provider failure without hiding the other sample rate',async () => {
+  delhiveryApi.mockRejectedValue(new Error('Rate API unavailable'));
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  expect(await response.json()).toMatchObject({ providers: [
+    { provider: 'shiprocket',quotes: [{ charge: 85 }],error: null },
+    { provider: 'delhivery',quotes: [],error: 'Rate API unavailable' },
+  ] });
+  expect((await handle(request({ action: 'sample-rates',pincode: 'bad',parcel }))).status).toBe(400);
+});
+
+it('claims one warehouse pickup before requesting it and blocks a second request',async () => {
+  shipping = { ...shipping,provider: 'delhivery',awb: '1234567890' };
+  delhiveryApi.mockResolvedValue({ pickup_id: 'PICKUP-123' });
+  const input = { action: 'pickup',orderId: id,pickupDate: '2099-12-01',pickupTime: '12:30',packageCount: 3,confirmed: true };
+  const response = await handle(request(input));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ warehousePickup: { state: 'confirmed',pickupId: 'PICKUP-123',count: 3 } });
+  expect(delhiveryApi).toHaveBeenCalledWith('/fm/request/new/',JSON.stringify({ pickup_date: '2099-12-01',
+    pickup_time: '12:30:00',expected_package_count: 3,pickup_location: 'Warehouse' }));
+  expect((await handle(request(input))).status).toBe(400);
+  expect(delhiveryApi).toHaveBeenCalledTimes(1);
+});
+
+it('blocks uncertain pickups and requires explicit reconciliation',async () => {
+  shipping = { ...shipping,provider: 'delhivery',awb: '1234567890' };
+  delhiveryApi.mockRejectedValue(new Error('Timeout'));
+  const input = { action: 'pickup',orderId: id,pickupDate: '2099-12-01',pickupTime: '12:30',packageCount: 2,confirmed: true };
+  const response = await handle(request(input));
+  expect(response.status).toBe(400);
+  expect(warehousePickup).toMatchObject({ state: 'review',last_error: 'Timeout' });
+  expect((await handle(request(input))).status).toBe(400);
+  expect(delhiveryApi).toHaveBeenCalledTimes(1);
+  const pickupId = warehousePickup?.id;
+  expect((await handle(request({ action: 'pickup-resolve',orderId: id,pickupId }))).status).toBe(400);
+  expect((await handle(request({ action: 'pickup-resolve',orderId: id,pickupId,confirmed: true }))).status).toBe(200);
 });

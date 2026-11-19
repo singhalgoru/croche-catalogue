@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
-import { chargeableWeight, createDelhiveryClient, createdWaybill, delhiveryPayload, labelUrl, serviceable,
-  shippingCharge, tracking } from './delhivery';
+import { chargeableWeight, createDelhiveryClient, createdPickupId, createdWaybill, delhiveryPayload, labelUrl, pickupDetails,
+  serviceable, shippingCharge, tracking } from './delhivery';
 
 const parcel = { weight: 0.75,length: 20,breadth: 15,height: 10 };
 const order = { reference: 'LUV-123',created_at: '2026-11-19T00:00:00Z',subtotal_paise: 50000,
@@ -10,6 +10,20 @@ const order = { reference: 'LUV-123',created_at: '2026-11-19T00:00:00Z',subtotal
     addressLine1: '12 Test Street',city: 'Delhi',state: 'Delhi',pincode: '110001' } };
 const items = [{ product_name: 'Rose',variant_id: 'v1',quantity: 1,unit_price_paise: 50000 }];
 afterEach(() => vi.unstubAllGlobals());
+
+it('validates future India pickup times, parcel counts and provider confirmation',() => {
+  const now = Date.parse('2026-11-19T09:00:00Z');
+  expect(pickupDetails('2026-11-19','15:00',3,now)).toEqual({
+    pickup_date: '2026-11-19',pickup_time: '15:00:00',expected_package_count: 3,
+  });
+  for (const [date,time,count] of [['2026-11-19','14:00',1],['2026-02-30','15:00',1],
+    ['2027-01-01','25:00',1],['2027-01-01','15:00',0],['2027-01-01','15:00',1.5]] as const) {
+    expect(() => pickupDetails(date,time,count,now)).toThrow();
+  }
+  expect(createdPickupId({ pickup_id: 123 })).toBe('123');
+  expect(() => createdPickupId({ success: false,pickup_id: 123 })).toThrow();
+  expect(() => createdPickupId({ success: true })).toThrow();
+});
 
 it('authenticates server-side and does not retry failed provider mutations',async () => {
   const fetch = vi.fn().mockResolvedValue(new Response('provider details', { status: 500 }));

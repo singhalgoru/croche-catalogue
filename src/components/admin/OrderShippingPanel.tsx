@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react';
 import { requestOrderShipping, type ShippingState } from '../../services/orderShipping';
 import type { OrderFulfilment } from '../../types/customer';
 import { formatINR } from '../../utils/currency';
+import { packagingSuggestion } from './packagingSuggestions';
 
-export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
-  orderId: string; fulfilment: OrderFulfilment; onSaved: (value: OrderFulfilment, message: string) => void;
+export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved }: {
+  orderId: string; fulfilment: OrderFulfilment; items: { productName: string; quantity: number }[];
+  onSaved: (value: OrderFulfilment, message: string) => void;
 }) {
+  const suggestion = packagingSuggestion(items);
   const [state,setState] = useState<ShippingState | null>(null);
-  const [parcel,setParcel] = useState({ weight: '',length: '',breadth: '',height: '' });
+  const [parcel,setParcel] = useState(() => ({ weight: suggestion ? '0.5' : '',length: suggestion ? String(suggestion.length) : '',
+    breadth: suggestion ? String(suggestion.breadth) : '',height: suggestion?.height ? String(suggestion.height) : '' }));
+  const [suggestedWeight,setSuggestedWeight] = useState(Boolean(suggestion));
+  const [weightConfirmed,setWeightConfirmed] = useState(false);
   const [provider,setProvider] = useState<'shiprocket' | 'delhivery'>('shiprocket');
   const [selected,setSelected] = useState('');
   const [ready,setReady] = useState(false);
@@ -15,6 +21,9 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
   const [quoteInvalid,setQuoteInvalid] = useState(false);
+  const [pickupForm,setPickupForm] = useState({ date: '',time: '',count: '' });
+  const [pickupConfirmed,setPickupConfirmed] = useState(false);
+  const [pickupUncertain,setPickupUncertain] = useState(false);
   const [now,setNow] = useState(Date.now);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()),30000);
@@ -37,18 +46,24 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
       const options = action === 'quote' ? { parcel: { weight: Number(parcel.weight),length: Number(parcel.length),
         breadth: Number(parcel.breadth),height: Number(parcel.height) },
         ...(provider === 'delhivery' ? { provider } : {}) }
-        : action === 'book' ? { courierId: Number(selected),quotedAt: state?.quotedAt ?? '',readyToShip: ready } : {};
+        : action === 'book' ? { courierId: Number(selected),quotedAt: state?.quotedAt ?? '',readyToShip: ready }
+          : action === 'pickup' && state?.provider === 'delhivery' ? {
+            pickupDate: pickupForm.date,pickupTime: pickupForm.time,packageCount: Number(pickupForm.count),confirmed: pickupConfirmed,
+          } : action === 'pickup-resolve' ? { pickupId: state?.warehousePickup?.id,confirmed: pickupConfirmed } : {};
       const saved = await requestOrderShipping(orderId,action,options);
       setNow(Date.now());
       setState(saved);
       setProvider(saved.provider ?? 'shiprocket');
       if (saved.parcel) setParcel({ weight: String(saved.parcel.weight),length: String(saved.parcel.length),
         breadth: String(saved.parcel.breadth),height: String(saved.parcel.height) });
+      if (saved.parcel) setSuggestedWeight(false);
       setQuoteInvalid(false); setSelected(''); setReady(false);
+      setPickupConfirmed(false); setPickupUncertain(false);
       if (action === 'book') setNotice(saved.provider === 'delhivery'
-        ? 'Shipment and AWB created. Generate the label and request warehouse pickup in Delhivery One.'
+        ? 'Shipment and AWB created. Generate the label and request warehouse pickup when packed.'
         : 'Shipment and AWB created. Generate the label and request pickup when packed.');
-      if (action === 'pickup') setNotice('Pickup request confirmed by Shiprocket.');
+      if (action === 'pickup') setNotice(`Pickup request confirmed by ${saved.provider === 'delhivery' ? 'Delhivery' : 'Shiprocket'}.`);
+      if (action === 'pickup-resolve') setNotice('Warehouse pickup cleared after your confirmation.');
       if (action === 'quote' && !saved.quotes.length) setNotice('No available courier for this package and delivery pincode. Arrange shipping manually.');
       if (saved.fulfilment.status !== fulfilment.status || saved.fulfilment.updatedAt !== fulfilment.updatedAt
         || JSON.stringify(saved.fulfilment.deliveryEstimate) !== JSON.stringify(fulfilment.deliveryEstimate)) {
@@ -56,7 +71,9 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
       }
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Shipping request failed.');
-      if (action === 'book' || action === 'pickup') {
+      if ((action === 'pickup' || action === 'pickup-resolve') && state?.provider === 'delhivery') {
+        setPickupUncertain(true); setPickupConfirmed(false);
+      } else if (action === 'book' || action === 'pickup') {
         setState(current => current ? { ...current,reviewRequired: true } : current);
       }
     } finally { setBusy(false); }
@@ -89,9 +106,39 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
             onClick={() => void run('pickup')}>{state.pickupRequested ? 'Pickup requested' : 'Request pickup'}</button>}
           <button type="button" className={button} disabled={busy} onClick={() => void run('sync')}>Sync courier tracking</button>
         </div>
-        {unshipped && state.provider === 'delhivery' && <p className="mt-2 text-xs">
-          Request pickup in Delhivery One when packed. Pickup requests cover the warehouse, not an individual shipment.
-        </p>}
+        {state.provider === 'delhivery' && (unshipped || state.warehousePickup || state.warehousePickupError) && <div className="mt-3 rounded-lg border border-cocoa/20 p-3">
+          <p className="text-sm font-semibold">Request pickup</p>
+          <p className="mt-1 text-xs">Delhivery pickup covers the entire warehouse, not just this order. Check Delhivery One for requests created outside this panel.</p>
+          {state.warehousePickupError && <p role="alert" className="mt-2 text-sm text-red-700">{state.warehousePickupError}</p>}
+          {pickupUncertain && <p role="alert" className="mt-2 text-sm text-red-700">
+            Pickup status may have changed. Refresh shipping status and check Delhivery One before trying again.
+          </p>}
+          {state.warehousePickup ? <>
+            <p className="mt-2 text-sm">Warehouse pickup: {state.warehousePickup.state} · {state.warehousePickup.date} at {state.warehousePickup.time.slice(0,5)} IST
+              {' '}· {state.warehousePickup.count} parcels{state.warehousePickup.pickupId ? ` · ID ${state.warehousePickup.pickupId}` : ''}</p>
+            {state.warehousePickup.lastError && <p role="alert" className="mt-2 text-sm text-red-700">{state.warehousePickup.lastError}</p>}
+            <p className="mt-2 text-xs">Before clearing, verify in Delhivery One that the pickup is completed or that no request exists. Clearing does not cancel a pickup.</p>
+            <label className="mt-2 flex gap-2 text-sm"><input type="checkbox" checked={pickupConfirmed} disabled={busy || pickupUncertain}
+              onChange={event => setPickupConfirmed(event.target.checked)} />
+              I verified that this pickup is complete or no request exists.</label>
+            <button type="button" className={`${button} mt-2`} disabled={busy || pickupUncertain || !pickupConfirmed
+              || (state.warehousePickup.state === 'pending' && Date.parse(state.warehousePickup.createdAt) > now-5*60*1000)}
+              onClick={() => void run('pickup-resolve')}>Clear verified pickup</button>
+          </> : unshipped && !state.warehousePickupError && <form className="mt-2" onSubmit={event => { event.preventDefault(); void run('pickup'); }}>
+            <div className="grid grid-cols-2 gap-3">
+              <label>Pickup date<input required type="date" value={pickupForm.date} className="block min-h-11 w-full rounded-lg border border-cocoa/25 p-2"
+                onChange={event => setPickupForm(current => ({ ...current,date: event.target.value }))} /></label>
+              <label>Pickup time (IST)<input required type="time" value={pickupForm.time} className="block min-h-11 w-full rounded-lg border border-cocoa/25 p-2"
+                onChange={event => setPickupForm(current => ({ ...current,time: event.target.value }))} /></label>
+              <label>Expected parcels<input required type="number" min="1" max="10000" step="1" value={pickupForm.count} className="block min-h-11 w-full rounded-lg border border-cocoa/25 p-2"
+                onChange={event => setPickupForm(current => ({ ...current,count: event.target.value }))} /></label>
+            </div>
+            <label className="mt-2 flex gap-2 text-sm"><input type="checkbox" checked={pickupConfirmed} disabled={blocked || pickupUncertain}
+              onChange={event => setPickupConfirmed(event.target.checked)} />
+              Parcels are ready and I checked there is no other open warehouse pickup.</label>
+            <button type="submit" className={`${button} mt-2`} disabled={blocked || pickupUncertain || !pickupConfirmed}>Request pickup</button>
+          </form>}
+        </div>}
       </div>}
       {unshipped && !state.shipmentId && !state.awb && <form className="mt-3" onSubmit={event => { event.preventDefault(); void run('quote'); }}>
         <label className="mb-3 block text-sm">Shipping partner
@@ -106,12 +153,28 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
           {([['weight','Packed weight (kg)'],['length','Length (cm)'],['breadth','Width (cm)'],['height','Height (cm)']] as const).map(([key,label]) =>
             <label key={key} className="text-sm">{label}<input type="number" required min={key === 'weight' ? 0.001 : 0.5}
               max={key === 'weight' ? 50 : 200} step="0.001" value={parcel[key]}
+              list={key === 'weight' ? `shipping-weights-${orderId}` : undefined}
               className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 p-2"
               onChange={event => { setParcel(current => ({ ...current,[key]: event.target.value }));
+                if (key === 'weight') { setSuggestedWeight(false); setWeightConfirmed(false); }
                 setQuoteInvalid(true); setSelected(''); setReady(false); }} /></label>)}
         </fieldset>
+        <datalist id={`shipping-weights-${orderId}`}><option value="0.5" /><option value="1" /><option value="1.5" /><option value="2" /></datalist>
+        {suggestion && !state.parcel && <p className="mt-2 text-xs text-cocoa/70">
+          Suggested outer-box starting dimensions: the largest listed dimension on each side plus 2 cm for packaging.
+          {suggestion.height ? '' : ' At least one product has only a pouch or sleeve size in the guide; enter the packed height.'}
+          {' '}This does not calculate the space needed for multiple items. Measure the final outer package and weight before requesting rates.
+        </p>}
+        {!suggestion && items.length > 0 && !state.parcel && <p className="mt-2 text-xs text-cocoa/70">
+          No complete packaging suggestion is available for this order. Measure the final outer package and weight.
+        </p>}
+        {suggestedWeight && <label className="mt-2 flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={weightConfirmed} disabled={blocked}
+            onChange={event => setWeightConfirmed(event.target.checked)} />
+          0.5 kg is a starting guess, not a product weight. I verified the actual packed weight.
+        </label>}
         <p className="mt-2 text-xs text-cocoa/70">Use the final packed parcel. Couriers may charge by volumetric weight. Rates expire after 15 minutes and do not change the customer's paid shipping charge.</p>
-        <button type="submit" className={`${button} mt-2`} disabled={blocked}>Check available couriers</button>
+        <button type="submit" className={`${button} mt-2`} disabled={blocked || (suggestedWeight && !weightConfirmed)}>Check available couriers</button>
         {!quoteInvalid && state.quotes.length > 0 && <div className="mt-3">
           <label className="text-sm">Approve courier
             <select value={selected} disabled={blocked} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 bg-white p-2"

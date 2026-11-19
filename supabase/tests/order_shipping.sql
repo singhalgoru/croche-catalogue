@@ -123,7 +123,7 @@ select order_id,'DELHIVERY-'||order_id,gen_random_uuid(),actor_id,actor_id,
   '{"name":"Shipping Test","phone":"9876543210","email":"shipping@example.invalid","addressLine1":"12 Test Street","city":"Delhi","state":"Delhi","pincode":"110001"}',
   50000,0,50000,'paid',now(),now()+interval '1 day',true,'order_delhivery_'||order_id from delhivery_fixture;
 do $$
-declare f record; quoted timestamptz; claimed jsonb; rejected boolean; operation_id uuid:=gen_random_uuid();
+declare f record; quoted timestamptz; claimed jsonb; rejected boolean; operation_id uuid:=gen_random_uuid(); v_pickup_id uuid:=gen_random_uuid();
 begin
   select * into f from delhivery_fixture;
   if has_function_privilege('authenticated','public.save_delhivery_shipping_quote(uuid,jsonb,jsonb,uuid)','execute')
@@ -146,6 +146,25 @@ begin
   begin perform public.claim_order_shipping(f.order_id,gen_random_uuid(),'pickup',f.actor_id);
   exception when others then rejected:=true; end;
   if not rejected then raise exception 'FAIL: per-order Delhivery pickup was accepted.'; end if;
+  if has_table_privilege('authenticated','public.delhivery_warehouse_pickups','select')
+    or has_function_privilege('authenticated','public.claim_delhivery_pickup(uuid,uuid,text,date,time,integer,uuid)','execute')
+    or has_function_privilege('anon','public.resolve_delhivery_pickup(uuid,text,uuid)','execute') then
+    raise exception 'FAIL: browser roles can access warehouse pickup state.'; end if;
+  perform public.claim_delhivery_pickup(v_pickup_id,f.order_id,'Test warehouse',
+    (now() at time zone 'Asia/Kolkata')::date + 1,'12:00',3,f.actor_id);
+  rejected:=false;
+  begin perform public.claim_delhivery_pickup(gen_random_uuid(),f.order_id,'Test warehouse',
+    (now() at time zone 'Asia/Kolkata')::date + 2,'12:00',1,f.actor_id);
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: second open warehouse pickup accepted.'; end if;
+  rejected:=false;
+  begin perform public.resolve_delhivery_pickup(v_pickup_id,'Test warehouse',f.actor_id);
+  exception when others then rejected:=true; end;
+  if not rejected then raise exception 'FAIL: running pickup released prematurely.'; end if;
+  update public.delhivery_warehouse_pickups set state='review' where id=v_pickup_id;
+  perform public.resolve_delhivery_pickup(v_pickup_id,'Test warehouse',f.actor_id);
+  perform public.claim_delhivery_pickup(gen_random_uuid(),f.order_id,'Test warehouse',
+    (now() at time zone 'Asia/Kolkata')::date + 1,'12:00',1,f.actor_id);
   perform public.sync_order_shipping(f.order_id,'RTO DELIVERED');
   if (select fulfilment_status from public.payment_orders where id=f.order_id)<>'confirmed' then
     raise exception 'FAIL: return marked as customer delivery.'; end if;

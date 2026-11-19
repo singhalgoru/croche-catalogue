@@ -84,7 +84,7 @@ an India-based handmade crochet brand.
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
   Paid orders can be shipped with Shiprocket or Delhivery after explicit courier
-  approval; Delhivery pickup is arranged separately in Delhivery One.
+  approval, with sample courier-rate comparisons and warehouse pickup requests.
   New products receive a unique, permanent SKU automatically when first published.
   The site owner can update the public WhatsApp contact number and GA4/Meta
   tracking IDs in collapsible Admin Settings; other admins have read-only access.

@@ -51,6 +51,32 @@ export function shippingCharge(value: unknown): number {
   return positive(record(value[0]).total_amount);
 }
 
+export function pickupDetails(date: unknown, time: unknown, count: unknown, now = Date.now()) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    || typeof time !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)
+    || typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > 10000) {
+    throw new Error('Enter a valid pickup date, time and package count.');
+  }
+  const parsedDate = new Date(`${date}T00:00:00Z`);
+  const scheduled = Date.parse(`${date}T${time}:00+05:30`);
+  if (!Number.isFinite(scheduled) || !Number.isFinite(parsedDate.getTime())
+    || parsedDate.toISOString().slice(0,10) !== date || scheduled <= now) {
+    throw new Error('Enter a future pickup date and time in India.');
+  }
+  return { pickup_date: date,pickup_time: `${time}:00`,expected_package_count: count };
+}
+
+export function createdPickupId(value: unknown): string {
+  const response = record(value);
+  const id = response.pickup_id;
+  if ((response.success !== undefined && response.success !== true)
+    || !((typeof id === 'string' && /^[A-Za-z0-9-]{1,100}$/.test(id))
+    || (typeof id === 'number' && Number.isSafeInteger(id) && id > 0))) {
+    throw new Error('Delhivery did not confirm a pickup ID.');
+  }
+  return String(id);
+}
+
 export function delhiveryPayload(order: Record<string, unknown>, items: Record<string, unknown>[],
   parcel: PackageDetails, pickupLocation: string) {
   const validated = createOrderPayload(order, items, parcel, pickupLocation);

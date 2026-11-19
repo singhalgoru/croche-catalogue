@@ -2,8 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { orderMarginBasis } from './margin.ts';
 import { createOrderPayload, createShiprocketClient, identifier, parseCouriers, parsePackage,
   record, safeLabel, trackingStatus, trackingDeliveryDate } from './shiprocket.ts';
-import { chargeableWeight, createDelhiveryClient, createdWaybill, delhiveryPayload, labelUrl, readDelhiveryConfig,
-  serviceable, shippingCharge, tracking as delhiveryTracking } from './delhivery.ts';
+import { chargeableWeight, createDelhiveryClient, createdPickupId, createdWaybill, delhiveryPayload, labelUrl,
+  pickupDetails, readDelhiveryConfig, serviceable, shippingCharge, tracking as delhiveryTracking } from './delhivery.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -45,8 +45,9 @@ Deno.serve(async request => {
     const { data: permitted, error } = await client.rpc('is_catalogue_admin');
     if (error || permitted !== true) return json({ error: 'Recent admin authenticator verification required.' },403);
     actor = identity.user.id;
-    if (!['status','quote','book','label','pickup','sync'].includes(String(body.action))
-      || typeof body.orderId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.orderId)) {
+    if (!['status','quote','book','label','pickup','pickup-resolve','sync','sample-rates'].includes(String(body.action))
+      || (body.action !== 'sample-rates' && (typeof body.orderId !== 'string'
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.orderId)))) {
       return json({ error: 'Invalid shipping action or order.' },400);
     }
   }
@@ -70,6 +71,20 @@ Deno.serve(async request => {
   const state = async (id: string) => {
     const order = await readOrder(id);
     const shipping = await readShipping(id);
+    let warehousePickup = null;
+    let warehousePickupError: string | null = null;
+    if (shipping?.provider === 'delhivery' && shipping.awb) {
+      const location = Deno.env.get('DELHIVERY_PICKUP_LOCATION')?.trim();
+      if (!location) warehousePickupError = 'Delhivery pickup location is not configured; warehouse pickup status is unavailable.';
+      else {
+        const { data,error } = await db.from('delhivery_warehouse_pickups')
+          .select('id,pickup_date,pickup_time,package_count,state,pickup_id,created_at,last_error')
+          .eq('warehouse',location).is('resolved_at',null).maybeSingle();
+        if (error) throw new Error('Unable to read warehouse pickup status.');
+        if (data) warehousePickup = { id: data.id,date: data.pickup_date,time: data.pickup_time,
+          count: data.package_count,state: data.state,pickupId: data.pickup_id,createdAt: data.created_at,lastError: data.last_error };
+      }
+    }
     const { data: marginItems,error: marginError } = await db.from('payment_order_items')
       .select('quantity,line_total_paise,seller_sales(quantity,gst_percent,material_cost,labour_cost,packaging_cost,gateway_fee_percent,gateway_fee_gst_percent)')
       .eq('order_id',id);
@@ -81,7 +96,7 @@ Deno.serve(async request => {
       Number(order.shipping_paise),marginItems ?? [],Number(ledgerOrder.packaging_cost)) : null;
     const quotes = Array.isArray(shipping?.quotes) ? shipping.quotes : [];
     const selected = quotes.find((q: { id: number }) => q.id === shipping?.courier_id);
-    return { marginBasis, provider: shipping?.provider ?? 'shiprocket', parcel: shipping?.package ?? null, quotes: shipping?.quotes ?? [], quotedAt: shipping?.quoted_at ?? null,
+    return { marginBasis, warehousePickup, warehousePickupError, provider: shipping?.provider ?? 'shiprocket', parcel: shipping?.package ?? null, quotes: shipping?.quotes ?? [], quotedAt: shipping?.quoted_at ?? null,
       shipmentId: shipping?.shipment_id ?? null, awb: shipping?.awb ?? null, courierName: shipping?.courier_name ?? null,
       labelUrl: shipping?.label_url ?? null, pickupRequested: shipping?.pickup_requested ?? false,
       reviewRequired: shipping?.review_required ?? false, busy: Boolean(shipping?.operation),
@@ -184,19 +199,14 @@ Deno.serve(async request => {
       }
       return json({ synced: (jobs?.length ?? 0)-failed,failed },failed ? 502 : 200);
     }
-    const id = String(body.orderId);
-    const order = await readOrder(id);
-    const couriers = async (parcel: ReturnType<typeof parsePackage>) => {
+    const couriers = async (parcel: ReturnType<typeof parsePackage>, pin: string) => {
       const { api,pickupPin } = shiprocket();
-      const address = record(order.delivery_details);
-      const query = new URLSearchParams({ pickup_postcode: pickupPin,delivery_postcode: String(address.pincode),
+      const query = new URLSearchParams({ pickup_postcode: pickupPin,delivery_postcode: pin,
         weight: String(parcel.weight),length: String(parcel.length),breadth: String(parcel.breadth),height: String(parcel.height),cod: '0' });
       return parseCouriers(await api(`/courier/serviceability/?${query}`));
     };
-    const delhiveryCouriers = async (parcel: ReturnType<typeof parsePackage>) => {
+    const delhiveryCouriers = async (parcel: ReturnType<typeof parsePackage>, pin: string) => {
       const { api,pickupPin,volumetricDivisor } = delhivery();
-      const address = record(order.delivery_details);
-      const pin = String(address.pincode);
       if (!/^[1-9][0-9]{5}$/.test(pin)) throw new Error('Invalid delivery pincode.');
       if (!serviceable(await api(`/c/api/pin-codes/json/?${new URLSearchParams({ filter_codes: pin })}`),pin)) return [];
       const query = new URLSearchParams({ md: 'S',ss: 'Delivered',pt: 'Pre-paid',o_pin: pickupPin,d_pin: pin,
@@ -205,6 +215,17 @@ Deno.serve(async request => {
       const charge = shippingCharge(await api(`/api/kinko/v1/invoice/charges/.json?${query}`));
       return [{ id: 1,name: 'Delhivery Surface',charge,days: null,recommended: false }];
     };
+    if (body.action === 'sample-rates') {
+      const parcel = parsePackage(body.parcel);
+      if (typeof body.pincode !== 'string' || !/^[1-9][0-9]{5}$/.test(body.pincode)) throw new Error('Enter a valid delivery pincode.');
+      const results = await Promise.allSettled([couriers(parcel,body.pincode),delhiveryCouriers(parcel,body.pincode)]);
+      return json({ providers: results.map((result,index) => result.status === 'fulfilled'
+        ? { provider: index === 0 ? 'shiprocket' : 'delhivery',quotes: result.value,error: null }
+        : { provider: index === 0 ? 'shiprocket' : 'delhivery',quotes: [],error: message(result.reason) }) });
+    }
+    const id = String(body.orderId);
+    const order = await readOrder(id);
+    const pin = String(record(order.delivery_details).pincode);
     if (body.action === 'quote') {
       const parcel = parsePackage(body.parcel);
       const provider = body.provider ?? 'shiprocket';
@@ -216,7 +237,7 @@ Deno.serve(async request => {
       })();
       if (provider === 'delhivery') delhiveryPayload(order,items,parcel,delhivery().pickupLocation);
       else createOrderPayload(order,items,parcel,shiprocket().pickupLocation);
-      const quotes = provider === 'delhivery' ? await delhiveryCouriers(parcel) : await couriers(parcel);
+      const quotes = provider === 'delhivery' ? await delhiveryCouriers(parcel,pin) : await couriers(parcel,pin);
       await rpc(provider === 'delhivery' ? 'save_delhivery_shipping_quote' : 'save_order_shipping_quote',
         { p_order_id: id,p_package: parcel,p_quotes: quotes,p_actor: actor });
       return json(await state(id));
@@ -243,8 +264,38 @@ Deno.serve(async request => {
       if (error) throw new Error('Unable to save the shipping label. Retry label generation.');
       return json(await state(id));
     }
-    if (body.action === 'pickup' && shipping?.provider === 'delhivery') {
-      throw new Error('Request Delhivery pickup in Delhivery One. Pickup requests apply to the entire warehouse.');
+    if ((body.action === 'pickup' || body.action === 'pickup-resolve') && shipping?.provider === 'delhivery') {
+      const { api,pickupLocation } = delhivery();
+      if (body.action === 'pickup-resolve') {
+        if (body.confirmed !== true || typeof body.pickupId !== 'string'
+          || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.pickupId)) {
+          throw new Error('Confirm the warehouse pickup was completed or does not exist before clearing it.');
+        }
+        await rpc('resolve_delhivery_pickup',{ p_id: body.pickupId,p_warehouse: pickupLocation,p_actor: actor });
+        return json(await state(id));
+      }
+      if (body.confirmed !== true) throw new Error('Confirm the parcels are ready and no other warehouse pickup is open.');
+      const details = pickupDetails(body.pickupDate,body.pickupTime,body.packageCount);
+      const operation = crypto.randomUUID();
+      await rpc('claim_delhivery_pickup',{ p_id: operation,p_order_id: id,p_warehouse: pickupLocation,
+        p_date: details.pickup_date,p_time: details.pickup_time,p_count: details.expected_package_count,p_actor: actor });
+      const savePickup = async (values: Record<string, unknown>) => {
+        const { data,error } = await db.from('delhivery_warehouse_pickups').update(values)
+          .eq('id',operation).eq('state','pending').is('resolved_at',null).select('id').single();
+        if (error || !data) throw new Error('Unable to save pickup status.');
+      };
+      try {
+        const result = await api('/fm/request/new/',JSON.stringify({ ...details,pickup_location: pickupLocation }));
+        await savePickup({ state: 'confirmed',pickup_id: createdPickupId(result) });
+      } catch (failure) {
+        try { await savePickup({ state: 'review',last_error: message(failure).slice(0,500) }); }
+        catch (saveFailure) { console.error('Unable to record pickup reconciliation:',message(saveFailure)); }
+        throw new Error(`${message(failure)} Check Delhivery One before any retry; the warehouse pickup may have been created.`);
+      }
+      return json(await state(id));
+    }
+    if (body.action === 'pickup-resolve') {
+      throw new Error('Warehouse pickup reconciliation is only available for Delhivery.');
     }
     if (body.action === 'book' || body.action === 'pickup') {
       if (shipping?.provider === 'delhivery') delhivery(); else shiprocket();
@@ -266,7 +317,7 @@ Deno.serve(async request => {
       if (body.action === 'book') {
         const parcel = parsePackage(claimed.package);
         const provider = claimed.provider === 'delhivery' ? 'delhivery' : 'shiprocket';
-        const current = (provider === 'delhivery' ? await delhiveryCouriers(parcel) : await couriers(parcel))
+        const current = (provider === 'delhivery' ? await delhiveryCouriers(parcel,pin) : await couriers(parcel,pin))
           .find(q => q.id === claimed.courier_id);
         if (!current || current.charge > Number(claimed.approved_charge)) {
           throw new Error('Courier availability or price changed. Check rates and approve again.');
