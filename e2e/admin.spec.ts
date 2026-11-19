@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { installMockSupabase } from './mockSupabase';
 import type { SocialPost } from '../supabase/functions/_shared/socialPosts';
 
@@ -200,19 +201,37 @@ test('admin prepares WhatsApp and Pinterest posts manually without Meta writes',
   const pinterest = page.getByRole('region', { name: 'Pinterest pin preparation' });
   await pinterest.getByLabel(/Pinterest title/).fill('Premium handmade rose charm');
   await pinterest.getByLabel(/Pinterest description/).fill('A colourful handmade accessory.');
-  await pinterest.getByRole('radio', { name: 'Photo-first resize (larger original photo)' }).check();
-  await pinterest.getByRole('button', { name: 'Prepare Pinterest image (does not publish)' }).click();
-  await expect(pinterest.getByRole('img', { name: 'Pinterest pin preview' })).toBeVisible();
-  const pinDownloadPromise = page.waitForEvent('download');
-  await pinterest.getByRole('link', { name: 'Download Pinterest image' }).click();
-  const pinDownload = await pinDownloadPromise;
-  expect(pinDownload.suggestedFilename()).toMatch(/-pinterest\.jpg$/);
-  const pinFile = await pinDownload.path();
-  if (!pinFile) throw new Error('Pinterest JPEG download is missing.');
-  expect(await sharp(pinFile).metadata()).toMatchObject({ format: 'jpeg', width: 1000, height: 1500 });
-  const photoEdge = await sharp(pinFile).extract({ left: 20, top: 750, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
-  for (const [channel, expected] of [255, 182, 193].entries()) {
-    expect(Math.abs(photoEdge[channel]! - expected)).toBeLessThanOrEqual(8);
+  for (const layout of [
+    { name: 'Branded poster (title above photo)', size: 180, top: 35 },
+    { name: 'Photo-first resize (larger original photo)', size: 120, top: 20 },
+  ]) {
+    await pinterest.getByRole('radio', { name: layout.name }).check();
+    await pinterest.getByRole('button', { name: 'Prepare Pinterest image (does not publish)' }).click();
+    await expect(pinterest.getByRole('img', { name: 'Pinterest pin preview' })).toBeVisible();
+    const pinDownloadPromise = page.waitForEvent('download');
+    await pinterest.getByRole('link', { name: 'Download Pinterest image' }).click();
+    const pinDownload = await pinDownloadPromise;
+    expect(pinDownload.suggestedFilename()).toMatch(/-pinterest\.jpg$/);
+    const pinFile = await pinDownload.path();
+    if (!pinFile) throw new Error('Pinterest JPEG download is missing.');
+    expect(await sharp(pinFile).metadata()).toMatchObject({ format: 'jpeg', width: 1000, height: 1500 });
+    const left = (1000 - layout.size) / 2;
+    const renderedLogo = await sharp(pinFile).extract({ left, top: layout.top, width: layout.size, height: layout.size })
+      .removeAlpha().raw().toBuffer();
+    const expectedLogo = await sharp(join('public', 'images', 'luvia-pinterest-logo.webp'))
+      .resize(layout.size, layout.size).removeAlpha().raw().toBuffer();
+    const meanDifference = renderedLogo.reduce((total, value, index) => total + Math.abs(value - expectedLogo[index]!), 0)
+      / renderedLogo.length;
+    expect(meanDifference).toBeLessThan(8);
+    const background = await sharp(pinFile).extract({ left: left - 5, top: layout.top + 2, width: 1, height: 1 }).raw().toBuffer();
+    const logoEdge = await sharp(pinFile).extract({ left: left + 2, top: layout.top + 2, width: 1, height: 1 }).raw().toBuffer();
+    for (let channel = 0; channel < 3; channel++) expect(Math.abs(background[channel]! - logoEdge[channel]!)).toBeLessThan(8);
+    if (layout.size === 120) {
+      const photoEdge = await sharp(pinFile).extract({ left: 20, top: 750, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      for (const [channel, expected] of [255, 182, 193].entries()) {
+        expect(Math.abs(photoEdge[channel]! - expected)).toBeLessThanOrEqual(8);
+      }
+    }
   }
   await pinterest.getByRole('button', { name: 'Copy Pinterest title' }).click();
   expect(await page.evaluate(() => Reflect.get(window, 'pinterestCopiedText'))).toBe('Premium handmade rose charm');

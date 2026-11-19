@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest';
 import { chargeableWeight, createDelhiveryClient, createdPickupId, createdWaybill, delhiveryPayload, labelUrl, pickupDetails,
-  serviceable, shippingCharge, tracking } from './delhivery';
+  serviceable, shippingCharge, tracking, transitDays } from './delhivery';
 
 const parcel = { weight: 0.75,length: 20,breadth: 15,height: 10 };
 const order = { reference: 'LUV-123',created_at: '2026-11-19T00:00:00Z',subtotal_paise: 50000,
@@ -49,6 +49,14 @@ it('requires a matching, non-embargoed prepaid serviceable pincode',() => {
 it('uses the provider total including tax and rejects absent or invalid estimates',() => {
   expect(shippingCharge([{ total_amount: 106.2,gross_amount: 90 }])).toBe(106.2);
   for (const value of [[],[{}],[{ total_amount: 0 }],{}]) expect(() => shippingCharge(value)).toThrow();
+});
+
+it('accepts only a valid successful Delhivery transit estimate',() => {
+  expect(transitDays({ success: true,msg: '',data: { tat: 3 } })).toBe(3);
+  for (const value of [{ success: false,data: { tat: 3 } },{ success: true,data: { tat: 0 } },
+    { success: true,data: { tat: '3' } },{ success: true,data: {} },{}]) {
+    expect(() => transitDays(value)).toThrow();
+  }
 });
 
 it('quotes the higher of actual and rate-card volumetric weight, rounding dimensions up',() => {

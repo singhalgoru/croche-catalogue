@@ -3,7 +3,7 @@ import { orderMarginBasis } from './margin.ts';
 import { createOrderPayload, createShiprocketClient, identifier, parseCouriers, parsePackage,
   record, safeLabel, trackingStatus, trackingDeliveryDate } from './shiprocket.ts';
 import { chargeableWeight, createDelhiveryClient, createdPickupId, createdWaybill, delhiveryPayload, labelUrl,
-  pickupDetails, readDelhiveryConfig, serviceable, shippingCharge, tracking as delhiveryTracking } from './delhivery.ts';
+  pickupDetails, readDelhiveryConfig, serviceable, shippingCharge, tracking as delhiveryTracking, transitDays } from './delhivery.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -205,15 +205,25 @@ Deno.serve(async request => {
         weight: String(parcel.weight),length: String(parcel.length),breadth: String(parcel.breadth),height: String(parcel.height),cod: '0' });
       return parseCouriers(await api(`/courier/serviceability/?${query}`));
     };
-    const delhiveryCouriers = async (parcel: ReturnType<typeof parsePackage>, pin: string) => {
+    const delhiveryCouriers = async (parcel: ReturnType<typeof parsePackage>, pin: string, includeTimeline = true) => {
       const { api,pickupPin,volumetricDivisor } = delhivery();
       if (!/^[1-9][0-9]{5}$/.test(pin)) throw new Error('Invalid delivery pincode.');
       if (!serviceable(await api(`/c/api/pin-codes/json/?${new URLSearchParams({ filter_codes: pin })}`),pin)) return [];
       const query = new URLSearchParams({ md: 'S',ss: 'Delivered',pt: 'Pre-paid',o_pin: pickupPin,d_pin: pin,
         cgm: String(chargeableWeight(parcel,volumetricDivisor)),l: String(Math.ceil(parcel.length)),
         b: String(Math.ceil(parcel.breadth)),h: String(Math.ceil(parcel.height)) });
-      const charge = shippingCharge(await api(`/api/kinko/v1/invoice/charges/.json?${query}`));
-      return [{ id: 1,name: 'Delhivery Surface',charge,days: null,recommended: false }];
+      const timeline = async () => {
+        if (!includeTimeline) return null;
+        try {
+          const tatQuery = new URLSearchParams({ origin_pin: pickupPin,destination_pin: pin,mot: 'S' });
+          return transitDays(await api(`/api/dc/expected_tat?${tatQuery}`));
+        } catch (failure) {
+          console.error('Delhivery transit estimate unavailable:',message(failure));
+          return null;
+        }
+      };
+      const [rate,days] = await Promise.all([api(`/api/kinko/v1/invoice/charges/.json?${query}`),timeline()]);
+      return [{ id: 1,name: 'Delhivery Surface',charge: shippingCharge(rate),days,recommended: false }];
     };
     if (body.action === 'sample-rates') {
       const parcel = parsePackage(body.parcel);
@@ -317,7 +327,7 @@ Deno.serve(async request => {
       if (body.action === 'book') {
         const parcel = parsePackage(claimed.package);
         const provider = claimed.provider === 'delhivery' ? 'delhivery' : 'shiprocket';
-        const current = (provider === 'delhivery' ? await delhiveryCouriers(parcel,pin) : await couriers(parcel,pin))
+        const current = (provider === 'delhivery' ? await delhiveryCouriers(parcel,pin,false) : await couriers(parcel,pin))
           .find(q => q.id === claimed.courier_id);
         if (!current || current.charge > Number(claimed.approved_charge)) {
           throw new Error('Courier availability or price changed. Check rates and approve again.');

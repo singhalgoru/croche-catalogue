@@ -272,6 +272,7 @@ it('quotes and books Delhivery only after approval, using the persisted provider
   delhiveryApi.mockImplementation(async (path: string) => {
     if (path.startsWith('/c/api/pin-codes')) return { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y',remarks: '' } }] };
     if (path.startsWith('/api/kinko')) return [{ total_amount: 85 }];
+    if (path.startsWith('/api/dc/expected_tat')) return { success: true,data: { tat: 4 } };
     if (path === '/api/cmu/create.json') return { success: true,packages: [
       { status: 'Success',serviceable: true,refnum: 'LUV-123',waybill: '1234567890' },
     ] };
@@ -280,9 +281,11 @@ it('quotes and books Delhivery only after approval, using the persisted provider
   const quote = await handle(request({ action: 'quote',orderId: id,provider: 'delhivery',parcel }));
   expect(quote.status).toBe(200);
   expect(rpc).toHaveBeenCalledWith('save_delhivery_shipping_quote',expect.objectContaining({
-    p_quotes: [{ id: 1,name: 'Delhivery Surface',charge: 85,days: null,recommended: false }],
+    p_quotes: [{ id: 1,name: 'Delhivery Surface',charge: 85,days: 4,recommended: false }],
   }));
   expect(delhiveryApi.mock.calls.find(([path]) => path.startsWith('/api/kinko'))?.[0]).toContain('cgm=600');
+  expect(delhiveryApi.mock.calls.find(([path]) => path.startsWith('/api/dc/expected_tat'))?.[0])
+    .toContain('origin_pin=110001&destination_pin=110001&mot=S');
   expect(delhiveryApi).not.toHaveBeenCalledWith('/api/cmu/create.json',expect.anything());
   const response = await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }));
   expect(response.status).toBe(200);
@@ -351,15 +354,33 @@ it('reports missing pickup configuration while preserving return tracking',async
 
 it('compares sample prepaid rates without reading or creating an order',async () => {
   delhiveryApi.mockImplementation(async (path: string) => path.startsWith('/c/api/pin-codes')
-    ? { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] } : [{ total_amount: 90 }]);
+    ? { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] }
+    : path.startsWith('/api/dc/expected_tat') ? { success: true,data: { tat: 3 } } : [{ total_amount: 90 }]);
   const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ providers: [
     { provider: 'shiprocket',quotes: [{ name: 'Courier',charge: 85 }],error: null },
-    { provider: 'delhivery',quotes: [{ name: 'Delhivery Surface',charge: 90 }],error: null },
+    { provider: 'delhivery',quotes: [{ name: 'Delhivery Surface',charge: 90,days: 3 }],error: null },
   ] });
   expect(from).not.toHaveBeenCalled(); expect(rpc).not.toHaveBeenCalled();
-  expect(delhiveryApi.mock.calls.every(([path]) => path.startsWith('/c/api/pin-codes') || path.startsWith('/api/kinko'))).toBe(true);
+  expect(delhiveryApi.mock.calls.every(([path]) => path.startsWith('/c/api/pin-codes')
+    || path.startsWith('/api/kinko') || path.startsWith('/api/dc/expected_tat'))).toBe(true);
+});
+
+it('keeps Delhivery rates when its transit estimate fails',async () => {
+  delhiveryApi.mockImplementation(async (path: string) => {
+    if (path.startsWith('/c/api/pin-codes')) return { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] };
+    if (path.startsWith('/api/kinko')) return [{ total_amount: 90 }];
+    throw new Error('TAT unavailable');
+  });
+  const log = vi.spyOn(console,'error').mockImplementation(() => {});
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  expect(await response.json()).toMatchObject({ providers: [
+    { provider: 'shiprocket',error: null },
+    { provider: 'delhivery',quotes: [{ charge: 90,days: null }],error: null },
+  ] });
+  expect(log).toHaveBeenCalledWith('Delhivery transit estimate unavailable:','TAT unavailable');
+  log.mockRestore();
 });
 
 it('reports one provider failure without hiding the other sample rate',async () => {

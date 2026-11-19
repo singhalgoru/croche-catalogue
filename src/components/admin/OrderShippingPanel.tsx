@@ -181,7 +181,7 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
               onChange={event => { setSelected(event.target.value); setReady(false); }}>
               <option value="">Select a courier</option>
               {state.quotes.map(q => <option key={q.id} value={q.id}>
-                {q.name} — {formatINR(q.charge)}{q.days ? ` · ${q.days} days` : ''}{q.recommended ? ' · Shiprocket recommended' : ''} · {marginLabel(q.charge)}
+                {q.name} — {formatINR(q.charge)}{q.days ? ` · ${q.days} days` : ' · Transit estimate unavailable'}{q.recommended ? ' · Shiprocket recommended' : ''} · {marginLabel(q.charge)}
               </option>)}
             </select>
           </label>

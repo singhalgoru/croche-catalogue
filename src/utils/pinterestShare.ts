@@ -1,17 +1,25 @@
 import { prepareSocialPostJpeg } from './imageUploadConversion';
-import { loadWatermarkLogo } from './imageWatermark';
 import { getProductImageUrl } from './productImageUrl';
 import { toShareFileName } from './shareImage';
 import type { Product } from '../types/product';
 
 export type PinterestImageLayout = 'branded' | 'photo-first';
 
+function loadPinterestLogo(): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('The Pinterest logo could not be loaded. Try again before preparing the image.'));
+    image.src = `${import.meta.env.BASE_URL}images/luvia-pinterest-logo.webp`;
+  });
+}
+
 export async function preparePinterestPin(
   product: Pick<Product, 'name' | 'image'>, title: string, layout: PinterestImageLayout = 'branded',
 ): Promise<File> {
   if (!title.trim() || title.length > 100) throw new Error('Enter a Pinterest title of 1 to 100 characters.');
   const [photo, logo] = await Promise.all([
-    prepareSocialPostJpeg(getProductImageUrl(product.image, 960)), loadWatermarkLogo(),
+    prepareSocialPostJpeg(getProductImageUrl(product.image, 960)), loadPinterestLogo(),
   ]);
   const bitmap = await createImageBitmap(photo);
   try {
@@ -20,7 +28,7 @@ export async function preparePinterestPin(
     canvas.height = 1500;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('This browser cannot prepare a Pinterest image.');
-    context.fillStyle = '#fffaf0';
+    context.fillStyle = '#fdf6ed';
     context.fillRect(0, 0, canvas.width, canvas.height);
     const photoFirst = layout === 'photo-first';
     const logoSize = photoFirst ? 120 : 180;

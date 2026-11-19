@@ -51,6 +51,15 @@ export function shippingCharge(value: unknown): number {
   return positive(record(value[0]).total_amount);
 }
 
+export function transitDays(value: unknown): number {
+  const response = record(value);
+  const days = record(response.data).tat;
+  if (response.success !== true || typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > 365) {
+    throw new Error('Delhivery returned an invalid transit estimate.');
+  }
+  return days;
+}
+
 export function pickupDetails(date: unknown, time: unknown, count: unknown, now = Date.now()) {
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)
     || typeof time !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)

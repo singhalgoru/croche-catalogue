@@ -167,17 +167,18 @@ test('admin can approve Delhivery and schedule a warehouse pickup',async ({ page
 });
 
 test('admin compares a sample parcel without creating an order',async ({ page }) => {
-  await installMockSupabase(page);
+  const catalogue = await installMockSupabase(page);
+  catalogue.products[0].name = 'Bunny Toy';
   await page.route('**/rest/v1/rpc/get_admin_live_orders',route => route.fulfill({ json: [] }));
   await page.route('**/functions/v1/order-shipping',async route => {
     expect(route.request().postDataJSON()).toEqual({ action: 'sample-rates',pincode: '110001',
-      parcel: { weight: 0.5,length: 20,breadth: 15,height: 10 } });
+      parcel: { weight: 1,length: 27,breadth: 20,height: 14 } });
     await route.fulfill({ json: { providers: [
       { provider: 'shiprocket',quotes: [
         { id: 1,name: 'Courier A',charge: 80,days: 3,recommended: true },
         { id: 2,name: 'Courier B',charge: 100,days: 4,recommended: false },
       ],error: null },
-      { provider: 'delhivery',quotes: [{ id: 1,name: 'Delhivery Surface',charge: 90,days: null,recommended: false }],error: null },
+      { provider: 'delhivery',quotes: [{ id: 1,name: 'Delhivery Surface',charge: 90,days: 5,recommended: false }],error: null },
     ] } });
   });
   await page.goto('./#admin');
@@ -188,13 +189,16 @@ test('admin compares a sample parcel without creating an order',async ({ page })
   const panel = page.getByRole('region',{ name: 'Online orders',exact: true });
   await panel.getByRole('button',{ name: 'Online orders',exact: true }).click();
   await panel.getByText('Compare sample shipping rates').click();
+  await panel.getByLabel('Sample product').selectOption({ label: 'Bunny Toy' });
+  await panel.getByRole('button',{ name: 'Add product' }).click();
+  await expect(panel.getByLabel('Length (cm)')).toHaveValue('27');
+  await expect(panel.getByLabel('Width (cm)')).toHaveValue('20');
+  await expect(panel.getByLabel('Height (cm)')).toHaveValue('14');
+  await expect(panel.getByRole('button',{ name: 'Compare rates' })).toBeDisabled();
   await panel.getByLabel('Delivery pincode').fill('110001');
-  await panel.getByLabel('Packed weight (kg)').fill('0.5');
-  await panel.getByLabel('Length (cm)').fill('20');
-  await panel.getByLabel('Width (cm)').fill('15');
-  await panel.getByLabel('Height (cm)').fill('10');
+  await panel.getByLabel('Packed weight (kg)').fill('1');
   await panel.getByRole('button',{ name: 'Compare rates' }).click();
   await expect(panel.getByText(/Courier A: ₹80/)).toBeVisible();
   await expect(panel.getByText(/Courier B: ₹100/)).toBeVisible();
-  await expect(panel.getByText(/Delhivery Surface: ₹90/)).toBeVisible();
+  await expect(panel.getByText(/Delhivery Surface: ₹90.*5 days/)).toBeVisible();
 });
