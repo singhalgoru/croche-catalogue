@@ -129,7 +129,15 @@ Deno.serve(async request => {
     if (body.action === 'check-connection') {
       if (body.provider === 'delhivery') {
         const result = await delhiveryApi()('/c/api/pin-codes/json/?filter_codes=110001');
-        return json({ connected: true,serviceable: serviceable(result,'110001'),shipmentCreated: false });
+        const available = serviceable(result,'110001');
+        if (body.checkRates === true && available) {
+          const { api,pickupPin } = delhivery();
+          const query = new URLSearchParams({ md: 'S',ss: 'Delivered',pt: 'Pre-paid',o_pin: pickupPin,
+            d_pin: '110001',cgm: '500',l: '10',b: '10',h: '10' });
+          shippingCharge(await api(`/api/kinko/v1/invoice/charges/.json?${query}`));
+          return json({ connected: true,serviceable: true,rateAvailable: true,shipmentCreated: false });
+        }
+        return json({ connected: true,serviceable: available,shipmentCreated: false });
       }
       const { api,pickupPin } = shiprocket();
       const query = new URLSearchParams({ pickup_postcode: pickupPin,delivery_postcode: '110001',weight: '0.5',cod: '0' });

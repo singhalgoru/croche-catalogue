@@ -290,6 +290,15 @@ it('checks Delhivery connectivity without a warehouse or provider mutation',asyn
   expect(delhiveryApi.mock.calls[0][0]).toContain('/c/api/pin-codes/json/');
 });
 
+it('optionally verifies the configured Delhivery rate API without booking',async () => {
+  delhiveryApi.mockResolvedValueOnce({ delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] })
+    .mockResolvedValueOnce([{ total_amount: 85 }]);
+  const response = await handle(request({ action: 'check-connection',provider: 'delhivery',checkRates: true },'Bearer worker-fixture'));
+  expect(await response.json()).toEqual({ connected: true,serviceable: true,rateAvailable: true,shipmentCreated: false });
+  expect(delhiveryApi.mock.calls[1][0]).toContain('/api/kinko/v1/invoice/charges/');
+  expect(delhiveryApi).toHaveBeenCalledTimes(2);
+});
+
 it('blocks repeat booking on an ambiguous Delhivery response and never retries a mutation',async () => {
   shipping = { ...shipping,provider: 'delhivery',courier_id: 1,approved_charge: 85 };
   delhiveryApi.mockImplementation(async (path: string) => {
