@@ -8,6 +8,7 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
 }) {
   const [state,setState] = useState<ShippingState | null>(null);
   const [parcel,setParcel] = useState({ weight: '',length: '',breadth: '',height: '' });
+  const [provider,setProvider] = useState<'shiprocket' | 'delhivery'>('shiprocket');
   const [selected,setSelected] = useState('');
   const [ready,setReady] = useState(false);
   const [busy,setBusy] = useState(false);
@@ -34,15 +35,19 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
     setBusy(true); setError(''); setNotice('');
     try {
       const options = action === 'quote' ? { parcel: { weight: Number(parcel.weight),length: Number(parcel.length),
-        breadth: Number(parcel.breadth),height: Number(parcel.height) } }
+        breadth: Number(parcel.breadth),height: Number(parcel.height) },
+        ...(provider === 'delhivery' ? { provider } : {}) }
         : action === 'book' ? { courierId: Number(selected),quotedAt: state?.quotedAt ?? '',readyToShip: ready } : {};
       const saved = await requestOrderShipping(orderId,action,options);
       setNow(Date.now());
       setState(saved);
+      setProvider(saved.provider ?? 'shiprocket');
       if (saved.parcel) setParcel({ weight: String(saved.parcel.weight),length: String(saved.parcel.length),
         breadth: String(saved.parcel.breadth),height: String(saved.parcel.height) });
       setQuoteInvalid(false); setSelected(''); setReady(false);
-      if (action === 'book') setNotice('Shipment and AWB created. Generate the label and request pickup when packed.');
+      if (action === 'book') setNotice(saved.provider === 'delhivery'
+        ? 'Shipment and AWB created. Generate the label and request warehouse pickup in Delhivery One.'
+        : 'Shipment and AWB created. Generate the label and request pickup when packed.');
       if (action === 'pickup') setNotice('Pickup request confirmed by Shiprocket.');
       if (action === 'quote' && !saved.quotes.length) setNotice('No available courier for this package and delivery pincode. Arrange shipping manually.');
       if (saved.fulfilment.status !== fulfilment.status || saved.fulfilment.updatedAt !== fulfilment.updatedAt
@@ -57,20 +62,20 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
     } finally { setBusy(false); }
   }
   const button = 'min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold disabled:opacity-50';
-  return <section aria-label="Shiprocket shipping" className="mt-4 rounded-xl border border-cocoa/20 bg-white p-3">
-    <h5 className="font-semibold">Shiprocket shipping</h5>
+  return <section aria-label="Courier shipping" className="mt-4 rounded-xl border border-cocoa/20 bg-white p-3">
+    <h5 className="font-semibold">Courier shipping</h5>
     <p className="mt-1 text-xs text-cocoa/70">Prepaid orders only. Confirm the packed weight and dimensions, then approve a courier. Booking does not mark the order shipped; courier tracking does.
       {' '}Compare transit days as well as cost: the selected courier may differ from the provisional checkout estimate.
       A recommendation is not a guarantee of delivery speed or reliability.</p>
-    <p className="mt-1 text-xs text-cocoa/70">Selecting or approving a courier does not book it. Book creates a Shiprocket order and requests an AWB.
-      {' '}Recharge your Shiprocket wallet first; balance is not checked here. If AWB assignment fails, check the existing order in Shiprocket before retrying. Label and pickup are separate steps.</p>
+    <p className="mt-1 text-xs text-cocoa/70">Selecting or approving a courier does not book it. Booking creates an order and requests an AWB.
+      {' '}Recharge the chosen provider&apos;s wallet first; balance is not checked here. If booking fails, check that provider before retrying. Label and pickup are separate steps.</p>
     <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void run('status')}>
-      {busy ? 'Working...' : state ? 'Refresh shipping status' : 'Manage Shiprocket shipping'}
+      {busy ? 'Working...' : state ? 'Refresh shipping status' : 'Manage courier shipping'}
     </button>
     {state && <>
       {(state.reviewRequired || state.busy) && <p role="alert" className="mt-3 text-sm text-red-700">
         {state.busy ? 'A shipping operation is running or was interrupted.' : 'Shipment needs reconciliation.'}
-        {' '}Check this order in Shiprocket before any further booking. Refresh to check its saved state. {state.lastError}
+        {' '}Check this order in {state.provider === 'delhivery' ? 'Delhivery One' : 'Shiprocket'} before any further booking. Refresh to check its saved state. {state.lastError}
       </p>}
       {state.lastError && !state.reviewRequired && !state.busy && <p role="alert" className="mt-3 text-sm text-red-700">{state.lastError}</p>}
       {state.awb && <div className="mt-3 text-sm">
@@ -80,12 +85,23 @@ export default function OrderShippingPanel({ orderId, fulfilment, onSaved }: {
         <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" className={button} disabled={busy} onClick={() => void run('label')}>Generate label</button>
           {state.labelUrl?.startsWith('https://') && <a className={button} href={state.labelUrl} target="_blank" rel="noopener noreferrer">Open shipping label</a>}
-          {unshipped && <button type="button" className={button} disabled={blocked || state.pickupRequested}
+          {unshipped && state.provider !== 'delhivery' && <button type="button" className={button} disabled={blocked || state.pickupRequested}
             onClick={() => void run('pickup')}>{state.pickupRequested ? 'Pickup requested' : 'Request pickup'}</button>}
           <button type="button" className={button} disabled={busy} onClick={() => void run('sync')}>Sync courier tracking</button>
         </div>
+        {unshipped && state.provider === 'delhivery' && <p className="mt-2 text-xs">
+          Request pickup in Delhivery One when packed. Pickup requests cover the warehouse, not an individual shipment.
+        </p>}
       </div>}
-      {unshipped && !state.shipmentId && <form className="mt-3" onSubmit={event => { event.preventDefault(); void run('quote'); }}>
+      {unshipped && !state.shipmentId && !state.awb && <form className="mt-3" onSubmit={event => { event.preventDefault(); void run('quote'); }}>
+        <label className="mb-3 block text-sm">Shipping partner
+          <select value={provider} disabled={blocked} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 bg-white p-2"
+            onChange={event => { setProvider(event.target.value === 'delhivery' ? 'delhivery' : 'shiprocket');
+              setQuoteInvalid(true); setSelected(''); setReady(false); }}>
+            <option value="shiprocket">Shiprocket</option>
+            <option value="delhivery">Delhivery</option>
+          </select>
+        </label>
         <fieldset disabled={blocked} className="grid grid-cols-2 gap-3">
           {([['weight','Packed weight (kg)'],['length','Length (cm)'],['breadth','Width (cm)'],['height','Height (cm)']] as const).map(([key,label]) =>
             <label key={key} className="text-sm">{label}<input type="number" required min={key === 'weight' ? 0.001 : 0.5}

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-const { getUser,permission,rpc,from,api } = vi.hoisted(() => ({
-  getUser: vi.fn(),permission: vi.fn(),rpc: vi.fn(),from: vi.fn(),api: vi.fn(),
+const { getUser,permission,rpc,from,api,delhiveryApi } = vi.hoisted(() => ({
+  getUser: vi.fn(),permission: vi.fn(),rpc: vi.fn(),from: vi.fn(),api: vi.fn(),delhiveryApi: vi.fn(),
 }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2',() => ({
   createClient: (_url: string,_key: string,options?: { global?: unknown }) => options?.global
@@ -10,12 +10,15 @@ vi.mock('https://esm.sh/@supabase/supabase-js@2',() => ({
 vi.mock('./shiprocket.ts',async importOriginal => ({
   ...await importOriginal<typeof import('./shiprocket')>(),createShiprocketClient: () => api,
 }));
+vi.mock('./delhivery.ts',async importOriginal => ({
+  ...await importOriginal<typeof import('./delhivery')>(),createDelhiveryClient: () => delhiveryApi,
+}));
 const id = '10000000-0000-4000-8000-000000000001';
 const actor = '20000000-0000-4000-8000-000000000002';
 const parcel = { weight: 0.5,length: 20,breadth: 15,height: 10 };
 const quotedAt = '2026-10-20T14:00:00Z';
 const order = { id,status: 'paid',is_live_checkout: true,is_test_checkout: false,
-  reference: 'LUV-123',created_at: quotedAt,subtotal_paise: 50000,discount_paise: 0,shipping_paise: 0,
+  reference: 'LUV-123',created_at: quotedAt,subtotal_paise: 50000,total_paise: 50000,discount_paise: 0,shipping_paise: 0,
   fulfilment_status: 'confirmed',courier_name: '',tracking_number: '',tracking_url: '',fulfilment_updated_at: null,
   delivery_details: { name: 'Buyer',phone: '9876543210',email: 'buyer@example.test',
     addressLine1: '12 Test Street',city: 'Delhi',state: 'Delhi',pincode: '110001' } };
@@ -61,7 +64,9 @@ beforeEach(() => {
   vi.clearAllMocks(); currentOrder={ ...order }; updates=[]; failSave=false; claimError=false; jobs=[];
   environment = { SUPABASE_URL: 'https://example.test',SUPABASE_ANON_KEY: 'anon',SUPABASE_SERVICE_ROLE_KEY: 'service',
     SHIPROCKET_EMAIL: 'api@example.test',SHIPROCKET_PASSWORD: 'fixture',SHIPROCKET_PICKUP_PINCODE: '110001',
-    SHIPROCKET_PICKUP_LOCATION: 'Primary',CUSTOMER_WELCOME_WORKER_SECRET: 'worker-fixture' };
+    SHIPROCKET_PICKUP_LOCATION: 'Primary',CUSTOMER_WELCOME_WORKER_SECRET: 'worker-fixture',
+    DELHIVERY_LIVE_TOKEN: 'fixture',DELHIVERY_PICKUP_PINCODE: '110001',DELHIVERY_PICKUP_LOCATION: 'Warehouse',
+    DELHIVERY_VOLUMETRIC_DIVISOR: '5000' };
   shipping = { order_id: id,package: parcel,quotes: [{ id: 10,name: 'Courier',charge: 85,days: 3,recommended: true }],
     quoted_at: quotedAt,courier_id: 10,courier_name: 'Courier',approved_charge: 85 };
   getUser.mockResolvedValue({ data: { user: { id: actor,email_confirmed_at: quotedAt,is_anonymous: false } },error: null });
@@ -245,4 +250,78 @@ it('records failed tracking checks for backoff and reports scheduled failures ex
   expect(updates).toContainEqual(expect.objectContaining({
     tracking_error: 'Tracking unavailable.',tracking_checked_at: expect.any(String),
   }));
+});
+
+it('quotes and books Delhivery only after approval, using the persisted provider',async () => {
+  shipping = { ...shipping,provider: 'delhivery',courier_id: 1,approved_charge: 85,
+    quotes: [{ id: 1,name: 'Delhivery Surface',charge: 85,days: null,recommended: false }] };
+  delhiveryApi.mockImplementation(async (path: string) => {
+    if (path.startsWith('/c/api/pin-codes')) return { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y',remarks: '' } }] };
+    if (path.startsWith('/api/kinko')) return [{ total_amount: 85 }];
+    if (path === '/api/cmu/create.json') return { success: true,packages: [
+      { status: 'Success',serviceable: true,refnum: 'LUV-123',waybill: '1234567890' },
+    ] };
+    throw new Error('Unexpected Delhivery endpoint');
+  });
+  const quote = await handle(request({ action: 'quote',orderId: id,provider: 'delhivery',parcel }));
+  expect(quote.status).toBe(200);
+  expect(rpc).toHaveBeenCalledWith('save_delhivery_shipping_quote',expect.objectContaining({
+    p_quotes: [{ id: 1,name: 'Delhivery Surface',charge: 85,days: null,recommended: false }],
+  }));
+  expect(delhiveryApi.mock.calls.find(([path]) => path.startsWith('/api/kinko'))?.[0]).toContain('cgm=600');
+  expect(delhiveryApi).not.toHaveBeenCalledWith('/api/cmu/create.json',expect.anything());
+  const response = await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }));
+  expect(response.status).toBe(200);
+  expect(shipping).toMatchObject({ awb: '1234567890',operation: null });
+  const body = delhiveryApi.mock.calls.find(([path]) => path === '/api/cmu/create.json')?.[1];
+  expect(body).toMatch(/^format=json&data=/);
+  expect(JSON.parse(body.slice('format=json&data='.length))).toMatchObject({
+    pickup_location: { name: 'Warehouse' },shipments: [{ order: 'LUV-123',weight: 500 }],
+  });
+  expect(api).not.toHaveBeenCalled();
+});
+
+it('checks Delhivery connectivity without a warehouse or provider mutation',async () => {
+  delete environment.DELHIVERY_PICKUP_LOCATION;
+  delhiveryApi.mockResolvedValueOnce({ delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] });
+  const response = await handle(request({ action: 'check-connection',provider: 'delhivery' },'Bearer worker-fixture'));
+  expect(await response.json()).toEqual({ connected: true,serviceable: true,shipmentCreated: false });
+  expect(delhiveryApi).toHaveBeenCalledTimes(1);
+  expect(delhiveryApi.mock.calls[0][0]).toContain('/c/api/pin-codes/json/');
+});
+
+it('blocks repeat booking on an ambiguous Delhivery response and never retries a mutation',async () => {
+  shipping = { ...shipping,provider: 'delhivery',courier_id: 1,approved_charge: 85 };
+  delhiveryApi.mockImplementation(async (path: string) => {
+    if (path.startsWith('/c/api/pin-codes')) return { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] };
+    if (path.startsWith('/api/kinko')) return [{ total_amount: 85 }];
+    throw new Error('Provider timeout');
+  });
+  const response = await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }));
+  expect(response.status).toBe(400);
+  expect(updates).toContainEqual(expect.objectContaining({ review_required: true,operation: null }));
+  expect(delhiveryApi.mock.calls.filter(([path]) => path === '/api/cmu/create.json')).toHaveLength(1);
+});
+
+it('does not manifest if Delhivery raises the price or rejects the destination',async () => {
+  shipping = { ...shipping,provider: 'delhivery',courier_id: 1,approved_charge: 85 };
+  delhiveryApi.mockImplementation(async (path: string) => path.startsWith('/c/api/pin-codes')
+    ? { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] } : [{ total_amount: 90 }]);
+  expect((await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }))).status).toBe(400);
+  expect(updates).toContainEqual(expect.objectContaining({ review_required: false,operation: null }));
+  expect(delhiveryApi).not.toHaveBeenCalledWith('/api/cmu/create.json',expect.anything());
+  delhiveryApi.mockResolvedValueOnce({ delivery_codes: [] });
+  expect((await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }))).status).toBe(400);
+  expect(delhiveryApi).not.toHaveBeenCalledWith('/api/cmu/create.json',expect.anything());
+});
+
+it('does not request per-shipment Delhivery pickups and syncs return tracking safely',async () => {
+  shipping = { ...shipping,provider: 'delhivery',shipment_id: null,awb: '1234567890' };
+  delete environment.DELHIVERY_PICKUP_LOCATION;
+  expect((await handle(request({ action: 'pickup',orderId: id }))).status).toBe(400);
+  expect(delhiveryApi).not.toHaveBeenCalled();
+  delhiveryApi.mockResolvedValueOnce({ ShipmentData: [{ Shipment: { Waybill: '1234567890',
+    Status: { StatusType: 'RT',Status: 'Delivered' } } }] });
+  expect((await handle(request({ action: 'sync',orderId: id }))).status).toBe(200);
+  expect(rpc).toHaveBeenCalledWith('sync_order_shipping',{ p_order_id: id,p_status: 'RTO DELIVERED' });
 });

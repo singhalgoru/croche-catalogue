@@ -15,7 +15,7 @@ afterEach(cleanup);
 async function open(state=initial) {
   vi.mocked(requestOrderShipping).mockResolvedValueOnce(state);
   render(<OrderShippingPanel orderId="order" fulfilment={fulfilment} onSaved={saved} />);
-  fireEvent.click(screen.getByRole('button',{ name: 'Manage Shiprocket shipping' }));
+  fireEvent.click(screen.getByRole('button',{ name: 'Manage courier shipping' }));
   await screen.findByRole('button',{ name: 'Refresh shipping status' });
 }
 it('loads on demand and never books immediately after payment',() => {
@@ -99,4 +99,27 @@ it('supports label, pickup and tracking without marking AWB creation as shipped'
   } });
   fireEvent.click(screen.getByRole('button',{ name: 'Sync courier tracking' }));
   await waitFor(() => expect(saved).toHaveBeenCalledWith(expect.objectContaining({ status: 'shipped' }),expect.any(String)));
+});
+it('switches providers only after a new quote and directs Delhivery pickups to the warehouse dashboard',async () => {
+  await open(quoted);
+  fireEvent.change(screen.getByLabelText('Approve courier'),{ target: { value: '10' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.change(screen.getByLabelText('Shipping partner'),{ target: { value: 'delhivery' } });
+  expect(screen.queryByLabelText('Approve courier')).toBeNull();
+  const delhivery = { ...quoted,provider: 'delhivery' as const,
+    quotes: [{ id: 1,name: 'Delhivery Surface',charge: 90,days: null,recommended: false }] };
+  vi.mocked(requestOrderShipping).mockResolvedValueOnce(delhivery);
+  fireEvent.click(screen.getByRole('button',{ name: 'Check available couriers' }));
+  await screen.findByRole('option',{ name: /Delhivery Surface/ });
+  expect(requestOrderShipping).toHaveBeenLastCalledWith('order','quote',{
+    provider: 'delhivery',parcel: { weight: 0.5,length: 20,breadth: 15,height: 10 },
+  });
+  fireEvent.change(screen.getByLabelText('Approve courier'),{ target: { value: '1' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  vi.mocked(requestOrderShipping).mockResolvedValueOnce({ ...delhivery,awb: '1234567890',courierName: 'Delhivery Surface' });
+  fireEvent.click(screen.getByRole('button',{ name: /Book Delhivery Surface/ }));
+  await screen.findByText(/AWB: 1234567890/);
+  expect(screen.queryByRole('button',{ name: 'Request pickup' })).toBeNull();
+  expect(screen.getByText(/Pickup requests cover the warehouse/)).toBeTruthy();
+  expect(screen.queryByLabelText('Shipping partner')).toBeNull();
 });

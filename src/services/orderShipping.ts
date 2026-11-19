@@ -5,6 +5,7 @@ import type { OrderFulfilment } from '../types/customer';
 export interface ShippingPackage { weight: number; length: number; breadth: number; height: number }
 export interface ShippingQuote { id: number; name: string; charge: number; days: number | null; recommended: boolean }
 export interface ShippingState {
+  provider?: 'shiprocket' | 'delhivery';
   marginBasis?: { revenue: number; gst: number; gatewayFee: number; productCosts: number } | null;
   parcel: ShippingPackage | null;
   quotes: ShippingQuote[];
@@ -40,6 +41,7 @@ function validState(value: unknown): value is ShippingState {
     || !(estimate.transitDays === null || positive(estimate.transitDays))
     || !nullableString(estimate.expectedDate) || !nullableString(estimate.updatedAt))) return false;
   return ['confirmed','processing','shipped','delivered'].includes(String(f.status))
+    && (value.provider === undefined || value.provider === 'shiprocket' || value.provider === 'delhivery')
     && ['courierName','trackingNumber','trackingUrl'].every(key => typeof f[key] === 'string')
     && nullableString(f.updatedAt)
     && ['quotedAt','awb','courierName','labelUrl','lastError','trackingStatus','syncedAt'].every(key => nullableString(value[key]))
@@ -50,7 +52,8 @@ function validState(value: unknown): value is ShippingState {
       && typeof q.name === 'string' && positive(q.charge) && (q.days === null || positive(q.days)) && typeof q.recommended === 'boolean');
 }
 export async function requestOrderShipping(orderId: string, action: 'status' | 'quote' | 'book' | 'label' | 'pickup' | 'sync',
-  options: { parcel?: ShippingPackage; courierId?: number; quotedAt?: string; readyToShip?: boolean } = {}): Promise<ShippingState> {
+  options: { parcel?: ShippingPackage; courierId?: number; quotedAt?: string; readyToShip?: boolean;
+    provider?: 'shiprocket' | 'delhivery' } = {}): Promise<ShippingState> {
   const db = await loadSupabase();
   if (!db) throw new Error('Shipping requires an online connection.');
   const { data,error } = await db.functions.invoke('order-shipping',{ body: { orderId,action,...options } });
