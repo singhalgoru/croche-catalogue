@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-const { getUser,permission,rpc,from,api,delhiveryApi } = vi.hoisted(() => ({
-  getUser: vi.fn(),permission: vi.fn(),rpc: vi.fn(),from: vi.fn(),api: vi.fn(),delhiveryApi: vi.fn(),
+const { getUser,permission,rpc,from,api,delhiveryApi,shadowfaxApi } = vi.hoisted(() => ({
+  getUser: vi.fn(),permission: vi.fn(),rpc: vi.fn(),from: vi.fn(),api: vi.fn(),delhiveryApi: vi.fn(),shadowfaxApi: vi.fn(),
 }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2',() => ({
   createClient: (_url: string,_key: string,options?: { global?: unknown }) => options?.global
@@ -12,6 +12,9 @@ vi.mock('./shiprocket.ts',async importOriginal => ({
 }));
 vi.mock('./delhivery.ts',async importOriginal => ({
   ...await importOriginal<typeof import('./delhivery')>(),createDelhiveryClient: () => delhiveryApi,
+}));
+vi.mock('./shadowfax.ts',async importOriginal => ({
+  ...await importOriginal<typeof import('./shadowfax')>(),createShadowfaxClient: () => shadowfaxApi,
 }));
 const id = '10000000-0000-4000-8000-000000000001';
 const actor = '20000000-0000-4000-8000-000000000002';
@@ -356,11 +359,12 @@ it('compares sample prepaid rates without reading or creating an order',async ()
   delhiveryApi.mockImplementation(async (path: string) => path.startsWith('/c/api/pin-codes')
     ? { delivery_codes: [{ postal_code: { pin: 110001,pre_paid: 'Y' } }] }
     : path.startsWith('/api/dc/expected_tat') ? { success: true,data: { tat: 3 } } : [{ total_amount: 90 }]);
-  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel,includeShadowfax: true }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ providers: [
     { provider: 'shiprocket',quotes: [{ name: 'Courier',charge: 85 }],error: null },
     { provider: 'delhivery',quotes: [{ name: 'Delhivery Surface',charge: 90,days: 3 }],error: null },
+    { provider: 'shadowfax',quotes: [],error: expect.stringContaining('not configured') },
   ] });
   expect(from).not.toHaveBeenCalled(); expect(rpc).not.toHaveBeenCalled();
   expect(delhiveryApi.mock.calls.every(([path]) => path.startsWith('/c/api/pin-codes')
@@ -374,10 +378,11 @@ it('keeps Delhivery rates when its transit estimate fails',async () => {
     throw new Error('TAT unavailable');
   });
   const log = vi.spyOn(console,'error').mockImplementation(() => {});
-  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel,includeShadowfax: true }));
   expect(await response.json()).toMatchObject({ providers: [
     { provider: 'shiprocket',error: null },
     { provider: 'delhivery',quotes: [{ charge: 90,days: null }],error: null },
+    { provider: 'shadowfax',quotes: [],error: expect.stringContaining('not configured') },
   ] });
   expect(log).toHaveBeenCalledWith('Delhivery transit estimate unavailable:','TAT unavailable');
   log.mockRestore();
@@ -385,12 +390,98 @@ it('keeps Delhivery rates when its transit estimate fails',async () => {
 
 it('reports one provider failure without hiding the other sample rate',async () => {
   delhiveryApi.mockRejectedValue(new Error('Rate API unavailable'));
-  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel,includeShadowfax: true }));
   expect(await response.json()).toMatchObject({ providers: [
     { provider: 'shiprocket',quotes: [{ charge: 85 }],error: null },
     { provider: 'delhivery',quotes: [],error: 'Rate API unavailable' },
+    { provider: 'shadowfax',quotes: [],error: expect.stringContaining('not configured') },
   ] });
   expect((await handle(request({ action: 'sample-rates',pincode: 'bad',parcel }))).status).toBe(400);
+});
+
+it('preserves the two-provider sample response for older admin clients',async () => {
+  delhiveryApi.mockRejectedValue(new Error('Unavailable'));
+  const response = await handle(request({ action: 'sample-rates',pincode: '110001',parcel }));
+  const result = await response.json();
+  expect(result.providers.map((provider: { provider: string }) => provider.provider)).toEqual(['shiprocket','delhivery']);
+  expect(shadowfaxApi).not.toHaveBeenCalled();
+});
+
+it('blocks Shadowfax booking before activation and prevents staging live-order quotes',async () => {
+  Object.assign(environment,{ SHADOWFAX_API_TOKEN: 'fixture',SHADOWFAX_PICKUP_PINCODE: '110001',
+    SHADOWFAX_SUPPLY_CHAIN: 'regular',SHADOWFAX_ENVIRONMENT: 'staging' });
+  shipping = { ...shipping,provider: 'shadowfax',courier_id: 1,approved_charge: 90 };
+  expect((await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }))).status).toBe(400);
+  expect(rpc).not.toHaveBeenCalled();
+  expect((await handle(request({ action: 'quote',orderId: id,provider: 'shadowfax',parcel }))).status).toBe(400);
+  expect(shadowfaxApi).not.toHaveBeenCalled();
+});
+
+it('does not use staging for labels or tracking on live shipments',async () => {
+  Object.assign(environment,{ SHADOWFAX_API_TOKEN: 'fixture',SHADOWFAX_PICKUP_PINCODE: '110001',
+    SHADOWFAX_SUPPLY_CHAIN: 'regular',SHADOWFAX_ENVIRONMENT: 'staging' });
+  shipping = { ...shipping,provider: 'shadowfax',awb: 'SF123' };
+  expect((await handle(request({ action: 'label',orderId: id }))).status).toBe(400);
+  expect((await handle(request({ action: 'sync',orderId: id }))).status).toBe(400);
+  expect(shadowfaxApi).not.toHaveBeenCalled();
+});
+
+it('rejects a higher Shadowfax rate without creating a shipment',async () => {
+  Object.assign(environment,{ SHADOWFAX_API_TOKEN: 'fixture',SHADOWFAX_PICKUP_PINCODE: '110001',
+    SHADOWFAX_SUPPLY_CHAIN: 'regular',SHADOWFAX_ENVIRONMENT: 'production',SHADOWFAX_BOOKING_ENABLED: 'true' });
+  shipping = { ...shipping,provider: 'shadowfax',courier_id: 1,approved_charge: 80 };
+  shadowfaxApi.mockImplementation(async (path: string) => {
+    if (path.includes('service=seller_pickup')) return [{ code: 110001,services: ['Marketplace'] }];
+    if (path.includes('service=seller_delivery')) return [{ code: 110001,services: ['RTS'] }];
+    if (path.includes('service=customer_delivery')) return [{ code: 110001,services: ['Regular'] }];
+    if (path.includes('rate_calculator')) return { message: 'Success',zone: 'A',shipping_rate: '70.00',gst: '12.60' };
+    throw new Error('Unexpected Shadowfax endpoint');
+  });
+  const response = await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }));
+  expect(response.status).toBe(400);
+  expect(await response.json()).toMatchObject({ error: expect.stringContaining('price changed') });
+  expect(shadowfaxApi.mock.calls.some(([path]) => path === '/v3/clients/orders/')).toBe(false);
+});
+
+it('quotes and books Shadowfax only after all route legs and the approved price are checked',async () => {
+  Object.assign(environment,{ SHADOWFAX_API_TOKEN: 'fixture',SHADOWFAX_PICKUP_PINCODE: '110001',
+    SHADOWFAX_SUPPLY_CHAIN: 'regular',SHADOWFAX_ENVIRONMENT: 'production',SHADOWFAX_PICKUP_NAME: 'Shop',SHADOWFAX_PICKUP_PHONE: '9876543210',
+    SHADOWFAX_PICKUP_ADDRESS: 'Test Road',SHADOWFAX_PICKUP_CITY: 'Delhi',SHADOWFAX_BOOKING_ENABLED: 'true' });
+  shadowfaxApi.mockImplementation(async (path: string) => {
+    if (path.includes('service=seller_pickup')) return [{ code: 110001,services: ['Marketplace'] }];
+    if (path.includes('service=seller_delivery')) return [{ code: 110001,services: ['RTS'] }];
+    if (path.includes('service=customer_delivery')) return [{ code: 110001,services: ['Regular'] }];
+    if (path.includes('rate_calculator')) return { message: 'Success',zone: 'A',shipping_rate: '70.00',gst: '12.60' };
+    if (path.includes('/v3/clients/orders/')) return { message: 'Success',data: { client_order_id: 'LUV-123',awb_number: 'SF123' } };
+    throw new Error('Unexpected Shadowfax endpoint');
+  });
+  expect((await handle(request({ action: 'quote',orderId: id,provider: 'shadowfax',parcel }))).status).toBe(200);
+  expect(rpc).toHaveBeenCalledWith('save_shadowfax_shipping_quote',expect.objectContaining({
+    p_quotes: [{ id: 1,name: 'Shadowfax',charge: 82.6,days: null,recommended: false }],
+  }));
+  shipping = { ...shipping,provider: 'shadowfax',courier_id: 1,approved_charge: 82.6 };
+  expect((await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }))).status).toBe(200);
+  expect(shadowfaxApi).toHaveBeenCalledWith('/v3/clients/orders/',expect.objectContaining({
+    order_details: expect.objectContaining({ client_order_id: 'LUV-123',payment_mode: 'prepaid' }),
+  }));
+  expect(updates).toContainEqual(expect.objectContaining({ awb: 'SF123',operation: null }));
+});
+
+it('blocks repeat Shadowfax booking after an ambiguous provider response',async () => {
+  Object.assign(environment,{ SHADOWFAX_API_TOKEN: 'fixture',SHADOWFAX_PICKUP_PINCODE: '110001',
+    SHADOWFAX_SUPPLY_CHAIN: 'regular',SHADOWFAX_ENVIRONMENT: 'production',SHADOWFAX_PICKUP_NAME: 'Shop',SHADOWFAX_PICKUP_PHONE: '9876543210',
+    SHADOWFAX_PICKUP_ADDRESS: 'Test Road',SHADOWFAX_PICKUP_CITY: 'Delhi',SHADOWFAX_BOOKING_ENABLED: 'true' });
+  shipping = { ...shipping,provider: 'shadowfax',courier_id: 1,approved_charge: 90 };
+  shadowfaxApi.mockImplementation(async (path: string) => {
+    if (path.includes('service=seller_pickup')) return [{ code: 110001,services: ['Marketplace'] }];
+    if (path.includes('service=seller_delivery')) return [{ code: 110001,services: ['RTS'] }];
+    if (path.includes('service=customer_delivery')) return [{ code: 110001,services: ['Regular'] }];
+    if (path.includes('rate_calculator')) return { message: 'Success',zone: 'A',shipping_rate: '70',gst: '12.60' };
+    throw new Error('Provider timeout');
+  });
+  expect((await handle(request({ action: 'book',orderId: id,courierId: 1,quotedAt,readyToShip: true }))).status).toBe(400);
+  expect(updates).toContainEqual(expect.objectContaining({ review_required: true,operation: null }));
+  expect(shadowfaxApi.mock.calls.filter(([path]) => path === '/v3/clients/orders/')).toHaveLength(1);
 });
 
 it('claims one warehouse pickup before requesting it and blocks a second request',async () => {

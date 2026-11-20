@@ -173,4 +173,40 @@ begin
     and tracking_number='1234567890' and tracking_url='https://www.delhivery.com/tracking') then
     raise exception 'FAIL: Delhivery tracking did not update fulfilment.'; end if;
 end $$;
+
+create temporary table shadowfax_fixture as select gen_random_uuid() actor_id,gen_random_uuid() order_id;
+insert into auth.users(id) select actor_id from shadowfax_fixture;
+insert into public.payment_orders(id,reference,request_key,created_by,customer_user_id,
+  customer_name,customer_contact,customer_email,delivery_pincode,delivery_details,
+  subtotal_paise,shipping_paise,total_paise,status,paid_at,expires_at,is_live_checkout,razorpay_order_id)
+select order_id,'SHADOWFAX-'||order_id,gen_random_uuid(),actor_id,actor_id,
+  'Shipping Test','+919876543210','shipping@example.invalid','110001',
+  '{"name":"Shipping Test","phone":"9876543210","email":"shipping@example.invalid","addressLine1":"12 Test Street","city":"Delhi","state":"Delhi","pincode":"110001"}',
+  50000,0,50000,'paid',now(),now()+interval '1 day',true,'order_shadowfax_'||order_id from shadowfax_fixture;
+do $$
+declare f record; quoted timestamptz; claimed jsonb;
+begin
+  select * into f from shadowfax_fixture;
+  if has_function_privilege('authenticated','public.save_shadowfax_shipping_quote(uuid,jsonb,jsonb,uuid)','execute')
+    or has_function_privilege('anon','public.save_shadowfax_shipping_quote(uuid,jsonb,jsonb,uuid)','execute') then
+    raise exception 'FAIL: browser roles can save Shadowfax quotes.';
+  end if;
+  perform public.save_shadowfax_shipping_quote(f.order_id,'{"weight":0.5,"length":20,"breadth":15,"height":10}',
+    '[{"id":1,"name":"Shadowfax","charge":85,"days":null,"recommended":false}]',f.actor_id);
+  select quoted_at into quoted from public.order_shipping where order_id=f.order_id;
+  claimed:=public.claim_order_shipping(f.order_id,gen_random_uuid(),'book',f.actor_id,1,quoted);
+  if claimed->>'provider'<>'shadowfax' or claimed->>'approved_charge'<>'85' then
+    raise exception 'FAIL: Shadowfax approval was not bound to its provider.';
+  end if;
+  update public.order_shipping set operation=null,awb='SF123456' where order_id=f.order_id;
+  perform public.sync_order_shipping(f.order_id,'SHADOWFAX RTS_D');
+  if (select fulfilment_status from public.payment_orders where id=f.order_id)<>'confirmed' then
+    raise exception 'FAIL: Shadowfax return marked as customer delivery.';
+  end if;
+  perform public.sync_order_shipping(f.order_id,'IN TRANSIT');
+  if not exists(select 1 from public.payment_orders where id=f.order_id and fulfilment_status='shipped'
+    and tracking_number='SF123456' and tracking_url='https://tracker.shadowfax.in/') then
+    raise exception 'FAIL: Shadowfax tracking did not update fulfilment.';
+  end if;
+end $$;
 rollback;

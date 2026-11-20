@@ -171,7 +171,7 @@ test('admin compares a sample parcel without creating an order',async ({ page })
   catalogue.products[0].name = 'Bunny Toy';
   await page.route('**/rest/v1/rpc/get_admin_live_orders',route => route.fulfill({ json: [] }));
   await page.route('**/functions/v1/order-shipping',async route => {
-    expect(route.request().postDataJSON()).toEqual({ action: 'sample-rates',pincode: '110001',
+    expect(route.request().postDataJSON()).toEqual({ action: 'sample-rates',pincode: '110001',includeShadowfax: true,
       parcel: { weight: 1,length: 27,breadth: 20,height: 14 } });
     await route.fulfill({ json: { providers: [
       { provider: 'shiprocket',quotes: [
@@ -179,6 +179,7 @@ test('admin compares a sample parcel without creating an order',async ({ page })
         { id: 2,name: 'Courier B',charge: 100,days: 4,recommended: false },
       ],error: null },
       { provider: 'delhivery',quotes: [{ id: 1,name: 'Delhivery Surface',charge: 90,days: 5,recommended: false }],error: null },
+      { provider: 'shadowfax',quotes: [{ id: 1,name: 'Shadowfax',charge: 81.42,days: null,recommended: false }],error: null },
     ] } });
   });
   await page.goto('./#admin');
@@ -201,4 +202,5 @@ test('admin compares a sample parcel without creating an order',async ({ page })
   await expect(panel.getByText(/Courier A: ₹80/)).toBeVisible();
   await expect(panel.getByText(/Courier B: ₹100/)).toBeVisible();
   await expect(panel.getByText(/Delhivery Surface: ₹90.*5 days/)).toBeVisible();
+  await expect(panel.getByText(/Shadowfax: ₹81/)).toBeVisible();
 });

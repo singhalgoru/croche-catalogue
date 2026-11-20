@@ -6,15 +6,16 @@ const state: ShippingState = { parcel: null,quotes: [],quotedAt: null,shipmentId
   labelUrl: null,pickupRequested: false,reviewRequired: false,busy: false,lastError: null,trackingStatus: null,syncedAt: null,
   fulfilment: { status: 'confirmed',courierName: '',trackingNumber: '',trackingUrl: '',updatedAt: null } };
 beforeEach(() => invoke.mockReset().mockResolvedValue({ data: state,error: null }));
-it('validates and returns both sample-rate result sets',async () => {
+it('validates and returns all sample-rate result sets',async () => {
   const providers = [
     { provider: 'shiprocket',quotes: [{ id: 1,name: 'Courier',charge: 80,days: 3,recommended: false }],error: null },
     { provider: 'delhivery',quotes: [],error: 'Unavailable' },
+    { provider: 'shadowfax',quotes: [{ id: 1,name: 'Shadowfax',charge: 81.42,days: null,recommended: false }],error: null },
   ];
   invoke.mockResolvedValueOnce({ data: { providers },error: null });
   const parcel = { weight: 0.5,length: 20,breadth: 15,height: 10 };
   await expect(compareSampleShippingRates('110001',parcel)).resolves.toEqual(providers);
-  expect(invoke).toHaveBeenCalledWith('order-shipping',{ body: { action: 'sample-rates',pincode: '110001',parcel } });
+  expect(invoke).toHaveBeenCalledWith('order-shipping',{ body: { action: 'sample-rates',pincode: '110001',parcel,includeShadowfax: true } });
   invoke.mockResolvedValueOnce({ data: { providers: [providers[0]] },error: null });
   await expect(compareSampleShippingRates('110001',parcel)).rejects.toThrow('Invalid sample shipping rates response');
 });

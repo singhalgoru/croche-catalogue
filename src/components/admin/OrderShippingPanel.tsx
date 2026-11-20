@@ -14,7 +14,7 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
     breadth: suggestion ? String(suggestion.breadth) : '',height: suggestion?.height ? String(suggestion.height) : '' }));
   const [suggestedWeight,setSuggestedWeight] = useState(Boolean(suggestion));
   const [weightConfirmed,setWeightConfirmed] = useState(false);
-  const [provider,setProvider] = useState<'shiprocket' | 'delhivery'>('shiprocket');
+  const [provider,setProvider] = useState<'shiprocket' | 'delhivery' | 'shadowfax'>('shiprocket');
   const [selected,setSelected] = useState('');
   const [ready,setReady] = useState(false);
   const [busy,setBusy] = useState(false);
@@ -45,7 +45,7 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
     try {
       const options = action === 'quote' ? { parcel: { weight: Number(parcel.weight),length: Number(parcel.length),
         breadth: Number(parcel.breadth),height: Number(parcel.height) },
-        ...(provider === 'delhivery' ? { provider } : {}) }
+        ...(provider !== 'shiprocket' ? { provider } : {}) }
         : action === 'book' ? { courierId: Number(selected),quotedAt: state?.quotedAt ?? '',readyToShip: ready }
           : action === 'pickup' && state?.provider === 'delhivery' ? {
             pickupDate: pickupForm.date,pickupTime: pickupForm.time,packageCount: Number(pickupForm.count),confirmed: pickupConfirmed,
@@ -59,7 +59,9 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
       if (saved.parcel) setSuggestedWeight(false);
       setQuoteInvalid(false); setSelected(''); setReady(false);
       setPickupConfirmed(false); setPickupUncertain(false);
-      if (action === 'book') setNotice(saved.provider === 'delhivery'
+      if (action === 'book') setNotice(saved.provider === 'shadowfax'
+        ? 'Shipment and AWB created. Generate the label and manage pickup in Shadowfax.'
+        : saved.provider === 'delhivery'
         ? 'Shipment and AWB created. Generate the label and request warehouse pickup when packed.'
         : 'Shipment and AWB created. Generate the label and request pickup when packed.');
       if (action === 'pickup') setNotice(`Pickup request confirmed by ${saved.provider === 'delhivery' ? 'Delhivery' : 'Shiprocket'}.`);
@@ -92,7 +94,7 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
     {state && <>
       {(state.reviewRequired || state.busy) && <p role="alert" className="mt-3 text-sm text-red-700">
         {state.busy ? 'A shipping operation is running or was interrupted.' : 'Shipment needs reconciliation.'}
-        {' '}Check this order in {state.provider === 'delhivery' ? 'Delhivery One' : 'Shiprocket'} before any further booking. Refresh to check its saved state. {state.lastError}
+        {' '}Check this order in {state.provider === 'delhivery' ? 'Delhivery One' : state.provider === 'shadowfax' ? 'Shadowfax' : 'Shiprocket'} before any further booking. Refresh to check its saved state. {state.lastError}
       </p>}
       {state.lastError && !state.reviewRequired && !state.busy && <p role="alert" className="mt-3 text-sm text-red-700">{state.lastError}</p>}
       {state.awb && <div className="mt-3 text-sm">
@@ -102,10 +104,11 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
         <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" className={button} disabled={busy} onClick={() => void run('label')}>Generate label</button>
           {state.labelUrl?.startsWith('https://') && <a className={button} href={state.labelUrl} target="_blank" rel="noopener noreferrer">Open shipping label</a>}
-          {unshipped && state.provider !== 'delhivery' && <button type="button" className={button} disabled={blocked || state.pickupRequested}
+          {unshipped && state.provider !== 'delhivery' && state.provider !== 'shadowfax' && <button type="button" className={button} disabled={blocked || state.pickupRequested}
             onClick={() => void run('pickup')}>{state.pickupRequested ? 'Pickup requested' : 'Request pickup'}</button>}
           <button type="button" className={button} disabled={busy} onClick={() => void run('sync')}>Sync courier tracking</button>
         </div>
+        {state.provider === 'shadowfax' && <p className="mt-2 text-xs">Manage pickup scheduling in Shadowfax; booking may initiate pickup.</p>}
         {state.provider === 'delhivery' && (unshipped || state.warehousePickup || state.warehousePickupError) && <div className="mt-3 rounded-lg border border-cocoa/20 p-3">
           <p className="text-sm font-semibold">Request pickup</p>
           <p className="mt-1 text-xs">Delhivery pickup covers the entire warehouse, not just this order. Check Delhivery One for requests created outside this panel.</p>
@@ -143,10 +146,11 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
       {unshipped && !state.shipmentId && !state.awb && <form className="mt-3" onSubmit={event => { event.preventDefault(); void run('quote'); }}>
         <label className="mb-3 block text-sm">Shipping partner
           <select value={provider} disabled={blocked} className="mt-1 block min-h-11 w-full rounded-lg border border-cocoa/25 bg-white p-2"
-            onChange={event => { setProvider(event.target.value === 'delhivery' ? 'delhivery' : 'shiprocket');
+            onChange={event => { setProvider(event.target.value === 'shadowfax' ? 'shadowfax' : event.target.value === 'delhivery' ? 'delhivery' : 'shiprocket');
               setQuoteInvalid(true); setSelected(''); setReady(false); }}>
             <option value="shiprocket">Shiprocket</option>
             <option value="delhivery">Delhivery</option>
+            <option value="shadowfax">Shadowfax</option>
           </select>
         </label>
         <fieldset disabled={blocked} className="grid grid-cols-2 gap-3">
@@ -174,6 +178,7 @@ export default function OrderShippingPanel({ orderId, fulfilment, items, onSaved
           0.5 kg is a starting guess, not a product weight. I verified the actual packed weight.
         </label>}
         <p className="mt-2 text-xs text-cocoa/70">Use the final packed parcel. Couriers may charge by volumetric weight. Rates expire after 15 minutes and do not change the customer's paid shipping charge.</p>
+        {provider === 'shadowfax' && <p className="mt-2 text-xs text-cocoa/70">Shadowfax's estimate uses actual weight only; dimensions are not included in its rate API. Confirm final charges with Shadowfax. Booking may initiate pickup; scheduling is managed in Shadowfax.</p>}
         <button type="submit" className={`${button} mt-2`} disabled={blocked || (suggestedWeight && !weightConfirmed)}>Check available couriers</button>
         {!quoteInvalid && state.quotes.length > 0 && <div className="mt-3">
           <label className="text-sm">Approve courier

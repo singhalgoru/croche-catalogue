@@ -16,6 +16,7 @@ it('compares all sample courier rates and surfaces an individual provider failur
       { id: 2,name: 'Courier B',charge: 100,days: null,recommended: false },
     ],error: null },
     { provider: 'delhivery',quotes: [],error: 'Unavailable' },
+    { provider: 'shadowfax',quotes: [{ id: 1,name: 'Shadowfax',charge: 81.42,days: null,recommended: false }],error: null },
   ]);
   render(<SampleShippingRates />);
   fireEvent.click(screen.getByText('Compare sample shipping rates'));
@@ -25,6 +26,7 @@ it('compares all sample courier rates and surfaces an individual provider failur
   await screen.findByText(/Courier A/);
   expect(screen.getByText(/Courier B/)).toBeTruthy();
   expect(screen.getByText(/Rates unavailable: Unavailable/)).toBeTruthy();
+  expect(screen.getByText(/Shadowfax: ₹81/)).toBeTruthy();
   expect(compareSampleShippingRates).toHaveBeenCalledWith('110001',{ weight: 0.5,length: 20,breadth: 15,height: 10 });
   fireEvent.change(screen.getByLabelText('Delivery pincode'),{ target: { value: '110002' } });
   expect(screen.queryByText(/Courier A/)).toBeNull();

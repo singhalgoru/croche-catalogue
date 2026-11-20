@@ -9,7 +9,7 @@ export interface WarehousePickup {
   pickupId: string | null; createdAt: string; lastError: string | null;
 }
 export interface ShippingState {
-  provider?: 'shiprocket' | 'delhivery';
+  provider?: 'shiprocket' | 'delhivery' | 'shadowfax';
   warehousePickup?: WarehousePickup | null;
   warehousePickupError?: string | null;
   marginBasis?: { revenue: number; gst: number; gatewayFee: number; productCosts: number } | null;
@@ -58,7 +58,7 @@ function validState(value: unknown): value is ShippingState {
     || !(estimate.transitDays === null || positive(estimate.transitDays))
     || !nullableString(estimate.expectedDate) || !nullableString(estimate.updatedAt))) return false;
   return ['confirmed','processing','shipped','delivered'].includes(String(f.status))
-    && (value.provider === undefined || value.provider === 'shiprocket' || value.provider === 'delhivery')
+    && (value.provider === undefined || value.provider === 'shiprocket' || value.provider === 'delhivery' || value.provider === 'shadowfax')
     && ['courierName','trackingNumber','trackingUrl'].every(key => typeof f[key] === 'string')
     && nullableString(f.updatedAt)
     && ['quotedAt','awb','courierName','labelUrl','lastError','trackingStatus','syncedAt'].every(key => nullableString(value[key]))
@@ -68,23 +68,23 @@ function validState(value: unknown): value is ShippingState {
     && validQuotes(value.quotes);
 }
 export interface SampleRateResult {
-  provider: 'shiprocket' | 'delhivery'; quotes: ShippingQuote[]; error: string | null;
+  provider: 'shiprocket' | 'delhivery' | 'shadowfax'; quotes: ShippingQuote[]; error: string | null;
 }
 export async function compareSampleShippingRates(pincode: string, parcel: ShippingPackage): Promise<SampleRateResult[]> {
   const db = await loadSupabase();
   if (!db) throw new Error('Shipping requires an online connection.');
-  const { data,error } = await db.functions.invoke('order-shipping',{ body: { action: 'sample-rates',pincode,parcel } });
+  const { data,error } = await db.functions.invoke('order-shipping',{ body: { action: 'sample-rates',pincode,parcel,includeShadowfax: true } });
   if (error) throw new Error(await getImageStorageErrorMessage(error));
   if (object(data) && typeof data.error === 'string') throw new Error(data.error);
-  if (!object(data) || !Array.isArray(data.providers) || data.providers.length !== 2
+  if (!object(data) || !Array.isArray(data.providers) || data.providers.length !== 3
     || !data.providers.every((item: unknown, index: number) => object(item)
-      && item.provider === (index === 0 ? 'shiprocket' : 'delhivery')
+      && item.provider === ['shiprocket','delhivery','shadowfax'][index]
       && validQuotes(item.quotes) && nullableString(item.error))) throw new Error('Invalid sample shipping rates response.');
   return data.providers;
 }
 export async function requestOrderShipping(orderId: string, action: 'status' | 'quote' | 'book' | 'label' | 'pickup' | 'pickup-resolve' | 'sync',
   options: { parcel?: ShippingPackage; courierId?: number; quotedAt?: string; readyToShip?: boolean;
-    provider?: 'shiprocket' | 'delhivery'; pickupDate?: string; pickupTime?: string; packageCount?: number;
+    provider?: 'shiprocket' | 'delhivery' | 'shadowfax'; pickupDate?: string; pickupTime?: string; packageCount?: number;
     pickupId?: string; confirmed?: boolean } = {}): Promise<ShippingState> {
   const db = await loadSupabase();
   if (!db) throw new Error('Shipping requires an online connection.');

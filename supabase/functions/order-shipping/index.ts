@@ -4,6 +4,8 @@ import { createOrderPayload, createShiprocketClient, identifier, parseCouriers, 
   record, safeLabel, trackingStatus, trackingDeliveryDate } from './shiprocket.ts';
 import { chargeableWeight, createDelhiveryClient, createdPickupId, createdWaybill, delhiveryPayload, labelUrl,
   pickupDetails, readDelhiveryConfig, serviceable, shippingCharge, tracking as delhiveryTracking, transitDays } from './delhivery.ts';
+import { createShadowfaxClient, shadowfaxConfig, shadowfaxPickup, shadowfaxServiceable, shadowfaxRate,
+  shadowfaxPayload, shadowfaxCreated, shadowfaxLabel, shadowfaxTracking } from './shadowfax.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -141,7 +143,18 @@ Deno.serve(async request => {
       const config = readDelhiveryConfig(key => Deno.env.get(key));
       return { ...config,api: createDelhiveryClient(config.token) };
     };
+    const shadowfax = () => {
+      const config = shadowfaxConfig(key => Deno.env.get(key));
+      return { ...config,api: createShadowfaxClient(config.token,config.environment) };
+    };
     if (body.action === 'check-connection') {
+      if (body.provider === 'shadowfax') {
+        const { api,pin,supply,environment } = shadowfax();
+        const query = new URLSearchParams({ service: 'seller_pickup',pincodes: pin });
+        const available = shadowfaxServiceable(await api(`/v1/clients/serviceability/?${query}`),pin,
+          supply === 'regular' ? 'Marketplace' : 'Surface_Mkt');
+        return json({ connected: true,serviceable: available,environment,shipmentCreated: false });
+      }
       if (body.provider === 'delhivery') {
         const result = await delhiveryApi()('/c/api/pin-codes/json/?filter_codes=110001');
         const available = serviceable(result,'110001');
@@ -166,6 +179,12 @@ Deno.serve(async request => {
         if (shipping.provider === 'delhivery') {
           if (!shipping.awb) throw new Error('Delhivery waybill missing.');
           const result = delhiveryTracking(await delhiveryApi()(`/api/v1/packages/json/?${new URLSearchParams({ waybill: shipping.awb })}`),shipping.awb);
+          status = result.status; expectedDate = result.expectedDate;
+        } else if (shipping.provider === 'shadowfax') {
+          if (!shipping.awb) throw new Error('Shadowfax AWB missing.');
+          const config = shadowfax();
+          if (config.environment !== 'production') throw new Error('Shadowfax staging cannot track live orders.');
+          const result = shadowfaxTracking(await config.api(`/v4/clients/orders/${encodeURIComponent(shipping.awb)}/track/`),shipping.awb);
           status = result.status; expectedDate = result.expectedDate;
         } else {
           const { api } = shiprocket();
@@ -225,13 +244,29 @@ Deno.serve(async request => {
       const [rate,days] = await Promise.all([api(`/api/kinko/v1/invoice/charges/.json?${query}`),timeline()]);
       return [{ id: 1,name: 'Delhivery Surface',charge: shippingCharge(rate),days,recommended: false }];
     };
+    const shadowfaxCouriers = async (parcel: ReturnType<typeof parsePackage>, destination: string) => {
+      const { api,pin,supply,environment } = shadowfax();
+      if (!/^[1-9][0-9]{5}$/.test(destination)) throw new Error('Invalid delivery pincode.');
+      const tiers = supply === 'regular' ? ['Marketplace','RTS','Regular'] : ['Surface_Mkt','Surface_RTS','Surface'];
+      const legs = [['seller_pickup',pin],['seller_delivery',pin],['customer_delivery',destination]];
+      const availability = await Promise.all(legs.map(([service,pincode]) => api(
+        `/v1/clients/serviceability/?${new URLSearchParams({ service,pincodes: pincode })}`)));
+      if (!availability.every((value,index) => shadowfaxServiceable(value,legs[index][1],tiers[index]))) return [];
+      const charge = shadowfaxRate(await api('/v1/clients/rate_calculator/',{
+        origin_pincode: Number(pin),destination_pincode: Number(destination),service: 'forward',weight: parcel.weight,
+      }));
+      return charge === null ? [] : [{ id: 1,name: environment === 'staging' ? 'Shadowfax (staging)' : 'Shadowfax',charge,days: null,recommended: false }];
+    };
     if (body.action === 'sample-rates') {
       const parcel = parsePackage(body.parcel);
       if (typeof body.pincode !== 'string' || !/^[1-9][0-9]{5}$/.test(body.pincode)) throw new Error('Enter a valid delivery pincode.');
-      const results = await Promise.allSettled([couriers(parcel,body.pincode),delhiveryCouriers(parcel,body.pincode)]);
+      const requests = [couriers(parcel,body.pincode),delhiveryCouriers(parcel,body.pincode)];
+      if (body.includeShadowfax === true) requests.push(shadowfaxCouriers(parcel,body.pincode));
+      const results = await Promise.allSettled(requests);
+      const providers = ['shiprocket','delhivery','shadowfax'];
       return json({ providers: results.map((result,index) => result.status === 'fulfilled'
-        ? { provider: index === 0 ? 'shiprocket' : 'delhivery',quotes: result.value,error: null }
-        : { provider: index === 0 ? 'shiprocket' : 'delhivery',quotes: [],error: message(result.reason) }) });
+        ? { provider: providers[index],quotes: result.value,error: null }
+        : { provider: providers[index],quotes: [],error: message(result.reason) }) });
     }
     const id = String(body.orderId);
     const order = await readOrder(id);
@@ -239,16 +274,23 @@ Deno.serve(async request => {
     if (body.action === 'quote') {
       const parcel = parsePackage(body.parcel);
       const provider = body.provider ?? 'shiprocket';
-      if (provider !== 'shiprocket' && provider !== 'delhivery') throw new Error('Invalid shipping provider.');
+      if (provider !== 'shiprocket' && provider !== 'delhivery' && provider !== 'shadowfax') throw new Error('Invalid shipping provider.');
       const items = await (async () => {
-        const { data,error } = await db.from('payment_order_items').select('*').eq('order_id',id);
+        const { data,error } = await db.from('payment_order_items').select('*,seller_sales(quantity,gst_percent)').eq('order_id',id);
         if (error) throw new Error('Unable to read order items.');
         return data ?? [];
       })();
       if (provider === 'delhivery') delhiveryPayload(order,items,parcel,delhivery().pickupLocation);
-      else createOrderPayload(order,items,parcel,shiprocket().pickupLocation);
-      const quotes = provider === 'delhivery' ? await delhiveryCouriers(parcel,pin) : await couriers(parcel,pin);
-      await rpc(provider === 'delhivery' ? 'save_delhivery_shipping_quote' : 'save_order_shipping_quote',
+      else if (provider === 'shadowfax') {
+        const config = shadowfax();
+        if (config.environment !== 'production') throw new Error('Shadowfax staging cannot be used with live orders.');
+        if (config.supply !== 'regular') throw new Error('Shadowfax Surface booking is not supported. Use the Shadowfax portal.');
+        shadowfaxPayload(order,items,parcel,shadowfaxPickup(key => Deno.env.get(key),config.pin));
+      } else createOrderPayload(order,items,parcel,shiprocket().pickupLocation);
+      const quotes = provider === 'delhivery' ? await delhiveryCouriers(parcel,pin)
+        : provider === 'shadowfax' ? await shadowfaxCouriers(parcel,pin) : await couriers(parcel,pin);
+      await rpc(provider === 'delhivery' ? 'save_delhivery_shipping_quote'
+        : provider === 'shadowfax' ? 'save_shadowfax_shipping_quote' : 'save_order_shipping_quote',
         { p_order_id: id,p_package: parcel,p_quotes: quotes,p_actor: actor });
       return json(await state(id));
     }
@@ -264,6 +306,10 @@ Deno.serve(async request => {
       if (shipping.provider === 'delhivery') {
         const query = new URLSearchParams({ wbns: shipping.awb,pdf: 'true',pdf_size: '4R' });
         url = labelUrl(await delhiveryApi()(`/api/p/packing_slip?${query}`),shipping.awb);
+      } else if (shipping.provider === 'shadowfax') {
+        const config = shadowfax();
+        if (config.environment !== 'production') throw new Error('Shadowfax staging cannot generate labels for live orders.');
+        url = shadowfaxLabel(await config.api('/client/generate_label/',{ awb_number: shipping.awb,file_type: 'pdf' }));
       } else {
         const { api } = shiprocket();
         const label = await api('/courier/generate/label',{ shipment_id: [shipping.shipment_id] });
@@ -307,8 +353,17 @@ Deno.serve(async request => {
     if (body.action === 'pickup-resolve') {
       throw new Error('Warehouse pickup reconciliation is only available for Delhivery.');
     }
+    if (body.action === 'pickup' && shipping?.provider === 'shadowfax') {
+      throw new Error('Manage Shadowfax pickup scheduling in the Shadowfax portal.');
+    }
+    if (body.action === 'book' && shipping?.provider === 'shadowfax'
+      && (Deno.env.get('SHADOWFAX_BOOKING_ENABLED') !== 'true' || shadowfax().environment !== 'production')) {
+      throw new Error('Shadowfax booking is disabled until staging and account setup are verified.');
+    }
     if (body.action === 'book' || body.action === 'pickup') {
-      if (shipping?.provider === 'delhivery') delhivery(); else shiprocket();
+      if (shipping?.provider === 'delhivery') delhivery();
+      else if (shipping?.provider === 'shadowfax') shadowfax();
+      else shiprocket();
     }
     // Claim before any provider mutation. An interrupted or ambiguous operation stays blocked for reconciliation.
     if (body.action === 'book' && (body.readyToShip !== true || typeof body.quotedAt !== 'string'
@@ -326,13 +381,14 @@ Deno.serve(async request => {
     try {
       if (body.action === 'book') {
         const parcel = parsePackage(claimed.package);
-        const provider = claimed.provider === 'delhivery' ? 'delhivery' : 'shiprocket';
-        const current = (provider === 'delhivery' ? await delhiveryCouriers(parcel,pin,false) : await couriers(parcel,pin))
+        const provider = claimed.provider === 'delhivery' ? 'delhivery' : claimed.provider === 'shadowfax' ? 'shadowfax' : 'shiprocket';
+        const current = (provider === 'delhivery' ? await delhiveryCouriers(parcel,pin,false)
+          : provider === 'shadowfax' ? await shadowfaxCouriers(parcel,pin) : await couriers(parcel,pin))
           .find(q => q.id === claimed.courier_id);
         if (!current || current.charge > Number(claimed.approved_charge)) {
           throw new Error('Courier availability or price changed. Check rates and approve again.');
         }
-        const { data: items,error } = await db.from('payment_order_items').select('*').eq('order_id',id);
+        const { data: items,error } = await db.from('payment_order_items').select('*,seller_sales(quantity,gst_percent)').eq('order_id',id);
         if (error) throw new Error('Unable to read order items.');
         if (provider === 'delhivery') {
           const { api,pickupLocation } = delhivery();
@@ -340,6 +396,14 @@ Deno.serve(async request => {
           providerMutationStarted = true;
           const created = await api('/api/cmu/create.json',`format=json&data=${JSON.stringify(payload)}`);
           const awb = createdWaybill(created,String(order.reference));
+          await save({ awb,operation: null,last_error: null });
+        } else if (provider === 'shadowfax') {
+          const config = shadowfax();
+          if (config.supply !== 'regular') throw new Error('Shadowfax Surface booking is not supported. Use the Shadowfax portal.');
+          const payload = shadowfaxPayload(order,items ?? [],parcel,shadowfaxPickup(key => Deno.env.get(key),config.pin));
+          providerMutationStarted = true;
+          const created = await config.api('/v3/clients/orders/',payload);
+          const awb = shadowfaxCreated(created,String(order.reference));
           await save({ awb,operation: null,last_error: null });
         } else {
           const { api,pickupLocation } = shiprocket();

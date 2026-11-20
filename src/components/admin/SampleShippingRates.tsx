@@ -47,6 +47,7 @@ export default function SampleShippingRates() {
     onToggle={event => { if (event.currentTarget.open && !products && !loadingProducts && !productError) void loadProducts(); }}>
     <summary className="cursor-pointer font-semibold">Compare sample shipping rates</summary>
     <p className="mt-2 text-xs">Compare prepaid estimates for a sample parcel. No order, shipment or pickup is created; actual charges can change. Transit times are estimates after courier pickup.</p>
+    <p className="mt-1 text-xs">Shadowfax estimates use actual weight only; its rate API does not accept parcel dimensions. Confirm final charges with Shadowfax.</p>
     <form className="mt-3" onSubmit={event => { event.preventDefault(); void compare(); }}>
       <fieldset disabled={busy} className="mb-3">
         <label className="block text-sm">Sample product
@@ -107,7 +108,7 @@ export default function SampleShippingRates() {
     </form>
     {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
     {results?.map(result => <div key={result.provider} className="mt-3 text-sm">
-      <p className="font-semibold">{result.provider === 'shiprocket' ? 'Shiprocket' : 'Delhivery'}</p>
+      <p className="font-semibold">{result.provider === 'shiprocket' ? 'Shiprocket' : result.provider === 'delhivery' ? 'Delhivery' : 'Shadowfax'}</p>
       {result.error ? <p role="alert" className="text-red-700">Rates unavailable: {result.error}</p>
         : result.quotes.length ? <ul>{result.quotes.map(quote => <li key={quote.id}>
           {quote.name}: {formatINR(quote.charge)}{quote.days ? ` · ${quote.days} days` : ' · Transit estimate unavailable'}
