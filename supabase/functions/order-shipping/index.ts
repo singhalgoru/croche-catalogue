@@ -149,11 +149,18 @@ Deno.serve(async request => {
     };
     if (body.action === 'check-connection') {
       if (body.provider === 'shadowfax') {
-        const { api,pin,supply,environment } = shadowfax(body.checkStaging === true);
+        const stagingCheck = body.checkStaging === true;
+        const override = body.stagingPickupPincode;
+        if (override !== undefined && (!stagingCheck || typeof override !== 'string' || !/^[1-9]\d{5}$/.test(override))) {
+          throw new Error('Provide a valid six-digit pickup pincode only for a Shadowfax staging check.');
+        }
+        const { api,pin: configuredPin,supply,environment } = shadowfax(stagingCheck);
+        const pin = typeof override === 'string' ? override : configuredPin;
         const query = new URLSearchParams({ service: 'seller_pickup',pincodes: pin });
         const available = shadowfaxServiceable(await api(`/v1/clients/serviceability/?${query}`),pin,
           supply === 'regular' ? 'Marketplace' : 'Surface_Mkt');
-        return json({ connected: true,serviceable: available,environment,shipmentCreated: false });
+        return json({ connected: true,serviceable: available,environment,shipmentCreated: false,
+          ...(override !== undefined ? { pickupPincode: pin } : {}) });
       }
       if (body.provider === 'delhivery') {
         const result = await delhiveryApi()('/c/api/pin-codes/json/?filter_codes=110001');

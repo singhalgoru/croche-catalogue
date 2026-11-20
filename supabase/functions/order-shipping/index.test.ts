@@ -285,6 +285,21 @@ it('never falls back to the production token when the staging secret is missing'
   expect(await response.json()).toMatchObject({ error: expect.stringContaining('SHADOWFAX_STAGING_API_TOKEN') });
   expect(shadowfaxClient).not.toHaveBeenCalled();
 });
+it('allows a validated pickup pincode override only for a Shadowfax staging check',async () => {
+  Object.assign(environment,{ SHADOWFAX_STAGING_API_TOKEN: 'staging-fixture',
+    SHADOWFAX_PICKUP_PINCODE: '110001',SHADOWFAX_SUPPLY_CHAIN: 'regular' });
+  const check = { action: 'check-connection',provider: 'shadowfax',checkStaging: true,stagingPickupPincode: '122001' };
+  const authenticatedCheck = (body: unknown) => handle(request(body,'Bearer worker-fixture'));
+  expect((await authenticatedCheck({ ...check,checkStaging: false })).status).toBe(400);
+  expect((await authenticatedCheck({ ...check,stagingPickupPincode: '122001,110001' })).status).toBe(400);
+  expect(shadowfaxClient).not.toHaveBeenCalled();
+  shadowfaxApi.mockResolvedValue([{ code: 122001,services: ['Marketplace'] }]);
+  const result = await authenticatedCheck(check);
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({ serviceable: true,environment: 'staging',pickupPincode: '122001' });
+  expect(shadowfaxClient).toHaveBeenCalledWith('staging-fixture','staging');
+  expect(shadowfaxApi).toHaveBeenCalledExactlyOnceWith('/v1/clients/serviceability/?service=seller_pickup&pincodes=122001');
+});
 it('records failed tracking checks for backoff and reports scheduled failures explicitly',async () => {
   jobs=[{ order_id: id,shipment_id: 222 }];
   api.mockRejectedValueOnce(new Error('Tracking unavailable.'));
