@@ -143,13 +143,13 @@ Deno.serve(async request => {
       const config = readDelhiveryConfig(key => Deno.env.get(key));
       return { ...config,api: createDelhiveryClient(config.token) };
     };
-    const shadowfax = () => {
-      const config = shadowfaxConfig(key => Deno.env.get(key));
+    const shadowfax = (stagingCheck = false) => {
+      const config = shadowfaxConfig(key => Deno.env.get(key),stagingCheck);
       return { ...config,api: createShadowfaxClient(config.token,config.environment) };
     };
     if (body.action === 'check-connection') {
       if (body.provider === 'shadowfax') {
-        const { api,pin,supply,environment } = shadowfax();
+        const { api,pin,supply,environment } = shadowfax(body.checkStaging === true);
         const query = new URLSearchParams({ service: 'seller_pickup',pincodes: pin });
         const available = shadowfaxServiceable(await api(`/v1/clients/serviceability/?${query}`),pin,
           supply === 'regular' ? 'Marketplace' : 'Surface_Mkt');

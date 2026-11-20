@@ -5,11 +5,12 @@ const object = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 
-export function shadowfaxConfig(env: (key: string) => string | undefined) {
-  const token = env('SHADOWFAX_API_TOKEN')?.trim();
+export function shadowfaxConfig(env: (key: string) => string | undefined, stagingCheck = false) {
+  const token = env(stagingCheck ? 'SHADOWFAX_STAGING_API_TOKEN' : 'SHADOWFAX_API_TOKEN')?.trim();
+  if (stagingCheck && !token) throw new Error('Set SHADOWFAX_STAGING_API_TOKEN before checking Shadowfax staging.');
   const pin = env('SHADOWFAX_PICKUP_PINCODE')?.trim();
   const supply = env('SHADOWFAX_SUPPLY_CHAIN')?.trim();
-  const environment = env('SHADOWFAX_ENVIRONMENT')?.trim();
+  const environment = stagingCheck ? 'staging' : env('SHADOWFAX_ENVIRONMENT')?.trim();
   if (!token || !pin || !/^[1-9]\d{5}$/.test(pin) || (supply !== 'regular' && supply !== 'surface')
     || (environment !== 'staging' && environment !== 'production')) {
     throw new Error('Shadowfax is not configured. Set its API token, pickup pincode, account supply chain and environment.');

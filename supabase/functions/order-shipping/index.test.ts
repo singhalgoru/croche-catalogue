@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-const { getUser,permission,rpc,from,api,delhiveryApi,shadowfaxApi } = vi.hoisted(() => ({
+const { getUser,permission,rpc,from,api,delhiveryApi,shadowfaxApi,shadowfaxClient } = vi.hoisted(() => ({
   getUser: vi.fn(),permission: vi.fn(),rpc: vi.fn(),from: vi.fn(),api: vi.fn(),delhiveryApi: vi.fn(),shadowfaxApi: vi.fn(),
+  shadowfaxClient: vi.fn(),
 }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2',() => ({
   createClient: (_url: string,_key: string,options?: { global?: unknown }) => options?.global
@@ -14,7 +15,7 @@ vi.mock('./delhivery.ts',async importOriginal => ({
   ...await importOriginal<typeof import('./delhivery')>(),createDelhiveryClient: () => delhiveryApi,
 }));
 vi.mock('./shadowfax.ts',async importOriginal => ({
-  ...await importOriginal<typeof import('./shadowfax')>(),createShadowfaxClient: () => shadowfaxApi,
+  ...await importOriginal<typeof import('./shadowfax')>(),createShadowfaxClient: shadowfaxClient,
 }));
 const id = '10000000-0000-4000-8000-000000000001';
 const actor = '20000000-0000-4000-8000-000000000002';
@@ -81,6 +82,7 @@ beforeEach(() => {
   getUser.mockResolvedValue({ data: { user: { id: actor,email_confirmed_at: quotedAt,is_anonymous: false } },error: null });
   permission.mockResolvedValue({ data: true,error: null });
   from.mockImplementation((table: string) => new Query(table));
+  shadowfaxClient.mockReturnValue(shadowfaxApi);
   rpc.mockImplementation(async (name: string,args: Record<string, unknown>) => {
     if (name === 'claim_delhivery_pickup') {
       if (warehousePickup) return { data: null,error: { message: 'This warehouse already has an open pickup request.' } };
@@ -257,6 +259,31 @@ it('checks provider authentication and serviceability without creating a shipmen
   expect(api.mock.calls[0][0]).toContain('/courier/serviceability/?');
   expect(rpc).not.toHaveBeenCalled();
   expect(from).not.toHaveBeenCalled();
+});
+it('uses the separate token only for the authenticated Shadowfax staging check',async () => {
+  Object.assign(environment,{ SHADOWFAX_API_TOKEN: 'primary-fixture',SHADOWFAX_STAGING_API_TOKEN: 'staging-fixture',
+    SHADOWFAX_ENVIRONMENT: 'production',SHADOWFAX_PICKUP_PINCODE: '110001',SHADOWFAX_SUPPLY_CHAIN: 'regular' });
+  shadowfaxApi.mockResolvedValue([{ code: 110001,services: ['Marketplace'] }]);
+  const check = { action: 'check-connection',provider: 'shadowfax',checkStaging: true };
+  expect((await handle(request(check))).status).toBe(401);
+  expect(shadowfaxClient).not.toHaveBeenCalled();
+  const staging = await handle(request(check,'Bearer worker-fixture'));
+  expect(staging.status).toBe(200);
+  expect(await staging.json()).toEqual({ connected: true,serviceable: true,environment: 'staging',shipmentCreated: false });
+  expect(shadowfaxClient).toHaveBeenNthCalledWith(1,'staging-fixture','staging');
+  const production = await handle(request({ ...check,checkStaging: false },'Bearer worker-fixture'));
+  expect(await production.json()).toMatchObject({ connected: true,environment: 'production',shipmentCreated: false });
+  expect(shadowfaxClient).toHaveBeenNthCalledWith(2,'primary-fixture','production');
+  expect(shadowfaxApi.mock.calls).toEqual(Array(2).fill(['/v1/clients/serviceability/?service=seller_pickup&pincodes=110001']));
+  expect(from).not.toHaveBeenCalled();
+  expect(rpc).not.toHaveBeenCalled();
+});
+it('never falls back to the production token when the staging secret is missing',async () => {
+  environment.SHADOWFAX_API_TOKEN = 'primary-fixture';
+  const response = await handle(request({ action: 'check-connection',provider: 'shadowfax',checkStaging: true },'Bearer worker-fixture'));
+  expect(response.status).toBe(400);
+  expect(await response.json()).toMatchObject({ error: expect.stringContaining('SHADOWFAX_STAGING_API_TOKEN') });
+  expect(shadowfaxClient).not.toHaveBeenCalled();
 });
 it('records failed tracking checks for backoff and reports scheduled failures explicitly',async () => {
   jobs=[{ order_id: id,shipment_id: 222 }];
