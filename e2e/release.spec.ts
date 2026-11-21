@@ -184,7 +184,7 @@ test('international quote page selects products and quantities and prepares emai
     ['Your name', 'Synthetic Quote Test'], ['Reply email', 'quote@example.test'],
     ['Country', 'United Kingdom'], ['City', 'London'],
     ['State / province / region (if applicable)', 'Greater London'], ['ZIP / postal code', 'SW1A 1AA'],
-  ]) await page.getByLabel(label, { exact: true }).fill(value);
+  ]) await page.getByRole('textbox', { name: label, exact: true }).fill(value);
   await page.getByRole('button', { name: 'Prepare quote request' }).click();
   const email = new URL((await page.getByRole('link', { name: 'Send via email' }).getAttribute('href'))!);
   const whatsapp = new URL((await page.getByRole('link', { name: 'Send via WhatsApp' }).getAttribute('href'))!);
@@ -195,7 +195,7 @@ test('international quote page selects products and quantities and prepares emai
     'State / province / region: Greater London', 'ZIP / postal code: SW1A 1AA',
     'Phone / WhatsApp (optional): Not provided']) expect(email.searchParams.get('body')).toContain(text);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.getByLabel('City', { exact: true }).fill('Oxford');
+  await page.getByRole('textbox', { name: 'City', exact: true }).fill('Oxford');
   await expect(page.getByRole('link', { name: 'Send via email' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Remove item 2' }).click();
   await expect(page.getByRole('combobox', { name: 'Product 2', exact: true })).toHaveCount(0);
