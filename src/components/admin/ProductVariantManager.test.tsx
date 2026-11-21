@@ -1,12 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ProductVariantManager from './ProductVariantManager';
-import { reduceVariantStock, recordVariantSale, type ManagedProduct } from '../../services/products';
+import { addVariantGalleryImage, reduceVariantStock, recordVariantSale, type ManagedProduct } from '../../services/products';
 import VariantDraftFields from './VariantDraftFields';
 import { createEmptyVariant } from './variantDraft';
 
 vi.mock('../../services/products', async original => ({
   ...await original<typeof import('../../services/products')>(),
+  addVariantGalleryImage: vi.fn(),
   reduceVariantStock: vi.fn(),
   recordVariantSale: vi.fn(),
 }));
@@ -52,8 +53,40 @@ it('accepts a 20 MB managed gallery photo and explicitly rejects one byte over t
   fireEvent.change(input, { target: { files: [new File([new Uint8Array(20 * 1024 * 1024)], 'large.png', { type: 'image/png' })] } });
   expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
   fireEvent.change(input, { target: { files: [new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'too-large.png', { type: 'image/png' })] } });
-  expect(screen.getByText('Please choose an image no larger than 20 MB.')).toBeTruthy();
+  expect(screen.getByRole('alert').textContent).toContain('non-empty image no larger than 20 MB');
   expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+});
+
+it('shows a 16 MB angle selection, upload progress, and a retryable failure beside the picker', async () => {
+  vi.stubGlobal('URL', class extends URL {
+    static createObjectURL = vi.fn(() => 'blob:source');
+    static revokeObjectURL = vi.fn();
+  });
+  let rejectUpload: (error: Error) => void = () => { throw new Error('Upload did not start'); };
+  vi.mocked(addVariantGalleryImage).mockImplementationOnce(() => new Promise((_, reject) => { rejectUpload = reject; }));
+  render(<ProductVariantManager product={product} onSaved={vi.fn()} />);
+  const file = new File([new Uint8Array(16 * 1024 * 1024)], 'angle.png', { type: 'image/png' });
+  fireEvent.change(screen.getByLabelText('Add an additional photo to Pink'), { target: { files: [file] } });
+  expect(screen.getByText(/angle.png selected — not uploaded yet/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Upload angle photo' }));
+  expect(screen.getByText(/Preparing and uploading the angle photo/)).toBeTruthy();
+  expect(addVariantGalleryImage).toHaveBeenCalledWith(product, product.variants[0], file);
+  rejectUpload(new Error('Upload connection lost'));
+  expect((await screen.findByRole('alert')).textContent).toContain('Upload connection lost');
+  expect(screen.getByRole('button', { name: 'Upload angle photo' })).toBeTruthy();
+});
+
+it('shows explicit feedback for invalid angle photos and selections exceeding remaining draft slots', () => {
+  const variant = { ...createEmptyVariant(), galleryFiles: Array.from({ length: 5 }, () => new File(['x'], 'existing.png', { type: 'image/png' })),
+    galleryPreviewUrls: ['1', '2', '3', '4', '5'] };
+  const onChange = vi.fn();
+  render(<VariantDraftFields variants={[variant]} onChange={onChange} />);
+  const input = screen.getByLabelText('Add additional angle photos');
+  fireEvent.change(input, { target: { files: [new File(['x'], 'one.png', { type: 'image/png' }), new File(['x'], 'two.png', { type: 'image/png' })] } });
+  expect(screen.getByRole('alert').textContent).toContain('Only 1 more angle photo');
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { files: [new File(['x'], 'image.heic', { type: 'image/heic' })] } });
+  expect(screen.getByRole('alert').textContent).toContain('JPG, PNG or WebP');
 });
 
 it('offers a separate reduction and reports confirmed success without recording a sale', async () => {

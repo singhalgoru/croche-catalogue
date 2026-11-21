@@ -34,6 +34,7 @@ export default function VariantDraftFields({
     variantKey: string;
     index: number;
   } | null>(null);
+  const [galleryMessage, setGalleryMessage] = useState<{ variantKey: string; error: boolean; text: string } | null>(null);
 
   const updateVariant = (key: string, changes: Partial<VariantDraft>) => {
     onChange(
@@ -70,29 +71,29 @@ export default function VariantDraftFields({
     const files = [...(event.target.files ?? [])];
     event.target.value = '';
     if (files.length === 0) return;
-    if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > MAX_IMAGE_SIZE)) {
-      event.target.setCustomValidity('Choose JPG, PNG or WebP images no larger than 20 MB each.');
-      event.target.reportValidity();
+    if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || !file.size || file.size > MAX_IMAGE_SIZE)) {
+      setGalleryMessage({ variantKey: variant.key, error: true, text: 'Choose non-empty JPG, PNG or WebP images no larger than 20 MB each.' });
       return;
     }
-    event.target.setCustomValidity('');
-
     const remainingSlots = MAX_GALLERY_IMAGES - variant.galleryFiles.length;
-    const validFiles = files
-      .slice(0, Math.max(remainingSlots, 0));
-    if (validFiles.length === 0) return;
+    if (files.length > remainingSlots) {
+      setGalleryMessage({ variantKey: variant.key, error: true, text: `Only ${remainingSlots} more angle photo${remainingSlots === 1 ? '' : 's'} can be added. Select fewer files.` });
+      return;
+    }
+    setGalleryMessage({ variantKey: variant.key, error: false, text: `${files.length} angle photo${files.length === 1 ? '' : 's'} selected. Save the draft or publish the product to upload.` });
 
     updateVariant(variant.key, {
-      galleryFiles: [...variant.galleryFiles, ...validFiles],
+      galleryFiles: [...variant.galleryFiles, ...files],
       galleryPreviewUrls: [
         ...variant.galleryPreviewUrls,
-        ...validFiles.map((file) => URL.createObjectURL(file)),
+        ...files.map((file) => URL.createObjectURL(file)),
       ],
     });
   };
 
   const removeGalleryImage = (variant: VariantDraft, index: number) => {
     URL.revokeObjectURL(variant.galleryPreviewUrls[index]);
+    setGalleryMessage(null);
     setActiveGalleryEditor((current) =>
       current?.variantKey === variant.key && current.index === index ? null : current,
     );
@@ -335,8 +336,11 @@ export default function VariantDraftFields({
               Additional angles (optional)
             </span>
             <p className="mt-0.5 text-xs text-cocoa/55">
-              Add top, side, or back views for better visibility — up to {MAX_GALLERY_IMAGES} photos.
+              Add top, side, or back views — up to {MAX_GALLERY_IMAGES} JPG, PNG or WebP photos, 20 MB each.
             </p>
+            {galleryMessage?.variantKey === variant.key && (
+              <p role={galleryMessage.error ? 'alert' : 'status'} className={`mt-2 text-sm ${galleryMessage.error ? 'text-red-700' : 'text-cocoa'}`}>{galleryMessage.text}</p>
+            )}
             {variant.galleryPreviewUrls.length > 0 && (
               <>
                 <div className="mt-2 flex flex-wrap gap-2">

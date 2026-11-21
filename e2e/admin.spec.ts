@@ -1375,12 +1375,12 @@ test('reorders variants and additional angle photos', async ({ page }) => {
   await addAnglePhoto.setInputFiles({
     name: 'angle-2.png',
     mimeType: 'image/png',
-    buffer: Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=',
-      'base64',
-    ),
+    buffer: Buffer.concat([
+      Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=', 'base64'),
+      Buffer.alloc(16 * 1024 * 1024 - 68),
+    ]),
   });
-  await expect(rosePink.getByText('New angle photo ready')).toBeVisible();
+  await expect(rosePink.getByText('angle-2.png selected — not uploaded yet.')).toBeVisible();
   await rosePink.getByRole('button', { name: 'Upload angle photo' }).click();
   await expect(page.getByText('Added an angle photo to “Rose Pink”.')).toBeVisible();
 
@@ -1688,7 +1688,7 @@ test('promotes a gallery photo to the main image without losing it, and removes 
       'base64',
     ),
   });
-  await expect(rosePink.getByText('New angle photo ready')).toBeVisible();
+  await expect(rosePink.getByText('angle-2.png selected — not uploaded yet.')).toBeVisible();
   await rosePink.getByRole('button', { name: 'Upload angle photo' }).click();
   await expect(page.getByText('Added an angle photo to “Rose Pink”.')).toBeVisible();
   expect(variantRow().product_variant_images).toHaveLength(2);

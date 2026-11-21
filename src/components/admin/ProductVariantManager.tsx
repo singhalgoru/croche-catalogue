@@ -112,6 +112,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [activeDraftGalleryIndex, setActiveDraftGalleryIndex] = useState<number | null>(null);
   const [pendingGalleryImage, setPendingGalleryImage] = useState<PendingGalleryImage | null>(null);
+  const [galleryError, setGalleryError] = useState<{ variantId: string; message: string } | null>(null);
   const [existingVariantEnhancement, setExistingVariantEnhancement] =
     useState<ExistingVariantEnhancement | null>(null);
   const [existingGalleryEnhancement, setExistingGalleryEnhancement] =
@@ -220,11 +221,11 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
     event.target.value = '';
     if (!file) return;
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setError('Please choose a JPG, PNG, or WebP image.');
+      setGalleryError({ variantId: variant.id, message: 'Please choose a JPG, PNG, or WebP image.' });
       return;
     }
-    if (file.size > MAX_IMAGE_SIZE) {
-      setError('Please choose an image no larger than 20 MB.');
+    if (!file.size || file.size > MAX_IMAGE_SIZE) {
+      setGalleryError({ variantId: variant.id, message: 'Choose a non-empty image no larger than 20 MB.' });
       return;
     }
     if (pendingGalleryImage) URL.revokeObjectURL(pendingGalleryImage.previewUrl);
@@ -233,12 +234,14 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
       file,
       previewUrl: URL.createObjectURL(file),
     });
+    setGalleryError(null);
     setError(null);
   };
 
   const discardPendingGalleryImage = () => {
     if (pendingGalleryImage) URL.revokeObjectURL(pendingGalleryImage.previewUrl);
     setPendingGalleryImage(null);
+    setGalleryError(null);
   };
 
   const replacePendingGalleryImage = (file: File) => {
@@ -256,13 +259,14 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
   const uploadPendingGalleryImage = async (variant: ProductVariant) => {
     if (!pendingGalleryImage || pendingGalleryImage.variantId !== variant.id) return;
     setIsBusy(true);
+    setGalleryError(null);
     setError(null);
     try {
       const saved = await addVariantGalleryImage(product, variant, pendingGalleryImage.file);
       discardPendingGalleryImage();
       await onSaved(saved, `Added an angle photo to “${variant.name}”.`);
     } catch (addError) {
-      setError(addError instanceof Error ? addError.message : 'Unable to add the photo.');
+      setGalleryError({ variantId: variant.id, message: addError instanceof Error ? addError.message : 'Unable to add the photo.' });
     } finally {
       setIsBusy(false);
     }
@@ -1125,6 +1129,10 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
 
             <div className="mt-3 border-t border-mustard/20 pt-3">
               <span className="text-xs font-semibold text-cocoa/70">Additional angles</span>
+              <p className="mt-1 text-xs text-cocoa/60">JPG, PNG or WebP, up to 20 MB each. Select a photo, then choose Upload angle photo.</p>
+              {galleryError?.variantId === variant.id && (
+                <p role="alert" className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{galleryError.message}</p>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 {variant.gallery.map((image, galleryIndex) => (
                   <div key={image.id}>
@@ -1257,20 +1265,17 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                       src={pendingGalleryImage.previewUrl}
                       alt=""
                       className="h-16 w-16 rounded-lg bg-white object-cover"
+                      onError={() => setGalleryError({ variantId: variant.id, message: 'The selected image could not be displayed. Choose a valid JPG, PNG or WebP image.' })}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-cocoa">New angle photo ready</p>
+                      <p role="status" className="break-all text-sm font-semibold text-cocoa">
+                        {pendingGalleryImage.file.name} selected — not uploaded yet.
+                      </p>
                       <p className="text-xs text-cocoa/55">
-                        Improve it with AI before uploading, or upload it as-is.
+                        Choose Upload angle photo to save it. AI editing is optional.
                       </p>
                     </div>
                   </div>
-                  <ImageGenerationPanel
-                    sourceFile={pendingGalleryImage.file}
-                    sourceUrl={pendingGalleryImage.previewUrl}
-                    disabled={isBusy}
-                    onUseImage={replacePendingGalleryImage}
-                  />
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
@@ -1278,7 +1283,7 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                       disabled={isBusy}
                       className="rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50"
                     >
-                      {isBusy ? 'Uploading…' : 'Upload angle photo'}
+                      {isBusy ? 'Preparing and uploading…' : 'Upload angle photo'}
                     </button>
                     <button
                       type="button"
@@ -1289,6 +1294,13 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                       Cancel
                     </button>
                   </div>
+                  {isBusy && <p role="status" className="mt-2 text-sm">Preparing and uploading the angle photo. Large images may take longer; please keep this page open.</p>}
+                  <ImageGenerationPanel
+                    sourceFile={pendingGalleryImage.file}
+                    sourceUrl={pendingGalleryImage.previewUrl}
+                    disabled={isBusy}
+                    onUseImage={replacePendingGalleryImage}
+                  />
                 </div>
               )}
             </div>
