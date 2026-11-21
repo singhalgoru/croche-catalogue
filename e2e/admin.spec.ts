@@ -500,6 +500,9 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
       payment_status: body.status_value, notes: body.note_text, receipt_name: body.receipt_filename });
     return route.fulfill({ json: body.purchase_id });
   });
+  await page.route('**/rest/v1/rpc/read_material_receipt', route => route.fulfill({ json: {
+    name: 'receipt.pdf', type: 'application/pdf', data: Buffer.from('%PDF-example').toString('base64'),
+  } }));
   await signIn(page);
   await openFinancialSection(page, 'Materials');
   await page.getByRole('button', { name: 'Add purchase' }).click();
@@ -529,6 +532,15 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(materialYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
   await page.getByLabel('Material purchase month').fill('2026-11');
   await expect(page.getByRole('region', { name: 'Material purchase snapshot' })).toContainText('Paid: ₹150.5');
+  await page.getByRole('button', { name: 'View purchase Yarn on 01/11/2026' }).click();
+  const purchaseDialog = page.getByRole('dialog', { name: 'Purchase details: Yarn' });
+  await expect(purchaseDialog).toContainText('Sample shop');
+  await expect(purchaseDialog).toContainText('2 balls');
+  await expect(purchaseDialog).toContainText('₹150.50');
+  const receiptDownload = page.waitForEvent('download');
+  await purchaseDialog.getByRole('button', { name: 'Download receipt: receipt.pdf' }).click();
+  expect((await receiptDownload).suggestedFilename()).toBe('receipt.pdf');
+  await purchaseDialog.getByRole('button', { name: 'Close Purchase details: Yarn' }).click();
   await expectNoHorizontalOverflow(page);
 });
 

@@ -1,13 +1,19 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import MaterialPurchaseSnapshot from './MaterialPurchaseSnapshot';
+import { mockNativeDialog } from './dialogTestSupport';
 
-const { fetchPurchases } = vi.hoisted(() => ({ fetchPurchases: vi.fn() }));
+const { fetchPurchases, downloadReceipt } = vi.hoisted(() => ({ fetchPurchases: vi.fn(), downloadReceipt: vi.fn() }));
 vi.mock('../../services/materialPurchases', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/materialPurchases')>(), fetchMaterialPurchases: fetchPurchases,
+  downloadMaterialReceipt: downloadReceipt,
 }));
-vi.mock('../../utils/date', () => ({ localDate: () => '2026-11-15' }));
-afterEach(cleanup);
+vi.mock('../../utils/date', async importOriginal => ({
+  ...await importOriginal<typeof import('../../utils/date')>(), localDate: () => '2026-11-15',
+}));
+let restore: () => void;
+beforeEach(() => { restore = mockNativeDialog(); });
+afterEach(() => { cleanup(); restore(); vi.resetAllMocks(); });
 
 it('starts collapsed and shows the selected purchase month with separate payment totals', async () => {
   fetchPurchases.mockResolvedValue([
@@ -56,4 +62,38 @@ it('groups paid and unpaid purchases by calendar year and quarter', async () => 
   fireEvent.change(screen.getByLabelText('Material snapshot year'), { target: { value: '' } });
   expect(screen.queryByRole('article', { name: /Year/ })).toBeNull();
   expect(screen.getByText('Enter a four-digit purchase year.')).toBeTruthy();
+});
+
+it('opens the selected monthly purchase and handles receipt errors and retry', async () => {
+  fetchPurchases.mockResolvedValue([
+    { id: '1', purchased_on: '2026-11-01', material: 'Yarn', supplier: 'Sample shop', quantity: 2, unit: 'balls',
+      total: 120.5, payment_status: 'Paid', notes: 'Blue yarn', receipt_name: 'bill.pdf' },
+    { id: '2', purchased_on: '2026-11-02', material: 'Yarn', supplier: '', quantity: 1, unit: 'ball',
+      total: 50, payment_status: 'Unpaid', notes: '', receipt_name: null },
+    { id: '3', purchased_on: '2026-10-01', material: 'Hook', supplier: '', quantity: 1, unit: 'piece',
+      total: 25, payment_status: 'Paid', notes: '', receipt_name: null },
+  ]);
+  downloadReceipt.mockRejectedValueOnce(new Error('Receipt access denied')).mockResolvedValueOnce(undefined);
+  render(<MaterialPurchaseSnapshot refreshKey={1} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Material purchase snapshot' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'View purchase Yarn on 01/11/2026' }));
+  const dialog = screen.getByRole('dialog', { name: 'Purchase details: Yarn' });
+  expect(within(dialog).getByText('Sample shop')).toBeTruthy();
+  expect(within(dialog).getByText('2 balls')).toBeTruthy();
+  expect(within(dialog).getByText('₹120.50')).toBeTruthy();
+  expect(within(dialog).getByText('Paid')).toBeTruthy();
+  expect(within(dialog).getByText('Blue yarn')).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Download receipt: bill.pdf' }));
+  expect((await within(dialog).findByRole('alert')).textContent).toContain('Receipt access denied');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Download receipt: bill.pdf' }));
+  expect(downloadReceipt).toHaveBeenLastCalledWith('1');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close Purchase details: Yarn' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View purchase Yarn on 02/11/2026' }));
+  const second = screen.getByRole('dialog', { name: 'Purchase details: Yarn' });
+  expect(within(second).getByText('Unpaid')).toBeTruthy();
+  expect(within(second).getByText('No receipt attached.')).toBeTruthy();
+  fireEvent.click(within(second).getByRole('button', { name: 'Close Purchase details: Yarn' }));
+  expect(screen.queryByRole('button', { name: /View purchase Hook/ })).toBeNull();
+  fireEvent.change(screen.getByLabelText('Material purchase month'), { target: { value: '2026-10' } });
+  expect(screen.getByRole('button', { name: 'View purchase Hook on 01/10/2026' })).toBeTruthy();
 });

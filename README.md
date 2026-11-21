@@ -87,7 +87,7 @@ an India-based handmade crochet brand.
   Financial snapshots include yearly and quarterly sales, recorded artisan
   payments and material purchases, with monthly payment and purchase details.
   The Materials workspace records purchases separately from sales; Financial snapshots
-  include a monthly materials overview.
+  include a monthly materials overview with purchase details.
   Paid orders can be shipped with Shiprocket or Delhivery after explicit courier
   approval, with sample courier-rate comparisons and warehouse pickup requests.
   Shadowfax support requires account setup and verification before use.

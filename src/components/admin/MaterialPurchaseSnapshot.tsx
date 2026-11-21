@@ -1,9 +1,48 @@
 import { useEffect, useId, useState } from 'react';
-import { fetchMaterialPurchases, summarizeMaterialPurchases, type MaterialPurchase } from '../../services/materialPurchases';
+import { downloadMaterialReceipt, fetchMaterialPurchases, summarizeMaterialPurchases, type MaterialPurchase } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
-import { localDate } from '../../utils/date';
+import { formatDate, localDate } from '../../utils/date';
+import AdminDialog from './AdminDialog';
 import FinancialPeriodCards from './FinancialPeriodCards';
 import { calendarPeriods, isSnapshotYear } from './salesPeriodSummary';
+
+function PurchaseDetails({ purchase, onClose }: { purchase: MaterialPurchase; onClose: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const download = async () => {
+    setBusy(true); setError('');
+    try { await downloadMaterialReceipt(purchase.id); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to download receipt.'); }
+    finally { setBusy(false); }
+  };
+  return <AdminDialog title={`Purchase details: ${purchase.material}`} onClose={onClose} busy={busy}>
+    <div className="space-y-4 p-4 text-sm">
+      <p>To edit or delete this purchase, go to Admin → Materials.</p>
+      <dl className="grid gap-3 sm:grid-cols-2">
+        {[
+          ['Purchase date', formatDate(purchase.purchased_on)],
+          ['Material', purchase.material],
+          ['Supplier', purchase.supplier || 'Not provided'],
+          ['Quantity', `${purchase.quantity} ${purchase.unit}`],
+          ['Total purchase cost', formatINRExact(purchase.total)],
+          ['Payment status', purchase.payment_status],
+        ].map(([label, value]) => <div key={label} className="min-w-0">
+          <dt className="text-cocoa/65">{label}</dt>
+          <dd className="break-words font-semibold">{value}</dd>
+        </div>)}
+      </dl>
+      {purchase.notes && <div><p className="text-cocoa/65">Notes</p>
+        <p className="whitespace-pre-wrap break-words">{purchase.notes}</p></div>}
+      {purchase.receipt_name
+        ? <button type="button" disabled={busy} onClick={() => void download()}
+          className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2 font-semibold disabled:opacity-50">
+          {busy ? 'Downloading…' : `Download receipt: ${purchase.receipt_name}`}
+        </button>
+        : <p>No receipt attached.</p>}
+      {error && <p role="alert" className="text-red-700">{error}</p>}
+    </div>
+  </AdminDialog>;
+}
 
 export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: number }) {
   const [expanded, setExpanded] = useState(false);
@@ -12,6 +51,7 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
   const [rows, setRows] = useState<MaterialPurchase[] | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [selected, setSelected] = useState<MaterialPurchase | null>(null);
   const panelId = useId();
   useEffect(() => {
     if (!refreshKey) return;
@@ -71,7 +111,19 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
         <p>{summary.monthly.length} purchase{summary.monthly.length === 1 ? '' : 's'}</p>
         {summary.materials.length > 0 && <ul className="mt-2">{summary.materials.map(item =>
           <li key={item.name}>{item.name}: {formatINRExact(item.total)}</li>)}</ul>}
+        {summary.monthly.length > 0 && <ul className="mt-3 grid gap-3 sm:grid-cols-2">{summary.monthly.map(purchase =>
+          <li key={purchase.id}>
+            <button type="button" aria-label={`View purchase ${purchase.material} on ${formatDate(purchase.purchased_on)}`}
+              onClick={() => setSelected(purchase)}
+              className="h-full w-full rounded-xl border border-mustard/40 p-3 text-left hover:bg-cream/70">
+              <span className="block break-words font-semibold">{purchase.material}</span>
+              <span className="block font-heading text-xl font-bold">{formatINRExact(purchase.total)}</span>
+              <span className="block">{formatDate(purchase.purchased_on)} · {purchase.payment_status}</span>
+              <span className="mt-1 inline-block underline">View purchase details</span>
+            </button>
+          </li>)}</ul>}
       </div>}
     </div>
+    {selected && <PurchaseDetails purchase={selected} onClose={() => setSelected(null)} />}
   </section>;
 }
