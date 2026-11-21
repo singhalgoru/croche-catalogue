@@ -25,6 +25,7 @@ import ArtisanManager from './ArtisanManager';
 import CustomerLoveManager from './CustomerLoveManager';
 import MarketingDashboard from './MarketingDashboard';
 import IntegrationSettings from './IntegrationSettings';
+import MaterialsPanel from './MaterialsPanel';
 
 const ADMIN_MANIFEST_HREF = `${import.meta.env.BASE_URL}admin-manifest.webmanifest`;
 
@@ -38,6 +39,7 @@ export default function AdminPage({ onProductPublished }: Props) {
   const [artisansOpened, setArtisansOpened] = useState(false);
   const [customerLoveOpened, setCustomerLoveOpened] = useState(false);
   const [marketingOpened, setMarketingOpened] = useState(false);
+  const [materialsOpened, setMaterialsOpened] = useState(false);
   // The customer shop manifest is linked by default (see vite.config.ts) so
   // it can be installed as its own app. While the admin console is open,
   // swap that link to admin-manifest.webmanifest so installing from #admin
@@ -305,6 +307,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           if (section === 'Artisans') setArtisansOpened(true);
           if (section === 'Customer Love') setCustomerLoveOpened(true);
           if (section === 'Marketing') setMarketingOpened(true);
+          if (section === 'Materials') setMaterialsOpened(true);
         }}>{{
           Products: <>
             <ProductUploadForm categories={categories} onPublished={handleProductChanged} />
@@ -317,6 +320,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           'Customer Love': customerLoveOpened ? <CustomerLoveManager /> : null,
           Artisans: artisansOpened ? <ArtisanManager /> : null,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey + pricingRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
+          Materials: materialsOpened ? <MaterialsPanel /> : null,
           'Financial snapshots': <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Marketing: marketingOpened ? <MarketingDashboard /> : null,
           Settings: <>

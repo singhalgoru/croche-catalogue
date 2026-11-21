@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 
-const sections = ['Products', 'Orders', 'Customers', 'Customer Love', 'Artisans', 'Sales', 'Financial snapshots', 'Marketing', 'Settings'] as const;
+const sections = ['Products', 'Orders', 'Customers', 'Customer Love', 'Artisans', 'Sales', 'Materials', 'Financial snapshots', 'Marketing', 'Settings'] as const;
 type Section = typeof sections[number];
 
 export default function AdminWorkspace({ children, onSectionChange, initialSection = 'Products' }: {
@@ -25,7 +25,7 @@ export default function AdminWorkspace({ children, onSectionChange, initialSecti
         {sections.map(section => <option key={section} value={section}>{section}</option>)}
       </select>
     </div>
-    <nav aria-label="Admin workspace" className="mb-4 hidden grid-cols-4 gap-2 rounded-2xl bg-white p-2 shadow-sm sm:grid lg:grid-cols-9">
+    <nav aria-label="Admin workspace" className="mb-4 hidden grid-cols-4 gap-2 rounded-2xl bg-white p-2 shadow-sm sm:grid lg:grid-cols-10">
       {sections.map(section => <button key={section} type="button" aria-pressed={active === section}
         aria-controls={`${id}-${section}`} onClick={() => changeSection(section)}
         className={`min-h-11 rounded-xl px-2 text-sm font-semibold ${active === section ? 'bg-cocoa text-cream' : 'text-cocoa hover:bg-mustard/20'}`}>

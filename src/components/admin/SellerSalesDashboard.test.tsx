@@ -336,6 +336,7 @@ describe('SellerSalesDashboard', () => {
     ]);
     render(<SalesSnapshotWorkspace refreshKey={1} />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh snapshots' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' }));
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     const yearCard = () => within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }));
     expect(yearCard().getByText('₹300')).toBeTruthy();

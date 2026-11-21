@@ -8,7 +8,7 @@ it('shows only one workspace while preserving entries when switching sections', 
   render(<AdminWorkspace>{{
     Products: <input aria-label="Product draft" defaultValue="" />,
     'Customer Love': <p>Customer stories</p>,
-    Orders: <p>Cart orders</p>, Customers: <p>Registered customers</p>, Artisans: <p>Artisan applications</p>, Sales: <p>Monthly sales</p>, 'Financial snapshots': <p>Sales snapshots</p>, Marketing: <p>Marketing overview</p>, Settings: <p>Store settings</p>,
+    Orders: <p>Cart orders</p>, Customers: <p>Registered customers</p>, Artisans: <p>Artisan applications</p>, Sales: <p>Monthly sales</p>, Materials: <p>Material purchases</p>, 'Financial snapshots': <p>Sales snapshots</p>, Marketing: <p>Marketing overview</p>, Settings: <p>Store settings</p>,
   }}</AdminWorkspace>);
   fireEvent.change(screen.getByLabelText('Product draft'), { target: { value: 'Rose' } });
   expect(screen.getByRole('region', { name: 'Products workspace' })).toBeTruthy();
@@ -21,6 +21,8 @@ it('shows only one workspace while preserving entries when switching sections', 
   expect(screen.getByRole('region', { name: 'Customer Love workspace' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
   expect(screen.getByRole('region', { name: 'Sales workspace' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Materials' }));
+  expect(screen.getByRole('region', { name: 'Materials workspace' })).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'Products workspace' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Financial snapshots' }));
   expect(screen.getByRole('region', { name: 'Financial snapshots workspace' })).toBeTruthy();
@@ -36,7 +38,7 @@ it('provides a touch-friendly mobile section picker and notifies the workspace o
   render(<AdminWorkspace onSectionChange={onSectionChange}>{{
     Products: <p>Product tools</p>,
     'Customer Love': <p>Customer stories</p>,
-    Orders: <p>Cart orders</p>, Customers: <p>Registered customers</p>, Artisans: <p>Artisan applications</p>, Sales: <p>Monthly sales</p>, 'Financial snapshots': <p>Sales snapshots</p>, Marketing: <p>Marketing overview</p>, Settings: <p>Store settings</p>,
+    Orders: <p>Cart orders</p>, Customers: <p>Registered customers</p>, Artisans: <p>Artisan applications</p>, Sales: <p>Monthly sales</p>, Materials: <p>Material purchases</p>, 'Financial snapshots': <p>Sales snapshots</p>, Marketing: <p>Marketing overview</p>, Settings: <p>Store settings</p>,
   }}</AdminWorkspace>);
   const picker = screen.getByRole('combobox', { name: 'Jump to admin section' });
   expect(picker.className).toContain('min-h-12');
