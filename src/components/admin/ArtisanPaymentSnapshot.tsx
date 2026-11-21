@@ -1,15 +1,60 @@
-import { useEffect, useState } from 'react';
-import { fetchArtisanPaymentSummary, type ArtisanPaymentSummary } from '../../services/artisanProfiles';
+import { useEffect, useId, useState } from 'react';
+import { fetchArtisanActivity, fetchArtisanPaymentSummary, type ArtisanPayment, type ArtisanPaymentSummary } from '../../services/artisanProfiles';
 import { formatDate, localDate } from '../../utils/date';
+import AdminDialog from './AdminDialog';
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
 
+function PaymentDetails({ artisan, month, onClose }: {
+  artisan: ArtisanPaymentSummary; month: string; onClose: () => void;
+}) {
+  const [payments, setPayments] = useState<ArtisanPayment[] | null>(null);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setPayments(null);
+      setError('');
+      void fetchArtisanActivity(artisan.artisanId).then(activity => {
+        if (active) setPayments(activity.payments.filter(payment =>
+          payment.voided_at === null && payment.paid_on.startsWith(`${month}-`)));
+      }).catch(failure => {
+        if (active) setError(failure instanceof Error ? failure.message : 'Unable to load payment details.');
+      });
+    });
+    return () => { active = false; };
+  }, [artisan.artisanId, month, retry]);
+
+  return <AdminDialog title={`Payments for ${artisan.name}`} onClose={onClose}>
+    <div className="space-y-4 p-4">
+      <p className="text-sm">Recorded payments for {month}, excluding voided entries. To correct a payment or view private payout details, review the artisan in Admin → Artisans.</p>
+      {error ? <div><p role="alert" className="text-red-700">{error}</p>
+        <button type="button" className="min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Retry payment details</button></div>
+        : payments === null ? <p role="status">Loading payment details…</p>
+          : payments.length === 0 ? <p>No recorded payments remain for this month. Refresh the snapshot to update totals.</p>
+            : <ul className="space-y-3">{payments.map(payment =>
+              <li key={payment.id} className="rounded-xl border border-mustard/40 bg-white p-3">
+                <p className="font-semibold">{formatDate(payment.paid_on)} · {currency.format(payment.amount)}</p>
+                <p className="text-sm">Method: {payment.method}</p>
+                {payment.reference && <p className="break-all text-sm">Transaction reference: {payment.reference}</p>}
+                <p className="whitespace-pre-wrap break-words text-sm">Work / batch: {payment.description}</p>
+              </li>)}</ul>}
+    </div>
+  </AdminDialog>;
+}
+
 export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: number }) {
+  const [expanded, setExpanded] = useState(false);
   const [month, setMonth] = useState(() => localDate().slice(0, 7));
   const [retry, setRetry] = useState(0);
   const [rows, setRows] = useState<ArtisanPaymentSummary[] | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<ArtisanPaymentSummary | null>(null);
+  const panelId = useId();
 
   useEffect(() => {
     if (refreshKey === 0 || !month) return;
@@ -32,7 +77,12 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
 
   const totalPaise = rows?.reduce((sum, row) => sum + Math.round(row.amount * 100), 0);
   return <section aria-label="Artisan payment snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
-    <h3 className="font-heading text-xl font-bold text-cocoa">Artisan payment snapshot</h3>
+    <button type="button" aria-expanded={expanded} aria-controls={panelId}
+      onClick={() => setExpanded(current => !current)}
+      className="flex w-full items-center justify-between gap-3 text-left font-heading text-xl font-bold text-cocoa">
+      <span>Artisan payment snapshot</span><span aria-hidden="true">{expanded ? '−' : '+'}</span>
+    </button>
+    <div id={panelId} hidden={!expanded}>
     <p className="mt-2 text-sm text-cocoa/70">Payments already recorded for the selected month, excluding voided entries. This does not show amounts owed or send payments. Payments are separate from Sales business expenses and sales labour costs.</p>
     <div className="mt-3 flex flex-wrap items-end gap-3">
       <label className="text-sm font-semibold">Payment month
@@ -49,12 +99,18 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
       <p className="mt-4 font-semibold">Total paid: {currency.format((totalPaise ?? 0) / 100)} · {rows.length} artisan{rows.length === 1 ? '' : 's'}</p>
       {rows.length === 0 ? <p className="mt-2 text-sm">No payments recorded for this month.</p> :
         <ul className="mt-3 grid gap-3 sm:grid-cols-2">{rows.map(row =>
-          <li key={row.artisanId} className="rounded-xl border border-mustard/40 p-3">
-            <p className="break-words font-semibold">{row.name}</p>
-            <p className="font-heading text-xl font-bold">{currency.format(row.amount)}</p>
-            <p className="text-sm">{row.count} payment{row.count === 1 ? '' : 's'} · Latest: {formatDate(row.latestDate)}</p>
+          <li key={row.artisanId}>
+            <button type="button" aria-label={`View payments for ${row.name}`} onClick={() => setSelected(row)}
+              className="h-full w-full rounded-xl border border-mustard/40 p-3 text-left hover:bg-cream/70">
+              <span className="block break-words font-semibold">{row.name}</span>
+              <span className="block font-heading text-xl font-bold">{currency.format(row.amount)}</span>
+              <span className="block text-sm">{row.count} payment{row.count === 1 ? '' : 's'} · Latest: {formatDate(row.latestDate)}</span>
+              <span className="mt-1 inline-block text-sm underline">View payment details</span>
+            </button>
           </li>)}</ul>}
-      <p className="mt-3 text-xs">For individual payment entries or private payout details, open Admin → Artisans and review the artisan.</p>
+      <p className="mt-3 text-xs">Select an artisan to view individual payment entries.</p>
     </>}
+    </div>
+    {selected && <PaymentDetails artisan={selected} month={month} onClose={() => setSelected(null)} />}
   </section>;
 }

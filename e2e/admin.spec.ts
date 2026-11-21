@@ -27,8 +27,10 @@ const signIn = async (page: Page, productSection?: 'add' | 'manage') => {
 
 const openFinancialSection = async (page: Page, section: 'Sales' | 'Financial snapshots') => {
   const picker = page.getByRole('combobox', { name: 'Jump to admin section' });
+  const button = page.getByRole('button', { name: section, exact: true });
+  await expect(picker.or(button)).toBeVisible();
   if (await picker.isVisible()) await picker.selectOption(section);
-  else await page.getByRole('button', { name: section, exact: true }).click();
+  else await button.click();
 };
 
 const expectNoHorizontalOverflow = async (page: Page) => {
@@ -453,16 +455,28 @@ test('shows recorded artisan payments in financial snapshots', async ({ page }) 
   await page.route('**/rest/v1/rpc/artisan_payment_summary', async route => {
     const { payment_month: month } = route.request().postDataJSON();
     await route.fulfill({ json: month === '2026-10-01'
-      ? [{ artisanId: 'maker-1', name: 'Sample Maker', amount: 125.5, count: 2, latestDate: '2026-10-30' }]
+      ? [{ artisanId: 'maker-1', name: 'Sample Maker', amount: 125.5, count: 1, latestDate: '2026-10-30' }]
       : [] });
   });
+  await page.route('**/rest/v1/rpc/artisan_activity', route => route.fulfill({ json: {
+    comments: [], payments: [{ id: 'payment-1', paid_on: '2026-10-30', amount: 125.5, method: 'UPI',
+      reference: 'txn-1', description: 'Flower batch', created_at: '2026-10-30T00:00:00Z', voided_at: null, void_reason: null }],
+  } }));
   await signIn(page);
   await openFinancialSection(page, 'Financial snapshots');
+  const toggle = page.getByRole('button', { name: 'Artisan payment snapshot' });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
   await page.getByLabel('Payment month').fill('2026-10');
   const snapshot = page.getByRole('region', { name: 'Artisan payment snapshot' });
   await expect(snapshot).toContainText('Total paid: ₹125.50');
   await expect(snapshot).toContainText('Sample Maker');
-  await expect(snapshot).toContainText('2 payments · Latest: 30/10/2026');
+  await expect(snapshot).toContainText('1 payment · Latest: 30/10/2026');
+  await page.getByRole('button', { name: 'View payments for Sample Maker' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Payments for Sample Maker' });
+  await expect(dialog).toContainText('Work / batch: Flower batch');
+  await expect(dialog).toContainText('Transaction reference: txn-1');
+  await dialog.getByRole('button', { name: 'Close Payments for Sample Maker' }).click();
   await page.getByLabel('Payment month').fill('2026-09');
   await expect(snapshot).toContainText('No payments recorded for this month.');
   await expectNoHorizontalOverflow(page);
