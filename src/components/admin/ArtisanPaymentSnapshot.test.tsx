@@ -1,12 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ArtisanPaymentSnapshot from './ArtisanPaymentSnapshot';
-import { fetchArtisanActivity, fetchArtisanPaymentSummary } from '../../services/artisanProfiles';
+import { fetchArtisanActivity, fetchArtisanPaymentSummary, fetchArtisanPaymentYear } from '../../services/artisanProfiles';
 import { mockNativeDialog } from './dialogTestSupport';
 
-vi.mock('../../services/artisanProfiles', () => ({ fetchArtisanPaymentSummary: vi.fn(), fetchArtisanActivity: vi.fn() }));
+vi.mock('../../services/artisanProfiles', () => ({ fetchArtisanPaymentSummary: vi.fn(), fetchArtisanPaymentYear: vi.fn(), fetchArtisanActivity: vi.fn() }));
 let restore: () => void;
-beforeEach(() => { restore = mockNativeDialog(); });
+beforeEach(() => { restore = mockNativeDialog(); vi.mocked(fetchArtisanPaymentYear).mockResolvedValue([]); });
 afterEach(() => { cleanup(); restore(); vi.resetAllMocks(); });
 
 it('shows per-artisan and monthly totals in paise and refreshes the selected month', async () => {
@@ -71,4 +71,38 @@ it('shows payment detail failures and lets the admin retry', async () => {
   expect((await screen.findByRole('alert')).textContent).toContain('Payment access denied');
   fireEvent.click(screen.getByRole('button', { name: 'Retry payment details' }));
   expect(await screen.findByText(/No recorded payments remain/)).toBeTruthy();
+});
+
+it('shows annual and quarterly payments, counts distinct artisans and retains monthly details', async () => {
+  vi.mocked(fetchArtisanPaymentSummary).mockResolvedValue([]);
+  const maker = { artisanId: '1', name: 'Maker', amount: 0.1, count: 1, latestDate: '2026-03-31' };
+  vi.mocked(fetchArtisanPaymentYear).mockImplementation(async year => year === '2026' ? [
+    { month: '2026-03', payments: [maker] },
+    { month: '2026-04', payments: [{ ...maker, amount: 0.2, count: 2, latestDate: '2026-04-01' }] },
+    { month: '2026-12', payments: [{ ...maker, artisanId: '2', amount: 10, latestDate: '2026-12-31' }] },
+  ] : []);
+  render(<ArtisanPaymentSnapshot refreshKey={1} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Artisan payment snapshot' }));
+  fireEvent.change(screen.getByLabelText('Payment snapshot year'), { target: { value: '2026' } });
+  const annual = await screen.findByRole('article', { name: 'Year 2026 · Jan–Dec' });
+  expect(annual.textContent).toContain('₹10.30');
+  expect(annual.textContent).toContain('Payments4');
+  expect(annual.textContent).toContain('Artisans2');
+  expect(screen.getByRole('article', { name: 'Q1 · Jan–Mar 2026' }).textContent).toContain('₹0.10');
+  expect(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2026' }).textContent).toContain('₹0.20');
+  expect(screen.getByRole('article', { name: 'Q3 · Jul–Sep 2026' }).textContent).toContain('₹0.00');
+  expect(screen.getByLabelText('Payment month')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Payment snapshot year'), { target: { value: '2025' } });
+  expect((await screen.findByRole('article', { name: 'Year 2025 · Jan–Dec' })).textContent).toContain('₹0.00');
+});
+
+it('reports a yearly load failure without displaying partial totals and retries', async () => {
+  vi.mocked(fetchArtisanPaymentSummary).mockResolvedValue([]);
+  vi.mocked(fetchArtisanPaymentYear).mockRejectedValueOnce(new Error('Year unavailable')).mockResolvedValue([]);
+  render(<ArtisanPaymentSnapshot refreshKey={1} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Artisan payment snapshot' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Year unavailable');
+  expect(screen.queryByRole('article', { name: /Year/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh payments' }));
+  expect(await screen.findByRole('article', { name: /Year/ })).toBeTruthy();
 });

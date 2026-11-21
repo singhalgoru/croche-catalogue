@@ -34,3 +34,26 @@ it('shows a loading error rather than zero totals and supports retry', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Refresh materials' }));
   expect(await screen.findByText(/Purchase value:/)).toBeTruthy();
 });
+
+it('groups paid and unpaid purchases by calendar year and quarter', async () => {
+  fetchPurchases.mockResolvedValue([
+    { id: '1', purchased_on: '2026-03-31', material: 'Yarn', total: 0.1, payment_status: 'Paid' },
+    { id: '2', purchased_on: '2026-04-01', material: 'Thread', total: 0.2, payment_status: 'Unpaid' },
+    { id: '3', purchased_on: '2026-12-31', material: 'Hook', total: 10, payment_status: 'Paid' },
+    { id: '4', purchased_on: '2025-12-31', material: 'Hook', total: 7, payment_status: 'Paid' },
+  ]);
+  render(<MaterialPurchaseSnapshot refreshKey={1} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Material purchase snapshot' }));
+  const annual = await screen.findByRole('article', { name: 'Year 2026 · Jan–Dec' });
+  expect(annual.textContent).toContain('₹10.30');
+  expect(annual.textContent).toContain('Paid₹10.10');
+  expect(annual.textContent).toContain('Unpaid₹0.20');
+  expect(screen.getByRole('article', { name: 'Q1 · Jan–Mar 2026' }).textContent).toContain('₹0.10');
+  expect(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2026' }).textContent).toContain('₹0.20');
+  expect(screen.getByRole('article', { name: 'Q3 · Jul–Sep 2026' }).textContent).toContain('₹0.00');
+  fireEvent.change(screen.getByLabelText('Material snapshot year'), { target: { value: '2025' } });
+  expect(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }).textContent).toContain('₹7.00');
+  fireEvent.change(screen.getByLabelText('Material snapshot year'), { target: { value: '' } });
+  expect(screen.queryByRole('article', { name: /Year/ })).toBeNull();
+  expect(screen.getByText('Enter a four-digit purchase year.')).toBeTruthy();
+});

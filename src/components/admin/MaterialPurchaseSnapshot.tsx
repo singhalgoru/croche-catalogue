@@ -2,10 +2,13 @@ import { useEffect, useId, useState } from 'react';
 import { fetchMaterialPurchases, summarizeMaterialPurchases, type MaterialPurchase } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { localDate } from '../../utils/date';
+import FinancialPeriodCards from './FinancialPeriodCards';
+import { calendarPeriods, isSnapshotYear } from './salesPeriodSummary';
 
 export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: number }) {
   const [expanded, setExpanded] = useState(false);
   const [month, setMonth] = useState(() => localDate().slice(0, 7));
+  const [year, setYear] = useState(() => localDate().slice(0, 4));
   const [rows, setRows] = useState<MaterialPurchase[] | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
@@ -22,13 +25,36 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
     return () => { active = false; };
   }, [refreshKey, retry]);
   const summary = rows && month ? summarizeMaterialPurchases(rows, month) : null;
+  const cards = rows && isSnapshotYear(year) ? calendarPeriods(year).map(period => {
+    const purchases = rows.filter(item => {
+      const monthNumber = Number(item.purchased_on.slice(5, 7));
+      return item.purchased_on.startsWith(`${year}-`) && monthNumber >= period.startMonth && monthNumber <= period.endMonth;
+    });
+    const paid = purchases.filter(item => item.payment_status === 'Paid')
+      .reduce((sum, item) => sum + Math.round(item.total * 100), 0);
+    const unpaid = purchases.filter(item => item.payment_status === 'Unpaid')
+      .reduce((sum, item) => sum + Math.round(item.total * 100), 0);
+    return { label: period.label, metrics: [
+      { label: 'Purchase value', value: formatINRExact((paid + unpaid) / 100) },
+      { label: 'Paid', value: formatINRExact(paid / 100) },
+      { label: 'Unpaid', value: formatINRExact(unpaid / 100) },
+      { label: 'Purchases', value: String(purchases.length) },
+    ] };
+  }) : null;
   return <section aria-label="Material purchase snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(current => !current)}
       className="flex w-full items-center justify-between gap-3 text-left font-heading text-xl font-bold text-cocoa">
       <span>Material purchase snapshot</span><span aria-hidden="true">{expanded ? '−' : '+'}</span>
     </button>
     <div id={panelId} hidden={!expanded}>
-      <p className="mt-2 text-sm text-cocoa/70">Purchase totals by purchase month, not payment date. Separate from Sales profit and stock; partial payments are not tracked. Manage purchases and receipts in Materials.</p>
+      <p className="mt-2 text-sm text-cocoa/70">Totals use purchase date, not payment date. Calendar periods run January–December; the current year and quarter may be incomplete. Separate from Sales profit and stock; partial payments are not tracked. Manage purchases and receipts in Materials.</p>
+      <label className="mt-3 block text-sm font-semibold">Material snapshot year
+        <input type="number" min="1" max="9999" step="1" value={year} onChange={event => setYear(event.target.value)}
+          className="ml-2 min-h-11 w-28 rounded-lg border border-mustard/50 bg-white px-3 py-2" />
+      </label>
+      {!isSnapshotYear(year) ? <p className="mt-3 text-sm">Enter a four-digit purchase year.</p>
+        : cards && <FinancialPeriodCards cards={cards} />}
+      <h3 className="mt-5 font-heading text-lg font-bold">Monthly purchase details</h3>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="text-sm font-semibold">Material purchase month
           <input type="month" value={month} onChange={event => setMonth(event.target.value)}

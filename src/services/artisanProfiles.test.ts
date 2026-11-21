@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { addArtisanComment, fetchArtisanActivity, fetchArtisanPaymentSummary, readArtisanPhoto, recordArtisanPayment, saveArtisanSkills, voidArtisanPayment } from './artisanProfiles';
+import { addArtisanComment, fetchArtisanActivity, fetchArtisanPaymentSummary, fetchArtisanPaymentYear, readArtisanPhoto, recordArtisanPayment, saveArtisanSkills, voidArtisanPayment } from './artisanProfiles';
 import { emptyArtisanDetails } from './artisans';
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
@@ -52,4 +52,15 @@ it('loads a monthly payment summary and rejects malformed data or dates', async 
   rpc.mockResolvedValueOnce({ data: [{ ...rows[0], latestDate: '2026-11-01' }] });
   await expect(fetchArtisanPaymentSummary('2026-10')).rejects.toThrow('Invalid artisan payment summary');
   await expect(fetchArtisanPaymentSummary('2026-13')).rejects.toThrow('valid payment month');
+});
+it('loads every month of a year and fails rather than returning a partial year', async () => {
+  rpc.mockResolvedValue({ data: [] });
+  const months = await fetchArtisanPaymentYear('2026');
+  expect(months).toHaveLength(12);
+  expect(months[0].month).toBe('2026-01');
+  expect(months[11].month).toBe('2026-12');
+  expect(rpc).toHaveBeenCalledTimes(12);
+  rpc.mockRejectedValueOnce(new Error('Payment data unavailable'));
+  await expect(fetchArtisanPaymentYear('2026')).rejects.toThrow('Payment data unavailable');
+  await expect(fetchArtisanPaymentYear('0000')).rejects.toThrow('valid payment year');
 });

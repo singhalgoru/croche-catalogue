@@ -9,6 +9,15 @@ export const CALENDAR_QUARTERS = [
   { label: 'Q4 · Oct–Dec', startMonth: 10, endMonth: 12 },
 ] as const;
 
+export const isSnapshotYear = (year: string) => /^(?!0000)\d{4}$/.test(year);
+
+export function calendarPeriods(year: string) {
+  return [
+    { label: `Year ${year} · Jan–Dec`, startMonth: 1, endMonth: 12 },
+    ...CALENDAR_QUARTERS.map(quarter => ({ ...quarter, label: `${quarter.label} ${year}` })),
+  ];
+}
+
 export function summarizeSalesPeriod(
   sales: SellerSale[],
   expenses: BusinessExpense[],

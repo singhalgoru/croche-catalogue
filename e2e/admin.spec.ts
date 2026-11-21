@@ -467,6 +467,11 @@ test('shows recorded artisan payments in financial snapshots', async ({ page }) 
   const toggle = page.getByRole('button', { name: 'Artisan payment snapshot' });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
+  await page.getByLabel('Payment snapshot year').fill('2026');
+  const paymentYear = page.getByRole('region', { name: 'Artisan payment snapshot' });
+  await expect(paymentYear.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('₹125.50');
+  await expect(paymentYear.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('₹125.50');
+  await expect(paymentYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
   await page.getByLabel('Payment month').fill('2026-10');
   const snapshot = page.getByRole('region', { name: 'Artisan payment snapshot' });
   await expect(snapshot).toContainText('Total paid: ₹125.50');
@@ -517,6 +522,11 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
   }
   await page.getByRole('button', { name: 'Material purchase snapshot' }).click();
+  await page.getByLabel('Material snapshot year').fill('2026');
+  const materialYear = page.getByRole('region', { name: 'Material purchase snapshot' });
+  await expect(materialYear.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('₹150.50');
+  await expect(materialYear.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('₹150.50');
+  await expect(materialYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
   await page.getByLabel('Material purchase month').fill('2026-11');
   await expect(page.getByRole('region', { name: 'Material purchase snapshot' })).toContainText('Paid: ₹150.5');
   await expectNoHorizontalOverflow(page);
@@ -535,7 +545,7 @@ test('shows material, labour and shipping costs in annual and quarterly snapshot
   await signIn(page);
   await openFinancialSection(page, 'Financial snapshots');
   await page.getByRole('button', { name: 'Sales snapshot' }).click();
-  await page.getByLabel('Snapshot year').selectOption('2026');
+  await page.getByLabel('Snapshot year', { exact: true }).selectOption('2026');
   for (const name of ['Year 2026 · Jan–Dec', 'Q1 · Jan–Mar 2026']) {
     const card = page.getByRole('article', { name, exact: true });
     for (const [label, amount] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Packaging cost', '₹15'], ['Shipping cost', '₹80']]) {
@@ -588,7 +598,7 @@ test('manages monthly business expenses and profit after overheads', async ({ pa
   await expect(page.getByRole('button', { name: 'Sales snapshot' })).toHaveCount(0);
   await openFinancialSection(page, 'Financial snapshots');
   await page.getByRole('button', { name: 'Sales snapshot' }).click();
-  await page.getByLabel('Snapshot year').selectOption('2026');
+  await page.getByLabel('Snapshot year', { exact: true }).selectOption('2026');
   await expect(page.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('-₹251');
   await expect(page.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('-₹251');
   await expect(page.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).not.toContainText('-₹251');

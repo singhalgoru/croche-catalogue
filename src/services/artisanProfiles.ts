@@ -36,6 +36,10 @@ export interface ArtisanPaymentSummary {
   count: number;
   latestDate: string;
 }
+export interface ArtisanPaymentMonth {
+  month: string;
+  payments: ArtisanPaymentSummary[];
+}
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -84,6 +88,13 @@ export async function fetchArtisanPaymentSummary(month: string): Promise<Artisan
     throw new Error('Invalid artisan payment summary response.');
   }
   return data;
+}
+export async function fetchArtisanPaymentYear(year: string): Promise<ArtisanPaymentMonth[]> {
+  if (!/^(?!0000)\d{4}$/.test(year)) throw new Error('Choose a valid payment year.');
+  return Promise.all(Array.from({ length: 12 }, async (_, index) => {
+    const month = `${year}-${String(index + 1).padStart(2, '0')}`;
+    return { month, payments: await fetchArtisanPaymentSummary(month) };
+  }));
 }
 export async function addArtisanComment(id: string, requestId: string, body: string): Promise<void> {
   if (!body.trim() || body.trim().length > 3000) throw new Error('Enter a comment up to 3,000 characters.');
