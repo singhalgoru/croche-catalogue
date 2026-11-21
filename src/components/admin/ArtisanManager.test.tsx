@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ArtisanManager from './ArtisanManager';
+import { mockNativeDialog } from './dialogTestSupport';
 import { emptyArtisanDetails } from '../../services/artisans';
 
 const { list, history, update, remove, invites, create, revoke, readId, removeId } = vi.hoisted(() => ({
@@ -26,7 +27,9 @@ vi.mock('../../services/artisanProfiles', async importOriginal => ({
 }));
 const application = { id: 'reference', details: { ...emptyArtisanDetails, fullName: 'Sample Maker', city: 'Gurugram', skills: 'Flowers' },
   contact_email: 'maker@example.test', status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1' };
+let restoreDialog: () => void;
 beforeEach(() => {
+  restoreDialog = mockNativeDialog();
   vi.clearAllMocks(); list.mockResolvedValue({ applications: [application], total: 1 });
   history.mockResolvedValue([{ id: 1, action: 'Submitted', new_status: 'New', old_status: null, created_at: application.created_at }]);
   invites.mockResolvedValue([]); update.mockResolvedValue({ ...application, version: 2 }); remove.mockResolvedValue(undefined);
@@ -45,6 +48,10 @@ it('requests payment details instead of starting Trial and allows manual entry a
   await screen.findByText(/Trial has not started/);
   expect(requestPaymentDetails).toHaveBeenCalledWith(application.id);
   expect(update).not.toHaveBeenCalled();
+  const notice = screen.getByRole('dialog', { name: 'Email notification' });
+  expect(notice.textContent).toContain('email has been queued');
+  expect(notice.textContent).toContain('Delivery is not yet confirmed');
+  fireEvent.click(within(notice).getByRole('button', { name: 'Close Email notification' }));
   fireEvent.click(screen.getByRole('button',{ name: 'Enter payment details manually' }));
   fireEvent.change(await screen.findByLabelText('Account holder name'),{ target: { value: 'Sample Maker' } });
   fireEvent.change(screen.getByLabelText('UPI ID'),{ target: { value: 'maker@bank' } });
@@ -87,7 +94,7 @@ it('distinguishes legacy applications from recorded dispatch acknowledgement', a
   expect(screen.getByText(/Version 2026-10-29.1, accepted/)).toBeTruthy();
   expect(screen.queryByText(/Not recorded \(earlier application\)/)).toBeNull();
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); restoreDialog(); });
 it('displays original Hindi answers and preferred contact language in the directory and review', async () => {
   list.mockResolvedValue({ applications: [{ ...application, details: { ...application.details,
     fullName: 'परीक्षण कारीगर', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी', address: 'परीक्षण गली' } }], total: 1 });
@@ -129,6 +136,59 @@ it('shows applicant contact email and keeps the applicant-facing request separat
   fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
   await waitFor(() => expect(update).toHaveBeenCalledWith(application, 'More information required',
     'Internal: confirm portfolio review.', 'Please share a link to your crochet portfolio.'));
+  const notice = await screen.findByRole('dialog', { name: 'Email notification' });
+  expect(notice.textContent).toContain('More information required email was queued');
+  fireEvent.click(within(notice).getByRole('button', { name: 'Close Email notification' }));
+  expect(await screen.findByText('Application changes saved.')).toBeTruthy();
+});
+it.each(['Approved', 'Declined'] as const)('shows a queued email notice for %s', async status => {
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Application status'), { target: { value: status } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  expect((await screen.findByRole('dialog', { name: 'Email notification' })).textContent)
+    .toContain(`${status} email was queued`);
+});
+it('distinguishes an active payment request from a newly queued email', async () => {
+  paymentStatus.mockResolvedValue({ provided: false, verified: false, requested: true });
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'Trial' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  expect((await screen.findByRole('dialog', { name: 'Email notification' })).textContent).toContain('No new email was queued');
+  expect(requestPaymentDetails).not.toHaveBeenCalled();
+});
+it('explains that the Trial welcome email is only queued once', async () => {
+  paymentStatus.mockResolvedValue({ provided: true, verified: true, requested: false });
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'Trial' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  expect((await screen.findByRole('dialog', { name: 'Email notification' })).textContent).toContain('only once per application');
+});
+it('does not claim an email was queued without an application email', async () => {
+  list.mockResolvedValue({ applications: [{ ...application, contact_email: null }], total: 1 });
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'Declined' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  expect((await screen.findByRole('dialog', { name: 'Email notification' })).textContent).toContain('no email was queued');
+});
+it('notifies for a revised information request but not for unchanged review notes', async () => {
+  const pending = { ...application, status: 'More information required', applicant_message: 'Please share photos.' };
+  list.mockResolvedValue({ applications: [pending], total: 1 });
+  const view = render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Message to artisan (sent by email; not an internal note)'), { target: { value: 'Please share new photos.' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  expect((await screen.findByRole('dialog', { name: 'Email notification' })).textContent).toContain('email was queued');
+  view.unmount();
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Internal review notes'), { target: { value: 'Reviewed' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  expect(await screen.findByText('Application changes saved.')).toBeTruthy();
+  expect(screen.queryByRole('dialog', { name: 'Email notification' })).toBeNull();
 });
 it('shows the submission date instead of an expiry for submitted invitations', async () => {
   const base = { recipient_name: 'Sample Maker', channel: 'email' as const, contact: 'maker@example.test',

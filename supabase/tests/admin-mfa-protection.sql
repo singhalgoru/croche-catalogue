@@ -46,17 +46,91 @@ do $$ declare ticker_id uuid; denied boolean:=false; begin
   if not denied then raise exception 'FAIL: admin can erase audit history.'; end if;
 end $$;
 reset role;
-update public.admin_security_settings set locked=true;
+select set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated','aal','aal2','session_id',session_id,
+  'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now()-interval '16 minutes')))))::text,true)
+from mfa_fixture;
+insert into public.admin_verified_sessions(session_id,user_id,factor_id,verified_at,last_activity)
+select session_id,user_id,factor_id,floor(extract(epoch from now()-interval '16 minutes')),now()-interval '1 minute'
+from mfa_fixture;
 set local role authenticated;
 do $$ begin
+  if not public.is_catalogue_admin() then raise exception 'FAIL: active session rejected after 15 minutes.'; end if;
+  if not public.touch_admin_session() then raise exception 'FAIL: active session not extended.'; end if;
+end $$;
+reset role;
+do $$ begin
+  if (select last_activity from public.admin_verified_sessions where session_id=(select session_id from mfa_fixture)) <> now()
+  then raise exception 'FAIL: activity timestamp not renewed.'; end if;
+end $$;
+create temporary table other_mfa_session as select gen_random_uuid() session_id;
+grant select on other_mfa_session to authenticated;
+insert into auth.sessions(id,user_id,factor_id,aal,created_at,updated_at)
+select other_mfa_session.session_id,mfa_fixture.user_id,mfa_fixture.factor_id,'aal2',now(),now()
+from other_mfa_session cross join mfa_fixture;
+select set_config('request.jwt.claims',jsonb_build_object('sub',mfa_fixture.user_id,'role','authenticated','aal','aal2','session_id',other_mfa_session.session_id,
+  'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now()-interval '16 minutes')))))::text,true)
+from mfa_fixture cross join other_mfa_session;
+set local role authenticated;
+do $$ begin
+  if public.is_catalogue_admin() then raise exception 'FAIL: activity from another session extended access.'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated','aal','aal2','session_id',session_id,
+  'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now()-interval '16 minutes')))))::text,true)
+from mfa_fixture;
+update public.admin_verified_sessions set last_activity=now()-interval '16 minutes';
+set local role authenticated;
+do $$ declare denied boolean:=false; begin
+  if public.is_catalogue_admin() then raise exception 'FAIL: idle session permitted.'; end if;
+  begin perform public.touch_admin_session(); exception when raise_exception then denied:=true; end;
+  if not denied then raise exception 'FAIL: expired session renewed without MFA.'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated','aal','aal2','session_id',session_id,
+  'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now())))))::text,true)
+from mfa_fixture;
+set local role authenticated;
+do $$ begin
+  if not public.is_catalogue_admin() or not public.touch_admin_session() then
+    raise exception 'FAIL: new MFA verification did not restore access.';
+  end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated','aal','aal2','session_id',session_id,
+  'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now()-interval '16 minutes')))))::text,true)
+from mfa_fixture;
+set local role authenticated;
+do $$ begin
+  if public.is_catalogue_admin() then raise exception 'FAIL: old token reused after new verification.'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','authenticated','aal','aal2','session_id',session_id,
+  'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now())))))::text,true)
+from mfa_fixture;
+delete from public.catalogue_admins where user_id=(select user_id from mfa_fixture);
+set local role authenticated;
+do $$ declare denied boolean:=false; begin
+  if public.is_catalogue_admin() then raise exception 'FAIL: removed admin permitted.'; end if;
+  begin perform public.touch_admin_session(); exception when raise_exception then denied:=true; end;
+  if not denied then raise exception 'FAIL: non-admin session renewed.'; end if;
+end $$;
+reset role;
+insert into public.catalogue_admins(user_id) select user_id from mfa_fixture;
+update public.admin_security_settings set locked=true;
+set local role authenticated;
+do $$ declare denied boolean:=false; begin
   if public.is_catalogue_admin() then raise exception 'FAIL: emergency lock bypassed.'; end if;
+  begin perform public.touch_admin_session(); exception when raise_exception then denied:=true; end;
+  if not denied then raise exception 'FAIL: locked session renewed.'; end if;
 end $$;
 reset role;
 update public.admin_security_settings set locked=false;
 update auth.mfa_factors set status='unverified' where id=(select factor_id from mfa_fixture);
 set local role authenticated;
-do $$ begin
+do $$ declare denied boolean:=false; begin
   if public.is_catalogue_admin() then raise exception 'FAIL: removed verification factor permitted.'; end if;
+  begin perform public.touch_admin_session(); exception when raise_exception then denied:=true; end;
+  if not denied then raise exception 'FAIL: session renewed with revoked factor.'; end if;
 end $$;
 reset role;
 update auth.mfa_factors set status='verified' where id=(select factor_id from mfa_fixture);
@@ -73,8 +147,10 @@ select set_config('request.jwt.claims',jsonb_build_object('sub',user_id,'role','
 from mfa_fixture;
 delete from auth.sessions where id=(select session_id from mfa_fixture);
 set local role authenticated;
-do $$ begin
+do $$ declare denied boolean:=false; begin
   if public.is_catalogue_admin() then raise exception 'FAIL: revoked session permitted.'; end if;
+  begin perform public.touch_admin_session(); exception when raise_exception then denied:=true; end;
+  if not denied then raise exception 'FAIL: revoked session renewed.'; end if;
 end $$;
 reset role;
 rollback;

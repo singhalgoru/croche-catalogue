@@ -298,6 +298,9 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('Internal review notes').fill('Paid trial discussion arranged');
   await page.getByLabel('Message to artisan (sent by email; not an internal note)').fill('Please share a link to your crochet portfolio.');
   await page.getByRole('button', { name: 'Save review' }).click();
+  const emailNotice = page.getByRole('dialog', { name: 'Email notification' });
+  await expect(emailNotice).toContainText('More information required email was queued');
+  await emailNotice.getByRole('button', { name: 'Close Email notification' }).click();
   await expect(page.getByText('Application changes saved.')).toBeVisible();
   expect(updates[0]).toMatchObject({ expected_version: 2, next_status: 'More information required',
     review_notes: 'Paid trial discussion arranged', applicant_message: 'Please share a link to your crochet portfolio.' });

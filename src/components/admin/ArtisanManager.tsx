@@ -6,6 +6,7 @@ import ArtisanInvitations from './ArtisanInvitations';
 import ArtisanProfile from './ArtisanProfile';
 import ArtisanPaymentDetails from './ArtisanPaymentDetails';
 import { paymentStatus, requestPaymentDetails } from '../../services/artisanPaymentDetails';
+import AdminDialog from './AdminDialog';
 
 function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
   application: ArtisanApplication; onClose: () => void; onChanged: () => void; onUpdated: (application: ArtisanApplication) => void;
@@ -19,7 +20,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
   const [historyKey, setHistoryKey] = useState(0);
   const [paymentKey, setPaymentKey] = useState(0);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [emailNotice, setEmailNotice] = useState<{ message: string; returnToList: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [identity, setIdentity] = useState<{ source: string; expiresAt: string } | null>(null);
@@ -100,7 +101,7 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
       onActivityChanged={() => setHistoryKey(value => value + 1)} />
     <ArtisanPaymentDetails id={application.id} refreshKey={paymentKey} />
     <form aria-label="Review artisan" className="space-y-3" onSubmit={event => {
-      event.preventDefault(); setBusy(true); setError(''); setNotice('');
+      event.preventDefault(); setBusy(true); setError('');
       void (async () => {
         if (status === 'Trial' && application.status !== 'Trial') {
           const payment = await paymentStatus(application.id);
@@ -112,12 +113,33 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
             if (!payment.requested) await requestPaymentDetails(application.id);
             setPaymentKey(value => value + 1);
             setHistoryKey(value => value + 1);
-            setNotice('Payment request queued or already active. Trial has not started; save the review after details are confirmed.');
+            setEmailNotice({
+              message: payment.requested
+                ? 'A payment-details request is already active. No new email was queued. Trial has not started; save the review after details are confirmed.'
+                : 'A payment-details email has been queued. Delivery is not yet confirmed. Trial has not started; save the review after details are confirmed.',
+              returnToList: false,
+            });
             return;
           }
         }
         await updateArtisanApplication(application, status, notes, applicantMessage);
-        onChanged();
+        const statusChanged = status !== application.status;
+        const informationChanged = status === 'More information required'
+          && applicantMessage.trim() !== (application.applicant_message ?? '');
+        const sendsStatusEmail = (statusChanged || informationChanged)
+          && (status === 'Approved' || status === 'Declined' || status === 'More information required');
+        if ((sendsStatusEmail || (statusChanged && status === 'Trial')) && application.contact_email) {
+          setEmailNotice({
+            message: status === 'Trial'
+              ? 'The review was saved. A Trial welcome email is queued only once per application; if already queued earlier, no new email is sent. Delivery is not confirmed here.'
+              : `The review was saved and the ${status} email was queued. Delivery is not yet confirmed.`,
+            returnToList: true,
+          });
+        } else if ((sendsStatusEmail || (statusChanged && status === 'Trial')) && !application.contact_email) {
+          setEmailNotice({ message: 'The review was saved, but no email was queued because this application has no email address.', returnToList: true });
+        } else {
+          onChanged();
+        }
       })()
         .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to save review.'))
         .finally(() => setBusy(false));
@@ -138,9 +160,15 @@ function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
         onChange={event => setNotes(event.target.value)} className="mt-1 block w-full rounded border p-2" /></label>
       <p className="text-xs">Record work-related decisions only. Do not enter bank details, identity documents or sensitive personal information.</p>
       {error && <p role="alert" className="text-red-700">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
       <button disabled={busy} className="min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-50">{busy ? 'Saving...' : 'Save review'}</button>
     </form>
+    {emailNotice && <AdminDialog title="Email notification" onClose={() => {
+      const returnToList = emailNotice.returnToList;
+      setEmailNotice(null);
+      if (returnToList) onChanged();
+    }}>
+      <p role="status" className="p-4 text-sm">{emailNotice.message}</p>
+    </AdminDialog>}
     <section aria-label="Application history" className="space-y-2">
       <h3 className="font-semibold">Review history</h3>
       {historyError ? <><p role="alert" className="text-red-700">{historyError}</p><button className="min-h-11 underline" onClick={() => { setHistoryError(''); setHistoryLoading(true); setHistoryKey(value => value + 1); }}>Retry history</button></>

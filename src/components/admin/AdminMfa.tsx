@@ -61,7 +61,7 @@ export default function AdminMfa({ onVerified, onSignOut }: Props) {
   return <main className="min-h-screen bg-cream px-4 py-12">
     <section aria-label="Admin verification" className="mx-auto max-w-md rounded-2xl border border-mustard/40 bg-white p-6 text-cocoa shadow-lg">
       <h1 className="font-heading text-2xl font-bold">Protect your admin account</h1>
-      <p className="mt-3 text-sm">Admin access requires an authenticator code, not just your password. Verification lasts 15 minutes; catalogue changes are blocked until you verify again.</p>
+      <p className="mt-3 text-sm">Admin access requires an authenticator code, not just your password. Verification stays active while you work and expires after 15 minutes of inactivity.</p>
       {!factorId && !busy && <div className="mt-4">
         <p className="text-sm">Set up Google Authenticator, Microsoft Authenticator or another TOTP app. Keep a secure backup in your authenticator app. If you lose access, recovery requires the trusted Supabase project administrator; resetting your password does not bypass verification.</p>
         <button type="button" onClick={() => void enroll()} className="mt-4 min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream">Set up authenticator</button>

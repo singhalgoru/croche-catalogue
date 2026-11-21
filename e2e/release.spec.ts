@@ -460,6 +460,44 @@ test('feedback page keeps its storefront navigation and back-to-top control', as
   await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 15_000 }).toBeLessThan(10);
 });
 
+test('admin verification renews only on throttled visible activity and reports failures', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-01-01T12:00:00Z'));
+  await installMockSupabase(page);
+  let touches = 0;
+  await page.route('**/rest/v1/rpc/touch_admin_session', async route => {
+    touches += 1;
+    if (touches === 3) await route.fulfill({ status: 500, json: { message: 'Activity service unavailable' } });
+    else await route.fulfill({ json: true });
+  });
+  await page.goto('./#admin');
+  await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
+  await page.getByLabel('Password', { exact: true }).fill('test-password');
+  const firstTouch = page.waitForResponse('**/rest/v1/rpc/touch_admin_session');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await firstTouch;
+  await expect(page.getByRole('heading', { name: 'Manage catalogue' })).toBeVisible();
+  await expect.poll(() => touches).toBe(1);
+  await page.getByRole('heading', { name: 'Manage catalogue' }).click();
+  expect(touches).toBe(1);
+  await page.clock.setFixedTime(new Date('2026-01-01T12:01:00Z'));
+  const secondTouch = page.waitForResponse('**/rest/v1/rpc/touch_admin_session');
+  await page.getByRole('heading', { name: 'Manage catalogue' }).click();
+  await secondTouch;
+  await expect.poll(() => touches).toBe(2);
+  await page.clock.setFixedTime(new Date('2026-01-01T12:02:00Z'));
+  await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }));
+  await page.getByRole('heading', { name: 'Manage catalogue' }).click();
+  await page.waitForTimeout(100);
+  expect(touches).toBe(2);
+  await page.evaluate(() => { Reflect.deleteProperty(document, 'visibilityState'); });
+  await page.getByRole('heading', { name: 'Manage catalogue' }).click();
+  const activityAlert = page.getByRole('alert').filter({ hasText: 'Unable to extend admin verification' });
+  await expect(activityAlert).toContainText('Activity service unavailable');
+  await page.getByRole('heading', { name: 'Manage catalogue' }).click();
+  await expect.poll(() => touches).toBe(4);
+  await expect(activityAlert).toHaveCount(0);
+});
+
 test('product labour overrides and optional sale allocations persist independently', async ({ page }) => {
   const state = await installMockSupabase(page);
   let pricing: Record<string, string | number | null> = { profit_margin_percent: null, gst_percent: 5, time_spent: 90, time_unit: 'minutes',

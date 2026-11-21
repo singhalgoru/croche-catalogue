@@ -68,6 +68,7 @@ export default function AdminPage({ onProductPublished }: Props) {
   const isAdmin =
     sessionUserId && adminCheck?.userId === sessionUserId ? adminCheck.isAdmin : null;
   const [authError, setAuthError] = useState<string | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const [accessRefresh, setAccessRefresh] = useState(0);
   const verified = adminCheck?.userId === sessionUserId && adminCheck?.verified === true;
 
@@ -80,6 +81,41 @@ export default function AdminPage({ onProductPublished }: Props) {
       else document.body.setAttribute('data-allow-media-save', previous);
     };
   }, [isAdmin, verified, adminCheck?.locked]);
+
+  useEffect(() => {
+    if (!supabase || !isAdmin || !verified || adminCheck?.locked) return;
+    const client = supabase;
+    let active = true;
+    let inFlight = false;
+    let lastAttempt = 0;
+    const touch = () => {
+      if (!active || inFlight || document.visibilityState !== 'visible' || Date.now() - lastAttempt < 30000) return;
+      inFlight = true;
+      lastAttempt = Date.now();
+      void (async () => {
+        try {
+          const { data, error } = await client.rpc('touch_admin_session');
+          if (!active) return;
+          if (error || data !== true) {
+            lastAttempt = 0;
+            setActivityError(`Unable to extend admin verification: ${error?.message ?? 'Invalid server response.'} Your session may require verification again.`);
+          } else setActivityError(null);
+        } catch (failure: unknown) {
+          if (!active) return;
+          lastAttempt = 0;
+          setActivityError(`Unable to extend admin verification: ${failure instanceof Error ? failure.message : 'Network error'}. Your session may require verification again.`);
+        } finally { inFlight = false; }
+      })();
+    };
+    const onActivity = (event: Event) => { if (event.isTrusted) touch(); };
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    for (const event of events) document.addEventListener(event, onActivity, { passive: true });
+    touch();
+    return () => {
+      active = false;
+      for (const event of events) document.removeEventListener(event, onActivity);
+    };
+  }, [isAdmin, verified, adminCheck?.locked, sessionUserId]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -262,6 +298,7 @@ export default function AdminPage({ onProductPublished }: Props) {
             {authError}
           </p>
         )}
+        {activityError && <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{activityError}</p>}
 
         <AdminWorkspace onSectionChange={section => {
           if (section === 'Financial snapshots') setSnapshotRefreshKey(current => current + 1);
