@@ -30,11 +30,11 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
   ], [sales, expenses, year]);
 
   return (
-    <section aria-label="Quarterly and yearly sales snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
+    <section aria-label="Sales snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
       <button type="button" aria-expanded={expanded} aria-controls={panelId}
         onClick={() => setExpanded(current => !current)}
         className="flex w-full items-center justify-between gap-3 text-left font-heading text-xl font-bold text-cocoa">
-        <span>Quarterly &amp; yearly snapshot</span>
+        <span>Sales snapshot</span>
         <span aria-hidden="true">{expanded ? '−' : '+'}</span>
       </button>
       <div id={panelId} hidden={!expanded}>

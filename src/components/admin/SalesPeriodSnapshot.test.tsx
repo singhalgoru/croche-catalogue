@@ -33,8 +33,8 @@ describe('SalesPeriodSnapshot', () => {
   });
   it('is collapsible and allows years with expenses alone', () => {
     render(<SalesPeriodSnapshot sales={[]} expenses={[expense]} available />);
-    expect(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' })).toHaveProperty('ariaExpanded', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' }));
+    expect(screen.getByRole('button', { name: 'Sales snapshot' })).toHaveProperty('ariaExpanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Sales snapshot' }));
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     expect(within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' })).getByText('-₹25')).toBeTruthy();
     const quarter = within(screen.getByRole('article', { name: 'Q1 · Jan–Mar 2025' }));
@@ -46,7 +46,7 @@ describe('SalesPeriodSnapshot', () => {
 
   it('updates the selected year snapshot when expense data changes', () => {
     const { rerender } = render(<SalesPeriodSnapshot sales={[]} expenses={[expense]} available />);
-    fireEvent.click(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sales snapshot' }));
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     rerender(<SalesPeriodSnapshot sales={[]} expenses={[{ ...expense, amount: 50 }]} available />);
     expect(within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' })).getByText('-₹50')).toBeTruthy();
@@ -57,7 +57,7 @@ describe('SalesPeriodSnapshot', () => {
 
   it('does not present zero totals while data is unavailable', () => {
     render(<SalesPeriodSnapshot sales={[]} expenses={[]} available={false} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Quarterly & yearly snapshot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sales snapshot' }));
     expect(screen.getByRole('status').textContent).toContain('Snapshot unavailable');
     expect(screen.queryByRole('article')).toBeNull();
   });

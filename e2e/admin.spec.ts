@@ -513,7 +513,7 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   expect(receiptData).toBe(Buffer.from('%PDF-example').toString('base64'));
   await expect(page.getByText(/Purchase value: ₹150.5/)).toBeVisible();
   await openFinancialSection(page, 'Financial snapshots');
-  for (const name of ['Quarterly & yearly snapshot', 'Artisan payment snapshot', 'Material purchase snapshot']) {
+  for (const name of ['Sales snapshot', 'Artisan payment snapshot', 'Material purchase snapshot']) {
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
   }
   await page.getByRole('button', { name: 'Material purchase snapshot' }).click();
@@ -534,7 +534,7 @@ test('shows material, labour and shipping costs in annual and quarterly snapshot
   await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
   await signIn(page);
   await openFinancialSection(page, 'Financial snapshots');
-  await page.getByRole('button', { name: 'Quarterly & yearly snapshot' }).click();
+  await page.getByRole('button', { name: 'Sales snapshot' }).click();
   await page.getByLabel('Snapshot year').selectOption('2026');
   for (const name of ['Year 2026 · Jan–Dec', 'Q1 · Jan–Mar 2026']) {
     const card = page.getByRole('article', { name, exact: true });
@@ -585,9 +585,9 @@ test('manages monthly business expenses and profit after overheads', async ({ pa
   await expect(page.getByText('Business expense saved.')).toBeVisible();
   const profit = page.getByRole('region', { name: 'Sales workspace' }).locator('article').filter({ has: page.getByText('Profit after business expenses', { exact: true }) });
   await expect(profit).toContainText('-₹251');
-  await expect(page.getByRole('button', { name: 'Quarterly & yearly snapshot' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sales snapshot' })).toHaveCount(0);
   await openFinancialSection(page, 'Financial snapshots');
-  await page.getByRole('button', { name: 'Quarterly & yearly snapshot' }).click();
+  await page.getByRole('button', { name: 'Sales snapshot' }).click();
   await page.getByLabel('Snapshot year').selectOption('2026');
   await expect(page.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('-₹251');
   await expect(page.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('-₹251');
