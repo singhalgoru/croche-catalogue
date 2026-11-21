@@ -83,6 +83,7 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
+  Financial snapshots include sales performance and recorded artisan payments.
   Paid orders can be shipped with Shiprocket or Delhivery after explicit courier
   approval, with sample courier-rate comparisons and warehouse pickup requests.
   Shadowfax support requires account setup and verification before use.

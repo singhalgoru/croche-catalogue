@@ -29,6 +29,13 @@ export interface ArtisanActivity {
   comments: ArtisanComment[];
   payments: ArtisanPayment[];
 }
+export interface ArtisanPaymentSummary {
+  artisanId: string;
+  name: string;
+  amount: number;
+  count: number;
+  latestDate: string;
+}
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -63,6 +70,20 @@ export async function fetchArtisanActivity(id: string): Promise<ArtisanActivity>
       && (row.voided_at === null || typeof row.voided_at === 'string')
       && (row.void_reason === null || typeof row.void_reason === 'string'))) throw new Error('Invalid artisan activity response.');
   return { comments: data.comments, payments: data.payments };
+}
+export async function fetchArtisanPaymentSummary(month: string): Promise<ArtisanPaymentSummary[]> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month.startsWith('0000-')) {
+    throw new Error('Choose a valid payment month.');
+  }
+  const data = await rpc('artisan_payment_summary', { payment_month: `${month}-01` });
+  if (!Array.isArray(data) || !data.every((row): row is ArtisanPaymentSummary =>
+    record(row) && typeof row.artisanId === 'string' && typeof row.name === 'string'
+    && typeof row.amount === 'number' && Number.isFinite(row.amount) && row.amount > 0
+    && typeof row.count === 'number' && Number.isSafeInteger(row.count) && row.count > 0
+    && typeof row.latestDate === 'string' && row.latestDate.startsWith(`${month}-`))) {
+    throw new Error('Invalid artisan payment summary response.');
+  }
+  return data;
 }
 export async function addArtisanComment(id: string, requestId: string, body: string): Promise<void> {
   if (!body.trim() || body.trim().length > 3000) throw new Error('Enter a comment up to 3,000 characters.');

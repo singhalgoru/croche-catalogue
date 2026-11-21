@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchSellerSales, type SellerSale } from '../../services/sellerSales';
 import { fetchBusinessExpenses, type BusinessExpense } from '../../services/businessExpenses';
 import SalesPeriodSnapshot from './SalesPeriodSnapshot';
+import ArtisanPaymentSnapshot from './ArtisanPaymentSnapshot';
 
 export default function SalesSnapshotWorkspace({ refreshKey }: { refreshKey: number }) {
   const [sales, setSales] = useState<SellerSale[]>([]);
@@ -40,6 +41,7 @@ export default function SalesSnapshotWorkspace({ refreshKey }: { refreshKey: num
       </div>
       {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       <SalesPeriodSnapshot sales={sales} expenses={expenses} available={available} initiallyExpanded />
+      <ArtisanPaymentSnapshot refreshKey={refreshKey} />
     </div>
   );
 }

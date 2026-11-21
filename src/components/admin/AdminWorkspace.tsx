@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 
-const sections = ['Products', 'Orders', 'Customers', 'Customer Love', 'Artisans', 'Sales', 'Snapshots', 'Marketing', 'Settings'] as const;
+const sections = ['Products', 'Orders', 'Customers', 'Customer Love', 'Artisans', 'Sales', 'Financial snapshots', 'Marketing', 'Settings'] as const;
 type Section = typeof sections[number];
 
 export default function AdminWorkspace({ children, onSectionChange, initialSection = 'Products' }: {

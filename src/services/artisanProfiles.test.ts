@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { addArtisanComment, fetchArtisanActivity, readArtisanPhoto, recordArtisanPayment, saveArtisanSkills, voidArtisanPayment } from './artisanProfiles';
+import { addArtisanComment, fetchArtisanActivity, fetchArtisanPaymentSummary, readArtisanPhoto, recordArtisanPayment, saveArtisanSkills, voidArtisanPayment } from './artisanProfiles';
 import { emptyArtisanDetails } from './artisans';
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
@@ -43,4 +43,13 @@ it('validates activity, photo and save receipts instead of accepting malformed s
   await expect(addArtisanComment('artisan', 'request', 'Work feedback')).rejects.toThrow('could not be confirmed');
   rpc.mockResolvedValueOnce({ error: { message: 'Verified admin access required' } });
   await expect(fetchArtisanActivity('artisan')).rejects.toThrow('Verified admin');
+});
+it('loads a monthly payment summary and rejects malformed data or dates', async () => {
+  const rows = [{ artisanId: 'artisan', name: 'Maker', amount: 125.5, count: 2, latestDate: '2026-10-30' }];
+  rpc.mockResolvedValueOnce({ data: rows });
+  expect(await fetchArtisanPaymentSummary('2026-10')).toEqual(rows);
+  expect(rpc).toHaveBeenCalledWith('artisan_payment_summary', { payment_month: '2026-10-01' });
+  rpc.mockResolvedValueOnce({ data: [{ ...rows[0], latestDate: '2026-11-01' }] });
+  await expect(fetchArtisanPaymentSummary('2026-10')).rejects.toThrow('Invalid artisan payment summary');
+  await expect(fetchArtisanPaymentSummary('2026-13')).rejects.toThrow('valid payment month');
 });

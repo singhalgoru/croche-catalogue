@@ -264,7 +264,7 @@ export default function AdminPage({ onProductPublished }: Props) {
         )}
 
         <AdminWorkspace onSectionChange={section => {
-          if (section === 'Snapshots') setSnapshotRefreshKey(current => current + 1);
+          if (section === 'Financial snapshots') setSnapshotRefreshKey(current => current + 1);
           if (section === 'Artisans') setArtisansOpened(true);
           if (section === 'Customer Love') setCustomerLoveOpened(true);
           if (section === 'Marketing') setMarketingOpened(true);
@@ -280,7 +280,7 @@ export default function AdminPage({ onProductPublished }: Props) {
           'Customer Love': customerLoveOpened ? <CustomerLoveManager /> : null,
           Artisans: artisansOpened ? <ArtisanManager /> : null,
           Sales: <SellerSalesDashboard refreshKey={productRefreshKey + pricingRefreshKey} onSalesChanged={() => setSalesRefreshKey(current => current + 1)} />,
-          Snapshots: <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
+          'Financial snapshots': <SalesSnapshotWorkspace refreshKey={snapshotRefreshKey} />,
           Marketing: marketingOpened ? <MarketingDashboard /> : null,
           Settings: <>
             <IntegrationSettings />

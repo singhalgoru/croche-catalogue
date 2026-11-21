@@ -104,7 +104,7 @@ export default function CustomerLovePreview() {
           Orders: <p>Orders are not connected in this isolated demo.</p>, Customers: <p>Customer accounts are not connected in this demo.</p>,
           'Customer Love': <CustomerLoveManager repository={repository} products={products} />,
           Artisans: <p>Artisans are not connected in this isolated demo.</p>, Sales: <p>Sales are not connected in this demo.</p>,
-          Snapshots: <p>Snapshots are not connected in this demo.</p>, Marketing: <p>Marketing is not connected in this isolated demo.</p>,
+          'Financial snapshots': <p>Snapshots are not connected in this demo.</p>, Marketing: <p>Marketing is not connected in this isolated demo.</p>,
           Settings: <p>Settings are not connected in this demo.</p>,
         }}</AdminWorkspace>
       </> : <>
