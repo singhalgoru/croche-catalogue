@@ -22,7 +22,7 @@ const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search prod
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 export const renderSiteHeader = () => `<a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-160.webp" width="48" height="48" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation()}</nav></header>`;
 const renderMobileNavigation = pathname => `<nav class="static-mobile-navigation" aria-label="Mobile navigation"><a href="/">Home</a><a href="/collections/"${pathname.startsWith('/collections/') ? ' aria-current="page"' : ''}>Collections</a><a href="/?checkout=cart">Cart</a><a href="/?account=orders">Account</a><a href="#store-links">More</a></nav>`;
-export const renderSiteFooter = () => `<footer><nav aria-label="Footer navigation">${navigation()}<a href="/return-policy/">Return and refund policy</a></nav><p>Handmade crochet accessories, toys, gifts and decor, crafted with love in India.</p><p>Gurugram, Haryana, India</p><section aria-label="Payment methods"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px"><span>We accept</span><img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy"><img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy"><img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy"><img src="/images/payments/amex.png" alt="American Express" width="50" height="50" loading="lazy"><img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy"><span style="display:inline-flex;align-items:center;gap:8px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8"/><path d="M20 12h-5a2 2 0 0 0 0 4h5z"/></svg>Wallet</span></div><p class="note">Secure payments via Razorpay. Available payment methods are shown at checkout.</p></section><p>Orders: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a> · General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p></footer>`;
+export const renderSiteFooter = () => `<footer><nav aria-label="Footer navigation">${navigation()}</nav><p>Handmade crochet accessories, toys, gifts and decor, crafted with love in India.</p><p>Gurugram, Haryana, India</p><section aria-label="Payment methods"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px"><span>We accept</span><img src="/images/payments/upi.svg" alt="UPI" width="68" height="24" loading="lazy"><img src="/images/payments/visa.svg" alt="Visa" width="64" height="27" loading="lazy"><img src="/images/payments/mastercard.svg" alt="Mastercard" width="58" height="36" loading="lazy"><img src="/images/payments/amex.png" alt="American Express" width="50" height="50" loading="lazy"><img src="/images/payments/rupay.svg" alt="RuPay" width="68" height="18" loading="lazy"><span style="display:inline-flex;align-items:center;gap:8px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 8H5a2 2 0 0 1 0-4h13v4M3 6v13a2 2 0 0 0 2 2h15V8"/><path d="M20 12h-5a2 2 0 0 0 0 4h5z"/></svg>Wallet</span></div><p class="note">Secure payments via Razorpay. Available payment methods are shown at checkout.</p></section><p>Orders: <a href="mailto:orders@luviacreations.com">orders@luviacreations.com</a> · General enquiries: <a href="mailto:hello@luviacreations.com">hello@luviacreations.com</a></p></footer>`;
 const page = (pathname, title, description, body, schema, socialImage = `${ORIGIN}/images/luvia-logo.jpg`) => {
   const metaTitle = getBoundedMetaTitle(title);
   return `<!doctype html>
@@ -280,10 +280,10 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     baseSchema('WebPage', '/faq/', faqTitle, faqDescription)));
   for (const policy of policies) {
     const body = `<article><div class="budget-intro"><p class="budget-eyebrow">Clear details, considered care</p>
-      <p class="intro">${escapeHtml(policy.description)}</p><p class="policy-updated">Last updated: ${escapeHtml(policy.updated)}</p></div>
+      <p class="intro">${escapeHtml(policy.description)}</p><p class="policy-updated">${escapeHtml(policy.dateLabel ?? 'Last updated')}: ${escapeHtml(policy.updated)}</p></div>
       <div class="policy-layout"><nav class="policy-toc" aria-label="On this page"><h2>On this page</h2>
-      ${policy.sections.map((section, index) => `<a href="#policy-section-${index + 1}">${escapeHtml(section.title)}</a>`).join('')}</nav><div>`
-      + policy.sections.map((section, index) => `<section class="policy-section" id="policy-section-${index + 1}"><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p>${section.link
+      ${policy.sections.map((section, index) => `<a href="#${escapeHtml(section.id ?? `policy-section-${index + 1}`)}">${escapeHtml(section.title)}</a>`).join('')}</nav><div>`
+      + policy.sections.map((section, index) => `<section class="policy-section" id="${escapeHtml(section.id ?? `policy-section-${index + 1}`)}"><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.text)}</p>${section.link
         ? `<p><a href="${escapeHtml(section.link.href)}">${escapeHtml(section.link.label)}</a></p>` : ''}</section>`).join('')
       + '</div></div><nav class="article-related" aria-label="Related policies">'
       + policies.filter(item => item.path !== policy.path).map(item => `<a href="${item.path}">${escapeHtml(item.title)}</a>`).join('')
@@ -301,13 +301,19 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p class="note">With JavaScript enabled, use our enquiry form to prepare a personalised email draft. Review and send it from your email app; preparing a draft does not send it automatically.</p></section>`,
     baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description)));
   pages.set(internationalQuote.path, page(internationalQuote.path, internationalQuote.title, internationalQuote.description,
-    `<section class="intro"><p>${escapeHtml(internationalQuote.description)}</p><p>${escapeHtml(internationalQuote.notice)}</p>
-    <h2>Products and quantities</h2><p>Enable JavaScript to select multiple products and quantities and prepare your request. You can also email the product names, links and quantities directly to Luvia.</p>
-    <ul>${products.map(product => `<li><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></li>`).join('')}</ul>
-    <h2>Contact and delivery destination</h2><p>Include your name, reply email, country, city, state / province / region (where applicable), ZIP / postal code (or N/A), and optionally your street address and phone / WhatsApp number with country code.</p>
+    `<section class="budget-intro"><p class="budget-eyebrow">International orders · Request a quote</p>
+    <p class="intro">${escapeHtml(internationalQuote.description)}</p><p>${escapeHtml(internationalQuote.notice)}</p>
+    <ol><li>Choose products and quantities</li><li>Share your destination</li><li>Review and send your request</li></ol></section>
+    <section class="intro"><h2>1. Choose products and quantities</h2>
+    <p>Only published catalogue products can be quoted. With JavaScript enabled, search and select multiple products; otherwise, browse by collection and email us the product links and quantities.</p>
+    ${[...new Set(products.map(product => product.category))].sort((a, b) => a.localeCompare(b)).map(category =>
+      `<section><h3>${escapeHtml(category)}</h3><ul>${products.filter(product => product.category === category)
+        .sort((a, b) => a.name.localeCompare(b.name)).map(product =>
+          `<li><a href="/p/${toProductSlug(product)}/">${escapeHtml(product.name)}</a></li>`).join('')}</ul></section>`).join('')}
+    <h2>2. Contact and delivery destination</h2><p>Share your name, reply email, country, city and ZIP / postal code. If your destination has no postal code, enter N/A. A state or province is needed only where applicable.</p>
     <p><a class="button" href="mailto:${internationalQuote.email}?subject=${encodeURIComponent(internationalQuote.subject)}">Email Luvia</a>
     <a class="button" href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent('Hello Luvia, I would like an international order quote. I will share product names and quantities, my name, email, country, city, state and postal code.')}">Contact Luvia on WhatsApp</a></p>
-    <h2>Shipping, customs and quote terms</h2><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></section>`,
+    <h2>3. Shipping, customs and quote terms</h2><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></section>`,
     baseSchema('WebPage', internationalQuote.path, internationalQuote.title, internationalQuote.description)));
   pages.set(artisanOnboarding.path, page(artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description,
     `<section class="intro"><p>${escapeHtml(artisanOnboarding.description)}</p><p>${escapeHtml(artisanOnboarding.notice)}</p>

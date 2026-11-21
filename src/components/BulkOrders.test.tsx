@@ -20,6 +20,7 @@ it('keeps the homepage invitation compact with a single dedicated-page link', ()
 
 it('keeps direct email and prefilled WhatsApp enquiries on the dedicated page', () => {
   render(<BulkOrders presentation="page" />);
+  expect(screen.getByRole('region', { name: 'Bulk order pricing FAQs' })).toBeTruthy();
   const email = screen.getByRole('link', { name: bulkOrders.email });
   const emailUrl = new URL(email.getAttribute('href')!);
   expect(emailUrl.pathname).toBe('bulkorder@luviacreations.com');
@@ -39,6 +40,15 @@ it('keeps direct email and prefilled WhatsApp enquiries on the dedicated page', 
   expect(trackContactClick).toHaveBeenCalledWith('email', 'bulk_orders');
   expect(trackContactClick).toHaveBeenCalledWith('whatsapp', 'bulk_orders');
   expect(screen.getByRole('form', { name: 'Bulk order email enquiry' })).toBeTruthy();
+});
+
+it('explains that bulk discounts are quoted individually without promising a fixed discount', () => {
+  render(<BulkOrders presentation="page" />);
+  const question = screen.getByText('Do you offer discounts on bulk orders?');
+  fireEvent.click(question);
+  expect(screen.getByText(/Bulk orders are quoted individually/)).toBeTruthy();
+  expect(screen.getByText(/If a discount is available, we will include it in your quote/)).toBeTruthy();
+  expect(screen.queryByText(/Get \d+% off/)).toBeNull();
 });
 
 it('prepares a branded email from the form without sending automatically and clears stale drafts on edits', () => {

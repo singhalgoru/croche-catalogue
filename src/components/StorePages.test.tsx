@@ -336,16 +336,25 @@ describe('live store pages', () => {
   it.each([
     ['/terms-and-conditions/', 'Terms & Conditions', 'Prices and payment'],
     ['/privacy-policy/', 'Privacy Policy', 'Your choices and requests'],
+    ['/return-policy/', 'Return and Refund Policy', 'Which items can be returned?'],
   ])('renders a dedicated policy at %s without collection content', (path, title, section) => {
     window.history.replaceState(null, '', path);
+    expect(isStorePage()).toBe(true);
     render(<StorePages {...initial} />);
     expect(screen.getByRole('heading', { name: title, level: 1 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: section })).toBeTruthy();
-    expect(screen.getByText(`Last updated: ${path === '/privacy-policy/' ? '7 November' : '31 October'} 2026`)).toBeTruthy();
+    const updated = path === '/privacy-policy/' ? 'Last updated: 7 November 2026'
+      : path === '/return-policy/' ? 'Effective date: 10 October 2026' : 'Last updated: 31 October 2026';
+    expect(screen.getByText(updated)).toBeTruthy();
     if (path === '/privacy-policy/') {
       expect(screen.getByText(/latest eight submitted search keywords/)).toBeTruthy();
     }
-    expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href')).toBe('/return-policy/');
+    if (path === '/return-policy/') {
+      expect(screen.getByRole('link', { name: 'Order cancellation' }).getAttribute('href')).toBe('#cancellation');
+      expect(screen.getByRole('link', { name: 'orders@luviacreations.com' }).getAttribute('href')).toBe('mailto:orders@luviacreations.com');
+    } else {
+      expect(screen.getByRole('link', { name: 'Return and Refund Policy' }).getAttribute('href')).toBe('/return-policy/');
+    }
     expect(screen.queryByText('Find your favourites by collection, then open a product for photos and details.')).toBeNull();
   });
   it('offers a public deletion request without requiring sign-in and explains retained records', () => {

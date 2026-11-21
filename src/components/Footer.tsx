@@ -1,11 +1,12 @@
 import { useId, useState } from 'react';
 import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
-import { InstagramIcon, WhatsAppIcon } from './SocialIcons';
+import { FacebookIcon, InstagramIcon, WhatsAppIcon } from './SocialIcons';
 import BulkOrders from './BulkOrders';
 
 const INSTAGRAM_URL =
   'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
+const FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61596614701476';
 
 interface Props {
   showCollaboration?: boolean;
@@ -62,7 +63,9 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
         </button>
         <div id={informationId} className={`${informationOpen ? 'grid' : 'hidden'} gap-7 pb-6 pt-3 md:grid md:grid-cols-2 md:gap-6 md:pb-4 md:pt-0 lg:grid-cols-[0.8fr_1.5fr_1.1fr]`}>
         <div className="hidden md:col-span-2 md:block lg:col-span-1">
-        <p className="font-heading text-2xl font-semibold text-mustard">Luvia Creations</p>
+        <a href="/" aria-label="Luvia Creations home" className="inline-flex min-h-11 items-center">
+          <img src="/images/luvia-logo-160.webp" alt="" width="72" height="72" loading="lazy" className="h-16 w-16 rounded-full" />
+        </a>
         <p className="mt-2 max-w-sm leading-relaxed text-cream/80">
           Premium handmade crochet accessories, toys, gifts and decor,
           thoughtfully crafted in India.
@@ -98,10 +101,10 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
             rel="noopener noreferrer"
             onClick={() => trackContactClick('whatsapp', 'footer')}
             aria-label="Contact on WhatsApp"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#25D366] px-3 sm:px-5 py-2 font-semibold text-cocoa transition-colors hover:bg-[#1ebe5d] md:px-3"
+            title="WhatsApp"
+            className="inline-flex min-h-11 w-11 items-center justify-center rounded-full bg-[#25D366] p-2 text-cocoa transition-colors hover:bg-[#1ebe5d]"
           >
             <WhatsAppIcon />
-            <span>WhatsApp</span>
           </a>
           <a
             href={INSTAGRAM_URL}
@@ -109,10 +112,21 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
             rel="noopener noreferrer"
             onClick={() => trackContactClick('instagram', 'footer')}
             aria-label="Contact on Instagram"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] px-3 sm:px-5 py-2 font-semibold text-white transition-opacity hover:opacity-90 md:px-3"
+            title="Instagram"
+            className="inline-flex min-h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] p-2 text-white transition-opacity hover:opacity-90"
           >
             <InstagramIcon />
-            <span>Instagram</span>
+          </a>
+          <a
+            href={FACEBOOK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackContactClick('facebook', 'footer')}
+            aria-label="Follow Luvia on Facebook"
+            title="Facebook"
+            className="inline-flex min-h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] p-2 text-white transition-opacity hover:opacity-90"
+          >
+            <FacebookIcon />
           </a>
         </div>
         <p className="mt-2 text-xs">

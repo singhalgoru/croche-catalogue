@@ -777,7 +777,7 @@ describe('interactive product page generation', () => {
 });
 
 describe('renderSitemap', () => {
-  const xml = renderSitemap([product], '2026-09-30');
+  const xml = renderSitemap([product], '2026-09-30', ['/return-policy/']);
 
   it('lists the homepage, return policy and every product page', () => {
     expect(xml).toContain('<loc>https://luviacreations.com/</loc>');
@@ -788,7 +788,7 @@ describe('renderSitemap', () => {
 
   it('reflects newly published products on the next build', () => {
     const nextProduct = { ...product, id: 'new-product-id', name: 'Crochet Bunny' };
-    const updated = renderSitemap([product, nextProduct], '2026-10-01');
+    const updated = renderSitemap([product, nextProduct], '2026-10-01', ['/return-policy/']);
 
     expect(updated.match(/<url>/g)).toHaveLength(4);
     expect(updated).toContain(`<loc>https://luviacreations.com/p/${prerenderSlug(nextProduct)}/</loc>`);
@@ -796,7 +796,7 @@ describe('renderSitemap', () => {
   });
 
   it('removes unpublished products and retains permanent pages if the catalogue is empty', () => {
-    const empty = renderSitemap([], '2026-10-01');
+    const empty = renderSitemap([], '2026-10-01', ['/return-policy/']);
     expect(empty.match(/<url>/g)).toHaveLength(2);
     expect(empty).not.toContain('/p/');
   });
@@ -810,7 +810,7 @@ describe('renderSitemap', () => {
     expect(edited.updatedAt).toBe('2026-10-03T12:00:00Z');
     for (const buildDate of ['2026-10-04', '2026-10-05']) {
       const sitemap = renderSitemap([edited], buildDate);
-      const entry = sitemap.split('<url>')[3];
+      const entry = sitemap.split('<url>')[2];
       expect(entry).toContain('<lastmod>2026-10-03</lastmod>');
       expect(entry).not.toContain(`<lastmod>${buildDate}</lastmod>`);
       expect(entry).not.toContain('<lastmod>2026-01-01</lastmod>');
@@ -828,7 +828,7 @@ describe('renderSitemap', () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const sitemap = renderSitemap([{ ...product, updatedAt: null, publishedAt: null }], '2026-10-05');
-      expect(sitemap.split('<url>')[3]).not.toContain('<lastmod>');
+      expect(sitemap.split('<url>')[2]).not.toContain('<lastmod>');
       expect(warning).toHaveBeenCalledWith(expect.stringContaining('no valid modification or publication date'));
     } finally {
       warning.mockRestore();
@@ -845,7 +845,7 @@ describe('renderSitemap', () => {
     const sitemap = renderSitemap([{ ...product, image: photo, variants: product.variants.map(variant =>
       ({ ...variant, image: photo, images: [angle, photo] })) }], '2026-10-05');
     expect(sitemap).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
-    const entry = sitemap.split('<url>')[3];
+    const entry = sitemap.split('<url>')[2];
     expect(entry.match(/<image:loc>/g)).toHaveLength(2);
     expect(entry).toContain('<image:loc>https://images.luviacreations.com/products/rose/main-w960.webp</image:loc>');
     expect(entry).toContain('<image:loc>https://images.luviacreations.com/products/rose/angle-w960.webp</image:loc>');

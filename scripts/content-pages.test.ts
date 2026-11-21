@@ -254,8 +254,8 @@ describe('collection and information pages', () => {
     expect(llms).toContain('https://luviacreations.com/about/');
     expect(llms).toContain('Tanushree Mithal');
   });
-  it('provides matching social previews on the standalone return policy without changing indexing', () => {
-    const doc = new JSDOM(readFileSync(resolve('public', 'return-policy', 'index.html'), 'utf8')).window.document;
+  it('prerenders the return policy with matching social previews and the standard site layout', () => {
+    const doc = documentFor('/return-policy/');
     const content = (selector: string) => doc.querySelector(selector)?.getAttribute('content');
     expect(content('meta[property="og:type"]')).toBe('website');
     expect(content('meta[property="og:title"]')).toBe(doc.title);
@@ -267,8 +267,11 @@ describe('collection and information pages', () => {
       expect(doc.querySelectorAll(`meta[name="twitter:${field}"]`)).toHaveLength(1);
       expect(content(`meta[name="twitter:${field}"]`)).toBe(content(`meta[property="og:${field}"]`));
     }
-    expect(content('meta[name="robots"]')).toBe('index, follow');
+    expect([undefined, 'index, follow']).toContain(content('meta[name="robots"]'));
     expect(doc.querySelectorAll('h1')).toHaveLength(1);
+    expect(doc.querySelector('header nav[aria-label="Main navigation"] a[href="/return-policy/"]')).toBeTruthy();
+    expect(doc.querySelector('footer nav[aria-label="Footer navigation"] a[href="/return-policy/"]')).toBeTruthy();
+    expect(doc.getElementById('cancellation')).toBeTruthy();
   });
   it('marks video products above the photo watermark in prerendered cards only', () => {
     const withVideo = { ...toy, makingVideo: { title: 'Making Bunny' } };
@@ -455,7 +458,7 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/how-to-style-crochet-gajra/', '/handmade-gifts-by-budget/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/how-to-style-crochet-gajra/', '/handmade-gifts-by-budget/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/return-policy/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
@@ -557,13 +560,13 @@ describe('collection and information pages', () => {
     const xml = new JSDOM(readFileSync(resolve('public', 'sitemap.xml'), 'utf8'), { contentType: 'text/xml' }).window.document;
     const urls = [...xml.querySelectorAll('url > loc')].map(node => node.textContent);
     const expected = ['/', '/about/', '/collections/', '/bestsellers/', '/featured/', '/faq/', '/bulk-orders/',
-      '/terms-and-conditions/', '/privacy-policy/', '/return-policy/'];
+      '/international-quote/', '/terms-and-conditions/', '/privacy-policy/', '/return-policy/'];
     expect(new Set(urls).size).toBe(urls.length);
     const llms = readFileSync(resolve('public', 'llms.txt'), 'utf8');
     for (const pathname of expected) {
       expect(urls).toContain(`https://luviacreations.com${pathname}`);
       expect(llms).toContain(`](https://luviacreations.com${pathname})`);
-      if (pathname !== '/' && pathname !== '/return-policy/') expect(pages.has(pathname)).toBe(true);
+      if (pathname !== '/') expect(pages.has(pathname)).toBe(true);
     }
     for (const url of urls) {
       expect(new URL(url!).search).toBe('');
@@ -572,6 +575,8 @@ describe('collection and information pages', () => {
     }
     expect(llms).toContain('https://luviacreations.com/#collaborate');
     expect(llms).not.toContain('https://luviacreations.com/artisans/');
+    expect(llms).toContain('gajras, scrunchies, headbands');
+    expect(llms).toContain('https://www.facebook.com/profile.php?id=61596614701476');
   });
 
   it('adds all public content URLs to the sitemap without indexing query filters', () => {

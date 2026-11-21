@@ -56,9 +56,22 @@ describe('Footer', () => {
     const nav = screen.getByRole('navigation', { name: 'Store information' });
     expect(nav.className).toContain('grid-cols-2');
     expect(nav.contains(screen.getByRole('link', { name: 'Return and refund policy' }))).toBe(true);
-    for (const name of ['Contact on WhatsApp', 'Contact on Instagram', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
+    for (const name of ['Contact on WhatsApp', 'Contact on Instagram', 'Follow Luvia on Facebook', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
       expect(screen.getByRole('link', { name }).className).toContain('min-h-11');
     }
+  });
+  it('uses the brand logo and compact social links in the footer', () => {
+    render(<Footer />);
+    const logo = screen.getByRole('link', { name: 'Luvia Creations home' });
+    expect(logo.querySelector('img')?.getAttribute('src')).toBe('/images/luvia-logo-160.webp');
+    expect(screen.queryByText('Luvia Creations', { selector: 'p.font-heading' })).toBeNull();
+    const facebook = screen.getByRole('link', { name: 'Follow Luvia on Facebook' });
+    expect(facebook.getAttribute('href')).toBe('https://www.facebook.com/profile.php?id=61596614701476');
+    expect(facebook.getAttribute('target')).toBe('_blank');
+    expect(facebook.getAttribute('rel')).toBe('noopener noreferrer');
+    facebook.addEventListener('click', event => event.preventDefault());
+    fireEvent.click(facebook);
+    expect(trackContactClick).toHaveBeenCalledWith('facebook', 'footer');
   });
   it('links to the published return policy', () => {
     render(<Footer />);

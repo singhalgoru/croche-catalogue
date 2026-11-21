@@ -5,10 +5,12 @@ import type { Product } from '../types/product';
 import { buildInternationalQuote, type InternationalQuoteDetails } from '../utils/internationalQuote';
 import { trackContactClick, trackEvent } from '../services/analytics';
 
-vi.mock('../services/analytics', () => ({ trackContactClick: vi.fn(), trackEvent: vi.fn() }));
+vi.mock('../services/analytics', () => ({
+  trackContactClick: vi.fn(), trackEvent: vi.fn(), trackProductViewed: vi.fn(), trackWhatsAppEnquiry: vi.fn(),
+}));
 const products: Product[] = [
-  { id: 'p1', publicSlug: 'bunny', name: 'Bunny & friend', category: 'Toys', price: 500, description: '', color: '', image: '', inStock: true, variants: [] },
-  { id: 'p2', publicSlug: 'clip', name: 'Rose Clip', category: 'Hair', price: null, description: '', color: '', image: '', inStock: false, variants: [], minimumOrderQuantity: 3 },
+  { id: 'p1', publicSlug: 'bunny', name: 'Bunny & friend', category: 'Toys', price: 500, description: '', color: '', image: '/bunny.webp', inStock: true, variants: [] },
+  { id: 'p2', publicSlug: 'clip', name: 'Rose Clip', category: 'Hair', price: null, description: '', color: '', image: '/clip.webp', inStock: false, variants: [], minimumOrderQuantity: 3 },
 ];
 const details: InternationalQuoteDetails = {
   name: ' Asha ', email: 'asha@example.test', phone: '', country: 'United Kingdom', city: 'London',
@@ -18,8 +20,8 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(nul
 
 function fillDetails() {
   for (const [label, value] of [
-    ['Your name', details.name], ['Reply email', details.email], ['Country', details.country],
-    ['City', details.city], ['ZIP / postal code', details.postalCode],
+    [/Your name/, details.name], [/Reply email/, details.email], [/Country/, details.country],
+    [/City/, details.city], [/ZIP \/ postal code/, details.postalCode],
     ['Colours, customisation, delivery date or other notes (optional)', details.notes],
   ]) fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
@@ -57,7 +59,7 @@ it('preselects a linked product and prepares matching email/WhatsApp drafts with
   expect(trackContactClick).toHaveBeenCalledWith('email', 'international_quote');
   expect(trackContactClick).toHaveBeenCalledWith('whatsapp', 'international_quote');
   vi.mocked(trackEvent).mockClear();
-  fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Oxford' } });
+  fireEvent.change(screen.getByLabelText(/City/), { target: { value: 'Oxford' } });
   expect(screen.queryByRole('link', { name: 'Send via email' })).toBeNull();
   expect(trackEvent).not.toHaveBeenCalled();
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
@@ -90,6 +92,29 @@ it('disables submission during catalogue loading/errors and provides a contact f
   view.rerender(<InternationalQuote products={[]} isLoading={false} loadError={null} />);
   expect(screen.getByRole('status').textContent).toContain('No products');
   expect(screen.getByRole('link', { name: 'orders@luviacreations.com' }).getAttribute('href')).toBe('mailto:orders@luviacreations.com');
+});
+
+it('filters and groups published products and lets customers refresh after publishing', () => {
+  const refresh = vi.fn(() => Promise.resolve());
+  render(<InternationalQuote products={products} isLoading={false} loadError={null} onRefresh={refresh} />);
+  expect(screen.getByText(/2 published products available/)).toBeTruthy();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Find a product' }), { target: { value: 'Hair' } });
+  const product = screen.getByLabelText('Product 1') as HTMLSelectElement;
+  expect(within(product).getByRole('option', { name: 'Rose Clip' })).toBeTruthy();
+  expect(within(product).queryByRole('option', { name: 'Bunny & friend' })).toBeNull();
+  expect(product.querySelector('optgroup[label="Hair"]')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh product list' }));
+  expect(refresh).toHaveBeenCalledOnce();
+});
+
+it('opens a product quick look without losing the quote selection', async () => {
+  render(<InternationalQuote products={products} isLoading={false} loadError={null} />);
+  fireEvent.change(screen.getByLabelText('Product 1'), { target: { value: 'p1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Quick look at Bunny & friend' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Bunny & friend' });
+  expect(dialog).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close product details' }));
+  expect((screen.getByLabelText('Product 1') as HTMLSelectElement).value).toBe('p1');
 });
 
 it('validates whole quantities, minimum quantities, duplicate/stale selections and whitespace/email at the message boundary', () => {

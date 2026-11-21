@@ -53,6 +53,17 @@ export default function BulkOrders({ presentation = 'section' }: { presentation?
         <h2 id="bulk-orders-heading" className="mt-2 font-heading text-2xl font-bold sm:text-3xl">Handmade gifts for teams, clients &amp; celebrations</h2>
         <p className="mt-3 max-w-3xl text-sm sm:text-base">{bulkOrders.description}</p>
         <p className="mt-3 text-sm">Share your quantity, budget, occasion and required delivery date to help us plan your enquiry.</p>
+        <section aria-labelledby="bulk-orders-faq-heading" className="mt-6">
+          <h3 id="bulk-orders-faq-heading" className="font-heading text-xl font-bold">Bulk order pricing FAQs</h3>
+          <div className="mt-3 divide-y divide-cocoa/15 rounded-xl border border-cocoa/15 bg-white px-4">
+            {bulkOrders.faqs.map(faq => (
+              <details key={faq.question} className="py-3">
+                <summary className="cursor-pointer font-semibold">{faq.question}</summary>
+                <p className="mt-2 text-sm leading-relaxed">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button type="button" aria-expanded={formOpen} aria-controls="bulk-order-form"
             onClick={() => setFormOpen(open => !open)}

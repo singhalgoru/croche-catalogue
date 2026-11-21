@@ -753,7 +753,6 @@ const renderSitemap = (products, today, additionalPaths = []) => {
 
   const urls = [
     entry(`${ORIGIN}/`, today),
-    entry(`${ORIGIN}/return-policy/`, '2026-10-02'),
     ...products.map((product) =>
       entry(
         productUrl(product),

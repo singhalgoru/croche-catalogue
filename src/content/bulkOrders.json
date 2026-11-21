@@ -4,6 +4,20 @@
   "invitation": "Gifting for a team or celebration? Make it personal with handmade crochet.",
   "invitationCta": "Explore bulk gifting",
   "description": "Make your next celebration or company gift feel personal with handmade crochet. Tell us about your employee gifts, client hampers, festive gifting or event favours, and we will explore what is possible together. Planning gifts for an overseas team or event? Share your destination country, quantity and required date for an individual quote; international availability, shipping, customs responsibilities and payment options must be confirmed before payment.",
+  "faqs": [
+    {
+      "question": "Do you offer discounts on bulk orders?",
+      "answer": "Bulk orders are quoted individually. Any volume discount depends on the products, quantity, customisation, packaging and delivery needs. If a discount is available, we will include it in your quote and confirm the final price before you decide."
+    },
+    {
+      "question": "How do I get pricing for my bulk order?",
+      "answer": "Share the products or gifting ideas, approximate quantity, budget, destination and required date using the enquiry form or WhatsApp. We will review the details and reply with suitable options, pricing and preparation timelines."
+    },
+    {
+      "question": "Does sending an enquiry place an order?",
+      "answer": "No. An enquiry is only a request to discuss options. Your order is not confirmed until the products, pricing and delivery timeline have been agreed."
+    }
+  ],
   "email": "bulkorder@luviacreations.com",
   "subject": "Luvia Creations | Bulk Orders & Corporate Gifting Enquiry",
   "message": "Hello Luvia Creations,\n\nI would love to explore thoughtful handmade crochet gifts for my team, clients or a special occasion.\n\nName / company: \nOccasion / event: \nProducts or ideas: \nApproximate quantity: \nBudget per gift: \nDelivery city and pincode: \nRequired delivery date: \nCustomisation or packaging preferences: \n\nPlease help me explore suitable options and share pricing and preparation timelines.\n\nThank you,\n",

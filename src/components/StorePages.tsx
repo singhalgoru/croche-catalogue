@@ -263,27 +263,32 @@ export default function StorePages({
         <div className="rounded-3xl border border-mustard/40 bg-mustard/10 p-5 sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-wider text-cocoa/60">Clear details, considered care</p>
           <p className="mt-3 max-w-2xl leading-relaxed">{policy.description}</p>
-          <p className="mt-3 text-xs text-cocoa/65">Last updated: {policy.updated}</p>
+          <p className="mt-3 text-xs text-cocoa/65">{'dateLabel' in policy ? policy.dateLabel : 'Last updated'}: {policy.updated}</p>
         </div>
         <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <nav aria-label="On this page" className="rounded-2xl border border-cocoa/10 bg-white p-4 lg:sticky lg:top-24">
             <h2 className="mb-2 font-heading text-lg font-bold">On this page</h2>
-            {policy.sections.map((section, index) => <a key={section.title} href={`#policy-section-${index + 1}`}
-              className="flex min-h-11 items-center py-2 text-sm leading-snug hover:underline">{section.title}</a>)}
+            {policy.sections.map((section, index) => {
+              const sectionId = 'id' in section && typeof section.id === 'string' ? section.id : `policy-section-${index + 1}`;
+              return <a key={section.title} href={`#${sectionId}`}
+                className="flex min-h-11 items-center py-2 text-sm leading-snug hover:underline">{section.title}</a>;
+            })}
           </nav>
           <div className="space-y-4">
-            {policy.sections.map((section, index) => <section key={section.title} id={`policy-section-${index + 1}`}
-              className="scroll-mt-24 space-y-3 rounded-2xl border border-cocoa/10 bg-white p-5 sm:p-6">
-              <h2 className="font-heading text-xl font-bold">{section.title}</h2>
-              <p className="text-sm leading-relaxed">{section.text}</p>
-              {section.link && <a href={section.link.href} className="inline-flex min-h-11 items-center text-sm font-semibold underline">{section.link.label}</a>}
-            </section>)}
+            {policy.sections.map((section, index) => {
+              const sectionId = 'id' in section && typeof section.id === 'string' ? section.id : `policy-section-${index + 1}`;
+              return <section key={section.title} id={sectionId}
+                className="scroll-mt-24 space-y-3 rounded-2xl border border-cocoa/10 bg-white p-5 sm:p-6">
+                <h2 className="font-heading text-xl font-bold">{section.title}</h2>
+                <p className="text-sm leading-relaxed">{section.text}</p>
+                {section.link && <a href={section.link.href} className="inline-flex min-h-11 items-center text-sm font-semibold underline">{section.link.label}</a>}
+              </section>;
+            })}
           </div>
         </div>
         <nav aria-label="Related policies" className="flex flex-wrap gap-4 rounded-2xl border border-mustard/40 bg-mustard/10 p-4 text-sm">
           {policies.filter(item => item.path !== policy.path).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
-          <a href="/return-policy/" className="min-h-11 underline">Return and refund policy</a>
           <a href="/about/" className="min-h-11 underline">About &amp; contact</a>
         </nav>
       </article>}
@@ -444,7 +449,7 @@ export default function StorePages({
           {productCollections.filter(item => item.path !== requestedPath).map(item =>
             <a key={item.path} href={item.path} className="min-h-11 underline">{item.title}</a>)}
         </nav>
-      </> : isInternationalQuote ? <InternationalQuote products={products} isLoading={isLoading} loadError={loadError} /> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="grid items-start gap-6 leading-relaxed lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
+      </> : isInternationalQuote ? <InternationalQuote products={products} isLoading={isLoading} loadError={loadError} onRefresh={onRetry} /> : isBulkOrders ? <BulkOrders presentation="page" /> : isAbout ? <section className="grid items-start gap-6 leading-relaxed lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
         <article aria-label="Luvia's founder story" className="space-y-6 rounded-2xl border border-mustard/30 bg-white/70 p-5 sm:p-8">
           <figure className="mx-auto w-full max-w-[240px]">
             <img {...productImageProtection} src={storeContent.brandStory.portrait.src} alt={storeContent.brandStory.portrait.alt}

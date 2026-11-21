@@ -109,5 +109,52 @@
         "link": { "href": "/privacy-policy/", "label": "Read the Privacy Policy" }
       }
     ]
+  },
+  {
+    "path": "/return-policy/",
+    "title": "Return and Refund Policy",
+    "description": "Luvia Creations accepts returns for defective, damaged or incorrect items in India. Read our return windows, shipping costs and refund process.",
+    "dateLabel": "Effective date",
+    "updated": "10 October 2026",
+    "sections": [
+      {
+        "id": "cancellation",
+        "title": "Order cancellation",
+        "text": "You can cancel your order before the item is dispatched. Include your order reference when requesting cancellation. Orders cannot be cancelled after dispatch; eligible defective, damaged or incorrect items are covered by this policy. This does not limit any applicable statutory consumer rights.",
+        "link": { "href": "mailto:orders@luviacreations.com", "label": "Email orders@luviacreations.com" }
+      },
+      {
+        "id": "eligible-returns",
+        "title": "Which items can be returned?",
+        "text": "We accept returns for defective, damaged or incorrect items only. We do not accept change-of-mind returns, including for customised items. Customised products are still eligible for remedies if they are defective, damaged or incorrectly fulfilled. Minor variations are natural in handmade products and are not automatically defects. However, your item must match its advertised description. This policy does not limit any applicable statutory consumer rights."
+      },
+      {
+        "id": "request-return",
+        "title": "How to request a return",
+        "text": "Contact us within 2 days of delivery with your order details, a description of the issue and clear photos. Contact us for return instructions before sending the item. Return the item within 7 days of delivery.",
+        "link": { "href": "mailto:orders@luviacreations.com", "label": "Email orders@luviacreations.com" }
+      },
+      {
+        "id": "item-condition",
+        "title": "Item condition",
+        "text": "Items should be unused and returned with their packaging where reasonably possible. Inspection necessary to discover a defect does not disqualify a claim."
+      },
+      {
+        "id": "return-shipping",
+        "title": "Return shipping and fees",
+        "text": "Luvia Creations pays return shipping for confirmed defective, damaged or incorrect items. There is no restocking fee."
+      },
+      {
+        "id": "refunds",
+        "title": "Replacements and refunds",
+        "text": "For an eligible item, we offer a replacement at no extra cost, or a refund if a replacement is unavailable or you prefer a refund. Refunds are processed within 7 business days after we receive and check the returned item. Your bank or payment provider may take additional time to credit the amount."
+      },
+      {
+        "id": "contact",
+        "title": "Contact",
+        "text": "For return requests or questions, email us.",
+        "link": { "href": "mailto:orders@luviacreations.com", "label": "orders@luviacreations.com" }
+      }
+    ]
   }
 ]
