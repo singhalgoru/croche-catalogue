@@ -31,16 +31,20 @@ it('previews catalogue and manual products with selected pattern and retries the
   fireEvent.click(screen.getByLabelText('Attach available PDF pattern'));
   await screen.findByText('Attach Headband.pdf');
   fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
-  fireEvent.change(screen.getByLabelText('Including yarn / unit (INR)'), { target: { value: '100' } });
-  fireEvent.change(screen.getByLabelText('Excluding yarn / unit (INR)'), { target: { value: '75' } });
+  expect(screen.queryByLabelText('Including yarn / unit (INR)')).toBeNull();
+  expect(screen.queryByLabelText('Excluding yarn / unit (INR)')).toBeNull();
   fireEvent.change(screen.getByLabelText('Agreed rate for this product'), { target: { value: 'with' } });
+  fireEvent.change(screen.getByLabelText('Including yarn / unit (INR)'), { target: { value: '100' } });
+  fireEvent.change(screen.getByLabelText('Agreed rate for this product'), { target: { value: 'without' } });
+  expect((screen.getByLabelText('Excluding yarn / unit (INR)') as HTMLInputElement).value).toBe('');
+  fireEvent.change(screen.getByLabelText('Agreed rate for this product'), { target: { value: 'with' } });
+  fireEvent.change(screen.getByLabelText('Including yarn / unit (INR)'), { target: { value: '100' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
   const second = screen.getByRole('group', { name: 'Product 2' });
   fireEvent.change(within(second).getByLabelText('Product name'), { target: { value: 'Custom flower' } });
   fireEvent.change(within(second).getByLabelText('Quantity'), { target: { value: '3' } });
-  fireEvent.change(within(second).getByLabelText('Including yarn / unit (INR)'), { target: { value: '50' } });
-  fireEvent.change(within(second).getByLabelText('Excluding yarn / unit (INR)'), { target: { value: '25' } });
   fireEvent.change(within(second).getByLabelText('Agreed rate for this product'), { target: { value: 'without' } });
+  fireEvent.change(within(second).getByLabelText('Excluding yarn / unit (INR)'), { target: { value: '25' } });
   fireEvent.change(screen.getByLabelText('Delivery date'), { target: { value: '2099-12-01' } });
   fireEvent.change(screen.getByLabelText('Maximum courier reimbursement (INR)'), { target: { value: '120' } });
   fireEvent.change(screen.getByLabelText('Advance payment (%)'), { target: { value: '25' } });
@@ -59,9 +63,10 @@ it('previews catalogue and manual products with selected pattern and retries the
   expect(create).toHaveBeenCalledTimes(2);
   expect(create.mock.calls[0]).toEqual(create.mock.calls[1]);
   expect(create.mock.calls[0]![2]).toMatchObject({ courierCap: 120, advancePercent: 25, items: [
-    { productId: 'product', quantity: 2, patternRevision: 'revision', rateWithYarn: 100, rateWithoutYarn: 75, yarnBasis: 'with' },
-    { productId: null, name: 'Custom flower', quantity: 3, patternRevision: null, yarnBasis: 'without' },
+    { productId: 'product', quantity: 2, patternRevision: 'revision', rate: 100, yarnBasis: 'with' },
+    { productId: null, name: 'Custom flower', quantity: 3, patternRevision: null, rate: 25, yarnBasis: 'without' },
   ] });
+  expect(create.mock.calls[0]![2].items[0]).not.toHaveProperty('rateWithoutYarn');
 });
 
 it('requires confirmation to complete accepted work, including for no-longer-approved artisans', async () => {

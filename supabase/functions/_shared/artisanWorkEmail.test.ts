@@ -14,7 +14,8 @@ it('renders the same branded, escaped terms used for preview and sending', () =>
   expect(email.html).toContain('luvia-pattern-logo.jpg');
   expect(email.html).toContain('&lt;script&gt;hello&lt;/script&gt;');
   expect(email.html).not.toContain('<script>');
-  expect(email.text).toContain('including yarn INR 150.00/unit');
+  expect(email.text).toContain('Including yarn: INR 150.00/unit');
+  expect(email.text).toContain('excluding yarn: INR 100.00/unit');
   expect(email.text).toContain('Maximum courier reimbursement: INR 120.00');
   expect(email.text).toContain('Anyone with the link can accept');
   expect(isWorkEmailJob(job)).toBe(true);
@@ -23,8 +24,8 @@ it('renders the same branded, escaped terms used for preview and sending', () =>
 });
 it('shows selected-rate totals, rounded advance and quality terms without reference IDs', () => {
   const offer = { ...job.offer, advancePercent: 25, qualityTerms: WORK_QUALITY_TERMS,
-    items: [{ ...job.offer.items[0]!, yarnBasis: 'without' as const },
-      { name: 'Flower', quantity: 3, rateWithYarn: 0.01, rateWithoutYarn: 0.02, yarnBasis: 'with' as const, patternFilename: null }] };
+    items: [{ name: 'Hat & bag', quantity: 2, rate: 100, yarnBasis: 'without' as const, patternFilename: 'hat.pdf' },
+      { name: 'Flower', quantity: 3, rate: 0.01, yarnBasis: 'with' as const, patternFilename: null }] };
   const email = buildArtisanWorkEmail(offer, 'https://example.test');
   expect(workPaymentSummary(offer)).toEqual({ total: 'INR 200.03', advance: 'INR 50.01', balance: 'INR 150.02' });
   for (const body of [email.html, email.text]) {
@@ -33,11 +34,15 @@ it('shows selected-rate totals, rounded advance and quality terms without refere
     expect(body).toContain('INR 150.02');
     expect(body).toContain(WORK_QUALITY_TERMS);
     expect(body).not.toContain(offer.reference);
+    expect(body).toContain('Excluding yarn: INR 100.00/unit');
+    expect(body).toContain('Including yarn: INR 0.01/unit');
+    expect(body).not.toContain('INR 150.00/unit');
   }
   expect(isWorkEmailJob({ ...job, offer })).toBe(true);
   expect(isWorkEmailJob({ ...job, offer: { ...offer, advancePercent: 28.99 } })).toBe(true);
   expect(isWorkEmailJob({ ...job, offer: { ...offer, advancePercent: 100.01 } })).toBe(false);
   expect(isWorkEmailJob({ ...job, offer: { ...offer, items: job.offer.items } })).toBe(false);
+  expect(isWorkEmailJob({ ...job, offer: { ...offer, items: [{ ...offer.items[0], rateWithYarn: 150 }] } })).toBe(false);
   expect(workPaymentSummary({ ...offer, advancePercent: 0 })?.balance).toBe('INR 200.03');
   expect(workPaymentSummary({ ...offer, advancePercent: 100 })?.balance).toBe('INR 0.00');
   expect(workPaymentSummary(job.offer)).toBeNull();

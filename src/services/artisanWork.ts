@@ -5,8 +5,7 @@ export interface WorkDraftItem {
   productId: string | null;
   name: string;
   quantity: number;
-  rateWithYarn: number;
-  rateWithoutYarn: number;
+  rate: number;
   yarnBasis: 'with' | 'without';
   patternRevision: string | null;
 }

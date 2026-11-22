@@ -1,11 +1,9 @@
-export interface WorkItem {
+export type WorkItem = {
   name: string;
   quantity: number;
-  rateWithYarn: number;
-  rateWithoutYarn: number;
   patternFilename: string | null;
-  yarnBasis?: 'with' | 'without';
-}
+} & ({ rate: number; yarnBasis: 'with' | 'without'; rateWithYarn?: never; rateWithoutYarn?: never }
+  | { rate?: never; rateWithYarn: number; rateWithoutYarn: number; yarnBasis?: 'with' | 'without' });
 
 export interface WorkOffer {
   recipientName: string;
@@ -38,8 +36,10 @@ export function isWorkOffer(value: unknown): value is WorkOffer {
     && Array.isArray(value.items) && value.items.length > 0 && value.items.length <= 10
     && value.items.every((item: unknown) => record(item) && typeof item.name === 'string' && item.name.length > 0 && item.name.length <= 100
       && typeof item.quantity === 'number' && Number.isInteger(item.quantity) && item.quantity > 0
-      && typeof item.rateWithYarn === 'number' && Number.isFinite(item.rateWithYarn) && item.rateWithYarn >= 0
-      && typeof item.rateWithoutYarn === 'number' && Number.isFinite(item.rateWithoutYarn) && item.rateWithoutYarn >= 0
+      && ((typeof item.rate === 'number' && Number.isFinite(item.rate) && item.rate >= 0
+          && item.rateWithYarn === undefined && item.rateWithoutYarn === undefined && value.advancePercent !== undefined)
+        || (item.rate === undefined && typeof item.rateWithYarn === 'number' && Number.isFinite(item.rateWithYarn) && item.rateWithYarn >= 0
+          && typeof item.rateWithoutYarn === 'number' && Number.isFinite(item.rateWithoutYarn) && item.rateWithoutYarn >= 0))
       && (value.advancePercent === undefined ? item.yarnBasis === undefined : item.yarnBasis === 'with' || item.yarnBasis === 'without')
       && (item.patternFilename === null || (typeof item.patternFilename === 'string' && /^[A-Za-z0-9][A-Za-z0-9_. -]*\.pdf$/.test(item.patternFilename))));
 }
@@ -72,14 +72,22 @@ const escapeHtml = (text: string) => text.replace(/[&<>"']/g, character =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
 const money = (amount: number) => `INR ${amount.toFixed(2)}`;
 
+export function workItemRateText(item: WorkItem): string {
+  if (item.rate !== undefined) return `${item.yarnBasis === 'with' ? 'Including' : 'Excluding'} yarn: ${money(item.rate)}/unit`;
+  return `Including yarn: ${money(item.rateWithYarn)}/unit; excluding yarn: ${money(item.rateWithoutYarn)}/unit${item.yarnBasis ? `; agreed rate: ${item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}` : ''}`;
+}
+
 export function workPaymentSummary(offer: WorkOffer) {
   if (offer.advancePercent === undefined) return null;
   const paise = (amount: number) => {
     const [rupees, fraction] = amount.toFixed(2).split('.');
     return BigInt(rupees!) * 100n + BigInt(fraction!);
   };
-  const total = offer.items.reduce((sum, item) => sum + BigInt(item.quantity)
-    * paise(item.yarnBasis === 'with' ? item.rateWithYarn : item.rateWithoutYarn), 0n);
+  const total = offer.items.reduce((sum, item) => {
+    if (!item.yarnBasis) throw new Error('Cannot calculate payment without an agreed yarn rate.');
+    const rate = item.rate !== undefined ? item.rate : item.yarnBasis === 'with' ? item.rateWithYarn : item.rateWithoutYarn;
+    return sum + BigInt(item.quantity) * paise(rate);
+  }, 0n);
   const advance = (total * BigInt(Math.round(offer.advancePercent * 100)) + 5000n) / 10000n;
   const format = (amount: bigint) => `INR ${amount / 100n}.${(amount % 100n).toString().padStart(2, '0')}`;
   return { total: format(total), advance: format(advance), balance: format(total - advance) };
@@ -88,12 +96,11 @@ export function workPaymentSummary(offer: WorkOffer) {
 export function buildArtisanWorkEmail(offer: WorkOffer, acceptanceUrl: string) {
   const payment = workPaymentSummary(offer);
   const rows = offer.items.map(item => `<tr>
-    <td style="padding:10px;border-bottom:1px solid #e8ddcb">${escapeHtml(item.name)}${item.yarnBasis ? `<br><small>Agreed rate: ${item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}</small>` : ''}${item.patternFilename ? `<br><small>Pattern attached: ${escapeHtml(item.patternFilename)}</small>` : ''}</td>
+    <td style="padding:10px;border-bottom:1px solid #e8ddcb">${escapeHtml(item.name)}${item.patternFilename ? `<br><small>Pattern attached: ${escapeHtml(item.patternFilename)}</small>` : ''}</td>
     <td style="padding:10px;border-bottom:1px solid #e8ddcb">${item.quantity}</td>
-    <td style="padding:10px;border-bottom:1px solid #e8ddcb">${money(item.rateWithYarn)}</td>
-    <td style="padding:10px;border-bottom:1px solid #e8ddcb">${money(item.rateWithoutYarn)}</td>
+    <td style="padding:10px;border-bottom:1px solid #e8ddcb">${escapeHtml(workItemRateText(item))}</td>
   </tr>`).join('');
-  const items = offer.items.map(item => `${item.name}: ${item.quantity} units; including yarn ${money(item.rateWithYarn)}/unit; excluding yarn ${money(item.rateWithoutYarn)}/unit${item.yarnBasis ? `; agreed rate: ${item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}` : ''}${item.patternFilename ? `; pattern attached: ${item.patternFilename}` : ''}`).join('\n');
+  const items = offer.items.map(item => `${item.name}: ${item.quantity} units; ${workItemRateText(item)}${item.patternFilename ? `; pattern attached: ${item.patternFilename}` : ''}`).join('\n');
   const paymentText = payment ? `\nTotal work payment: ${payment.total}\nAdvance before work starts (${offer.advancePercent}%): ${payment.advance}\nBalance after work completion: ${payment.balance}\nCourier reimbursement is separate and subject to the maximum above.\n\nQuality and returns: ${offer.qualityTerms}` : '';
   return {
     subject: offer.subject,
@@ -104,7 +111,7 @@ export function buildArtisanWorkEmail(offer: WorkOffer, acceptanceUrl: string) {
       <h1 style="border-bottom:4px solid #f6c453;padding-bottom:12px">Your Luvia work assignment</h1>
       <p>Hello ${escapeHtml(offer.recipientName)},</p><p style="white-space:pre-wrap">${escapeHtml(offer.message)}</p>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left">
-      <thead><tr style="background:#fff4d6"><th style="padding:10px">Product</th><th style="padding:10px">Qty</th><th style="padding:10px">Including yarn / unit</th><th style="padding:10px">Excluding yarn / unit</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <thead><tr style="background:#fff4d6"><th style="padding:10px">Product</th><th style="padding:10px">Qty</th><th style="padding:10px">Rate per unit</th></tr></thead><tbody>${rows}</tbody></table></div>
       <p><strong>Delivery date:</strong> ${escapeHtml(offer.deliveryDate)}<br><strong>Maximum courier reimbursement:</strong> ${money(offer.courierCap)}</p>
       ${payment ? `<p><strong>Total work payment:</strong> ${payment.total}<br><strong>Advance before work starts (${offer.advancePercent}%):</strong> ${payment.advance}<br><strong>Balance after work completion:</strong> ${payment.balance}<br>Courier reimbursement is separate and subject to the maximum above.</p><p><strong>Quality and returns:</strong> ${escapeHtml(offer.qualityTerms!)}</p>` : ''}
       <p><a href="${escapeHtml(acceptanceUrl)}" style="display:inline-block;background:#5d4037;color:#fffaf0;border-radius:24px;padding:12px 20px;text-decoration:none">Review and accept assignment</a></p>
@@ -116,7 +123,7 @@ export function buildArtisanWorkEmail(offer: WorkOffer, acceptanceUrl: string) {
 export function buildArtisanWorkAcceptanceEmail(offer: WorkOffer, acceptedAt: string) {
   const items = offer.items.map(item => `${item.name} (${item.quantity})`).join(', ');
   const payment = workPaymentSummary(offer);
-  const text = `${offer.recipientName} accepted the work assignment for ${items}.\nDelivery date: ${offer.deliveryDate}\nAccepted at: ${acceptedAt}\n\n${offer.items.map(item => `${item.name}: ${item.quantity} units; including yarn ${money(item.rateWithYarn)}/unit; excluding yarn ${money(item.rateWithoutYarn)}/unit${item.yarnBasis ? `; agreed rate: ${item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}` : ''}`).join('\n')}\nMaximum courier reimbursement: ${money(offer.courierCap)}${payment ? `\nTotal work payment: ${payment.total}\nAdvance before work starts (${offer.advancePercent}%): ${payment.advance}\nBalance after work completion: ${payment.balance}\nCourier reimbursement is separate and subject to the maximum above.\nQuality and returns: ${offer.qualityTerms}` : ''}`;
+  const text = `${offer.recipientName} accepted the work assignment for ${items}.\nDelivery date: ${offer.deliveryDate}\nAccepted at: ${acceptedAt}\n\n${offer.items.map(item => `${item.name}: ${item.quantity} units; ${workItemRateText(item)}`).join('\n')}\nMaximum courier reimbursement: ${money(offer.courierCap)}${payment ? `\nTotal work payment: ${payment.total}\nAdvance before work starts (${offer.advancePercent}%): ${payment.advance}\nBalance after work completion: ${payment.balance}\nCourier reimbursement is separate and subject to the maximum above.\nQuality and returns: ${offer.qualityTerms}` : ''}`;
   return {
     subject: `Work assignment accepted - ${offer.recipientName.replace(/[\r\n]/g, ' ')}`,
     text,

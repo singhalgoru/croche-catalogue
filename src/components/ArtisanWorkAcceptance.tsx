@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { acceptWorkAssignment, readWorkAssignment } from '../services/artisanWork';
-import { workPaymentSummary, type WorkOffer } from '../../supabase/functions/_shared/artisanWorkEmail';
+import { workItemRateText, workPaymentSummary, type WorkOffer } from '../../supabase/functions/_shared/artisanWorkEmail';
 
 export default function ArtisanWorkAcceptance() {
   const [token] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('work') ?? '');
@@ -24,9 +24,7 @@ export default function ArtisanWorkAcceptance() {
       <p className="whitespace-pre-wrap">{assignment.offer.message}</p>
       <ul className="space-y-3">{assignment.offer.items.map((item, index) => <li key={index} className="rounded border border-mustard/40 p-3">
         <strong>{item.name}</strong> — {item.quantity} units<br />
-        Including yarn: INR {item.rateWithYarn.toFixed(2)} per unit<br />
-        Excluding yarn: INR {item.rateWithoutYarn.toFixed(2)} per unit
-        {item.yarnBasis && <><br />Agreed rate: {item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}</>}
+        {workItemRateText(item)}
         {item.patternFilename && <><br />Pattern attached to email: {item.patternFilename}</>}
       </li>)}</ul>
       <p>Delivery date: <strong>{assignment.offer.deliveryDate}</strong><br />

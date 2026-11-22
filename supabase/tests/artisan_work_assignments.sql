@@ -33,14 +33,25 @@ select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role',
   'amr',jsonb_build_array(jsonb_build_object('method','totp','timestamp',floor(extract(epoch from now())))))::text,true) from work_fixture;
 set local role authenticated;
 do $$
-declare f record; draft jsonb;
+declare f record; draft jsonb; legacy jsonb; legacy_id uuid := gen_random_uuid();
 begin
   select * into f from work_fixture;
   draft:=jsonb_build_object('recipientName','Synthetic Maker','recipientEmail','maker@example.test',
     'subject','Test offer','message','Please review.','deliveryDate','2099-12-01','courierCap',100,'advancePercent',25,
     'items',jsonb_build_array(jsonb_build_object('productId',f.product_id,'name','Synthetic Headband','quantity',2,
-      'rateWithYarn',150,'rateWithoutYarn',100,'yarnBasis','with','patternRevision',f.revision),
-      jsonb_build_object('productId',null,'name','Custom flower','quantity',1,'rateWithYarn',50,'rateWithoutYarn',30,'yarnBasis','without','patternRevision',null)));
+      'rate',150,'yarnBasis','with','patternRevision',f.revision),
+      jsonb_build_object('productId',null,'name','Custom flower','quantity',1,'rate',30,'yarnBasis','without','patternRevision',null)));
+  legacy := jsonb_set(draft,'{items,0}',((draft->'items'->0) - 'rate') || '{"rateWithYarn":150,"rateWithoutYarn":100}'::jsonb);
+  perform public.create_artisan_work_assignment(legacy_id,f.artisan_id,legacy);
+  perform public.create_artisan_work_assignment(legacy_id,f.artisan_id,legacy);
+  begin
+    perform public.create_artisan_work_assignment(gen_random_uuid(),f.artisan_id,jsonb_set(draft,'{items,0,rate}','-1'));
+    raise exception 'FAIL: negative rate accepted.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  begin
+    perform public.create_artisan_work_assignment(gen_random_uuid(),f.artisan_id,jsonb_set(draft,'{items,0,rateWithYarn}','150'));
+    raise exception 'FAIL: ambiguous rate accepted.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
     perform public.create_artisan_work_assignment(gen_random_uuid(),f.artisan_id,jsonb_set(draft,'{advancePercent}','101'));
     raise exception 'FAIL: invalid advance accepted.';
@@ -74,6 +85,9 @@ begin
     or result->'offer'->'items'->0->>'patternFilename'<>'Headband.pdf'
     or result->'offer'->'items'->0->>'yarnBasis'<>'with'
     or result->'offer'->'items'->1->>'yarnBasis'<>'without'
+    or (result->'offer'->'items'->0->>'rate')::numeric<>150
+    or result->'offer'->'items'->0 ? 'rateWithYarn'
+    or result->'offer'->'items'->0 ? 'rateWithoutYarn'
     or (result->'offer'->>'advancePercent')::numeric<>25
     or result->'offer'->>'qualityTerms' <> 'Delivered products must meet the quality standards agreed before work begins. Products that do not meet those standards may be rejected and will be returned after the advance payment is returned. Luvia will bear the return shipment courier charges.'
     then raise exception 'FAIL: offer snapshot incorrect.'; end if;
@@ -93,11 +107,11 @@ do $$
 declare f record; result jsonb;
 begin
   select * into f from work_fixture;
-  result:=public.list_artisan_work_assignments(f.artisan_id);
-  if result->0->'acceptedAt'='null'::jsonb or result->0->'completedAt'<>'null'::jsonb then raise exception 'FAIL: work in progress missing.'; end if;
+  select value into result from jsonb_array_elements(public.list_artisan_work_assignments(f.artisan_id)) where value->>'id'=f.assignment_id::text;
+  if result->'acceptedAt'='null'::jsonb or result->'completedAt'<>'null'::jsonb then raise exception 'FAIL: work in progress missing.'; end if;
   perform public.complete_artisan_work_assignment(f.assignment_id);
-  result:=public.list_artisan_work_assignments(f.artisan_id);
-  if result->0->'completedAt'='null'::jsonb then raise exception 'FAIL: completion missing.'; end if;
+  select value into result from jsonb_array_elements(public.list_artisan_work_assignments(f.artisan_id)) where value->>'id'=f.assignment_id::text;
+  if result->'completedAt'='null'::jsonb then raise exception 'FAIL: completion missing.'; end if;
 end $$;
 reset role;
 rollback;

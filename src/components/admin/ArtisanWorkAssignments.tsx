@@ -3,12 +3,12 @@ import AdminDialog from './AdminDialog';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import { fetchPatternProductIds, fetchPatternWorkspace, type ProductPattern } from '../../services/productPatterns';
 import { completeWorkAssignment, createWorkAssignment, listWorkAssignments, type WorkAssignment, type WorkDraft } from '../../services/artisanWork';
-import { buildArtisanWorkEmail, workPaymentSummary, WORK_QUALITY_TERMS, type WorkOffer } from '../../../supabase/functions/_shared/artisanWorkEmail';
+import { buildArtisanWorkEmail, workItemRateText, workPaymentSummary, WORK_QUALITY_TERMS, type WorkOffer } from '../../../supabase/functions/_shared/artisanWorkEmail';
 
-type Item = { key: string; productId: string; name: string; quantity: string; rateWithYarn: string;
-  rateWithoutYarn: string; yarnBasis: '' | 'with' | 'without'; pattern: ProductPattern | null; loadingPattern: boolean };
+type Item = { key: string; productId: string; name: string; quantity: string; rate: string;
+  yarnBasis: '' | 'with' | 'without'; pattern: ProductPattern | null; loadingPattern: boolean };
 const newItem = (): Item => ({ key: crypto.randomUUID(), productId: '', name: '', quantity: '',
-  rateWithYarn: '', rateWithoutYarn: '', yarnBasis: '', pattern: null, loadingPattern: false });
+  rate: '', yarnBasis: '', pattern: null, loadingPattern: false });
 const button = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const input = 'mt-1 block min-h-11 w-full rounded border border-cocoa/30 p-2 font-normal';
 
@@ -51,8 +51,7 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
       throw new Error('Check the subject, message, delivery date, courier cap and advance percentage (0 to 100).');
     }
     if (items.some(item => item.loadingPattern || !item.name.trim() || !/^\d{1,5}$/.test(item.quantity)
-      || Number(item.quantity) < 1 || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rateWithYarn)
-      || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rateWithoutYarn) || !item.yarnBasis)) {
+      || Number(item.quantity) < 1 || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rate) || !item.yarnBasis)) {
       throw new Error('Check every product, quantity, per-unit price, agreed rate and selected pattern.');
     }
     const draft: WorkDraft = { recipientName: artisan.name, recipientEmail: artisan.email,
@@ -60,13 +59,13 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
       items: items.map(item => {
         if (!item.yarnBasis) throw new Error('Select the agreed rate for every product.');
         return { productId: item.productId || null, name: item.name.trim(), quantity: Number(item.quantity),
-          rateWithYarn: Number(item.rateWithYarn), rateWithoutYarn: Number(item.rateWithoutYarn),
+          rate: Number(item.rate),
           yarnBasis: item.yarnBasis, patternRevision: item.pattern?.revision ?? null };
       }) };
     const offer: WorkOffer = { recipientName: artisan.name, subject: draft.subject, message: draft.message,
       deliveryDate, courierCap: draft.courierCap, advancePercent: draft.advancePercent, qualityTerms: WORK_QUALITY_TERMS,
       reference: requestId.current, items: draft.items.map((item, index) => ({
-        name: item.name, quantity: item.quantity, rateWithYarn: item.rateWithYarn, rateWithoutYarn: item.rateWithoutYarn,
+        name: item.name, quantity: item.quantity, rate: item.rate,
         yarnBasis: item.yarnBasis, patternFilename: items[index]!.pattern?.pdf_filename ?? null,
       })) };
     setPreview({ draft, offer });
@@ -96,8 +95,7 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
               {entry.confirmationError && ` — ${entry.confirmationError}`}</p>}
             <details><summary className="cursor-pointer underline">View agreed terms</summary>
               <p className="whitespace-pre-wrap">{entry.offer.message}</p>
-              {entry.offer.items.map((item, index) => <p key={index}>{item.name}: {item.quantity} units; including yarn INR {item.rateWithYarn.toFixed(2)}/unit;
-                excluding yarn INR {item.rateWithoutYarn.toFixed(2)}/unit{item.yarnBasis ? `; agreed rate: ${item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}` : ''}{item.patternFilename ? `; pattern: ${item.patternFilename}` : ''}</p>)}
+              {entry.offer.items.map((item, index) => <p key={index}>{item.name}: {item.quantity} units; {workItemRateText(item)}{item.patternFilename ? `; pattern: ${item.patternFilename}` : ''}</p>)}
               <p>Maximum courier reimbursement: INR {entry.offer.courierCap.toFixed(2)}</p>
               {workPaymentSummary(entry.offer) && <p>Total work payment: {workPaymentSummary(entry.offer)!.total};
                 advance ({entry.offer.advancePercent}%): {workPaymentSummary(entry.offer)!.advance};
@@ -147,18 +145,17 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
                 }} />
               {item.loadingPattern ? 'Loading pattern...' : item.pattern ? `Attach ${item.pattern.pdf_filename}` : 'Attach available PDF pattern'}
             </label> : <p>No pattern attached to this product.</p>}</div>}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm font-semibold">Quantity<input type="number" min="1" max="99999" step="1" required className={input}
                 value={item.quantity} onChange={event => update(item.key, { quantity: event.target.value })} /></label>
-              <label className="block text-sm font-semibold">Including yarn / unit (INR)<input type="number" min="0" max="9999999" step="0.01" required className={input}
-                value={item.rateWithYarn} onChange={event => update(item.key, { rateWithYarn: event.target.value })} /></label>
-              <label className="block text-sm font-semibold">Excluding yarn / unit (INR)<input type="number" min="0" max="9999999" step="0.01" required className={input}
-                value={item.rateWithoutYarn} onChange={event => update(item.key, { rateWithoutYarn: event.target.value })} /></label>
-            </div>
-            <label className="block text-sm font-semibold">Agreed rate for this product<select required className={input} value={item.yarnBasis}
-              onChange={event => update(item.key, { yarnBasis: event.target.value === 'with' ? 'with' : event.target.value === 'without' ? 'without' : '' })}>
+              <label className="block text-sm font-semibold">Agreed rate for this product<select required className={input} value={item.yarnBasis}
+              onChange={event => update(item.key, { yarnBasis: event.target.value === 'with' ? 'with' : event.target.value === 'without' ? 'without' : '', rate: '' })}>
               <option value="">Select the applicable rate</option><option value="with">Including yarn</option><option value="without">Excluding yarn</option>
-            </select></label>
+              </select></label>
+            </div>
+            {item.yarnBasis && <label className="block text-sm font-semibold">{item.yarnBasis === 'with' ? 'Including' : 'Excluding'} yarn / unit (INR)
+              <input type="number" min="0" max="9999999" step="0.01" required className={input}
+                value={item.rate} onChange={event => update(item.key, { rate: event.target.value })} /></label>}
             {items.length > 1 && <button type="button" className={button} onClick={() => setItems(current => current.filter(row => row.key !== item.key))}>Remove product</button>}
           </fieldset>)}
           <button type="button" className={button} disabled={items.length >= 10} onClick={() => setItems(current => [...current, newItem()])}>Add product</button>

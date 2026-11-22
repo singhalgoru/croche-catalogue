@@ -12,7 +12,7 @@ test('artisan explicitly accepts a work assignment without accepting on link ope
   const calls: unknown[] = [];
   const offer = { reference: '00000000-0000-4000-8000-000000000001', recipientName: 'Sample Maker',
     subject: 'Work offer', message: 'Please review these terms.', deliveryDate: '2099-12-01', courierCap: 100, advancePercent: 25, qualityTerms: WORK_QUALITY_TERMS,
-    items: [{ name: 'Headband', quantity: 2, rateWithYarn: 150, rateWithoutYarn: 100, yarnBasis: 'with', patternFilename: 'Headband.pdf' }] };
+    items: [{ name: 'Headband', quantity: 2, rate: 150, yarnBasis: 'with', patternFilename: 'Headband.pdf' }] };
   await page.route('**/rest/v1/rpc/read_artisan_work_assignment', route =>
     route.fulfill({ json: { offer, acceptedAt: null, completedAt: null, expiresAt: '2099-12-01T00:00:00Z' } }));
   await page.route('**/rest/v1/rpc/accept_artisan_work_assignment', route => {
@@ -50,7 +50,7 @@ test('admin previews an assignment and completes accepted work', async ({ page }
     entries.push({ id: body.request_id, offer: { reference: body.request_id, recipientName: 'Sample Maker',
       subject: draft.subject, message: draft.message, deliveryDate: draft.deliveryDate, courierCap: draft.courierCap,
       advancePercent: draft.advancePercent, qualityTerms: WORK_QUALITY_TERMS,
-      items: draft.items.map((item: { name: string; quantity: number; rateWithYarn: number; rateWithoutYarn: number }) => ({
+      items: draft.items.map((item: { name: string; quantity: number; rate: number }) => ({
         ...item, patternFilename: null })) }, createdAt: '2026-11-22T00:00:00Z', expiresAt: '2099-12-01T00:00:00Z',
     acceptedAt: '2026-11-22T01:00:00Z', completedAt: null, offerSentAt: '2026-11-22T00:10:00Z',
     offerError: null, offerAttempts: 1, confirmationSentAt: null, confirmationError: null, confirmationAttempts: 0 });
@@ -69,9 +69,9 @@ test('admin previews an assignment and completes accepted work', async ({ page }
   const modal = page.getByRole('dialog', { name: 'Assign work - Sample Maker' });
   await modal.getByLabel('Product name').fill('Custom flower');
   await modal.getByLabel('Quantity').fill('2');
-  await modal.getByLabel('Including yarn / unit (INR)').fill('150');
-  await modal.getByLabel('Excluding yarn / unit (INR)').fill('100');
   await modal.getByLabel('Agreed rate for this product').selectOption('with');
+  await modal.getByLabel('Including yarn / unit (INR)').fill('150');
+  await expect(modal.getByLabel('Excluding yarn / unit (INR)')).toHaveCount(0);
   await modal.getByLabel('Advance payment (%)').fill('25');
   await modal.getByLabel('Delivery date').fill('2099-12-01');
   await modal.getByLabel('Maximum courier reimbursement (INR)').fill('80');
