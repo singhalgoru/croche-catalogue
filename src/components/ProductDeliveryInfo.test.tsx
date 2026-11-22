@@ -3,6 +3,14 @@ import { afterEach, expect, it } from 'vitest';
 import ProductDeliveryInfo from './ProductDeliveryInfo';
 
 afterEach(cleanup);
+it('shows a decorative leaf and a packaging FAQ link outside the delivery disclosure', () => {
+  render(<ProductDeliveryInfo />);
+  const link = screen.getByRole('link', { name: 'Thoughtfully packaged' });
+  expect(link.getAttribute('href')).toBe('/faq/#packaging');
+  expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  expect(link.closest('details')).toBeNull();
+  expect(screen.getByText('Packaging varies by product.')).toBeTruthy();
+});
 it('uses a native collapsed disclosure containing the delivery text and policy links', () => {
   render(<ProductDeliveryInfo />);
   const section = screen.getByRole('region', { name: 'Delivery and returns' });

@@ -80,6 +80,10 @@
     "message": "Hi Luvia, I'd like to ask about customising a handmade piece.\n\nProduct or idea: \nPreferred colour or change: \n\nPlease confirm what is possible, the price and dispatch estimate before I order."
   },
   "shipping": "We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay.",
+  "packaging": {
+    "label": "Thoughtfully packaged",
+    "note": "Packaging varies by product."
+  },
   "brandStory": {
     "portrait": {
       "src": "/tanushree-mithal.webp",
@@ -144,6 +148,7 @@
     "Can I order from outside India?": "international-orders",
     "Do you ship across India, and how much does shipping cost?": "india-shipping",
     "Can I request different colours or customisation?": "custom-colours",
+    "How does Luvia package handmade crochet gifts?": "packaging",
     "Are your product images generated using AI?": "product-imagery",
     "What materials and sizes are used?": "materials-sizing-care",
     "How should I care for my crochet product?": "product-care",
@@ -151,15 +156,16 @@
     "What is the return and refund policy?": "returns-refunds"
   },
   "faqGroups": [
-    { "id": "faq-ordering", "title": "Ordering & payment", "description": "Your cart, checkout and final total.", "questionIds": ["placing-an-order", "payment-options", "product-prices"] },
-    { "id": "faq-delivery", "title": "Shipping & delivery", "description": "Across India, overseas and in time.", "questionIds": ["india-shipping", "dispatch-delivery", "international-orders"] },
-    { "id": "faq-products", "title": "Products & personal touches", "description": "Colours, sizing and what you see.", "questionIds": ["custom-colours", "materials-sizing-care", "product-imagery"] },
-    { "id": "faq-care", "title": "Care & returns", "description": "Looking after your handmade piece.", "questionIds": ["product-care"] }
+    { "id": "faq-ordering", "title": "Ordering & payment", "description": "Your cart, checkout and final total.", "iconPath": "M3 4h2l2 10h10l3-7H6 M8 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2 M17 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2", "questionIds": ["placing-an-order", "payment-options", "product-prices"] },
+    { "id": "faq-delivery", "title": "Shipping & delivery", "description": "Across India, overseas and in time.", "iconPath": "M3 6h11v10H3z M14 10h4l3 3v3h-7z M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4 M18 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4", "questionIds": ["india-shipping", "dispatch-delivery", "international-orders"] },
+    { "id": "faq-products", "title": "Products & personal touches", "description": "Colours, sizing and what you see.", "iconPath": "M4 10h16v10H4z M3 7h18v3H3z M12 7v13 M12 7C8 7 6 6 6 4.5a2 2 0 0 1 2-2c2 0 3 2 4 4.5 M12 7c4 0 6-1 6-2.5a2 2 0 0 0-2-2c-2 0-3 2-4 4.5", "questionIds": ["custom-colours", "materials-sizing-care", "packaging", "product-imagery"] },
+    { "id": "faq-care", "title": "Care & returns", "description": "Looking after your handmade piece.", "iconPath": "M12 20s-8-4.8-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.2-8 10-8 10Z", "questionIds": ["product-care"] }
   ],
   "questions": [
     ["Are your product images generated using AI?", "Some lifestyle and styled images are generated or enhanced using AI, using photographs of our actual handmade products as references. AI helps illustrate different settings and use cases, such as gifting, styling or hanging a product; it is not how the physical product is made. These images are illustrative and may not reproduce every stitch, colour or proportion exactly. People, backgrounds and props in styled scenes are not necessarily real or included with your order. Please refer to the selected product's description, materials, dimensions and What's included details rather than judging size from a styled scene. Handmade pieces can have small variations, and screen colours can differ. If you would like to see an actual product photograph or clarify a detail before ordering, ask us on WhatsApp."],
     ["How do I place an order?", "Choose the product and variant, add your items to the cart, and save your contact and delivery address. Review your coupon, shipping and total, then pay securely through Razorpay. Your online order is confirmed after payment verification; you do not need to confirm it again on WhatsApp. Guest ordering is available; email signup is optional. Saved delivery details stay with your cart for up to 30 days and are visible to Luvia for order fulfilment. Use WhatsApp for help or assisted ordering if online checkout is unavailable. Adding items or sending a message does not confirm an order."],
     ["Can I request different colours or customisation?", "Ask us on WhatsApp with the product link and your preferences. Options depend on the product; we will confirm whether the request is possible, along with any price or timing changes."],
+    ["How does Luvia package handmade crochet gifts?", "Luvia uses premium sustainable packaging, including reusable cotton pouches and recycled paper and card for selected products. Our handmade crochet gifts and accessories are thoughtfully presented with care for Mother Earth. Packaging varies by product. Ask us about gift packaging or messages before ordering; availability and any extra cost must be confirmed."],
     ["Can I order from outside India?", "International orders are by enquiry, not online checkout. Contact us with your destination country, postal code, product links and quantity. Availability, supported payment options, shipping charges, tracking availability and estimated dispatch and delivery timelines are confirmed before payment. Indian checkout shipping offers do not apply. Import duties, taxes and clearance charges may apply; responsibility will be explained in your quote. Customs may delay delivery. Cancellation, returns, refunds and any return-shipping costs will be explained before payment, subject to applicable consumer rights."],
     ["Do you ship across India, and how much does shipping cost?", "We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay. Delivery time after dispatch depends on your location."],
     ["When will my order be dispatched?", "For delivery within India, dispatch is within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier, not delivery. International dispatch and delivery estimates are confirmed separately in your quote, and customs clearance may cause delays."],

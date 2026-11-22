@@ -23,7 +23,8 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     const topics = screen.getByRole('navigation', { name: 'FAQ topics' });
     for (const group of storeContent.faqGroups) {
-      expect(topics.querySelector(`a[href="#${group.id}"]`)).toBeTruthy();
+      const link = topics.querySelector(`a[href="#${group.id}"]`);
+      expect(link?.querySelector('[aria-hidden="true"] svg path')?.getAttribute('d')).toBe(group.iconPath);
       expect(document.getElementById(group.id)?.querySelector('h2')?.textContent).toBe(group.title);
     }
     for (const [question, answer] of storeContent.questions) {
@@ -33,9 +34,20 @@ describe('live store pages', () => {
     }
     expect(document.querySelectorAll('main details')).toHaveLength(storeContent.questions.length + 1);
   });
+  it('uses the category cover for collection thumbnails and falls back when no image is available', () => {
+    window.history.replaceState(null, '', '/about/');
+    const coverImage = 'https://images.luviacreations.com/products/admin/toys-cover.webp';
+    const view = render(<StorePages {...initial} categorySettings={[{ name: 'Toys', priority: 10, coverImage }]} />);
+    const thumbnail = () => within(screen.getByRole('navigation', { name: 'Explore collections' }))
+      .getByRole('link', { name: 'Toys' }).querySelector('img')!;
+    expect(thumbnail().getAttribute('src')).toContain('toys-cover-w160.webp');
+    view.rerender(<StorePages {...initial} products={[{ ...products[0], image: '' }]} />);
+    expect(thumbnail().getAttribute('src')).toBe('/images/luvia-logo-320.webp');
+  });
   it.each([
     ['materials-sizing-care', 'What materials and sizes are used?'],
     ['dispatch-delivery', 'When will my order be dispatched?'],
+    ['packaging', 'How does Luvia package handmade crochet gifts?'],
   ])('opens the FAQ section addressed by #%s', (anchor, question) => {
     window.history.replaceState(null, '', `/faq/#${anchor}`);
     render(<StorePages {...initial} />);
@@ -265,6 +277,19 @@ describe('live store pages', () => {
       }
       expect(within(story).getByRole('link', { name: storeContent.brandStory.shopLabel }).getAttribute('href')).toBe('/collections/');
       expect(screen.getByRole('heading', { name: 'Contact Luvia' })).toBeTruthy();
+      const contact = screen.getByRole('region', { name: 'Contact Luvia' });
+      expect(within(contact).getByRole('link', { name: 'Ask us on WhatsApp' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\//);
+      expect(within(contact).getByRole('link', { name: 'orders@luviacreations.com' }).getAttribute('href')).toBe('mailto:orders@luviacreations.com');
+      expect(within(contact).getByRole('link', { name: 'hello@luviacreations.com' }).getAttribute('href')).toBe('mailto:hello@luviacreations.com');
+      expect(within(contact).getByRole('link', { name: 'Follow Luvia on Instagram' }).getAttribute('href')).toBe('https://www.instagram.com/luvia.craftedwithlove/');
+      const collections = screen.getByRole('navigation', { name: 'Explore collections' });
+      const toys = within(collections).getByRole('link', { name: 'Toys' });
+      expect(toys.getAttribute('href')).toBe('/collections/toys/');
+      expect(toys.getAttribute('aria-description')).toBe('1 product');
+      expect(toys.querySelector('img')?.getAttribute('src')).toContain('bunny-w160.webp');
+      expect(toys.querySelector('img')?.getAttribute('loading')).toBe('lazy');
+      expect(toys.querySelector('img')?.getAttribute('alt')).toBe('');
+      expect(screen.getByRole('link', { name: 'View all collections' }).getAttribute('href')).toBe('/collections/');
       expect(screen.queryByText(storeContent.dispatch)).toBeNull();
       expect(screen.queryByRole('heading', { name: 'Ordering across India' })).toBeNull();
       expect(screen.queryByRole('heading', { name: storeContent.orderingDisclosure.title })).toBeNull();
@@ -420,7 +445,7 @@ describe('live store pages', () => {
     expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
     expect(screen.getByRole('banner').textContent).toBe('Navaratri, Toys');
   });
-  it('shows the custom cover on the hub only, and restores the product fallback', () => {
+  it('shows the custom cover on collection cards and restores the product fallback', () => {
     const coverImage = 'https://images.luviacreations.com/products/admin/season.webp';
     const settings = [...initial.categorySettings, { name: 'Festive', priority: 1, isSeasonal: true, productIds: ['p1'], coverImage }];
     window.history.replaceState(null, '', '/collections/');
@@ -433,9 +458,17 @@ describe('live store pages', () => {
     window.history.replaceState(null, '', '/collections/festive/');
     render(<StorePages {...initial} categorySettings={settings} />);
     expect(screen.queryByAltText('Festive collection')).toBeNull();
-    expect(document.querySelector('img[src*="season"]')).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'Explore collections' })).getByRole('link', { name: 'Festive' }).querySelector('img')?.getAttribute('src')).toContain('season-w160.webp');
     expect(screen.getByRole('article', { name: 'Product: Bunny' })).toBeTruthy();
   });
+  it.each(['/collections/toys/', '/bestsellers/', '/featured/', '/search/', '/bulk-orders/', '/international-quote/'])(
+    'shows collection thumbnails on %s', pathname => {
+      window.history.replaceState(null, '', pathname);
+      render(<StorePages {...initial} />);
+      const nav = screen.getByRole('navigation', { name: 'Explore collections' });
+      expect(within(nav).getByRole('link', { name: 'Toys' }).querySelector('img')?.getAttribute('src')).toContain('bunny-w160.webp');
+    },
+  );
   it('shows the business phone and links to ordering help without repeating the order model on About', () => {
     window.history.replaceState(null, '', '/about/');
     render(<StorePages {...initial} />);

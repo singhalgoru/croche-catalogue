@@ -245,7 +245,16 @@ describe('collection and information pages', () => {
       expect(doc.querySelector(selector)?.getAttribute('content')).toBe(storeContent.brandStory.description);
     }
     expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://luviacreations.com/about/');
-    expect(doc.querySelector('a[href="mailto:hello@luviacreations.com"]')).toBeTruthy();
+    const contact = doc.querySelector('section[aria-labelledby="contact-luvia"]');
+    expect(contact?.querySelector('a[href^="https://wa.me/"]')).toBeTruthy();
+    expect(contact?.querySelector('a[href="mailto:orders@luviacreations.com"]')).toBeTruthy();
+    expect(contact?.querySelector('a[href="mailto:hello@luviacreations.com"]')).toBeTruthy();
+    expect(contact?.querySelector('a[href="https://www.instagram.com/luvia.craftedwithlove/"]')).toBeTruthy();
+    const collections = doc.querySelector('nav[aria-label="Explore collections"]');
+    expect(collections?.querySelector('a[href="/collections/toys/"]')?.textContent).toContain('1 product');
+    expect(collections?.querySelector('a[href="/collections/toys/"] img')?.getAttribute('src')).toContain('bunny-w160.webp');
+    expect(collections?.querySelector('a[href="/collections/toys/"] img')?.getAttribute('loading')).toBe('lazy');
+    expect(collections?.querySelector('a[href="/collections/hair-accessories/"]')).toBeTruthy();
     expect(doc.body.textContent).not.toContain(storeContent.dispatch);
     expect(doc.body.textContent).not.toContain('Ordering across India');
     expect([...doc.querySelectorAll('a')].find(link => link.textContent === 'Read our FAQ')?.getAttribute('href')).toBe('/faq/#faq-ordering');
@@ -254,6 +263,16 @@ describe('collection and information pages', () => {
     expect(llms).toContain('https://luviacreations.com/about/');
     expect(llms).toContain('Tanushree Mithal');
   });
+  it.each(['/collections/toys/', '/bestsellers/', '/featured/', '/search/', '/bulk-orders/', '/international-quote/'])(
+    'prerenders linked category thumbnails on %s', pathname => {
+      const doc = documentFor(pathname);
+      const nav = doc.querySelector('nav[aria-label="Explore collections"]');
+      const thumbnail = nav?.querySelector('a[href="/collections/toys/"] img');
+      expect(thumbnail?.getAttribute('src')).toContain('bunny-w160.webp');
+      expect(thumbnail?.getAttribute('loading')).toBe('lazy');
+      expect(thumbnail?.getAttribute('alt')).toBe('');
+    },
+  );
   it('prerenders the return policy with matching social previews and the standard site layout', () => {
     const doc = documentFor('/return-policy/');
     const content = (selector: string) => doc.querySelector(selector)?.getAttribute('content');
@@ -380,13 +399,13 @@ describe('collection and information pages', () => {
     expect(doc.querySelector(`footer a[href="${path}"]`)).not.toBeNull();
     expect(renderContentSitemap([toy], '2026-10-14', pages)).toContain(`https://luviacreations.com${path}`);
   });
-  it('renders custom seasonal covers on static cards only with product fallback after removal', () => {
+  it('renders custom seasonal covers on static cards with product fallback after removal', () => {
     const category = { name: 'Festive', priority: 1, isSeasonal: true, productIds: ['p1'], coverImage: 'https://images.luviacreations.com/products/admin/season.webp' };
     const result = buildContentPages([toy], '919205907350', [category]);
     expect(result.get('/collections/')).toContain('season-w480.webp');
     const doc = new JSDOM(result.get('/collections/festive/')).window.document;
     expect(doc.querySelector('img[alt="Festive collection"]')).toBeNull();
-    expect(doc.querySelector('img[src*="season"]')).toBeNull();
+    expect(doc.querySelector('nav[aria-label="Explore collections"] a[href="/collections/festive/"] img')?.getAttribute('src')).toContain('season-w160.webp');
     expect(doc.body.textContent).toContain('Bunny');
     const removed = buildContentPages([toy], '919205907350', [{ ...category, coverImage: '' }]);
     expect(removed.get('/collections/')).not.toContain('season-w480.webp');
@@ -538,7 +557,7 @@ describe('collection and information pages', () => {
     expect(faq.body.textContent).toContain('before you pay');
     expect(faq.querySelector('a[href="/return-policy/"]')).toBeTruthy();
     for (const group of storeContent.faqGroups) {
-      expect(faq.querySelector(`nav[aria-label="FAQ topics"] a[href="#${group.id}"]`)).toBeTruthy();
+      expect(faq.querySelector(`nav[aria-label="FAQ topics"] a[href="#${group.id}"] .faq-icon[aria-hidden="true"] path`)?.getAttribute('d')).toBe(group.iconPath);
       expect(faq.getElementById(group.id)?.querySelector('h2')?.textContent).toBe(group.title);
     }
     for (const [question, answer] of storeContent.questions) {
@@ -576,6 +595,7 @@ describe('collection and information pages', () => {
     expect(llms).toContain('https://luviacreations.com/#collaborate');
     expect(llms).not.toContain('https://luviacreations.com/artisans/');
     expect(llms).toContain('gajras, scrunchies, headbands');
+    expect(llms).toContain('[packaging FAQ](https://luviacreations.com/faq/#packaging)');
     expect(llms).toContain('https://www.facebook.com/profile.php?id=61596614701476');
   });
 

@@ -34,7 +34,9 @@ import type { Testimonial } from '../services/customerLove';
 import { readTestimonialSlug } from '../utils/testimonialLink';
 import { getBoundedMetaTitle } from '../utils/productMetaTitle.js';
 import { getProductImageUrl } from '../utils/productImageUrl';
+import { getCategoryImage } from '../utils/categoryImage.js';
 import BudgetGiftGuide from './BudgetGiftGuide';
+import { InstagramIcon, MailIcon, WhatsAppIcon } from './SocialIcons';
 
 const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
 const ArtisanPaymentForm = lazy(() => import('./ArtisanPaymentForm'));
@@ -239,9 +241,23 @@ export default function StorePages({
   }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isGiftGuide, isCustomerLove, isStory, story, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts, article]);
 
   const categoryLinks = (
-    <nav aria-label="Explore collections" className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-      {visibleCategories.map(item => <a key={item.name} href={collectionPath(item.name)}
-        className={`flex min-h-11 min-w-0 items-center justify-center rounded-2xl border border-mustard px-3 py-2 text-center text-sm leading-snug underline underline-offset-4 sm:rounded-full sm:px-4 ${item.isSeasonal ? 'badge-glow bg-mustard/20' : ''}`}>{item.name}</a>)}
+    <nav aria-label="Explore collections">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {visibleCategories.map(item => {
+          const items = products.filter(product => matchesCategory(product, item.name, categories));
+          const count = items.length;
+          const image = getCategoryImage(items, item);
+          return <li key={item.name} className="min-w-0">
+            <a href={collectionPath(item.name)} aria-label={item.name} aria-description={`${count} ${count === 1 ? 'product' : 'products'}`} className={`group flex h-full min-h-20 items-center gap-2 rounded-2xl border border-mustard/40 p-3 text-left transition-colors hover:border-cocoa/40 hover:bg-mustard/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa sm:gap-3 ${item.isSeasonal ? 'bg-mustard/15' : 'bg-white/70'}`}>
+              <img src={image ? getProductImageUrl(image, 160) : '/images/luvia-logo-320.webp'} alt="" width={64} height={64}
+                loading="lazy" decoding="async" className="h-10 w-10 shrink-0 rounded-xl bg-cream-dark object-contain sm:h-16 sm:w-16" {...productImageProtection} />
+              <span className="min-w-0"><span className="block font-heading text-sm font-bold leading-snug group-hover:underline sm:text-base">{item.name}</span>
+                <span className="mt-1 block text-xs text-cocoa/70">{count} {count === 1 ? 'product' : 'products'}</span></span>
+              <span aria-hidden="true" className="ml-auto hidden shrink-0 text-lg text-cocoa/65 sm:block">&rarr;</span>
+            </a>
+          </li>;
+        })}
+      </ul>
     </nav>
   );
   return <div className={`flex min-h-screen flex-col ${isSearch ? 'mobile-search-page' : ''}`}>
@@ -476,14 +492,31 @@ export default function StorePages({
         <h2 className="font-heading text-xl font-bold">Thoughtfully crafted crochet, made to be treasured</h2>
         <p>{storeContent.about[0]}</p><p>{storeContent.about[1]}</p>
         <h2 className="font-heading text-xl font-bold">Personal touches, confirmed with you</h2><p>{storeContent.about[2]}</p>
-        <h2 id="contact-luvia" className="scroll-mt-24 font-heading text-xl font-bold">Contact Luvia</h2>
-        <p>Gurugram, Haryana, India</p>
-        <a href={getGeneralWhatsAppLink()} className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Ask us on WhatsApp</a>
-        <p>WhatsApp / mobile: <a href={getGeneralWhatsAppLink()} className="underline">{formatWhatsAppNumber()}</a></p>
-        <p>Orders: <a href="mailto:orders@luviacreations.com" className="underline">orders@luviacreations.com</a></p>
-        <p>General enquiries: <a href="mailto:hello@luviacreations.com" className="underline">hello@luviacreations.com</a></p>
-        <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-block underline">Follow Luvia on Instagram</a>
-        <p>Questions about ordering? <a href="/faq/#faq-ordering" className="inline-flex min-h-11 items-center underline underline-offset-4">Read our FAQ</a>.</p>
+        <section aria-labelledby="contact-luvia" className="overflow-hidden rounded-2xl border border-mustard/40 bg-cream/70">
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-cocoa/65">We'd love to hear from you</p>
+            <h2 id="contact-luvia" className="mt-2 scroll-mt-24 font-heading text-2xl font-bold">Contact Luvia</h2>
+            <p className="mt-1 text-sm text-cocoa/75">Gurugram, Haryana, India</p>
+            <a href={getGeneralWhatsAppLink()} className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-cocoa px-5 py-3 text-center font-semibold text-cream hover:bg-cocoa-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+              <WhatsAppIcon /> Ask us on WhatsApp
+            </a>
+            <p className="mt-2 text-center text-sm">WhatsApp / mobile: <a href={getGeneralWhatsAppLink()} className="inline-flex min-h-11 items-center underline underline-offset-4">{formatWhatsAppNumber()}</a></p>
+          </div>
+          <div className="space-y-3 border-t border-cocoa/10 bg-white/70 p-5">
+            <p className="flex items-start gap-3">
+              <MailIcon className="mt-1 h-5 w-5 shrink-0 text-cocoa/65" />
+              <span className="min-w-0 text-sm"><span className="block font-semibold">Orders</span><a href="mailto:orders@luviacreations.com" className="inline-flex min-h-11 items-center break-all underline underline-offset-4">orders@luviacreations.com</a></span>
+            </p>
+            <p className="flex items-start gap-3">
+              <MailIcon className="mt-1 h-5 w-5 shrink-0 text-cocoa/65" />
+              <span className="min-w-0 text-sm"><span className="block font-semibold">General enquiries</span><a href="mailto:hello@luviacreations.com" className="inline-flex min-h-11 items-center break-all underline underline-offset-4">hello@luviacreations.com</a></span>
+            </p>
+            <a href="https://www.instagram.com/luvia.craftedwithlove/" className="inline-flex min-h-11 items-center gap-3 text-sm font-semibold underline underline-offset-4">
+              <InstagramIcon className="h-5 w-5 shrink-0 text-cocoa/65" /> Follow Luvia on Instagram
+            </a>
+            <p className="border-t border-cocoa/10 pt-2 text-sm">Questions about ordering? <a href="/faq/#faq-ordering" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">Read our FAQ</a>.</p>
+          </div>
+        </section>
         </div>
       </section> : pathname.startsWith('/faq') ? <section className="space-y-10">
         <div className="rounded-3xl border border-mustard/40 bg-mustard/10 p-5 sm:p-8">
@@ -493,6 +526,11 @@ export default function StorePages({
           <nav aria-label="FAQ topics" className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {storeContent.faqGroups.map(group => <a key={group.id} href={`#${group.id}`}
               className="rounded-2xl border border-cocoa/10 bg-white p-4 transition-colors hover:border-cocoa/40">
+              <span aria-hidden="true" className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-mustard/20 text-cocoa">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+                  <path d={group.iconPath} />
+                </svg>
+              </span>
               <strong className="block font-heading text-lg">{group.title}</strong>
               <span className="mt-2 block text-xs leading-relaxed text-cocoa/65">{group.description}</span>
               <span aria-hidden="true" className="mt-3 block">&rarr;</span>
@@ -567,7 +605,12 @@ export default function StorePages({
         <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}
-      {showCatalogue && !isCollectionsHub && !isCustomerLove && !isStory && !policy && !isArtisans && !isGiftGuide && !article && !pathname.startsWith('/faq') && <section className="space-y-3"><h2 className="font-heading text-xl font-bold">Explore collections</h2>{categoryLinks}</section>}
+      {showCatalogue && visibleCategories.length > 0 && !isCollectionsHub && !isCustomerLove && !isStory && !policy && !isArtisans && !isGiftGuide && !article && !pathname.startsWith('/faq') && <section className="space-y-3">
+        <h2 className="font-heading text-xl font-bold">Explore collections</h2>
+        <p className="text-sm text-cocoa/75">Discover handmade crochet gifts and accessories by category.</p>
+        {categoryLinks}
+        <a href="/collections/" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">View all collections</a>
+      </section>}
     </main><Footer showCollaboration={!isArtisans} showBulkOrders={!isArtisans && !isBulkOrders} />
   </div>;
 }

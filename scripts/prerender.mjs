@@ -709,6 +709,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
         <a class="cta alt" href="${escapeHtml(whatsappLink(product, whatsappNumber))}" rel="nofollow">Ask on WhatsApp</a>
       </p>
       <p>Shopping without JavaScript? Contact Luvia for assisted ordering.</p>
+      <p><a href="/faq/#packaging"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#15803d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M20 4C11 4 5 7 5 14a5 5 0 0 0 5 5c7 0 10-6 10-15Z"/><path d="M4 21c3-5 6-8 12-11"/></svg> ${escapeHtml(storeContent.packaging.label)}</a> ${escapeHtml(storeContent.packaging.note)}</p>
       <p>${escapeHtml(storeContent.international.invitation)} <a href="/international-quote/?product=${encodeURIComponent(product.id)}">Request an international quote</a></p>
       <details><summary>Delivery and shipping</summary><p>${escapeHtml(storeContent.dispatch)}</p><p>${escapeHtml(storeContent.shipping)}</p><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></details>
       <section aria-labelledby="order-information-title">

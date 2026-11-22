@@ -576,6 +576,11 @@ describe('renderLlms', () => {
 
 describe('renderProductPage', () => {
   const page = renderProductPage(product, '910000000000');
+  it('includes the packaging note and FAQ link in the product HTML', () => {
+    expect(page).toContain('href="/faq/#packaging"');
+    expect(page).toContain('Thoughtfully packaged');
+    expect(page).toContain('Packaging varies by product.');
+  });
   it('discloses order requests, tax, shipping and payment on crawler-facing product pages', () => {
     expect(page).toContain('does not take payment or confirm an order');
     expect(page).toContain('Prices are in Indian rupees');
@@ -761,6 +766,8 @@ describe('interactive product page generation', () => {
     expect(page).toContain('id="product-fallback-style"');
     expect(page).not.toContain('location.replace');
     expect(page).toContain('<h1>Ivory Rose Gajra</h1>');
+    expect(page).toContain('href="/faq/#packaging"');
+    expect(page).toContain('Thoughtfully packaged');
     expect(page).toContain('"@type":"Product"');
     expect(page).toContain(`rel="canonical" href="https://luviacreations.com/p/${prerenderSlug(product)}/"`);
   });
