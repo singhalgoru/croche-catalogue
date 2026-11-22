@@ -108,6 +108,8 @@ export default function MaterialsPanel() {
       <button type="button" className={button} disabled={busy || loading} onClick={() => { setError(null); setLoading(true); void load(); }}>Refresh purchases</button>
       <button type="button" className={button} disabled={busy || loading || !loaded}
         onClick={() => downloadLedgerCsv('luvia-material-purchases.csv', buildMaterialCsv(purchases))}>Download purchases CSV</button>
+      <button type="button" className={button}
+        onClick={() => downloadLedgerCsv('luvia-material-purchases-template.csv', buildMaterialCsv([]))}>Download purchases CSV template</button>
       <label className={`${button} cursor-pointer ${busy || loading || !loaded || !!draft ? 'opacity-50' : ''}`}>
         Upload purchases CSV
         <input type="file" accept=".csv,text/csv" className="sr-only" aria-label="Upload purchases CSV"
@@ -118,7 +120,9 @@ export default function MaterialsPanel() {
           }} />
       </label>
     </div>
-    <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Leave Record ID blank for new rows; existing IDs update purchases. Receipts are not included in CSV and existing attachments are kept.</p>
+    <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Use the blank template for new rows and leave Record ID blank; existing IDs update purchases.
+      Enter dates as YYYY-MM-DD or DD/MM/YYYY, positive quantity and total, and Paid or Unpaid for Payment Status.
+      Receipts are not included in CSV and existing attachments are kept.</p>
     {draft && <form onSubmit={event => void save(event)} className="mt-4 grid gap-3 rounded-xl bg-cream/50 p-4 sm:grid-cols-2">
       <h3 className="font-bold sm:col-span-2">{purchases.some(item => item.id === draft.id) ? 'Edit purchase' : 'New purchase'}</h3>
       <label className="text-sm font-semibold">Purchase date *

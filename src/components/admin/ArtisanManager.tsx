@@ -4,6 +4,8 @@ import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fe
 import type { ArtisanApplication, ArtisanHistory, ArtisanStatus } from '../../services/artisans';
 import ArtisanInvitations from './ArtisanInvitations';
 import ArtisanProfile from './ArtisanProfile';
+import ArtisanPayments from './ArtisanPayments';
+import AllArtisanPayments from './AllArtisanPayments';
 import ArtisanPaymentDetails from './ArtisanPaymentDetails';
 import { paymentStatus, requestPaymentDetails } from '../../services/artisanPaymentDetails';
 import AdminDialog from './AdminDialog';
@@ -204,6 +206,7 @@ export default function ArtisanManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<ArtisanApplication | null>(null);
+  const [paymentArtisan, setPaymentArtisan] = useState<{ id: string; name: string } | null>(null);
   const [message, setMessage] = useState('');
   useEffect(() => {
     let current = true;
@@ -224,6 +227,7 @@ export default function ArtisanManager() {
     <section aria-labelledby="artisan-directory-title" className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <h2 id="artisan-directory-title" className="font-heading text-2xl font-bold">Artisan applications</h2>
       <p className="text-sm">Private applications and working profiles, not a public artisan directory. Unapproved applications without payment history expire after 180 days without an update.</p>
+      <AllArtisanPayments onChanged={() => setRefresh(value => value + 1)} />
       {message && <p role="status">{message}</p>}
       <form role="search" aria-label="Search artisans" className="flex flex-wrap items-end gap-3" onSubmit={event => {
         event.preventDefault(); setLoading(true); setError(''); setPage(0); setFilter(current => ({ ...current, search: search.trim(), skill: skill.trim() })); setRefresh(value => value + 1);
@@ -256,6 +260,8 @@ export default function ArtisanManager() {
           <p className="text-sm">Skill rating: {application.skill_rating ? `${application.skill_rating}/5` : 'Not rated'}</p>
           {application.capabilities && <p className="mt-1 line-clamp-2 break-words text-sm">Can create: {application.capabilities}</p>}
           <button onClick={() => { setMessage(''); setSelected(application); }} className="mt-2 min-h-11 underline">Review {application.details.fullName}</button>
+          <button type="button" onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}
+            className="ml-4 min-h-11 underline">Payments for {application.details.fullName}</button>
         </li>)}</ul>
         <div className="flex flex-wrap items-center gap-4">
           <button disabled={page === 0} onClick={() => { setLoading(true); setError(''); setPage(value => value - 1); }} className="min-h-11 underline disabled:opacity-40">Previous</button>
@@ -264,5 +270,7 @@ export default function ArtisanManager() {
         </div>
       </>}
     </section>
+    {paymentArtisan && <ArtisanPayments artisan={paymentArtisan} onClose={() => setPaymentArtisan(null)}
+      onChanged={() => setRefresh(value => value + 1)} />}
   </div>;
 }

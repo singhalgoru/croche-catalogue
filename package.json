@@ -1,6 +1,11 @@
 {
   "name": "luvia-catalogue",
   "private": true,
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
+  },
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -23,6 +28,7 @@
     "@tesseract.js-data/eng": "^1.0.0",
     "buffer": "^6.0.3",
     "docx": "^9.15.4",
+    "exceljs": "^4.4.0",
     "mammoth": "^1.13.0",
     "pdfmake": "^0.3.14",
     "react": "^19.2.8",

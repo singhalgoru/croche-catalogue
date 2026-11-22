@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { fetchArtisanActivity, fetchArtisanPaymentSummary, fetchArtisanPaymentYear,
+import { fetchArtisanActivity, fetchArtisanPaymentYear,
   type ArtisanPayment, type ArtisanPaymentMonth, type ArtisanPaymentSummary } from '../../services/artisanProfiles';
 import { formatDate, localDate } from '../../utils/date';
 import AdminDialog from './AdminDialog';
@@ -8,10 +8,20 @@ import { calendarPeriods, isSnapshotYear } from './salesPeriodSummary';
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
 
-function PaymentDetails({ artisan, month, onClose }: {
-  artisan: ArtisanPaymentSummary; month: string; onClose: () => void;
+interface Quarter {
+  label: string;
+  year: string;
+  startMonth: number;
+  endMonth: number;
+  artisans: ArtisanPaymentSummary[];
+  expectedCount: number;
+  expectedPaise: number;
+}
+
+function PaymentDetails({ quarter, onClose }: {
+  quarter: Quarter; onClose: () => void;
 }) {
-  const [payments, setPayments] = useState<ArtisanPayment[] | null>(null);
+  const [payments, setPayments] = useState<{ artisan: ArtisanPaymentSummary; payment: ArtisanPayment }[] | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
@@ -21,65 +31,54 @@ function PaymentDetails({ artisan, month, onClose }: {
       if (!active) return;
       setPayments(null);
       setError('');
-      void fetchArtisanActivity(artisan.artisanId).then(activity => {
-        if (active) setPayments(activity.payments.filter(payment =>
-          payment.voided_at === null && payment.paid_on.startsWith(`${month}-`)));
+      void Promise.all(quarter.artisans.map(async artisan => {
+        const activity = await fetchArtisanActivity(artisan.artisanId);
+        return activity.payments.filter(payment => {
+          const month = Number(payment.paid_on.slice(5, 7));
+          return payment.voided_at === null && payment.paid_on.startsWith(`${quarter.year}-`)
+            && month >= quarter.startMonth && month <= quarter.endMonth;
+        }).map(payment => ({ artisan, payment }));
+      })).then(groups => {
+        if (active) setPayments(groups.flat().sort((a, b) =>
+          b.payment.paid_on.localeCompare(a.payment.paid_on)
+          || a.artisan.name.localeCompare(b.artisan.name) || a.payment.id.localeCompare(b.payment.id)));
       }).catch(failure => {
         if (active) setError(failure instanceof Error ? failure.message : 'Unable to load payment details.');
       });
     });
     return () => { active = false; };
-  }, [artisan.artisanId, month, retry]);
+  }, [quarter, retry]);
 
-  return <AdminDialog title={`Payments for ${artisan.name}`} onClose={onClose}>
+  const changed = payments && (payments.length !== quarter.expectedCount
+    || payments.reduce((sum, item) => sum + Math.round(item.payment.amount * 100), 0) !== quarter.expectedPaise);
+  return <AdminDialog title={`Payments · ${quarter.label}`} onClose={onClose}>
     <div className="space-y-4 p-4">
-      <p className="text-sm">Recorded payments for {month}, excluding voided entries. To correct a payment or view private payout details, review the artisan in Admin → Artisans.</p>
+      <p className="text-sm">Newest payments first; voided entries are excluded. To correct a payment or view private payout details, review the artisan in Admin → Artisans. Refresh the snapshot if payments have changed.</p>
       {error ? <div><p role="alert" className="text-red-700">{error}</p>
         <button type="button" className="min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Retry payment details</button></div>
         : payments === null ? <p role="status">Loading payment details…</p>
-          : payments.length === 0 ? <p>No recorded payments remain for this month. Refresh the snapshot to update totals.</p>
-            : <ul className="space-y-3">{payments.map(payment =>
+          : <>{changed && <p role="status" className="text-sm">Payment details have changed since this snapshot. Refresh payments to update the totals.</p>}
+            {payments.length === 0 ? <p>No recorded payments for this quarter.</p>
+            : <ul className="space-y-3">{payments.map(({ artisan, payment }) =>
               <li key={payment.id} className="rounded-xl border border-mustard/40 bg-white p-3">
-                <p className="font-semibold">{formatDate(payment.paid_on)} · {currency.format(payment.amount)}</p>
+                <h3 className="break-words font-semibold">{formatDate(payment.paid_on)} · {artisan.name}</h3>
+                <p className="font-heading text-lg font-bold">{currency.format(payment.amount)}</p>
                 <p className="text-sm">Method: {payment.method}</p>
                 {payment.reference && <p className="break-all text-sm">Transaction reference: {payment.reference}</p>}
                 <p className="whitespace-pre-wrap break-words text-sm">Work / batch: {payment.description}</p>
-              </li>)}</ul>}
+              </li>)}</ul>}</>}
     </div>
   </AdminDialog>;
 }
 
 export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: number }) {
   const [expanded, setExpanded] = useState(false);
-  const [month, setMonth] = useState(() => localDate().slice(0, 7));
   const [year, setYear] = useState(() => localDate().slice(0, 4));
   const [retry, setRetry] = useState(0);
-  const [rows, setRows] = useState<ArtisanPaymentSummary[] | null>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<ArtisanPaymentSummary | null>(null);
+  const [selected, setSelected] = useState<Quarter | null>(null);
   const [yearRows, setYearRows] = useState<{ year: string; data: ArtisanPaymentMonth[] } | null>(null);
   const [yearError, setYearError] = useState<{ year: string; message: string } | null>(null);
   const panelId = useId();
-
-  useEffect(() => {
-    if (refreshKey === 0 || !month) return;
-    let active = true;
-    queueMicrotask(() => {
-      if (!active) return;
-      setLoading(true);
-      setRows(null);
-      setError('');
-      void fetchArtisanPaymentSummary(month).then(data => {
-        if (active) setRows(data);
-      }).catch(failure => {
-        if (active) setError(failure instanceof Error ? failure.message : 'Unable to load payment snapshot.');
-      }).finally(() => {
-        if (active) setLoading(false);
-      });
-    });
-    return () => { active = false; };
-  }, [month, refreshKey, retry]);
 
   useEffect(() => {
     if (!expanded || !refreshKey || !isSnapshotYear(year)) return;
@@ -95,17 +94,21 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
     return () => { active = false; };
   }, [expanded, year, refreshKey, retry]);
 
-  const totalPaise = rows?.reduce((sum, row) => sum + Math.round(row.amount * 100), 0);
-  const cards = yearRows?.year === year && isSnapshotYear(year) ? calendarPeriods(year).map(period => {
+  const cards = yearRows?.year === year && isSnapshotYear(year) ? calendarPeriods(year).map((period, index) => {
     const payments = yearRows.data.filter(item => {
       const monthNumber = Number(item.month.slice(5, 7));
       return monthNumber >= period.startMonth && monthNumber <= period.endMonth;
     }).flatMap(item => item.payments);
     const paid = payments.reduce((sum, payment) => sum + Math.round(payment.amount * 100), 0);
-    return { label: period.label, metrics: [
+    const count = payments.reduce((sum, payment) => sum + payment.count, 0);
+    const artisans = [...new Map(payments.map(payment => [payment.artisanId, payment])).values()];
+    return { label: period.label, ...(index > 0 ? { action: {
+      label: `View payments for ${period.label}`,
+      onClick: () => setSelected({ ...period, year, artisans, expectedCount: count, expectedPaise: paid }),
+    } } : {}), metrics: [
       { label: 'Total paid', value: currency.format(paid / 100) },
-      { label: 'Payments', value: String(payments.reduce((sum, payment) => sum + payment.count, 0)) },
-      { label: 'Artisans', value: String(new Set(payments.map(payment => payment.artisanId)).size) },
+      { label: 'Payments', value: String(count) },
+      { label: 'Artisans', value: String(artisans.length) },
     ] };
   }) : null;
   return <section aria-label="Artisan payment snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
@@ -124,34 +127,9 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
       : yearError?.year === year ? <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{yearError.message} Use Refresh payments to retry.</p>
         : cards ? <FinancialPeriodCards cards={cards} />
           : <p role="status" className="mt-3 text-sm">Loading yearly and quarterly payments…</p>}
-    <h3 className="mt-5 font-heading text-lg font-bold">Monthly payment details</h3>
-    <div className="mt-3 flex flex-wrap items-end gap-3">
-      <label className="text-sm font-semibold">Payment month
-        <input type="month" value={month} onChange={event => setMonth(event.target.value)}
-          className="mt-1 block min-h-11 rounded-lg border border-mustard/50 bg-white px-3 py-2" />
-      </label>
-      <button type="button" disabled={loading} onClick={() => setRetry(value => value + 1)}
-        className="min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold disabled:opacity-50">Refresh payments</button>
+    <button type="button" onClick={() => setRetry(value => value + 1)}
+      className="mt-3 min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold">Refresh payments</button>
     </div>
-    {!month && <p role="status" className="mt-3 text-sm">Choose a payment month.</p>}
-    {loading && <p role="status" className="mt-3 text-sm">Loading artisan payments…</p>}
-    {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-    {month && !loading && rows && <>
-      <p className="mt-4 font-semibold">Total paid: {currency.format((totalPaise ?? 0) / 100)} · {rows.length} artisan{rows.length === 1 ? '' : 's'}</p>
-      {rows.length === 0 ? <p className="mt-2 text-sm">No payments recorded for this month.</p> :
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2">{rows.map(row =>
-          <li key={row.artisanId}>
-            <button type="button" aria-label={`View payments for ${row.name}`} onClick={() => setSelected(row)}
-              className="h-full w-full rounded-xl border border-mustard/40 p-3 text-left hover:bg-cream/70">
-              <span className="block break-words font-semibold">{row.name}</span>
-              <span className="block font-heading text-xl font-bold">{currency.format(row.amount)}</span>
-              <span className="block text-sm">{row.count} payment{row.count === 1 ? '' : 's'} · Latest: {formatDate(row.latestDate)}</span>
-              <span className="mt-1 inline-block text-sm underline">View payment details</span>
-            </button>
-          </li>)}</ul>}
-      <p className="mt-3 text-xs">Select an artisan to view individual payment entries.</p>
-    </>}
-    </div>
-    {selected && <PaymentDetails artisan={selected} month={month} onClose={() => setSelected(null)} />}
+    {selected && <PaymentDetails quarter={selected} onClose={() => setSelected(null)} />}
   </section>;
 }

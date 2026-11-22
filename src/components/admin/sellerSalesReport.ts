@@ -2,6 +2,7 @@ import { SALE_CHANNELS, type SaleChannel, type SellerSale, type SellerSaleInput 
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
 import { formatDate, isValidDate, parseDateInput } from '../../utils/date';
 
+const ALLOCATION_HEADERS = ['Marketing Allocation Percent', 'Returns Allocation Percent', 'Overhead Allocation Percent'] as const;
 const REPORT_HEADERS = [
   'Record ID',
   'Product ID',
@@ -34,9 +35,7 @@ const REPORT_HEADERS = [
   'Labour Time Per Piece',
   'Labour Time Unit',
   'Labour Hourly Rate',
-  'Marketing Allocation Percent',
-  'Returns Allocation Percent',
-  'Overhead Allocation Percent',
+  ...ALLOCATION_HEADERS,
   'Marketing Allocation',
   'Returns Allocation',
   'Overhead Allocation',
@@ -52,6 +51,8 @@ export const csvCell = (value: string | number) => {
 };
 
 export const csvRecord = (values: Array<string | number>) => values.map(csvCell).join(',');
+
+export const buildSellerSalesTemplate = () => csvRecord([...REPORT_HEADERS.slice(0, 16), ...ALLOCATION_HEADERS]);
 
 export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
   const monthly = sales.filter((sale) => sale.saleDate.startsWith(`${month}-`));

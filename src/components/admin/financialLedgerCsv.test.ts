@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MaterialPurchase } from '../../services/materialPurchases';
 import type { ArtisanPayment } from '../../services/artisanProfiles';
-import { buildMaterialCsv, buildPaymentCsv, parseMaterialCsv, parsePaymentCsv } from './financialLedgerCsv';
+import { buildAllPaymentCsv, buildMaterialCsv, buildPaymentCsv, parseAllPaymentCsv, parseMaterialCsv, parsePaymentCsv } from './financialLedgerCsv';
 
 const purchase: MaterialPurchase = { id: 'existing', purchased_on: '2025-03-31', material: '=yarn', supplier: "'=shop",
   quantity: 2, unit: 'balls', total: 25.5, payment_status: 'Paid', notes: 'Line one,\n"line two"', receipt_name: 'bill.pdf' };
@@ -9,6 +9,16 @@ const payment: ArtisanPayment = { id: 'existing-payment', paid_on: '2025-03-31',
   reference: 'ref', description: 'Batch', created_at: '', voided_at: null, void_reason: null };
 
 describe('financial ledger CSV', () => {
+  it('accepts filled blank purchase and per-artisan payment templates', () => {
+    const material = `${buildMaterialCsv([])}\r\n,2025-03-31,Yarn,Shop,2,balls,25.50,Paid,`;
+    expect(parseMaterialCsv(material, [], new Map())[0]).toMatchObject({
+      purchased_on: '2025-03-31', material: 'Yarn', total: 25.5, payment_status: 'Paid',
+    });
+    const payments = `${buildPaymentCsv([])}\r\n,2025-03-31,125.50,UPI,txn-1,Flowers,Recorded`;
+    expect(parsePaymentCsv(payments, [], new Map())[0]).toMatchObject({
+      exists: false, input: { date: '2025-03-31', amount: '125.50', method: 'UPI', description: 'Flowers' },
+    });
+  });
   it('round-trips material records, protects spreadsheet formulas and preserves the existing ID', () => {
     const csv = buildMaterialCsv([purchase]);
     expect(csv).toContain("'=yarn");
@@ -39,5 +49,26 @@ describe('financial ledger CSV', () => {
       .toThrow(/duplicate new purchase/);
     expect(() => parsePaymentCsv(buildPaymentCsv([{ ...payment, id: '' }, { ...payment, id: '' }]), [], new Map()))
       .toThrow(/duplicate new payment/);
+  });
+  it('routes identical names by artisan ID and preserves recorded and voided entries on export', () => {
+    const artisans = [
+      { id: 'one', name: 'Maker', payments: [payment] },
+      { id: 'two', name: 'Maker', payments: [{ ...payment, id: 'voided', voided_at: '2025-04-01', void_reason: 'Correction' }] },
+    ];
+    const csv = buildAllPaymentCsv(artisans);
+    expect(csv).toContain('Correction');
+    expect(parseAllPaymentCsv(csv, artisans, new Map()).map(entry => [entry.artisanId, entry.exists]))
+      .toEqual([['one', true], ['two', true]]);
+    expect(() => parseAllPaymentCsv(csv.replace('Maker [two]', 'Maker [unknown]'), artisans, new Map())).toThrow(/Row 3: choose a valid artisan/);
+  });
+  it('rejects duplicate new payments for the same artisan and retains IDs across retries', () => {
+    const artisans = [{ id: 'one', name: 'Maker', payments: [] }, { id: 'two', name: 'Maker', payments: [] }];
+    const csv = `${buildAllPaymentCsv([])}\r\nMaker [one],,2025-03-31,125.50,UPI,ref,Batch,Recorded,\r\nMaker [two],,2025-03-31,125.50,UPI,ref,Batch,Recorded,`;
+    const ids = new Map<number, string>();
+    const first = parseAllPaymentCsv(csv, artisans, ids);
+    expect(first.map(entry => entry.artisanId)).toEqual(['one', 'two']);
+    expect(parseAllPaymentCsv(csv, artisans, ids).map(entry => entry.id)).toEqual(first.map(entry => entry.id));
+    expect(() => parseAllPaymentCsv(csv.replace('Maker [two]', 'Maker [one]'), artisans, new Map())).toThrow(/Row 3: duplicate new payment/);
+    expect(() => parseAllPaymentCsv(csv, [{ ...artisans[0], payments: [payment] }, artisans[1]], new Map())).toThrow(/Row 2: an identical payment/);
   });
 });

@@ -95,6 +95,14 @@ it('distinguishes legacy applications from recorded dispatch acknowledgement', a
   expect(screen.queryByText(/Not recorded \(earlier application\)/)).toBeNull();
 });
 afterEach(() => { cleanup(); restoreDialog(); });
+it('opens payments for the selected artisan from the directory', async () => {
+  render(<ArtisanManager />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Payments for Sample Maker' }));
+  expect(await screen.findByRole('dialog', { name: 'Payments for Sample Maker' })).toBeTruthy();
+  expect(await screen.findByText('No payments recorded.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close Payments for Sample Maker' }));
+  expect(screen.queryByRole('dialog', { name: 'Payments for Sample Maker' })).toBeNull();
+});
 it('displays original Hindi answers and preferred contact language in the directory and review', async () => {
   list.mockResolvedValue({ applications: [{ ...application, details: { ...application.details,
     fullName: 'परीक्षण कारीगर', language: 'हिन्दी, शाम को', skills: 'फूल और अमिगुरुमी', address: 'परीक्षण गली' } }], total: 1 });

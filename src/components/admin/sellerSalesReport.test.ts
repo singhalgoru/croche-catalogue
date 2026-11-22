@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SellerSale } from '../../services/sellerSales';
-import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
+import { buildSellerSalesCsv, buildSellerSalesTemplate, parseSellerSalesCsv } from './sellerSalesReport';
 
 const sale: SellerSale = {
   id: 'sale-1',
@@ -23,6 +23,14 @@ const sale: SellerSale = {
 };
 
 describe('seller sales report CSV', () => {
+  it('accepts a filled blank sales template including planning allocations', () => {
+    const csv = `${buildSellerSalesTemplate()}\r\n,,Rose,,2026-10-06,offline,2,100,5,20,10,5,30,0,18,,15,4,5`;
+    const parsed = parseSellerSalesCsv(csv, '2026-10', new Set());
+    expect(parsed.sales[0]).toMatchObject({ productName: 'Rose', saleDate: '2026-10-06', channel: 'offline',
+      quantity: 2, marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5 });
+    expect(parsed.existingIds).toEqual([null]);
+    expect(() => parseSellerSalesCsv(buildSellerSalesTemplate(), '2026-10', new Set())).toThrow(/at least one sale/);
+  });
   it('round-trips saved labour time and rate and rejects partial calculations', () => {
     const csv = buildSellerSalesCsv('2026-10', [{ ...sale, labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 180 }]);
     expect(parseSellerSalesCsv(csv, '2026-10', new Set(['product-1'])).sales[0]).toMatchObject({

@@ -11,10 +11,10 @@ const exportText = (value: string) => value.startsWith("'") ? `'${value}` : valu
 const importText = (value: string) => value.startsWith("''") || /^'\s*[=+\-@]/.test(value) ? value.slice(1) : value;
 const record = (values: (string | number)[]) => csvRecord(values.map(value => typeof value === 'string' ? exportText(value) : value));
 
-function readRows(text: string, required: string[]) {
+function readRows(text: string, required: string[], maxRows = 1000) {
   const rows = parseCsv(text);
   if (rows.length < 2) throw new Error('The CSV must contain a header and at least one entry.');
-  if (rows.length > 1001) throw new Error('Import at most 1,000 entries per file.');
+  if (rows.length > maxRows + 1) throw new Error(`Import at most ${maxRows.toLocaleString('en-IN')} entries per file.`);
   const headers = rows[0].map(value => value.trim().toLowerCase());
   const indexes = required.map(header => headers.indexOf(header.toLowerCase()));
   if (indexes.some(index => index < 0) || new Set(headers).size !== headers.length) {
@@ -63,10 +63,10 @@ export function buildPaymentCsv(payments: ArtisanPayment[]) {
   ]))].join('\r\n');
 }
 
-export function parsePaymentCsv(text: string, existing: ArtisanPayment[], ids: Map<number, string>) {
+export function parsePaymentCsv(text: string, existing: ArtisanPayment[], ids: Map<number, string>, maxRows = 1000) {
   const seen = new Set<string>();
   const newRows = new Set<string>();
-  return readRows(text, paymentHeaders).map((row, index) => {
+  return readRows(text, paymentHeaders, maxRows).map((row, index) => {
     const [id, date, amount, method, reference, description, status] = row;
     const key = id || ids.get(index) || crypto.randomUUID();
     const previous = existing.find(item => item.id === key);
@@ -98,6 +98,55 @@ export function parsePaymentCsv(text: string, existing: ArtisanPayment[], ids: M
     if (!previous && status !== 'Recorded') throw new Error(`Row ${index + 2}: new payments must have Recorded status.`);
     return { id: key, input, exists: Boolean(previous) };
   });
+}
+
+export interface ArtisanPaymentLedger {
+  id: string;
+  name: string;
+  payments: ArtisanPayment[];
+}
+
+export const artisanPaymentLabel = (artisan: Pick<ArtisanPaymentLedger, 'id' | 'name'>) => `${artisan.name} [${artisan.id}]`;
+export const allPaymentHeaders = ['Artisan', ...paymentHeaders, 'Void Reason'];
+
+export function buildAllPaymentCsv(artisans: ArtisanPaymentLedger[]) {
+  const rows = artisans.flatMap(artisan => artisan.payments.map(payment => record([
+    artisanPaymentLabel(artisan), payment.id, payment.paid_on, payment.amount, payment.method, payment.reference,
+    payment.description, payment.voided_at ? 'Voided' : 'Recorded', payment.void_reason ?? '',
+  ])));
+  return [record(allPaymentHeaders), ...rows].join('\r\n');
+}
+
+export function parseAllPaymentCsv(text: string, artisans: ArtisanPaymentLedger[], ids: Map<number, string>) {
+  const rows = readRows(text, ['Artisan', ...paymentHeaders], Number.POSITIVE_INFINITY);
+  const directory = new Map(artisans.map(artisan => [artisan.id, artisan]));
+  const grouped = new Map<string, { artisan: ArtisanPaymentLedger; rows: { index: number; values: string[] }[] }>();
+  rows.forEach(([label, ...values], index) => {
+    const match = / \[([^\]]+)\]$/.exec(label);
+    const artisan = match && directory.get(match[1]);
+    if (!artisan) throw new Error(`Row ${index + 2}: choose a valid artisan from the template, including their ID.`);
+    const group = grouped.get(artisan.id) ?? { artisan, rows: [] };
+    group.rows.push({ index, values });
+    grouped.set(artisan.id, group);
+  });
+  const results: { index: number; artisanId: string; id: string; input: ArtisanPaymentInput; exists: boolean }[] = [];
+  for (const { artisan, rows: entries } of grouped.values()) {
+    const localIds = new Map<number, string>();
+    entries.forEach((entry, index) => { const id = ids.get(entry.index); if (id) localIds.set(index, id); });
+    const csv = [record(paymentHeaders), ...entries.map(entry => record(entry.values))].join('\r\n');
+    let parsed: ReturnType<typeof parsePaymentCsv>;
+    try { parsed = parsePaymentCsv(csv, artisan.payments, localIds, Number.POSITIVE_INFINITY); }
+    catch (failure) {
+      if (!(failure instanceof Error)) throw failure;
+      throw new Error(failure.message.replace(/^Row (\d+):/, (_, number: string) => `Row ${entries[Number(number) - 2].index + 2}:`));
+    }
+    parsed.forEach((entry, index) => {
+      const originalIndex = entries[index].index;
+      ids.set(originalIndex, entry.id);
+      results.push({ ...entry, index: originalIndex, artisanId: artisan.id });
+    });
+  }
+  return results.sort((a, b) => a.index - b.index);
 }
 
 export function downloadLedgerCsv(filename: string, text: string) {

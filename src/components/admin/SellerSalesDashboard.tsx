@@ -18,7 +18,8 @@ import { getVariantPrice } from '../../utils/productPrice';
 import { formatDate, localDate } from '../../utils/date';
 import DateInput from './DateInput';
 import { calculateSaleFinancials, summarizeSellerSales } from './sellerSalesSummary';
-import { buildSellerSalesCsv, parseSellerSalesCsv } from './sellerSalesReport';
+import { buildSellerSalesCsv, buildSellerSalesTemplate, parseSellerSalesCsv } from './sellerSalesReport';
+import { downloadLedgerCsv } from './financialLedgerCsv';
 import BusinessExpensesPanel from './BusinessExpensesPanel';
 import { fetchBusinessExpenses, type BusinessExpense } from '../../services/businessExpenses';
 import SellerOrderSummary from './SellerOrderSummary';
@@ -373,16 +374,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
   };
 
   const downloadReport = () => {
-    const blob = new Blob(
-      [`\uFEFF${buildSellerSalesCsv(month, monthSales)}`],
-      { type: 'text/csv;charset=utf-8' },
-    );
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `luvia-sales-${month}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadLedgerCsv(`luvia-sales-${month}.csv`, buildSellerSalesCsv(month, monthSales));
   };
 
   const importReport = async (file: File) => {
@@ -741,6 +733,10 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           >
             Download Excel CSV
           </button>
+          <button type="button" onClick={() => downloadLedgerCsv('luvia-sales-template.csv', buildSellerSalesTemplate())}
+            className="rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa">
+            Download sales CSV template
+          </button>
           <button
             type="button"
             onClick={() => reportFileInput.current?.click()}
@@ -778,6 +774,9 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         <p className="mt-2 text-xs text-cocoa/55">
           Download an Excel-compatible sales CSV for the selected month. Business expenses are separate and are not included in this CSV.
           You can edit it in Excel and upload it again; matching record IDs update existing sales.
+          For new sales, use the blank template and leave Record ID blank. Reuploading new rows without IDs can create duplicates.
+          Dates must be in the selected month (YYYY-MM-DD or DD/MM/YYYY); channel must be online, offline, whatsapp, instagram or other.
+          Enter costs and rates, using 0 where not applicable; allocation percentages must be between 0 and 100.
         </p>
       </div>
 

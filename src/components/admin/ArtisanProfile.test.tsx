@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ArtisanProfile from './ArtisanProfile';
+import ArtisanPayments from './ArtisanPayments';
+import { mockNativeDialog } from './dialogTestSupport';
 import { emptyArtisanDetails } from '../../services/artisans';
 import { addArtisanComment, fetchArtisanActivity, readArtisanPhoto, recordArtisanPayment, saveArtisanSkills, voidArtisanPayment } from '../../services/artisanProfiles';
 
@@ -13,7 +15,9 @@ const application = { id: 'artisan', details: { ...emptyArtisanDetails, fullName
   status: 'Approved' as const, admin_notes: '', version: 1, created_at: '', updated_at: '', consent_version: '', has_profile_photo: true };
 const payment = { id: 'payment', paid_on: '2026-10-30', amount: 125.5, method: 'UPI', reference: 'synthetic-ref',
   description: 'Trial', created_at: '2026-10-30', voided_at: null, void_reason: null };
+let restoreDialog: () => void;
 beforeEach(() => {
+  restoreDialog = mockNativeDialog();
   vi.clearAllMocks();
   vi.mocked(fetchArtisanActivity).mockResolvedValue({ comments: [], payments: [] });
   vi.mocked(saveArtisanSkills).mockResolvedValue({ ...application, skill_rating: 4, version: 2 });
@@ -21,7 +25,7 @@ beforeEach(() => {
   vi.mocked(addArtisanComment).mockResolvedValue(undefined);
   vi.mocked(voidArtisanPayment).mockResolvedValue(undefined);
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); restoreDialog(); });
 it('prefills skills, leaves rating unassigned and fetches photos only on demand', async () => {
   const updated = vi.fn();
   vi.mocked(readArtisanPhoto).mockResolvedValue('data:image/webp;base64,cGhvdG8=');
@@ -55,9 +59,7 @@ it('preserves comment and request ID on a network failure then reloads activity'
 it('records payment with a retry-safe request and requires explicit reasoned voiding', async () => {
   vi.mocked(recordArtisanPayment).mockRejectedValueOnce(new Error('Interrupted'));
   vi.mocked(fetchArtisanActivity).mockResolvedValue({ comments: [], payments: [payment, { ...payment, id: 'voided', amount: 50, voided_at: '2026-10-30', void_reason: 'Wrong batch' }] });
-  render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
-  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
-  fireEvent.click(screen.getByText('Payment entries', { selector: 'summary' }));
+  render(<ArtisanPayments artisan={{ id: application.id, name: application.details.fullName }} onClose={vi.fn()} onChanged={vi.fn()} />);
   expect((await screen.findByText(/Total paid/)).textContent).toContain('125.50');
   fireEvent.change(screen.getByLabelText('Amount paid (INR)'), { target: { value: '125.50' } });
   fireEvent.change(screen.getByLabelText('Transaction reference (optional for cash)'), { target: { value: 'synthetic-ref' } });
@@ -67,7 +69,7 @@ it('records payment with a retry-safe request and requires explicit reasoned voi
   fireEvent.submit(screen.getByRole('form', { name: 'Record artisan payment' }));
   await screen.findByText('Payment recorded. No money was sent by this site.');
   expect(vi.mocked(recordArtisanPayment).mock.calls[0]).toEqual(vi.mocked(recordArtisanPayment).mock.calls[1]);
-  fireEvent.click(screen.getByRole('button', { name: /Void payment 2026-10-30/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Void payment 2026-10-30/ }));
   expect(voidArtisanPayment).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Reason for voiding'), { target: { value: 'Wrong batch' } });
   fireEvent.submit(screen.getByRole('form', { name: 'Void artisan payment' }));
@@ -75,30 +77,17 @@ it('records payment with a retry-safe request and requires explicit reasoned voi
 });
 it('surfaces activity errors and offers retry without an empty success state', async () => {
   vi.mocked(fetchArtisanActivity).mockRejectedValueOnce(new Error('Unable to load ledger'));
-  render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
-  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
-  fireEvent.click(screen.getByText('Payment entries', { selector: 'summary' }));
+  render(<ArtisanPayments artisan={{ id: application.id, name: application.details.fullName }} onClose={vi.fn()} onChanged={vi.fn()} />);
   await screen.findByText('Unable to load ledger');
   expect(screen.queryByText('No payments recorded.')).toBeNull();
   expect(screen.getByRole('button', { name: 'Record payment' }).matches(':disabled')).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Retry comments and payments' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry payment history' }));
   expect(await screen.findByText('No payments recorded.')).toBeTruthy();
 });
-it('starts collapsed and preserves payment drafts when either section is closed', () => {
+it('starts the working profile collapsed', () => {
   render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
   const profileToggle = screen.getByText('Working profile', { selector: 'summary' });
-  const paymentToggle = screen.getByText('Payment entries', { selector: 'summary' });
   expect(profileToggle.parentElement).toHaveProperty('open', false);
-  expect(paymentToggle.parentElement).toHaveProperty('open', false);
-  fireEvent.click(profileToggle);
-  fireEvent.click(paymentToggle);
-  fireEvent.change(screen.getByLabelText('Amount paid (INR)'), { target: { value: '125.50' } });
-  fireEvent.click(paymentToggle);
-  fireEvent.click(profileToggle);
-  fireEvent.click(profileToggle);
-  fireEvent.click(paymentToggle);
-  expect(screen.getByLabelText('Amount paid (INR)')).toHaveProperty('value', '125.50');
-  expect(recordArtisanPayment).not.toHaveBeenCalled();
 });
 
 it('imports payment rows for the selected artisan and reuses IDs after an interrupted request', async () => {
@@ -108,9 +97,7 @@ it('imports payment rows for the selected artisan and reuses IDs after an interr
     'Record ID,Payment Date,Amount,Method,Reference,Work Description,Status',
     ',2025-03-31,125.50,UPI,synthetic-ref,Trial,Recorded',
   ].join('\n') });
-  render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
-  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
-  fireEvent.click(screen.getByText('Payment entries', { selector: 'summary' }));
+  render(<ArtisanPayments artisan={{ id: application.id, name: application.details.fullName }} onClose={vi.fn()} onChanged={vi.fn()} />);
   await screen.findByText('No payments recorded.');
   const input = screen.getByLabelText('Upload payments CSV');
   fireEvent.change(input, { target: { files: [csv] } });

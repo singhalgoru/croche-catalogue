@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
+import { readFileSync } from 'node:fs';
+import ExcelJS from 'exceljs';
 import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 
@@ -270,14 +272,10 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('New internal comment').fill('Paid trial stitches reviewed');
   await page.getByRole('button', { name: 'Add comment', exact: true }).click();
   await expect(page.getByText('Paid trial stitches reviewed', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Amount paid (INR)')).not.toBeVisible();
-  await page.locator('summary').filter({ hasText: /^Payment entries$/ }).click();
+  await page.getByRole('button', { name: 'Back to applications' }).click();
+  await page.getByRole('button', { name: 'Payments for Sample Maker' }).click();
+  await expect(page.getByRole('dialog', { name: 'Payments for Sample Maker' })).toBeVisible();
   await page.getByLabel('Amount paid (INR)').fill('125.50');
-  await page.locator('summary').filter({ hasText: /^Payment entries$/ }).click();
-  await page.locator('summary').filter({ hasText: /^Working profile$/ }).click();
-  await page.locator('summary').filter({ hasText: /^Working profile$/ }).click();
-  await page.locator('summary').filter({ hasText: /^Payment entries$/ }).click();
-  await expect(page.getByLabel('Amount paid (INR)')).toHaveValue('125.50');
   await page.getByLabel('Transaction reference (optional for cash)').fill('synthetic-payment');
   await page.getByLabel('Work / batch description').fill('Paid trial flowers');
   await page.getByRole('button', { name: 'Record payment', exact: true }).click();
@@ -289,10 +287,16 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await expect(page.getByText('Payment voided; original entry retained.', { exact: true })).toBeVisible();
   await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('0.00');
   const csvDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download payments CSV' }).click();
+  await page.getByRole('button', { name: 'Download payments CSV', exact: true }).click();
   expect((await csvDownload).suggestedFilename()).toBe('luvia-artisan-payments.csv');
+  const templateDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download payments CSV template' }).click();
+  const template = await templateDownload;
+  expect(template.suggestedFilename()).toBe('luvia-artisan-payments-template.csv');
+  const templatePath = await template.path();
+  if (!templatePath) throw new Error('Payment template download is unavailable.');
   const csv = [
-    'Record ID,Payment Date,Amount,Method,Reference,Work Description,Status',
+    readFileSync(templatePath, 'utf8'),
     ',2025-03-30,100,Cash,,Flower batch,Recorded',
     ',2025-03-31,125.50,UPI,txn-2,Coaster batch,Recorded',
   ].join('\n');
@@ -300,6 +304,30 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await expect(page.getByText('Imported 2 new payments for this artisan. No money was sent.')).toBeVisible();
   await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('225.50');
   expect(payments).toHaveLength(3);
+  await page.getByRole('button', { name: 'Close Payments for Sample Maker' }).click();
+  const allDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download all payments CSV' }).click();
+  const allCsv = await allDownload;
+  expect(allCsv.suggestedFilename()).toBe('luvia-all-artisan-payments.csv');
+  const allPath = await allCsv.path();
+  if (!allPath) throw new Error('All payments download is unavailable.');
+  expect(readFileSync(allPath, 'utf8')).toContain(`Sample Maker [${application.id}]`);
+  const workbookDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download all payments template' }).click();
+  const workbookFile = await workbookDownload;
+  expect(workbookFile.suggestedFilename()).toBe('luvia-all-artisan-payments-template.xlsx');
+  const workbookPath = await workbookFile.path();
+  if (!workbookPath) throw new Error('All payments template download is unavailable.');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(workbookPath);
+  const sheet = workbook.getWorksheet('Payments')!;
+  expect(sheet.getCell('A2').dataValidation).toMatchObject({ type: 'list', formulae: ['ArtisanChoices'] });
+  sheet.getRow(2).values = [`Sample Maker [${application.id}]`, '', '2025-03-29', 50, 'Cash', '', 'Bulk batch', 'Recorded', ''];
+  const bulkCsv = await workbook.csv.writeBuffer({ sheetName: 'Payments' });
+  await page.getByLabel('Upload all payments CSV').setInputFiles({ name: 'all-payments.csv', mimeType: 'text/csv', buffer: Buffer.from(bulkCsv) });
+  await expect(page.getByText('Imported 1 new payment across artisans. No money was sent.')).toBeVisible();
+  expect(payments).toHaveLength(4);
+  await page.getByRole('button', { name: 'Review Sample Maker' }).click();
   expect(identityReads).toHaveLength(0);
   await page.getByRole('button', { name: 'View private ID' }).click();
   await expect(page.getByAltText('Private artisan identity document')).toBeVisible();

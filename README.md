@@ -85,11 +85,11 @@ an India-based handmade crochet brand.
 - Authorised administrators can manage products, drafts, media and orders.
   Angle photo selection shows the next upload step and any upload errors.
   Financial snapshots include yearly and quarterly sales, recorded artisan
-  payments and material purchases, with sales breakdowns, monthly payment and quarterly purchase details.
+  payments and material purchases, with sales breakdowns and quarterly payment and purchase details.
   The Materials workspace records purchases separately from sales; Financial snapshots
   show quarterly material purchases with receipt access.
   Administrators can import and export material purchases and individual artisans'
-  payment records as CSV; receipts are managed separately.
+  payment records as CSV, with blank import templates; receipts are managed separately.
   Paid orders can be shipped with Shiprocket or Delhivery after explicit courier
   approval, with sample courier-rate comparisons and warehouse pickup requests.
   Shadowfax support requires account setup and verification before use.
@@ -150,8 +150,9 @@ an India-based handmade crochet brand.
   Photo preparation runs on-device, including a fallback for browsers without
   native WebP encoding.
   After submitting, artisans can optionally share a short work video on WhatsApp.
-  Private working profiles include skill/rating filters, comments and payment
-  records, with onboarding details and separately consented profile photos.
+  Private working profiles include skill/rating filters and comments, with
+  separately consented profile photos. The artisan directory supports payment
+  records and bulk CSV import/export with an Excel dropdown template.
   Applicants receive review updates by email, and the form and emails explain
   the application-to-paid-trial process.
   Before a new paid trial, artisans provide payment details in their own name

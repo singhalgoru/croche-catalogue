@@ -450,6 +450,34 @@ test('updates all-time product pieces sold after recording, editing and deleting
   await expect(count).toHaveText('Pieces sold (all time): 4');
 });
 
+test('downloads and uploads a filled sales CSV template', async ({ page }) => {
+  await installMockSupabase(page);
+  const rows: Array<Record<string, unknown>> = [];
+  await page.route('**/rest/v1/business_expenses*', route => route.fulfill({ json: [] }));
+  await page.route('**/rest/v1/seller_sales*', async route => {
+    if (route.request().method() === 'POST') {
+      const saved = { ...route.request().postDataJSON(), id: 'template-sale', created_at: '2026-10-06T00:00:00Z' };
+      rows.push(saved);
+      await route.fulfill({ status: 201, json: saved });
+    } else await route.fulfill({ json: rows });
+  });
+  await signIn(page);
+  await openFinancialSection(page, 'Sales');
+  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await page.getByLabel('Sales month').fill('2026-10');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download sales CSV template' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('luvia-sales-template.csv');
+  const path = await download.path();
+  if (!path) throw new Error('Sales template download is unavailable.');
+  const csv = `${readFileSync(path, 'utf8')}\n,,Rose,,2026-10-06,offline,2,100,5,20,10,5,30,0,18,,15,4,5`;
+  await page.getByLabel('Upload monthly sales CSV').setInputFiles({ name: 'sales.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('Imported 1 sale for 2026-10. Rows with existing record IDs were updated.')).toBeVisible();
+  expect(rows[0]).toMatchObject({ product_name: 'Rose', marketing_percent: 15, returns_reserve_percent: 4, overhead_percent: 5 });
+  await expectNoHorizontalOverflow(page);
+});
+
 test('shows recorded artisan payments in financial snapshots', async ({ page }) => {
   await installMockSupabase(page);
   await page.route('**/rest/v1/rpc/artisan_payment_summary', async route => {
@@ -472,18 +500,19 @@ test('shows recorded artisan payments in financial snapshots', async ({ page }) 
   await expect(paymentYear.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('₹125.50');
   await expect(paymentYear.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('₹125.50');
   await expect(paymentYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
-  await page.getByLabel('Payment month').fill('2026-10');
-  const snapshot = page.getByRole('region', { name: 'Artisan payment snapshot' });
-  await expect(snapshot).toContainText('Total paid: ₹125.50');
-  await expect(snapshot).toContainText('Sample Maker');
-  await expect(snapshot).toContainText('1 payment · Latest: 30/10/2026');
-  await page.getByRole('button', { name: 'View payments for Sample Maker' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Payments for Sample Maker' });
+  const quarter = paymentYear.getByRole('button', { name: 'View payments for Q4 · Oct–Dec 2026' });
+  await quarter.click();
+  const dialog = page.getByRole('dialog', { name: 'Payments · Q4 · Oct–Dec 2026' });
+  await expect(dialog).toContainText('30/10/2026 · Sample Maker');
+  await expect(dialog).toContainText('₹125.50');
   await expect(dialog).toContainText('Work / batch: Flower batch');
   await expect(dialog).toContainText('Transaction reference: txn-1');
-  await dialog.getByRole('button', { name: 'Close Payments for Sample Maker' }).click();
-  await page.getByLabel('Payment month').fill('2026-09');
-  await expect(snapshot).toContainText('No payments recorded for this month.');
+  await page.keyboard.press('Escape');
+  await expect(quarter).toBeFocused();
+  await paymentYear.getByRole('button', { name: 'View payments for Q1 · Jan–Mar 2026' }).click();
+  await expect(page.getByRole('dialog', { name: 'Payments · Q1 · Jan–Mar 2026' }))
+    .toContainText('No recorded payments for this quarter.');
+  await page.getByRole('button', { name: 'Close Payments · Q1 · Jan–Mar 2026' }).click();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -546,10 +575,16 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(quarterLink).toBeFocused();
   await openFinancialSection(page, 'Materials');
   const csvDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download purchases CSV' }).click();
+  await page.getByRole('button', { name: 'Download purchases CSV', exact: true }).click();
   expect((await csvDownload).suggestedFilename()).toBe('luvia-material-purchases.csv');
+  const templateDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download purchases CSV template' }).click();
+  const template = await templateDownload;
+  expect(template.suggestedFilename()).toBe('luvia-material-purchases-template.csv');
+  const templatePath = await template.path();
+  if (!templatePath) throw new Error('Purchase template download is unavailable.');
   const csv = [
-    'Record ID,Purchase Date,Material,Supplier,Quantity,Unit,Total,Payment Status,Notes',
+    readFileSync(templatePath, 'utf8'),
     `${rows[0].id},2026-11-01,Yarn,Sample shop,2,balls,150.50,Paid,`,
     ',2026-11-02,Thread,Sample shop,1,roll,20,Unpaid,',
     ',2026-11-03,Hook,Sample shop,1,piece,30,Paid,',
