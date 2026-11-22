@@ -11,7 +11,7 @@ export async function buildMaterialWorkbook() {
   sheet.addRow(['', localDate(), 'Example yarn', 'Example supplier', 2, 'balls', 200, 'Paid', TEMPLATE_EXAMPLE, 'Yarn']);
   sheet.columns.forEach(column => { column.width = 24; });
   for (let row = 2; row <= 1001; row += 1) {
-    sheet.getCell(row, 10).dataValidation = { type: 'list', allowBlank: true,
+    sheet.getCell(row, 10).dataValidation = { type: 'list', allowBlank: false,
       formulae: [`"${materialCategories.join(',')}"`], showErrorMessage: true,
       error: 'Choose a category from the list.' };
     sheet.getCell(row, 2).numFmt = 'yyyy-mm-dd';

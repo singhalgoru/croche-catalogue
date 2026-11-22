@@ -1,33 +1,53 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CustomerSummary from './CustomerSummary';
-import { fetchAdminCustomerSummary } from '../../services/customer';
+import { fetchAdminCustomerSummary, setCustomerPurchaseExclusion } from '../../services/customer';
 import type { AdminCustomerSummary } from '../../types/customer';
 import { changeAdminUser } from '../../services/adminUsers';
 
-vi.mock('../../services/customer', () => ({ fetchAdminCustomerSummary: vi.fn() }));
+vi.mock('../../services/customer', () => ({ fetchAdminCustomerSummary: vi.fn(), setCustomerPurchaseExclusion: vi.fn() }));
 vi.mock('../../services/adminUsers', () => ({ changeAdminUser: vi.fn() }));
 const summary: AdminCustomerSummary = {
-  total: 2, verified: 1, pendingActivation: 1, welcomeEmailsSent: 1,
+  total: 2, verified: 1, pendingActivation: 1, welcomeEmailsSent: 1, totalPurchases: 3,
   customers: [{ id: 'buyer', email: 'buyer@example.test', name: 'Buyer', phone: '9876543210',
     city: 'Delhi', pincode: '110001', registeredAt: '2026-10-10T12:00:00Z', lastSignInAt: null,
-    verified: true, welcomeStatus: 'sent', suspended: false, canManageAccount: true }],
+    verified: true, welcomeStatus: 'sent', suspended: false, canManageAccount: true, purchaseExcluded: false, purchaseCount: 3 }],
 };
-beforeEach(() => { vi.mocked(fetchAdminCustomerSummary).mockReset().mockResolvedValue(summary); vi.mocked(changeAdminUser).mockReset(); });
+beforeEach(() => { vi.mocked(fetchAdminCustomerSummary).mockReset().mockResolvedValue(summary); vi.mocked(changeAdminUser).mockReset(); vi.mocked(setCustomerPurchaseExclusion).mockReset(); });
 afterEach(cleanup);
 it('shows registration metrics and customer details', async () => {
   render(<CustomerSummary />);
   expect(await screen.findByRole('article', { name: 'Customer buyer@example.test' })).toBeTruthy();
   expect(screen.getByText('Total customers')).toBeTruthy();
   expect(screen.getByText('Pending activation')).toBeTruthy();
+  expect(screen.getByText('Customer purchases').nextElementSibling?.textContent).toBe('3');
+  expect(screen.getByText('Purchases: 3')).toBeTruthy();
   expect(screen.getByText('Welcome email: Sent')).toBeTruthy();
   expect(screen.getByText('Last sign-in: Not yet')).toBeTruthy();
   expect(screen.getByText(/9876543210/)).toBeTruthy();
 });
 it('shows an empty summary', async () => {
-  vi.mocked(fetchAdminCustomerSummary).mockResolvedValue({ total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, customers: [] });
+  vi.mocked(fetchAdminCustomerSummary).mockResolvedValue({ total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, totalPurchases: 0, customers: [] });
   render(<CustomerSummary />);
   expect(await screen.findByText('No registered customers yet.')).toBeTruthy();
+});
+it('excludes and restores a test customer and refreshes the counts', async () => {
+  const excluded = { ...summary, totalPurchases: 0, customers: [{ ...summary.customers[0], purchaseExcluded: true, purchaseCount: null }] };
+  vi.mocked(fetchAdminCustomerSummary).mockResolvedValueOnce(summary).mockResolvedValueOnce(excluded).mockResolvedValueOnce(summary);
+  vi.mocked(setCustomerPurchaseExclusion).mockResolvedValue();
+  render(<CustomerSummary />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Exclude test purchases' }));
+  expect(await screen.findByText('Test account: purchases excluded')).toBeTruthy();
+  expect(setCustomerPurchaseExclusion).toHaveBeenCalledWith('buyer', true);
+  fireEvent.click(screen.getByRole('button', { name: 'Include purchases' }));
+  expect(await screen.findByText('Purchases: 3')).toBeTruthy();
+  expect(setCustomerPurchaseExclusion).toHaveBeenCalledWith('buyer', false);
+});
+it('shows exclusion errors instead of claiming success', async () => {
+  vi.mocked(setCustomerPurchaseExclusion).mockRejectedValue(new Error('Access denied'));
+  render(<CustomerSummary />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Exclude test purchases' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Access denied');
 });
 it('distinguishes signup submission from guest visits and explains why welcome email is not queued', async () => {
   vi.mocked(fetchAdminCustomerSummary).mockResolvedValue({ ...summary, customers: [{

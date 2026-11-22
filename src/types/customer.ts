@@ -83,6 +83,7 @@ export interface AdminCustomerSummary {
   verified: number;
   pendingActivation: number;
   welcomeEmailsSent: number;
+  totalPurchases: number;
   customers: {
     id: string;
     email: string;
@@ -96,5 +97,7 @@ export interface AdminCustomerSummary {
     welcomeStatus: 'sent' | 'retrying' | 'pending' | 'not_queued';
     suspended: boolean;
     canManageAccount: boolean;
+    purchaseExcluded: boolean;
+    purchaseCount: number | null;
   }[];
 }

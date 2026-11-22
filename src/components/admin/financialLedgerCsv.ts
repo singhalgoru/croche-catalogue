@@ -47,6 +47,9 @@ export function parseMaterialCsv(text: string, existing: MaterialPurchase[], ids
     const category = categoryText ? materialCategories.find(value => value.toLowerCase() === categoryText.toLowerCase())
       : existing.find(item => item.id === key)?.category ?? inferMaterialCategory(material);
     if (!category) throw new Error(`Row ${index + 2}: category must be Yarn, Tool, Accessories, Packaging or Uncategorized.`);
+    if (category === 'Uncategorized' && !existing.some(item => item.id === key)) {
+      throw new Error(`Row ${index + 2}: choose Yarn, Tool, Accessories or Packaging for a new purchase.`);
+    }
     const item: MaterialPurchaseInput = { id: key, purchased_on: parseDateInput(date), material, category, supplier,
       quantity: Number(quantity), unit, total: Number(total), payment_status: status, notes };
     try { validateMaterialPurchase(item); }

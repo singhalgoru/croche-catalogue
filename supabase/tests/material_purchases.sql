@@ -27,6 +27,12 @@ do $$ declare v_id uuid; result jsonb; begin
   if (select category from public.material_purchases where id = v_id) <> 'Packaging' then raise exception 'FAIL: packaging category update'; end if;
   perform public.save_categorized_material_purchase(v_id,'2026-11-01','Yarn','Supplier',3,'balls',125,'Paid','corrected','Packaging');
   if (select category from public.material_purchases where id = v_id) <> 'Packaging' then raise exception 'FAIL: packaging category save'; end if;
+  perform public.save_categorized_material_purchase(v_id,'2026-11-01','Yarn','Supplier',3,'balls',125,'Paid','corrected','Uncategorized');
+  if (select category from public.material_purchases where id = v_id) <> 'Uncategorized' then raise exception 'FAIL: existing uncategorized edit'; end if;
+  begin
+    perform public.save_categorized_material_purchase(gen_random_uuid(),'2026-11-01','Hook','',1,'piece',1,'Paid','','Uncategorized');
+    raise exception 'FAIL: new uncategorized purchase accepted';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin
     perform public.set_material_purchase_category(v_id,'Unknown');
     raise exception 'FAIL: invalid category accepted';

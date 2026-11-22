@@ -468,7 +468,7 @@ export async function installMockSupabase(
       return;
     }
     if (pathname === '/rest/v1/rpc/get_admin_customer_summary') {
-      await json(route, { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, customers: [] });
+      await json(route, { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, totalPurchases: 0, customers: [] });
       return;
     }
 

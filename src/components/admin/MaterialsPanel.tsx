@@ -6,11 +6,13 @@ import { localDate } from '../../utils/date';
 import { buildMaterialCsv, downloadLedgerCsv, parseMaterialCsv, validateLedgerFile } from './financialLedgerCsv';
 import { downloadMaterialWorkbook } from './materialPurchaseTemplate';
 
-type Draft = Omit<MaterialPurchaseInput, 'quantity' | 'total'> & { quantity: string; total: string; receipt_name: string | null };
+type Draft = Omit<MaterialPurchaseInput, 'quantity' | 'total' | 'category'> & {
+  category: MaterialPurchaseInput['category'] | ''; quantity: string; total: string; receipt_name: string | null;
+};
 const field = 'mt-1 w-full min-w-0 rounded-lg border border-mustard/50 bg-white px-3 py-2';
 const button = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const newDraft = (): Draft => ({ id: crypto.randomUUID(), purchased_on: localDate(), material: '', supplier: '',
-  category: 'Uncategorized', quantity: '', unit: '', total: '', payment_status: 'Unpaid', notes: '', receipt_name: null });
+  category: '', quantity: '', unit: '', total: '', payment_status: 'Unpaid', notes: '', receipt_name: null });
 
 export default function MaterialsPanel() {
   const [purchases, setPurchases] = useState<MaterialPurchase[]>([]);
@@ -44,9 +46,14 @@ export default function MaterialsPanel() {
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!draft) return;
+    if (!draft.category || (draft.category === 'Uncategorized' && !purchases.some(item => item.id === draft.id))) {
+      setError('Choose a category for this purchase.');
+      return;
+    }
+    const category = draft.category;
     setBusy(true); setError(null); setMessage(null);
     try {
-      await saveMaterialPurchase({ ...draft, quantity: Number(draft.quantity), total: Number(draft.total) }, file, removeReceipt);
+      await saveMaterialPurchase({ ...draft, category, quantity: Number(draft.quantity), total: Number(draft.total) }, file, removeReceipt);
       setDraft(null); setFile(null); setRemoveReceipt(false); setMessage('Purchase saved.');
       setMonth(draft.purchased_on.slice(0, 7)); setLoading(true);
       await load();
@@ -125,7 +132,7 @@ export default function MaterialsPanel() {
       </label>
     </div>
     <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Replace or delete the example row before uploading. Leave Record ID blank for new purchases; existing IDs update purchases.
-      For the Excel dropdown template, save the Purchases sheet as CSV UTF-8 before upload. Categories are Yarn, Tool, Accessories, Packaging or Uncategorized.
+      For the Excel dropdown template, save the Purchases sheet as CSV UTF-8 before upload. Choose Yarn, Tool, Accessories or Packaging for new purchases.
       Enter dates as YYYY-MM-DD or DD/MM/YYYY, positive quantity and total, and Paid or Unpaid for Payment Status.
       Receipts are not included in CSV and existing attachments are kept.</p>
     {draft && <form onSubmit={event => void save(event)} className="mt-4 grid gap-3 rounded-xl bg-cream/50 p-4 sm:grid-cols-2">
@@ -135,12 +142,13 @@ export default function MaterialsPanel() {
           onChange={event => update({ purchased_on: event.target.value })} /></label>
       <label className="text-sm font-semibold">Material *
         <input className={field} required maxLength={150} disabled={busy} value={draft.material}
-          onChange={event => update({ material: event.target.value, ...(draft.category === 'Uncategorized' && inferMaterialCategory(event.target.value) === 'Yarn' ? { category: 'Yarn' } : {}) })} /></label>
-      <label className="text-sm font-semibold">Category
-        <select className={field} value={draft.category} disabled={busy} onChange={event => {
+          onChange={event => update({ material: event.target.value, ...(!draft.category && inferMaterialCategory(event.target.value) === 'Yarn' ? { category: 'Yarn' } : {}) })} /></label>
+      <label className="text-sm font-semibold">Category *
+        <select className={field} value={draft.category} disabled={busy} required onChange={event => {
           const category = materialCategories.find(value => value === event.target.value);
           if (category) update({ category });
-        }}>{materialCategories.map(category => <option key={category}>{category}</option>)}</select></label>
+        }}><option value="" disabled>Choose a category</option>{materialCategories.filter(category =>
+          category !== 'Uncategorized' || purchases.some(item => item.id === draft.id)).map(category => <option key={category}>{category}</option>)}</select></label>
       <label className="text-sm font-semibold">Supplier
         <input className={field} maxLength={150} disabled={busy} value={draft.supplier}
           onChange={event => update({ supplier: event.target.value })} /></label>

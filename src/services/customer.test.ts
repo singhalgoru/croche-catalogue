@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { registerCustomerEmail, confirmCustomerEmail, sendCustomerPasswordReset, signInCustomerWithPassword, setCustomerPassword,
-  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden,
+  validateCustomerPassword, fetchCustomerOrders, fetchAdminCustomerSummary, setCustomerPurchaseExclusion, hideCancelledLiveOrder, updateOrderFulfilment, setCustomerOrderHidden,
   fetchCampaignCoupons, setCampaignCouponArchived, fetchCustomerAccount, fetchCustomerIdentity, changeCustomerPassword } from './customer';
 const { verifyPassword, closeVerifier } = vi.hoisted(() => ({ verifyPassword: vi.fn(), closeVerifier: vi.fn() }));
 const { getUser, updateUser, verifyOtp, signInWithOtp, resetPasswordForEmail, signInWithPassword, signInAnonymously, getSession, from, rpc } = vi.hoisted(() => ({
@@ -106,12 +106,22 @@ it('hides cancelled orders through the admin RPC and reports rejected removals',
   await expect(hideCancelledLiveOrder('paid-order')).rejects.toThrow('Only cancelled, unpaid');
 });
 it('loads the admin-only registered customer summary and propagates denied access', async () => {
-  const summary = { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, customers: [] };
+  const summary = { total: 0, verified: 0, pendingActivation: 0, welcomeEmailsSent: 0, totalPurchases: 0, customers: [] };
   rpc.mockResolvedValue({ data: summary, error: null });
   await expect(fetchAdminCustomerSummary()).resolves.toEqual(summary);
   expect(rpc).toHaveBeenCalledWith('get_admin_customer_summary', { page_offset: 0 });
+  rpc.mockResolvedValueOnce({ data: { ...summary, totalPurchases: -1 }, error: null });
+  await expect(fetchAdminCustomerSummary()).rejects.toThrow('invalid summary response');
   rpc.mockResolvedValue({ error: { message: 'Only catalogue admins can view registered customers.' } });
   await expect(fetchAdminCustomerSummary()).rejects.toThrow('Only catalogue admins');
+});
+it('checks purchase exclusion confirmation and surfaces errors', async () => {
+  rpc.mockResolvedValueOnce({ data: 'buyer', error: null }).mockResolvedValueOnce({ data: null, error: null })
+    .mockResolvedValueOnce({ error: { message: 'denied' } });
+  await setCustomerPurchaseExclusion('buyer', true);
+  expect(rpc).toHaveBeenCalledWith('set_customer_purchase_exclusion', { target: 'buyer', excluded: true });
+  await expect(setCustomerPurchaseExclusion('buyer', false)).rejects.toThrow('could not be confirmed');
+  await expect(setCustomerPurchaseExclusion('buyer', false)).rejects.toThrow('denied');
 });
 it('fetches order history through the authenticated projection and reports errors', async () => {
   rpc.mockResolvedValue({ data: [], error: null });

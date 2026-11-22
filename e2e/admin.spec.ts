@@ -555,7 +555,7 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await page.getByRole('button', { name: 'Add purchase' }).click();
   await page.getByLabel('Purchase date').fill('2026-11-01');
   await page.getByRole('textbox', { name: 'Material *' }).fill('Yarn');
-  await expect(page.getByRole('combobox', { name: 'Category', exact: true })).toHaveValue('Yarn');
+  await expect(page.getByRole('combobox', { name: 'Category *', exact: true })).toHaveValue('Yarn');
   await page.getByLabel('Supplier').fill('Sample shop');
   await page.getByLabel('Quantity').fill('2');
   await page.getByLabel('Unit', { exact: false }).fill('balls');
@@ -581,6 +581,16 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await materialYear.getByRole('button', { name: 'View purchases for Year 2026 · Jan–Dec' }).click();
   const yearlyPurchases = page.getByRole('dialog', { name: 'Purchases · Year 2026 · Jan–Dec' });
   await expect(yearlyPurchases.getByRole('region', { name: 'Purchases by category' })).toContainText('Yarn: ₹150.50');
+  const supplierLink = yearlyPurchases.getByRole('button', { name: 'View supplier Sample shop purchases' });
+  await supplierLink.click();
+  const supplierDialog = page.getByRole('dialog', { name: 'Purchases · Sample shop · Year 2026 · Jan–Dec' });
+  await expect(supplierDialog).toContainText('2 balls');
+  await supplierDialog.getByRole('button', { name: 'Close Purchases · Sample shop · Year 2026 · Jan–Dec' }).click();
+  await expect(supplierLink).toBeFocused();
+  await yearlyPurchases.getByRole('button', { name: 'View category Yarn purchases' }).click();
+  const categoryDialog = page.getByRole('dialog', { name: 'Purchases · Yarn · Year 2026 · Jan–Dec' });
+  await expect(categoryDialog).toContainText('Sample shop');
+  await categoryDialog.getByRole('button', { name: 'Close Purchases · Yarn · Year 2026 · Jan–Dec' }).click();
   await yearlyPurchases.getByRole('button', { name: 'Close Purchases · Year 2026 · Jan–Dec' }).click();
   const quarterLink = materialYear.getByRole('button', { name: 'View purchases for Q4 · Oct–Dec 2026' });
   await quarterLink.click();
@@ -620,8 +630,8 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   const csv = [
     headers.join(','),
     `${rows[0].id},2026-11-01,Yarn,Sample shop,2,balls,150.50,Paid,`,
-    ',2026-11-02,Thread,Sample shop,1,roll,20,Unpaid,',
-    ',2026-11-03,Hook,Sample shop,1,piece,30,Paid,',
+    ',2026-11-02,Thread,Sample shop,1,roll,20,Unpaid,,Accessories',
+    ',2026-11-03,Hook,Sample shop,1,piece,30,Paid,,Tool',
   ].join('\n');
   await page.getByLabel('Upload purchases CSV').setInputFiles({ name: 'purchases.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
   await expect(page.getByText('Imported 3 purchases. Existing receipts were preserved.')).toBeVisible();

@@ -10,6 +10,7 @@ it('provides a category dropdown and blocks the example until it is replaced', a
   expect(sheet.getCell('J2').dataValidation).toMatchObject({
     type: 'list', formulae: ['"Yarn,Tool,Accessories,Packaging,Uncategorized"'],
   });
+  expect(sheet.getCell('J2').dataValidation.allowBlank).not.toBe(true);
   let csv = (await workbook.csv.writeBuffer({ sheetName: 'Purchases' })).toString();
   expect(() => parseMaterialCsv(csv, [], new Map())).toThrow(/replace or delete the example row/);
   sheet.getCell('I2').value = 'Real purchase';

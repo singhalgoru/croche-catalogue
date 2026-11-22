@@ -67,8 +67,23 @@ export async function fetchAdminCustomerSummary(offset = 0): Promise<AdminCustom
   const supabase = await client();
   const { data, error } = await supabase.rpc('get_admin_customer_summary', { page_offset: offset });
   if (error) throw new Error(`Unable to load registered customers: ${error.message}`);
-  if (!data || !Array.isArray(data.customers)) throw new Error('Unable to load registered customers: invalid summary response.');
+  if (!data || !Number.isSafeInteger(data.totalPurchases) || data.totalPurchases < 0 || !Array.isArray(data.customers)
+    || data.customers.some((customer: unknown) => {
+      if (!customer || typeof customer !== 'object') return true;
+      const value = customer as Record<string, unknown>;
+      return typeof value.purchaseExcluded !== 'boolean'
+        || (value.purchaseExcluded ? value.purchaseCount !== null
+          : typeof value.purchaseCount !== 'number' || !Number.isSafeInteger(value.purchaseCount) || value.purchaseCount < 0);
+    })) {
+    throw new Error('Unable to load registered customers: invalid summary response.');
+  }
   return data;
+}
+export async function setCustomerPurchaseExclusion(id: string, excluded: boolean): Promise<void> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc('set_customer_purchase_exclusion', { target: id, excluded });
+  if (error) throw new Error(`Unable to update purchase exclusion: ${error.message}`);
+  if (data !== id) throw new Error('Purchase exclusion could not be confirmed. Refresh customers before retrying.');
 }
 export async function fetchCustomerProfile(): Promise<DeliveryDetails | null> {
   const supabase = await client();

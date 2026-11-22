@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchAdminCustomerSummary } from '../../services/customer';
+import { fetchAdminCustomerSummary, setCustomerPurchaseExclusion } from '../../services/customer';
 import type { AdminCustomerSummary } from '../../types/customer';
 import { changeAdminUser } from '../../services/adminUsers';
 
@@ -18,6 +18,7 @@ export default function CustomerSummary() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exclusionBusy, setExclusionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
   const clearAction = () => { setSelected(null); setReason(''); setPassword(''); setShowPassword(false); setActionError(''); };
@@ -35,6 +36,7 @@ export default function CustomerSummary() {
         onClick={() => { setLoading(true); setError(''); setPage(previous => ({ ...previous, refresh: previous.refresh + 1 })); }}>Refresh customers</button>
     </div>
     <p className="mt-1 text-sm text-cocoa/70">Luvia customer accounts and active signups awaiting email activation. Guest visitors are not counted.</p>
+    <p className="mt-1 text-sm text-cocoa/70">Purchases count paid orders linked to registered customers, excluding test checkouts and accounts marked as test. Excluding an account also excludes its future purchases until restored. Unpaid orders and guest purchases are not counted.</p>
     <p className="mt-2 text-xs text-cocoa/70">Temporarily disable an account when login fraud is reported. It stays disabled until an admin re-enables it; orders and account details are not deleted. Admin accounts are protected.</p>
     {message && <p role="status" className="mt-3 text-sm text-cocoa">{message}</p>}
     {selected && <form aria-label="Customer account access" className="my-4 space-y-3 rounded-xl border border-mustard/50 bg-cream p-4 text-sm text-cocoa"
@@ -72,7 +74,8 @@ export default function CustomerSummary() {
     {summary && !error && <>
       <dl className="my-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[['Total customers', summary.total], ['Verified accounts', summary.verified],
-          ['Pending activation', summary.pendingActivation], ['Welcome emails sent', summary.welcomeEmailsSent]].map(([label, count]) =>
+          ['Pending activation', summary.pendingActivation], ['Welcome emails sent', summary.welcomeEmailsSent],
+          ['Customer purchases', summary.totalPurchases]].map(([label, count]) =>
           <div key={label} className="rounded-xl bg-cream p-3 text-cocoa"><dt className="text-xs">{label}</dt><dd className="text-2xl font-bold">{count}</dd></div>)}
       </dl>
       {!loading && summary.total === 0 && <p>No registered customers yet.</p>}
@@ -91,6 +94,15 @@ export default function CustomerSummary() {
             <p>Last sign-in: {customer.lastSignInAt ? dateLabel(customer.lastSignInAt) : 'Not yet'}</p>
             <p>Welcome email: {!customer.verified && customer.welcomeStatus === 'not_queued'
               ? 'Waiting for email verification' : welcomeLabels[customer.welcomeStatus]}</p>
+            <p className="mt-1 font-semibold">{customer.purchaseExcluded ? 'Test account: purchases excluded' : `Purchases: ${customer.purchaseCount}`}</p>
+            <button type="button" disabled={loading || exclusionBusy} className="mt-2 block min-h-11 text-sm font-semibold underline disabled:opacity-50"
+              onClick={() => {
+                setExclusionBusy(true); setError(''); setMessage('');
+                void setCustomerPurchaseExclusion(customer.id, !customer.purchaseExcluded)
+                  .then(() => { setLoading(true); setPage(previous => ({ ...previous, refresh: previous.refresh + 1 })); })
+                  .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to update purchase exclusion.'))
+                  .finally(() => setExclusionBusy(false));
+              }}>{customer.purchaseExcluded ? 'Include purchases' : 'Exclude test purchases'}</button>
             {customer.canManageAccount && <button type="button" disabled={saving || loading}
               className="mt-2 min-h-11 text-sm font-semibold underline disabled:opacity-50"
               onClick={() => { clearAction(); setMessage(''); setSelected(customer); }}>

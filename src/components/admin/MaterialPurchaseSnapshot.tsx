@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { downloadMaterialReceipt, fetchMaterialPurchases, materialCategories, purchaseBreakdown, setMaterialPurchaseCategory,
+import { downloadMaterialReceipt, fetchMaterialPurchases, materialCategories, purchaseBreakdown, purchaseGroupName, setMaterialPurchaseCategory,
   type MaterialCategory, type MaterialPurchase } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { formatDate, localDate } from '../../utils/date';
@@ -68,6 +68,7 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const [selected, setSelected] = useState<{ label: string; purchases: MaterialPurchase[] } | null>(null);
+  const [filter, setFilter] = useState<{ group: 'category' | 'supplier'; name: string } | null>(null);
   const [downloadsInProgress, setDownloadsInProgress] = useState(0);
   const panelId = useId();
   useEffect(() => {
@@ -106,6 +107,8 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
     setSelected(current => current ? { ...current, purchases: current.purchases.map(purchase =>
       purchase.id === id ? { ...purchase, category } : purchase) } : null);
   };
+  const filteredPurchases = selected && filter ? selected.purchases.filter(purchase =>
+    purchaseGroupName(purchase, filter.group).toLocaleLowerCase() === filter.name.toLocaleLowerCase()) : [];
   return <section aria-label="Material purchase snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(current => !current)}
       className="flex w-full items-center justify-between gap-3 text-left font-heading text-xl font-bold text-cocoa">
@@ -124,7 +127,7 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
       {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {!error && rows === null && <p role="status" className="mt-3 text-sm">Loading material purchases…</p>}
     </div>
-    {selected && <AdminDialog title={`Purchases · ${selected.label}`} onClose={() => setSelected(null)} busy={downloadsInProgress > 0}>
+    {selected && <AdminDialog title={`Purchases · ${selected.label}`} onClose={() => { setSelected(null); setFilter(null); }} busy={downloadsInProgress > 0}>
       <div className="space-y-4 p-4">
         <p className="text-sm">Newest purchases first. To edit or delete a purchase, go to Admin → Materials.</p>
         {selected.purchases.length === 0 ? <p>No purchases recorded for this period.</p>
@@ -133,12 +136,27 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
               <section key={group} aria-label={`Purchases by ${group}`} className="rounded border p-3 text-sm">
                 <h3 className="font-semibold">By {group}</h3>
                 <ul>{purchaseBreakdown(selected.purchases, group).map(item =>
-                  <li key={item.name}>{item.name}: {formatINRExact(item.total)}</li>)}</ul>
+                  <li key={item.name}><button type="button" disabled={downloadsInProgress > 0}
+                    aria-label={`View ${group} ${item.name} purchases`}
+                    onClick={() => setFilter({ group, name: item.name })}
+                    className="min-h-11 text-left underline underline-offset-2 disabled:opacity-50">
+                    {item.name}: {formatINRExact(item.total)}</button></li>)}</ul>
               </section>)}</div>
             <ul className="space-y-3">{selected.purchases.map(purchase =>
               <PurchaseDetails key={purchase.id} purchase={purchase} onCategoryChange={updateCategory}
                 onBusyChange={change => setDownloadsInProgress(count => count + change)} />)}</ul>
           </>}
+      </div>
+    </AdminDialog>}
+    {selected && filter && <AdminDialog title={`Purchases · ${filter.name} · ${selected.label}`}
+      onClose={() => setFilter(null)} busy={downloadsInProgress > 0}>
+      <div className="space-y-4 p-4">
+        <p className="text-sm">Newest purchases first. To edit or delete a purchase, go to Admin → Materials.</p>
+        {filteredPurchases.length === 0
+          ? <p>No purchases in this group.</p>
+          : <ul className="space-y-3">{filteredPurchases
+            .map(purchase => <PurchaseDetails key={purchase.id} purchase={purchase} onCategoryChange={updateCategory}
+              onBusyChange={change => setDownloadsInProgress(count => count + change)} />)}</ul>}
       </div>
     </AdminDialog>}
   </section>;

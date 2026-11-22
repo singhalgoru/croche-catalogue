@@ -22,6 +22,9 @@ describe('financial ledger CSV', () => {
     expect(() => parseMaterialCsv(rows.replace('Tool', 'Unknown'), [], new Map())).toThrow(/category must be/);
     expect(parseMaterialCsv(`${header}\n,2025-03-31,Acrylic wool,Shop,1,ball,25,Paid,`, [], new Map())[0].category).toBe('Yarn');
     expect(parseMaterialCsv(`${header}\nexisting,2025-03-31,Hook,Shop,1,piece,25,Paid,`, [{ ...purchase, category: 'Accessories' }], new Map())[0].category).toBe('Accessories');
+    expect(() => parseMaterialCsv(`${header}\n,2025-03-31,Hook,Shop,1,piece,25,Paid,`, [], new Map())).toThrow(/choose Yarn, Tool/);
+    expect(() => parseMaterialCsv(rows.replace('Tool', 'Uncategorized'), [], new Map())).toThrow(/choose Yarn, Tool/);
+    expect(parseMaterialCsv(`${header}\nexisting,2025-03-31,Hook,Shop,1,piece,25,Paid,`, [{ ...purchase, category: 'Uncategorized' }], new Map())[0].category).toBe('Uncategorized');
   });
   it('accepts filled blank purchase and per-artisan payment templates', () => {
     const material = `${buildMaterialCsv([])}\r\n,2025-03-31,Yarn,Shop,2,balls,25.50,Paid,`;

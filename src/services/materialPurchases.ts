@@ -20,10 +20,13 @@ export interface MaterialPurchase {
 }
 export type MaterialPurchaseInput = Omit<MaterialPurchase, 'receipt_name'>;
 
+export const purchaseGroupName = (purchase: MaterialPurchase, group: 'category' | 'supplier') =>
+  (group === 'category' ? purchase.category : purchase.supplier.trim()) || 'Not provided';
+
 export function purchaseBreakdown(purchases: MaterialPurchase[], group: 'category' | 'supplier') {
   const amounts = new Map<string, { name: string; paise: number }>();
   for (const purchase of purchases) {
-    const name = (group === 'category' ? purchase.category : purchase.supplier.trim()) || 'Not provided';
+    const name = purchaseGroupName(purchase, group);
     const key = name.toLocaleLowerCase();
     const existing = amounts.get(key);
     amounts.set(key, { name: existing?.name ?? name, paise: (existing?.paise ?? 0) + Math.round(purchase.total * 100) });

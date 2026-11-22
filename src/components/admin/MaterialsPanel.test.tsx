@@ -59,12 +59,30 @@ it('does not present an empty summary after a load failure and can retry', async
   expect(await screen.findByText(/Purchase value:/)).toBeTruthy();
 });
 
+it('requires a category for a new non-yarn purchase and accepts an explicit choice', async () => {
+  render(<MaterialsPanel />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Add purchase' }));
+  fireEvent.change(screen.getByLabelText('Material *'), { target: { value: 'Hook' } });
+  const category = screen.getByLabelText('Category *');
+  expect(category).toHaveProperty('value', '');
+  expect(category).toHaveProperty('required', true);
+  fireEvent.submit(screen.getByRole('button', { name: 'Save purchase' }).closest('form')!);
+  expect(screen.getByRole('alert').textContent).toContain('Choose a category');
+  expect(savePurchase).not.toHaveBeenCalled();
+  fireEvent.change(category, { target: { value: 'Tool' } });
+  fireEvent.change(screen.getByLabelText('Quantity *'), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/Unit \*/), { target: { value: 'piece' } });
+  fireEvent.change(screen.getByLabelText('Total purchase cost (₹) *'), { target: { value: '30' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Save purchase' }).closest('form')!);
+  await waitFor(() => expect(savePurchase).toHaveBeenCalledWith(expect.objectContaining({ category: 'Tool' }), null, false));
+});
+
 it('imports purchases with existing receipt preservation and retry-safe new IDs', async () => {
   const csv = new File([''], 'purchases.csv', { type: 'text/csv' });
   Object.defineProperty(csv, 'text', { value: async () => [
-    'Record ID,Purchase Date,Material,Supplier,Quantity,Unit,Total,Payment Status,Notes',
-    'one,2026-11-01,Yarn,Shop,2,balls,125,Paid,',
-    ',2026-11-03,Thread,Shop,1,roll,30,Unpaid,',
+    'Record ID,Purchase Date,Material,Supplier,Quantity,Unit,Total,Payment Status,Notes,Category',
+    'one,2026-11-01,Yarn,Shop,2,balls,125,Paid,,Yarn',
+    ',2026-11-03,Thread,Shop,1,roll,30,Unpaid,,Accessories',
   ].join('\n') });
   savePurchase.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Offline'));
   render(<MaterialsPanel />);
