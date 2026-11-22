@@ -8,12 +8,12 @@ it('provides a category dropdown and blocks the example until it is replaced', a
   await workbook.xlsx.load(await buildMaterialWorkbook());
   const sheet = workbook.getWorksheet('Purchases')!;
   expect(sheet.getCell('J2').dataValidation).toMatchObject({
-    type: 'list', formulae: ['"Yarn,Tool,Accessories,Uncategorized"'],
+    type: 'list', formulae: ['"Yarn,Tool,Accessories,Packaging,Uncategorized"'],
   });
   let csv = (await workbook.csv.writeBuffer({ sheetName: 'Purchases' })).toString();
   expect(() => parseMaterialCsv(csv, [], new Map())).toThrow(/replace or delete the example row/);
   sheet.getCell('I2').value = 'Real purchase';
-  sheet.getCell('J2').value = 'Tool';
+  sheet.getCell('J2').value = 'Packaging';
   csv = (await workbook.csv.writeBuffer({ sheetName: 'Purchases' })).toString();
-  expect(parseMaterialCsv(csv, [], new Map())[0].category).toBe('Tool');
+  expect(parseMaterialCsv(csv, [], new Map())[0].category).toBe('Packaging');
 });

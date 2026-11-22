@@ -30,10 +30,6 @@ export function buildMaterialCsv(purchases: MaterialPurchase[]) {
   ]))].join('\r\n');
 }
 
-export function buildMaterialTemplate() {
-  return [record(materialTemplateHeaders), record(['', localDate(), 'Example yarn', 'Example supplier', 2, 'balls', 200, 'Paid', TEMPLATE_EXAMPLE, 'Yarn'])].join('\r\n');
-}
-
 export function parseMaterialCsv(text: string, existing: MaterialPurchase[], ids: Map<number, string>): MaterialPurchaseInput[] {
   const seen = new Set<string>();
   const newRows = new Set<string>();
@@ -50,7 +46,7 @@ export function parseMaterialCsv(text: string, existing: MaterialPurchase[], ids
     if (status !== 'Paid' && status !== 'Unpaid') throw new Error(`Row ${index + 2}: payment status must be Paid or Unpaid.`);
     const category = categoryText ? materialCategories.find(value => value.toLowerCase() === categoryText.toLowerCase())
       : existing.find(item => item.id === key)?.category ?? inferMaterialCategory(material);
-    if (!category) throw new Error(`Row ${index + 2}: category must be Yarn, Tool, Accessories or Uncategorized.`);
+    if (!category) throw new Error(`Row ${index + 2}: category must be Yarn, Tool, Accessories, Packaging or Uncategorized.`);
     const item: MaterialPurchaseInput = { id: key, purchased_on: parseDateInput(date), material, category, supplier,
       quantity: Number(quantity), unit, total: Number(total), payment_status: status, notes };
     try { validateMaterialPurchase(item); }

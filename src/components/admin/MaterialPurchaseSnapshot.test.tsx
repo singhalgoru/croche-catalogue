@@ -61,7 +61,16 @@ it('groups purchases by year and quarter and opens date-sorted, bounded details'
   expect(annual.textContent).toContain('₹12.30');
   expect(annual.textContent).toContain('Paid₹12.10');
   expect(annual.textContent).toContain('Unpaid₹0.20');
-  expect(within(annual).queryByRole('button')).toBeNull();
+  const yearly = within(annual).getByRole('button', { name: 'View purchases for Year 2026 · Jan–Dec' });
+  yearly.focus();
+  fireEvent.click(yearly);
+  const yearlyDialog = screen.getByRole('dialog', { name: 'Purchases · Year 2026 · Jan–Dec' });
+  expect(within(yearlyDialog).getAllByRole('heading', { level: 3 }).filter(heading => heading.textContent?.includes(' · ')).map(heading => heading.textContent))
+    .toEqual(['31/12/2026 · December hook', '01/04/2026 · April thread', '31/03/2026 · March yarn', '01/01/2026 · January yarn']);
+  expect(within(yearlyDialog).queryByText('Previous year hook')).toBeNull();
+  expect(within(yearlyDialog).getByRole('region', { name: 'Purchases by category' }).textContent).toContain('₹12.30');
+  fireEvent.click(within(yearlyDialog).getByRole('button', { name: 'Close Purchases · Year 2026 · Jan–Dec' }));
+  expect(document.activeElement).toBe(yearly);
   expect(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2026' }).textContent).toContain('₹0.20');
   const q1 = screen.getByRole('button', { name: 'View purchases for Q1 · Jan–Mar 2026' });
   q1.focus();
@@ -74,7 +83,7 @@ it('groups purchases by year and quarter and opens date-sorted, bounded details'
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(document.activeElement).toBe(q1);
   fireEvent.click(screen.getByRole('button', { name: 'View purchases for Q3 · Jul–Sep 2026' }));
-  expect(screen.getByText('No purchases recorded for this quarter.')).toBeTruthy();
+  expect(screen.getByText('No purchases recorded for this period.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close Purchases · Q3 · Jul–Sep 2026' }));
   fireEvent.change(screen.getByLabelText('Material snapshot year'), { target: { value: '2025' } });
   expect(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }).textContent).toContain('₹7.00');

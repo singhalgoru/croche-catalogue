@@ -81,7 +81,7 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
     });
     return () => { active = false; };
   }, [refreshKey, retry]);
-  const cards = rows && isSnapshotYear(year) ? calendarPeriods(year).map((period, index) => {
+  const cards = rows && isSnapshotYear(year) ? calendarPeriods(year).map(period => {
     const purchases = rows.filter(item => {
       const monthNumber = Number(item.purchased_on.slice(5, 7));
       return item.purchased_on.startsWith(`${year}-`) && monthNumber >= period.startMonth && monthNumber <= period.endMonth;
@@ -90,11 +90,11 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
       .reduce((sum, item) => sum + Math.round(item.total * 100), 0);
     const unpaid = purchases.filter(item => item.payment_status === 'Unpaid')
       .reduce((sum, item) => sum + Math.round(item.total * 100), 0);
-    return { label: period.label, ...(index > 0 ? { action: {
+    return { label: period.label, action: {
       label: `View purchases for ${period.label}`,
       onClick: () => setSelected({ label: period.label, purchases: [...purchases].sort((a, b) =>
         b.purchased_on.localeCompare(a.purchased_on) || a.id.localeCompare(b.id)) }),
-    } } : {}), metrics: [
+    }, metrics: [
       { label: 'Purchase value', value: formatINRExact((paid + unpaid) / 100) },
       { label: 'Paid', value: formatINRExact(paid / 100) },
       { label: 'Unpaid', value: formatINRExact(unpaid / 100) },
@@ -127,7 +127,7 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
     {selected && <AdminDialog title={`Purchases · ${selected.label}`} onClose={() => setSelected(null)} busy={downloadsInProgress > 0}>
       <div className="space-y-4 p-4">
         <p className="text-sm">Newest purchases first. To edit or delete a purchase, go to Admin → Materials.</p>
-        {selected.purchases.length === 0 ? <p>No purchases recorded for this quarter.</p>
+        {selected.purchases.length === 0 ? <p>No purchases recorded for this period.</p>
           : <>
             <div className="grid gap-3 sm:grid-cols-2">{(['category', 'supplier'] as const).map(group =>
               <section key={group} aria-label={`Purchases by ${group}`} className="rounded border p-3 text-sm">

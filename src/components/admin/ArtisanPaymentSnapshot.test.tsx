@@ -31,7 +31,7 @@ it('retains annual and quarterly totals, counts distinct artisans and changes ye
   expect(annual.textContent).toContain('₹11.30');
   expect(annual.textContent).toContain('Payments5');
   expect(annual.textContent).toContain('Artisans2');
-  expect(within(annual).queryByRole('button')).toBeNull();
+  expect(within(annual).getByRole('button', { name: 'View payments for Year 2026 · Jan–Dec' })).toBeTruthy();
   const q2 = screen.getByRole('article', { name: 'Q2 · Apr–Jun 2026' });
   expect(q2.textContent).toContain('₹1.20');
   expect(q2.textContent).toContain('Artisans1');
@@ -45,6 +45,7 @@ it('retains annual and quarterly totals, counts distinct artisans and changes ye
 
 it('shows quarter payments for all artisans in date order without voided or out-of-period entries', async () => {
   vi.mocked(fetchArtisanPaymentYear).mockResolvedValue([
+    { month: '2026-03', payments: [{ ...makerA, amount: 10, latestDate: '2026-03-01' }] },
     { month: '2026-10', payments: [makerA] },
     { month: '2026-11', payments: [{ ...makerA, amount: 25, latestDate: '2026-11-01' }] },
     { month: '2026-12', payments: [makerB] },
@@ -52,7 +53,7 @@ it('shows quarter payments for all artisans in date order without voided or out-
   vi.mocked(fetchArtisanActivity).mockImplementation(async id => ({ comments: [], payments: id === '1' ? [
     payment, { ...payment, id: 'second', paid_on: '2026-11-01', amount: 25, reference: 'txn-2', description: 'Second batch' },
     { ...payment, id: 'voided', description: 'Voided batch', voided_at: '2026-10-31' },
-    { ...payment, id: 'before', description: 'Previous quarter', paid_on: '2026-09-30' },
+    { ...payment, id: 'before', description: 'Previous quarter', paid_on: '2026-03-01', amount: 10 },
     { ...payment, id: 'after', description: 'Next year', paid_on: '2027-01-01' },
   ] : [{ ...payment, id: 'third', paid_on: '2026-12-31', amount: 50, method: 'Cash', reference: '', description: 'Final batch' }] }));
   render(<ArtisanPaymentSnapshot refreshKey={1} />);
@@ -71,6 +72,14 @@ it('shows quarter payments for all artisans in date order without voided or out-
   fireEvent(dialog, new Event('cancel', { bubbles: true, cancelable: true }));
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(document.activeElement).toBe(trigger);
+  const yearly = screen.getByRole('button', { name: 'View payments for Year 2026 · Jan–Dec' });
+  fireEvent.click(yearly);
+  const yearDialog = screen.getByRole('dialog', { name: 'Payments · Year 2026 · Jan–Dec' });
+  expect(await within(yearDialog).findByText('Work / batch: Previous quarter')).toBeTruthy();
+  expect(within(yearDialog).getAllByRole('heading', { level: 3 })).toHaveLength(4);
+  expect(within(yearDialog).queryByText(/Voided batch|Next year/)).toBeNull();
+  expect(within(yearDialog).queryByText(/Payment details have changed/)).toBeNull();
+  fireEvent.click(within(yearDialog).getByRole('button', { name: 'Close Payments · Year 2026 · Jan–Dec' }));
 });
 
 it('shows empty quarters and indicates when payment details no longer match the totals', async () => {
@@ -79,12 +88,12 @@ it('shows empty quarters and indicates when payment details no longer match the 
   render(<ArtisanPaymentSnapshot refreshKey={1} />);
   fireEvent.click(screen.getByRole('button', { name: 'Artisan payment snapshot' }));
   fireEvent.click(await screen.findByRole('button', { name: 'View payments for Q1 · Jan–Mar 2026' }));
-  expect(await screen.findByText('No recorded payments for this quarter.')).toBeTruthy();
+  expect(await screen.findByText('No recorded payments for this period.')).toBeTruthy();
   expect(fetchArtisanActivity).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Close Payments · Q1 · Jan–Mar 2026' }));
   fireEvent.click(screen.getByRole('button', { name: 'View payments for Q4 · Oct–Dec 2026' }));
   expect(await screen.findByText(/Payment details have changed since this snapshot/)).toBeTruthy();
-  expect(screen.getByText('No recorded payments for this quarter.')).toBeTruthy();
+  expect(screen.getByText('No recorded payments for this period.')).toBeTruthy();
 });
 
 it('reports detail and yearly load failures and supports retry without partial totals', async () => {

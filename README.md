@@ -153,7 +153,9 @@ an India-based handmade crochet brand.
   After submitting, artisans can optionally share a short work video on WhatsApp.
   Private working profiles include skill/rating filters and comments, with
   separately consented profile photos. The artisan directory supports payment
-  records and bulk CSV import/export with an Excel dropdown template.
+  records and bulk CSV import/export with an Excel category dropdown template,
+  including packaging purchases. Material and artisan snapshots include
+  yearly and quarterly detail views.
   Applicants receive review updates by email, and the form and emails explain
   the application-to-paid-trial process.
   Before a new paid trial, artisans provide payment details in their own name

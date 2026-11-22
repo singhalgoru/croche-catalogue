@@ -505,6 +505,10 @@ test('shows recorded artisan payments in financial snapshots', async ({ page }) 
   await expect(paymentYear.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('₹125.50');
   await expect(paymentYear.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('₹125.50');
   await expect(paymentYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
+  await paymentYear.getByRole('button', { name: 'View payments for Year 2026 · Jan–Dec' }).click();
+  const yearlyPayments = page.getByRole('dialog', { name: 'Payments · Year 2026 · Jan–Dec' });
+  await expect(yearlyPayments).toContainText('Work / batch: Flower batch');
+  await yearlyPayments.getByRole('button', { name: 'Close Payments · Year 2026 · Jan–Dec' }).click();
   const quarter = paymentYear.getByRole('button', { name: 'View payments for Q4 · Oct–Dec 2026' });
   await quarter.click();
   const dialog = page.getByRole('dialog', { name: 'Payments · Q4 · Oct–Dec 2026' });
@@ -516,7 +520,7 @@ test('shows recorded artisan payments in financial snapshots', async ({ page }) 
   await expect(quarter).toBeFocused();
   await paymentYear.getByRole('button', { name: 'View payments for Q1 · Jan–Mar 2026' }).click();
   await expect(page.getByRole('dialog', { name: 'Payments · Q1 · Jan–Mar 2026' }))
-    .toContainText('No recorded payments for this quarter.');
+    .toContainText('No recorded payments for this period.');
   await page.getByRole('button', { name: 'Close Payments · Q1 · Jan–Mar 2026' }).click();
   await expectNoHorizontalOverflow(page);
 });
@@ -574,6 +578,10 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(materialYear.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('₹150.50');
   await expect(materialYear.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('₹150.50');
   await expect(materialYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
+  await materialYear.getByRole('button', { name: 'View purchases for Year 2026 · Jan–Dec' }).click();
+  const yearlyPurchases = page.getByRole('dialog', { name: 'Purchases · Year 2026 · Jan–Dec' });
+  await expect(yearlyPurchases.getByRole('region', { name: 'Purchases by category' })).toContainText('Yarn: ₹150.50');
+  await yearlyPurchases.getByRole('button', { name: 'Close Purchases · Year 2026 · Jan–Dec' }).click();
   const quarterLink = materialYear.getByRole('button', { name: 'View purchases for Q4 · Oct–Dec 2026' });
   await quarterLink.click();
   const purchaseDialog = page.getByRole('dialog', { name: 'Purchases · Q4 · Oct–Dec 2026' });
@@ -582,9 +590,9 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(purchaseDialog).toContainText('₹150.50');
   await expect(purchaseDialog.getByRole('region', { name: 'Purchases by category' })).toContainText('Yarn: ₹150.50');
   await expect(purchaseDialog.getByRole('region', { name: 'Purchases by supplier' })).toContainText('Sample shop: ₹150.50');
-  await purchaseDialog.getByLabel('Category for Yarn').selectOption('Tool');
+  await purchaseDialog.getByLabel('Category for Yarn').selectOption('Packaging');
   await purchaseDialog.getByRole('button', { name: 'Save category' }).click();
-  await expect(purchaseDialog.getByRole('region', { name: 'Purchases by category' })).toContainText('Tool: ₹150.50');
+  await expect(purchaseDialog.getByRole('region', { name: 'Purchases by category' })).toContainText('Packaging: ₹150.50');
   const receiptDownload = page.waitForEvent('download');
   await purchaseDialog.getByRole('button', { name: 'Download receipt: receipt.pdf' }).click();
   expect((await receiptDownload).suggestedFilename()).toBe('receipt.pdf');
@@ -594,22 +602,23 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   const csvDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download purchases CSV', exact: true }).click();
   expect((await csvDownload).suggestedFilename()).toBe('luvia-material-purchases.csv');
-  const templateDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download purchases CSV template' }).click();
-  const template = await templateDownload;
-  expect(template.suggestedFilename()).toBe('luvia-material-purchases-template.csv');
-  const templatePath = await template.path();
-  if (!templatePath) throw new Error('Purchase template download is unavailable.');
+  await expect(page.getByRole('button', { name: 'Download purchases CSV template' })).toHaveCount(0);
   const excelDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download purchases Excel template with category dropdown' }).click();
   const excelFile = await excelDownload;
+  expect(excelFile.suggestedFilename()).toBe('luvia-material-purchases-template.xlsx');
   const excelPath = await excelFile.path();
   if (!excelPath) throw new Error('Purchase Excel template download is unavailable.');
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(excelPath);
-  expect(workbook.getWorksheet('Purchases')?.getCell('J2').dataValidation.type).toBe('list');
+  const sheet = workbook.getWorksheet('Purchases');
+  if (!sheet) throw new Error('Purchase worksheet is unavailable.');
+  expect(sheet.getCell('J2').dataValidation.type).toBe('list');
+  expect(sheet.getCell('J2').dataValidation.formulae).toContain('"Yarn,Tool,Accessories,Packaging,Uncategorized"');
+  const headers: string[] = [];
+  sheet.getRow(1).eachCell(cell => headers.push(String(cell.value)));
   const csv = [
-    readFileSync(templatePath, 'utf8').split(/\r?\n/)[0],
+    headers.join(','),
     `${rows[0].id},2026-11-01,Yarn,Sample shop,2,balls,150.50,Paid,`,
     ',2026-11-02,Thread,Sample shop,1,roll,20,Unpaid,',
     ',2026-11-03,Hook,Sample shop,1,piece,30,Paid,',

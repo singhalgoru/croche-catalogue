@@ -1,6 +1,6 @@
 import { loadSupabase } from '../lib/supabaseConfig';
 
-export const materialCategories = ['Yarn', 'Tool', 'Accessories', 'Uncategorized'] as const;
+export const materialCategories = ['Yarn', 'Tool', 'Accessories', 'Packaging', 'Uncategorized'] as const;
 export type MaterialCategory = typeof materialCategories[number];
 export const inferMaterialCategory = (material: string): MaterialCategory =>
   /\b(yarn|acrylic|chenille|wool)\b/i.test(material) ? 'Yarn' : 'Uncategorized';

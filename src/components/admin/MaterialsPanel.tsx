@@ -3,7 +3,7 @@ import { deleteMaterialPurchase, downloadMaterialReceipt, fetchMaterialPurchases
   type MaterialPurchase, type MaterialPurchaseInput } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { localDate } from '../../utils/date';
-import { buildMaterialCsv, buildMaterialTemplate, downloadLedgerCsv, parseMaterialCsv, validateLedgerFile } from './financialLedgerCsv';
+import { buildMaterialCsv, downloadLedgerCsv, parseMaterialCsv, validateLedgerFile } from './financialLedgerCsv';
 import { downloadMaterialWorkbook } from './materialPurchaseTemplate';
 
 type Draft = Omit<MaterialPurchaseInput, 'quantity' | 'total'> & { quantity: string; total: string; receipt_name: string | null };
@@ -109,8 +109,6 @@ export default function MaterialsPanel() {
       <button type="button" className={button} disabled={busy || loading} onClick={() => { setError(null); setLoading(true); void load(); }}>Refresh purchases</button>
       <button type="button" className={button} disabled={busy || loading || !loaded}
         onClick={() => downloadLedgerCsv('luvia-material-purchases.csv', buildMaterialCsv(purchases))}>Download purchases CSV</button>
-      <button type="button" className={button}
-        onClick={() => downloadLedgerCsv('luvia-material-purchases-template.csv', buildMaterialTemplate())}>Download purchases CSV template</button>
       <button type="button" className={button} disabled={busy} onClick={() => {
         setBusy(true); setError(null);
         void downloadMaterialWorkbook().catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to download template.'))
@@ -127,7 +125,7 @@ export default function MaterialsPanel() {
       </label>
     </div>
     <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Replace or delete the example row before uploading. Leave Record ID blank for new purchases; existing IDs update purchases.
-      For the Excel dropdown template, save the Purchases sheet as CSV UTF-8 before upload. Categories are Yarn, Tool, Accessories or Uncategorized.
+      For the Excel dropdown template, save the Purchases sheet as CSV UTF-8 before upload. Categories are Yarn, Tool, Accessories, Packaging or Uncategorized.
       Enter dates as YYYY-MM-DD or DD/MM/YYYY, positive quantity and total, and Paid or Unpaid for Payment Status.
       Receipts are not included in CSV and existing attachments are kept.</p>
     {draft && <form onSubmit={event => void save(event)} className="mt-4 grid gap-3 rounded-xl bg-cream/50 p-4 sm:grid-cols-2">

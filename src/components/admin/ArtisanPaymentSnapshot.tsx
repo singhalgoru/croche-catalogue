@@ -8,7 +8,7 @@ import { calendarPeriods, isSnapshotYear } from './salesPeriodSummary';
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
 
-interface Quarter {
+interface PaymentPeriod {
   label: string;
   year: string;
   startMonth: number;
@@ -18,8 +18,8 @@ interface Quarter {
   expectedPaise: number;
 }
 
-function PaymentDetails({ quarter, onClose }: {
-  quarter: Quarter; onClose: () => void;
+function PaymentDetails({ period, onClose }: {
+  period: PaymentPeriod; onClose: () => void;
 }) {
   const [payments, setPayments] = useState<{ artisan: ArtisanPaymentSummary; payment: ArtisanPayment }[] | null>(null);
   const [error, setError] = useState('');
@@ -31,12 +31,12 @@ function PaymentDetails({ quarter, onClose }: {
       if (!active) return;
       setPayments(null);
       setError('');
-      void Promise.all(quarter.artisans.map(async artisan => {
+      void Promise.all(period.artisans.map(async artisan => {
         const activity = await fetchArtisanActivity(artisan.artisanId);
         return activity.payments.filter(payment => {
           const month = Number(payment.paid_on.slice(5, 7));
-          return payment.voided_at === null && payment.paid_on.startsWith(`${quarter.year}-`)
-            && month >= quarter.startMonth && month <= quarter.endMonth;
+          return payment.voided_at === null && payment.paid_on.startsWith(`${period.year}-`)
+            && month >= period.startMonth && month <= period.endMonth;
         }).map(payment => ({ artisan, payment }));
       })).then(groups => {
         if (active) setPayments(groups.flat().sort((a, b) =>
@@ -47,18 +47,18 @@ function PaymentDetails({ quarter, onClose }: {
       });
     });
     return () => { active = false; };
-  }, [quarter, retry]);
+  }, [period, retry]);
 
-  const changed = payments && (payments.length !== quarter.expectedCount
-    || payments.reduce((sum, item) => sum + Math.round(item.payment.amount * 100), 0) !== quarter.expectedPaise);
-  return <AdminDialog title={`Payments · ${quarter.label}`} onClose={onClose}>
+  const changed = payments && (payments.length !== period.expectedCount
+    || payments.reduce((sum, item) => sum + Math.round(item.payment.amount * 100), 0) !== period.expectedPaise);
+  return <AdminDialog title={`Payments · ${period.label}`} onClose={onClose}>
     <div className="space-y-4 p-4">
       <p className="text-sm">Newest payments first; voided entries are excluded. To correct a payment or view private payout details, review the artisan in Admin → Artisans. Refresh the snapshot if payments have changed.</p>
       {error ? <div><p role="alert" className="text-red-700">{error}</p>
         <button type="button" className="min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Retry payment details</button></div>
         : payments === null ? <p role="status">Loading payment details…</p>
           : <>{changed && <p role="status" className="text-sm">Payment details have changed since this snapshot. Refresh payments to update the totals.</p>}
-            {payments.length === 0 ? <p>No recorded payments for this quarter.</p>
+            {payments.length === 0 ? <p>No recorded payments for this period.</p>
             : <ul className="space-y-3">{payments.map(({ artisan, payment }) =>
               <li key={payment.id} className="rounded-xl border border-mustard/40 bg-white p-3">
                 <h3 className="break-words font-semibold">{formatDate(payment.paid_on)} · {artisan.name}</h3>
@@ -75,7 +75,7 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
   const [expanded, setExpanded] = useState(false);
   const [year, setYear] = useState(() => localDate().slice(0, 4));
   const [retry, setRetry] = useState(0);
-  const [selected, setSelected] = useState<Quarter | null>(null);
+  const [selected, setSelected] = useState<PaymentPeriod | null>(null);
   const [yearRows, setYearRows] = useState<{ year: string; data: ArtisanPaymentMonth[] } | null>(null);
   const [yearError, setYearError] = useState<{ year: string; message: string } | null>(null);
   const panelId = useId();
@@ -94,7 +94,7 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
     return () => { active = false; };
   }, [expanded, year, refreshKey, retry]);
 
-  const cards = yearRows?.year === year && isSnapshotYear(year) ? calendarPeriods(year).map((period, index) => {
+  const cards = yearRows?.year === year && isSnapshotYear(year) ? calendarPeriods(year).map(period => {
     const payments = yearRows.data.filter(item => {
       const monthNumber = Number(item.month.slice(5, 7));
       return monthNumber >= period.startMonth && monthNumber <= period.endMonth;
@@ -102,10 +102,10 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
     const paid = payments.reduce((sum, payment) => sum + Math.round(payment.amount * 100), 0);
     const count = payments.reduce((sum, payment) => sum + payment.count, 0);
     const artisans = [...new Map(payments.map(payment => [payment.artisanId, payment])).values()];
-    return { label: period.label, ...(index > 0 ? { action: {
+    return { label: period.label, action: {
       label: `View payments for ${period.label}`,
       onClick: () => setSelected({ ...period, year, artisans, expectedCount: count, expectedPaise: paid }),
-    } } : {}), metrics: [
+    }, metrics: [
       { label: 'Total paid', value: currency.format(paid / 100) },
       { label: 'Payments', value: String(count) },
       { label: 'Artisans', value: String(artisans.length) },
@@ -130,6 +130,6 @@ export default function ArtisanPaymentSnapshot({ refreshKey }: { refreshKey: num
     <button type="button" onClick={() => setRetry(value => value + 1)}
       className="mt-3 min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold">Refresh payments</button>
     </div>
-    {selected && <PaymentDetails quarter={selected} onClose={() => setSelected(null)} />}
+    {selected && <PaymentDetails period={selected} onClose={() => setSelected(null)} />}
   </section>;
 }
