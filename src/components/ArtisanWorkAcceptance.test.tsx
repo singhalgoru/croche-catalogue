@@ -2,11 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, expect, it, vi } from 'vitest';
 import ArtisanWorkAcceptance from './ArtisanWorkAcceptance';
 import { acceptWorkAssignment, readWorkAssignment } from '../services/artisanWork';
+import { WORK_QUALITY_TERMS } from '../../supabase/functions/_shared/artisanWorkEmail';
 
 vi.mock('../services/artisanWork', () => ({ acceptWorkAssignment: vi.fn(), readWorkAssignment: vi.fn() }));
 const offer = { recipientName: 'Maker', reference: '00000000-0000-4000-8000-000000000001', subject: 'Work offer',
-  message: 'Please review.', deliveryDate: '2099-12-01', courierCap: 100,
-  items: [{ name: 'Headband', quantity: 2, rateWithYarn: 150, rateWithoutYarn: 100, patternFilename: 'Headband.pdf' }] };
+  message: 'Please review.', deliveryDate: '2099-12-01', courierCap: 100, advancePercent: 25, qualityTerms: WORK_QUALITY_TERMS,
+  items: [{ name: 'Headband', quantity: 2, rateWithYarn: 150, rateWithoutYarn: 100, yarnBasis: 'with' as const, patternFilename: 'Headband.pdf' }] };
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 it('shows terms without accepting on page load and explicitly accepts once confirmed', async () => {
   const token = 'a'.repeat(64);
@@ -17,6 +18,10 @@ it('shows terms without accepting on page load and explicitly accepts once confi
   expect(await screen.findByText('Headband', { selector: 'strong' })).toBeTruthy();
   expect(acceptWorkAssignment).not.toHaveBeenCalled();
   expect(screen.getByText(/Maximum courier reimbursement/).textContent).toContain('100.00');
+  expect(screen.getByText(/Total work payment/).textContent).toContain('INR 300.00');
+  expect(screen.getByText(/Total work payment/).textContent).toContain('INR 75.00');
+  expect(screen.getByText(/Total work payment/).textContent).toContain('INR 225.00');
+  expect(screen.getByText(WORK_QUALITY_TERMS, { exact: false }).textContent).toContain(WORK_QUALITY_TERMS);
   fireEvent.click(screen.getByRole('checkbox', { name: /I accept/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Accept assignment' }));
   await screen.findByText(/Work is in progress/);

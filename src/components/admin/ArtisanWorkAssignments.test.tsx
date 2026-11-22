@@ -33,18 +33,24 @@ it('previews catalogue and manual products with selected pattern and retries the
   fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
   fireEvent.change(screen.getByLabelText('Including yarn / unit (INR)'), { target: { value: '100' } });
   fireEvent.change(screen.getByLabelText('Excluding yarn / unit (INR)'), { target: { value: '75' } });
+  fireEvent.change(screen.getByLabelText('Agreed rate for this product'), { target: { value: 'with' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
   const second = screen.getByRole('group', { name: 'Product 2' });
   fireEvent.change(within(second).getByLabelText('Product name'), { target: { value: 'Custom flower' } });
   fireEvent.change(within(second).getByLabelText('Quantity'), { target: { value: '3' } });
   fireEvent.change(within(second).getByLabelText('Including yarn / unit (INR)'), { target: { value: '50' } });
   fireEvent.change(within(second).getByLabelText('Excluding yarn / unit (INR)'), { target: { value: '25' } });
+  fireEvent.change(within(second).getByLabelText('Agreed rate for this product'), { target: { value: 'without' } });
   fireEvent.change(screen.getByLabelText('Delivery date'), { target: { value: '2099-12-01' } });
   fireEvent.change(screen.getByLabelText('Maximum courier reimbursement (INR)'), { target: { value: '120' } });
+  fireEvent.change(screen.getByLabelText('Advance payment (%)'), { target: { value: '25' } });
   fireEvent.change(screen.getByLabelText('Email message'), { target: { value: 'Please make these.' } });
   fireEvent.click(screen.getByRole('button', { name: 'Preview email' }));
   expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('Headband.pdf');
   expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('Please make these.');
+  expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('INR 275.00');
+  expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('INR 68.75');
+  expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('INR 206.25');
   fireEvent.click(screen.getByRole('button', { name: 'Send assignment email' }));
   await screen.findByText('Network failed');
   expect((screen.getByRole('button', { name: 'Edit assignment' }) as HTMLButtonElement).disabled).toBe(false);
@@ -52,9 +58,9 @@ it('previews catalogue and manual products with selected pattern and retries the
   await screen.findByText(/Assignment email queued/);
   expect(create).toHaveBeenCalledTimes(2);
   expect(create.mock.calls[0]).toEqual(create.mock.calls[1]);
-  expect(create.mock.calls[0]![2]).toMatchObject({ courierCap: 120, items: [
-    { productId: 'product', quantity: 2, patternRevision: 'revision', rateWithYarn: 100, rateWithoutYarn: 75 },
-    { productId: null, name: 'Custom flower', quantity: 3, patternRevision: null },
+  expect(create.mock.calls[0]![2]).toMatchObject({ courierCap: 120, advancePercent: 25, items: [
+    { productId: 'product', quantity: 2, patternRevision: 'revision', rateWithYarn: 100, rateWithoutYarn: 75, yarnBasis: 'with' },
+    { productId: null, name: 'Custom flower', quantity: 3, patternRevision: null, yarnBasis: 'without' },
   ] });
 });
 

@@ -7,6 +7,7 @@ export interface WorkDraftItem {
   quantity: number;
   rateWithYarn: number;
   rateWithoutYarn: number;
+  yarnBasis: 'with' | 'without';
   patternRevision: string | null;
 }
 export interface WorkDraft {
@@ -16,6 +17,7 @@ export interface WorkDraft {
   message: string;
   deliveryDate: string;
   courierCap: number;
+  advancePercent: number;
   items: WorkDraftItem[];
 }
 export interface WorkAssignment {

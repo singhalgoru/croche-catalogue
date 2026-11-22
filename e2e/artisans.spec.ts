@@ -4,14 +4,15 @@ import { readFileSync } from 'node:fs';
 import ExcelJS from 'exceljs';
 import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
+import { WORK_QUALITY_TERMS } from '../supabase/functions/_shared/artisanWorkEmail';
 
 const token = 'a'.repeat(64);
 test('artisan explicitly accepts a work assignment without accepting on link open', async ({ page }) => {
   await installMockSupabase(page);
   const calls: unknown[] = [];
   const offer = { reference: '00000000-0000-4000-8000-000000000001', recipientName: 'Sample Maker',
-    subject: 'Work offer', message: 'Please review these terms.', deliveryDate: '2099-12-01', courierCap: 100,
-    items: [{ name: 'Headband', quantity: 2, rateWithYarn: 150, rateWithoutYarn: 100, patternFilename: 'Headband.pdf' }] };
+    subject: 'Work offer', message: 'Please review these terms.', deliveryDate: '2099-12-01', courierCap: 100, advancePercent: 25, qualityTerms: WORK_QUALITY_TERMS,
+    items: [{ name: 'Headband', quantity: 2, rateWithYarn: 150, rateWithoutYarn: 100, yarnBasis: 'with', patternFilename: 'Headband.pdf' }] };
   await page.route('**/rest/v1/rpc/read_artisan_work_assignment', route =>
     route.fulfill({ json: { offer, acceptedAt: null, completedAt: null, expiresAt: '2099-12-01T00:00:00Z' } }));
   await page.route('**/rest/v1/rpc/accept_artisan_work_assignment', route => {
@@ -20,6 +21,8 @@ test('artisan explicitly accepts a work assignment without accepting on link ope
   });
   await page.goto(`./artisans/#work=${token}`);
   await expect(page.getByText('Headband', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Total work payment/)).toContainText('INR 225.00');
+  await expect(page.getByText(WORK_QUALITY_TERMS)).toBeVisible();
   expect(calls).toHaveLength(0);
   await page.getByRole('checkbox', { name: /I accept these work assignment terms/ }).check();
   await page.getByRole('button', { name: 'Accept assignment' }).click();
@@ -46,6 +49,7 @@ test('admin previews an assignment and completes accepted work', async ({ page }
     const draft = body.draft;
     entries.push({ id: body.request_id, offer: { reference: body.request_id, recipientName: 'Sample Maker',
       subject: draft.subject, message: draft.message, deliveryDate: draft.deliveryDate, courierCap: draft.courierCap,
+      advancePercent: draft.advancePercent, qualityTerms: WORK_QUALITY_TERMS,
       items: draft.items.map((item: { name: string; quantity: number; rateWithYarn: number; rateWithoutYarn: number }) => ({
         ...item, patternFilename: null })) }, createdAt: '2026-11-22T00:00:00Z', expiresAt: '2099-12-01T00:00:00Z',
     acceptedAt: '2026-11-22T01:00:00Z', completedAt: null, offerSentAt: '2026-11-22T00:10:00Z',
@@ -67,10 +71,13 @@ test('admin previews an assignment and completes accepted work', async ({ page }
   await modal.getByLabel('Quantity').fill('2');
   await modal.getByLabel('Including yarn / unit (INR)').fill('150');
   await modal.getByLabel('Excluding yarn / unit (INR)').fill('100');
+  await modal.getByLabel('Agreed rate for this product').selectOption('with');
+  await modal.getByLabel('Advance payment (%)').fill('25');
   await modal.getByLabel('Delivery date').fill('2099-12-01');
   await modal.getByLabel('Maximum courier reimbursement (INR)').fill('80');
   await modal.getByRole('button', { name: 'Preview email' }).click();
   await expect(modal.getByTitle('Assignment email preview')).toBeVisible();
+  await expect(modal.frameLocator('iframe[title="Assignment email preview"]').locator('p').filter({ hasText: 'Balance after work completion' })).toContainText('INR 225.00');
   await modal.getByRole('button', { name: 'Send assignment email' }).click();
   await expect(modal.getByText('Work in progress')).toBeVisible();
   await modal.getByRole('button', { name: 'Mark work complete' }).click();

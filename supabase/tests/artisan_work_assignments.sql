@@ -24,7 +24,8 @@ do $$ begin
   if has_table_privilege('anon','public.artisan_work_assignments','SELECT')
     or has_table_privilege('authenticated','public.artisan_work_attachments','SELECT')
     or has_function_privilege('anon','public.create_artisan_work_assignment(uuid,uuid,jsonb)','EXECUTE')
-    or has_function_privilege('authenticated','public.claim_artisan_work_emails()','EXECUTE') then
+    or has_function_privilege('authenticated','public.claim_artisan_work_emails()','EXECUTE')
+    or has_function_privilege('authenticated','public.create_artisan_work_assignment_base(uuid,uuid,jsonb)','EXECUTE') then
     raise exception 'FAIL: private work data or admin functions exposed.';
   end if;
 end $$;
@@ -36,10 +37,18 @@ declare f record; draft jsonb;
 begin
   select * into f from work_fixture;
   draft:=jsonb_build_object('recipientName','Synthetic Maker','recipientEmail','maker@example.test',
-    'subject','Test offer','message','Please review.','deliveryDate','2099-12-01','courierCap',100,
+    'subject','Test offer','message','Please review.','deliveryDate','2099-12-01','courierCap',100,'advancePercent',25,
     'items',jsonb_build_array(jsonb_build_object('productId',f.product_id,'name','Synthetic Headband','quantity',2,
-      'rateWithYarn',150,'rateWithoutYarn',100,'patternRevision',f.revision),
-      jsonb_build_object('productId',null,'name','Custom flower','quantity',1,'rateWithYarn',50,'rateWithoutYarn',30,'patternRevision',null)));
+      'rateWithYarn',150,'rateWithoutYarn',100,'yarnBasis','with','patternRevision',f.revision),
+      jsonb_build_object('productId',null,'name','Custom flower','quantity',1,'rateWithYarn',50,'rateWithoutYarn',30,'yarnBasis','without','patternRevision',null)));
+  begin
+    perform public.create_artisan_work_assignment(gen_random_uuid(),f.artisan_id,jsonb_set(draft,'{advancePercent}','101'));
+    raise exception 'FAIL: invalid advance accepted.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  begin
+    perform public.create_artisan_work_assignment(gen_random_uuid(),f.artisan_id,jsonb_set(draft,'{items,0,yarnBasis}','"invalid"'));
+    raise exception 'FAIL: invalid rate basis accepted.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   perform public.create_artisan_work_assignment(f.assignment_id,f.artisan_id,draft);
   perform public.create_artisan_work_assignment(f.assignment_id,f.artisan_id,draft);
   begin
@@ -62,7 +71,12 @@ begin
   select t.token into token from work_token t;
   result:=public.read_artisan_work_assignment(token);
   if result->'acceptedAt'<>'null'::jsonb or jsonb_array_length(result->'offer'->'items')<>2
-    or result->'offer'->'items'->0->>'patternFilename'<>'Headband.pdf' then raise exception 'FAIL: offer snapshot incorrect.'; end if;
+    or result->'offer'->'items'->0->>'patternFilename'<>'Headband.pdf'
+    or result->'offer'->'items'->0->>'yarnBasis'<>'with'
+    or result->'offer'->'items'->1->>'yarnBasis'<>'without'
+    or (result->'offer'->>'advancePercent')::numeric<>25
+    or result->'offer'->>'qualityTerms' <> 'Delivered products must meet the quality standards agreed before work begins. Products that do not meet those standards may be rejected and will be returned after the advance payment is returned. Luvia will bear the return shipment courier charges.'
+    then raise exception 'FAIL: offer snapshot incorrect.'; end if;
   perform public.accept_artisan_work_assignment(token);
   perform public.accept_artisan_work_assignment(token);
 end $$;

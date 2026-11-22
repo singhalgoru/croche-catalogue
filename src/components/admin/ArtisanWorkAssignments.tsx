@@ -3,12 +3,12 @@ import AdminDialog from './AdminDialog';
 import { fetchManagedProducts, type ManagedProduct } from '../../services/products';
 import { fetchPatternProductIds, fetchPatternWorkspace, type ProductPattern } from '../../services/productPatterns';
 import { completeWorkAssignment, createWorkAssignment, listWorkAssignments, type WorkAssignment, type WorkDraft } from '../../services/artisanWork';
-import { buildArtisanWorkEmail, type WorkOffer } from '../../../supabase/functions/_shared/artisanWorkEmail';
+import { buildArtisanWorkEmail, workPaymentSummary, WORK_QUALITY_TERMS, type WorkOffer } from '../../../supabase/functions/_shared/artisanWorkEmail';
 
 type Item = { key: string; productId: string; name: string; quantity: string; rateWithYarn: string;
-  rateWithoutYarn: string; pattern: ProductPattern | null; loadingPattern: boolean };
+  rateWithoutYarn: string; yarnBasis: '' | 'with' | 'without'; pattern: ProductPattern | null; loadingPattern: boolean };
 const newItem = (): Item => ({ key: crypto.randomUUID(), productId: '', name: '', quantity: '',
-  rateWithYarn: '', rateWithoutYarn: '', pattern: null, loadingPattern: false });
+  rateWithYarn: '', rateWithoutYarn: '', yarnBasis: '', pattern: null, loadingPattern: false });
 const button = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const input = 'mt-1 block min-h-11 w-full rounded border border-cocoa/30 p-2 font-normal';
 
@@ -27,6 +27,7 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
   const [message, setMessage] = useState('We would like to assign you the following crochet work. Please review the details and accept if you agree.');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [courierCap, setCourierCap] = useState('');
+  const [advancePercent, setAdvancePercent] = useState('0');
   const [items, setItems] = useState<Item[]>(() => [newItem()]);
   const [preview, setPreview] = useState<{ draft: WorkDraft; offer: WorkOffer } | null>(null);
   const [attempted, setAttempted] = useState(false);
@@ -45,22 +46,28 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
   const createPreview = () => {
     if (!artisan.email) throw new Error('This artisan has no application email. Add an email before assigning work.');
     if (!subject.trim() || subject.length > 150 || /[\r\n]/.test(subject) || !message.trim() || message.length > 3000
-      || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate) || !/^\d{1,7}(\.\d{1,2})?$/.test(courierCap)) {
-      throw new Error('Check the subject, message, delivery date and courier reimbursement cap.');
+      || !/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate) || !/^\d{1,7}(\.\d{1,2})?$/.test(courierCap)
+      || !/^\d{1,3}(\.\d{1,2})?$/.test(advancePercent) || Number(advancePercent) > 100) {
+      throw new Error('Check the subject, message, delivery date, courier cap and advance percentage (0 to 100).');
     }
     if (items.some(item => item.loadingPattern || !item.name.trim() || !/^\d{1,5}$/.test(item.quantity)
       || Number(item.quantity) < 1 || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rateWithYarn)
-      || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rateWithoutYarn))) {
-      throw new Error('Check every product, quantity, per-unit price and selected pattern.');
+      || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rateWithoutYarn) || !item.yarnBasis)) {
+      throw new Error('Check every product, quantity, per-unit price, agreed rate and selected pattern.');
     }
     const draft: WorkDraft = { recipientName: artisan.name, recipientEmail: artisan.email,
-      subject: subject.trim(), message: message.trim(), deliveryDate, courierCap: Number(courierCap),
-      items: items.map(item => ({ productId: item.productId || null, name: item.name.trim(), quantity: Number(item.quantity),
-        rateWithYarn: Number(item.rateWithYarn), rateWithoutYarn: Number(item.rateWithoutYarn), patternRevision: item.pattern?.revision ?? null })) };
+      subject: subject.trim(), message: message.trim(), deliveryDate, courierCap: Number(courierCap), advancePercent: Number(advancePercent),
+      items: items.map(item => {
+        if (!item.yarnBasis) throw new Error('Select the agreed rate for every product.');
+        return { productId: item.productId || null, name: item.name.trim(), quantity: Number(item.quantity),
+          rateWithYarn: Number(item.rateWithYarn), rateWithoutYarn: Number(item.rateWithoutYarn),
+          yarnBasis: item.yarnBasis, patternRevision: item.pattern?.revision ?? null };
+      }) };
     const offer: WorkOffer = { recipientName: artisan.name, subject: draft.subject, message: draft.message,
-      deliveryDate, courierCap: draft.courierCap, reference: requestId.current, items: draft.items.map((item, index) => ({
+      deliveryDate, courierCap: draft.courierCap, advancePercent: draft.advancePercent, qualityTerms: WORK_QUALITY_TERMS,
+      reference: requestId.current, items: draft.items.map((item, index) => ({
         name: item.name, quantity: item.quantity, rateWithYarn: item.rateWithYarn, rateWithoutYarn: item.rateWithoutYarn,
-        patternFilename: items[index]!.pattern?.pdf_filename ?? null,
+        yarnBasis: item.yarnBasis, patternFilename: items[index]!.pattern?.pdf_filename ?? null,
       })) };
     setPreview({ draft, offer });
   };
@@ -90,8 +97,12 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
             <details><summary className="cursor-pointer underline">View agreed terms</summary>
               <p className="whitespace-pre-wrap">{entry.offer.message}</p>
               {entry.offer.items.map((item, index) => <p key={index}>{item.name}: {item.quantity} units; including yarn INR {item.rateWithYarn.toFixed(2)}/unit;
-                excluding yarn INR {item.rateWithoutYarn.toFixed(2)}/unit{item.patternFilename ? `; pattern: ${item.patternFilename}` : ''}</p>)}
+                excluding yarn INR {item.rateWithoutYarn.toFixed(2)}/unit{item.yarnBasis ? `; agreed rate: ${item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}` : ''}{item.patternFilename ? `; pattern: ${item.patternFilename}` : ''}</p>)}
               <p>Maximum courier reimbursement: INR {entry.offer.courierCap.toFixed(2)}</p>
+              {workPaymentSummary(entry.offer) && <p>Total work payment: {workPaymentSummary(entry.offer)!.total};
+                advance ({entry.offer.advancePercent}%): {workPaymentSummary(entry.offer)!.advance};
+                balance after completion: {workPaymentSummary(entry.offer)!.balance}. Courier reimbursement is separate.</p>}
+              {entry.offer.qualityTerms && <p>Quality and returns: {entry.offer.qualityTerms}</p>}
             </details>
             {entry.acceptedAt && !entry.completedAt && (confirmComplete === entry.id ? <div className="space-x-2">
               <span>Mark this assignment completed?</span>
@@ -144,6 +155,10 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
               <label className="block text-sm font-semibold">Excluding yarn / unit (INR)<input type="number" min="0" max="9999999" step="0.01" required className={input}
                 value={item.rateWithoutYarn} onChange={event => update(item.key, { rateWithoutYarn: event.target.value })} /></label>
             </div>
+            <label className="block text-sm font-semibold">Agreed rate for this product<select required className={input} value={item.yarnBasis}
+              onChange={event => update(item.key, { yarnBasis: event.target.value === 'with' ? 'with' : event.target.value === 'without' ? 'without' : '' })}>
+              <option value="">Select the applicable rate</option><option value="with">Including yarn</option><option value="without">Excluding yarn</option>
+            </select></label>
             {items.length > 1 && <button type="button" className={button} onClick={() => setItems(current => current.filter(row => row.key !== item.key))}>Remove product</button>}
           </fieldset>)}
           <button type="button" className={button} disabled={items.length >= 10} onClick={() => setItems(current => [...current, newItem()])}>Add product</button>
@@ -152,6 +167,10 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
             <label className="block text-sm font-semibold">Maximum courier reimbursement (INR)<input type="number" min="0" max="9999999" step="0.01" required className={input}
               value={courierCap} onChange={event => setCourierCap(event.target.value)} /></label>
           </div>
+          <label className="block text-sm font-semibold">Advance payment (%)<input type="number" min="0" max="100" step="0.01" required className={input}
+            value={advancePercent} onChange={event => setAdvancePercent(event.target.value)} /></label>
+          <p className="text-sm">The preview shows the total, advance and remaining balance. Courier reimbursement is separate.</p>
+          <p className="text-sm"><strong>Quality and returns:</strong> {WORK_QUALITY_TERMS}</p>
           <label className="block text-sm font-semibold">Email subject<input className={input} required maxLength={150} value={subject} onChange={event => setSubject(event.target.value)} /></label>
           <label className="block text-sm font-semibold">Email message<textarea className={input} rows={4} required maxLength={3000} value={message} onChange={event => setMessage(event.target.value)} /></label>
           <button disabled={busy || !artisan.email || items.some(item => item.loadingPattern)} className="min-h-11 rounded-full bg-cocoa px-5 py-2 font-semibold text-cream disabled:opacity-50">Preview email</button>
@@ -170,7 +189,7 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
                 await createWorkAssignment(requestId.current, artisan.id, preview.draft);
                 setNotice('Assignment email queued. Provider delivery is not yet confirmed.');
                 setPreview(null); setAttempted(false); requestId.current = crypto.randomUUID();
-                setItems([newItem()]); setDeliveryDate(''); setCourierCap('');
+                setItems([newItem()]); setDeliveryDate(''); setCourierCap(''); setAdvancePercent('0');
                 await refresh();
               })}>{busy ? 'Queueing...' : attempted ? 'Retry same assignment' : 'Send assignment email'}</button>
           </div>

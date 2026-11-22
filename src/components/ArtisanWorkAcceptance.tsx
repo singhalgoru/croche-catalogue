@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { acceptWorkAssignment, readWorkAssignment } from '../services/artisanWork';
-import type { WorkOffer } from '../../supabase/functions/_shared/artisanWorkEmail';
+import { workPaymentSummary, type WorkOffer } from '../../supabase/functions/_shared/artisanWorkEmail';
 
 export default function ArtisanWorkAcceptance() {
   const [token] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('work') ?? '');
@@ -26,10 +26,16 @@ export default function ArtisanWorkAcceptance() {
         <strong>{item.name}</strong> — {item.quantity} units<br />
         Including yarn: INR {item.rateWithYarn.toFixed(2)} per unit<br />
         Excluding yarn: INR {item.rateWithoutYarn.toFixed(2)} per unit
+        {item.yarnBasis && <><br />Agreed rate: {item.yarnBasis === 'with' ? 'including yarn' : 'excluding yarn'}</>}
         {item.patternFilename && <><br />Pattern attached to email: {item.patternFilename}</>}
       </li>)}</ul>
       <p>Delivery date: <strong>{assignment.offer.deliveryDate}</strong><br />
         Maximum courier reimbursement: <strong>INR {assignment.offer.courierCap.toFixed(2)}</strong></p>
+      {workPaymentSummary(assignment.offer) && <p>Total work payment: <strong>{workPaymentSummary(assignment.offer)!.total}</strong><br />
+        Advance before work starts ({assignment.offer.advancePercent}%): <strong>{workPaymentSummary(assignment.offer)!.advance}</strong><br />
+        Balance after work completion: <strong>{workPaymentSummary(assignment.offer)!.balance}</strong><br />
+        Courier reimbursement is separate and subject to the maximum above.</p>}
+      {assignment.offer.qualityTerms && <p><strong>Quality and returns:</strong> {assignment.offer.qualityTerms}</p>}
       {assignment.acceptedAt ? <p role="status">{assignment.completedAt ? 'This assignment is completed.' : 'You accepted this assignment. Work is in progress.'}</p>
         : <form className="space-y-3" onSubmit={event => {
           event.preventDefault(); setBusy(true); setError('');

@@ -84,8 +84,8 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
-  Approved artisans can receive work assignments by email, review and accept
-  their terms, and have work marked complete by an administrator.
+  Approved artisans can receive work assignments by email, review payment and
+  quality terms, accept them, and have work marked complete by an administrator.
   Angle photo selection shows the next upload step and any upload errors.
   Financial snapshots include yearly and quarterly sales, recorded artisan
   payments and material purchases, with sales breakdowns and quarterly payment and purchase details.
