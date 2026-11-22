@@ -31,6 +31,7 @@ export function buildMaterialCsv(purchases: MaterialPurchase[]) {
 
 export function parseMaterialCsv(text: string, existing: MaterialPurchase[], ids: Map<number, string>): MaterialPurchaseInput[] {
   const seen = new Set<string>();
+  const newRows = new Set<string>();
   return readRows(text, materialHeaders).map((row, index) => {
     const [id, date, material, supplier, quantity, unit, total, status, notes] = row;
     if (id && !existing.some(item => item.id === id)) throw new Error(`Row ${index + 2}: purchase ID not found. Leave it blank for a new purchase.`);
@@ -43,6 +44,9 @@ export function parseMaterialCsv(text: string, existing: MaterialPurchase[], ids
       quantity: Number(quantity), unit, total: Number(total), payment_status: status, notes };
     try { validateMaterialPurchase(item); }
     catch (error) { throw new Error(`Row ${index + 2}: ${error instanceof Error ? error.message : 'Invalid purchase.'}`); }
+    const signature = JSON.stringify([item.purchased_on, item.material, item.supplier, item.quantity, item.unit, item.total, item.payment_status, item.notes]);
+    if (!id && newRows.has(signature)) throw new Error(`Row ${index + 2}: duplicate new purchase in this CSV.`);
+    if (!id) newRows.add(signature);
     if (!id && !existing.some(entry => entry.id === key) && existing.some(entry =>
       entry.purchased_on === item.purchased_on && entry.material === item.material && entry.supplier === item.supplier
       && entry.quantity === item.quantity && entry.unit === item.unit && entry.total === item.total
@@ -61,6 +65,7 @@ export function buildPaymentCsv(payments: ArtisanPayment[]) {
 
 export function parsePaymentCsv(text: string, existing: ArtisanPayment[], ids: Map<number, string>) {
   const seen = new Set<string>();
+  const newRows = new Set<string>();
   return readRows(text, paymentHeaders).map((row, index) => {
     const [id, date, amount, method, reference, description, status] = row;
     const key = id || ids.get(index) || crypto.randomUUID();
@@ -78,6 +83,9 @@ export function parsePaymentCsv(text: string, existing: ArtisanPayment[], ids: M
       throw new Error(`Row ${index + 2}: check payment date, amount, method, reference, description and status.`);
     }
     const input: ArtisanPaymentInput = { date: paymentDate, amount, method: paymentMethod, reference, description };
+    const signature = JSON.stringify([input.date, Number(input.amount), input.method, input.reference, input.description]);
+    if (!id && newRows.has(signature)) throw new Error(`Row ${index + 2}: duplicate new payment in this CSV.`);
+    if (!id) newRows.add(signature);
     if (previous && (previous.paid_on !== input.date || previous.amount !== Number(input.amount)
       || previous.method !== input.method || previous.reference !== input.reference || previous.description !== input.description
       || (previous.voided_at ? 'Voided' : 'Recorded') !== status)) {

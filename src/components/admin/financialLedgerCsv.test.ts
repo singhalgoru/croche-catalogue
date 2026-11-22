@@ -34,4 +34,10 @@ describe('financial ledger CSV', () => {
     expect(parsePaymentCsv(csv, [{ ...payment, id: first.id }], ids)[0]).toMatchObject({ id: first.id, exists: true });
     expect(() => parsePaymentCsv(csv, [payment], new Map())).toThrow(/identical payment/);
   });
+  it('rejects repeated new rows within the same CSV before saving', () => {
+    expect(() => parseMaterialCsv(buildMaterialCsv([{ ...purchase, id: '' }, { ...purchase, id: '' }]), [], new Map()))
+      .toThrow(/duplicate new purchase/);
+    expect(() => parsePaymentCsv(buildPaymentCsv([{ ...payment, id: '' }, { ...payment, id: '' }]), [], new Map()))
+      .toThrow(/duplicate new payment/);
+  });
 });

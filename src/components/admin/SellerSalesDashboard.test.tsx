@@ -9,6 +9,7 @@ import { fetchManagedProducts } from '../../services/products';
 import { fetchBusinessExpenses, saveBusinessExpense, deleteBusinessExpense } from '../../services/businessExpenses';
 import { buildSellerSalesCsv } from './sellerSalesReport';
 import { formatDate, localDate } from '../../utils/date';
+import { mockNativeDialog } from './dialogTestSupport';
 
 vi.mock('../../services/businessExpenses', () => ({
   EXPENSE_CATEGORIES: ['Advertising', 'Tools & equipment', 'Subscriptions', 'Rent & utilities', 'Travel', 'Other'],
@@ -88,7 +89,9 @@ const sale: SellerSale = {
   createdAt: '2026-10-06T10:00:00Z',
 };
 
+let restoreDialog: () => void;
 beforeEach(() => {
+  restoreDialog = mockNativeDialog();
   vi.mocked(createSellerOrder).mockResolvedValue(undefined);
   vi.mocked(fetchBusinessExpenses).mockResolvedValue([]);
   vi.mocked(saveBusinessExpense).mockImplementation(async (input, id) => ({ ...input, id: id ?? 'expense-1' }));
@@ -105,6 +108,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  restoreDialog();
   vi.clearAllMocks();
 });
 
@@ -338,17 +342,23 @@ describe('SellerSalesDashboard', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh snapshots' })).toHaveProperty('disabled', false));
     fireEvent.click(screen.getByRole('button', { name: 'Sales snapshot' }));
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
-    const yearCard = () => within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }));
-    expect(yearCard().getByText('₹300')).toBeTruthy();
-    expect(within(screen.getByRole('article', { name: 'Q1 · Jan–Mar 2025' })).getByText('₹100')).toBeTruthy();
-    expect(within(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2025' })).getByText('₹200')).toBeTruthy();
+    const showBreakdown = (name: string) => {
+      fireEvent.click(screen.getByRole('button', { name: `View breakdown for ${name}` }));
+      return within(screen.getByRole('dialog', { name: `Sales breakdown · ${name}` }));
+    };
+    for (const [name, revenue] of [['Year 2025 · Jan–Dec', '₹300'], ['Q1 · Jan–Mar 2025', '₹100'], ['Q2 · Apr–Jun 2025', '₹200']]) {
+      const dialog = showBreakdown(name);
+      expect(dialog.getByText('Sales revenue').parentElement?.querySelector('dd')?.textContent).toBe(revenue);
+      fireEvent.click(dialog.getByRole('button', { name: `Close Sales breakdown · ${name}` }));
+    }
     expect(screen.queryByLabelText('Sales month')).toBeNull();
-    expect(yearCard().getByText('₹300')).toBeTruthy();
     vi.mocked(fetchBusinessExpenses).mockResolvedValue([{
       id: 'expense', description: 'Ads', expenseDate: '2025-04-01', category: 'Advertising', amount: 10, notes: '',
     }]);
     fireEvent.click(screen.getByRole('button', { name: 'Refresh snapshots' }));
-    await waitFor(() => expect(yearCard().getByText('₹10')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh snapshots' })).toHaveProperty('disabled', false));
+    const dialog = showBreakdown('Year 2025 · Jan–Dec');
+    expect(dialog.getByText('Business expenses').parentElement?.querySelector('dd')?.textContent).toBe('₹10');
   });
 
   it('adds, edits and deletes monthly overheads without changing sale costs', async () => {
