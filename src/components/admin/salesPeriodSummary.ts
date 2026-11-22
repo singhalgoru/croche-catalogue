@@ -1,4 +1,4 @@
-import type { BusinessExpense } from '../../services/businessExpenses';
+import { EXPENSE_CATEGORIES, type BusinessExpense } from '../../services/businessExpenses';
 import type { SellerSale } from '../../services/sellerSales';
 import { summarizeSellerSales } from './sellerSalesSummary';
 
@@ -41,13 +41,19 @@ export function summarizeSalesPeriod(
       ? sale.order.shippingCost * sale.unitPrice * sale.quantity / sale.order.itemRevenue
       : sale.shippingCost),
   }), { materialCost: 0, labourCost: 0, packagingCost: 0, shippingCost: 0 });
-  const overheads = expenses.filter(expense => inPeriod(expense.expenseDate))
-    .reduce((total, expense) => total + expense.amount, 0);
+  const periodExpenses = expenses.filter(expense => inPeriod(expense.expenseDate));
+  const overheads = periodExpenses.reduce((total, expense) => total + expense.amount, 0);
+  const expensesByCategory = EXPENSE_CATEGORIES.map(category => ({
+    category,
+    amount: periodExpenses.filter(expense => expense.category === category)
+      .reduce((total, expense) => total + expense.amount, 0),
+  }));
   const profitAfterOverheads = summary.profit - overheads;
   return {
     ...summary,
     ...saleCosts,
     overheads,
+    expensesByCategory,
     profitAfterOverheads,
     marginAfterOverheads: summary.taxableRevenue > 0
       ? profitAfterOverheads / summary.taxableRevenue * 100 : null,

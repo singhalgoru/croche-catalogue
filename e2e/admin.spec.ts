@@ -495,9 +495,12 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await page.route('**/rest/v1/rpc/save_material_purchase', route => {
     const body = route.request().postDataJSON();
     receiptData = body.receipt_data;
-    rows.splice(0, rows.length, { id: body.purchase_id, purchased_on: body.purchase_date, material: body.material_name,
+    const previous = rows.find(row => row.id === body.purchase_id);
+    const saved = { id: body.purchase_id, purchased_on: body.purchase_date, material: body.material_name,
       supplier: body.supplier_name, quantity: body.quantity_value, unit: body.quantity_unit, total: body.total_value,
-      payment_status: body.status_value, notes: body.note_text, receipt_name: body.receipt_filename });
+      payment_status: body.status_value, notes: body.note_text, receipt_name: body.receipt_filename ?? previous?.receipt_name ?? null };
+    if (previous) rows.splice(rows.indexOf(previous), 1, saved);
+    else rows.push(saved);
     return route.fulfill({ json: body.purchase_id });
   });
   await page.route('**/rest/v1/rpc/read_material_receipt', route => route.fulfill({ json: {
@@ -530,17 +533,31 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(materialYear.getByRole('article', { name: 'Year 2026 · Jan–Dec' })).toContainText('₹150.50');
   await expect(materialYear.getByRole('article', { name: 'Q4 · Oct–Dec 2026' })).toContainText('₹150.50');
   await expect(materialYear.getByRole('article', { name: 'Q1 · Jan–Mar 2026' })).toContainText('₹0.00');
-  await page.getByLabel('Material purchase month').fill('2026-11');
-  await expect(page.getByRole('region', { name: 'Material purchase snapshot' })).toContainText('Paid: ₹150.5');
-  await page.getByRole('button', { name: 'View purchase Yarn on 01/11/2026' }).click();
-  const purchaseDialog = page.getByRole('dialog', { name: 'Purchase details: Yarn' });
+  const quarterLink = materialYear.getByRole('button', { name: 'View purchases for Q4 · Oct–Dec 2026' });
+  await quarterLink.click();
+  const purchaseDialog = page.getByRole('dialog', { name: 'Purchases · Q4 · Oct–Dec 2026' });
   await expect(purchaseDialog).toContainText('Sample shop');
   await expect(purchaseDialog).toContainText('2 balls');
   await expect(purchaseDialog).toContainText('₹150.50');
   const receiptDownload = page.waitForEvent('download');
   await purchaseDialog.getByRole('button', { name: 'Download receipt: receipt.pdf' }).click();
   expect((await receiptDownload).suggestedFilename()).toBe('receipt.pdf');
-  await purchaseDialog.getByRole('button', { name: 'Close Purchase details: Yarn' }).click();
+  await purchaseDialog.getByRole('button', { name: 'Close Purchases · Q4 · Oct–Dec 2026' }).click();
+  await expect(quarterLink).toBeFocused();
+  await openFinancialSection(page, 'Materials');
+  const csvDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download purchases CSV' }).click();
+  expect((await csvDownload).suggestedFilename()).toBe('luvia-material-purchases.csv');
+  const csv = [
+    'Record ID,Purchase Date,Material,Supplier,Quantity,Unit,Total,Payment Status,Notes',
+    `${rows[0].id},2026-11-01,Yarn,Sample shop,2,balls,150.50,Paid,`,
+    ',2026-11-02,Thread,Sample shop,1,roll,20,Unpaid,',
+    ',2026-11-03,Hook,Sample shop,1,piece,30,Paid,',
+  ].join('\n');
+  await page.getByLabel('Upload purchases CSV').setInputFiles({ name: 'purchases.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('Imported 3 purchases. Existing receipts were preserved.')).toBeVisible();
+  expect(rows).toHaveLength(3);
+  expect(rows.find(row => row.material === 'Yarn')?.receipt_name).toBe('receipt.pdf');
   await expectNoHorizontalOverflow(page);
 });
 
@@ -560,12 +577,19 @@ test('shows material, labour and shipping costs in annual and quarterly snapshot
   await page.getByLabel('Snapshot year', { exact: true }).selectOption('2026');
   for (const name of ['Year 2026 · Jan–Dec', 'Q1 · Jan–Mar 2026']) {
     const card = page.getByRole('article', { name, exact: true });
+    await card.getByRole('button', { name: `View breakdown for ${name}` }).click();
+    const dialog = page.getByRole('dialog', { name: `Sales breakdown · ${name}` });
     for (const [label, amount] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Packaging cost', '₹15'], ['Shipping cost', '₹80']]) {
-      await expect(card.locator('dl > div').filter({ has: page.getByText(label, { exact: true }) }).locator('dd')).toHaveText(amount);
+      await expect(dialog.locator('dl > div').filter({ has: page.getByText(label, { exact: true }) }).locator('dd')).toHaveText(amount);
     }
+    await dialog.getByRole('button', { name: `Close Sales breakdown · ${name}` }).click();
   }
   const empty = page.getByRole('article', { name: 'Q2 · Apr–Jun 2026', exact: true });
-  await expect(empty.locator('dl > div').filter({ has: page.getByText('Shipping cost', { exact: true }) }).locator('dd')).toHaveText('₹0');
+  await empty.getByRole('button', { name: 'View breakdown for Q2 · Apr–Jun 2026' }).click();
+  const emptyDialog = page.getByRole('dialog', { name: 'Sales breakdown · Q2 · Apr–Jun 2026' });
+  await expect(emptyDialog.locator('dl > div').filter({ has: page.getByText('Shipping cost', { exact: true }) }).locator('dd')).toHaveText('₹0');
+  await page.keyboard.press('Escape');
+  await expect(empty.getByRole('button', { name: 'View breakdown for Q2 · Apr–Jun 2026' })).toBeFocused();
   const annual = page.getByRole('article', { name: 'Year 2026 · Jan–Dec', exact: true });
   await expect(annual.getByText('Margin before business expenses: 65.0%')).toBeVisible();
   await expect(annual.getByText('Margin after business expenses: 65.0%')).toBeVisible();

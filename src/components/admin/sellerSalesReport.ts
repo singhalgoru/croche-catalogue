@@ -45,13 +45,13 @@ const REPORT_HEADERS = [
   'Margin After Allocations',
 ] as const;
 
-const csvCell = (value: string | number) => {
+export const csvCell = (value: string | number) => {
   const raw = String(value);
   const text = typeof value === 'string' && /^\s*[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
-const csvRecord = (values: Array<string | number>) => values.map(csvCell).join(',');
+export const csvRecord = (values: Array<string | number>) => values.map(csvCell).join(',');
 
 export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
   const monthly = sales.filter((sale) => sale.saleDate.startsWith(`${month}-`));
@@ -138,7 +138,7 @@ export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
   ].join('\r\n');
 };
 
-const parseCsv = (text: string): string[][] => {
+export const parseCsv = (text: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';

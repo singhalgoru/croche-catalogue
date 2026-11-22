@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react';
 import type { SellerSale } from '../../services/sellerSales';
 import type { BusinessExpense } from '../../services/businessExpenses';
 import { formatINR } from '../../utils/currency';
+import AdminDialog from './AdminDialog';
 import MarginLabel from './MarginLabel';
 import { CALENDAR_QUARTERS, summarizeSalesPeriod } from './salesPeriodSummary';
 
@@ -15,6 +16,7 @@ interface Props {
 export default function SalesPeriodSnapshot({ sales, expenses, available, initiallyExpanded = false }: Props) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [year, setYear] = useState(() => String(new Date().getFullYear()));
+  const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null);
   const panelId = useId();
   const years = useMemo(() => [...new Set([
     String(new Date().getFullYear()), year,
@@ -61,19 +63,17 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
               <article key={label} aria-label={label}
                 className={`min-w-0 rounded-2xl border border-mustard/40 p-4 ${index === 0 ? 'bg-cream/70 sm:col-span-2' : 'bg-white'}`}>
                 <h4 className="font-heading text-lg font-bold text-cocoa">{label}</h4>
-                <dl className="mt-3 grid gap-3 lg:grid-cols-2">
+                <dl className="mt-3 grid grid-cols-2 gap-3">
                   {([
                     ['Estimated sales profit', 'Margin before business expenses', totals.profitAfterAllocations, totals.marginAfterAllocations],
                     ['Profit after business expenses', 'Margin after business expenses', totals.profitAfterOverheads, totals.marginAfterOverheads],
                   ] as const).map(([name, marginLabel, profit, margin]) => (
-                    <div key={name} className={`min-w-0 rounded-xl border p-4 ${
-                      profit < 0 ? 'border-red-200 bg-red-50' : 'border-mustard/40 bg-white'
-                    }`}>
-                      <dt className="text-sm font-semibold text-cocoa">{name}</dt>
-                      <dd className={`mt-1 break-words font-heading text-3xl font-bold ${
+                    <div key={name} className="min-w-0">
+                      <dt className="text-xs font-semibold text-cocoa">{name}</dt>
+                      <dd className={`mt-1 break-words font-heading text-xl font-bold ${
                         profit < 0 ? 'text-red-800' : 'text-cocoa'
                       }`}>{formatINR(profit)}</dd>
-                      <dd className="mt-3">
+                      <dd className="mt-1">
                         <MarginLabel margin={margin} className="inline-block max-w-full break-words text-xs font-semibold">
                           {marginLabel}: {margin === null ? '—' : `${margin.toFixed(1)}%`}
                         </MarginLabel>
@@ -81,8 +81,29 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     </div>
                   ))}
                 </dl>
-                <h5 className="mt-5 text-xs font-bold uppercase tracking-wide text-cocoa/65">Revenue &amp; cost breakdown</h5>
-                <dl className={`mt-2 grid grid-cols-2 gap-3 text-sm text-cocoa ${index === 0 ? 'lg:grid-cols-4' : ''}`}>
+                <button type="button" onClick={() => setSelectedPeriod(index)}
+                  className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4">
+                  View breakdown for {label}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-cocoa/65">
+          Revenue includes GST. Estimated sales profit subtracts included GST, sale costs, fees and saved planning allocations.
+          Both margins use total revenue before GST, not an average of individual margins.
+          Profit after business expenses uses profit before allocations minus recorded expenses, without deducting planning allowances again.
+        </p>
+        </>}
+      </div>
+      {available && expanded && selectedPeriod !== null && <AdminDialog
+        title={`Sales breakdown · ${periods[selectedPeriod].label}`} onClose={() => setSelectedPeriod(null)}>
+        {(() => {
+          const { totals } = periods[selectedPeriod];
+          return <div className="space-y-5 p-4 text-sm">
+                <section aria-label="Revenue and costs">
+                  <h3 className="font-heading text-lg font-bold">Revenue &amp; costs</h3>
+                  <dl className="mt-2 grid grid-cols-2 gap-3 text-cocoa sm:grid-cols-3">
                   {[
                     ['Sales revenue', formatINR(totals.revenue)],
                     ['Sales / pieces', `${totals.salesCount} / ${totals.piecesSold}`],
@@ -91,6 +112,7 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     ['Labour cost', formatINR(totals.labourCost)],
                     ['Packaging cost', formatINR(totals.packagingCost)],
                     ['Shipping cost', formatINR(totals.shippingCost)],
+                    ['Payment fees', formatINR(totals.gatewayFee)],
                     ['Planning allocations', formatINR(totals.allocations)],
                     ['Profit before allocations', formatINR(totals.profit)],
                     ['Business expenses', formatINR(totals.overheads)],
@@ -101,18 +123,35 @@ export default function SalesPeriodSnapshot({ sales, expenses, available, initia
                     </div>
                   ))}
                 </dl>
-              </article>
-            ))}
-          </div>
-        )}
-        <p className="mt-3 text-xs text-cocoa/65">
-          Revenue includes GST. Estimated sales profit subtracts included GST, sale costs, fees and saved planning allocations.
-          Material, labour and packaging costs include all pieces sold; shipping cost is recorded once per sale.
-          Both margins use total revenue before GST, not an average of individual margins.
-          Sales profit is before actual business expenses; the after-expenses figure uses profit before allocations minus recorded expenses, without deducting planning allowances again.
-        </p>
-        </>}
-      </div>
+                <p className="mt-2 text-xs text-cocoa/65">Material, labour and packaging costs include all pieces sold; shipping cost is recorded once per sale.</p>
+                </section>
+                <section aria-label="Planning allocations">
+                  <h3 className="font-heading text-lg font-bold">Planning allocations</h3>
+                  <p className="mt-1 text-xs text-cocoa/65">Estimated allowances from saved sale rates, not actual expenses.</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {([
+                      ['Marketing allocation', totals.marketingAllocation],
+                      ['Returns / damage allocation', totals.returnsAllocation],
+                      ['Overhead allocation', totals.overheadAllocation],
+                    ] as const).map(([name, value]) => <div key={name} className="min-w-0">
+                      <dt className="text-xs text-cocoa/65">{name}</dt>
+                      <dd className="break-words font-bold">{formatINR(value)}</dd>
+                    </div>)}
+                  </dl>
+                </section>
+                <section aria-label="Recorded business expenses">
+                  <h3 className="font-heading text-lg font-bold">Recorded business expenses</h3>
+                  <p className="mt-1 text-xs text-cocoa/65">Actual expenses by category, separate from planning allocations.</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {totals.expensesByCategory.map(({ category, amount }) => <div key={category} className="min-w-0">
+                      <dt className="text-xs text-cocoa/65">{category}</dt>
+                      <dd className="break-words font-bold">{formatINR(amount)}</dd>
+                    </div>)}
+                  </dl>
+                </section>
+              </div>;
+        })()}
+      </AdminDialog>}
     </section>
   );
 }

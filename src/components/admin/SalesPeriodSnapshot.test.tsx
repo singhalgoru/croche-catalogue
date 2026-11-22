@@ -1,10 +1,13 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import SalesPeriodSnapshot from './SalesPeriodSnapshot';
 import type { BusinessExpense } from '../../services/businessExpenses';
 import type { SellerSale } from '../../services/sellerSales';
+import { mockNativeDialog } from './dialogTestSupport';
 
-afterEach(cleanup);
+let restore: () => void;
+beforeEach(() => { restore = mockNativeDialog(); });
+afterEach(() => { cleanup(); restore(); });
 const expense: BusinessExpense = {
   id: 'test', description: 'Ads', expenseDate: '2025-03-31',
   category: 'Advertising', amount: 25, notes: '',
@@ -21,12 +24,15 @@ describe('SalesPeriodSnapshot', () => {
     render(<SalesPeriodSnapshot sales={[sale]} expenses={[]} available initiallyExpanded />);
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     for (const name of ['Year 2025 · Jan–Dec', 'Q1 · Jan–Mar 2025']) {
-      const article = within(screen.getByRole('article', { name }));
+      fireEvent.click(screen.getByRole('button', { name: `View breakdown for ${name}` }));
+      const article = within(screen.getByRole('dialog', { name: `Sales breakdown · ${name}` }));
       for (const [label, value] of [['Material cost', '₹60'], ['Labour cost', '₹45'], ['Packaging cost', '₹15'], ['Shipping cost', '₹80']]) {
         expect(article.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe(value);
       }
+      fireEvent.click(article.getByRole('button', { name: `Close Sales breakdown · ${name}` }));
     }
-    const empty = within(screen.getByRole('article', { name: 'Q2 · Apr–Jun 2025' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View breakdown for Q2 · Apr–Jun 2025' }));
+    const empty = within(screen.getByRole('dialog', { name: 'Sales breakdown · Q2 · Apr–Jun 2025' }));
     for (const label of ['Material cost', 'Labour cost', 'Packaging cost', 'Shipping cost']) {
       expect(empty.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe('₹0');
     }
@@ -74,12 +80,29 @@ describe('SalesPeriodSnapshot', () => {
     fireEvent.change(screen.getByLabelText('Snapshot year'), { target: { value: '2025' } });
     const annual = within(screen.getByRole('article', { name: 'Year 2025 · Jan–Dec' }));
     expect(annual.getByText('Estimated sales profit').parentElement?.querySelector('dd')?.textContent).toBe('₹72');
-    expect(annual.getByText('Profit before allocations').parentElement?.querySelector('dd')?.textContent).toBe('₹120');
-    expect(annual.getByText('Planning allocations').parentElement?.querySelector('dd')?.textContent).toBe('₹48');
     const net = annual.getByText('Profit after business expenses').parentElement;
     expect(net?.querySelector('dd')?.textContent).toBe('-₹30');
-    expect(net?.className).toContain('bg-red-50');
+    expect(net?.querySelector('dd')?.className).toContain('text-red-800');
     expect(annual.getByText('Margin before business expenses: 36.0%')).toBeTruthy();
     expect(annual.getByText('Margin after business expenses: -15.0%')).toBeTruthy();
+    const trigger = annual.getByRole('button', { name: 'View breakdown for Year 2025 · Jan–Dec' });
+    expect(annual.queryByText('Material cost')).toBeNull();
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialogElement = screen.getByRole('dialog', { name: 'Sales breakdown · Year 2025 · Jan–Dec' });
+    const dialog = within(dialogElement);
+    const revenue = within(dialog.getByRole('region', { name: 'Revenue and costs' }));
+    expect(revenue.getByText('Profit before allocations').parentElement?.querySelector('dd')?.textContent).toBe('₹120');
+    expect(revenue.getByText('Planning allocations').parentElement?.querySelector('dd')?.textContent).toBe('₹48');
+    const allocations = within(dialog.getByRole('region', { name: 'Planning allocations' }));
+    for (const [label, value] of [['Marketing allocation', '₹30'], ['Returns / damage allocation', '₹8'], ['Overhead allocation', '₹10']]) {
+      expect(allocations.getByText(label).parentElement?.querySelector('dd')?.textContent).toBe(value);
+    }
+    const expenses = within(dialog.getByRole('region', { name: 'Recorded business expenses' }));
+    expect(expenses.getByText('Advertising').parentElement?.querySelector('dd')?.textContent).toBe('₹150');
+    expect(expenses.getByText('Subscriptions').parentElement?.querySelector('dd')?.textContent).toBe('₹0');
+    fireEvent(dialogElement, new Event('cancel', { bubbles: true, cancelable: true }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });

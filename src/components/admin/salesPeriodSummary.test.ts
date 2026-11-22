@@ -57,6 +57,21 @@ describe('period sales snapshots', () => {
     }
   });
 
+  it('groups actual expenses by category within the selected period', () => {
+    const expenses: BusinessExpense[] = [
+      expense,
+      { ...expense, id: '2', expenseDate: '2026-03-31', amount: 25 },
+      { ...expense, id: '3', expenseDate: '2026-04-01', amount: 40 },
+      { ...expense, id: '4', expenseDate: '2026-02-01', category: 'Subscriptions', amount: 7 },
+      { ...expense, id: '5', expenseDate: '2025-02-01', amount: 100 },
+    ];
+    const summary = summarizeSalesPeriod([], expenses, '2026', 1, 3);
+    expect(summary.overheads).toBe(42);
+    expect(summary.expensesByCategory).toContainEqual({ category: 'Advertising', amount: 35 });
+    expect(summary.expensesByCategory).toContainEqual({ category: 'Subscriptions', amount: 7 });
+    expect(summary.expensesByCategory).toContainEqual({ category: 'Travel', amount: 0 });
+  });
+
   it('multiplies material and labour per piece but counts shipping once per sale', () => {
     const sales = [
       { ...sale, quantity: 3, materialCost: 20, labourCost: 10, shippingCost: 75 },

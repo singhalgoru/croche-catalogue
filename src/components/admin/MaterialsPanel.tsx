@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { deleteMaterialPurchase, downloadMaterialReceipt, fetchMaterialPurchases, saveMaterialPurchase, summarizeMaterialPurchases,
   type MaterialPurchase, type MaterialPurchaseInput } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { localDate } from '../../utils/date';
+import { buildMaterialCsv, downloadLedgerCsv, parseMaterialCsv, validateLedgerFile } from './financialLedgerCsv';
 
 type Draft = Omit<MaterialPurchaseInput, 'quantity' | 'total'> & { quantity: string; total: string; receipt_name: string | null };
 const field = 'mt-1 w-full min-w-0 rounded-lg border border-mustard/50 bg-white px-3 py-2';
@@ -22,12 +23,14 @@ export default function MaterialsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const importIds = useRef<{ text: string; ids: Map<number, string> } | null>(null);
 
   const load = async () => {
-    try { setPurchases(await fetchMaterialPurchases()); setLoaded(true); }
+    try { setPurchases(await fetchMaterialPurchases()); setLoaded(true); return true; }
     catch (failure) {
       setLoaded(false);
       setError(failure instanceof Error ? failure.message : 'Unable to load purchases.');
+      return false;
     }
     finally { setLoading(false); }
   };
@@ -65,6 +68,29 @@ export default function MaterialsPanel() {
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to download receipt.'); }
     finally { setBusy(false); }
   };
+  const importCsv = async (csv: File) => {
+    setBusy(true); setError(null); setMessage(null);
+    let saved = 0;
+    let attempted = false;
+    try {
+      validateLedgerFile(csv);
+      const text = await csv.text();
+      if (importIds.current?.text !== text) importIds.current = { text, ids: new Map() };
+      const entries = parseMaterialCsv(text, purchases, importIds.current.ids);
+      for (const entry of entries) {
+        attempted = true;
+        await saveMaterialPurchase(entry, null, false);
+        saved += 1;
+      }
+      setLoading(true);
+      if (await load()) setMessage(`Imported ${saved} purchase${saved === 1 ? '' : 's'}. Existing receipts were preserved.`);
+      else setError(`Saved ${saved} purchases, but could not reload them. Refresh purchases to verify.`);
+    } catch (failure) {
+      if (attempted) { setLoading(true); await load(); }
+      const reason = failure instanceof Error ? failure.message : 'Unable to import purchases.';
+      setError(`${reason}${attempted ? ` ${saved} entries confirmed saved. Verify the register before retrying; keep this page open for a safe retry.` : ''}`);
+    } finally { setBusy(false); }
+  };
   const { monthly, paid, unpaid, materials } = summarizeMaterialPurchases(purchases, month);
   return <section aria-label="Material purchases" className="rounded-2xl bg-white p-4 shadow-sm">
     <h2 className="font-heading text-2xl font-bold text-cocoa">Material purchases</h2>
@@ -80,7 +106,19 @@ export default function MaterialsPanel() {
         setDraft(newDraft()); setFile(null); setRemoveReceipt(false); setError(null); setMessage(null); setDeleteId(null);
       }}>Add purchase</button>
       <button type="button" className={button} disabled={busy || loading} onClick={() => { setError(null); setLoading(true); void load(); }}>Refresh purchases</button>
+      <button type="button" className={button} disabled={busy || loading || !loaded}
+        onClick={() => downloadLedgerCsv('luvia-material-purchases.csv', buildMaterialCsv(purchases))}>Download purchases CSV</button>
+      <label className={`${button} cursor-pointer ${busy || loading || !loaded || !!draft ? 'opacity-50' : ''}`}>
+        Upload purchases CSV
+        <input type="file" accept=".csv,text/csv" className="sr-only" aria-label="Upload purchases CSV"
+          disabled={busy || loading || !loaded || !!draft} onChange={event => {
+            const csv = event.target.files?.[0];
+            event.target.value = '';
+            if (csv) void importCsv(csv);
+          }} />
+      </label>
     </div>
+    <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Leave Record ID blank for new rows; existing IDs update purchases. Receipts are not included in CSV and existing attachments are kept.</p>
     {draft && <form onSubmit={event => void save(event)} className="mt-4 grid gap-3 rounded-xl bg-cream/50 p-4 sm:grid-cols-2">
       <h3 className="font-bold sm:col-span-2">{purchases.some(item => item.id === draft.id) ? 'Edit purchase' : 'New purchase'}</h3>
       <label className="text-sm font-semibold">Purchase date *

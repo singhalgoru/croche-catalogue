@@ -10,7 +10,9 @@ vi.mock('../../services/materialPurchases', async importOriginal => ({
   fetchMaterialPurchases: fetchPurchases, saveMaterialPurchase: savePurchase,
   deleteMaterialPurchase: deletePurchase, downloadMaterialReceipt: downloadReceipt,
 }));
-vi.mock('../../utils/date', () => ({ localDate: () => '2026-11-15' }));
+vi.mock('../../utils/date', async original => ({
+  ...await original<typeof import('../../utils/date')>(), localDate: () => '2026-11-15',
+}));
 const rows = [
   { id: 'one', purchased_on: '2026-11-01', material: 'Yarn', supplier: 'Shop', quantity: 2, unit: 'balls',
     total: 120, payment_status: 'Paid', notes: '', receipt_name: 'bill.pdf' },
@@ -55,4 +57,24 @@ it('does not present an empty summary after a load failure and can retry', async
   expect(screen.queryByText(/Purchase value:/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Refresh purchases' }));
   expect(await screen.findByText(/Purchase value:/)).toBeTruthy();
+});
+
+it('imports purchases with existing receipt preservation and retry-safe new IDs', async () => {
+  const csv = new File([''], 'purchases.csv', { type: 'text/csv' });
+  Object.defineProperty(csv, 'text', { value: async () => [
+    'Record ID,Purchase Date,Material,Supplier,Quantity,Unit,Total,Payment Status,Notes',
+    'one,2026-11-01,Yarn,Shop,2,balls,125,Paid,',
+    ',2026-11-03,Thread,Shop,1,roll,30,Unpaid,',
+  ].join('\n') });
+  savePurchase.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Offline'));
+  render(<MaterialsPanel />);
+  await screen.findByText(/Purchase value:/);
+  const input = screen.getByLabelText('Upload purchases CSV');
+  fireEvent.change(input, { target: { files: [csv] } });
+  expect((await screen.findByRole('alert')).textContent).toContain('1 entries confirmed saved');
+  const newId = savePurchase.mock.calls[1][0].id;
+  expect(savePurchase.mock.calls[0]).toEqual([expect.objectContaining({ id: 'one', total: 125 }), null, false]);
+  fireEvent.change(input, { target: { files: [csv] } });
+  expect((await screen.findByRole('status')).textContent).toContain('Imported 2 purchases');
+  expect(savePurchase.mock.calls[3][0].id).toBe(newId);
 });

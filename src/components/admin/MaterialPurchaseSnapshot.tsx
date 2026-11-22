@@ -1,23 +1,22 @@
 import { useEffect, useId, useState } from 'react';
-import { downloadMaterialReceipt, fetchMaterialPurchases, summarizeMaterialPurchases, type MaterialPurchase } from '../../services/materialPurchases';
+import { downloadMaterialReceipt, fetchMaterialPurchases, type MaterialPurchase } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { formatDate, localDate } from '../../utils/date';
 import AdminDialog from './AdminDialog';
 import FinancialPeriodCards from './FinancialPeriodCards';
 import { calendarPeriods, isSnapshotYear } from './salesPeriodSummary';
 
-function PurchaseDetails({ purchase, onClose }: { purchase: MaterialPurchase; onClose: () => void }) {
+function PurchaseDetails({ purchase, onBusyChange }: { purchase: MaterialPurchase; onBusyChange: (change: number) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const download = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); onBusyChange(1);
     try { await downloadMaterialReceipt(purchase.id); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Unable to download receipt.'); }
-    finally { setBusy(false); }
+    finally { setBusy(false); onBusyChange(-1); }
   };
-  return <AdminDialog title={`Purchase details: ${purchase.material}`} onClose={onClose} busy={busy}>
-    <div className="space-y-4 p-4 text-sm">
-      <p>To edit or delete this purchase, go to Admin → Materials.</p>
+  return <li className="space-y-3 rounded-xl border border-mustard/40 bg-white p-4 text-sm">
+      <h3 className="font-heading text-lg font-bold break-words">{formatDate(purchase.purchased_on)} · {purchase.material}</h3>
       <dl className="grid gap-3 sm:grid-cols-2">
         {[
           ['Purchase date', formatDate(purchase.purchased_on)],
@@ -40,18 +39,17 @@ function PurchaseDetails({ purchase, onClose }: { purchase: MaterialPurchase; on
         </button>
         : <p>No receipt attached.</p>}
       {error && <p role="alert" className="text-red-700">{error}</p>}
-    </div>
-  </AdminDialog>;
+    </li>;
 }
 
 export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: number }) {
   const [expanded, setExpanded] = useState(false);
-  const [month, setMonth] = useState(() => localDate().slice(0, 7));
   const [year, setYear] = useState(() => localDate().slice(0, 4));
   const [rows, setRows] = useState<MaterialPurchase[] | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
-  const [selected, setSelected] = useState<MaterialPurchase | null>(null);
+  const [selected, setSelected] = useState<{ label: string; purchases: MaterialPurchase[] } | null>(null);
+  const [downloadsInProgress, setDownloadsInProgress] = useState(0);
   const panelId = useId();
   useEffect(() => {
     if (!refreshKey) return;
@@ -64,8 +62,7 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
     });
     return () => { active = false; };
   }, [refreshKey, retry]);
-  const summary = rows && month ? summarizeMaterialPurchases(rows, month) : null;
-  const cards = rows && isSnapshotYear(year) ? calendarPeriods(year).map(period => {
+  const cards = rows && isSnapshotYear(year) ? calendarPeriods(year).map((period, index) => {
     const purchases = rows.filter(item => {
       const monthNumber = Number(item.purchased_on.slice(5, 7));
       return item.purchased_on.startsWith(`${year}-`) && monthNumber >= period.startMonth && monthNumber <= period.endMonth;
@@ -74,7 +71,11 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
       .reduce((sum, item) => sum + Math.round(item.total * 100), 0);
     const unpaid = purchases.filter(item => item.payment_status === 'Unpaid')
       .reduce((sum, item) => sum + Math.round(item.total * 100), 0);
-    return { label: period.label, metrics: [
+    return { label: period.label, ...(index > 0 ? { action: {
+      label: `View purchases for ${period.label}`,
+      onClick: () => setSelected({ label: period.label, purchases: [...purchases].sort((a, b) =>
+        b.purchased_on.localeCompare(a.purchased_on) || a.id.localeCompare(b.id)) }),
+    } } : {}), metrics: [
       { label: 'Purchase value', value: formatINRExact((paid + unpaid) / 100) },
       { label: 'Paid', value: formatINRExact(paid / 100) },
       { label: 'Unpaid', value: formatINRExact(unpaid / 100) },
@@ -94,36 +95,19 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
       </label>
       {!isSnapshotYear(year) ? <p className="mt-3 text-sm">Enter a four-digit purchase year.</p>
         : cards && <FinancialPeriodCards cards={cards} />}
-      <h3 className="mt-5 font-heading text-lg font-bold">Monthly purchase details</h3>
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="text-sm font-semibold">Material purchase month
-          <input type="month" value={month} onChange={event => setMonth(event.target.value)}
-            className="mt-1 block min-h-11 rounded-lg border border-mustard/50 bg-white px-3 py-2" />
-        </label>
-        <button type="button" className="min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold"
-          onClick={() => setRetry(value => value + 1)}>Refresh materials</button>
-      </div>
-      {!month && <p className="mt-3 text-sm">Choose a purchase month.</p>}
+      <button type="button" className="mt-3 min-h-11 rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold"
+        onClick={() => setRetry(value => value + 1)}>Refresh materials</button>
       {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {!error && rows === null && <p role="status" className="mt-3 text-sm">Loading material purchases…</p>}
-      {summary && <div className="mt-3 text-sm">
-        <p className="font-semibold">Purchase value: {formatINRExact(summary.paid + summary.unpaid)} · Paid: {formatINRExact(summary.paid)} · Unpaid: {formatINRExact(summary.unpaid)}</p>
-        <p>{summary.monthly.length} purchase{summary.monthly.length === 1 ? '' : 's'}</p>
-        {summary.materials.length > 0 && <ul className="mt-2">{summary.materials.map(item =>
-          <li key={item.name}>{item.name}: {formatINRExact(item.total)}</li>)}</ul>}
-        {summary.monthly.length > 0 && <ul className="mt-3 grid gap-3 sm:grid-cols-2">{summary.monthly.map(purchase =>
-          <li key={purchase.id}>
-            <button type="button" aria-label={`View purchase ${purchase.material} on ${formatDate(purchase.purchased_on)}`}
-              onClick={() => setSelected(purchase)}
-              className="h-full w-full rounded-xl border border-mustard/40 p-3 text-left hover:bg-cream/70">
-              <span className="block break-words font-semibold">{purchase.material}</span>
-              <span className="block font-heading text-xl font-bold">{formatINRExact(purchase.total)}</span>
-              <span className="block">{formatDate(purchase.purchased_on)} · {purchase.payment_status}</span>
-              <span className="mt-1 inline-block underline">View purchase details</span>
-            </button>
-          </li>)}</ul>}
-      </div>}
     </div>
-    {selected && <PurchaseDetails purchase={selected} onClose={() => setSelected(null)} />}
+    {selected && <AdminDialog title={`Purchases · ${selected.label}`} onClose={() => setSelected(null)} busy={downloadsInProgress > 0}>
+      <div className="space-y-4 p-4">
+        <p className="text-sm">Newest purchases first. To edit or delete a purchase, go to Admin → Materials.</p>
+        {selected.purchases.length === 0 ? <p>No purchases recorded for this quarter.</p>
+          : <ul className="space-y-3">{selected.purchases.map(purchase =>
+            <PurchaseDetails key={purchase.id} purchase={purchase}
+              onBusyChange={change => setDownloadsInProgress(count => count + change)} />)}</ul>}
+      </div>
+    </AdminDialog>}
   </section>;
 }

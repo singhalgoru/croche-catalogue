@@ -6,6 +6,7 @@ import {
   type ArtisanActivity, type ArtisanPaymentInput,
 } from '../../services/artisanProfiles';
 import { localDate } from '../../utils/date';
+import { buildPaymentCsv, downloadLedgerCsv, parsePaymentCsv, validateLedgerFile } from './financialLedgerCsv';
 
 const emptyPayment = (): ArtisanPaymentInput => ({ date: localDate(), amount: '', method: 'UPI', reference: '', description: '' });
 const inputClass = 'mt-1 block min-h-11 w-full rounded border p-2';
@@ -35,6 +36,7 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
   const [confirmPhotoRemoval, setConfirmPhotoRemoval] = useState(false);
   const commentRequest = useRef<{ signature: string; id: string } | null>(null);
   const paymentRequest = useRef<{ signature: string; id: string } | null>(null);
+  const paymentImportIds = useRef<{ text: string; ids: Map<number, string> } | null>(null);
   useEffect(() => {
     let active = true;
     void fetchArtisanActivity(application.id).then(result => { if (active) { setActivity(result); setLoadError(''); } })
@@ -53,6 +55,30 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
     finally { setBusy(false); onBusyChange?.(false); }
   };
   const refreshActivity = () => { setReloadKey(value => value + 1); onActivityChanged(); };
+  const importPayments = async (file: File) => {
+    if (!activity) return;
+    setBusy(true); onBusyChange?.(true); setError(''); setMessage('');
+    let saved = 0;
+    let attempted = false;
+    try {
+      validateLedgerFile(file);
+      const text = await file.text();
+      if (paymentImportIds.current?.text !== text) paymentImportIds.current = { text, ids: new Map() };
+      const entries = parsePaymentCsv(text, activity.payments, paymentImportIds.current.ids);
+      for (const entry of entries) {
+        if (entry.exists) continue;
+        attempted = true;
+        await recordArtisanPayment(application.id, entry.id, entry.input);
+        saved += 1;
+      }
+      if (attempted) { setActivity(null); refreshActivity(); }
+      setMessage(`Imported ${saved} new payment${saved === 1 ? '' : 's'} for this artisan. No money was sent.`);
+    } catch (failure) {
+      if (attempted) { setActivity(null); refreshActivity(); }
+      const reason = failure instanceof Error ? failure.message : 'Unable to import payments.';
+      setError(`${reason}${attempted ? ` ${saved} entries confirmed saved. Verify the ledger before retrying; keep this page open for a safe retry.` : ''}`);
+    } finally { setBusy(false); onBusyChange?.(false); }
+  };
   const totalPaid = activity?.payments.reduce((sum, entry) => sum + (entry.voided_at ? 0 : Math.round(entry.amount * 100)), 0) ?? 0;
   return <section aria-label="Artisan working profile" className="space-y-5 rounded-xl border border-mustard/40 p-4">
     <details>
@@ -123,6 +149,20 @@ export default function ArtisanProfile({ application, onUpdated, onActivityChang
       <summary className="min-h-11 cursor-pointer py-2 font-semibold">Payment entries</summary>
       <div className="space-y-3 pt-3">
       <p className="text-sm">Record money already paid to this artisan in INR. This does not send money, calculate wages owed or add a business expense automatically. Agree rates and payment terms before work.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={buttonClass} disabled={busy || !activity || Boolean(loadError)}
+          onClick={() => activity && downloadLedgerCsv('luvia-artisan-payments.csv', buildPaymentCsv(activity.payments))}>Download payments CSV</button>
+        <label className={`${buttonClass} cursor-pointer ${busy || !activity || loadError ? 'opacity-50' : ''}`}>
+          Upload payments CSV
+          <input type="file" accept=".csv,text/csv" className="sr-only" aria-label="Upload payments CSV"
+            disabled={busy || !activity || Boolean(loadError)} onChange={event => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) void importPayments(file);
+            }} />
+        </label>
+      </div>
+      <p className="text-xs">CSV is for this artisan only and includes voided entries. Leave Record ID blank and use Recorded status for new payments. Existing entries cannot be edited or voided through CSV. Do not include bank details or UPI addresses.</p>
       {activity && <p className="font-semibold">Total paid (excluding voided entries): {paymentCurrency.format(totalPaid / 100)}</p>}
       <form aria-label="Record artisan payment" className="space-y-3" onSubmit={event => {
         event.preventDefault();

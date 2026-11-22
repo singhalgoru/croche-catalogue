@@ -100,3 +100,24 @@ it('starts collapsed and preserves payment drafts when either section is closed'
   expect(screen.getByLabelText('Amount paid (INR)')).toHaveProperty('value', '125.50');
   expect(recordArtisanPayment).not.toHaveBeenCalled();
 });
+
+it('imports payment rows for the selected artisan and reuses IDs after an interrupted request', async () => {
+  vi.mocked(recordArtisanPayment).mockRejectedValueOnce(new Error('Interrupted'));
+  const csv = new File([''], 'payments.csv', { type: 'text/csv' });
+  Object.defineProperty(csv, 'text', { value: async () => [
+    'Record ID,Payment Date,Amount,Method,Reference,Work Description,Status',
+    ',2025-03-31,125.50,UPI,synthetic-ref,Trial,Recorded',
+  ].join('\n') });
+  render(<ArtisanProfile application={application} onUpdated={vi.fn()} onActivityChanged={vi.fn()} />);
+  fireEvent.click(screen.getByText('Working profile', { selector: 'summary' }));
+  fireEvent.click(screen.getByText('Payment entries', { selector: 'summary' }));
+  await screen.findByText('No payments recorded.');
+  const input = screen.getByLabelText('Upload payments CSV');
+  fireEvent.change(input, { target: { files: [csv] } });
+  expect((await screen.findByRole('alert')).textContent).toContain('Interrupted');
+  await screen.findByText('No payments recorded.');
+  fireEvent.change(input, { target: { files: [csv] } });
+  expect((await screen.findByRole('status')).textContent).toContain('Imported 1 new payment');
+  expect(vi.mocked(recordArtisanPayment).mock.calls[0]).toEqual(vi.mocked(recordArtisanPayment).mock.calls[1]);
+  expect(vi.mocked(recordArtisanPayment).mock.calls[0][0]).toBe(application.id);
+});

@@ -288,6 +288,18 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByRole('button', { name: 'Confirm void payment', exact: true }).click();
   await expect(page.getByText('Payment voided; original entry retained.', { exact: true })).toBeVisible();
   await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('0.00');
+  const csvDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download payments CSV' }).click();
+  expect((await csvDownload).suggestedFilename()).toBe('luvia-artisan-payments.csv');
+  const csv = [
+    'Record ID,Payment Date,Amount,Method,Reference,Work Description,Status',
+    ',2025-03-30,100,Cash,,Flower batch,Recorded',
+    ',2025-03-31,125.50,UPI,txn-2,Coaster batch,Recorded',
+  ].join('\n');
+  await page.getByLabel('Upload payments CSV').setInputFiles({ name: 'payments.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('Imported 2 new payments for this artisan. No money was sent.')).toBeVisible();
+  await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('225.50');
+  expect(payments).toHaveLength(3);
   expect(identityReads).toHaveLength(0);
   await page.getByRole('button', { name: 'View private ID' }).click();
   await expect(page.getByAltText('Private artisan identity document')).toBeVisible();
