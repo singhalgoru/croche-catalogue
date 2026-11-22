@@ -253,15 +253,24 @@ export default function ArtisanManager() {
       {loading ? <p role="status">Loading applications...</p> : !error && <>
         <p className="text-sm">{total} application{total === 1 ? '' : 's'} found</p>
         <ul className="grid gap-3 md:grid-cols-2">{rows.map(application => <li key={application.id} className="min-w-0 rounded-xl border border-mustard/40 p-4">
-          <h3 className="break-words font-semibold">{application.details.fullName}</h3>
-          <p className="text-sm">{application.status} · {application.details.city}, {application.details.state}</p>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3 className="break-words font-semibold">{application.details.fullName}</h3>
+            <span aria-label={`Current status: ${application.status}`}
+              className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-[#604239]">{application.status}</span>
+          </div>
+          <p className="text-sm">{application.details.city}, {application.details.state}</p>
           <p className="break-words text-sm">Preferred language / contact time: {application.details.language || 'Not provided'}</p>
           <p className="mt-1 line-clamp-2 break-words text-sm">{application.details.skills}</p>
           <p className="text-sm">Skill rating: {application.skill_rating ? `${application.skill_rating}/5` : 'Not rated'}</p>
           {application.capabilities && <p className="mt-1 line-clamp-2 break-words text-sm">Can create: {application.capabilities}</p>}
           <button onClick={() => { setMessage(''); setSelected(application); }} className="mt-2 min-h-11 underline">Review {application.details.fullName}</button>
           <button type="button" onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}
-            className="ml-4 min-h-11 underline">Payments for {application.details.fullName}</button>
+            aria-label={`Payments for ${application.details.fullName}`} title="Payments"
+            className="ml-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-cocoa/30">
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" />
+            </svg>
+          </button>
         </li>)}</ul>
         <div className="flex flex-wrap items-center gap-4">
           <button disabled={page === 0} onClick={() => { setLoading(true); setError(''); setPage(value => value - 1); }} className="min-h-11 underline disabled:opacity-40">Previous</button>

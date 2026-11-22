@@ -1,4 +1,6 @@
 import { allPaymentHeaders, artisanPaymentLabel } from './financialLedgerCsv';
+import { TEMPLATE_EXAMPLE } from './sellerSalesReport';
+import { localDate } from '../../utils/date';
 
 export async function buildArtisanPaymentWorkbook(artisans: { id: string; name: string }[]) {
   if (!artisans.length) throw new Error('No artisans are available for the payment template.');
@@ -7,6 +9,7 @@ export async function buildArtisanPaymentWorkbook(artisans: { id: string; name: 
   const payments = workbook.addWorksheet('Payments');
   const names = workbook.addWorksheet('Artisans');
   payments.addRow(allPaymentHeaders);
+  payments.addRow([artisanPaymentLabel(artisans[0]), '', localDate(), 500, 'Cash', '', TEMPLATE_EXAMPLE, 'Recorded', '']);
   names.addRow(['Choose from these artisans in the Payments sheet']);
   artisans.forEach(artisan => names.addRow([artisanPaymentLabel(artisan)]));
   workbook.definedNames.add(`'Artisans'!$A$2:$A$${artisans.length + 1}`, 'ArtisanChoices');

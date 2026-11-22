@@ -42,6 +42,11 @@ async function rpc(name: string, args: Record<string, unknown>): Promise<unknown
 async function receipt(name: string, args: Record<string, unknown>, id: string): Promise<void> {
   if (await rpc(name, args) !== id) throw new Error('Pattern action could not be confirmed. Refresh before retrying.');
 }
+export async function fetchPatternProductIds(): Promise<Set<string>> {
+  const data = await rpc('product_pattern_product_ids', {});
+  if (!Array.isArray(data) || !data.every(id => typeof id === 'string')) throw new Error('Invalid pattern summary response.');
+  return new Set(data);
+}
 export async function fetchPatternWorkspace(productId: string): Promise<PatternWorkspace> {
   const data = await rpc('product_pattern_workspace', { target_product: productId });
   if (!record(data) || !(data.pattern === null || isPattern(data.pattern))

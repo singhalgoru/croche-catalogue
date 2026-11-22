@@ -23,13 +23,14 @@ const sale: SellerSale = {
 };
 
 describe('seller sales report CSV', () => {
-  it('accepts a filled blank sales template including planning allocations', () => {
-    const csv = `${buildSellerSalesTemplate()}\r\n,,Rose,,2026-10-06,offline,2,100,5,20,10,5,30,0,18,,15,4,5`;
+  it('provides a safe example row and accepts a completed sales template', () => {
+    const template = buildSellerSalesTemplate('2026-10');
+    expect(() => parseSellerSalesCsv(template, '2026-10', new Set())).toThrow(/Row 2: replace or delete the example row/);
+    const csv = `${template.split('\r\n')[0]}\r\n,,Rose,,2026-10-06,offline,2,100,5,20,10,5,30,0,18,,15,4,5`;
     const parsed = parseSellerSalesCsv(csv, '2026-10', new Set());
     expect(parsed.sales[0]).toMatchObject({ productName: 'Rose', saleDate: '2026-10-06', channel: 'offline',
       quantity: 2, marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5 });
     expect(parsed.existingIds).toEqual([null]);
-    expect(() => parseSellerSalesCsv(buildSellerSalesTemplate(), '2026-10', new Set())).toThrow(/at least one sale/);
   });
   it('round-trips saved labour time and rate and rejects partial calculations', () => {
     const csv = buildSellerSalesCsv('2026-10', [{ ...sale, labourTimeSpent: 30, labourTimeUnit: 'minutes', labourRate: 180 }]);

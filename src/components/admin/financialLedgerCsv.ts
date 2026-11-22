@@ -1,9 +1,10 @@
-import { validateMaterialPurchase, type MaterialPurchase, type MaterialPurchaseInput } from '../../services/materialPurchases';
+import { inferMaterialCategory, materialCategories, validateMaterialPurchase, type MaterialPurchase, type MaterialPurchaseInput } from '../../services/materialPurchases';
 import { artisanPaymentMethods, type ArtisanPayment, type ArtisanPaymentInput } from '../../services/artisanProfiles';
 import { isValidDate, localDate, parseDateInput } from '../../utils/date';
-import { csvRecord, parseCsv } from './sellerSalesReport';
+import { csvRecord, parseCsv, TEMPLATE_EXAMPLE } from './sellerSalesReport';
 
 const materialHeaders = ['Record ID', 'Purchase Date', 'Material', 'Supplier', 'Quantity', 'Unit', 'Total', 'Payment Status', 'Notes'];
+export const materialTemplateHeaders = [...materialHeaders, 'Category'];
 const paymentHeaders = ['Record ID', 'Payment Date', 'Amount', 'Method', 'Reference', 'Work Description', 'Status'];
 
 // Double an original leading apostrophe so formula protection remains reversible.
@@ -24,23 +25,33 @@ function readRows(text: string, required: string[], maxRows = 1000) {
 }
 
 export function buildMaterialCsv(purchases: MaterialPurchase[]) {
-  return [record(materialHeaders), ...purchases.map(item => record([
-    item.id, item.purchased_on, item.material, item.supplier, item.quantity, item.unit, item.total, item.payment_status, item.notes,
+  return [record(materialTemplateHeaders), ...purchases.map(item => record([
+    item.id, item.purchased_on, item.material, item.supplier, item.quantity, item.unit, item.total, item.payment_status, item.notes, item.category,
   ]))].join('\r\n');
+}
+
+export function buildMaterialTemplate() {
+  return [record(materialTemplateHeaders), record(['', localDate(), 'Example yarn', 'Example supplier', 2, 'balls', 200, 'Paid', TEMPLATE_EXAMPLE, 'Yarn'])].join('\r\n');
 }
 
 export function parseMaterialCsv(text: string, existing: MaterialPurchase[], ids: Map<number, string>): MaterialPurchaseInput[] {
   const seen = new Set<string>();
   const newRows = new Set<string>();
-  return readRows(text, materialHeaders).map((row, index) => {
-    const [id, date, material, supplier, quantity, unit, total, status, notes] = row;
+  const headers = parseCsv(text)[0]?.map(value => value.trim().toLowerCase()) ?? [];
+  const withCategory = headers.includes('category');
+  return readRows(text, withCategory ? materialTemplateHeaders : materialHeaders).map((row, index) => {
+    const [id, date, material, supplier, quantity, unit, total, status, notes, categoryText] = row;
+    if (notes === TEMPLATE_EXAMPLE) throw new Error(`Row ${index + 2}: replace or delete the example row before uploading.`);
     if (id && !existing.some(item => item.id === id)) throw new Error(`Row ${index + 2}: purchase ID not found. Leave it blank for a new purchase.`);
     const key = id || ids.get(index) || crypto.randomUUID();
     ids.set(index, key);
     if (seen.has(key)) throw new Error(`Row ${index + 2}: duplicate purchase ID.`);
     seen.add(key);
     if (status !== 'Paid' && status !== 'Unpaid') throw new Error(`Row ${index + 2}: payment status must be Paid or Unpaid.`);
-    const item: MaterialPurchaseInput = { id: key, purchased_on: parseDateInput(date), material, supplier,
+    const category = categoryText ? materialCategories.find(value => value.toLowerCase() === categoryText.toLowerCase())
+      : existing.find(item => item.id === key)?.category ?? inferMaterialCategory(material);
+    if (!category) throw new Error(`Row ${index + 2}: category must be Yarn, Tool, Accessories or Uncategorized.`);
+    const item: MaterialPurchaseInput = { id: key, purchased_on: parseDateInput(date), material, category, supplier,
       quantity: Number(quantity), unit, total: Number(total), payment_status: status, notes };
     try { validateMaterialPurchase(item); }
     catch (error) { throw new Error(`Row ${index + 2}: ${error instanceof Error ? error.message : 'Invalid purchase.'}`); }
@@ -63,11 +74,16 @@ export function buildPaymentCsv(payments: ArtisanPayment[]) {
   ]))].join('\r\n');
 }
 
+export function buildPaymentTemplate() {
+  return [record(paymentHeaders), record(['', localDate(), 500, 'Cash', '', TEMPLATE_EXAMPLE, 'Recorded'])].join('\r\n');
+}
+
 export function parsePaymentCsv(text: string, existing: ArtisanPayment[], ids: Map<number, string>, maxRows = 1000) {
   const seen = new Set<string>();
   const newRows = new Set<string>();
   return readRows(text, paymentHeaders, maxRows).map((row, index) => {
     const [id, date, amount, method, reference, description, status] = row;
+    if (description === TEMPLATE_EXAMPLE) throw new Error(`Row ${index + 2}: replace or delete the example row before uploading.`);
     const key = id || ids.get(index) || crypto.randomUUID();
     const previous = existing.find(item => item.id === key);
     if (id && !previous) throw new Error(`Row ${index + 2}: payment ID not found for this artisan. Leave it blank for a new payment.`);

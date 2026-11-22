@@ -10,6 +10,7 @@ import {
 } from '../../services/products';
 import type { Category } from '../../types/product';
 import { fetchSellerSales } from '../../services/sellerSales';
+import { fetchPatternProductIds } from '../../services/productPatterns';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 import { toProductUrl } from '../../utils/productLink';
 import ProductVariantManager from './ProductVariantManager';
@@ -105,6 +106,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
   const [searchQuery, setSearchQuery] = useState('');
   const [productView, setProductView] = useState<'all' | 'featured'>('all');
   const [attentionFilter, setAttentionFilter] = useState<AttentionFilter | null>(null);
+  const [patternFilter, setPatternFilter] = useState<'attached' | 'missing' | null>(null);
+  const [patternIds, setPatternIds] = useState<Set<string> | null>(null);
+  const [patternError, setPatternError] = useState('');
+  const [patternRefresh, setPatternRefresh] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showPriceDefaults, setShowPriceDefaults] = useState(false);
   const [priceDefaults, setPriceDefaults] = useState<PriceDiscoveryDefaults>(
@@ -122,6 +127,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
     const query = searchQuery.trim().toLocaleLowerCase();
     return products.filter((product) =>
       (productView !== 'featured' || product.featured === true) &&
+      (!patternFilter || (patternIds !== null && patternIds.has(product.id) === (patternFilter === 'attached'))) &&
       (!attentionFilter || attention.get(product.id)?.[attentionFilter]) && (!query || [
         product.name,
         product.sku ?? '',
@@ -130,7 +136,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         ...product.variants.map((variant) => variant.name),
       ].some((value) => value.toLocaleLowerCase().includes(query))),
     );
-  }, [products, productView, searchQuery, attentionFilter, attention]);
+  }, [products, productView, searchQuery, attentionFilter, attention, patternFilter, patternIds]);
 
   const copyProductLink = async (product: ManagedProduct) => {
     const url = toProductUrl(product);
@@ -161,6 +167,17 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
   useEffect(() => {
     queueMicrotask(() => void loadProducts());
   }, [loadProducts, refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setPatternIds(null); setPatternError('');
+      void fetchPatternProductIds().then(ids => { if (active) setPatternIds(ids); })
+        .catch(failure => { if (active) setPatternError(failure instanceof Error ? failure.message : 'Unable to load pattern status.'); });
+    });
+    return () => { active = false; };
+  }, [refreshKey, patternRefresh]);
 
   useEffect(() => {
     let active = true;
@@ -393,6 +410,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                 disabled={isAnalyzing || busyId !== null || editingId !== null}
                 onClick={() => {
                   setAttentionFilter(id);
+                  setPatternFilter(null);
                   setProductView('all');
                   setSearchQuery('');
                   setIsExpanded(true);
@@ -406,12 +424,25 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
               </button>
             ))}
           </div>
-          {attentionFilter && (
+          {patternError && <p role="alert" className="mt-2 text-sm text-red-700">{patternError} <button type="button" className="underline" onClick={() => setPatternRefresh(value => value + 1)}>Retry patterns</button></p>}
+          {!patternError && !patternIds && <p role="status" className="mt-2 text-sm">Loading pattern status…</p>}
+          {patternIds && <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {(['attached', 'missing'] as const).map(filter => <button key={filter} type="button"
+              disabled={isAnalyzing || busyId !== null || editingId !== null}
+              aria-pressed={patternFilter === filter} aria-controls="manage-products-panel"
+              onClick={() => { setPatternFilter(filter); setAttentionFilter(null); setProductView('all'); setSearchQuery(''); setIsExpanded(true); }}
+              className={`rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${patternFilter === filter ? 'border-cocoa' : 'border-mustard/30'} bg-white text-cocoa`}>
+              <span className="mr-2 font-heading text-2xl font-bold">{products.filter(product => patternIds.has(product.id) === (filter === 'attached')).length}</span>
+              {' '}{filter === 'attached' ? 'Pattern attached' : 'No pattern attached'}
+            </button>)}
+          </div>}
+          {(attentionFilter || patternFilter) && (
             <button
               type="button"
               disabled={isAnalyzing || busyId !== null || editingId !== null}
               onClick={() => {
                 setAttentionFilter(null);
+                setPatternFilter(null);
                 setProductView('all');
               }}
               className="mt-3 text-sm font-semibold text-cocoa underline underline-offset-2 disabled:opacity-60"
@@ -439,6 +470,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             onClick={() => {
               setProductView(view);
               setAttentionFilter(null);
+              setPatternFilter(null);
             }}
             className={`min-h-11 rounded-full border-2 px-4 py-2 text-sm font-semibold disabled:opacity-60 ${
               productView === view ? 'border-cocoa bg-cocoa text-white' : 'border-mustard bg-white text-cocoa'
@@ -560,7 +592,8 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             {products.length === 1 ? '' : 's'}
             {productView === 'featured' && ' · Featured products'}
             {attentionFilter && ` · ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label}`}
-            {(searchQuery.trim() || attentionFilter || productView === 'featured') && ' · Show all products and clear filters to change display order'}
+            {patternFilter && ` · ${patternFilter === 'attached' ? 'Pattern attached' : 'No pattern attached'}`}
+            {(searchQuery.trim() || attentionFilter || patternFilter || productView === 'featured') && ' · Show all products and clear filters to change display order'}
           </p>
         </div>
       )}
@@ -573,6 +606,8 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         <p className="py-10 text-center text-cocoa/60">
           {productView === 'featured'
             ? searchQuery.trim() ? `No featured products match “${searchQuery.trim()}”.` : 'No featured products yet. Edit a product and mark it Featured to include it here.'
+            : patternFilter
+            ? `No products ${patternFilter === 'attached' ? 'with' : 'without'} an attached pattern${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
             : attentionFilter
             ? `No products need attention for ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
             : `No products match “${searchQuery.trim()}”.`}
@@ -720,7 +755,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             busyId !== null ||
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
-                            attentionFilter !== null ||
+                            attentionFilter !== null || patternFilter !== null ||
                             productView === 'featured' ||
                             products.findIndex((item) => item.id === product.id) === 0
                           }
@@ -736,7 +771,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                             busyId !== null ||
                             isAnalyzing ||
                             Boolean(searchQuery.trim()) ||
-                            attentionFilter !== null ||
+                            attentionFilter !== null || patternFilter !== null ||
                             productView === 'featured' ||
                             products.findIndex((item) => item.id === product.id) ===
                               products.length - 1
@@ -755,7 +790,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                           {copiedId === product.id ? 'Copied!' : 'Copy link'}
                         </button>
                         {product.published && <MarketingSocialPosts initialProduct={product} disabled={isBusy || isAnalyzing} />}
-                        <ProductPatternManager product={product} disabled={isBusy || isAnalyzing} />
+                        <ProductPatternManager product={product} disabled={isBusy || isAnalyzing} onClose={() => setPatternRefresh(value => value + 1)} />
                         <button
                           type="button"
                           onClick={() => startEditing(product)}

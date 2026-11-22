@@ -15,11 +15,11 @@ vi.mock('../../utils/date', async original => ({
 }));
 const rows = [
   { id: 'one', purchased_on: '2026-11-01', material: 'Yarn', supplier: 'Shop', quantity: 2, unit: 'balls',
-    total: 120, payment_status: 'Paid', notes: '', receipt_name: 'bill.pdf' },
+    category: 'Yarn', total: 120, payment_status: 'Paid', notes: '', receipt_name: 'bill.pdf' },
   { id: 'two', purchased_on: '2026-11-02', material: 'yarn', supplier: '', quantity: 1, unit: 'ball',
-    total: 50, payment_status: 'Unpaid', notes: '', receipt_name: null },
+    category: 'Yarn', total: 50, payment_status: 'Unpaid', notes: '', receipt_name: null },
   { id: 'three', purchased_on: '2026-10-31', material: 'Hook', supplier: '', quantity: 1, unit: 'piece',
-    total: 30, payment_status: 'Paid', notes: '', receipt_name: null },
+    category: 'Tool', total: 30, payment_status: 'Paid', notes: '', receipt_name: null },
 ];
 beforeEach(() => {
   vi.clearAllMocks(); fetchPurchases.mockResolvedValue(rows); savePurchase.mockResolvedValue(undefined);
@@ -32,7 +32,7 @@ it('summarises purchase-month totals by status and material, separately from sal
   expect((await screen.findByText(/Purchase value:/)).textContent).toContain('170');
   expect(screen.getByText(/Purchase value:/).textContent).toContain('Paid: ₹120');
   expect(screen.getByText(/Purchase value:/).textContent).toContain('Unpaid: ₹50');
-  expect(screen.getByText(/Yarn: ₹170/)).toBeTruthy();
+  expect(screen.getAllByText(/Yarn: ₹170/)).toHaveLength(2);
   expect(screen.getByText(/do not affect Sales profit/)).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Purchase month'), { target: { value: '2026-10' } });
   expect(screen.getByText(/Purchase value:/).textContent).toContain('30');

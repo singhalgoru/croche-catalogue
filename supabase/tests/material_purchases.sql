@@ -19,6 +19,14 @@ do $$ declare v_id uuid; result jsonb; begin
   if result->>'name' <> 'receipt.pdf' or result->>'type' <> 'application/pdf'
     or decode(result->>'data','base64') <> convert_to('%PDF-fixture','UTF8') then raise exception 'FAIL: receipt'; end if;
   perform public.save_material_purchase(v_id,'2026-11-01','Yarn','Supplier',3,'balls',125,'Paid','corrected');
+  perform public.set_material_purchase_category(v_id,'Tool');
+  if (select category from public.material_purchases where id = v_id) <> 'Tool' then raise exception 'FAIL: category update'; end if;
+  perform public.save_categorized_material_purchase(v_id,'2026-11-01','Yarn','Supplier',3,'balls',125,'Paid','corrected','Yarn');
+  if (select category from public.material_purchases where id = v_id) <> 'Yarn' then raise exception 'FAIL: category save'; end if;
+  begin
+    perform public.set_material_purchase_category(v_id,'Unknown');
+    raise exception 'FAIL: invalid category accepted';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   if not exists(select 1 from public.material_purchases where material_purchases.id=v_id and quantity=3 and payment_status='Paid'
     and receipt_name='receipt.pdf') then raise exception 'FAIL: edit or receipt preservation'; end if;
   begin
@@ -52,6 +60,8 @@ do $$ declare v_id uuid; begin
   select purchase_id into v_id from material_fixture;
   if exists(select 1 from public.material_purchases) then raise exception 'FAIL: unverified read'; end if;
   begin perform public.delete_material_purchase(v_id); raise exception 'FAIL: unverified delete';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  begin perform public.set_material_purchase_category(v_id,'Tool'); raise exception 'FAIL: unverified category update';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   begin perform public.save_material_purchase(v_id,'2026-11-01','Yarn','',1,'balls',1,'Paid','');
     raise exception 'FAIL: unverified save';

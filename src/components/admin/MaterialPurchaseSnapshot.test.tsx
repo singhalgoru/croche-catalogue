@@ -4,10 +4,10 @@ import type { MaterialPurchase } from '../../services/materialPurchases';
 import MaterialPurchaseSnapshot from './MaterialPurchaseSnapshot';
 import { mockNativeDialog } from './dialogTestSupport';
 
-const { fetchPurchases, downloadReceipt } = vi.hoisted(() => ({ fetchPurchases: vi.fn(), downloadReceipt: vi.fn() }));
+const { fetchPurchases, downloadReceipt, setCategory } = vi.hoisted(() => ({ fetchPurchases: vi.fn(), downloadReceipt: vi.fn(), setCategory: vi.fn() }));
 vi.mock('../../services/materialPurchases', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/materialPurchases')>(), fetchMaterialPurchases: fetchPurchases,
-  downloadMaterialReceipt: downloadReceipt,
+  downloadMaterialReceipt: downloadReceipt, setMaterialPurchaseCategory: setCategory,
 }));
 vi.mock('../../utils/date', async importOriginal => ({
   ...await importOriginal<typeof import('../../utils/date')>(), localDate: () => '2026-11-15',
@@ -18,7 +18,7 @@ afterEach(() => { cleanup(); restore(); vi.resetAllMocks(); });
 
 function purchase(overrides: Partial<MaterialPurchase>): MaterialPurchase {
   return { id: '1', purchased_on: '2026-01-01', material: 'Yarn', supplier: '', quantity: 1, unit: 'ball',
-    total: 1, payment_status: 'Paid', notes: '', receipt_name: null, ...overrides };
+    category: 'Uncategorized', total: 1, payment_status: 'Paid', notes: '', receipt_name: null, ...overrides };
 }
 
 it('shows a loading error rather than zero totals and supports retry', async () => {
@@ -31,6 +31,20 @@ it('shows a loading error rather than zero totals and supports retry', async () 
   expect(screen.queryByRole('article')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Refresh materials' }));
   expect(await screen.findByRole('article', { name: 'Year 2026 · Jan–Dec' })).toBeTruthy();
+});
+it('groups quarter purchases by category and supplier and saves category changes', async () => {
+  fetchPurchases.mockResolvedValue([purchase({ id: '1', material: 'Hook', supplier: 'Shop', total: 20 }),
+    purchase({ id: '2', material: 'Yarn', category: 'Yarn', supplier: 'shop', total: 30 })]);
+  setCategory.mockResolvedValue(undefined);
+  render(<MaterialPurchaseSnapshot refreshKey={1} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Material purchase snapshot' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'View purchases for Q1 · Jan–Mar 2026' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByRole('region', { name: 'Purchases by supplier' }).textContent).toContain('₹50.00');
+  fireEvent.change(within(dialog).getByLabelText('Category for Hook'), { target: { value: 'Tool' } });
+  fireEvent.click(within(dialog).getAllByRole('button', { name: 'Save category' })[0]);
+  expect(await within(dialog).findByText('Tool: ₹20.00')).toBeTruthy();
+  expect(setCategory).toHaveBeenCalledWith('1', 'Tool');
 });
 
 it('groups purchases by year and quarter and opens date-sorted, bounded details', async () => {
@@ -53,7 +67,7 @@ it('groups purchases by year and quarter and opens date-sorted, bounded details'
   q1.focus();
   fireEvent.click(q1);
   const dialog = screen.getByRole('dialog', { name: 'Purchases · Q1 · Jan–Mar 2026' });
-  expect(within(dialog).getAllByRole('heading', { level: 3 }).map(heading => heading.textContent))
+  expect(within(dialog).getAllByRole('heading', { level: 3 }).filter(heading => heading.textContent?.includes(' · ')).map(heading => heading.textContent))
     .toEqual(['31/03/2026 · March yarn', '01/01/2026 · January yarn']);
   expect(within(dialog).queryByText('April thread')).toBeNull();
   fireEvent(dialog, new Event('cancel', { bubbles: true, cancelable: true }));

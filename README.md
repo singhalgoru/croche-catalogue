@@ -89,7 +89,8 @@ an India-based handmade crochet brand.
   The Materials workspace records purchases separately from sales; Financial snapshots
   show quarterly material purchases with receipt access.
   Administrators can import and export material purchases and individual artisans'
-  payment records as CSV, with blank import templates; receipts are managed separately.
+  payment records as CSV, with example import templates; receipts are managed separately.
+  Material purchases support category and supplier breakdowns and an Excel category dropdown.
   Paid orders can be shipped with Shiprocket or Delhivery after explicit courier
   approval, with sample courier-rate comparisons and warehouse pickup requests.
   Shadowfax support requires account setup and verification before use.

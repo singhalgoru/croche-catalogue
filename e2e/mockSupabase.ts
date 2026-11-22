@@ -517,6 +517,10 @@ export async function installMockSupabase(
       await json(route, currentUser.is_anonymous !== true);
       return;
     }
+    if (pathname === '/rest/v1/rpc/product_pattern_product_ids') {
+      await json(route, []);
+      return;
+    }
     if (pathname === '/rest/v1/rpc/admin_access_status') {
       await json(route, { isAdmin: currentUser.is_anonymous !== true, verified: true, locked: false });
       return;

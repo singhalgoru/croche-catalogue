@@ -420,12 +420,10 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
       const reason = importError instanceof Error
         ? importError.message
         : 'Unable to import the sales report.';
-      setError(
-        savedCount > 0
-          ? `${reason} ${savedCount} earlier row${savedCount === 1 ? ' was' : 's were'} already saved; refresh to verify.`
-          : reason,
-      );
-      await loadDashboard();
+      const refreshed = await loadDashboard();
+      setError(`${savedCount > 0
+        ? `${reason} ${savedCount} earlier row${savedCount === 1 ? ' was' : 's were'} already saved; refresh to verify.`
+        : reason}${refreshed ? '' : ' Unable to reload the dashboard; refresh and verify before retrying.'}`);
     } finally {
       if (savedCount > 0) onSalesChanged?.();
       setIsImporting(false);
@@ -733,7 +731,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
           >
             Download Excel CSV
           </button>
-          <button type="button" onClick={() => downloadLedgerCsv('luvia-sales-template.csv', buildSellerSalesTemplate())}
+          <button type="button" onClick={() => downloadLedgerCsv('luvia-sales-template.csv', buildSellerSalesTemplate(month))}
             className="rounded-full border border-cocoa/25 px-4 py-2 text-sm font-semibold text-cocoa">
             Download sales CSV template
           </button>
@@ -774,7 +772,7 @@ export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Pro
         <p className="mt-2 text-xs text-cocoa/55">
           Download an Excel-compatible sales CSV for the selected month. Business expenses are separate and are not included in this CSV.
           You can edit it in Excel and upload it again; matching record IDs update existing sales.
-          For new sales, use the blank template and leave Record ID blank. Reuploading new rows without IDs can create duplicates.
+          Replace or delete the example row before uploading. For new sales, leave Record ID blank. Reuploading new rows without IDs can create duplicates.
           Dates must be in the selected month (YYYY-MM-DD or DD/MM/YYYY); channel must be online, offline, whatsapp, instagram or other.
           Enter costs and rates, using 0 where not applicable; allocation percentages must be between 0 and 100.
         </p>

@@ -25,6 +25,7 @@ do $$ begin
     or has_table_privilege('authenticated','public.product_patterns','SELECT')
     or has_table_privilege('authenticated','public.product_pattern_emails','INSERT')
     or has_function_privilege('anon','public.product_pattern_workspace(uuid)','EXECUTE')
+    or has_function_privilege('anon','public.product_pattern_product_ids()','EXECUTE')
     or has_function_privilege('authenticated','public.claim_product_pattern_emails()','EXECUTE') then
     raise exception 'FAIL: private pattern access exposed.';
   end if;
@@ -36,6 +37,10 @@ do $$ begin
     perform public.product_pattern_workspace((select product_id from pattern_fixture));
     raise exception 'FAIL: non-MFA admin read patterns.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
+  begin
+    perform public.product_pattern_product_ids();
+    raise exception 'FAIL: non-MFA admin read pattern summary.';
+  exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
 end $$;
 reset role;
 select set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'role','authenticated','aal','aal2','session_id',session_id,
@@ -45,6 +50,7 @@ do $$
 declare f record; workspace jsonb; bad text;
 begin
   select * into f from pattern_fixture;
+  if f.product_id = any(public.product_pattern_product_ids()) then raise exception 'FAIL: missing pattern reported attached.'; end if;
   foreach bad in array array['macro.docm','../path.docx','bad'||chr(10)||'.docx'] loop
     begin
       perform public.save_product_pattern(f.product_id,null,f.revision,bad,f.document_data,'Lotus.pdf',f.pdf_data,'en');
@@ -61,6 +67,7 @@ begin
     raise exception 'FAIL: copying-enabled PDF accepted.';
   exception when others then if sqlerrm like 'FAIL:%' then raise; end if; end;
   perform public.save_product_pattern(f.product_id,null,f.revision,'Lotus.docx',f.document_data,'Lotus.pdf',f.pdf_data,'hi');
+  if not (f.product_id = any(public.product_pattern_product_ids())) then raise exception 'FAIL: attached pattern missing from summary.'; end if;
   perform public.save_product_pattern(f.product_id,null,f.revision,'Lotus.docx',f.document_data,'Lotus.pdf',f.pdf_data,'hi');
   workspace:=public.product_pattern_workspace(f.product_id);
   if workspace->'pattern'->>'filename'<>'Lotus.docx'

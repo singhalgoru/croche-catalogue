@@ -87,7 +87,7 @@ export default function AllArtisanPayments({ onChanged }: { onChanged: () => voi
           }} />
       </label>
     </div>
-    <p className="text-xs">Open the Excel template, select an artisan from the dropdown, and save the Payments sheet as CSV UTF-8 before uploading.
+    <p className="text-xs">Open the Excel template, replace or delete the example row, select an artisan from the dropdown, and save the Payments sheet as CSV UTF-8 before uploading.
       Keep the artisan ID in the selection; leave Record ID blank for new payments. Use Recorded status, a valid past or current date, and a reference except for Cash.
       Existing payments cannot be edited or voided through CSV. Upload files up to 5 MB.</p>
     {busy && <p role="status">Processing artisan payments...</p>}

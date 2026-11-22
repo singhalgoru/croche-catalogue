@@ -3,7 +3,7 @@ import { artisanPaymentMethods, fetchArtisanActivity, recordArtisanPayment, void
   type ArtisanPayment, type ArtisanPaymentInput } from '../../services/artisanProfiles';
 import { localDate } from '../../utils/date';
 import AdminDialog from './AdminDialog';
-import { buildPaymentCsv, downloadLedgerCsv, parsePaymentCsv, validateLedgerFile } from './financialLedgerCsv';
+import { buildPaymentCsv, buildPaymentTemplate, downloadLedgerCsv, parsePaymentCsv, validateLedgerFile } from './financialLedgerCsv';
 
 const emptyPayment = (): ArtisanPaymentInput => ({ date: localDate(), amount: '', method: 'UPI', reference: '', description: '' });
 const input = 'mt-1 block min-h-11 w-full rounded border p-2';
@@ -77,7 +77,7 @@ export default function ArtisanPayments({ artisan, onClose, onChanged }: {
       <div className="flex flex-wrap gap-2">
         <button type="button" className={button} disabled={busy || !payments || Boolean(loadError)}
           onClick={() => payments && downloadLedgerCsv('luvia-artisan-payments.csv', buildPaymentCsv(payments))}>Download payments CSV</button>
-        <button type="button" className={button} onClick={() => downloadLedgerCsv('luvia-artisan-payments-template.csv', buildPaymentCsv([]))}>Download payments CSV template</button>
+        <button type="button" className={button} onClick={() => downloadLedgerCsv('luvia-artisan-payments-template.csv', buildPaymentTemplate())}>Download payments CSV template</button>
         <label className={`${button} cursor-pointer ${busy || !payments || loadError ? 'opacity-50' : ''}`}>Upload payments CSV
           <input type="file" accept=".csv,text/csv" className="sr-only" aria-label="Upload payments CSV"
             disabled={busy || !payments || Boolean(loadError)} onChange={event => {
@@ -85,7 +85,7 @@ export default function ArtisanPayments({ artisan, onClose, onChanged }: {
             }} />
         </label>
       </div>
-      <p className="text-xs">CSV is for this artisan only. Leave Record ID blank and use Recorded status for new payments. Use YYYY-MM-DD or DD/MM/YYYY; methods are UPI, Bank transfer, Cash or Other. A reference is required except for Cash. Existing entries cannot be edited or voided through CSV.</p>
+      <p className="text-xs">CSV is for this artisan only. Replace or delete the example row before uploading. Leave Record ID blank and use Recorded status for new payments. Use YYYY-MM-DD or DD/MM/YYYY; methods are UPI, Bank transfer, Cash or Other. A reference is required except for Cash. Existing entries cannot be edited or voided through CSV.</p>
       <form aria-label="Record artisan payment" className="space-y-3" onSubmit={event => {
         event.preventDefault();
         void run(async () => {

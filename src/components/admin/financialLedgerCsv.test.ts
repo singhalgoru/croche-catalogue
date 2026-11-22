@@ -1,14 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import type { MaterialPurchase } from '../../services/materialPurchases';
 import type { ArtisanPayment } from '../../services/artisanProfiles';
-import { buildAllPaymentCsv, buildMaterialCsv, buildPaymentCsv, parseAllPaymentCsv, parseMaterialCsv, parsePaymentCsv } from './financialLedgerCsv';
+import { buildAllPaymentCsv, buildMaterialCsv, buildMaterialTemplate, buildPaymentCsv, buildPaymentTemplate, parseAllPaymentCsv, parseMaterialCsv, parsePaymentCsv } from './financialLedgerCsv';
 
 const purchase: MaterialPurchase = { id: 'existing', purchased_on: '2025-03-31', material: '=yarn', supplier: "'=shop",
-  quantity: 2, unit: 'balls', total: 25.5, payment_status: 'Paid', notes: 'Line one,\n"line two"', receipt_name: 'bill.pdf' };
+  category: 'Yarn', quantity: 2, unit: 'balls', total: 25.5, payment_status: 'Paid', notes: 'Line one,\n"line two"', receipt_name: 'bill.pdf' };
 const payment: ArtisanPayment = { id: 'existing-payment', paid_on: '2025-03-31', amount: 125.5, method: 'UPI',
   reference: 'ref', description: 'Batch', created_at: '', voided_at: null, void_reason: null };
 
 describe('financial ledger CSV', () => {
+  it('provides example rows but rejects them until replaced or deleted', () => {
+    expect(() => parseMaterialCsv(buildMaterialTemplate(), [], new Map())).toThrow(/Row 2: replace or delete the example row/);
+    expect(() => parsePaymentCsv(buildPaymentTemplate(), [], new Map())).toThrow(/Row 2: replace or delete the example row/);
+    const material = buildMaterialTemplate().replace('EXAMPLE - replace or delete this row', 'Real purchase');
+    expect(parseMaterialCsv(material, [], new Map())[0].notes).toBe('Real purchase');
+    const paymentCsv = buildPaymentTemplate().replace('EXAMPLE - replace or delete this row', 'Real work');
+    expect(parsePaymentCsv(paymentCsv, [], new Map())[0].input.description).toBe('Real work');
+  });
+  it('imports categories, infers yarn and preserves existing categories from older CSVs', () => {
+    const header = 'Record ID,Purchase Date,Material,Supplier,Quantity,Unit,Total,Payment Status,Notes';
+    const rows = `${header},Category\n,2025-03-31,Hook,Shop,1,piece,25,Paid,,Tool`;
+    expect(parseMaterialCsv(rows, [], new Map())[0].category).toBe('Tool');
+    expect(() => parseMaterialCsv(rows.replace('Tool', 'Unknown'), [], new Map())).toThrow(/category must be/);
+    expect(parseMaterialCsv(`${header}\n,2025-03-31,Acrylic wool,Shop,1,ball,25,Paid,`, [], new Map())[0].category).toBe('Yarn');
+    expect(parseMaterialCsv(`${header}\nexisting,2025-03-31,Hook,Shop,1,piece,25,Paid,`, [{ ...purchase, category: 'Accessories' }], new Map())[0].category).toBe('Accessories');
+  });
   it('accepts filled blank purchase and per-artisan payment templates', () => {
     const material = `${buildMaterialCsv([])}\r\n,2025-03-31,Yarn,Shop,2,balls,25.50,Paid,`;
     expect(parseMaterialCsv(material, [], new Map())[0]).toMatchObject({

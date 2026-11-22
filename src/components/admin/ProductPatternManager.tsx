@@ -6,14 +6,15 @@ import type { PatternLanguage, PatternProduct, PreparedPattern } from '../../ser
 
 const buttonClass = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 
-export default function ProductPatternManager({ product, disabled = false }: {
+export default function ProductPatternManager({ product, disabled = false, onClose }: {
   product: PatternProduct;
   disabled?: boolean;
+  onClose?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return <>
     <button type="button" disabled={disabled} className={buttonClass} onClick={() => setOpen(true)}>Artisan pattern</button>
-    {open && <PatternDialog key={product.id} product={product} onClose={() => setOpen(false)} />}
+    {open && <PatternDialog key={product.id} product={product} onClose={() => { setOpen(false); onClose?.(); }} />}
   </>;
 }
 

@@ -15,7 +15,8 @@ export default function WelcomeOfferManager() {
   }, []);
   return (
     <section className="mb-8 rounded-2xl border border-mustard/40 bg-white p-5 text-cocoa shadow-sm">
-      <h2 className="font-heading text-2xl font-bold">First-order coupon — ILOVELUVIA</h2>
+      <details>
+      <summary className="min-h-11 cursor-pointer font-heading text-2xl font-bold">First-order coupon — ILOVELUVIA</summary>
       <p className="mt-2 text-sm text-cocoa/70">ILOVELUVIA can be used only once per verified email address. Enable after approving these terms and testing email verification. Resend is required only to email the coupon. Shipping is excluded.</p>
       {offer && <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={event => {
         event.preventDefault(); setBusy(true); setError(''); setMessage('');
@@ -37,6 +38,7 @@ export default function WelcomeOfferManager() {
       </form>}
       {message && <p role="status" className="mt-2 text-sm">{message}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
+      </details>
     </section>
   );
 }

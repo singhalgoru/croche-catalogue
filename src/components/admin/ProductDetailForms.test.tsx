@@ -23,8 +23,13 @@ import { createDefaultPriceInputs } from './priceDiscovery';
 import { createEmptyVariant } from './variantDraft';
 import { mockNativeDialog } from './dialogTestSupport';
 import { fetchSellerSales, type SellerSale } from '../../services/sellerSales';
+import { fetchPatternProductIds } from '../../services/productPatterns';
 
 vi.mock('../../services/sellerSales', () => ({ fetchSellerSales: vi.fn() }));
+vi.mock('../../services/productPatterns', async original => ({
+  ...await original<typeof import('../../services/productPatterns')>(),
+  fetchPatternProductIds: vi.fn().mockResolvedValue(new Set<string>()),
+}));
 vi.mock('../../services/productVideos', () => ({
   getProductVideoJob: vi.fn().mockResolvedValue(null), uploadProductVideo: vi.fn(),
   discardProductVideo: vi.fn(), previewProductVideo: vi.fn(), publishProductVideo: vi.fn(), removeProductVideo: vi.fn(),
@@ -92,6 +97,17 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('filters products by attached or missing artisan pattern', async () => {
+    vi.mocked(fetchPatternProductIds).mockResolvedValue(new Set([product.id]));
+    vi.mocked(fetchManagedProducts).mockResolvedValue([product, { ...product, id: 'other', name: 'Other' }]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1 Pattern attached' }));
+    expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Other' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '1 No pattern attached' }));
+    expect(screen.getByRole('heading', { name: 'Other' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Coaster' })).toBeNull();
+  });
   it('shows assigned SKUs read-only and finds products by SKU', async () => {
     vi.mocked(fetchManagedProducts).mockResolvedValue([{ ...product, sku: 'LUV-000001' }]);
     render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);

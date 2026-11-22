@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { deleteMaterialPurchase, downloadMaterialReceipt, fetchMaterialPurchases, saveMaterialPurchase, summarizeMaterialPurchases,
+import { deleteMaterialPurchase, downloadMaterialReceipt, fetchMaterialPurchases, inferMaterialCategory, materialCategories, purchaseBreakdown, saveMaterialPurchase, summarizeMaterialPurchases,
   type MaterialPurchase, type MaterialPurchaseInput } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { localDate } from '../../utils/date';
-import { buildMaterialCsv, downloadLedgerCsv, parseMaterialCsv, validateLedgerFile } from './financialLedgerCsv';
+import { buildMaterialCsv, buildMaterialTemplate, downloadLedgerCsv, parseMaterialCsv, validateLedgerFile } from './financialLedgerCsv';
+import { downloadMaterialWorkbook } from './materialPurchaseTemplate';
 
 type Draft = Omit<MaterialPurchaseInput, 'quantity' | 'total'> & { quantity: string; total: string; receipt_name: string | null };
 const field = 'mt-1 w-full min-w-0 rounded-lg border border-mustard/50 bg-white px-3 py-2';
 const button = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const newDraft = (): Draft => ({ id: crypto.randomUUID(), purchased_on: localDate(), material: '', supplier: '',
-  quantity: '', unit: '', total: '', payment_status: 'Unpaid', notes: '', receipt_name: null });
+  category: 'Uncategorized', quantity: '', unit: '', total: '', payment_status: 'Unpaid', notes: '', receipt_name: null });
 
 export default function MaterialsPanel() {
   const [purchases, setPurchases] = useState<MaterialPurchase[]>([]);
@@ -109,7 +110,12 @@ export default function MaterialsPanel() {
       <button type="button" className={button} disabled={busy || loading || !loaded}
         onClick={() => downloadLedgerCsv('luvia-material-purchases.csv', buildMaterialCsv(purchases))}>Download purchases CSV</button>
       <button type="button" className={button}
-        onClick={() => downloadLedgerCsv('luvia-material-purchases-template.csv', buildMaterialCsv([]))}>Download purchases CSV template</button>
+        onClick={() => downloadLedgerCsv('luvia-material-purchases-template.csv', buildMaterialTemplate())}>Download purchases CSV template</button>
+      <button type="button" className={button} disabled={busy} onClick={() => {
+        setBusy(true); setError(null);
+        void downloadMaterialWorkbook().catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to download template.'))
+          .finally(() => setBusy(false));
+      }}>Download purchases Excel template with category dropdown</button>
       <label className={`${button} cursor-pointer ${busy || loading || !loaded || !!draft ? 'opacity-50' : ''}`}>
         Upload purchases CSV
         <input type="file" accept=".csv,text/csv" className="sr-only" aria-label="Upload purchases CSV"
@@ -120,7 +126,8 @@ export default function MaterialsPanel() {
           }} />
       </label>
     </div>
-    <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Use the blank template for new rows and leave Record ID blank; existing IDs update purchases.
+    <p className="mt-2 text-xs text-cocoa/65">CSV covers all purchases. Replace or delete the example row before uploading. Leave Record ID blank for new purchases; existing IDs update purchases.
+      For the Excel dropdown template, save the Purchases sheet as CSV UTF-8 before upload. Categories are Yarn, Tool, Accessories or Uncategorized.
       Enter dates as YYYY-MM-DD or DD/MM/YYYY, positive quantity and total, and Paid or Unpaid for Payment Status.
       Receipts are not included in CSV and existing attachments are kept.</p>
     {draft && <form onSubmit={event => void save(event)} className="mt-4 grid gap-3 rounded-xl bg-cream/50 p-4 sm:grid-cols-2">
@@ -130,7 +137,12 @@ export default function MaterialsPanel() {
           onChange={event => update({ purchased_on: event.target.value })} /></label>
       <label className="text-sm font-semibold">Material *
         <input className={field} required maxLength={150} disabled={busy} value={draft.material}
-          onChange={event => update({ material: event.target.value })} /></label>
+          onChange={event => update({ material: event.target.value, ...(draft.category === 'Uncategorized' && inferMaterialCategory(event.target.value) === 'Yarn' ? { category: 'Yarn' } : {}) })} /></label>
+      <label className="text-sm font-semibold">Category
+        <select className={field} value={draft.category} disabled={busy} onChange={event => {
+          const category = materialCategories.find(value => value === event.target.value);
+          if (category) update({ category });
+        }}>{materialCategories.map(category => <option key={category}>{category}</option>)}</select></label>
       <label className="text-sm font-semibold">Supplier
         <input className={field} maxLength={150} disabled={busy} value={draft.supplier}
           onChange={event => update({ supplier: event.target.value })} /></label>
@@ -168,13 +180,16 @@ export default function MaterialsPanel() {
       <div className="mt-4 rounded-xl bg-cream/50 p-3 text-sm">
         <h3 className="font-bold">Monthly purchase summary</h3>
         <p>Purchase value: {formatINRExact(paid + unpaid)} · Paid: {formatINRExact(paid)} · Unpaid: {formatINRExact(unpaid)}</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">{(['category', 'supplier'] as const).map(group =>
+          <div key={group}><h4 className="font-semibold">By {group}</h4>
+            <ul>{purchaseBreakdown(monthly, group).map(item => <li key={item.name}>{item.name}: {formatINRExact(item.total)}</li>)}</ul></div>)}</div>
         {materials.length > 0 && <ul className="mt-2">{materials.map(item =>
           <li key={item.name}>{item.name}: {formatINRExact(item.total)}</li>)}</ul>}
       </div>
       {monthly.length === 0 && <p className="mt-3 text-sm">No purchases for this month.</p>}
       <ul className="mt-3 space-y-3">{monthly.map(item => <li key={item.id} className="rounded-xl border border-cocoa/15 p-3">
         <div className="break-words text-sm"><strong>{item.material} · {formatINRExact(item.total)}</strong>
-          <p>{item.purchased_on} · {item.quantity} {item.unit} · {item.payment_status}</p>
+          <p>{item.purchased_on} · {item.quantity} {item.unit} · {item.payment_status} · {item.category}</p>
           {item.supplier && <p>Supplier: {item.supplier}</p>}
           {item.notes && <p className="whitespace-pre-wrap">{item.notes}</p>}
         </div>

@@ -296,7 +296,7 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   const templatePath = await template.path();
   if (!templatePath) throw new Error('Payment template download is unavailable.');
   const csv = [
-    readFileSync(templatePath, 'utf8'),
+    readFileSync(templatePath, 'utf8').split(/\r?\n/)[0],
     ',2025-03-30,100,Cash,,Flower batch,Recorded',
     ',2025-03-31,125.50,UPI,txn-2,Coaster batch,Recorded',
   ].join('\n');

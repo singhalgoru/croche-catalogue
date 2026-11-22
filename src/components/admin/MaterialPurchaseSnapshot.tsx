@@ -1,14 +1,18 @@
 import { useEffect, useId, useState } from 'react';
-import { downloadMaterialReceipt, fetchMaterialPurchases, type MaterialPurchase } from '../../services/materialPurchases';
+import { downloadMaterialReceipt, fetchMaterialPurchases, materialCategories, purchaseBreakdown, setMaterialPurchaseCategory,
+  type MaterialCategory, type MaterialPurchase } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
 import { formatDate, localDate } from '../../utils/date';
 import AdminDialog from './AdminDialog';
 import FinancialPeriodCards from './FinancialPeriodCards';
 import { calendarPeriods, isSnapshotYear } from './salesPeriodSummary';
 
-function PurchaseDetails({ purchase, onBusyChange }: { purchase: MaterialPurchase; onBusyChange: (change: number) => void }) {
+function PurchaseDetails({ purchase, onBusyChange, onCategoryChange }: {
+  purchase: MaterialPurchase; onBusyChange: (change: number) => void; onCategoryChange: (id: string, category: MaterialCategory) => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [category, setCategory] = useState(purchase.category);
   const download = async () => {
     setBusy(true); setError(''); onBusyChange(1);
     try { await downloadMaterialReceipt(purchase.id); }
@@ -32,6 +36,21 @@ function PurchaseDetails({ purchase, onBusyChange }: { purchase: MaterialPurchas
       </dl>
       {purchase.notes && <div><p className="text-cocoa/65">Notes</p>
         <p className="whitespace-pre-wrap break-words">{purchase.notes}</p></div>}
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-sm">Category for {purchase.material}
+          <select className="ml-2 min-h-11 rounded border p-2" value={category} disabled={busy} onChange={event => {
+            const value = materialCategories.find(item => item === event.target.value);
+            if (value) setCategory(value);
+          }}>{materialCategories.map(value => <option key={value}>{value}</option>)}</select>
+        </label>
+        <button type="button" disabled={busy || category === purchase.category} className="min-h-11 rounded-full border px-4 disabled:opacity-50"
+          onClick={() => {
+            setBusy(true); setError(''); onBusyChange(1);
+            void setMaterialPurchaseCategory(purchase.id, category).then(() => onCategoryChange(purchase.id, category))
+              .catch(failure => setError(failure instanceof Error ? failure.message : 'Unable to update category.'))
+              .finally(() => { setBusy(false); onBusyChange(-1); });
+          }}>Save category</button>
+      </div>
       {purchase.receipt_name
         ? <button type="button" disabled={busy} onClick={() => void download()}
           className="min-h-11 rounded-full border border-cocoa/30 px-4 py-2 font-semibold disabled:opacity-50">
@@ -82,6 +101,11 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
       { label: 'Purchases', value: String(purchases.length) },
     ] };
   }) : null;
+  const updateCategory = (id: string, category: MaterialCategory) => {
+    setRows(current => current?.map(purchase => purchase.id === id ? { ...purchase, category } : purchase) ?? null);
+    setSelected(current => current ? { ...current, purchases: current.purchases.map(purchase =>
+      purchase.id === id ? { ...purchase, category } : purchase) } : null);
+  };
   return <section aria-label="Material purchase snapshot" className="mt-5 rounded-2xl border border-mustard/40 bg-white p-4">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(current => !current)}
       className="flex w-full items-center justify-between gap-3 text-left font-heading text-xl font-bold text-cocoa">
@@ -104,9 +128,17 @@ export default function MaterialPurchaseSnapshot({ refreshKey }: { refreshKey: n
       <div className="space-y-4 p-4">
         <p className="text-sm">Newest purchases first. To edit or delete a purchase, go to Admin → Materials.</p>
         {selected.purchases.length === 0 ? <p>No purchases recorded for this quarter.</p>
-          : <ul className="space-y-3">{selected.purchases.map(purchase =>
-            <PurchaseDetails key={purchase.id} purchase={purchase}
-              onBusyChange={change => setDownloadsInProgress(count => count + change)} />)}</ul>}
+          : <>
+            <div className="grid gap-3 sm:grid-cols-2">{(['category', 'supplier'] as const).map(group =>
+              <section key={group} aria-label={`Purchases by ${group}`} className="rounded border p-3 text-sm">
+                <h3 className="font-semibold">By {group}</h3>
+                <ul>{purchaseBreakdown(selected.purchases, group).map(item =>
+                  <li key={item.name}>{item.name}: {formatINRExact(item.total)}</li>)}</ul>
+              </section>)}</div>
+            <ul className="space-y-3">{selected.purchases.map(purchase =>
+              <PurchaseDetails key={purchase.id} purchase={purchase} onCategoryChange={updateCategory}
+                onBusyChange={change => setDownloadsInProgress(count => count + change)} />)}</ul>
+          </>}
       </div>
     </AdminDialog>}
   </section>;

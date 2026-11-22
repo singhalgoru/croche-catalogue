@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
 import { readFileSync } from 'node:fs';
+import ExcelJS from 'exceljs';
 import { join } from 'node:path';
 import { installMockSupabase } from './mockSupabase';
 import type { SocialPost } from '../supabase/functions/_shared/socialPosts';
@@ -471,7 +472,11 @@ test('downloads and uploads a filled sales CSV template', async ({ page }) => {
   expect(download.suggestedFilename()).toBe('luvia-sales-template.csv');
   const path = await download.path();
   if (!path) throw new Error('Sales template download is unavailable.');
-  const csv = `${readFileSync(path, 'utf8')}\n,,Rose,,2026-10-06,offline,2,100,5,20,10,5,30,0,18,,15,4,5`;
+  const example = readFileSync(path, 'utf8');
+  await page.getByLabel('Upload monthly sales CSV').setInputFiles({ name: 'sales.csv', mimeType: 'text/csv', buffer: Buffer.from(example) });
+  await expect(page.getByRole('alert')).toContainText('replace or delete the example row');
+  expect(rows).toHaveLength(0);
+  const csv = `${example.split(/\r?\n/)[0]}\n,,Rose,,2026-10-06,offline,2,100,5,20,10,5,30,0,18,,15,4,5`;
   await page.getByLabel('Upload monthly sales CSV').setInputFiles({ name: 'sales.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
   await expect(page.getByText('Imported 1 sale for 2026-10. Rows with existing record IDs were updated.')).toBeVisible();
   expect(rows[0]).toMatchObject({ product_name: 'Rose', marketing_percent: 15, returns_reserve_percent: 4, overhead_percent: 5 });
@@ -521,13 +526,13 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   const rows: Array<Record<string, unknown>> = [];
   let receiptData: string | null = null;
   await page.route('**/rest/v1/material_purchases?*', route => route.fulfill({ json: rows }));
-  await page.route('**/rest/v1/rpc/save_material_purchase', route => {
+  await page.route('**/rest/v1/rpc/save_categorized_material_purchase', route => {
     const body = route.request().postDataJSON();
     receiptData = body.receipt_data;
     const previous = rows.find(row => row.id === body.purchase_id);
     const saved = { id: body.purchase_id, purchased_on: body.purchase_date, material: body.material_name,
       supplier: body.supplier_name, quantity: body.quantity_value, unit: body.quantity_unit, total: body.total_value,
-      payment_status: body.status_value, notes: body.note_text, receipt_name: body.receipt_filename ?? previous?.receipt_name ?? null };
+      payment_status: body.status_value, notes: body.note_text, category: body.category_value, receipt_name: body.receipt_filename ?? previous?.receipt_name ?? null };
     if (previous) rows.splice(rows.indexOf(previous), 1, saved);
     else rows.push(saved);
     return route.fulfill({ json: body.purchase_id });
@@ -535,11 +540,18 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await page.route('**/rest/v1/rpc/read_material_receipt', route => route.fulfill({ json: {
     name: 'receipt.pdf', type: 'application/pdf', data: Buffer.from('%PDF-example').toString('base64'),
   } }));
+  await page.route('**/rest/v1/rpc/set_material_purchase_category', route => {
+    const body = route.request().postDataJSON();
+    const row = rows.find(item => item.id === body.target);
+    if (row) row.category = body.category_value;
+    return route.fulfill({ json: body.target });
+  });
   await signIn(page);
   await openFinancialSection(page, 'Materials');
   await page.getByRole('button', { name: 'Add purchase' }).click();
   await page.getByLabel('Purchase date').fill('2026-11-01');
   await page.getByRole('textbox', { name: 'Material *' }).fill('Yarn');
+  await expect(page.getByRole('combobox', { name: 'Category', exact: true })).toHaveValue('Yarn');
   await page.getByLabel('Supplier').fill('Sample shop');
   await page.getByLabel('Quantity').fill('2');
   await page.getByLabel('Unit', { exact: false }).fill('balls');
@@ -568,6 +580,11 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(purchaseDialog).toContainText('Sample shop');
   await expect(purchaseDialog).toContainText('2 balls');
   await expect(purchaseDialog).toContainText('₹150.50');
+  await expect(purchaseDialog.getByRole('region', { name: 'Purchases by category' })).toContainText('Yarn: ₹150.50');
+  await expect(purchaseDialog.getByRole('region', { name: 'Purchases by supplier' })).toContainText('Sample shop: ₹150.50');
+  await purchaseDialog.getByLabel('Category for Yarn').selectOption('Tool');
+  await purchaseDialog.getByRole('button', { name: 'Save category' }).click();
+  await expect(purchaseDialog.getByRole('region', { name: 'Purchases by category' })).toContainText('Tool: ₹150.50');
   const receiptDownload = page.waitForEvent('download');
   await purchaseDialog.getByRole('button', { name: 'Download receipt: receipt.pdf' }).click();
   expect((await receiptDownload).suggestedFilename()).toBe('receipt.pdf');
@@ -583,8 +600,16 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   expect(template.suggestedFilename()).toBe('luvia-material-purchases-template.csv');
   const templatePath = await template.path();
   if (!templatePath) throw new Error('Purchase template download is unavailable.');
+  const excelDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download purchases Excel template with category dropdown' }).click();
+  const excelFile = await excelDownload;
+  const excelPath = await excelFile.path();
+  if (!excelPath) throw new Error('Purchase Excel template download is unavailable.');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(excelPath);
+  expect(workbook.getWorksheet('Purchases')?.getCell('J2').dataValidation.type).toBe('list');
   const csv = [
-    readFileSync(templatePath, 'utf8'),
+    readFileSync(templatePath, 'utf8').split(/\r?\n/)[0],
     `${rows[0].id},2026-11-01,Yarn,Sample shop,2,balls,150.50,Paid,`,
     ',2026-11-02,Thread,Sample shop,1,roll,20,Unpaid,',
     ',2026-11-03,Hook,Sample shop,1,piece,30,Paid,',

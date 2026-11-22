@@ -52,7 +52,13 @@ export const csvCell = (value: string | number) => {
 
 export const csvRecord = (values: Array<string | number>) => values.map(csvCell).join(',');
 
-export const buildSellerSalesTemplate = () => csvRecord([...REPORT_HEADERS.slice(0, 16), ...ALLOCATION_HEADERS]);
+export const TEMPLATE_EXAMPLE = 'EXAMPLE - replace or delete this row';
+
+export const buildSellerSalesTemplate = (month: string) => [
+  csvRecord([...REPORT_HEADERS.slice(0, 16), ...ALLOCATION_HEADERS]),
+  csvRecord(['', '', 'Example product', '', `${month}-01`, 'offline', 1, 500, 5, 100, 150, 20, 0, 0, 0,
+    TEMPLATE_EXAMPLE, 15, 4, 5]),
+].join('\r\n');
 
 export const buildSellerSalesCsv = (month: string, sales: SellerSale[]) => {
   const monthly = sales.filter((sale) => sale.saleDate.startsWith(`${month}-`));
@@ -213,6 +219,7 @@ export const parseSellerSalesCsv = (
     const [recordId, productId, productName, variantName, dateValue, channelValue,
       quantityValue, unitPriceValue, gstValue, materialValue, labourValue, packagingValue,
       shippingValue, feeValue, feeGstValue, notes] = values;
+    if (notes === TEMPLATE_EXAMPLE) throw new Error(`Row ${lineNumber}: replace or delete the example row before uploading.`);
     if (recordId.toLocaleUpperCase() === 'MONTH TOTAL') return;
     const saleDate = parseDateInput(dateValue);
     const invalid: string[] = [];
