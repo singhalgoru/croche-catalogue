@@ -74,6 +74,20 @@ end $$;
 reset role;
 create temporary table work_token as select token from public.artisan_work_emails where assignment_id=(select assignment_id from work_fixture) and kind='offer';
 grant select on work_token to anon;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+set local role service_role;
+do $$
+declare candidate jsonb; claimed jsonb;
+begin
+  claimed:=public.claim_artisan_work_emails();
+  select value into candidate from jsonb_array_elements(claimed)
+    where value->>'id'=(select assignment_id::text from work_fixture) and value->>'kind'='offer';
+  if candidate is null or jsonb_array_length(candidate->'attachments')<>1
+    or candidate->'attachments'->0->>'filename'<>'Headband.pdf'
+    or candidate->'attachments'->0->>'content'<>replace(encode(convert_to('%PDF-1.7 '||repeat('pattern',20),'UTF8'),'base64'),E'\n','')
+    then raise exception 'FAIL: selected PDF not included in claimed email.'; end if;
+end $$;
+reset role;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
 set local role anon;
 do $$

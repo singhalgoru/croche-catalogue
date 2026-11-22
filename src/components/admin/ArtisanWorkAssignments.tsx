@@ -6,9 +6,9 @@ import { completeWorkAssignment, createWorkAssignment, listWorkAssignments, type
 import { buildArtisanWorkEmail, workItemRateText, workPaymentSummary, WORK_QUALITY_TERMS, type WorkOffer } from '../../../supabase/functions/_shared/artisanWorkEmail';
 
 type Item = { key: string; productId: string; name: string; quantity: string; rate: string;
-  yarnBasis: '' | 'with' | 'without'; pattern: ProductPattern | null; loadingPattern: boolean };
+  yarnBasis: '' | 'with' | 'without'; patternChoice: '' | 'attach' | 'skip'; pattern: ProductPattern | null; loadingPattern: boolean };
 const newItem = (): Item => ({ key: crypto.randomUUID(), productId: '', name: '', quantity: '',
-  rate: '', yarnBasis: '', pattern: null, loadingPattern: false });
+  rate: '', yarnBasis: '', patternChoice: '', pattern: null, loadingPattern: false });
 const button = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const input = 'mt-1 block min-h-11 w-full rounded border border-cocoa/30 p-2 font-normal';
 
@@ -53,6 +53,10 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
     if (items.some(item => item.loadingPattern || !item.name.trim() || !/^\d{1,5}$/.test(item.quantity)
       || Number(item.quantity) < 1 || !/^\d{1,7}(\.\d{1,2})?$/.test(item.rate) || !item.yarnBasis)) {
       throw new Error('Check every product, quantity, per-unit price, agreed rate and selected pattern.');
+    }
+    if (items.some(item => item.productId && patternIds.has(item.productId)
+      && (!item.patternChoice || (item.patternChoice === 'attach' && !item.pattern)))) {
+      throw new Error('Choose whether to attach the available pattern for every catalogue product.');
     }
     const draft: WorkDraft = { recipientName: artisan.name, recipientEmail: artisan.email,
       subject: subject.trim(), message: message.trim(), deliveryDate, courierCap: Number(courierCap), advancePercent: Number(advancePercent),
@@ -124,27 +128,34 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
             <label className="block text-sm font-semibold">Catalogue product or manual entry<select className={input} value={item.productId}
               onChange={event => {
                 const product = products.find(row => row.id === event.target.value);
-                update(item.key, { productId: product?.id ?? '', name: product?.name ?? '', pattern: null, loadingPattern: false });
+                update(item.key, { productId: product?.id ?? '', name: product?.name ?? '', patternChoice: '', pattern: null, loadingPattern: false });
               }}><option value="">Enter product manually</option>
               {products.map(product => <option key={product.id} value={product.id}>{product.name}{product.published ? '' : ' (unpublished)'}</option>)}
             </select></label>
             {!item.productId && <label className="block text-sm font-semibold">Product name<input className={input} required maxLength={100}
               value={item.name} onChange={event => update(item.key, { name: event.target.value })} /></label>}
-            {item.productId && <div className="text-sm">{patternIds.has(item.productId) ? <label className="flex items-center gap-2">
-              <input type="checkbox" checked={item.pattern !== null || item.loadingPattern} disabled={item.loadingPattern}
-                onChange={event => {
-                  if (!event.target.checked) { update(item.key, { pattern: null }); return; }
+            {item.productId && <div className="text-sm">{patternIds.has(item.productId) ? <fieldset className="space-y-2 rounded-lg border border-mustard/40 p-3">
+              <legend className="font-semibold">Pattern PDF available: include it in the email?</legend>
+              <label className="flex items-center gap-2">
+              <input type="radio" name={`pattern-${item.key}`} required checked={item.patternChoice === 'attach'} disabled={item.loadingPattern}
+                onChange={() => {
                   const productId = item.productId;
-                  update(item.key, { loadingPattern: true });
+                  update(item.key, { patternChoice: 'attach', loadingPattern: true });
                   void fetchPatternWorkspace(productId).then(workspace => {
                     if (!workspace.pattern) throw new Error('Pattern was removed. Refresh the workspace.');
                     setItems(current => current.map(row => row.key === item.key && row.productId === productId
-                      ? { ...row, pattern: workspace.pattern, loadingPattern: false } : row));
-                  }).catch(reason => { update(item.key, { pattern: null, loadingPattern: false });
+                      && row.patternChoice === 'attach' ? { ...row, pattern: workspace.pattern, loadingPattern: false } : row));
+                  }).catch(reason => {
+                    setItems(current => current.map(row => row.key === item.key && row.productId === productId
+                      ? { ...row, patternChoice: '', pattern: null, loadingPattern: false } : row));
                     setError(reason instanceof Error ? reason.message : 'Unable to load pattern.'); });
                 }} />
-              {item.loadingPattern ? 'Loading pattern...' : item.pattern ? `Attach ${item.pattern.pdf_filename}` : 'Attach available PDF pattern'}
-            </label> : <p>No pattern attached to this product.</p>}</div>}
+              {item.loadingPattern ? 'Loading pattern...' : item.pattern ? `Attach ${item.pattern.pdf_filename}` : 'Yes, attach the pattern PDF'}
+              </label>
+              <label className="flex items-center gap-2"><input type="radio" name={`pattern-${item.key}`} required
+                checked={item.patternChoice === 'skip'} disabled={item.loadingPattern}
+                onChange={() => update(item.key, { patternChoice: 'skip', pattern: null })} />No, do not attach the pattern</label>
+            </fieldset> : <p>No pattern available for this product.</p>}</div>}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm font-semibold">Quantity<input type="number" min="1" max="99999" step="1" required className={input}
                 value={item.quantity} onChange={event => update(item.key, { quantity: event.target.value })} /></label>
@@ -174,7 +185,9 @@ export default function ArtisanWorkAssignments({ artisan, onClose }: {
         </form> : <section className="space-y-3" aria-label="Assignment email preview">
           <h3 className="font-heading text-lg font-bold">Email preview</h3>
           <p className="text-sm">To: {artisan.email}<br />Subject: {preview.offer.subject}</p>
-          <p className="text-sm">The real acceptance link is generated securely when queued. Selected PDFs will be attached.</p>
+          <p className="text-sm">The real acceptance link is generated securely when queued.</p>
+          <p className="text-sm"><strong>PDF attachments:</strong> {preview.offer.items.filter(item => item.patternFilename)
+            .map(item => item.patternFilename).join(', ') || 'None selected'}</p>
           <iframe title="Assignment email preview" sandbox="" srcDoc={buildArtisanWorkEmail(preview.offer, '#preview').html}
             className="h-[34rem] w-full rounded-lg border border-cocoa/30 bg-white" />
           {attempted && <p className="text-sm">If sending is uncertain, retry the same request. If it was already saved, changed terms will be rejected; check assignment history before creating a replacement.</p>}

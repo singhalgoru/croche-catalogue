@@ -28,7 +28,7 @@ it('previews catalogue and manual products with selected pattern and retries the
   create.mockRejectedValueOnce(new Error('Network failed'));
   render(<ArtisanWorkAssignments artisan={artisan} onClose={vi.fn()} />);
   fireEvent.change(await screen.findByLabelText('Catalogue product or manual entry'), { target: { value: 'product' } });
-  fireEvent.click(screen.getByLabelText('Attach available PDF pattern'));
+  fireEvent.click(screen.getByLabelText('Yes, attach the pattern PDF'));
   await screen.findByText('Attach Headband.pdf');
   fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
   expect(screen.queryByLabelText('Including yarn / unit (INR)')).toBeNull();
@@ -50,6 +50,7 @@ it('previews catalogue and manual products with selected pattern and retries the
   fireEvent.change(screen.getByLabelText('Advance payment (%)'), { target: { value: '25' } });
   fireEvent.change(screen.getByLabelText('Email message'), { target: { value: 'Please make these.' } });
   fireEvent.click(screen.getByRole('button', { name: 'Preview email' }));
+  expect(screen.getByText(/PDF attachments:/).closest('p')?.textContent).toContain('Headband.pdf');
   expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('Headband.pdf');
   expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('Please make these.');
   expect(screen.getByTitle('Assignment email preview').getAttribute('srcdoc')).toContain('INR 275.00');
@@ -67,6 +68,24 @@ it('previews catalogue and manual products with selected pattern and retries the
     { productId: null, name: 'Custom flower', quantity: 3, patternRevision: null, rate: 25, yarnBasis: 'without' },
   ] });
   expect(create.mock.calls[0]![2].items[0]).not.toHaveProperty('rateWithoutYarn');
+});
+
+it('requires an explicit pattern choice and shows when no PDF will be attached', async () => {
+  render(<ArtisanWorkAssignments artisan={artisan} onClose={vi.fn()} />);
+  fireEvent.change(await screen.findByLabelText('Catalogue product or manual entry'), { target: { value: 'product' } });
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText('Agreed rate for this product'), { target: { value: 'with' } });
+  fireEvent.change(screen.getByLabelText('Including yarn / unit (INR)'), { target: { value: '100' } });
+  fireEvent.change(screen.getByLabelText('Delivery date'), { target: { value: '2099-12-01' } });
+  fireEvent.change(screen.getByLabelText('Maximum courier reimbursement (INR)'), { target: { value: '120' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Preview email' }).closest('form')!);
+  expect(screen.getByRole('alert').textContent).toContain('Choose whether to attach');
+  fireEvent.click(screen.getByLabelText('No, do not attach the pattern'));
+  fireEvent.click(screen.getByRole('button', { name: 'Preview email' }));
+  expect(screen.getByText(/PDF attachments:/).closest('p')?.textContent).toContain('None selected');
+  fireEvent.click(screen.getByRole('button', { name: 'Send assignment email' }));
+  await screen.findByText(/Assignment email queued/);
+  expect(create.mock.calls[0]![2].items[0].patternRevision).toBeNull();
 });
 
 it('requires confirmation to complete accepted work, including for no-longer-approved artisans', async () => {

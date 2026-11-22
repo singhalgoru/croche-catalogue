@@ -54,10 +54,19 @@ it('sends the PDF offer to the artisan and a separate idempotent confirmation to
   const offer = JSON.parse(fetcher.mock.calls[0]![1].body);
   expect(offer.to).toEqual(['maker@example.test']);
   expect(offer.attachments[0].filename).toBe('hat.pdf');
+  expect(Buffer.from(offer.attachments[0].content, 'base64').toString()).toBe('%PDF-1.7 pattern');
   expect(fetcher.mock.calls[0]![1].headers['Idempotency-Key']).toContain(`offer-${job.id}`);
   await sendArtisanWorkEmail({ ...job, kind: 'acceptance', token: null, acceptedAt: '2026-01-01T00:00:00Z', attachments: [] }, 'test-key');
   const confirmation = JSON.parse(fetcher.mock.calls[1]![1].body);
   expect(confirmation.to).toEqual(['info@luviacreations.com']);
   expect(confirmation.text).toContain('accepted the work assignment');
   expect(fetcher.mock.calls[1]![1].headers['Idempotency-Key']).toContain(`acceptance-${job.id}`);
+});
+it('does not send an offer when selected PDFs are missing or mismatched', async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal('fetch', fetcher);
+  await expect(sendArtisanWorkEmail({ ...job, attachments: [] }, 'test-key')).rejects.toThrow('email not sent');
+  await expect(sendArtisanWorkEmail({ ...job, attachments: [{ ...job.attachments[0]!, filename: 'other.pdf' }] }, 'test-key'))
+    .rejects.toThrow('email not sent');
+  expect(fetcher).not.toHaveBeenCalled();
 });

@@ -68,6 +68,13 @@ export function isWorkEmailJob(value: unknown): value is WorkEmailJob {
       && /^[A-Za-z0-9+/]+={0,2}$/.test(attachment.content));
 }
 
+export function workAttachmentsMatchOffer(job: WorkEmailJob): boolean {
+  if (job.kind !== 'offer') return job.attachments.length === 0;
+  const expected = job.offer.items.flatMap(item => item.patternFilename ? [item.patternFilename] : []);
+  return expected.length === job.attachments.length
+    && expected.every((filename, index) => filename === job.attachments[index]?.filename);
+}
+
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, character =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
 const money = (amount: number) => `INR ${amount.toFixed(2)}`;
@@ -132,6 +139,7 @@ export function buildArtisanWorkAcceptanceEmail(offer: WorkOffer, acceptedAt: st
 }
 
 export async function sendArtisanWorkEmail(job: WorkEmailJob, apiKey: string): Promise<string> {
+  if (!workAttachmentsMatchOffer(job)) throw new Error('Selected pattern PDF attachments do not match the assignment; email not sent.');
   const content = job.kind === 'offer'
     ? buildArtisanWorkEmail(job.offer, `https://luviacreations.com/artisans/#work=${job.token}`)
     : buildArtisanWorkAcceptanceEmail(job.offer, job.acceptedAt!);
