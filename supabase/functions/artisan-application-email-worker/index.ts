@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendArtisanApplicationEmail, type ArtisanApplicationEmailJob } from '../_shared/artisanApplicationEmail.ts';
 import { isProductPatternEmailJob, sendProductPatternEmail } from '../_shared/productPatternEmail.ts';
+import { isWorkEmailJob, sendArtisanWorkEmail } from '../_shared/artisanWorkEmail.ts';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   { status, headers: { 'Content-Type': 'application/json' } });
@@ -119,5 +120,37 @@ Deno.serve(async request => {
       }
     }
   }));
+  const { data: workJobs, error: workError } = await admin.rpc('claim_artisan_work_emails');
+  if (workError || !Array.isArray(workJobs)) {
+    console.error('Unable to claim artisan work emails:', workError?.message);
+    return json({ accepted, failed, error: 'Unable to claim artisan work emails.' }, 500);
+  }
+  for (const candidate of workJobs) {
+    try {
+      if (!isWorkEmailJob(candidate)) throw new Error('Invalid queued work assignment email.');
+      const providerId = await sendArtisanWorkEmail(candidate, apiKey);
+      const { data: saved, error: saveError } = await admin.from('artisan_work_emails')
+        .update({ accepted_at: new Date().toISOString(), provider_id: providerId, last_error: null, token: null })
+        .eq('assignment_id', candidate.id).eq('kind', candidate.kind).select('assignment_id').single();
+      if (saveError || saved?.assignment_id !== candidate.id) {
+        throw new Error('Unable to record email acceptance; retry will use the same provider idempotency key.');
+      }
+      if (candidate.kind === 'offer') {
+        const { error: deleteError } = await admin.from('artisan_work_attachments').delete().eq('assignment_id', candidate.id);
+        if (deleteError) console.error('Unable to clear sent assignment attachments:', candidate.id, deleteError.message);
+      }
+      accepted++;
+    } catch (failure) {
+      failed++;
+      const message = failure instanceof Error ? failure.message : 'Work assignment email failed.';
+      console.error('Artisan work email failed:', isRecord(candidate) ? candidate.id : 'invalid job', message);
+      if (isRecord(candidate) && typeof candidate.id === 'string'
+        && (candidate.kind === 'offer' || candidate.kind === 'acceptance')) {
+        const { error: saveError } = await admin.from('artisan_work_emails')
+          .update({ last_error: message.slice(0, 500) }).eq('assignment_id', candidate.id).eq('kind', candidate.kind);
+        if (saveError) console.error('Unable to record work email failure:', candidate.id, saveError.message);
+      }
+    }
+  }
   return json({ accepted, failed }, failed ? 502 : 200);
 });

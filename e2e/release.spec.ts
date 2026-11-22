@@ -15,6 +15,22 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Shop the Collection' })).toBeVisible();
 });
 
+test('product share opens a visible modal above fixed mobile controls', async ({ page }) => {
+  await page.goto('/p/rose-charm/');
+  const trigger = page.getByRole('button', { name: 'Share this product' });
+  await trigger.click();
+  const modal = page.getByRole('dialog', { name: 'Share product' });
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('link', { name: 'Share on WhatsApp' })).toBeVisible();
+  await expect(modal.getByRole('button', { name: 'Copy product link' })).toBeVisible();
+  const box = await modal.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box && viewport && box.y >= 0 && box.y + box.height <= viewport.height).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
 test('homepage introduction is visible and fits on mobile and desktop', async ({ page, isMobile }) => {
   const full = page.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.', { exact: true });
   const compact = page.getByText('Handmade crochet accessories, gifts, toys & decor. Crafted in India, shipped nationwide and internationally.', { exact: true });

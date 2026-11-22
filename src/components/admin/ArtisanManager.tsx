@@ -5,6 +5,7 @@ import type { ArtisanApplication, ArtisanHistory, ArtisanStatus } from '../../se
 import ArtisanInvitations from './ArtisanInvitations';
 import ArtisanProfile from './ArtisanProfile';
 import ArtisanPayments from './ArtisanPayments';
+import ArtisanWorkAssignments from './ArtisanWorkAssignments';
 import AllArtisanPayments from './AllArtisanPayments';
 import ArtisanPaymentDetails from './ArtisanPaymentDetails';
 import { paymentStatus, requestPaymentDetails } from '../../services/artisanPaymentDetails';
@@ -207,6 +208,7 @@ export default function ArtisanManager() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<ArtisanApplication | null>(null);
   const [paymentArtisan, setPaymentArtisan] = useState<{ id: string; name: string } | null>(null);
+  const [workArtisan, setWorkArtisan] = useState<{ id: string; name: string; email: string | null; approved: boolean } | null>(null);
   const [message, setMessage] = useState('');
   useEffect(() => {
     let current = true;
@@ -271,6 +273,11 @@ export default function ArtisanManager() {
               <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" />
             </svg>
           </button>
+          <button type="button" className="ml-3 min-h-11 rounded-full border border-cocoa/30 px-4 text-sm font-semibold"
+            onClick={() => setWorkArtisan({ id: application.id, name: application.details.fullName,
+              email: application.contact_email ?? null, approved: application.status === 'Approved' })}>
+            {application.status === 'Approved' ? 'Assign Work' : 'Work history'}
+          </button>
         </li>)}</ul>
         <div className="flex flex-wrap items-center gap-4">
           <button disabled={page === 0} onClick={() => { setLoading(true); setError(''); setPage(value => value - 1); }} className="min-h-11 underline disabled:opacity-40">Previous</button>
@@ -281,5 +288,6 @@ export default function ArtisanManager() {
     </section>
     {paymentArtisan && <ArtisanPayments artisan={paymentArtisan} onClose={() => setPaymentArtisan(null)}
       onChanged={() => setRefresh(value => value + 1)} />}
+    {workArtisan && <ArtisanWorkAssignments artisan={workArtisan} onClose={() => setWorkArtisan(null)} />}
   </div>;
 }

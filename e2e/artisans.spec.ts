@@ -6,6 +6,77 @@ import { goToAdminSection } from './adminNavigation';
 import { installMockSupabase } from './mockSupabase';
 
 const token = 'a'.repeat(64);
+test('artisan explicitly accepts a work assignment without accepting on link open', async ({ page }) => {
+  await installMockSupabase(page);
+  const calls: unknown[] = [];
+  const offer = { reference: '00000000-0000-4000-8000-000000000001', recipientName: 'Sample Maker',
+    subject: 'Work offer', message: 'Please review these terms.', deliveryDate: '2099-12-01', courierCap: 100,
+    items: [{ name: 'Headband', quantity: 2, rateWithYarn: 150, rateWithoutYarn: 100, patternFilename: 'Headband.pdf' }] };
+  await page.route('**/rest/v1/rpc/read_artisan_work_assignment', route =>
+    route.fulfill({ json: { offer, acceptedAt: null, completedAt: null, expiresAt: '2099-12-01T00:00:00Z' } }));
+  await page.route('**/rest/v1/rpc/accept_artisan_work_assignment', route => {
+    calls.push(route.request().postDataJSON());
+    return route.fulfill({ json: true });
+  });
+  await page.goto(`./artisans/#work=${token}`);
+  await expect(page.getByText('Headband', { exact: true })).toBeVisible();
+  expect(calls).toHaveLength(0);
+  await page.getByRole('checkbox', { name: /I accept these work assignment terms/ }).check();
+  await page.getByRole('button', { name: 'Accept assignment' }).click();
+  await expect(page.getByText(/Work is in progress/)).toBeVisible();
+  expect(calls).toEqual([{ token }]);
+  expect(await page.evaluate(() => ({ ga: typeof window.gtag, meta: typeof window.fbq })))
+    .toEqual({ ga: 'undefined', meta: 'undefined' });
+});
+test('admin previews an assignment and completes accepted work', async ({ page }) => {
+  await installMockSupabase(page);
+  const application = { id: '00000000-0000-4000-8000-000000000001',
+    details: { fullName: 'Sample Maker', mobile: '9876543210', city: 'Gurugram', state: 'Haryana', pin: '122001',
+      language: 'Hindi', skills: 'Flowers', availability: '5 hours/week', experience: '', tools: '', portfolioUrl: '', notes: '',
+      adult: true, consent: true, paidTrial: true },
+    contact_email: 'maker@example.test', status: 'Approved', admin_notes: '', version: 1,
+    created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1' };
+  const entries: Record<string, unknown>[] = [];
+  await page.route('**/rest/v1/artisan_invitations*', route => route.fulfill({ json: [] }));
+  await page.route('**/rest/v1/rpc/list_artisan_applications', route =>
+    route.fulfill({ json: { applications: [application], total: 1 } }));
+  await page.route('**/rest/v1/rpc/list_artisan_work_assignments', route => route.fulfill({ json: entries }));
+  await page.route('**/rest/v1/rpc/create_artisan_work_assignment', route => {
+    const body = route.request().postDataJSON();
+    const draft = body.draft;
+    entries.push({ id: body.request_id, offer: { reference: body.request_id, recipientName: 'Sample Maker',
+      subject: draft.subject, message: draft.message, deliveryDate: draft.deliveryDate, courierCap: draft.courierCap,
+      items: draft.items.map((item: { name: string; quantity: number; rateWithYarn: number; rateWithoutYarn: number }) => ({
+        ...item, patternFilename: null })) }, createdAt: '2026-11-22T00:00:00Z', expiresAt: '2099-12-01T00:00:00Z',
+    acceptedAt: '2026-11-22T01:00:00Z', completedAt: null, offerSentAt: '2026-11-22T00:10:00Z',
+    offerError: null, offerAttempts: 1, confirmationSentAt: null, confirmationError: null, confirmationAttempts: 0 });
+    return route.fulfill({ json: body.request_id });
+  });
+  await page.route('**/rest/v1/rpc/complete_artisan_work_assignment', route => {
+    entries[0]!.completedAt = '2026-11-22T02:00:00Z';
+    return route.fulfill({ json: true });
+  });
+  await page.goto('./#admin');
+  await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
+  await page.getByLabel('Password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await goToAdminSection(page, 'Artisans');
+  await page.getByRole('button', { name: 'Assign Work' }).click();
+  const modal = page.getByRole('dialog', { name: 'Assign work - Sample Maker' });
+  await modal.getByLabel('Product name').fill('Custom flower');
+  await modal.getByLabel('Quantity').fill('2');
+  await modal.getByLabel('Including yarn / unit (INR)').fill('150');
+  await modal.getByLabel('Excluding yarn / unit (INR)').fill('100');
+  await modal.getByLabel('Delivery date').fill('2099-12-01');
+  await modal.getByLabel('Maximum courier reimbursement (INR)').fill('80');
+  await modal.getByRole('button', { name: 'Preview email' }).click();
+  await expect(modal.getByTitle('Assignment email preview')).toBeVisible();
+  await modal.getByRole('button', { name: 'Send assignment email' }).click();
+  await expect(modal.getByText('Work in progress')).toBeVisible();
+  await modal.getByRole('button', { name: 'Mark work complete' }).click();
+  await modal.getByRole('button', { name: 'Confirm completion' }).click();
+  await expect(modal.getByText('Completed', { exact: true })).toBeVisible();
+});
 test('artisan privately submits payment details before Trial',async ({ page }) => {
   await installMockSupabase(page);
   const submissions: unknown[] = [];

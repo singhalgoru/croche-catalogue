@@ -40,6 +40,7 @@ import { InstagramIcon, MailIcon, WhatsAppIcon } from './SocialIcons';
 
 const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
 const ArtisanPaymentForm = lazy(() => import('./ArtisanPaymentForm'));
+const ArtisanWorkAcceptance = lazy(() => import('./ArtisanWorkAcceptance'));
 
 interface Props {
   products: Product[];
@@ -379,7 +380,8 @@ export default function StorePages({
             <a key={item.path} href={item.path} className="inline-flex min-h-11 items-center underline">{item.title}</a>)}
         </nav>
       </article> : isArtisans ? <Suspense fallback={<p role="status">Loading application...</p>}>
-        {new URLSearchParams(window.location.hash.slice(1)).has('payment') ? <ArtisanPaymentForm /> : <ArtisanApplicationForm />}
+        {new URLSearchParams(window.location.hash.slice(1)).has('work') ? <ArtisanWorkAcceptance />
+          : new URLSearchParams(window.location.hash.slice(1)).has('payment') ? <ArtisanPaymentForm /> : <ArtisanApplicationForm />}
       </Suspense> : isSearch ? <>
         <p className="hidden sm:block">Find handmade favourites by name, category, description or colour.</p>
         <form role="search" action="/search/" method="get" className="mobile-search sticky top-0 z-50 -mx-4 !mt-0 flex flex-wrap items-end gap-2 border-b border-mustard/30 bg-cream px-3 py-2 sm:static sm:mx-0 sm:gap-3 sm:border-0 sm:p-0"

@@ -83,6 +83,7 @@ export default function ProductModal({
   const minimumOrderQuantity = normalizeMinimumOrderQuantity(product.minimumOrderQuantity);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareCloseRef = useRef<HTMLButtonElement>(null);
   const sharePanelRef = useRef<HTMLDivElement>(null);
   const [showTouchControls, setShowTouchControls] = useState(false);
   const initialVariant =
@@ -201,15 +202,6 @@ export default function ProductModal({
       typeof navigator.canShare === 'function' &&
       navigator.canShare({ files: [file] });
 
-    // Many apps (notably Instagram Direct, Stories, and Feed) accept a
-    // shared photo but silently drop any accompanying caption/link text.
-    // Copy the link to the clipboard as a fallback so it's ready to paste
-    // once the user lands in the target app. Best-effort: clipboard access
-    // can fail on some browsers, and Copy link remains available regardless.
-    if (canShareImage) {
-      navigator.clipboard?.writeText(shareDetails.url).catch(() => {});
-    }
-
     navigator
       .share(
         canShareImage
@@ -233,7 +225,7 @@ export default function ProductModal({
         });
         setShareFeedback(
           canShareImage
-            ? 'Photo shared. Product link copied too — paste it if the app drops it.'
+            ? 'Photo shared. Use Copy link if the app did not include the product link.'
             : 'Share menu opened.',
         );
       })
@@ -284,10 +276,28 @@ export default function ProductModal({
   }, [galleryImages, isZoomOpen, hasChosenImage]);
 
   useEffect(() => {
-    // The actions row is pinned to the bottom, so the share panel opens
-    // beneath it. Bring it into view instead of leaving it off-screen.
     if (!isShareOpen) return;
-    sharePanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    shareCloseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.stopPropagation(); setIsShareOpen(false); }
+      if (event.key === 'Tab') {
+        const controls = sharePanelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])');
+        if (!controls?.length) return;
+        const first = controls[0]!;
+        const last = controls[controls.length - 1]!;
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
   }, [isShareOpen]);
 
   const selectVariant = (variantId: string) => {
@@ -775,19 +785,28 @@ export default function ProductModal({
           </div>
           {isShareOpen && (
             <div
-              id="product-share-options"
-              ref={sharePanelRef}
-              className="mt-4 rounded-xl border border-mustard/30 bg-cream/50 p-3"
+              data-swipe-ignore
+              className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4"
+              onClick={event => { event.stopPropagation(); setIsShareOpen(false); }}
             >
-                <div className="flex flex-wrap justify-center gap-3">
+              <div id="product-share-options" ref={sharePanelRef} role="dialog" aria-modal="true" aria-label="Share product"
+                onClick={event => event.stopPropagation()}
+                className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-mustard/30 bg-cream p-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2 className="font-heading text-lg font-bold">Share this product</h2>
+                  <button ref={shareCloseRef} type="button" className="min-h-11 rounded-full border border-cocoa/30 px-4 text-sm font-semibold"
+                    onClick={() => setIsShareOpen(false)}>Close sharing</button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   <button
                     type="button"
                     onClick={() => shareNatively()}
                     aria-label="Share to apps"
                     title="Share to apps"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-cocoa text-cream"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <ShareIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cocoa text-cream"><ShareIcon /></span>
+                    Apps
                   </button>
                   <a
                     href={shareDetails.whatsappUrl}
@@ -802,9 +821,10 @@ export default function ProductModal({
                     }
                     aria-label="Share on WhatsApp"
                     title="WhatsApp"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <WhatsAppIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366] text-white"><WhatsAppIcon /></span>
+                    WhatsApp
                   </a>
                   <a
                     href={shareDetails.facebookUrl}
@@ -819,27 +839,30 @@ export default function ProductModal({
                     }
                     aria-label="Share on Facebook"
                     title="Facebook"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1877F2] text-white"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <FacebookIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] text-white"><FacebookIcon /></span>
+                    Facebook
                   </a>
                   <button
                     type="button"
                     onClick={() => shareNatively('instagram')}
                     aria-label="Share on Instagram"
                     title="Instagram"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#FCAF45] text-white"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <InstagramIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#FCAF45] text-white"><InstagramIcon /></span>
+                    Instagram
                   </button>
                   <button
                     type="button"
                     onClick={() => shareNatively('snapchat')}
                     aria-label="Share on Snapchat"
                     title="Snapchat"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FFFC00] text-black"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <SnapchatIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FFFC00] text-black"><SnapchatIcon /></span>
+                    Snapchat
                   </button>
                   <button
                     type="button"
@@ -854,18 +877,20 @@ export default function ProductModal({
                     }}
                     aria-label="Share on Reddit"
                     title="Reddit"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4500] text-white"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <RedditIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FF4500] text-white"><RedditIcon /></span>
+                    Reddit
                   </button>
                   <button
                     type="button"
                     onClick={() => void copyShareLink()}
                     aria-label="Copy product link"
                     title="Copy link"
-                    className="flex h-12 w-12 items-center justify-center rounded-full border border-cocoa/30 bg-white text-cocoa"
+                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-cocoa/20 bg-white text-xs font-semibold"
                   >
-                    <CopyIcon />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/30 bg-white text-cocoa"><CopyIcon /></span>
+                    Copy link
                   </button>
                 </div>
                 {isRedditShareOpen && <RedditShareOptions key={`${activeImage}-${shareDetails.title}`}
@@ -874,14 +899,15 @@ export default function ProductModal({
                   url={shareDetails.redditProductUrl} redditUrl={shareDetails.redditUrl} />}
                 <p className="mt-2 text-xs text-cocoa/60">
                   Instagram and Snapchat open your device share menu with the product photo
-                  attached where supported. Those apps often drop the link text, so it's
-                  also copied to your clipboard to paste in.
+                  attached where supported. Those apps often drop the link text; use Copy link
+                  to paste it separately.
                 </p>
                 {shareFeedback && (
                   <p className="mt-2 text-xs font-semibold text-cocoa" role="status">
                     {shareFeedback}
                   </p>
                 )}
+              </div>
             </div>
           )}
           {hasCarousel && (

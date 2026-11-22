@@ -277,7 +277,10 @@ describe('ProductModal touch controls', () => {
     expect(share.parentElement?.getAttribute('aria-label')).toBe('Product purchase actions');
     fireEvent.click(share);
     expect(share.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('dialog', { name: 'Share product' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Copy product link' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close sharing' }));
+    expect(share.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByText('Approx. 10 cm')).toBeTruthy();
     expect(screen.getByText('One rose')).toBeTruthy();
     expect(screen.getByText('Spot clean gently.')).toBeTruthy();
@@ -548,7 +551,7 @@ describe('ProductModal touch controls', () => {
     expect(screen.getByText('Title copied. Paste it into the Reddit title field.')).toBeTruthy();
     expect(getShareableImageFile).toHaveBeenCalledTimes(preparations);
     expect(screen.queryByText('Preparing product photo…')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Share this product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close sharing' }));
     act(() => vi.advanceTimersByTime(3500 * 2));
     expect(screen.getByRole('button', { name: 'Front' }).getAttribute('aria-pressed')).toBe('true');
   });
@@ -584,6 +587,29 @@ describe('ProductModal touch controls', () => {
 
     expect(share.mock.calls[0][0]).toHaveProperty('url');
     expect(share.mock.calls[0][0]).not.toHaveProperty('files');
+  });
+
+  it('opens a modal, keeps keyboard focus inside it, and starts native sharing before any clipboard operation', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, share, clipboard: { writeText }, canShare: vi.fn().mockReturnValue(true) });
+    getShareableImageFile.mockResolvedValue(new File(['rose'], 'rose.webp', { type: 'image/webp' }));
+    renderModal();
+    const trigger = screen.getByRole('button', { name: 'Share this product' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    await act(async () => { await Promise.resolve(); });
+    const dialog = screen.getByRole('dialog', { name: 'Share product' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close sharing' }));
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Copy product link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share to apps' }));
+    expect(share).toHaveBeenCalledOnce();
+    expect(share.mock.calls[0]![0]).toHaveProperty('files');
+    expect(writeText).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog.isConnected).toBe(false);
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('opens, controls, and closes image zoom without closing the product modal', () => {

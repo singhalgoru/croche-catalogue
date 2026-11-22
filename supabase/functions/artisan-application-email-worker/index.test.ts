@@ -1,13 +1,16 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-const { rpc, from, sendPattern, sendApplication } = vi.hoisted(() => ({
-  rpc: vi.fn(), from: vi.fn(), sendPattern: vi.fn(), sendApplication: vi.fn(),
+const { rpc, from, sendPattern, sendApplication, sendWork } = vi.hoisted(() => ({
+  rpc: vi.fn(), from: vi.fn(), sendPattern: vi.fn(), sendApplication: vi.fn(), sendWork: vi.fn(),
 }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({ createClient: () => ({ rpc, from }) }));
 vi.mock('../_shared/productPatternEmail.ts', async original => ({
   ...await original<typeof import('../_shared/productPatternEmail')>(), sendProductPatternEmail: sendPattern,
 }));
 vi.mock('../_shared/artisanApplicationEmail.ts', () => ({ sendArtisanApplicationEmail: sendApplication }));
+vi.mock('../_shared/artisanWorkEmail.ts', async original => ({
+  ...await original<typeof import('../_shared/artisanWorkEmail')>(), sendArtisanWorkEmail: sendWork,
+}));
 let handle: (request: Request) => Promise<Response>;
 let env: Record<string, string>;
 let persistenceFailed: boolean;
@@ -72,9 +75,31 @@ it('preserves application-update processing alongside pattern attachments', asyn
   const application = { id: job.id, kind: 'Approved', recipient_email: job.recipient_email,
     payload: { application_id: job.id, applicant_name: 'Maker', applicant_email: job.recipient_email,
       mobile: '9876543210', city: 'Test city', state: 'Test state', skills: 'Flowers', availability: '5 hours', message: '' } };
-  rpc.mockImplementation(async name => ({ data: name === 'claim_product_pattern_emails' ? [job] : [application] }));
+  rpc.mockImplementation(async name => ({ data: name === 'claim_product_pattern_emails' ? [job]
+    : name === 'claim_artisan_application_emails' ? [application] : [] }));
   sendApplication.mockResolvedValue('application-provider');
   expect(await (await handle(request())).json()).toEqual({ accepted: 2, failed: 0 });
   expect(sendApplication).toHaveBeenCalledWith(application, 'test-key');
   expect(sendPattern).toHaveBeenCalledWith(job, 'test-key');
+});
+it('processes work offers and acceptance notifications with separate provider receipts', async () => {
+  const offer = { reference: job.id, recipientName: 'Maker', subject: 'Work offer', message: 'Please review',
+    deliveryDate: '2099-12-01', courierCap: 50, items: [{ name: 'Lotus', quantity: 2,
+      rateWithYarn: 100, rateWithoutYarn: 75, patternFilename: null }] };
+  const jobs = [{ id: job.id, kind: 'offer', token: 'a'.repeat(64), offer, recipientEmail: job.recipient_email,
+    acceptedAt: null, attachments: [] }, { id: job.id, kind: 'acceptance', token: null, offer,
+    recipientEmail: job.recipient_email, acceptedAt: '2026-01-01T00:00:00Z', attachments: [] }];
+  rpc.mockImplementation(async name => ({ data: name === 'claim_artisan_work_emails' ? jobs : [] }));
+  sendWork.mockResolvedValue('work-provider');
+  from.mockImplementation((table: string) => ({
+    update: (value: Record<string, unknown>) => {
+      updates.push({ table, value });
+      return { eq: () => ({ eq: () => ({ select: () => ({ single: async () => ({ data: { assignment_id: job.id } }) }) }) }) };
+    },
+    delete: () => ({ eq: async () => ({ error: null }) }),
+  }));
+  expect(await (await handle(request())).json()).toEqual({ accepted: 2, failed: 0 });
+  expect(sendWork).toHaveBeenCalledTimes(2);
+  expect(updates).toHaveLength(2);
+  expect(updates[0]).toMatchObject({ table: 'artisan_work_emails', value: { provider_id: 'work-provider', token: null } });
 });

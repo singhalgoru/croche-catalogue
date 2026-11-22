@@ -42,6 +42,7 @@ an India-based handmade crochet brand.
 - View product details, available variants, angle photos, image zoom and optional
   making videos. Tap the top-right play badge on a product image to jump to its
   making video and start muted playback (subject to browser autoplay settings).
+  Product sharing opens a labelled modal with device and social sharing options.
 - Save a cart, check delivery availability, place orders and view order history.
 - Customer delivery emails include an optional link to share honest feedback
   on Luvia Creations' Trustpilot profile.
@@ -83,6 +84,8 @@ an India-based handmade crochet brand.
 - An Android app for the shop is in development; it is not yet available on
   Google Play.
 - Authorised administrators can manage products, drafts, media and orders.
+  Approved artisans can receive work assignments by email, review and accept
+  their terms, and have work marked complete by an administrator.
   Angle photo selection shows the next upload step and any upload errors.
   Financial snapshots include yearly and quarterly sales, recorded artisan
   payments and material purchases, with sales breakdowns and quarterly payment and purchase details.
