@@ -9,14 +9,16 @@ import {
 export const LOW_STOCK_QUANTITY = 3;
 export const ATTENTION_FILTERS = [
   { id: 'margin', label: `Below ${GOOD_MARGIN_PERCENT}% margin` },
+  { id: 'goodMargin', label: `${GOOD_MARGIN_PERCENT}% or higher margin` },
   { id: 'negativeMargin', label: 'Negative margin' },
   { id: 'costs', label: 'Missing pricing costs' },
   { id: 'stock', label: 'Low / out of stock' },
+  { id: 'hidden', label: 'Hidden products' },
 ] as const;
 export type AttentionFilter = typeof ATTENTION_FILTERS[number]['id'];
 
 export function getProductAttention(
-  product: Pick<ManagedProduct, 'profitMarginPercent' | 'gstPercent' | 'priceDiscoveryInputs' | 'inStock' | 'variants'>,
+  product: Pick<ManagedProduct, 'profitMarginPercent' | 'gstPercent' | 'priceDiscoveryInputs' | 'inStock' | 'variants' | 'published'>,
   defaults: PriceDiscoveryDefaults,
 ) {
   const outOfStock = product.variants.filter(variant =>
@@ -27,9 +29,11 @@ export function getProductAttention(
   const hasMargin = typeof margin === 'number' && Number.isFinite(margin);
   return {
     margin: hasMargin && margin < GOOD_MARGIN_PERCENT,
+    goodMargin: hasMargin && margin >= GOOD_MARGIN_PERCENT,
     negativeMargin: hasMargin && margin < 0,
     costs: suggestGoodMarginPrice(createDefaultPriceInputs(product, defaults), defaults) === null,
     stock: !product.inStock || outOfStock.length > 0 || lowStock.length > 0,
+    hidden: !product.published,
     lowStockCount: lowStock.length,
     outOfStockCount: outOfStock.length,
   };

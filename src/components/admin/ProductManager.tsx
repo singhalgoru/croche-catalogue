@@ -398,10 +398,10 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
           <h3 className="font-heading text-lg font-bold text-cocoa">Needs attention</h3>
           <p className="mt-1 text-xs text-cocoa/65">
             Counts are products, including hidden products. Low stock: fewer than {LOW_STOCK_QUANTITY} pieces per variant.
-            {' '}Pricing checks use saved cost inputs; save changes to update them.
+            {' '}Margin counts use saved margins; pricing checks use saved cost inputs. Save changes to update them.
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {attentionCounts.map(({ id, label, count }) => (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {attentionCounts.filter(({ count }) => count > 0).map(({ id, label, count }) => (
               <button
                 key={id}
                 type="button"
@@ -427,12 +427,15 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
           {patternError && <p role="alert" className="mt-2 text-sm text-red-700">{patternError} <button type="button" className="underline" onClick={() => setPatternRefresh(value => value + 1)}>Retry patterns</button></p>}
           {!patternError && !patternIds && <p role="status" className="mt-2 text-sm">Loading pattern status…</p>}
           {patternIds && <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {(['attached', 'missing'] as const).map(filter => <button key={filter} type="button"
+            {(['attached', 'missing'] as const).map(filter => ({
+              filter,
+              count: products.filter(product => patternIds.has(product.id) === (filter === 'attached')).length,
+            })).filter(({ count }) => count > 0).map(({ filter, count }) => <button key={filter} type="button"
               disabled={isAnalyzing || busyId !== null || editingId !== null}
               aria-pressed={patternFilter === filter} aria-controls="manage-products-panel"
               onClick={() => { setPatternFilter(filter); setAttentionFilter(null); setProductView('all'); setSearchQuery(''); setIsExpanded(true); }}
               className={`rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${patternFilter === filter ? 'border-cocoa' : 'border-mustard/30'} bg-white text-cocoa`}>
-              <span className="mr-2 font-heading text-2xl font-bold">{products.filter(product => patternIds.has(product.id) === (filter === 'attached')).length}</span>
+              <span className="mr-2 font-heading text-2xl font-bold">{count}</span>
               {' '}{filter === 'attached' ? 'Pattern attached' : 'No pattern attached'}
             </button>)}
           </div>}
@@ -609,7 +612,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             : patternFilter
             ? `No products ${patternFilter === 'attached' ? 'with' : 'without'} an attached pattern${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
             : attentionFilter
-            ? `No products need attention for ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
+            ? attentionFilter === 'hidden' || attentionFilter === 'goodMargin'
+              ? `No products match ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` and “${searchQuery.trim()}”` : ''}.`
+              : `No products need attention for ${ATTENTION_FILTERS.find(filter => filter.id === attentionFilter)?.label.toLowerCase()}${searchQuery.trim() ? ` matching “${searchQuery.trim()}”` : ''}.`
             : `No products match “${searchQuery.trim()}”.`}
         </p>
       ) : (

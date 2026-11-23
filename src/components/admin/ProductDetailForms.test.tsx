@@ -97,6 +97,67 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('counts and filters products with a saved margin of at least 20%', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([
+      { ...product, profitMarginPercent: 19.99 },
+      { ...product, id: 'exact', name: 'Exact', profitMarginPercent: 20 },
+      { ...product, id: 'high', name: 'High', profitMarginPercent: 35, published: false },
+      { ...product, id: 'unknown', name: 'Unknown', profitMarginPercent: null },
+    ]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '2 20% or higher margin' }));
+    expect(screen.getByRole('heading', { name: 'Exact' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'High' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Coaster' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Unknown' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Move Exact up' })).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByRole('button', { name: '1 Below 20% margin' }));
+    expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'High' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
+    expect(screen.getByRole('heading', { name: 'Unknown' })).toBeTruthy();
+  });
+
+  it('counts hidden products and opens the hidden-product filter', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([
+      product,
+      { ...product, id: 'hidden', name: 'Hidden item', published: false },
+      { ...product, id: 'hidden2', name: 'Hidden item two', published: false },
+    ]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    const hidden = await screen.findByRole('button', { name: '2 Hidden products' });
+    expect(screen.getByRole('button', { name: /Manage products/ })).toHaveProperty('ariaExpanded', 'false');
+    fireEvent.click(hidden);
+    expect(screen.getByRole('heading', { name: 'Hidden item' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Hidden item two' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Coaster' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Search products'), { target: { value: 'two' } });
+    expect(screen.getByRole('button', { name: '2 Hidden products' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Hidden item' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Hidden item two' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Search products'), { target: { value: '' } });
+    vi.mocked(fetchManagedProducts).mockResolvedValue([product]);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByText('No products match hidden products.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Hidden products/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
+    expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
+  });
+
+  it('hides zero-count attention and pattern cards', async () => {
+    vi.mocked(fetchPatternProductIds).mockResolvedValue(new Set());
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{
+      ...product, profitMarginPercent: 20,
+      priceDiscoveryInputs: { ...createDefaultPriceInputs(), timeSpent: '0', materialCost: '0' },
+    }]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: '1 20% or higher margin' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '1 No pattern attached' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Missing pricing costs/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hidden products/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^\d+ Pattern attached$/ })).toBeNull();
+  });
+
   it('filters products by attached or missing artisan pattern', async () => {
     vi.mocked(fetchPatternProductIds).mockResolvedValue(new Set([product.id]));
     vi.mocked(fetchManagedProducts).mockResolvedValue([product, { ...product, id: 'other', name: 'Other' }]);

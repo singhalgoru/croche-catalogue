@@ -4,6 +4,7 @@ import { DEFAULT_PRICE_DISCOVERY_DEFAULTS, createDefaultPriceInputs } from './pr
 import type { ManagedProduct } from '../../services/products';
 
 const product = {
+  published: true,
   inStock: true,
   profitMarginPercent: 35,
   gstPercent: 5,
@@ -32,6 +33,12 @@ describe('product attention checks', () => {
     }
     expect(check({ ...product, profitMarginPercent: NaN }).margin).toBe(false);
     expect(getProductAttention({ ...product, profitMarginPercent: null }, DEFAULT_PRICE_DISCOVERY_DEFAULTS).margin).toBe(false);
+  });
+
+  it.each([
+    [19.99, false], [20, true], [20.01, true], [null, false], [undefined, false], [NaN, false], [Infinity, false],
+  ])('includes a saved margin of %s in the 20%% or higher group: %s', (profitMarginPercent, expected) => {
+    expect(getProductAttention({ ...product, profitMarginPercent }, DEFAULT_PRICE_DISCOVERY_DEFAULTS).goodMargin).toBe(expected);
   });
 
   it('accepts zero costs but flags incomplete or invalid saved pricing inputs', () => {
