@@ -6,6 +6,38 @@ import { convertToHtml, extractRawText } from 'mammoth';
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow } from 'docx';
 import { installMockSupabase } from './mockSupabase';
 
+test('product summary cards fill each row as the viewport changes', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const base = state.products[0];
+  const costs = { gst_percent: 5, time_spent: 0, time_unit: 'hours', material_cost: 0,
+    shipping_cost: 0, packaging_cost: 0, target_margin_percent: 20 };
+  state.products = [
+    { ...base, id: 'low-margin', name: 'Low margin', product_variants: [], product_profit_margins: { ...costs, profit_margin_percent: 10 } },
+    { ...base, id: 'negative-margin', name: 'Negative margin', product_variants: [], product_profit_margins: { ...costs, profit_margin_percent: -5 } },
+    { ...base, id: 'hidden-product', name: 'Hidden product', published: false, product_variants: [], product_profit_margins: { ...costs, profit_margin_percent: 25 } },
+  ];
+  await page.goto('./#admin');
+  await page.getByLabel('Email').fill('admin@luvia.test');
+  await page.getByLabel('Password').fill('test-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  const summary = page.getByRole('region', { name: 'Products needing attention' });
+  await expect(summary.getByRole('button', { name: '1 0% to below 20% margin' })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '1 Negative margin' })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '1 20% or higher margin' })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '1 Hidden products' })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '3 Low / out of stock' })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '3 No pattern attached' })).toBeVisible();
+  for (const width of [1600, 800, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const buttonName of ['1 Hidden products', '3 No pattern attached']) {
+      const gap = await summary.getByRole('button', { name: buttonName }).evaluate(button =>
+        button.parentElement!.getBoundingClientRect().right - button.getBoundingClientRect().right);
+      expect(Math.abs(gap)).toBeLessThan(1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  }
+});
+
 for (const { language, merged } of [
   { language: 'en', merged: false }, { language: 'hi', merged: false }, { language: 'en', merged: true },
 ] as const) {

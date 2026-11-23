@@ -8,7 +8,7 @@ import {
 
 export const LOW_STOCK_QUANTITY = 3;
 export const ATTENTION_FILTERS = [
-  { id: 'margin', label: `Below ${GOOD_MARGIN_PERCENT}% margin` },
+  { id: 'margin', label: `0% to below ${GOOD_MARGIN_PERCENT}% margin` },
   { id: 'goodMargin', label: `${GOOD_MARGIN_PERCENT}% or higher margin` },
   { id: 'negativeMargin', label: 'Negative margin' },
   { id: 'costs', label: 'Missing pricing costs' },
@@ -28,7 +28,7 @@ export function getProductAttention(
   const margin = product.profitMarginPercent;
   const hasMargin = typeof margin === 'number' && Number.isFinite(margin);
   return {
-    margin: hasMargin && margin < GOOD_MARGIN_PERCENT,
+    margin: hasMargin && margin >= 0 && margin < GOOD_MARGIN_PERCENT,
     goodMargin: hasMargin && margin >= GOOD_MARGIN_PERCENT,
     negativeMargin: hasMargin && margin < 0,
     costs: suggestGoodMarginPrice(createDefaultPriceInputs(product, defaults), defaults) === null,

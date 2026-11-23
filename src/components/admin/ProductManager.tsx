@@ -400,7 +400,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
             Counts are products, including hidden products. Low stock: fewer than {LOW_STOCK_QUANTITY} pieces per variant.
             {' '}Margin counts use saved margins; pricing checks use saved cost inputs. Save changes to update them.
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="mt-3 flex flex-wrap gap-2">
             {attentionCounts.filter(({ count }) => count > 0).map(({ id, label, count }) => (
               <button
                 key={id}
@@ -415,7 +415,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                   setSearchQuery('');
                   setIsExpanded(true);
                 }}
-                className={`rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${
+                className={`min-w-0 flex-[1_1_12rem] rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${
                   attentionFilter === id ? 'border-cocoa bg-white text-cocoa' : 'border-mustard/30 bg-white text-cocoa'
                 }`}
               >
@@ -426,7 +426,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
           </div>
           {patternError && <p role="alert" className="mt-2 text-sm text-red-700">{patternError} <button type="button" className="underline" onClick={() => setPatternRefresh(value => value + 1)}>Retry patterns</button></p>}
           {!patternError && !patternIds && <p role="status" className="mt-2 text-sm">Loading pattern status…</p>}
-          {patternIds && <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {patternIds && <div className="mt-2 flex flex-wrap gap-2">
             {(['attached', 'missing'] as const).map(filter => ({
               filter,
               count: products.filter(product => patternIds.has(product.id) === (filter === 'attached')).length,
@@ -434,7 +434,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
               disabled={isAnalyzing || busyId !== null || editingId !== null}
               aria-pressed={patternFilter === filter} aria-controls="manage-products-panel"
               onClick={() => { setPatternFilter(filter); setAttentionFilter(null); setProductView('all'); setSearchQuery(''); setIsExpanded(true); }}
-              className={`rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${patternFilter === filter ? 'border-cocoa' : 'border-mustard/30'} bg-white text-cocoa`}>
+              className={`min-w-[min(100%,12rem)] flex-1 rounded-xl border-2 p-3 text-left text-sm font-semibold disabled:opacity-60 ${patternFilter === filter ? 'border-cocoa' : 'border-mustard/30'} bg-white text-cocoa`}>
               <span className="mr-2 font-heading text-2xl font-bold">{count}</span>
               {' '}{filter === 'attached' ? 'Pattern attached' : 'No pattern attached'}
             </button>)}

@@ -26,10 +26,13 @@ describe('product attention checks', () => {
   ])('flags a negative saved margin of %s only when finite and below zero', (profitMarginPercent, flagged) => {
     expect(getProductAttention({ ...product, profitMarginPercent }, DEFAULT_PRICE_DISCOVERY_DEFAULTS).negativeMargin).toBe(flagged);
   });
-  it('uses the exact saved margin threshold, including negative margins', () => {
+  it('counts only non-negative saved margins below the threshold', () => {
     expect(check().margin).toBe(false);
-    for (const profitMarginPercent of [19.99, 0, -10]) {
+    for (const profitMarginPercent of [19.99, 0]) {
       expect(check({ ...product, profitMarginPercent }).margin).toBe(true);
+    }
+    for (const profitMarginPercent of [-10, -0.01, 20]) {
+      expect(check({ ...product, profitMarginPercent }).margin).toBe(false);
     }
     expect(check({ ...product, profitMarginPercent: NaN }).margin).toBe(false);
     expect(getProductAttention({ ...product, profitMarginPercent: null }, DEFAULT_PRICE_DISCOVERY_DEFAULTS).margin).toBe(false);

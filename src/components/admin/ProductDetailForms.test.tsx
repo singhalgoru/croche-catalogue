@@ -111,7 +111,7 @@ describe('Product detail admin integration', () => {
     expect(screen.queryByRole('heading', { name: 'Coaster' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Unknown' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Move Exact up' })).toHaveProperty('disabled', true);
-    fireEvent.click(screen.getByRole('button', { name: '1 Below 20% margin' }));
+    fireEvent.click(screen.getByRole('button', { name: '1 0% to below 20% margin' }));
     expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'High' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
@@ -351,8 +351,10 @@ describe('Product detail admin integration', () => {
     expect(screen.queryByRole('heading', { name: 'Zero' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Positive' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Move Coaster up' })).toHaveProperty('disabled', true);
-    fireEvent.click(screen.getByRole('button', { name: '3 Below 20% margin' }));
+    fireEvent.click(screen.getByRole('button', { name: '2 0% to below 20% margin' }));
     expect(screen.getByRole('heading', { name: 'Zero' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Positive' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Coaster' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Show all products' }));
     expect(screen.getByRole('heading', { name: 'Positive' })).toBeTruthy();
   });
@@ -369,7 +371,7 @@ describe('Product detail admin integration', () => {
       { ...product, id: 'bunny', name: 'Bunny', profitMarginPercent: 35, inStock: false },
     ]);
     render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
-    const lowMargin = await screen.findByRole('button', { name: '1 Below 20% margin' });
+    const lowMargin = await screen.findByRole('button', { name: '1 0% to below 20% margin' });
     expect(screen.getByRole('button', { name: /Manage products/ })).toHaveProperty('ariaExpanded', 'false');
     fireEvent.click(lowMargin);
     expect(screen.getByRole('heading', { name: 'Coaster' })).toBeTruthy();
