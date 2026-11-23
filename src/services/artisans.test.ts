@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { checkArtisanInvitation, createArtisanInvitation, emptyArtisanDetails, fetchArtisanApplications, prepareArtisanIdentity, readArtisanIdentity, removeArtisanIdentity, submitArtisanApplication, updateArtisanApplication, validateArtisanDetails } from './artisans';
+import { checkArtisanInvitation, createArtisanInvitation, emptyArtisanDetails, fetchArtisanApplications, fetchArtisanOverview, prepareArtisanIdentity, readArtisanIdentity, removeArtisanIdentity, submitArtisanApplication, updateArtisanApplication, validateArtisanDetails } from './artisans';
 
 const { session, anonymous, rpc, invoke, captcha, convert } = vi.hoisted(() => ({
   session: vi.fn(), anonymous: vi.fn(), rpc: vi.fn(), invoke: vi.fn(), captcha: vi.fn(), convert: vi.fn(),
@@ -113,6 +113,19 @@ it('validates invitation status and admin directory response shapes', async () =
   expect(rpc).toHaveBeenLastCalledWith('list_artisan_applications', { search_text: '', status_filter: 'Approved', page_number: 2, skill_filter: 'amigurumi', minimum_rating: 4 });
   rpc.mockResolvedValueOnce({ data: { applications: [{}], total: 1 } });
   await expect(fetchArtisanApplications('', '', 0)).rejects.toThrow('Invalid artisan directory');
+});
+it('validates complete overview counts and reports service failures', async () => {
+  const counts = { New: 2, Contacted: 0, Trial: 1, 'More information required': 0, Approved: 3, Declined: 0, Inactive: 0 };
+  rpc.mockResolvedValueOnce({ data: { total: 6, counts } });
+  expect(await fetchArtisanOverview()).toEqual({ total: 6, counts });
+  expect(rpc).toHaveBeenLastCalledWith('artisan_application_overview');
+  for (const data of [{ total: 7, counts }, { total: 6, counts: { ...counts, Approved: -1 } },
+    { total: 6, counts: { ...counts, Trial: null } }, { total: 0 }]) {
+    rpc.mockResolvedValueOnce({ data });
+    await expect(fetchArtisanOverview()).rejects.toThrow('Invalid artisan overview');
+  }
+  rpc.mockResolvedValueOnce({ error: { message: 'Verified admin access required.' } });
+  await expect(fetchArtisanOverview()).rejects.toThrow('Verified admin');
 });
 it('passes the expected version to prevent overwriting another admin review', async () => {
   const application = { id: 'id', details, status: 'New' as const, admin_notes: '', version: 3, created_at: '', updated_at: '', consent_version: '2026-11-01.1' };

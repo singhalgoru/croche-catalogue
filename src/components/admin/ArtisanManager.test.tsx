@@ -4,8 +4,8 @@ import ArtisanManager from './ArtisanManager';
 import { mockNativeDialog } from './dialogTestSupport';
 import { emptyArtisanDetails } from '../../services/artisans';
 
-const { list, history, update, remove, invites, create, revoke, readId, removeId } = vi.hoisted(() => ({
-  list: vi.fn(), history: vi.fn(), update: vi.fn(), remove: vi.fn(), invites: vi.fn(), create: vi.fn(), revoke: vi.fn(),
+const { list, overview, history, update, remove, invites, create, revoke, readId, removeId } = vi.hoisted(() => ({
+  list: vi.fn(), overview: vi.fn(), history: vi.fn(), update: vi.fn(), remove: vi.fn(), invites: vi.fn(), create: vi.fn(), revoke: vi.fn(),
   readId: vi.fn(), removeId: vi.fn(),
 }));
 const { paymentStatus, requestPaymentDetails, readPaymentDetails, savePaymentDetails } = vi.hoisted(() => ({
@@ -17,7 +17,7 @@ vi.mock('../../services/artisanPaymentDetails',async importOriginal => ({
 }));
 vi.mock('../../services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/artisans')>(),
-  fetchArtisanApplications: list, fetchArtisanHistory: history, updateArtisanApplication: update, deleteArtisanApplication: remove,
+  fetchArtisanApplications: list, fetchArtisanOverview: overview, fetchArtisanHistory: history, updateArtisanApplication: update, deleteArtisanApplication: remove,
   fetchArtisanInvitations: invites, createArtisanInvitation: create, revokeArtisanInvitation: revoke,
   readArtisanIdentity: readId, removeArtisanIdentity: removeId,
 }));
@@ -31,6 +31,7 @@ let restoreDialog: () => void;
 beforeEach(() => {
   restoreDialog = mockNativeDialog();
   vi.clearAllMocks(); list.mockResolvedValue({ applications: [application], total: 1 });
+  overview.mockResolvedValue({ total: 1, counts: { New: 1, Contacted: 0, Trial: 0, 'More information required': 0, Approved: 0, Declined: 0, Inactive: 0 } });
   history.mockResolvedValue([{ id: 1, action: 'Submitted', new_status: 'New', old_status: null, created_at: application.created_at }]);
   invites.mockResolvedValue([]); update.mockResolvedValue({ ...application, version: 2 }); remove.mockResolvedValue(undefined);
   paymentStatus.mockResolvedValue({ provided: false,verified: false,requested: false });
@@ -38,6 +39,32 @@ beforeEach(() => {
   readPaymentDetails.mockResolvedValue(null);
   savePaymentDetails.mockResolvedValue(undefined);
   create.mockImplementation(async input => ({ link: `https://luviacreations.com/artisans/#invite=${input.token}`, message: 'Email accepted' }));
+});
+it('shows overall status counts independent of the filtered page and refreshes after review', async () => {
+  overview.mockResolvedValueOnce({ total: 32, counts: { New: 3, Contacted: 4, Trial: 5, 'More information required': 6, Approved: 7, Declined: 2, Inactive: 5 } })
+    .mockResolvedValue({ total: 32, counts: { New: 2, Contacted: 5, Trial: 5, 'More information required': 6, Approved: 7, Declined: 2, Inactive: 5 } });
+  render(<ArtisanManager />);
+  const section = screen.getByRole('region', { name: 'Artisan overview' });
+  await waitFor(() => expect(within(section).getByText('Total applications').nextElementSibling?.textContent).toBe('32'));
+  expect(within(section).getByText('Approved').nextElementSibling?.textContent).toBe('7');
+  fireEvent.change(screen.getByLabelText('Filter status'), { target: { value: 'New' } });
+  await waitFor(() => expect(list).toHaveBeenLastCalledWith('', 'New', 0, '', null));
+  expect(within(section).getByText('Total applications').nextElementSibling?.textContent).toBe('32');
+  fireEvent.click(await screen.findByRole('button', { name: 'Review Sample Maker' }));
+  fireEvent.change(screen.getByLabelText('Application status'), { target: { value: 'Contacted' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Review artisan' }));
+  const refreshed = await screen.findByRole('region', { name: 'Artisan overview' });
+  await waitFor(() => expect(within(refreshed).getByText('Contacted').nextElementSibling?.textContent).toBe('5'));
+});
+
+it('reports overview load errors and can retry without showing false zeroes', async () => {
+  overview.mockRejectedValueOnce(new Error('Overview unavailable'));
+  render(<ArtisanManager />);
+  const section = screen.getByRole('region', { name: 'Artisan overview' });
+  expect((await within(section).findByRole('alert')).textContent).toContain('Overview unavailable');
+  expect(within(section).queryByText('Total applications')).toBeNull();
+  fireEvent.click(within(section).getByRole('button', { name: 'Refresh overview' }));
+  expect(await within(section).findByText('Total applications')).toBeTruthy();
 });
 it('requests payment details instead of starting Trial and allows manual entry and confirmation', async () => {
   render(<ArtisanManager />);

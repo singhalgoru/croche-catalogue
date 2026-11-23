@@ -129,7 +129,6 @@ describe('SellerSalesDashboard', () => {
       id: 'ads', description: 'Recorded ads', expenseDate: localDate(), amount: 100, category: 'Advertising', notes: '',
     }]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     const record = within(await screen.findByTestId('sale-record-sale-1'));
     expect(screen.getByText('Estimated sales profit').parentElement?.textContent).toContain(profit);
     expect(screen.getByText('Profit margin').closest('article')?.textContent).toContain(margin);
@@ -144,7 +143,6 @@ describe('SellerSalesDashboard', () => {
   });
   it('defaults new sale allocations to 15/4/5 and persists independently disabled zero rates', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
@@ -167,7 +165,6 @@ describe('SellerSalesDashboard', () => {
         marketingPercent: 0, returnsReservePercent: 4, overheadPercent: 5 },
     ]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     const legacy = await screen.findByTestId('sale-record-sale-1');
     fireEvent.click(within(legacy).getByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Marketing allocation (%)')).toHaveProperty('value', '0');
@@ -189,7 +186,6 @@ describe('SellerSalesDashboard', () => {
       marketingPercent: 15, returnsReservePercent: 4, overheadPercent: 5,
     }]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(within(await screen.findByTestId('sale-record-sale-1')).getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Marketing allocation (%)'), { target: { value: '0' } });
     fireEvent.change(screen.getByLabelText('Returns / damage allocation (%)'), { target: { value: '2' } });
@@ -204,7 +200,6 @@ describe('SellerSalesDashboard', () => {
       priceDiscoveryInputs: { ...product.priceDiscoveryInputs!, labourRate: '180' } }]);
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
     expect(screen.getByLabelText('Sale labour time')).toHaveProperty('value', '30');
@@ -223,7 +218,6 @@ describe('SellerSalesDashboard', () => {
   it('allows a manual sale labour amount without inventing time/rate metadata', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
     fireEvent.change(screen.getByLabelText('Labour per piece (₹)'), { target: { value: '75' } });
@@ -242,7 +236,6 @@ describe('SellerSalesDashboard', () => {
     vi.mocked(fetchSellerSales).mockResolvedValue([saved]);
     vi.mocked(updateSellerSale).mockResolvedValue(saved);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(within(await screen.findByTestId('sale-record-sale-1')).getByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '41.67');
     fireEvent.change(screen.getByLabelText('Sale notes'), { target: { value: 'Keep actual costs' } });
@@ -253,7 +246,6 @@ describe('SellerSalesDashboard', () => {
   it('records multiple offline products atomically with packaging and shipping only on the order',async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button',{ name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Whole-order packaging'),{ target: { value: '25' } });
     fireEvent.change(screen.getByLabelText('Whole-order shipping'),{ target: { value: '150' } });
@@ -272,7 +264,6 @@ describe('SellerSalesDashboard', () => {
   it('saves queued products with a blank final entry without adding a phantom line',async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button',{ name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'),{ target: { value: product.id } });
     fireEvent.click(screen.getByRole('button',{ name: 'Add product to order' }));
@@ -287,7 +278,6 @@ describe('SellerSalesDashboard', () => {
       { ...sale,id: 'second',saleDate: localDate(),order,packagingCost: 0,shippingCost: 0,gstPercent: 0 },
     ]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button',{ name: /Sales dashboard/ }));
     await screen.findByLabelText('Order LUV-MULTI');
     expect(screen.getByText(/Estimated order profit:/).textContent).toContain('₹250 · margin 50.0%');
     expect(screen.queryByRole('button',{ name: 'Delete' })).toBeNull();
@@ -298,7 +288,6 @@ describe('SellerSalesDashboard', () => {
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scroll });
     try {
       render(<SellerSalesDashboard refreshKey={0} />);
-      fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
       await waitFor(() => expect(fetchBusinessExpenses).toHaveBeenCalled());
       for (let click = 1; click <= 2; click++) {
         fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
@@ -318,7 +307,6 @@ describe('SellerSalesDashboard', () => {
     const onSalesChanged = vi.fn();
     const { container } = render(<SellerSalesDashboard refreshKey={0} onSalesChanged={onSalesChanged} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-10' } });
     const rows = [sale, { ...sale, id: 'second', quantity: 3 }];
     const file = new File(['csv'], 'sales.csv', { type: 'text/csv' });
@@ -364,7 +352,6 @@ describe('SellerSalesDashboard', () => {
   it('adds, edits and deletes monthly overheads without changing sale costs', async () => {
     vi.mocked(fetchSellerSales).mockResolvedValue([{ ...sale, saleDate: localDate(), gstPercent: 0 }]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     await waitFor(() => expect(fetchBusinessExpenses).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'Business expenses' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add expense' })).toHaveProperty('disabled', false));
@@ -397,7 +384,6 @@ describe('SellerSalesDashboard', () => {
       { id: 'sep', description: 'Rent', expenseDate: '2026-09-01', amount: 50, category: 'Rent & utilities', notes: '' },
     ]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.change(await screen.findByLabelText('Sales month'), { target: { value: '2026-10' } });
     await waitFor(() => expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('-₹100'));
     expect(screen.getByText('Margin after business expenses').parentElement?.textContent).toContain('—');
@@ -408,7 +394,6 @@ describe('SellerSalesDashboard', () => {
   it('does not show profit after overheads as zero when expense loading fails', async () => {
     vi.mocked(fetchBusinessExpenses).mockRejectedValue(new Error('Expense loading failed'));
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Expense loading failed');
     expect(screen.getByText('Profit after business expenses').parentElement?.textContent).toContain('—');
     fireEvent.click(screen.getByRole('button', { name: 'Business expenses' }));
@@ -421,7 +406,6 @@ describe('SellerSalesDashboard', () => {
   it('preserves expense drafts and existing amounts when saving fails', async () => {
     vi.mocked(saveBusinessExpense).mockRejectedValueOnce(new Error('Cannot save expense'));
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Business expenses' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add expense' })).toHaveProperty('disabled', false));
     fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
@@ -451,7 +435,6 @@ describe('SellerSalesDashboard', () => {
       overheadPercent: 5,
     }]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     await waitFor(() => {
       expect(screen.getByText('Profit margin').parentElement?.className).toContain(color);
       expect(screen.getByText('Est. profit · margin (after allocations)').parentElement?.className).toContain(color);
@@ -462,7 +445,6 @@ describe('SellerSalesDashboard', () => {
     const originalProduct = structuredClone(product);
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
     expect(screen.getByLabelText('Sale GST rate')).toHaveProperty('value', '5');
@@ -481,7 +463,6 @@ describe('SellerSalesDashboard', () => {
   it('marks required sale entries but leaves the optional product selector and notes unmarked', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchSellerSales).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     for (const label of ['Sale product name', 'Sale date', 'Sales channel', 'Sale quantity',
       'Unit selling price', 'Sale GST rate', 'Materials per piece (₹)', 'Labour per piece (₹)',
@@ -495,12 +476,9 @@ describe('SellerSalesDashboard', () => {
     expect(screen.getByText(/Enter 0 for costs or fees/)).toBeTruthy();
   });
 
-  it('starts collapsed and preserves form values when collapsed and reopened', async () => {
+  it('starts expanded and preserves form values when collapsed and reopened', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     const toggle = screen.getByRole('button', { name: /Sales dashboard/ });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByRole('button', { name: 'Record sale' })).toBeNull();
-    fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product name'), {
@@ -516,7 +494,6 @@ describe('SellerSalesDashboard', () => {
   it('prefills the selected product values and records an editable-channel sale', async () => {
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchSellerSales).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), {
       target: { value: product.id },
@@ -560,7 +537,6 @@ describe('SellerSalesDashboard', () => {
     }]);
     render(<SellerSalesDashboard refreshKey={0} />);
     await waitFor(() => expect(fetchManagedProducts).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
     expect(screen.getByLabelText('Labour per piece (₹)')).toHaveProperty('value', '42');
@@ -579,7 +555,6 @@ describe('SellerSalesDashboard', () => {
       ],
     }]);
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Record sale' })).toHaveProperty('disabled', false));
     fireEvent.click(screen.getByRole('button', { name: 'Record sale' }));
     fireEvent.change(screen.getByLabelText('Sale product'), { target: { value: product.id } });
@@ -597,7 +572,6 @@ describe('SellerSalesDashboard', () => {
       return saved;
     });
     render(<SellerSalesDashboard refreshKey={0} />);
-    fireEvent.click(screen.getByRole('button', { name: /Sales dashboard/ }));
     fireEvent.change(screen.getByLabelText('Sales month'), { target: { value: '2026-10' } });
     const secondRecord = await screen.findByTestId('sale-record-sale-2');
     expect(within(secondRecord).getByText(/05\/10\/2026/)).toBeTruthy();

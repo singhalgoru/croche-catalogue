@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import content from '../../content/artisanOnboarding.json';
-import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fetchArtisanHistory, readArtisanIdentity, removeArtisanIdentity, updateArtisanApplication } from '../../services/artisans';
-import type { ArtisanApplication, ArtisanHistory, ArtisanStatus } from '../../services/artisans';
+import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fetchArtisanHistory, fetchArtisanOverview, readArtisanIdentity, removeArtisanIdentity, updateArtisanApplication } from '../../services/artisans';
+import type { ArtisanApplication, ArtisanHistory, ArtisanOverview, ArtisanStatus } from '../../services/artisans';
 import ArtisanInvitations from './ArtisanInvitations';
 import ArtisanProfile from './ArtisanProfile';
 import ArtisanPayments from './ArtisanPayments';
@@ -210,6 +210,10 @@ export default function ArtisanManager() {
   const [paymentArtisan, setPaymentArtisan] = useState<{ id: string; name: string } | null>(null);
   const [workArtisan, setWorkArtisan] = useState<{ id: string; name: string; email: string | null; approved: boolean } | null>(null);
   const [message, setMessage] = useState('');
+  const [overview, setOverview] = useState<ArtisanOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState('');
+  const [overviewRefresh, setOverviewRefresh] = useState(0);
   useEffect(() => {
     let current = true;
     void fetchArtisanApplications(filter.search, filter.status, page, filter.skill, filter.minimumRating).then(result => {
@@ -219,12 +223,40 @@ export default function ArtisanManager() {
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [filter, page, refresh]);
+  useEffect(() => {
+    let current = true;
+    queueMicrotask(() => {
+      if (!current) return;
+      setOverviewLoading(true); setOverviewError('');
+      void fetchArtisanOverview().then(result => { if (current) setOverview(result); })
+        .catch(failure => { if (current) setOverviewError(failure instanceof Error ? failure.message : 'Unable to load artisan overview.'); })
+        .finally(() => { if (current) setOverviewLoading(false); });
+    });
+    return () => { current = false; };
+  }, [refresh, overviewRefresh]);
   if (selected) return <ArtisanReview key={selected.id} application={selected} onUpdated={setSelected} onClose={() => {
     setSelected(null); setLoading(true); setRefresh(value => value + 1);
   }} onChanged={() => {
     setSelected(null); setPage(0); setLoading(true); setError(''); setRefresh(value => value + 1); setMessage('Application changes saved.');
   }} />;
   return <div className="space-y-5 text-cocoa">
+    <section aria-label="Artisan overview" className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-heading text-xl font-bold">Artisan overview</h2>
+        <button type="button" disabled={overviewLoading} className="min-h-11 text-sm font-semibold underline disabled:opacity-50"
+          onClick={() => setOverviewRefresh(value => value + 1)}>Refresh overview</button>
+      </div>
+      <p className="mt-1 text-sm text-cocoa/70">Current application statuses across all artisans, independent of directory filters. Invitations without an application are not counted.</p>
+      {overviewLoading && <p role="status" className="mt-3">Loading artisan overview...</p>}
+      {overviewError && <p role="alert" className="mt-3 text-red-700">{overviewError}</p>}
+      {!overviewLoading && !overviewError && overview && <dl className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[{ label: 'Total applications', count: overview.total },
+          ...artisanStatuses.map(status => ({ label: status, count: overview.counts[status] }))].map(({ label, count }) =>
+          <div key={label} className="rounded-xl bg-cream p-3 text-cocoa">
+            <dt className="text-xs">{label}</dt><dd className="text-2xl font-bold">{count.toLocaleString('en-IN')}</dd>
+          </div>)}
+      </dl>}
+    </section>
     <ArtisanInvitations />
     <section aria-labelledby="artisan-directory-title" className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <h2 id="artisan-directory-title" className="font-heading text-2xl font-bold">Artisan applications</h2>

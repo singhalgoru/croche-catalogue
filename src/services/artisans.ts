@@ -5,6 +5,10 @@ import { convertImageForUpload } from '../utils/imageUploadConversion';
 
 export const artisanStatuses = ['New', 'Contacted', 'Trial', 'More information required', 'Approved', 'Declined', 'Inactive'] as const;
 export type ArtisanStatus = typeof artisanStatuses[number];
+export interface ArtisanOverview {
+  total: number;
+  counts: Record<ArtisanStatus, number>;
+}
 export interface ArtisanDetails {
   fullName: string;
   email?: string;
@@ -243,6 +247,23 @@ export async function revokeArtisanInvitation(id: string): Promise<void> {
   const { data, error } = await db.rpc('revoke_artisan_invitation', { invitation_id: id });
   if (error) throw new Error(`Unable to revoke invitation: ${error.message}`);
   if (data !== id) throw new Error('Invalid invitation revocation receipt.');
+}
+function isArtisanOverview(value: unknown): value is ArtisanOverview {
+  const validCount = (count: unknown): count is number =>
+    typeof count === 'number' && Number.isSafeInteger(count) && count >= 0;
+  if (!isRecord(value) || !validCount(value.total) || !isRecord(value.counts)) return false;
+  const counts = value.counts;
+  return artisanStatuses.every(status => validCount(counts[status]));
+}
+export async function fetchArtisanOverview(): Promise<ArtisanOverview> {
+  const db = await client();
+  const { data, error } = await db.rpc('artisan_application_overview');
+  if (error) throw new Error(`Unable to load artisan overview: ${error.message}`);
+  if (!isArtisanOverview(data)) throw new Error('Invalid artisan overview response.');
+  if (artisanStatuses.reduce((sum, status) => sum + data.counts[status], 0) !== data.total) {
+    throw new Error('Invalid artisan overview totals.');
+  }
+  return data;
 }
 export async function fetchArtisanApplications(search: string, status: string, page: number, skill = '', minimumRating: number | null = null): Promise<{ applications: ArtisanApplication[]; total: number }> {
   const db = await client();

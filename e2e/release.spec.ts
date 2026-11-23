@@ -564,7 +564,7 @@ test('product labour overrides and optional sale allocations persist independent
   await expect(product.getByText('Price discovery values saved for this product.')).toBeVisible();
   expect(pricing.labour_rate).toBe(180);
   await goToAdminSection(page, 'Sales');
-  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await expect(page.getByRole('button', { name: /Sales dashboard/ })).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('button', { name: 'Record sale', exact: true }).click();
   await page.getByLabel('Sale product', { exact: true }).selectOption('product-1');
   await expect(page.getByLabel('Sale labour rate per hour')).toHaveValue('180');
@@ -619,7 +619,7 @@ test('recurring business expenses generate a due entry and can be paused and res
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await goToAdminSection(page, 'Sales');
-  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await expect(page.getByRole('button', { name: /Sales dashboard/ })).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('button', { name: 'Business expenses', exact: true }).click();
   await page.getByRole('button', { name: 'Add recurring expense', exact: true }).click();
   await page.getByLabel('Recurring expense description').fill('Website hosting');

@@ -172,7 +172,7 @@ const toWholeRupees = (value: number | string | null | undefined) => {
 };
 
 export default function SellerSalesDashboard({ refreshKey, onSalesChanged }: Props) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [sales, setSales] = useState<SellerSale[]>([]);
   const [expenses, setExpenses] = useState<BusinessExpense[]>([]);
   const [financialsLoaded, setFinancialsLoaded] = useState(false);

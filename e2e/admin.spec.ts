@@ -419,7 +419,7 @@ test('updates all-time product pieces sold after recording, editing and deleting
   const count = page.getByLabel('Rose Charm pieces sold', { exact: true });
   await expect(count).toHaveText('Pieces sold (all time): 4');
   await page.getByRole('button', { name: 'Sales', exact: true }).click();
-  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await expect(page.getByRole('button', { name: /Sales dashboard/ })).toHaveAttribute('aria-expanded', 'true');
   await page.getByLabel('Sales month').fill('2026-10');
   await page.getByRole('button', { name: 'Record sale', exact: true }).click();
   await page.getByLabel('Sale product', { exact: true }).selectOption('product-1');
@@ -464,7 +464,7 @@ test('downloads and uploads a filled sales CSV template', async ({ page }) => {
   });
   await signIn(page);
   await openFinancialSection(page, 'Sales');
-  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await expect(page.getByRole('button', { name: /Sales dashboard/ })).toHaveAttribute('aria-expanded', 'true');
   await page.getByLabel('Sales month').fill('2026-10');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download sales CSV template' }).click();
@@ -700,7 +700,7 @@ test('manages monthly business expenses and profit after overheads', async ({ pa
   });
   await signIn(page);
   await openFinancialSection(page, 'Sales');
-  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await expect(page.getByRole('button', { name: /Sales dashboard/ })).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('button', { name: 'Business expenses', exact: true }).click();
   await page.getByRole('button', { name: 'Add expense' }).click();
   await page.getByLabel('Expense description').fill('October ads');
@@ -757,7 +757,7 @@ test('edits a sale record inline at its list position', async ({ page }) => {
   });
   await signIn(page);
   await page.getByRole('button', { name: 'Sales', exact: true }).click();
-  await page.getByRole('button', { name: /Sales dashboard/ }).click();
+  await expect(page.getByRole('button', { name: /Sales dashboard/ })).toHaveAttribute('aria-expanded', 'true');
   await page.getByLabel('Sales month').fill('2026-10');
   const record = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Sale item 7', exact: true }) });
   await record.getByRole('button', { name: 'Edit' }).click();

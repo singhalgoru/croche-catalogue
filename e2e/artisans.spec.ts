@@ -43,6 +43,9 @@ test('admin previews an assignment and completes accepted work', async ({ page }
   await page.route('**/rest/v1/artisan_invitations*', route => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/rpc/list_artisan_applications', route =>
     route.fulfill({ json: { applications: [application], total: 1 } }));
+  await page.route('**/rest/v1/rpc/artisan_application_overview', route =>
+    route.fulfill({ json: { total: 30, counts: { New: 3, Contacted: 4, Trial: 5,
+      'More information required': 6, Approved: 7, Declined: 2, Inactive: 3 } } }));
   await page.route('**/rest/v1/rpc/list_artisan_work_assignments', route => route.fulfill({ json: entries }));
   await page.route('**/rest/v1/rpc/create_artisan_work_assignment', route => {
     const body = route.request().postDataJSON();
@@ -65,6 +68,10 @@ test('admin previews an assignment and completes accepted work', async ({ page }
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await goToAdminSection(page, 'Artisans');
+  const overview = page.getByRole('region', { name: 'Artisan overview' });
+  await expect(overview.getByText('30', { exact: true })).toBeVisible();
+  await expect(overview.getByText('7', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole('button', { name: 'Assign Work' }).click();
   const modal = page.getByRole('dialog', { name: 'Assign work - Sample Maker' });
   await modal.getByLabel('Product name').fill('Custom flower');
