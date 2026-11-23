@@ -6,6 +6,45 @@ import { convertToHtml, extractRawText } from 'mammoth';
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow } from 'docx';
 import { installMockSupabase } from './mockSupabase';
 
+test('admin can manage a private product reference video link', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  const product = state.products[0];
+  let saved: string | null = null;
+  await page.route('**/rest/v1/rpc/read_product_reference_video', async route => {
+    expect(route.request().postDataJSON().target_product).toBe(product.id);
+    await route.fulfill({ json: saved });
+  });
+  await page.route('**/rest/v1/rpc/save_product_reference_video', async route => {
+    const body = route.request().postDataJSON();
+    expect(body.target_product).toBe(product.id);
+    expect(body.expected_url).toBe(saved);
+    saved = body.new_url;
+    await route.fulfill({ json: saved });
+  });
+  await page.goto('./#admin');
+  await page.getByLabel('Email').fill('admin@luvia.test');
+  await page.getByLabel('Password').fill('test-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: /Manage products/ }).click();
+  const card = page.getByRole('article').filter({ has: page.getByRole('heading', { name: product.name, exact: true }) });
+  await card.getByRole('button', { name: 'Reference video' }).click();
+  let dialog = page.getByRole('dialog', { name: `Reference video - ${product.name}` });
+  await dialog.getByLabel('Video link').fill('https://youtu.be/example');
+  await dialog.getByRole('button', { name: 'Save link' }).click();
+  await expect(dialog.getByText('Reference video link saved.')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Open saved video' })).toHaveAttribute('href', 'https://youtu.be/example');
+  await dialog.getByRole('button', { name: `Close Reference video - ${product.name}` }).click();
+  await card.getByRole('button', { name: 'Reference video' }).click();
+  dialog = page.getByRole('dialog', { name: `Reference video - ${product.name}` });
+  await expect(dialog.getByLabel('Video link')).toHaveValue('https://youtu.be/example');
+  await dialog.getByRole('button', { name: 'Remove link' }).click();
+  await dialog.getByRole('button', { name: 'Confirm removal' }).click();
+  await expect(dialog.getByText('Reference video link removed.')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Open saved video' })).toHaveCount(0);
+  expect(saved).toBeNull();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
 test('product summary cards fill each row as the viewport changes', async ({ page }) => {
   const state = await installMockSupabase(page);
   const base = state.products[0];

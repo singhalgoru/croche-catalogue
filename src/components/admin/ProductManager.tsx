@@ -17,6 +17,7 @@ import ProductVariantManager from './ProductVariantManager';
 import ProductDetailsEditor, { type DetailDraft } from './ProductDetailsEditor';
 import ProductVideoManager from './ProductVideoManager';
 import ProductPatternManager from './ProductPatternManager';
+import ProductReferenceVideo from './ProductReferenceVideo';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
 import RichTextEditor from './RichTextEditor';
 import { richTextToPlainText } from '../../utils/richText';
@@ -752,7 +753,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                           Min. order: {product.minimumOrderQuantity ?? 1} piece{(product.minimumOrderQuantity ?? 1) === 1 ? '' : 's'}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-3 sm:flex">
+                      <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-3 sm:flex sm:flex-wrap sm:justify-end">
                         <button
                           type="button"
                           onClick={() => void moveProduct(product, -1)}
@@ -796,6 +797,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
                         </button>
                         {product.published && <MarketingSocialPosts initialProduct={product} disabled={isBusy || isAnalyzing} />}
                         <ProductPatternManager product={product} disabled={isBusy || isAnalyzing} onClose={() => setPatternRefresh(value => value + 1)} />
+                        <ProductReferenceVideo product={product} disabled={isBusy || isAnalyzing} />
                         <button
                           type="button"
                           onClick={() => startEditing(product)}
