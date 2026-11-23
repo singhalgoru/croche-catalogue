@@ -188,13 +188,21 @@ test('international quote page selects products and quantities and prepares emai
   await page.getByRole('link', { name: 'Request an international quote', exact: true }).click();
   await expect(page).toHaveURL(/\/international-quote\/\?product=/);
   await expect(page.getByRole('heading', { level: 1, name: 'Request an international quote' })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Product 1', exact: true }).locator('option:checked')).toHaveText('Rose Charm');
+  await expect(page.getByRole('button', { name: 'Product 1 Rose Charm' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('combobox', { name: 'Product 1', exact: true }).locator('option:checked')).toHaveText('Rose Charm');
+  await expect(page.getByRole('button', { name: 'Product 1 Rose Charm' })).toBeVisible();
   await page.getByLabel('Quantity 1', { exact: true }).fill('2');
   await page.getByRole('button', { name: 'Add another product' }).click();
-  const other = await page.getByRole('combobox', { name: 'Product 2', exact: true }).locator('option:not([value=""]):not([disabled])').first().getAttribute('value');
-  await page.getByRole('combobox', { name: 'Product 2', exact: true }).selectOption(other!);
+  await page.getByRole('button', { name: 'Product 2 Select a product' }).click();
+  const picker = page.getByRole('dialog', { name: 'Choose a product' });
+  await expect(picker).toBeVisible();
+  await expect(picker.getByRole('searchbox', { name: 'Search products' })).toBeVisible();
+  expect(await picker.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect(picker.getByRole('button', { name: 'Rose Charm Already added' })).toBeDisabled();
+  await picker.getByRole('searchbox', { name: 'Search products' }).fill('Rose');
+  await expect(picker.getByRole('button', { name: 'Rose Charm Already added' })).toBeVisible();
+  await picker.getByRole('searchbox', { name: 'Search products' }).clear();
+  await picker.locator('section button:not([disabled])').first().click();
   await page.getByLabel('Quantity 2', { exact: true }).fill('3');
   for (const [label, value] of [
     ['Your name', 'Synthetic Quote Test'], ['Reply email', 'quote@example.test'],
@@ -214,7 +222,7 @@ test('international quote page selects products and quantities and prepares emai
   await page.getByRole('textbox', { name: 'City', exact: true }).fill('Oxford');
   await expect(page.getByRole('link', { name: 'Send via email' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Remove item 2' }).click();
-  await expect(page.getByRole('combobox', { name: 'Product 2', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Product 2 / })).toHaveCount(0);
   await page.goto('/international-quote/');
   await expect(page.getByRole('form', { name: 'International quote request' })).toBeVisible();
   const footer = page.locator('footer');

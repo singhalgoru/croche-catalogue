@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import type { Product } from '../types/product';
 import internationalQuote from '../content/internationalQuote.json';
 import storeContent from '../content/storeContent.json';
@@ -19,6 +19,73 @@ const fields: { key: keyof InternationalQuoteDetails; label: string; type: strin
 ];
 const inputClass = 'mt-1 block min-h-11 w-full min-w-0 rounded-lg border border-cocoa/30 bg-white p-2 font-normal';
 
+function ProductPicker({ products, selectedId, unavailableIds, search, onSearch, onSelect, onClose, disabled }: {
+  products: Product[]; selectedId: string; unavailableIds: string[]; search: string;
+  onSearch: (value: string) => void; onSelect: (id: string) => void; onClose: () => void; disabled: boolean;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, []);
+
+  const query = search.trim().toLocaleLowerCase();
+  const matches = products.filter(product => product.id === selectedId ||
+    `${product.name} ${product.category}`.toLocaleLowerCase().includes(query));
+  const categories = [...new Set(matches.map(product => product.category))].sort((a, b) => a.localeCompare(b));
+  return <dialog ref={ref} aria-labelledby={titleId}
+    onCancel={event => { event.preventDefault(); onClose(); }}
+    className="m-auto max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-hidden rounded-2xl border border-mustard/40 bg-white p-0 text-cocoa shadow-2xl backdrop:bg-cocoa/60">
+    <div className="flex max-h-[90dvh] flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-mustard/30 px-4 py-3">
+        <h2 id={titleId} className="font-heading text-xl font-bold">Choose a product</h2>
+        <button type="button" onClick={onClose} aria-label="Close product selection"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cocoa/25 text-2xl">×</button>
+      </div>
+      <div className="shrink-0 border-b border-mustard/30 px-4 pb-4">
+        <label className="mt-3 block text-sm font-semibold">Search products
+          <input type="search" value={search} onChange={event => onSearch(event.target.value)}
+            placeholder="Search by product or collection" className={inputClass} />
+        </label>
+      </div>
+      <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
+        {categories.length === 0 && <p role="status" className="text-sm">No products match your search.</p>}
+        {categories.map(category => <section key={category} className="mb-4 last:mb-0">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-cocoa/65">{category}</h3>
+          <div className="space-y-2">
+            {matches.filter(product => product.category === category).map(product => {
+              const selected = product.id === selectedId;
+              const unavailable = unavailableIds.includes(product.id);
+              return <button key={product.id} type="button" disabled={disabled || unavailable}
+                aria-pressed={selected} onClick={() => onSelect(product.id)}
+                className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold disabled:opacity-50 ${
+                  selected ? 'border-cocoa bg-mustard/20' : 'border-mustard/40 bg-cream/40'
+                }`}>
+                <span className="min-w-0 break-words">{product.name}</span>{' '}
+                {unavailable ? <span className="shrink-0 text-xs">Already added</span>
+                  : selected ? <span className="shrink-0 text-xs">Selected</span> : null}
+              </button>;
+            })}
+          </div>
+        </section>)}
+      </div>
+      {selectedId && <div className="shrink-0 border-t border-mustard/30 px-4 py-3">
+        <button type="button" onClick={() => onSelect('')} className="min-h-11 text-sm font-semibold underline">Clear selection</button>
+      </div>}
+    </div>
+  </dialog>;
+}
+
 export default function InternationalQuote({ products, isLoading, loadError, onRefresh }: {
   products: Product[]; isLoading: boolean; loadError: string | null; onRefresh?: () => Promise<void>;
 }) {
@@ -32,6 +99,7 @@ export default function InternationalQuote({ products, isLoading, loadError, onR
   const [error, setError] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [quickLookProductId, setQuickLookProductId] = useState<string | null>(null);
+  const [pickerIndex, setPickerIndex] = useState<number | null>(null);
   const clearDraft = () => { setDraft(null); setError(''); };
   const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
   const search = productSearch.trim().toLocaleLowerCase();
@@ -96,31 +164,19 @@ export default function InternationalQuote({ products, isLoading, loadError, onR
       </section>
       <div className="space-y-4">
         {items.map((item, index) => {
-          const matchingProducts = sortedProducts.filter(product => product.id === item.productId ||
-            `${product.name} ${product.category}`.toLocaleLowerCase().includes(search));
-          const categories = [...new Set(matchingProducts.map(product => product.category))].sort((a, b) => a.localeCompare(b));
           const selectedProduct = products.find(product => product.id === item.productId);
           return <fieldset key={index} className="min-w-0 rounded-xl border border-mustard/40 p-3">
             <legend className="px-1 text-sm font-semibold">Product selection {index + 1}</legend>
             <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
               <div className="min-w-0">
-                <label className="min-w-0 text-sm font-semibold">Product {index + 1}
-                  <select required value={item.productId} disabled={isLoading || Boolean(loadError) || !products.length}
-                    onChange={event => {
-                      const product = products.find(candidate => candidate.id === event.target.value);
-                      setItems(current => current.map((entry, row) => row === index ? {
-                        productId: event.target.value, quantity: String(product?.minimumOrderQuantity ?? 1),
-                      } : entry));
-                      clearDraft();
-                    }} className={inputClass}>
-                    <option value="">Select a product</option>
-                    {categories.map(category => <optgroup key={category} label={category}>
-                      {matchingProducts.filter(product => product.category === category).map(product =>
-                        <option key={product.id} value={product.id}
-                          disabled={items.some((entry, row) => row !== index && entry.productId === product.id)}>{product.name}</option>)}
-                    </optgroup>)}
-                  </select>
-                </label>
+                <span id={`quote-product-label-${index}`} className="text-sm font-semibold">Product {index + 1}</span>
+                <button type="button" aria-labelledby={`quote-product-label-${index} quote-product-value-${index}`}
+                  aria-haspopup="dialog" disabled={isLoading || Boolean(loadError) || !products.length}
+                  onClick={() => setPickerIndex(index)}
+                  className={`${inputClass} flex items-center justify-between gap-2 text-left disabled:opacity-50`}>
+                  <span id={`quote-product-value-${index}`} className="min-w-0 break-words">{selectedProduct?.name ?? 'Select a product'}</span>
+                  <span aria-hidden="true" className="shrink-0">⌄</span>
+                </button>
                 {selectedProduct && <button type="button"
                   aria-label={`Quick look at ${selectedProduct.name}`}
                   onClick={() => setQuickLookProductId(item.productId)}
@@ -186,6 +242,19 @@ export default function InternationalQuote({ products, isLoading, loadError, onR
         <p className="mt-3 text-xs">No email app configured? Copy this request and email {internationalQuote.email}. Your details are shared with your chosen email or WhatsApp service only when you open its draft.</p>
       </section>}
     </form>
+    {pickerIndex !== null && items[pickerIndex] && <ProductPicker
+      products={sortedProducts} selectedId={items[pickerIndex].productId}
+      unavailableIds={items.flatMap((item, row) => row !== pickerIndex && item.productId ? [item.productId] : [])}
+      search={productSearch} onSearch={setProductSearch} disabled={isLoading || Boolean(loadError)}
+      onClose={() => setPickerIndex(null)}
+      onSelect={id => {
+        const product = products.find(candidate => candidate.id === id);
+        setItems(current => current.map((entry, row) => row === pickerIndex ? {
+          productId: id, quantity: String(product?.minimumOrderQuantity ?? 1),
+        } : entry));
+        clearDraft();
+        setPickerIndex(null);
+      }} />}
     <details className="rounded-2xl border border-mustard/40 bg-white p-4">
       <summary className="min-h-11 cursor-pointer font-semibold">Shipping, customs and quote terms</summary>
       <div className="space-y-3 text-sm"><p>{storeContent.international.details}</p><p>{storeContent.international.customs}</p><p>{storeContent.international.returns}</p>

@@ -1,9 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import InternationalQuote from './InternationalQuote';
 import type { Product } from '../types/product';
 import { buildInternationalQuote, type InternationalQuoteDetails } from '../utils/internationalQuote';
 import { trackContactClick, trackEvent } from '../services/analytics';
+import { mockNativeDialog } from './admin/dialogTestSupport';
 
 vi.mock('../services/analytics', () => ({
   trackContactClick: vi.fn(), trackEvent: vi.fn(), trackProductViewed: vi.fn(), trackWhatsAppEnquiry: vi.fn(),
@@ -16,7 +17,14 @@ const details: InternationalQuoteDetails = {
   name: ' Asha ', email: 'asha@example.test', phone: '', country: 'United Kingdom', city: 'London',
   state: '', postalCode: 'SW1A 1AA', address: '', notes: 'Blue & white\nBefore December',
 };
-afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); });
+let restoreDialog: () => void;
+beforeEach(() => { restoreDialog = mockNativeDialog(); });
+afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); window.history.replaceState(null, '', '/'); });
+
+function chooseProduct(row: number, name: string) {
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Product ${row} `) }));
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Choose a product' })).getByRole('button', { name }));
+}
 
 function fillDetails() {
   for (const [label, value] of [
@@ -29,12 +37,14 @@ function fillDetails() {
 it('preselects a linked product and prepares matching email/WhatsApp drafts with multiple quantities and optional phone omitted', () => {
   window.history.replaceState(null, '', '/international-quote/?product=p1');
   render(<InternationalQuote products={products} isLoading={false} loadError={null} />);
-  expect((screen.getByLabelText('Product 1') as HTMLSelectElement).value).toBe('p1');
+  expect(screen.getByRole('button', { name: 'Product 1 Bunny & friend' })).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '2' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add another product' }));
-  fireEvent.change(screen.getByLabelText('Product 2'), { target: { value: 'p2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Product 2 Select a product' }));
+  const picker = screen.getByRole('dialog', { name: 'Choose a product' });
+  expect(within(picker).getByRole('button', { name: 'Bunny & friend Already added' })).toHaveProperty('disabled', true);
+  fireEvent.click(within(picker).getByRole('button', { name: 'Rose Clip' }));
   expect((screen.getByLabelText('Quantity 2') as HTMLInputElement).value).toBe('3');
-  expect((within(screen.getByLabelText('Product 2')).getByRole('option', { name: 'Bunny & friend' }) as HTMLOptionElement).disabled).toBe(true);
   fillDetails();
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
   expect(trackEvent).toHaveBeenCalledWith('quote_request_prepared', { item_count: 2 });
@@ -65,7 +75,7 @@ it('preselects a linked product and prepares matching email/WhatsApp drafts with
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
   fireEvent.click(screen.getByRole('button', { name: 'Remove item 1' }));
   expect(screen.queryByRole('link', { name: 'Send via WhatsApp' })).toBeNull();
-  expect((screen.getByLabelText('Product 1') as HTMLSelectElement).value).toBe('p2');
+  expect(screen.getByRole('button', { name: 'Product 1 Rose Clip' })).toBeTruthy();
 });
 
 it('reports missing destination/contact fields and invalid or unavailable products instead of creating incomplete drafts', () => {
@@ -75,7 +85,7 @@ it('reports missing destination/contact fields and invalid or unavailable produc
   fillDetails();
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
   expect(screen.getByRole('alert').textContent).toContain('current catalogue product');
-  fireEvent.change(screen.getByLabelText('Product 1'), { target: { value: 'p1' } });
+  chooseProduct(1, 'Bunny & friend');
   fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '1.5' } });
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
   expect(screen.getByRole('alert').textContent).toContain('whole-number quantity');
@@ -88,7 +98,7 @@ it('disables submission during catalogue loading/errors and provides a contact f
   fireEvent.submit(screen.getByRole('form', { name: 'International quote request' }));
   expect(screen.getByRole('alert').textContent).toContain('catalogue to load successfully');
   view.rerender(<InternationalQuote products={products} isLoading={false} loadError="Unable to load" />);
-  expect((screen.getByLabelText('Product 1') as HTMLSelectElement).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Product 1 Select a product' })).toHaveProperty('disabled', true);
   view.rerender(<InternationalQuote products={[]} isLoading={false} loadError={null} />);
   expect(screen.getByRole('status').textContent).toContain('No products');
   expect(screen.getByRole('link', { name: 'orders@luviacreations.com' }).getAttribute('href')).toBe('mailto:orders@luviacreations.com');
@@ -99,22 +109,26 @@ it('filters and groups published products and lets customers refresh after publi
   render(<InternationalQuote products={products} isLoading={false} loadError={null} onRefresh={refresh} />);
   expect(screen.getByText(/2 published products available/)).toBeTruthy();
   fireEvent.change(screen.getByRole('searchbox', { name: 'Find a product' }), { target: { value: 'Hair' } });
-  const product = screen.getByLabelText('Product 1') as HTMLSelectElement;
-  expect(within(product).getByRole('option', { name: 'Rose Clip' })).toBeTruthy();
-  expect(within(product).queryByRole('option', { name: 'Bunny & friend' })).toBeNull();
-  expect(product.querySelector('optgroup[label="Hair"]')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Product 1 Select a product' }));
+  const picker = screen.getByRole('dialog', { name: 'Choose a product' });
+  expect(within(picker).getByRole('button', { name: 'Rose Clip' })).toBeTruthy();
+  expect(within(picker).queryByRole('button', { name: 'Bunny & friend' })).toBeNull();
+  expect(within(picker).getByRole('heading', { name: 'Hair' })).toBeTruthy();
+  fireEvent.change(within(picker).getByRole('searchbox', { name: 'Search products' }), { target: { value: 'not found' } });
+  expect(within(picker).getByText('No products match your search.')).toBeTruthy();
+  fireEvent.click(within(picker).getByRole('button', { name: 'Close product selection' }));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh product list' }));
   expect(refresh).toHaveBeenCalledOnce();
 });
 
 it('opens a product quick look without losing the quote selection', async () => {
   render(<InternationalQuote products={products} isLoading={false} loadError={null} />);
-  fireEvent.change(screen.getByLabelText('Product 1'), { target: { value: 'p1' } });
+  chooseProduct(1, 'Bunny & friend');
   fireEvent.click(screen.getByRole('button', { name: 'Quick look at Bunny & friend' }));
   const dialog = await screen.findByRole('dialog', { name: 'Bunny & friend' });
   expect(dialog).toBeTruthy();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Close product details' }));
-  expect((screen.getByLabelText('Product 1') as HTMLSelectElement).value).toBe('p1');
+  expect(screen.getByRole('button', { name: 'Product 1 Bunny & friend' })).toBeTruthy();
 });
 
 it('validates whole quantities, minimum quantities, duplicate/stale selections and whitespace/email at the message boundary', () => {

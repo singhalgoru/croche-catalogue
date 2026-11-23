@@ -186,7 +186,7 @@ describe('live store pages', () => {
     render(<StorePages {...initial} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Request an international quote' })).toBeTruthy();
     expect(screen.getByRole('form', { name: 'International quote request' })).toBeTruthy();
-    expect((screen.getByLabelText('Product 1') as HTMLSelectElement).value).toBe('p1');
+    expect(screen.getByRole('button', { name: /Product 1 Bunny/ })).toBeTruthy();
     expect(document.title).toBe('Request an international quote | Luvia Creations');
   });
   it('retains submitted searches, reuses them and supports individual and complete removal', async () => {
