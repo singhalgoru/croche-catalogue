@@ -48,6 +48,9 @@ export interface ArtisanApplication {
   capabilities?: string;
   has_profile_photo?: boolean;
 }
+export interface ArtisanDirectoryApplication extends ArtisanApplication {
+  total_paid: number;
+}
 export interface ArtisanIdentityUpload {
   documentType: 'masked_aadhaar' | 'alternative_id';
   contentType: 'image/webp';
@@ -265,13 +268,15 @@ export async function fetchArtisanOverview(): Promise<ArtisanOverview> {
   }
   return data;
 }
-export async function fetchArtisanApplications(search: string, status: string, page: number, skill = '', minimumRating: number | null = null): Promise<{ applications: ArtisanApplication[]; total: number }> {
+export async function fetchArtisanApplications(search: string, status: string, page: number, skill = '', minimumRating: number | null = null): Promise<{ applications: ArtisanDirectoryApplication[]; total: number }> {
   const db = await client();
   const { data, error } = await db.rpc('list_artisan_applications', {
     search_text: search, status_filter: status, page_number: page, skill_filter: skill, minimum_rating: minimumRating,
   });
   if (error) throw new Error(`Unable to load artisans: ${error.message}`);
-  if (!isRecord(data) || !Array.isArray(data.applications) || !data.applications.every(isApplication)
+  if (!isRecord(data) || !Array.isArray(data.applications) || !data.applications.every(
+    (row: unknown): row is ArtisanDirectoryApplication => isApplication(row)
+      && isRecord(row) && typeof row.total_paid === 'number' && Number.isFinite(row.total_paid) && row.total_paid >= 0)
     || typeof data.total !== 'number') throw new Error('Invalid artisan directory response.');
   return { applications: data.applications, total: data.total };
 }

@@ -35,7 +35,7 @@ it('preserves Hindi and mixed-script answers and preferred language through subm
     application_details: applicationDetails, applicant_email: email.toLowerCase(),
   }));
   const application = { id: 'receipt', details: hindi, status: 'New', admin_notes: '', version: 1,
-    created_at: '', updated_at: '', consent_version: '2026-10-29.2' };
+    created_at: '', updated_at: '', consent_version: '2026-10-29.2', total_paid: 0 };
   rpc.mockResolvedValueOnce({ data: { applications: [application], total: 1 } });
   expect((await fetchArtisanApplications('', '', 0)).applications[0].details).toEqual(hindi);
 });
@@ -113,6 +113,11 @@ it('validates invitation status and admin directory response shapes', async () =
   expect(rpc).toHaveBeenLastCalledWith('list_artisan_applications', { search_text: '', status_filter: 'Approved', page_number: 2, skill_filter: 'amigurumi', minimum_rating: 4 });
   rpc.mockResolvedValueOnce({ data: { applications: [{}], total: 1 } });
   await expect(fetchArtisanApplications('', '', 0)).rejects.toThrow('Invalid artisan directory');
+  const row = { id: 'id', details, status: 'New', admin_notes: '', version: 1, created_at: '', updated_at: '', consent_version: '' };
+  for (const total_paid of [undefined, -1, '0', null]) {
+    rpc.mockResolvedValueOnce({ data: { applications: [{ ...row, total_paid }], total: 1 } });
+    await expect(fetchArtisanApplications('', '', 0)).rejects.toThrow('Invalid artisan directory');
+  }
 });
 it('validates complete overview counts and reports service failures', async () => {
   const counts = { New: 2, Contacted: 0, Trial: 1, 'More information required': 0, Approved: 3, Declined: 0, Inactive: 0 };

@@ -38,7 +38,7 @@ test('admin previews an assignment and completes accepted work', async ({ page }
       language: 'Hindi', skills: 'Flowers', availability: '5 hours/week', experience: '', tools: '', portfolioUrl: '', notes: '',
       adult: true, consent: true, paidTrial: true },
     contact_email: 'maker@example.test', status: 'Approved', admin_notes: '', version: 1,
-    created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1' };
+    created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1', total_paid: 1250.5 };
   const entries: Record<string, unknown>[] = [];
   await page.route('**/rest/v1/artisan_invitations*', route => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/rpc/list_artisan_applications', route =>
@@ -71,6 +71,9 @@ test('admin previews an assignment and completes accepted work', async ({ page }
   const overview = page.getByRole('region', { name: 'Artisan overview' });
   await expect(overview.getByText('30', { exact: true })).toBeVisible();
   await expect(overview.getByText('7', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Total paid for Sample Maker: ₹1,250.50. View payment details' }).click();
+  await expect(page.getByRole('dialog', { name: 'Payments for Sample Maker' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close Payments for Sample Maker' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole('button', { name: 'Assign Work' }).click();
   const modal = page.getByRole('dialog', { name: 'Assign work - Sample Maker' });
@@ -267,7 +270,7 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
     updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1',
     dispatch_terms_version: '2026-10-29.1', dispatch_terms_accepted_at: '2026-10-29T00:00:00Z',
     identity_type: 'masked_aadhaar', identity_expires_at: '2026-11-28T00:00:00Z',
-    delivery_address: 'Synthetic delivery address', skill_rating: null as number | null, capabilities: '', has_profile_photo: true,
+    delivery_address: 'Synthetic delivery address', skill_rating: null as number | null, capabilities: '', has_profile_photo: true, total_paid: 0,
   };
   await page.route('**/rest/v1/artisan_invitations*', route => route.fulfill({ json: [] }));
   await page.route('**/rest/v1/artisan_application_history*', route => route.fulfill({ json: [] }));
@@ -276,7 +279,8 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
     const body = route.request().postDataJSON(); filters.push(body);
     const matches = (!body.minimum_rating || (application.skill_rating ?? 0) >= body.minimum_rating)
       && (!body.skill_filter || `${application.details.skills} ${application.capabilities}`.toLowerCase().includes(body.skill_filter.toLowerCase()));
-    await route.fulfill({ json: { applications: matches ? [application] : [], total: matches ? 1 : 0 } });
+    const totalPaid = payments.reduce((sum, payment) => sum + (payment.voided_at ? 0 : Number(payment.amount)), 0);
+    await route.fulfill({ json: { applications: matches ? [{ ...application, total_paid: totalPaid }] : [], total: matches ? 1 : 0 } });
   });
   await page.route('**/rest/v1/rpc/update_artisan_application', async route => {
     const body = route.request().postDataJSON(); updates.push(body);
@@ -332,7 +336,18 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('Password', { exact: true }).fill('test-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await goToAdminSection(page, 'Artisans');
+  const sections = page.locator('section[aria-label="Artisan overview"], section[aria-labelledby="artisan-directory-title"], section[aria-labelledby="artisan-invitations-title"]');
+  await expect(sections).toHaveCount(3);
+  await expect(sections.nth(0)).toHaveAttribute('aria-label', 'Artisan overview');
+  await expect(sections.nth(1)).toHaveAttribute('aria-labelledby', 'artisan-directory-title');
+  await expect(sections.nth(2)).toHaveAttribute('aria-labelledby', 'artisan-invitations-title');
   const form = page.getByRole('form', { name: 'Invite artisan' });
+  const invitationToggle = page.getByRole('button', { name: 'Latest 25 invitations' });
+  await expect(invitationToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Refresh invitations' })).toBeHidden();
+  await invitationToggle.click();
+  await expect(page.getByRole('button', { name: 'Refresh invitations' })).toBeVisible();
+  await invitationToggle.click();
   await form.getByLabel('Artisan name').fill('Sample Maker');
   await form.getByLabel('Artisan email').fill('maker@example.test');
   await form.getByRole('button', { name: 'Send invitation email' }).click();
@@ -390,6 +405,7 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await expect(page.getByText(/Total paid \(excluding voided entries\)/)).toContainText('225.50');
   expect(payments).toHaveLength(3);
   await page.getByRole('button', { name: 'Close Payments for Sample Maker' }).click();
+  await expect(page.getByRole('button', { name: 'Total paid for Sample Maker: ₹225.50. View payment details' })).toBeVisible();
   const allDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download all payments CSV' }).click();
   const allCsv = await allDownload;
@@ -412,6 +428,7 @@ test('admin creates email and WhatsApp invitations and reviews an application', 
   await page.getByLabel('Upload all payments CSV').setInputFiles({ name: 'all-payments.csv', mimeType: 'text/csv', buffer: Buffer.from(bulkCsv) });
   await expect(page.getByText('Imported 1 new payment across artisans. No money was sent.')).toBeVisible();
   expect(payments).toHaveLength(4);
+  await expect(page.getByRole('button', { name: 'Total paid for Sample Maker: ₹275.50. View payment details' })).toBeVisible();
   await page.getByRole('button', { name: 'Review Sample Maker' }).click();
   expect(identityReads).toHaveLength(0);
   await page.getByRole('button', { name: 'View private ID' }).click();

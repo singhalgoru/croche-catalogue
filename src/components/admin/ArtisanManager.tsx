@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import content from '../../content/artisanOnboarding.json';
 import { artisanStatuses, deleteArtisanApplication, fetchArtisanApplications, fetchArtisanHistory, fetchArtisanOverview, readArtisanIdentity, removeArtisanIdentity, updateArtisanApplication } from '../../services/artisans';
-import type { ArtisanApplication, ArtisanHistory, ArtisanOverview, ArtisanStatus } from '../../services/artisans';
+import type { ArtisanApplication, ArtisanDirectoryApplication, ArtisanHistory, ArtisanOverview, ArtisanStatus } from '../../services/artisans';
 import ArtisanInvitations from './ArtisanInvitations';
 import ArtisanProfile from './ArtisanProfile';
 import ArtisanPayments from './ArtisanPayments';
@@ -10,6 +10,8 @@ import AllArtisanPayments from './AllArtisanPayments';
 import ArtisanPaymentDetails from './ArtisanPaymentDetails';
 import { paymentStatus, requestPaymentDetails } from '../../services/artisanPaymentDetails';
 import AdminDialog from './AdminDialog';
+
+const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
 
 function ArtisanReview({ application, onClose, onChanged, onUpdated }: {
   application: ArtisanApplication; onClose: () => void; onChanged: () => void; onUpdated: (application: ArtisanApplication) => void;
@@ -202,7 +204,7 @@ export default function ArtisanManager() {
   });
   const [page, setPage] = useState(0);
   const [refresh, setRefresh] = useState(0);
-  const [rows, setRows] = useState<ArtisanApplication[]>([]);
+  const [rows, setRows] = useState<ArtisanDirectoryApplication[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -257,7 +259,6 @@ export default function ArtisanManager() {
           </div>)}
       </dl>}
     </section>
-    <ArtisanInvitations />
     <section aria-labelledby="artisan-directory-title" className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <h2 id="artisan-directory-title" className="font-heading text-2xl font-bold">Artisan applications</h2>
       <p className="text-sm">Private applications and working profiles, not a public artisan directory. Unapproved applications without payment history expire after 180 days without an update.</p>
@@ -296,13 +297,19 @@ export default function ArtisanManager() {
           <p className="break-words text-sm">Preferred language / contact time: {application.details.language || 'Not provided'}</p>
           <p className="mt-1 line-clamp-2 break-words text-sm">{application.details.skills}</p>
           <p className="text-sm">Skill rating: {application.skill_rating ? `${application.skill_rating}/5` : 'Not rated'}</p>
+          <button type="button" className="block min-h-11 text-sm underline"
+            onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}
+            aria-label={`Total paid for ${application.details.fullName}: ${currency.format(application.total_paid)}. View payment details`}>
+            Total paid: {currency.format(application.total_paid)}
+          </button>
           {application.capabilities && <p className="mt-1 line-clamp-2 break-words text-sm">Can create: {application.capabilities}</p>}
           <button onClick={() => { setMessage(''); setSelected(application); }} className="mt-2 min-h-11 underline">Review {application.details.fullName}</button>
           <button type="button" onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}
             aria-label={`Payments for ${application.details.fullName}`} title="Payments"
             className="ml-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-cocoa/30">
-            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" />
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 5h14M5 9h14M7 5c9 0 9 9 0 9H5l9 6" />
             </svg>
           </button>
           <button type="button" className="ml-3 min-h-11 rounded-full border border-cocoa/30 px-4 text-sm font-semibold"
@@ -318,6 +325,7 @@ export default function ArtisanManager() {
         </div>
       </>}
     </section>
+    <ArtisanInvitations />
     {paymentArtisan && <ArtisanPayments artisan={paymentArtisan} onClose={() => setPaymentArtisan(null)}
       onChanged={() => setRefresh(value => value + 1)} />}
     {workArtisan && <ArtisanWorkAssignments artisan={workArtisan} onClose={() => setWorkArtisan(null)} />}

@@ -12,6 +12,7 @@ export default function ArtisanInvitations() {
   const [invitations, setInvitations] = useState<ArtisanInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [invitationsExpanded, setInvitationsExpanded] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [revokeId, setRevokeId] = useState('');
   const [now, setNow] = useState(Date.now);
@@ -68,11 +69,16 @@ export default function ArtisanInvitations() {
         onFocus={event => event.target.select()} className="mt-1 block min-h-11 w-full rounded border p-2" /></label>
       {result.whatsapp && <a target="_blank" rel="noopener noreferrer" href={result.whatsapp}
         className="inline-flex min-h-11 items-center rounded-full bg-cocoa px-5 py-2 font-semibold text-cream">Open WhatsApp to send</a>}
-      <p className="text-xs">Do not publish this link. If you lose it, revoke the invitation below and create a replacement.</p>
+      <p className="text-xs">Do not publish this link. If you lose it, expand the invitations below, revoke it and create a replacement.</p>
     </div>}
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Latest 25 invitations</h3>
-      <button disabled={busy || loading} onClick={refreshInvitations} className="min-h-11 underline">Refresh invitations</button></div>
+    <h3><button type="button" aria-expanded={invitationsExpanded} aria-controls="artisan-invitations-list"
+      onClick={() => setInvitationsExpanded(value => !value)}
+      className="flex min-h-11 w-full items-center justify-between gap-2 text-left font-semibold">
+      <span>Latest 25 invitations</span><span aria-hidden="true">{invitationsExpanded ? '−' : '+'}</span>
+    </button></h3>
     {loadError && <p role="alert" className="text-red-700">{loadError}</p>}
+    <div id="artisan-invitations-list" hidden={!invitationsExpanded} className="space-y-2">
+    <button type="button" disabled={busy || loading} onClick={refreshInvitations} className="min-h-11 underline disabled:opacity-50">Refresh invitations</button>
     {loading ? <p role="status">Loading invitations...</p> : !loadError && <ul className="space-y-2">
       {invitations.length === 0 && <li>No invitations yet.</li>}
       {invitations.map(invite => {
@@ -99,5 +105,6 @@ export default function ArtisanInvitations() {
         </li>;
       })}
     </ul>}
+    </div>
   </section>;
 }

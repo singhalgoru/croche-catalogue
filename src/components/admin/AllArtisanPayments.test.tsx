@@ -12,7 +12,7 @@ vi.mock('../../services/artisanProfiles', async original => ({
   fetchArtisanActivity: vi.fn(), recordArtisanPayment: vi.fn(),
 }));
 const applications = Array.from({ length: 26 }, (_, index) => ({ id: `id-${index}`, details: { ...emptyArtisanDetails, fullName: 'Maker' },
-  status: 'Approved' as const, admin_notes: '', version: 1, created_at: '', updated_at: '', consent_version: '' }));
+  status: 'Approved' as const, admin_notes: '', version: 1, created_at: '', updated_at: '', consent_version: '', total_paid: 0 }));
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(fetchArtisanApplications).mockImplementation(async (_search, _status, page) => ({

@@ -26,7 +26,7 @@ vi.mock('../../services/artisanProfiles', async importOriginal => ({
   fetchArtisanActivity: vi.fn().mockResolvedValue({ comments: [], payments: [] }),
 }));
 const application = { id: 'reference', details: { ...emptyArtisanDetails, fullName: 'Sample Maker', city: 'Gurugram', skills: 'Flowers' },
-  contact_email: 'maker@example.test', status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1' };
+  contact_email: 'maker@example.test', status: 'New', admin_notes: '', version: 1, created_at: '2026-10-29T00:00:00Z', updated_at: '2026-10-29T00:00:00Z', consent_version: '2026-11-01.1', total_paid: 1250.5 };
 let restoreDialog: () => void;
 beforeEach(() => {
   restoreDialog = mockNativeDialog();
@@ -45,6 +45,10 @@ it('shows overall status counts independent of the filtered page and refreshes a
     .mockResolvedValue({ total: 32, counts: { New: 2, Contacted: 5, Trial: 5, 'More information required': 6, Approved: 7, Declined: 2, Inactive: 5 } });
   render(<ArtisanManager />);
   const section = screen.getByRole('region', { name: 'Artisan overview' });
+  const directory = screen.getByRole('region', { name: 'Artisan applications' });
+  const invitations = screen.getByRole('region', { name: 'Invite an artisan' });
+  expect(section.compareDocumentPosition(directory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(directory.compareDocumentPosition(invitations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   await waitFor(() => expect(within(section).getByText('Total applications').nextElementSibling?.textContent).toBe('32'));
   expect(within(section).getByText('Approved').nextElementSibling?.textContent).toBe('7');
   fireEvent.change(screen.getByLabelText('Filter status'), { target: { value: 'New' } });
@@ -124,11 +128,20 @@ it('distinguishes legacy applications from recorded dispatch acknowledgement', a
 afterEach(() => { cleanup(); restoreDialog(); });
 it('opens payments for the selected artisan from the directory', async () => {
   render(<ArtisanManager />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Payments for Sample Maker' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Total paid for Sample Maker: ₹1,250.50. View payment details' }));
   expect(await screen.findByRole('dialog', { name: 'Payments for Sample Maker' })).toBeTruthy();
   expect(await screen.findByText('No payments recorded.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close Payments for Sample Maker' }));
   expect(screen.queryByRole('dialog', { name: 'Payments for Sample Maker' })).toBeNull();
+  const paymentButton = screen.getByRole('button', { name: 'Payments for Sample Maker' });
+  expect(paymentButton.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+  fireEvent.click(paymentButton);
+  expect(await screen.findByRole('dialog', { name: 'Payments for Sample Maker' })).toBeTruthy();
+});
+it('shows zero when no payments are recorded', async () => {
+  list.mockResolvedValue({ applications: [{ ...application, total_paid: 0 }], total: 1 });
+  render(<ArtisanManager />);
+  expect(await screen.findByRole('button', { name: 'Total paid for Sample Maker: ₹0.00. View payment details' })).toBeTruthy();
 });
 it('displays original Hindi answers and preferred contact language in the directory and review', async () => {
   list.mockResolvedValue({ applications: [{ ...application, details: { ...application.details,
@@ -231,9 +244,18 @@ it('shows the submission date instead of an expiry for submitted invitations', a
   invites.mockResolvedValue([{ ...base, id: 'submitted', submitted_at: '2026-10-02T00:00:00Z' },
     { ...base, id: 'pending', contact: 'pending@example.test', expires_at: new Date(Date.now() + 86_400_000).toISOString(), submitted_at: null }]);
   render(<ArtisanManager />);
+  const toggle = screen.getByRole('button', { name: 'Latest 25 invitations' });
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('button', { name: 'Refresh invitations' })).toBeNull();
+  fireEvent.click(toggle);
   const submitted = await screen.findByText(/^Application submitted · /);
   expect(submitted.textContent).toContain('Submitted');
   expect(submitted.textContent).not.toContain('Expire');
+  expect(screen.getByText(/· Expires /)).toBeTruthy();
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('button', { name: 'Refresh invitations' })).toBeNull();
+  fireEvent.click(toggle);
   expect(screen.getByText(/· Expires /)).toBeTruthy();
 });
 it('removes a revoked unused invitation from the admin list', async () => {
@@ -244,6 +266,7 @@ it('removes a revoked unused invitation from the admin list', async () => {
   invites.mockImplementation(async () => active ? [invitation] : []);
   revoke.mockImplementation(async () => { active = false; });
   render(<ArtisanManager />);
+  fireEvent.click(screen.getByRole('button', { name: 'Latest 25 invitations' }));
   expect(await screen.findByText(/Sample Maker — 9876543210/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Revoke invitation' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm revoke' }));
