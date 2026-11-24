@@ -170,6 +170,19 @@ ${items.map((item) => `<item>${[
 `;
 };
 
+export const renderPinterestPinFeed = (items) => `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel>
+<title>Luvia Creations</title><link>${ORIGIN}/</link><description>Handmade crochet creations from Luvia Creations.</description>
+${items.map((item) => `<item>
+<guid isPermaLink="false">${escapeHtml(`luvia-${item.merchantId}`)}</guid>
+<title>${escapeHtml(item.name.slice(0, 150))}</title>
+<description>${escapeHtml(item.description.slice(0, 5000))}</description>
+<link>${escapeHtml(item.url)}</link>
+<media:content url="${escapeHtml(item.pinterestImage)}" type="image/jpeg" medium="image" />
+</item>`).join('\n')}
+</channel></rss>
+`;
+
 export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumber) => {
   const images = new Map();
   const metaImages = new Map();
@@ -269,6 +282,9 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
   await writeFile(path.join(dist, 'meta-catalog-feed.xml'), renderMetaCatalogFeed(published));
   await writeFile(path.join(dist, 'pinterest-catalog-feed.xml'), renderPinterestCatalogFeed(
     published.filter(item => item.pinterestImage),
+  ));
+  await writeFile(path.join(dist, 'pinterest-pins-feed.xml'), renderPinterestPinFeed(
+    published.filter(item => item.pinterestImage && item.inStock),
   ));
   console.log(`[merchant] Published ${published.length} items and ${images.size} clean images.`);
 };

@@ -225,3 +225,6 @@ jobs:
           test -n "$image_url"
           curl -fsSI --connect-timeout 10 --max-time 20 "$image_url" | grep -Eiq '^content-type: image/jpeg'
           echo "Live Pinterest catalog feed and JPEG are accessible."
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/pinterest-pins-feed.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq '<rss version="2.0"' "$feed_file"
+          echo "Live Pinterest Pin RSS feed is accessible."

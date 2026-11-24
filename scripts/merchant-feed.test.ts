@@ -213,6 +213,18 @@ describe('Merchant Center feed', () => {
       const pixel = (x: number, y: number) => Array.from(data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3));
       expect(pixel(100, 750).every(value => value > 245)).toBe(true);
       expect(pixel(500, 750)[0]).toBeLessThan(150);
+      const pinsXml = await readFile(path.join(dir, 'pinterest-pins-feed.xml'), 'utf8');
+      const pins = new JSDOM(pinsXml, { contentType: 'text/xml' }).window.document;
+      const pin = pins.querySelector('channel > item')!;
+      expect(pins.querySelectorAll('item')).toHaveLength(1);
+      expect(pin.querySelector('guid')?.textContent).toBe('luvia-v1');
+      expect(pin.querySelector('guid')?.getAttribute('isPermaLink')).toBe('false');
+      expect(pin.querySelector('title')?.textContent).toBe('Rose & Coaster - Red');
+      expect(pin.querySelector('description')?.textContent).toBe(product.description);
+      expect(pin.querySelector('link')?.textContent).toBe(items[0].url);
+      expect(pin.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'content')[0].getAttribute('url')).toBe(imageUrl);
+      expect(pin.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'content')[0].getAttribute('type')).toBe('image/jpeg');
+      held.forEach(item => expect(pinsXml).not.toContain(item.id));
       for (const feed of ['meta-catalog-feed.xml', 'merchant-feed.xml']) {
         const content = await readFile(path.join(dir, feed), 'utf8');
         held.forEach(item => expect(content).toContain(item.id));
