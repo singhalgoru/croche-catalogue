@@ -17,6 +17,16 @@ beforeEach(() => {
   vi.mocked(updateOrderFulfilment).mockReset();
   vi.mocked(setCustomerOrderHidden).mockReset().mockResolvedValue();
 });
+it('shows DTDC sandbox controls only in admin orders', async () => {
+  const { unmount } = render(<CustomerOrders />);
+  await screen.findByText('No orders yet.');
+  expect(screen.queryByText('DTDC sandbox tests')).toBeNull();
+  unmount();
+  render(<CustomerOrders admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Online orders' }));
+  expect(screen.getByText('DTDC sandbox tests')).toBeTruthy();
+  await screen.findByText('No orders yet.');
+});
 it('shows the booked courier estimate to customers and replaces transit days with tracking ETA',async () => {
   const fulfilment = { status: 'processing' as const,courierName: '',trackingNumber: '',trackingUrl: '',updatedAt: null,
     deliveryEstimate: { courierName: 'Shadowfax Surface',transitDays: 4,expectedDate: null,updatedAt: null } };

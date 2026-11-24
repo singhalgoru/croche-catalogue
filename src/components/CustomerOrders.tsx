@@ -6,6 +6,7 @@ import { deliveryAddressText, fulfilmentLabels } from '../utils/customer';
 import OrderFulfilmentForm from './admin/OrderFulfilmentForm';
 import OrderShippingPanel from './admin/OrderShippingPanel';
 import SampleShippingRates from './admin/SampleShippingRates';
+import DtdcSandbox from './admin/DtdcSandbox';
 import OrderDeliveryEstimate from './OrderDeliveryEstimate';
 import { trackEvent } from '../services/analytics';
 
@@ -100,6 +101,7 @@ export default function CustomerOrders({ loadOrders = fetchCustomerOrders, admin
         ? 'Awaiting payment starts when Razorpay checkout is created. Unpaid checkout expires after 30 minutes; changing the cart cancels the old checkout only after provider checks. Fulfil only Payment received orders. Removing a cancelled or expired entry hides it from this list, not from payment records.'
         : 'Track your order status and delivery progress here. WhatsApp/email enquiries are not confirmed orders. Refresh orders for the latest updates.'}</p>
       {admin && <SampleShippingRates />}
+      {admin && <DtdcSandbox />}
       {loading && <p role="status">Loading your orders...</p>}
       {!loading && !error && displayedOrders.length === 0 && <p>{showHidden ? 'No hidden orders loaded.' : orders.length ? 'No visible orders loaded.' : 'No orders yet.'}</p>}
       <div className="space-y-3">

@@ -98,3 +98,6 @@ verify_jwt = false
 # Admin JWTs are verified in-function; the scheduled tracking worker uses its private secret.
 [functions.order-shipping]
 verify_jwt = false
+
+[functions.dtdc-sandbox]
+verify_jwt = true

@@ -4,8 +4,8 @@ import { createDtdcSandboxClient, dtdcBookingResult, dtdcTrackingResult, type Dt
 const address = { name: 'Test Sender', phone: '9876543210', address_line_1: 'Test Road', pincode: '110001', city: 'Delhi', state: 'Delhi' };
 const consignment: DtdcSandboxConsignment = {
   customer_code: 'TEST', service_type_id: 'TEST', load_type: 'NON-DOCUMENT', consignment_type: 'Forward',
-  description: 'Test parcel', dimension_unit: 'cm', length: 10, width: 10, height: 10, weight_unit: 'kg',
-  weight: 0.5, declared_value: 100, num_pieces: 1, origin_details: address, destination_details: address,
+  description: 'Test parcel', commodity_id: '7', dimension_unit: 'cm', length: '10', width: '10', height: '10', weight_unit: 'kg',
+  weight: '0.5', declared_value: '100', num_pieces: '1', origin_details: address, destination_details: address,
   customer_reference_number: 'test-order-1',
 };
 
