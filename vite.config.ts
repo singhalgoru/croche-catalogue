@@ -116,7 +116,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // Product pages and crawler files must come from the network, not the
         // cached SPA shell when opened in an installed browser.
-        navigateFallbackDenylist: [/^\/(?:p|watch|shopping|merchant-images|meta-catalog-images)\//, /^\/(?:artisans|return-policy|collections|bestsellers|featured|crochet-gift-guide|about|faq)(?:\/|$)/, /^\/(?:robots\.txt|sitemap\.xml|merchant-feed\.xml|meta-catalog-feed\.xml)$/, /^\/meta-oauth-callback\.html(?:\?|$)/],
+        navigateFallbackDenylist: [/^\/(?:p|watch|shopping|merchant-images|meta-catalog-images|pinterest-catalog-images)\//, /^\/(?:artisans|return-policy|collections|bestsellers|featured|crochet-gift-guide|about|faq)(?:\/|$)/, /^\/(?:robots\.txt|sitemap\.xml|merchant-feed\.xml|meta-catalog-feed\.xml|pinterest-catalog-feed\.xml)$/, /^\/meta-oauth-callback\.html(?:\?|$)/],
         // GitHub Pages fixes Cache-Control at 10 minutes and older Supabase
         // objects were uploaded with short cache lifetimes. Product uploads get
         // a fresh UUID path and are never overwritten, so keep them for 30 days;

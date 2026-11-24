@@ -10,6 +10,7 @@ import type { Cart, CartItem } from '../types/cart';
 import { getCartTotals } from '../utils/cartMessage';
 import { productPromotion, rememberPromotion } from './promotionAttribution';
 import { getSiteIntegrations } from './siteIntegrations';
+import { trackPinterestPage } from './pinterestTag';
 
 type AnalyticsParameters = Record<string, unknown>;
 
@@ -70,11 +71,13 @@ export const trackPageView = () => {
   const page = analyticsPage();
   if (page.page_location === lastPage) {
     if (!metaWasReady && canTrackMeta()) trackMetaEvent('PageView');
+    if (!window.pintrk) trackPinterestPage();
     return;
   }
   lastPage = page.page_location;
   trackEvent('page_view', { page_title: document.title });
   trackMetaEvent('PageView');
+  trackPinterestPage();
 };
 
 export const initializePageTracking = () => {

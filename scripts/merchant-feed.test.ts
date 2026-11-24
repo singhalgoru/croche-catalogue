@@ -191,6 +191,35 @@ describe('Merchant Center feed', () => {
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
 
+  it('creates a separate Pinterest feed with portrait images, documented availability and rights holds', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-pinterest-catalog-test-'));
+    try {
+      const input = await sharp({ create: { width: 640, height: 600, channels: 3, background: '#778899' } }).webp().toBuffer();
+      const held = ['72748f0b-c6ca-48e4-ba24-5b9a33181849', 'c444fad2-985a-4bb9-aa5f-380fd209f130']
+        .map((id, index) => ({ ...product, id, variants: [], publicSlug: `held-${index}` }));
+      const items = merchantItems([product, ...held]);
+      await writeMerchantCatalogue(items, dir, vi.fn().mockResolvedValue(input), '911234567890');
+      const xml = await readFile(path.join(dir, 'pinterest-catalog-feed.xml'), 'utf8');
+      const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+      const field = (name: string) => doc.getElementsByTagNameNS('http://base.google.com/ns/1.0', name);
+      expect(doc.querySelectorAll('item')).toHaveLength(2);
+      expect(Array.from(field('availability'), item => item.textContent)).toEqual(['in stock', 'out of stock']);
+      expect(Array.from(field('id'), item => item.textContent)).toEqual(['v1', 'v2']);
+      const imageUrl = field('image_link')[0].textContent!;
+      expect(imageUrl).toMatch(/^https:\/\/luviacreations\.com\/pinterest-catalog-images\/[a-f0-9]{64}\.jpg$/);
+      const image = await readFile(path.join(dir, 'pinterest-catalog-images', path.basename(imageUrl)));
+      expect(await sharp(image).metadata()).toMatchObject({ format: 'jpeg', width: 1000, height: 1500 });
+      const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
+      const pixel = (x: number, y: number) => Array.from(data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3));
+      expect(pixel(100, 750).every(value => value > 245)).toBe(true);
+      expect(pixel(500, 750)[0]).toBeLessThan(150);
+      for (const feed of ['meta-catalog-feed.xml', 'merchant-feed.xml']) {
+        const content = await readFile(path.join(dir, feed), 'utf8');
+        held.forEach(item => expect(content).toContain(item.id));
+      }
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
   it('publishes clean images once and matching static landing pages without redirects', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'luvia-merchant-test-'));
     try {

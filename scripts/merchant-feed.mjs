@@ -24,6 +24,12 @@ const TEXT_OVERLAY_IMAGES = new Set([
   '7e80016f-7623-4f3f-831d-23265eada79e/421817a3-1fce-43ef-9b07-271fee928926/original.webp',
 ]);
 
+// Hold franchise-referenced products out of Pinterest until rights are reviewed.
+const PINTEREST_RIGHTS_REVIEW = new Set([
+  '72748f0b-c6ca-48e4-ba24-5b9a33181849',
+  'c444fad2-985a-4bb9-aa5f-380fd209f130',
+]);
+
 export const cleanImageKey = (source) => {
   const url = new URL(source);
   if (url.origin !== 'https://images.luviacreations.com' ||
@@ -141,12 +147,37 @@ ${items.map((item) => `<item>${[
 `;
 };
 
+export const renderPinterestCatalogFeed = (items) => {
+  const field = (name, value) => `<g:${name}>${escapeHtml(value)}</g:${name}>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel>
+<title>Luvia Creations Pinterest Catalog</title><link>${ORIGIN}/</link><description>Published Luvia Creations products, priced in INR.</description>
+${items.map((item) => `<item>${[
+    field('id', item.merchantId),
+    field('title', item.name.slice(0, 150)),
+    field('description', item.description.slice(0, 5000)),
+    field('availability', item.inStock ? 'in stock' : 'out of stock'),
+    field('condition', 'new'),
+    field('price', `${(item.regularPrice > item.price ? item.regularPrice : item.price).toFixed(2)} INR`),
+    ...(item.regularPrice > item.price ? [field('sale_price', `${item.price.toFixed(2)} INR`)] : []),
+    field('link', item.url),
+    field('image_link', item.pinterestImage),
+    field('brand', 'Luvia Creations'),
+    field('product_type', item.category),
+    ...(item.groupId ? [field('item_group_id', item.groupId)] : []),
+  ].join('')}</item>`).join('\n')}
+</channel></rss>
+`;
+};
+
 export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumber) => {
   const images = new Map();
   const metaImages = new Map();
+  const pinterestImages = new Map();
   const sourceImages = new Map();
   await mkdir(path.join(dist, 'merchant-images'), { recursive: true });
   await mkdir(path.join(dist, 'meta-catalog-images'), { recursive: true });
+  await mkdir(path.join(dist, 'pinterest-catalog-images'), { recursive: true });
   const published = [];
   const getSourceImage = async (key) => {
     if (!sourceImages.has(key)) sourceImages.set(key, await getImage(key));
@@ -190,9 +221,26 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
     }
     return image;
   };
+  const publishPinterestImage = async (key) => {
+    let image = pinterestImages.get(key);
+    if (!image) {
+      const input = await getSourceImage(key);
+      const photo = await sharp(input).rotate()
+        .resize(1000, 1500, { fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' })
+        .jpeg({ quality: 90 }).toBuffer();
+      const data = await sharp({ create: { width: 1000, height: 1500, channels: 3, background: '#ffffff' } })
+        .composite([{ input: photo, gravity: 'centre' }]).jpeg({ quality: 90 }).toBuffer();
+      const filename = `${createHash('sha256').update(data).digest('hex')}.jpg`;
+      await writeFile(path.join(dist, 'pinterest-catalog-images', filename), data);
+      image = `${ORIGIN}/pinterest-catalog-images/${filename}`;
+      pinterestImages.set(key, image);
+    }
+    return image;
+  };
   for (const item of items) {
     const image = await publishImage(item.cleanKey, item.name);
     const metaImage = await publishMetaImage(item.cleanKey, item.name);
+    const pinterestImage = PINTEREST_RIGHTS_REVIEW.has(item.id) ? null : await publishPinterestImage(item.cleanKey);
     sourceImages.delete(item.cleanKey);
     const additionalImages = [];
     for (const key of item.additionalCleanKeys ?? []) {
@@ -206,7 +254,7 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
       const lifestyleImage = await publishImage(key, item.name);
       if (lifestyleImage !== image && !lifestyleImages.includes(lifestyleImage)) lifestyleImages.push(lifestyleImage);
     }
-    const publishedItem = { ...item, image, metaImage, additionalImages, lifestyleImages };
+    const publishedItem = { ...item, image, metaImage, pinterestImage, additionalImages, lifestyleImages };
     const dir = path.join(dist, ...new URL(item.url).pathname.split('/').filter(Boolean));
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, 'index.html'), renderProductPage(publishedItem, whatsappNumber, null, false));
@@ -219,6 +267,9 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
   }
   await writeFile(path.join(dist, 'merchant-feed.xml'), renderMerchantFeed(published));
   await writeFile(path.join(dist, 'meta-catalog-feed.xml'), renderMetaCatalogFeed(published));
+  await writeFile(path.join(dist, 'pinterest-catalog-feed.xml'), renderPinterestCatalogFeed(
+    published.filter(item => item.pinterestImage),
+  ));
   console.log(`[merchant] Published ${published.length} items and ${images.size} clean images.`);
 };
 

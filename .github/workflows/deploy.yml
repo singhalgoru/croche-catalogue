@@ -140,6 +140,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_GA_MEASUREMENT_ID: ${{ vars.VITE_GA_MEASUREMENT_ID }}
           VITE_META_PIXEL_ID: ${{ vars.VITE_META_PIXEL_ID }}
+          VITE_PINTEREST_TAG_ID: ${{ vars.VITE_PINTEREST_TAG_ID }}
           VITE_WHATSAPP_NUMBER: ${{ vars.VITE_WHATSAPP_NUMBER }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
           VITE_CSP_EXTRA_CONNECT_SRC: ""
@@ -217,3 +218,10 @@ jobs:
           test -n "$image_url"
           curl -fsSI --connect-timeout 10 --max-time 20 "$image_url" | grep -Eiq '^content-type: image/jpeg'
           echo "Live Meta catalog feed and JPEG are accessible."
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/pinterest-catalog-feed.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq '<rss version="2.0"' "$feed_file"
+          grep -Fq '<g:id>' "$feed_file"
+          image_url="$(grep -o '<g:image_link>[^<]*</g:image_link>' "$feed_file" | head -n 1 | sed 's#<g:image_link>##;s#</g:image_link>##')"
+          test -n "$image_url"
+          curl -fsSI --connect-timeout 10 --max-time 20 "$image_url" | grep -Eiq '^content-type: image/jpeg'
+          echo "Live Pinterest catalog feed and JPEG are accessible."
