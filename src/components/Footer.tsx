@@ -65,7 +65,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
         <div className="hidden md:col-span-2 md:block lg:col-span-1">
         <a href="/" aria-label="Luvia Creations home" className="relative inline-flex min-h-11 items-center">
           <img src="/images/luvia-logo-160.webp" alt="" width="72" height="72" loading="lazy" className="h-16 w-16 rounded-full" />
-          <span aria-hidden="true" className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/4 rounded-full bg-cream px-0.5 text-xs font-bold leading-none text-cocoa">™</span>
+          <span aria-hidden="true" className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/4 text-[10px] font-semibold leading-none text-cream/80">™</span>
         </a>
         <p className="mt-2 max-w-sm leading-relaxed text-cream/80">
           Premium handmade crochet accessories, toys, gifts and decor,
