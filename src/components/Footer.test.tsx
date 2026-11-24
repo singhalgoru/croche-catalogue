@@ -57,7 +57,7 @@ describe('Footer', () => {
     const nav = screen.getByRole('navigation', { name: 'Store information' });
     expect(nav.className).toContain('grid-cols-2');
     expect(nav.contains(screen.getByRole('link', { name: 'Return and refund policy' }))).toBe(true);
-    for (const name of ['Contact on WhatsApp', 'Contact on Instagram', 'Follow Luvia on Facebook', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
+    for (const name of ['Contact on WhatsApp', 'Contact on Instagram', 'Follow Luvia on Facebook', 'Follow Luvia on Pinterest', 'orders@luviacreations.com', 'hello@luviacreations.com']) {
       expect(screen.getByRole('link', { name }).className).toContain('min-h-11');
     }
   });
@@ -74,6 +74,14 @@ describe('Footer', () => {
     facebook.addEventListener('click', event => event.preventDefault());
     fireEvent.click(facebook);
     expect(trackContactClick).toHaveBeenCalledWith('facebook', 'footer');
+    const pinterest = screen.getByRole('link', { name: 'Follow Luvia on Pinterest' });
+    expect(pinterest.getAttribute('href')).toBe('https://in.pinterest.com/luviacreations/');
+    expect(pinterest.getAttribute('target')).toBe('_blank');
+    expect(pinterest.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(pinterest.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+    pinterest.addEventListener('click', event => event.preventDefault());
+    fireEvent.click(pinterest);
+    expect(trackContactClick).toHaveBeenCalledWith('pinterest', 'footer');
   });
   it('links to the published return policy', () => {
     render(<Footer />);
