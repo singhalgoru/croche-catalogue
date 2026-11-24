@@ -1306,6 +1306,21 @@ test('manages rotating ticker messages', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
 });
 
+test('offers separate website and Pinterest image prompts', async ({ page }) => {
+  await installMockSupabase(page);
+  await signIn(page, 'add');
+  await page.getByLabel('Variant image').setInputFiles({
+    name: 'photo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC0lEQVR42mP8/x8AAusB9Y9Z4l8AAAAASUVORK5CYII=', 'base64'),
+  });
+  await page.getByLabel('Optional instruction').fill('Warm light and linen.');
+  await expect(page.getByLabel('Website prompt (1:1)')).toHaveValue(/square 1:1.*Warm light|Warm light.*square 1:1/);
+  await expect(page.getByLabel('Pinterest prompt (2:3)')).toHaveValue(/vertical 2:3/);
+  await expect(page.getByLabel('Pinterest prompt (2:3)')).toHaveValue(/1000 x 1500/);
+  await expectNoHorizontalOverflow(page);
+});
+
 test('uses Gemini suggestions to publish a product', async ({ page }) => {
   const state = await installMockSupabase(page);
   await signIn(page, 'add');

@@ -234,10 +234,17 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
     }
     return image;
   };
-  const publishPinterestImage = async (key) => {
+  const publishPinterestImage = async (key, dedicated) => {
     let image = pinterestImages.get(key);
     if (!image) {
       const input = await getSourceImage(key);
+      if (dedicated) {
+        const { width, height, autoOrient } = await sharp(input).metadata();
+        const size = autoOrient ?? { width, height };
+        if (size.width < 1000 || size.height < 1500 || Math.abs(size.width / size.height - 2 / 3) > 0.01) {
+          throw new Error(`Pinterest portrait must be at least 1000x1500 and 2:3: ${key}`);
+        }
+      }
       const photo = await sharp(input).rotate()
         .resize(1000, 1500, { fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' })
         .jpeg({ quality: 90 }).toBuffer();
@@ -253,8 +260,10 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
   for (const item of items) {
     const image = await publishImage(item.cleanKey, item.name);
     const metaImage = await publishMetaImage(item.cleanKey, item.name);
-    const pinterestImage = PINTEREST_RIGHTS_REVIEW.has(item.id) ? null : await publishPinterestImage(item.cleanKey);
+    const pinterestImage = PINTEREST_RIGHTS_REVIEW.has(item.id) ? null
+      : await publishPinterestImage(item.pinterestCleanKey ?? item.cleanKey, Boolean(item.pinterestCleanKey));
     sourceImages.delete(item.cleanKey);
+    if (item.pinterestCleanKey) sourceImages.delete(item.pinterestCleanKey);
     const additionalImages = [];
     for (const key of item.additionalCleanKeys ?? []) {
       const additionalImage = await publishImage(key, item.name);
@@ -289,19 +298,45 @@ export const writeMerchantCatalogue = async (items, dist, getImage, whatsappNumb
   console.log(`[merchant] Published ${published.length} items and ${images.size} clean images.`);
 };
 
+export const fetchPinterestImages = async (supabaseUrl, anonKey) => {
+  const endpoint = new URL('/rest/v1/pinterest_variant_images', supabaseUrl);
+  endpoint.searchParams.set('select', 'variant_id,image_url');
+  endpoint.searchParams.set('order', 'variant_id.asc');
+  const images = new Map();
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    endpoint.searchParams.set('limit', String(pageSize));
+    endpoint.searchParams.set('offset', String(offset));
+    const response = await fetch(endpoint, { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } });
+    if (!response.ok) throw new Error(`Pinterest image lookup failed: HTTP ${response.status}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error('Invalid Pinterest image lookup response');
+    for (const row of rows) {
+      if (typeof row.variant_id !== 'string' || typeof row.image_url !== 'string' || images.has(row.variant_id)) {
+        throw new Error('Invalid Pinterest image record');
+      }
+      images.set(row.variant_id, cleanImageKey(row.image_url));
+    }
+    if (rows.length < pageSize) return images;
+  }
+};
+
 const main = async () => {
   const env = { ...loadEnv('production', ROOT, 'VITE_'), ...process.env };
   const required = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'R2_ACCOUNT_ID',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ORIGINALS_BUCKET'];
   const missing = required.filter((name) => !env[name]);
   if (missing.length) throw new Error(`Missing Merchant configuration: ${missing.join(', ')}`);
-  const [products, categories, whatsappNumber] = await Promise.all([
+  const [products, categories, whatsappNumber, pinterestImages] = await Promise.all([
     fetchProducts(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
     fetchBootstrapCategories(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
     fetchSiteWhatsAppNumber(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY,
       env.VITE_WHATSAPP_NUMBER?.trim() || '919205907350'),
+    fetchPinterestImages(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY),
   ]);
-  const items = merchantItems(products, categories);
+  const items = merchantItems(products, categories).map(item => ({
+    ...item, pinterestCleanKey: pinterestImages.get(item.merchantId),
+  }));
   if (!items.length) throw new Error('Refusing to publish an empty Merchant feed');
   const r2 = new AwsClient({ accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY, service: 's3', region: 'auto' });
   await writeMerchantCatalogue(items, path.join(ROOT, 'dist'), async (key) => {

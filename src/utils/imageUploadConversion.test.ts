@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { convertImageForUpload, createResizedWebp, prepareProductImageForRequest, prepareSocialPostJpeg } from './imageUploadConversion';
+import { convertImageForUpload, createResizedWebp, prepareProductImageForRequest, prepareSocialPostJpeg, validatePinterestImage } from './imageUploadConversion';
 
 const { encodeWebp } = vi.hoisted(() => ({ encodeWebp: vi.fn() }));
 vi.mock('./webpEncoder', () => ({ encodeWebp }));
@@ -80,6 +80,19 @@ describe('organic post JPEG preparation', () => {
 });
 
 describe('image upload compression', () => {
+  it('accepts a sufficiently large 2:3 Pinterest photo and rejects square or undersized photos', async () => {
+    const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
+    mockImageEncoding(1000, 1500, 100);
+    await expect(validatePinterestImage(file)).resolves.toBeUndefined();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    mockImageEncoding(1000, 1000, 100);
+    await expect(validatePinterestImage(file)).rejects.toThrow('vertical 2:3');
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    mockImageEncoding(800, 1200, 100);
+    await expect(validatePinterestImage(file)).rejects.toThrow('1000 x 1500');
+  });
   it.each([6 * 1024 * 1024 + 1, 20 * 1024 * 1024])(
     'converts a %i-byte product source to an unwatermarked WebP for bounded AI requests',
     async size => {

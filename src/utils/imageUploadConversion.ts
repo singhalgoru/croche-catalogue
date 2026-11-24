@@ -43,6 +43,19 @@ const loadImageElement = (file: File) =>
     image.src = objectUrl;
   });
 
+export async function validatePinterestImage(file: File): Promise<void> {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    || !file.size || file.size > MAX_PRODUCT_IMAGE_SOURCE_SIZE) {
+    throw new Error('Choose a JPG, PNG or WebP image no larger than 20 MB.');
+  }
+  const image = await loadImageElement(file);
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (width < 1000 || height < 1500 || Math.abs(width / height - 2 / 3) > 0.01) {
+    throw new Error('Choose a vertical 2:3 image at least 1000 x 1500 pixels.');
+  }
+}
+
 export async function convertImageForUpload(
   file: File,
   { watermark = true }: { watermark?: boolean } = {},

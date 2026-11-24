@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import { JSDOM } from 'jsdom';
 import { describe, expect, it, vi } from 'vitest';
 import { toProduct } from './prerender.mjs';
-import { cleanImageKey, merchantItems, renderMerchantFeed, renderMetaCatalogFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
+import { cleanImageKey, fetchPinterestImages, merchantItems, renderMerchantFeed, renderMetaCatalogFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
 
 const product = toProduct({
   id: 'p1', public_slug: 'rose-coaster', name: 'Rose & Coaster', category: 'Decor', description: 'Handmade <rose> & leaves.',
@@ -17,6 +17,15 @@ const product = toProduct({
 });
 
 describe('Merchant Center feed', () => {
+  it('loads Pinterest image mappings and fails explicitly when the database lookup fails', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ variant_id: 'v1', image_url: 'https://images.luviacreations.com/products/admin/portrait.webp' }])))
+      .mockResolvedValueOnce(new Response('unavailable', { status: 503 })));
+    try {
+      expect((await fetchPinterestImages('https://example.test', 'anon')).get('v1')).toBe('admin/portrait/original.webp');
+      await expect(fetchPinterestImages('https://example.test', 'anon')).rejects.toThrow('HTTP 503');
+    } finally { vi.unstubAllGlobals(); }
+  });
   it('includes category scenes only for tagged members and matching primary-image variants', () => {
     const category = { name: 'Decor', coverImage: 'https://images.luviacreations.com/products/admin/scene.webp',
       imageHotspots: [{ productId: product.id, x: 25, y: 50 }] };
@@ -229,6 +238,30 @@ describe('Merchant Center feed', () => {
         const content = await readFile(path.join(dir, feed), 'utf8');
         held.forEach(item => expect(content).toContain(item.id));
       }
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
+  it('uses the saved portrait for both Pinterest feeds without changing the website or Meta image', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'luvia-pinterest-portrait-'));
+    try {
+      const square = await sharp({ create: { width: 600, height: 600, channels: 3, background: '#224466' } }).webp().toBuffer();
+      const portrait = await sharp({ create: { width: 1000, height: 1500, channels: 3, background: '#aa3355' } }).webp().toBuffer();
+      const items = merchantItems([{ ...product, variants: [product.variants[0]] }]);
+      items[0].pinterestCleanKey = 'admin/portrait/original.webp';
+      const getImage = vi.fn(async (key: string) => key === items[0].pinterestCleanKey ? portrait : square);
+      await writeMerchantCatalogue(items, dir, getImage, '911234567890');
+      const catalog = new JSDOM(await readFile(path.join(dir, 'pinterest-catalog-feed.xml'), 'utf8'), { contentType: 'text/xml' }).window.document;
+      const pin = new JSDOM(await readFile(path.join(dir, 'pinterest-pins-feed.xml'), 'utf8'), { contentType: 'text/xml' }).window.document;
+      const imageUrl = catalog.getElementsByTagNameNS('http://base.google.com/ns/1.0', 'image_link')[0].textContent!;
+      expect(pin.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'content')[0].getAttribute('url')).toBe(imageUrl);
+      const image = await readFile(path.join(dir, 'pinterest-catalog-images', path.basename(imageUrl)));
+      const { data } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
+      expect(data[0]).toBeGreaterThan(150);
+      expect(data[1]).toBeLessThan(80);
+      expect(await readFile(path.join(dir, 'meta-catalog-feed.xml'), 'utf8')).not.toContain(imageUrl);
+      expect(await readFile(path.join(dir, 'merchant-feed.xml'), 'utf8')).not.toContain(imageUrl);
+      await expect(writeMerchantCatalogue([{ ...items[0], pinterestCleanKey: 'admin/bad/original.webp' }], dir,
+        async () => square, '911234567890')).rejects.toThrow('Pinterest portrait must be at least');
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
 

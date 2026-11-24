@@ -41,6 +41,16 @@ const STYLE_SUGGESTIONS = [
 
 const MAX_STYLE_INSTRUCTION_LENGTH = 300;
 
+const externalPrompt = (style: string, format: 'website' | 'pinterest') => [
+  'Using the attached reference photo, create a realistic product photograph of the same handmade crochet item.',
+  'Preserve its exact shape, colours, stitches, pattern, proportions and visible details. Do not redesign, duplicate, obscure or add parts.',
+  style ? `Styling direction: ${style}` : 'Use soft natural light and a warm, uncluttered setting.',
+  format === 'website'
+    ? 'Create a square 1:1 image, at least 1024 x 1024 pixels.'
+    : 'Create a vertical 2:3 image, at least 1000 x 1500 pixels, with the photo filling the entire frame.',
+  'Keep the complete product clearly visible with breathing room. No text, logos, watermarks, borders, padding or blank bands.',
+].join(' ');
+
 export default function ImageGenerationPanel({
   sourceFile,
   sourceUrl,
@@ -55,12 +65,15 @@ export default function ImageGenerationPanel({
   const [selectedSuggestion, setSelectedSuggestion] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
   const [copyFeedback, setCopyFeedback] = useState<{ prompt: string; failed: boolean } | null>(null);
+  const [externalCopyFeedback, setExternalCopyFeedback] = useState<{ format: 'website' | 'pinterest'; prompt: string; failed: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const styleInstruction = [selectedSuggestion, customInstruction.trim()]
     .filter(Boolean)
     .join(' ');
   const isStyleInstructionTooLong = styleInstruction.length > MAX_STYLE_INSTRUCTION_LENGTH;
   const hasStyleInstruction = styleInstruction.trim().length > 0;
+  const websitePrompt = externalPrompt(styleInstruction, 'website');
+  const pinterestPrompt = externalPrompt(styleInstruction, 'pinterest');
 
   useEffect(
     () => () => {
@@ -121,6 +134,15 @@ export default function ImageGenerationPanel({
       setCopyFeedback({ prompt: styleInstruction, failed: false });
     } catch {
       setCopyFeedback({ prompt: styleInstruction, failed: true });
+    }
+  };
+
+  const copyExternalPrompt = async (format: 'website' | 'pinterest', prompt: string) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setExternalCopyFeedback({ format, prompt, failed: false });
+    } catch {
+      setExternalCopyFeedback({ format, prompt, failed: true });
     }
   };
 
@@ -274,6 +296,32 @@ export default function ImageGenerationPanel({
               : 'Prompt copied.'}
           </p>
         )}
+      </div>
+
+      <div className="mt-4 space-y-3 rounded-xl border border-mustard/30 bg-cream/30 p-3">
+        <h6 className="text-sm font-bold text-cocoa">Prompts for an external image tool</h6>
+        <p className="text-xs text-cocoa/70">
+          Attach the original photo and use each prompt separately. Review both results for product accuracy.
+          Save the portrait under the variant's Pinterest photo after creating the product.
+        </p>
+        {([['website', 'Website prompt (1:1)', websitePrompt], ['pinterest', 'Pinterest prompt (2:3)', pinterestPrompt]] as const).map(([format, label, prompt]) => (
+          <div key={format}>
+            <label className="block text-xs font-semibold text-cocoa">
+              {label}
+              <textarea readOnly value={prompt} rows={4} className="mt-1 w-full resize-y rounded-xl border border-mustard/60 bg-white px-3 py-2 text-sm font-normal" />
+            </label>
+            <button type="button" onClick={() => void copyExternalPrompt(format, prompt)}
+              disabled={disabled || activeMode !== null || isOptimizingPrompt}
+              className="mt-2 rounded-full border border-cocoa/30 px-3 py-1.5 text-xs font-semibold text-cocoa disabled:opacity-50">
+              Copy {format === 'website' ? 'website' : 'Pinterest'} prompt
+            </button>
+            {externalCopyFeedback?.format === format && externalCopyFeedback.prompt === prompt && (
+              <p role={externalCopyFeedback.failed ? 'alert' : 'status'} className={`mt-2 text-xs ${externalCopyFeedback.failed ? 'text-red-700' : 'text-green-700'}`}>
+                {externalCopyFeedback.failed ? 'Unable to copy automatically. Select and copy the prompt above.' : 'Prompt copied.'}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
 
       {error && (

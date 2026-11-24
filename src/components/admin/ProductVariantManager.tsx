@@ -17,6 +17,7 @@ import {
 } from '../../services/products';
 import type { ProductVariant, ProductVariantImage } from '../../types/product';
 import ImageGenerationPanel from './ImageGenerationPanel';
+import PinterestVariantImage from './PinterestVariantImage';
 import ImageFilePicker from './ImageFilePicker';
 import VariantNameSuggestButton from './VariantNameSuggestButton';
 import { parseOptionalPrice } from './price';
@@ -1032,6 +1033,8 @@ export default function ProductVariantManager({ product, onSaved }: Props) {
                 </button>
               </div>
             </div>
+
+            <PinterestVariantImage variantId={variant.id} variantName={variant.name} />
 
             {existingVariantEnhancement?.variantId === variant.id && (
               <div className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3">

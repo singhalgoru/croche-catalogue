@@ -25,6 +25,40 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals(); });
 
 describe('image prompt copying', () => {
+  it('provides separately copyable website and Pinterest prompts using the current styling direction', async () => {
+    open();
+    enterInstruction('Use a wooden basket.');
+    const website = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Website prompt (1:1)' });
+    const pinterest = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Pinterest prompt (2:3)' });
+    expect(website.value).toContain('square 1:1');
+    expect(pinterest.value).toContain('vertical 2:3');
+    expect(pinterest.value).toContain('1000 x 1500');
+    for (const prompt of [website.value, pinterest.value]) {
+      expect(prompt).toContain('Use a wooden basket.');
+      expect(prompt).toContain('Preserve its exact shape');
+      expect(prompt).toContain('No text, logos, watermarks');
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Copy website prompt' }));
+    await screen.findByText('Prompt copied.');
+    expect(writeText).toHaveBeenLastCalledWith(website.value);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Pinterest prompt' }));
+    await screen.findByText('Prompt copied.');
+    expect(writeText).toHaveBeenLastCalledWith(pinterest.value);
+    expect(generateProductImage).not.toHaveBeenCalled();
+    expect(optimizeProductImagePrompt).not.toHaveBeenCalled();
+    enterInstruction('New styling.');
+    expect(pinterest.value).toContain('New styling.');
+    expect(screen.queryByText('Prompt copied.')).toBeNull();
+  });
+
+  it('allows manual copying if a separate prompt cannot be copied', async () => {
+    writeText.mockRejectedValue(new Error('Permission denied.'));
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Pinterest prompt' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Select and copy the prompt above.');
+    expect(screen.getByRole('textbox', { name: 'Pinterest prompt (2:3)' })).toHaveProperty('readOnly', true);
+  });
+
   it('copies the combined style and trimmed custom instruction without invoking AI', async () => {
     open();
     fireEvent.click(screen.getByRole('button', { name: 'Warm minimal' }));
