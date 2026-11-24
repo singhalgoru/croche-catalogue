@@ -32,11 +32,13 @@ test('product share opens a visible modal above fixed mobile controls', async ({
 });
 
 test('homepage introduction is visible and fits on mobile and desktop', async ({ page, isMobile }) => {
-  const full = page.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.', { exact: true });
-  const compact = page.getByText('Handmade crochet accessories, gifts, toys & decor. Crafted in India, shipped nationwide and internationally.', { exact: true });
+  const full = page.getByText(/Discover thoughtfully crafted crochet accessories/);
+  const compact = page.getByText(/Handmade crochet accessories, gifts, toys & decor by Luvia/);
   const introduction = isMobile ? compact : full;
   await expect(isMobile ? full : compact).toBeHidden();
   await expect(introduction).toBeVisible();
+  await expect(introduction).toContainText('Luvia™.');
+  await expect(page.getByRole('link', { name: 'Luvia Creations — home' }).locator('span[aria-hidden="true"]')).toHaveText('™');
   const fits = await introduction.evaluate(element => {
     const bounds = element.getBoundingClientRect();
     return bounds.left >= 0 && bounds.right <= document.documentElement.clientWidth
@@ -50,6 +52,27 @@ test('homepage introduction is visible and fits on mobile and desktop', async ({
   await expect(page.getByRole('heading', { name: 'Shop the Collection', exact: true })).toBeInViewport();
   await page.getByRole('link', { name: 'Explore Gift Ideas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'How to choose a handmade crochet gift', exact: true })).toBeVisible();
+});
+
+test('trademark mark stays by the logo on full and compact headers', async ({ page }) => {
+  for (const path of ['/', '/p/rose-charm/']) {
+    if (path !== '/') await page.goto(path);
+    const link = page.getByRole('link', { name: 'Luvia Creations — home' });
+    const mark = link.locator('span[aria-hidden="true"]');
+    await expect(mark).toBeVisible();
+    const imageBox = await link.getByRole('img').boundingBox();
+    const markBox = await mark.boundingBox();
+    const viewport = page.viewportSize();
+    expect(imageBox && markBox && viewport).toBeTruthy();
+    expect(Math.abs(markBox!.x + markBox!.width / 2 - (imageBox!.x + imageBox!.width))).toBeLessThan(2);
+    expect(markBox!.y).toBeLessThan(imageBox!.y + imageBox!.height / 2);
+    expect(markBox!.x + markBox!.width).toBeLessThanOrEqual(viewport!.width);
+    if (path !== '/') {
+      const brandBox = await link.locator('span.font-heading').boundingBox();
+      expect(markBox!.x + markBox!.width).toBeLessThanOrEqual(brandBox!.x);
+      await expect(link).toContainText('Luvia™ Creations');
+    }
+  }
 });
 
 test('the initial catalogue is styled and usable while the app script is delayed', async ({ browser, isMobile }) => {

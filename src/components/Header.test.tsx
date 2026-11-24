@@ -196,6 +196,7 @@ describe('Header', () => {
     const link = screen.getByRole('link', { name: 'Luvia Creations — home' });
     expect(link.getAttribute('href')).toBe(import.meta.env.BASE_URL);
     expect(link.contains(screen.getByRole('img', { name: /Luvia/ }))).toBe(true);
+    expect(link.querySelector('[aria-hidden="true"]')?.textContent).toBe('™');
   });
 
   it('uses compact mobile copy while preserving the full desktop introduction', () => {
@@ -205,9 +206,12 @@ describe('Header', () => {
     const logo = screen.getByRole('img', { name: /Luvia/ });
     expect(logo.className).toContain('h-20 w-20');
     expect(logo.getAttribute('sizes')).toBe('(min-width: 768px) 176px, (min-width: 640px) 144px, 80px');
-    const introduction = screen.getByText('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.');
+    const introduction = screen.getByText(/Discover thoughtfully crafted crochet accessories/);
     expect(introduction.className).toBe('hidden sm:inline');
-    expect(screen.getByText('Handmade crochet accessories, gifts, toys & decor. Crafted in India, shipped nationwide and internationally.').className).toBe('sm:hidden');
+    expect(introduction.textContent).toContain('Luvia™.');
+    const mobileIntroduction = screen.getByText(/Handmade crochet accessories, gifts, toys & decor by Luvia/);
+    expect(mobileIntroduction.className).toBe('sm:hidden');
+    expect(mobileIntroduction.textContent).toContain('Luvia™.');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Premium Handmade Crochet Gifts, Accessories & Cute Creations');
     expect(screen.getByRole('link', { name: 'Shop Handmade Collection' }).getAttribute('href')).toBe(`${import.meta.env.BASE_URL}#products`);
     expect(screen.getByRole('link', { name: 'Explore Gift Ideas' }).getAttribute('href')).toBe(`${import.meta.env.BASE_URL}crochet-gift-guide/`);
@@ -218,7 +222,7 @@ describe('Header', () => {
   it('preserves the compact header without adding the mobile introduction', () => {
     render(<Header compact showInstallPrompt={false} />);
     expect(screen.getByRole('img', { name: /Luvia/ }).getAttribute('sizes')).toBe('48px');
-    expect(screen.getByText('Luvia Creations')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Luvia Creations — home' }).textContent).toContain('Luvia™ Creations');
     expect(screen.queryByText(/Discover thoughtfully crafted crochet accessories/)).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Shop and gift ideas' })).toBeNull();
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
@@ -228,7 +232,7 @@ describe('Header', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false}
       onOpenCart={vi.fn()} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
-    const row = logo.parentElement?.parentElement?.parentElement;
+    const row = logo.closest('a')?.parentElement?.parentElement;
     expect(row?.className).toContain('flex-row justify-start');
     expect(row?.className).toContain('items-center');
     expect(row?.className).toContain('text-left sm:pr-44 sm:justify-start');
@@ -239,7 +243,7 @@ describe('Header', () => {
   it('left-aligns compact mobile branding even without a cart', () => {
     render(<Header compact alignLogoLeft showHeading={false} showInstallPrompt={false} />);
     const logo = screen.getByRole('img', { name: /Luvia/ });
-    const row = logo.parentElement?.parentElement?.parentElement;
+    const row = logo.closest('a')?.parentElement?.parentElement;
     expect(row?.className).toContain('flex-row justify-start');
     expect(row?.className).toContain('items-center');
     expect(row?.className).toContain('sm:justify-start');

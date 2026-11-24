@@ -610,7 +610,7 @@ test('mobile sticky search and bottom navigation work without covering dialogs, 
   await expect(navigation.getByRole('button', { name: 'Open cart with 0 items', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(navigation.getByRole('link', { name: 'Collections', exact: true })).not.toHaveAttribute('aria-current', 'page');
   const cartLogo = (await page.getByRole('link', { name: 'Luvia Creations — home' }).boundingBox())!;
-  await expect(page.getByRole('link', { name: 'Luvia Creations — home' })).toContainText('Luvia Creations');
+  await expect(page.getByRole('link', { name: 'Luvia Creations — home' })).toContainText('Luvia™ Creations');
   expect((await page.getByRole('link', { name: 'Luvia Creations — home' }).getByRole('img').boundingBox())!.width).toBe(48);
   expect(cartLogo.x).toBe(16);
   await page.goto('./p/rose-charm/');

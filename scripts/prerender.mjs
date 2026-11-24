@@ -446,6 +446,8 @@ const SHELL_STYLE = `<style>
 .catalogue-shell .shell-announcement{background:#5d4037;color:#fffaf0;text-align:center;padding:.5rem 1rem;font-size:.875rem;font-weight:700}
 .catalogue-shell header{text-align:center;border-bottom:4px solid #f6c453;padding:1.25rem 1rem 1.5rem}
 .catalogue-shell header img{width:7rem;height:7rem;border-radius:50%;object-fit:cover;margin:0 auto}
+.catalogue-shell .shell-logo{position:relative;display:inline-block}
+.catalogue-shell .shell-logo-mark{position:absolute;right:0;top:0;transform:translate(50%,-25%);border-radius:9999px;background:#fffaf0;color:#5d4037;padding:0 2px;font-size:.75rem;font-weight:bold;line-height:1}
 .catalogue-shell header p{max-width:38rem;margin:0 auto}
 .catalogue-shell .shell-navigation,.catalogue-shell main,.catalogue-shell footer{max-width:72rem;margin:0 auto;padding:1rem}
 .catalogue-shell summary{cursor:pointer;font-weight:700;padding:.5rem 0}
@@ -514,9 +516,9 @@ const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_
     '<div class="catalogue-shell">',
     `<div class="shell-announcement">${escapeHtml(storeContent.international.announcement)}</div>`,
     '<header>',
-    '<img src="/images/luvia-logo-320.webp" width="144" height="144" alt="Luvia Creations" />',
+    '<span class="shell-logo"><img src="/images/luvia-logo-320.webp" width="144" height="144" alt="Luvia Creations" /><span class="shell-logo-mark" aria-hidden="true">™</span></span>',
     `<h1>${escapeHtml(storeContent.homepage.headline)}</h1>`,
-    "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>",
+    "<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia<sup>™</sup>. Handmade in India and shipped nationwide and internationally.</p>",
     `<nav aria-label="Shop and gift ideas"><a href="/#products">${escapeHtml(storeContent.homepage.shopLabel)}</a> · <a href="${storeContent.giftGuide.path}">${escapeHtml(storeContent.homepage.giftLabel)}</a></nav>`,
     '</header>',
     '<details class="shell-navigation"><summary>Browse Luvia</summary><nav aria-label="Main navigation"><a href="/">Shop all</a> · <a href="/search/">Search products</a> · <a href="/collections/">Collections</a> · <a href="/crochet-gift-guide/">Crochet gift guide</a> · <a href="/customer-love/">Customer Love</a> · <a href="/about/">About &amp; contact</a> · <a href="/faq/">Ordering FAQ</a> · <a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a></nav></details>',

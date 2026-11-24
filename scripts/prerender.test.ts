@@ -331,7 +331,8 @@ describe('renderShell', () => {
   const shell = renderShell([product]);
 
   it('preserves the full homepage introduction for crawlers', () => {
-    expect(shell).toContain('<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia. Handmade in India and shipped nationwide and internationally.</p>');
+    expect(shell).toContain('<p>Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia<sup>™</sup>. Handmade in India and shipped nationwide and internationally.</p>');
+    expect(shell).toContain('class="shell-logo-mark" aria-hidden="true">™');
   });
 
   it('includes ordering and delivery guidance after the products for non-JavaScript visitors', () => {
@@ -370,7 +371,7 @@ describe('renderShell', () => {
   it('includes the shopping and gifting introduction without JavaScript', () => {
     const page = new DOMParser().parseFromString(shell, 'text/html');
     expect(page.querySelector('h1')?.textContent).toBe('Premium Handmade Crochet Gifts, Accessories & Cute Creations');
-    expect(shell).toContain('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.');
+    expect(shell).toContain('Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia<sup>™</sup>.');
     expect(page.querySelector('nav[aria-label="Shop and gift ideas"] a[href="/#products"]')?.textContent).toBe('Shop Handmade Collection');
     expect(page.querySelector('nav[aria-label="Shop and gift ideas"] a[href="/crochet-gift-guide/"]')?.textContent).toBe('Explore Gift Ideas');
     expect(page.querySelector('#products')).not.toBeNull();

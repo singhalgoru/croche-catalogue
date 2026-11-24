@@ -457,7 +457,7 @@ test('store headers use responsive branding and product details offer a contextu
   for (const path of ['/collections/', '/collections/charms/', '/bestsellers/', '/featured/', '/about/', '/faq/']) {
     await page.goto(path);
     const logo = page.getByRole('link', { name: 'Luvia Creations — home' });
-    await expect(logo).toContainText('Luvia Creations');
+    await expect(logo).toContainText('Luvia™ Creations');
     const menu = page.getByRole('button', { name: 'Open navigation' });
     const logoBox = await logo.boundingBox();
     const menuBox = await menu.boundingBox();

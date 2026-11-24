@@ -283,22 +283,25 @@ export default function Header({
             aria-label="Luvia Creations — home"
             className={`shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cocoa ${compact ? 'flex items-center gap-3 rounded-lg' : 'rounded-full'}`}
           >
-          <img
-          src={`${import.meta.env.BASE_URL}images/luvia-logo-320.webp`}
-          srcSet={[160, 320, 480]
-            .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
-            .join(', ')}
-          sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 80px'}
-          width={320}
-          height={320}
-          alt="Luvia — Crochet, Accessories & More, made with love"
-          className={`rounded-full object-cover shadow-lg ring-white ${
-            compact
-              ? 'h-12 w-12 ring-2 ring-inset'
-              : 'h-20 w-20 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
-          }`}
-          />
-          {compact && <span className="font-heading text-lg font-bold text-cocoa">Luvia Creations</span>}
+            <span className="relative inline-block shrink-0">
+              <img
+                src={`${import.meta.env.BASE_URL}images/luvia-logo-320.webp`}
+                srcSet={[160, 320, 480]
+                  .map((width) => `${import.meta.env.BASE_URL}images/luvia-logo-${width}.webp ${width}w`)
+                  .join(', ')}
+                sizes={compact ? '48px' : '(min-width: 768px) 176px, (min-width: 640px) 144px, 80px'}
+                width={320}
+                height={320}
+                alt="Luvia — Crochet, Accessories & More, made with love"
+                className={`rounded-full object-cover shadow-lg ring-white ${
+                  compact
+                    ? 'h-12 w-12 ring-2 ring-inset'
+                    : 'h-20 w-20 shrink-0 ring-2 ring-inset sm:h-36 sm:w-36 sm:ring-4 sm:ring-outset md:h-44 md:w-44'
+                }`}
+              />
+              <span aria-hidden="true" className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/4 rounded-full bg-cream px-0.5 text-xs font-bold leading-none text-cocoa">™</span>
+            </span>
+            {compact && <span className="font-heading text-lg font-bold text-cocoa">Luvia<sup className="text-xs">™</sup> Creations</span>}
           </a>
         </div>
         {showHeading && <h1
@@ -311,10 +314,10 @@ export default function Header({
         {!compact && (
           <p className="text-cocoa/80 text-sm max-w-md font-medium px-2">
             <span className="sm:hidden">
-              Handmade crochet accessories, gifts, toys &amp; decor. Crafted in India, shipped nationwide and internationally.
+              Handmade crochet accessories, gifts, toys &amp; decor by Luvia<sup>™</sup>. Crafted in India, shipped nationwide and internationally.
             </span>
             <span className="hidden sm:inline">
-              Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia.
+              Discover thoughtfully crafted crochet accessories, gifts, toys and decor by Luvia<sup>™</sup>.
               Handmade in India and shipped nationwide and internationally.
             </span>
           </p>
