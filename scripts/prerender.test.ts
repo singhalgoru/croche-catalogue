@@ -60,13 +60,14 @@ describe('fetchProducts', () => {
     const shell = renderShell([product], [], '+91 98765 43210');
     expect(shell).toContain('Make it your own');
     expect(shell).toContain('https://wa.me/919876543210?text=');
-    expect(shell).toContain('Latest from Luvia');
+    expect(shell).toContain('Latest from Luvia<sup aria-hidden="true">™</sup>');
     expect(shell.indexOf('Latest from Luvia')).toBeLessThan(shell.indexOf('Make it your own'));
     expect(shell).toContain('/p/ivory-rose-gajra/');
     expect(renderShell([{ ...product, publishedAt: 'invalid' }])).not.toContain('Latest from Luvia');
   });
   it('links the founder teaser to About without a homepage LinkedIn link', () => {
     const shell = renderShell([product]);
+    expect(shell).toContain('The driving force behind Luvia<sup aria-hidden="true">™</sup>');
     expect(shell).toContain('href="/about/"');
     expect(shell).not.toContain('linkedin.com/in/tanushreemithal');
   });

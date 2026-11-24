@@ -35,6 +35,7 @@ describe('Footer', () => {
     render(<Footer />);
     const section = screen.getByRole('region', { name: 'Create with Luvia' });
     expect(section.id).toBe('collaborate');
+    expect(screen.getByRole('heading', { name: 'Create with Luvia' }).textContent).toBe('Create with Luvia™');
     expect(screen.getByText('Celebrating artisan skill and working towards meaningful opportunities through handmade craft.')).toBeTruthy();
     expect(section.textContent).not.toContain('their lives have been uplifted');
     expect(screen.getByRole('link', { name: 'Work with Luvia' }).getAttribute('href')).toBe('#collaborate');
@@ -64,6 +65,7 @@ describe('Footer', () => {
     render(<Footer />);
     const logo = screen.getByRole('link', { name: 'Luvia Creations home' });
     expect(logo.querySelector('img')?.getAttribute('src')).toBe('/images/luvia-logo-160.webp');
+    expect(logo.querySelector('[aria-hidden="true"]')?.textContent).toBe('™');
     expect(screen.queryByText('Luvia Creations', { selector: 'p.font-heading' })).toBeNull();
     const facebook = screen.getByRole('link', { name: 'Follow Luvia on Facebook' });
     expect(facebook.getAttribute('href')).toBe('https://www.facebook.com/profile.php?id=61596614701476');

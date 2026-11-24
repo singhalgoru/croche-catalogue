@@ -270,7 +270,7 @@ export default function StorePages({
       <nav aria-label="Breadcrumb" className={`${isSearch ? 'hidden sm:flex' : 'flex'} flex-wrap gap-3 text-sm`}><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}
         {isStory && <a href="/customer-love/" className="underline">Customer Love</a>}<span aria-current="page">{title}</span></nav>
-      <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>{title}</h1>
+      <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>{title}{isAbout && <sup aria-hidden="true">™</sup>}</h1>
       {isStory && <CustomerLove products={products} storySlug={storySlug} onStoryResolved={setStory} />}
       {isCustomerLove && <><div className="space-y-1">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">Little moments, beautifully handmade</p>

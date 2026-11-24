@@ -148,6 +148,7 @@ describe('Hybrid product navigation', () => {
   it('introduces the founder story on the catalogue with a crawlable about link', () => {
     render(<App />);
     const teaser = screen.getByRole('region', { name: storeContent.brandStory.teaser.title });
+    expect(teaser.querySelector('h2')?.textContent).toBe(`${storeContent.brandStory.teaser.title}™`);
     expect(within(teaser).getByText(storeContent.brandStory.teaser.text)).toBeTruthy();
     expect(within(teaser).getByRole('img', { name: storeContent.brandStory.portrait.alt }).getAttribute('src')).toBe(storeContent.brandStory.portrait.thumbnail);
     expect(within(teaser).getByRole('link', { name: storeContent.brandStory.teaser.linkLabel }).getAttribute('href')).toBe('/about/');

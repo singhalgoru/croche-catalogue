@@ -22,6 +22,7 @@ describe('HomepageDiscover', () => {
     expect(url.hostname).toBe('wa.me');
     expect(url.searchParams.get('text')).toContain('price and dispatch estimate');
     const section = screen.getByRole('region', { name: 'Latest from Luvia' });
+    expect(section.querySelector('h2')?.textContent).toBe('Latest from Luvia™');
     expect(within(section).getByText('₹300')).toBeTruthy();
     expect(within(section).getByText('A handmade flower.')).toBeTruthy();
     const productLink = within(section).getByRole('link', { name: /crochet flower/i });

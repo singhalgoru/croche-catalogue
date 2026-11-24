@@ -37,7 +37,7 @@ export function HomepageSpotlight({ products, onSelect }: {
       }} className="group grid grid-cols-[minmax(0,6.5rem)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl p-5 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-cocoa sm:grid-cols-[9rem_minmax(0,1fr)] sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(240px,38%)] lg:gap-x-10 lg:gap-y-2 lg:p-8">
         <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:self-end">
           <p className="text-xs font-semibold uppercase tracking-wider">Product spotlight</p>
-          <h2 id="latest-product-title" className="mt-1 font-heading text-2xl font-bold lg:text-3xl">Latest from Luvia</h2>
+          <h2 id="latest-product-title" className="mt-1 font-heading text-2xl font-bold lg:text-3xl">Latest from Luvia<sup aria-hidden="true">™</sup></h2>
         </div>
         <img src={getProductImageUrl(image, 480)} alt={product.name} width={160} height={160} loading="lazy"
           className="aspect-square w-full rounded-xl bg-cream-dark object-contain lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:mx-auto lg:max-h-64 lg:w-full" {...productImageProtection} />

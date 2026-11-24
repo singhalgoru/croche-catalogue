@@ -526,12 +526,12 @@ const renderShell = (products, categorySettings = [], whatsappNumber = FALLBACK_
     `<h2 id="products">Explore the Luvia Crochet Collection</h2><p>${escapeHtml(
       `The catalogue has ${products.length} handmade crochet products across ${categories.length} categories: ${categories.join(', ')}. Add your favourites to the cart, review delivery and pay securely through Razorpay.`,
     )}</p>`,
-    `<section aria-labelledby="brand-story-teaser-title"><img src="${escapeHtml(storeContent.brandStory.portrait.thumbnail)}" alt="${escapeHtml(storeContent.brandStory.portrait.alt)}" width="150" height="200" draggable="false" style="pointer-events:none;user-select:none;-webkit-touch-callout:none"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}</h2>`,
+    `<section aria-labelledby="brand-story-teaser-title"><img src="${escapeHtml(storeContent.brandStory.portrait.thumbnail)}" alt="${escapeHtml(storeContent.brandStory.portrait.alt)}" width="150" height="200" draggable="false" style="pointer-events:none;user-select:none;-webkit-touch-callout:none"><h2 id="brand-story-teaser-title">${escapeHtml(storeContent.brandStory.teaser.title)}<sup aria-hidden="true">™</sup></h2>`,
     `<p>${escapeHtml(storeContent.brandStory.teaser.text)}</p><a href="/about/">${escapeHtml(storeContent.brandStory.teaser.linkLabel)}</a></section>`,
     '<section aria-labelledby="collections-heading"><h2 id="collections-heading">Explore collections</h2>',
     `<nav aria-label="Explore collections"><ul>${collectionNames.map(name =>
       `<li><a href="${collectionPath(name)}">${escapeHtml(name)}</a></li>`).join('')}</ul></nav></section>`,
-    latest && latestImage ? `<section aria-labelledby="latest-product-title"><p>Product spotlight</p><h2 id="latest-product-title">Latest from Luvia</h2><a href="/p/${escapeHtml(toProductSlug(latest))}/"><img src="${escapeHtml(getProductImageUrl(latestImage, 480))}" alt="${escapeHtml(latest.name)}" width="160" height="160" loading="lazy"><span>${escapeHtml(latest.name)}</span></a></section>` : '',
+    latest && latestImage ? `<section aria-labelledby="latest-product-title"><p>Product spotlight</p><h2 id="latest-product-title">Latest from Luvia<sup aria-hidden="true">™</sup></h2><a href="/p/${escapeHtml(toProductSlug(latest))}/"><img src="${escapeHtml(getProductImageUrl(latestImage, 480))}" alt="${escapeHtml(latest.name)}" width="160" height="160" loading="lazy"><span>${escapeHtml(latest.name)}</span></a></section>` : '',
     `<section aria-labelledby="customisation-title"><h2 id="customisation-title">${escapeHtml(storeContent.customisation.title)}</h2><p>${escapeHtml(storeContent.customisation.description)}</p><a href="${escapeHtml(customisationUrl)}">${escapeHtml(storeContent.customisation.linkLabel)}</a></section>`,
     sections,
     '<section aria-labelledby="ordering-guide-title">',

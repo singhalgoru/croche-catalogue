@@ -826,7 +826,7 @@ function App() {
           <img {...productImageProtection} src={storeContent.brandStory.portrait.thumbnail} alt={storeContent.brandStory.portrait.alt} width={150} height={200}
             className="row-span-2 w-full rounded-xl sm:row-span-4" decoding="async" />
           <p className="text-xs font-semibold uppercase tracking-wider">Meet Luvia &amp; our founder</p>
-          <h2 id="brand-story-teaser-title" className="font-heading text-xl font-bold sm:text-2xl">{storeContent.brandStory.teaser.title}</h2>
+          <h2 id="brand-story-teaser-title" className="font-heading text-xl font-bold sm:text-2xl">{storeContent.brandStory.teaser.title}<sup aria-hidden="true">™</sup></h2>
           <p className="col-span-2 text-sm leading-relaxed sm:col-span-1 sm:col-start-2">{storeContent.brandStory.teaser.text}</p>
           <div className="col-span-2 sm:col-span-1 sm:col-start-2 sm:mt-1">
             <a href="/about/" className="inline-flex min-h-11 items-center rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream hover:bg-cocoa-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">{storeContent.brandStory.teaser.linkLabel}</a>

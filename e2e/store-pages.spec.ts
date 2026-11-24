@@ -38,7 +38,7 @@ test('footer destinations stay correct and the desktop footer is compact', async
     '/collections/': 'Explore our handmade collections',
     ...Object.fromEntries(productCollections.map(collection => [collection.path, collection.title])),
     '/crochet-gift-guide/': storeContent.giftGuide.title,
-    '/customer-love/': 'Customer Love', '/about/': storeContent.brandStory.title,
+    '/customer-love/': 'Customer Love', '/about/': `${storeContent.brandStory.title}™`,
     '/faq/': 'Ordering, delivery & care FAQ', '/bulk-orders/': 'Bulk Orders & Corporate Gifting',
     '/international-quote/': 'Request an international quote', '/terms-and-conditions/': 'Terms & Conditions',
     '/privacy-policy/': 'Privacy Policy', '/return-policy/': 'Return and Refund Policy',
@@ -331,6 +331,24 @@ test('hamburger menu reaches collaboration contact on home and information pages
     expect(url.searchParams.get('text')).toContain('maker, content creator or partner');
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   }
+});
+
+test('trademark appears on the footer logo and prominent brand headings', async ({ page }) => {
+  await installMockSupabase(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Create with Luvia', exact: true })).toHaveText('Create with Luvia™');
+  await expect(page.getByRole('heading', { name: storeContent.brandStory.teaser.title, exact: true })).toHaveText(`${storeContent.brandStory.teaser.title}™`);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const logo = page.getByRole('contentinfo').getByRole('link', { name: 'Luvia Creations home' });
+  const mark = logo.locator('[aria-hidden="true"]');
+  await expect(mark).toBeVisible();
+  await expect(mark).toHaveText('™');
+  const imageBox = await logo.locator('img').boundingBox();
+  const markBox = await mark.boundingBox();
+  expect(Math.abs(markBox!.x + markBox!.width / 2 - (imageBox!.x + imageBox!.width))).toBeLessThan(2);
+  expect(markBox!.y).toBeLessThan(imageBox!.y + imageBox!.height / 2);
+  await page.goto('/about/');
+  await expect(page.getByRole('heading', { name: storeContent.brandStory.title, exact: true })).toHaveText(`${storeContent.brandStory.title}™`);
 });
 
 test('store pages reflect added, renamed and removed admin categories without hardcoded links', async ({ page }) => {

@@ -263,7 +263,7 @@ describe('live store pages', () => {
     });
     try {
       render(<StorePages {...initial} />);
-      expect(screen.getByRole('heading', { level: 1, name: storeContent.brandStory.title })).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 1, name: storeContent.brandStory.title }).textContent).toBe(`${storeContent.brandStory.title}™`);
       const story = screen.getByRole('article', { name: "Luvia's founder story" });
       expect(within(story).getByText(storeContent.brandStory.intro)).toBeTruthy();
       expect(within(story).getByRole('heading', { name: storeContent.brandStory.founderNote.title })).toBeTruthy();

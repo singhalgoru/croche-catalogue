@@ -22,7 +22,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
     {showCollaboration && <section id="collaborate" aria-labelledby="collaboration-heading"
       className="mx-auto mt-8 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-16 md:mt-6">
       <div className="rounded-2xl border border-mustard/40 bg-cream p-5 text-center text-cocoa sm:p-8 md:grid md:grid-cols-[1fr_auto] md:gap-x-6 md:px-6 md:py-5 md:text-left">
-        <h2 id="collaboration-heading" className="font-heading text-2xl font-bold md:col-start-1 md:text-xl">Create with Luvia</h2>
+        <h2 id="collaboration-heading" className="font-heading text-2xl font-bold md:col-start-1 md:text-xl">Create with Luvia<sup aria-hidden="true">™</sup></h2>
         <p className="mx-auto mt-2 max-w-2xl font-heading text-lg font-semibold sm:text-xl md:hidden">
           Celebrating artisan skill and working towards meaningful opportunities through handmade craft.
         </p>
@@ -63,8 +63,9 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
         </button>
         <div id={informationId} className={`${informationOpen ? 'grid' : 'hidden'} gap-7 pb-6 pt-3 md:grid md:grid-cols-2 md:gap-6 md:pb-4 md:pt-0 lg:grid-cols-[0.8fr_1.5fr_1.1fr]`}>
         <div className="hidden md:col-span-2 md:block lg:col-span-1">
-        <a href="/" aria-label="Luvia Creations home" className="inline-flex min-h-11 items-center">
+        <a href="/" aria-label="Luvia Creations home" className="relative inline-flex min-h-11 items-center">
           <img src="/images/luvia-logo-160.webp" alt="" width="72" height="72" loading="lazy" className="h-16 w-16 rounded-full" />
+          <span aria-hidden="true" className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/4 rounded-full bg-cream px-0.5 text-xs font-bold leading-none text-cocoa">™</span>
         </a>
         <p className="mt-2 max-w-sm leading-relaxed text-cream/80">
           Premium handmade crochet accessories, toys, gifts and decor,
