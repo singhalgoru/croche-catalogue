@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import { JSDOM } from 'jsdom';
 import { describe, expect, it, vi } from 'vitest';
 import { toProduct } from './prerender.mjs';
-import { cleanImageKey, fetchPinterestImages, merchantItems, renderMerchantFeed, renderMetaCatalogFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
+import { cleanImageKey, fetchPinterestImages, googleProductCategory, merchantItems, renderMerchantFeed, renderMetaCatalogFeed, renderPinterestCatalogFeed, writeMerchantCatalogue } from './merchant-feed.mjs';
 
 const product = toProduct({
   id: 'p1', public_slug: 'rose-coaster', name: 'Rose & Coaster', category: 'Decor', description: 'Handmade <rose> & leaves.',
@@ -17,6 +17,55 @@ const product = toProduct({
 });
 
 describe('Merchant Center feed', () => {
+  it.each([
+    ['Wearables', 'Woollen Headband', '', '1662'],
+    ['Hair Accessories', 'Scalloped Headband', '', '1662'],
+    ['Hair Accessories', 'Ruffle Scrunchie', '', '1483'],
+    ['Hair Accessories', 'Mini Bow Hair Clips', '', '502988'],
+    ['Hair Accessories', 'Boho braids', '', '171'],
+    ['Bags', 'Chunky Dumpling Clutch Bag', '', '3032'],
+    ['Charms & Keychains', 'Watermelon Slice Keychain', '', '175'],
+    ['Charms & Keychains', 'Panda Charm', 'A charm for bags and keys.', '6552'],
+    ['Charms & Keychains', 'Hanging ornament', 'A decoration for a car or study table.', '2495'],
+    ['Toys', 'Bunny Toy', '', '1253'],
+    ['Anklets', 'Bell Anklet', '', '189'],
+    ['Brooches', 'Sunflower Brooch', '', '197'],
+    ['Decor', 'Rose Mat/Coaster', '', '2363'],
+    ['Decor', 'Red Rose Curtain Tieback', '', '6255'],
+    ['Decor', 'Heart Trinket Dish', '', '6457'],
+    ['Decor', 'Lotus Flower Decor', '', '6265'],
+    ['Decor', 'Crochet Flower Decor', 'A tray for trinkets.', '6456'],
+    ['Decor', 'New home decoration', '', '536'],
+    ['New category', 'Unclassified item', '', null],
+    ['Charms & Keychains', 'Car mirror charm', 'A decoration for a car.', null],
+    ['Bags', 'Unknown bag', '', null],
+  ])('maps %s / %s to a suitable Google category', (category, name, description, expected) => {
+    expect(googleProductCategory({ category, name, description })).toBe(expected);
+  });
+
+  it('exports Google taxonomy IDs in Google and Pinterest feeds without changing Meta', () => {
+    const items = merchantItems([product]).map(item => ({ ...item, pinterestImage: item.image, metaImage: item.image }));
+    const field = (xml: string) => {
+      const doc = new JSDOM(xml, { contentType: 'text/xml' }).window.document;
+      return [...doc.getElementsByTagNameNS('http://base.google.com/ns/1.0', 'google_product_category')]
+        .map(node => node.textContent);
+    };
+    expect(field(renderMerchantFeed(items))).toEqual(['2363', '2363']);
+    expect(field(renderPinterestCatalogFeed(items))).toEqual(['2363', '2363']);
+    expect(field(renderMetaCatalogFeed(items))).toEqual([]);
+  });
+
+  it('warns and omits the taxonomy field instead of assigning unknown categories incorrectly', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const items = merchantItems([{ ...product, category: 'Unknown', variants: [] }])
+        .map(item => ({ ...item, pinterestImage: item.image }));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('No Google product category mapping'));
+      expect(renderMerchantFeed(items)).not.toContain('google_product_category');
+      expect(renderPinterestCatalogFeed(items)).not.toContain('google_product_category');
+    } finally { warn.mockRestore(); }
+  });
+
   it('loads Pinterest image mappings and fails explicitly when the database lookup fails', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify([{ variant_id: 'v1', image_url: 'https://images.luviacreations.com/products/admin/portrait.webp' }])))

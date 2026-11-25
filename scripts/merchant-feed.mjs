@@ -39,6 +39,37 @@ export const cleanImageKey = (source) => {
   return url.pathname.slice('/products/'.length).replace(/(?:-wm\d*)?\.webp$/, '/original.webp');
 };
 
+export const googleProductCategory = (product) => {
+  const category = product.category.trim().toLowerCase();
+  const name = product.name.trim().toLowerCase();
+  if (category === 'wearables' || category === 'hair accessories') {
+    if (/\bheadbands?\b/.test(name)) return '1662';
+    if (category === 'wearables') return '166';
+    if (/\bscrunchie(s)?\b/.test(name)) return '1483';
+    if (/\b(hair clips?|bun pins?)\b/.test(name)) return '502988';
+    return '171';
+  }
+  if (category === 'bags') return /\b(clutch|handbag|purse|tote)\b/.test(name) ? '3032' : null;
+  if (category === 'charms & keychains') {
+    if (/\bkeychains?\b/.test(name)) return '175';
+    if (/\bbags?\b/.test(`${name} ${product.description.toLowerCase()}`)) return '6552';
+    if (/\bhanging\b/.test(name) && /\bcar\b/.test(product.description.toLowerCase())) return '2495';
+    return null;
+  }
+  if (category === 'toys') return '1253';
+  if (category === 'anklets') return '189';
+  if (category === 'brooches') return '197';
+  if (category === 'decor') {
+    if (/\bcoasters?\b/.test(name)) return '2363';
+    if (/\bcurtain tiebacks?\b/.test(name)) return '6255';
+    if (/\btrinket dish\b/.test(name)) return '6457';
+    if (name === 'lotus flower decor') return '6265';
+    if (name === 'crochet flower decor') return '6456';
+    return '536';
+  }
+  return null;
+};
+
 export const merchantItems = (products, categories = []) => {
   const lifestyleKeys = new Map();
   for (const category of categories.filter(settings => settings.visible !== false)) {
@@ -57,6 +88,10 @@ export const merchantItems = (products, categories = []) => {
       console.warn(`[merchant] Excluding price-on-request product: ${product.name}`);
       continue;
     }
+    const googleCategory = googleProductCategory(product);
+    if (!googleCategory) {
+      console.warn(`[merchant] No Google product category mapping for ${product.name} (${product.category}).`);
+    }
     const variants = product.variants.length ? product.variants : [null];
     for (const variant of variants) {
       const price = variant?.price ?? product.price;
@@ -74,6 +109,7 @@ export const merchantItems = (products, categories = []) => {
       }
       items.push({
         ...product,
+        googleProductCategory: googleCategory,
         merchantId: id,
         groupId: product.variants.length > 1 ? product.id : null,
         variantName: product.variants.length > 1 ? variant.name : null,
@@ -117,6 +153,7 @@ ${items.map((item) => `<item>${[
     field('brand', 'Luvia Creations'),
     field('identifier_exists', 'no'),
     field('product_type', item.category),
+    ...(item.googleProductCategory ? [field('google_product_category', item.googleProductCategory)] : []),
     ...(item.groupId ? [field('item_group_id', item.groupId), field('color', item.variantName)] : []),
   ].join('')}</item>`).join('\n')}
 </channel></rss>
@@ -164,6 +201,7 @@ ${items.map((item) => `<item>${[
     field('image_link', item.pinterestImage),
     field('brand', 'Luvia Creations'),
     field('product_type', item.category),
+    ...(item.googleProductCategory ? [field('google_product_category', item.googleProductCategory)] : []),
     ...(item.groupId ? [field('item_group_id', item.groupId)] : []),
   ].join('')}</item>`).join('\n')}
 </channel></rss>
