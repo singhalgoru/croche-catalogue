@@ -292,7 +292,7 @@ export default function ImageGenerationPanel({
       <div className="mt-4 space-y-3 rounded-xl border border-mustard/30 bg-cream/30 p-3">
         <h6 className="text-sm font-bold text-cocoa">Prompts for an external image tool</h6>
         <p className="text-xs text-cocoa/70">
-          Attach the original photo and use each prompt separately. The Pinterest prompt preserves the photo and extends only its background to 2:3.
+          Attach the original photo and use each prompt separately. The Pinterest prompt extends the background to 2:3 and asks to move an existing background watermark to the bottom-right. Review the result.
           Save the portrait under the variant's Pinterest photo after creating the product.
         </p>
         {([['website', 'Website prompt (1:1)', websitePrompt], ['pinterest', 'Pinterest prompt (2:3)', pinterestPrompt]] as const).map(([format, label, prompt]) => (

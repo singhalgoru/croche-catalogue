@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPinterestImage, removePinterestImage, savePinterestImage, type PinterestImage } from '../../services/pinterestImages';
 import { PinterestIcon } from '../SocialIcons';
 import { buildProductImagePrompt } from '../../utils/productImagePrompt';
+import ImageFilePicker from './ImageFilePicker';
 
 export default function PinterestVariantImage({ variantId, variantName }: { variantId: string; variantName: string }) {
   const [open, setOpen] = useState(false);
@@ -94,7 +95,7 @@ export default function PinterestVariantImage({ variantId, variantName }: { vari
       <button type="button" disabled={busy} onClick={() => { setOpen(false); setFile(null); setError(''); setMessage(''); }}
         className="text-xs font-semibold underline disabled:opacity-50">Close</button>
     </div>
-    <p className="mt-1 text-xs">Upload a reviewed 2:3 portrait of this exact variant, at least 1000 x 1500 pixels. The prompt keeps your original photo and extends only its background. It is stored as optimized WebP in R2; the website image stays unchanged.</p>
+    <p className="mt-1 text-xs">Upload a reviewed 2:3 portrait of this exact variant, at least 1000 x 1500 pixels. The prompt extends the background and asks to move an existing background watermark to the bottom-right. Review the photo and watermark before saving. It is stored as optimized WebP in R2; the website image stays unchanged.</p>
     <div className="mt-2">
       <button type="button" disabled={busy} onClick={generatePrompt}
         className="rounded-full border border-[#E60023]/50 px-3 py-1.5 text-xs font-semibold text-[#B0001B] underline underline-offset-2 disabled:opacity-50">
@@ -114,11 +115,14 @@ export default function PinterestVariantImage({ variantId, variantName }: { vari
     </div>
     {image && <img src={image.image_url} alt={`Saved Pinterest photo for ${variantName}`} className="mt-2 h-32 w-auto rounded-lg" />}
     {file && preview && <img src={preview} alt={`Selected Pinterest photo for ${variantName}`} className="mt-2 h-32 w-auto rounded-lg" />}
-    <label className="mt-2 block text-xs font-semibold">Choose Pinterest photo for {variantName}
-      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy}
+    <div className="mt-2">
+      <ImageFilePicker label={`Choose Pinterest photo for ${variantName}`} file={file} disabled={busy} maxSizeMB={20}
         onChange={event => { setFile(event.target.files?.[0] ?? null); setError(''); setMessage(''); event.target.value = ''; }}
-        className="mt-1 block w-full text-xs" />
-    </label>
+        icon={<svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor"
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M8 11V4a2 2 0 0 1 4 0v5h1a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2v2a5 5 0 0 1-5 5h-3a5 5 0 0 1-4-2L4 14a2 2 0 0 1 3-2l1 1z" />
+        </svg>} />
+    </div>
     <div className="mt-2 flex flex-wrap gap-2">
       <button type="button" disabled={busy || !loaded || !file} onClick={() => void save()}
         className="rounded-full bg-cocoa px-3 py-1.5 text-xs font-semibold text-cream disabled:opacity-50">

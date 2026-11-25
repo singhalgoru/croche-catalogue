@@ -39,6 +39,7 @@ describe('image prompt copying', () => {
     expect(pinterest.value).toContain('canvas-expansion edit only');
     expect(pinterest.value).toContain('Outpaint only those newly added areas');
     expect(pinterest.value).toContain('Keep the entire original photo unchanged');
+    expect(pinterest.value).toContain('move that same watermark to the bottom-right corner of the final portrait');
     expect(pinterest.value).not.toContain('Use a wooden basket.');
     expect(pinterest.value).not.toContain('create a realistic product photograph');
     fireEvent.click(screen.getByRole('button', { name: 'Copy website prompt' }));
