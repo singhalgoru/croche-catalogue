@@ -7,6 +7,7 @@ interface Props {
   onAddToCart: (product: Product, variant: ProductVariant) => Promise<boolean>;
   isCartBusy?: boolean;
   getCartQuantity: (productId: string, variantId: string) => number;
+  mobileLimit?: number;
 }
 
 export default function ProductGrid({
@@ -15,6 +16,7 @@ export default function ProductGrid({
   onAddToCart,
   isCartBusy = false,
   getCartQuantity,
+  mobileLimit,
 }: Props) {
   if (products.length === 0) {
     return (
@@ -27,19 +29,20 @@ export default function ProductGrid({
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
       {products.map((product, index) => (
-        <ProductCard
-          key={product.id}
-          product={product}
-          isFirstProduct={index === 0}
-          isFeatured={product.featured === true}
-          onSelect={onSelect}
-          onAddToCart={onAddToCart}
-          isCartBusy={isCartBusy}
-          cartQuantity={getCartQuantity(
-            product.id,
-            product.variants.find((variant) => variant.inStock)?.id ?? '',
-          )}
-        />
+        <div key={product.id} className={mobileLimit !== undefined && index >= mobileLimit ? 'hidden sm:contents' : 'contents'}>
+          <ProductCard
+            product={product}
+            isFirstProduct={index === 0}
+            isFeatured={product.featured === true}
+            onSelect={onSelect}
+            onAddToCart={onAddToCart}
+            isCartBusy={isCartBusy}
+            cartQuantity={getCartQuantity(
+              product.id,
+              product.variants.find((variant) => variant.inStock)?.id ?? '',
+            )}
+          />
+        </div>
       ))}
     </div>
   );

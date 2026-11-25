@@ -54,8 +54,13 @@ it('shows Pinterest branding and generates a variant-specific copyable portrait 
   fireEvent.click(screen.getByRole('button', { name: 'Generate Pinterest prompt' }));
   const prompt = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Pinterest image prompt for Pink Grey Mix' });
   expect(prompt.value).toContain('Product variant: Pink Grey Mix.');
-  expect(prompt.value).toContain('attached original product photo');
-  expect(prompt.value).toContain('vertical 2:3 portrait');
+  expect(prompt.value).toContain('attached original photo itself');
+  expect(prompt.value).toContain('canvas-expansion edit only');
+  expect(prompt.value).toContain('Keep the entire original photo unchanged');
+  expect(prompt.value).toContain('Outpaint only those newly added areas');
+  expect(prompt.value).toContain('Do not add, remove or alter any text, logos or watermarks already present');
+  expect(prompt.value).not.toContain('create a realistic product photograph');
+  expect(prompt.value).toContain('2:3 portrait');
   expect(prompt.value).toContain('1000 x 1500 pixels');
   fireEvent.click(screen.getByRole('button', { name: 'Copy Pinterest prompt' }));
   expect(await screen.findByRole('status')).toBeTruthy();

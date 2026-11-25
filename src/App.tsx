@@ -74,6 +74,7 @@ const readCheckoutStep = () => {
   const value = new URLSearchParams(window.location.search).get('checkout');
   return (['cart','delivery','review','confirmation'] as const).find(step => step === value) ?? null;
 };
+const MOBILE_HOME_PRODUCT_LIMIT = 8;
 const sectionHashes = [
   '#collaborate', '#bulk-orders', '#products', '#contact-luvia',
   ...Object.values(storeContent.faqAnchors).map(id => `#${id}`),
@@ -160,6 +161,7 @@ function App() {
     new URLSearchParams(window.location.search).get('category') || 'All');
   const [activePriceRange, setActivePriceRange] = useState<CataloguePriceRange | null>(null);
   const [query, setQuery] = useState('');
+  const [showAllHomeProducts, setShowAllHomeProducts] = useState(false);
   const [selectedProductSnapshot, setSelectedProduct] = useState<Product | null>(() => {
     const reference = readProductPageReference() ?? readProductReferenceFromHash();
     return hasCatalogueSnapshot && reference ? findProductByReference(products, reference) : null;
@@ -480,6 +482,10 @@ function App() {
         compareCatalogueProducts(left, right, { now: catalogueTime, categoryRanks }),
       );
   }, [categoryProducts, catalogueTime, categorySettings, query, activePriceRange]);
+  const isDefaultCatalogueView = effectiveActiveCategory === 'All' && !query.trim() && activePriceRange === null;
+  const mobileProductLimit = isDefaultCatalogueView && !showAllHomeProducts
+    ? MOBILE_HOME_PRODUCT_LIMIT
+    : undefined;
 
   useEffect(() => {
     if (categoryScrollRequest === 0 || isLoading) return;
@@ -914,9 +920,23 @@ function App() {
                   (item) => item.productId === productId && item.variantId === variantId,
                 )?.quantity ?? 0
               }
+              mobileLimit={mobileProductLimit}
             />
           )}
         </div>
+        {isDefaultCatalogueView && filteredProducts.length > MOBILE_HOME_PRODUCT_LIMIT && (
+          <div className="grid justify-items-center gap-2 sm:hidden">
+            <p aria-live="polite" className="text-xs text-cocoa/70">
+              {showAllHomeProducts
+                ? `Showing all ${filteredProducts.length} products`
+                : `Showing ${MOBILE_HOME_PRODUCT_LIMIT} of ${filteredProducts.length} products`}
+            </p>
+            <button type="button" onClick={() => setShowAllHomeProducts(showAll => !showAll)}
+              className="min-h-12 w-full max-w-sm rounded-full border-2 border-cocoa bg-white px-5 text-sm font-semibold text-cocoa transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
+              {showAllHomeProducts ? 'Show fewer products' : `View all ${filteredProducts.length} products`}
+            </button>
+          </div>
+        )}
         <OrderingGuide />
       </main>
       )}

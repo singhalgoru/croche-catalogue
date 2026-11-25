@@ -1,13 +1,9 @@
 import { useId, useState } from 'react';
 import { formatWhatsAppNumber, getCollaborationWhatsAppLink, getGeneralWhatsAppLink } from '../utils/whatsapp';
 import { trackContactClick } from '../services/analytics';
-import { FacebookIcon, InstagramIcon, PinterestIcon, WhatsAppIcon } from './SocialIcons';
+import { WhatsAppIcon } from './SocialIcons';
+import SocialFollowLinks from './SocialFollowLinks';
 import BulkOrders from './BulkOrders';
-
-const INSTAGRAM_URL =
-  'https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl';
-const FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61596614701476';
-const PINTEREST_URL = 'https://in.pinterest.com/luviacreations/';
 
 interface Props {
   showCollaboration?: boolean;
@@ -108,39 +104,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
           >
             <WhatsAppIcon />
           </a>
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackContactClick('instagram', 'footer')}
-            aria-label="Contact on Instagram"
-            title="Instagram"
-            className="inline-flex min-h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] p-2 text-white transition-opacity hover:opacity-90"
-          >
-            <InstagramIcon />
-          </a>
-          <a
-            href={FACEBOOK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackContactClick('facebook', 'footer')}
-            aria-label="Follow Luvia on Facebook"
-            title="Facebook"
-            className="inline-flex min-h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] p-2 text-white transition-opacity hover:opacity-90"
-          >
-            <FacebookIcon />
-          </a>
-          <a
-            href={PINTEREST_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackContactClick('pinterest', 'footer')}
-            aria-label="Follow Luvia on Pinterest"
-            title="Pinterest"
-            className="inline-flex min-h-11 w-11 items-center justify-center rounded-full bg-[#E60023] p-2 text-white transition-opacity hover:opacity-90"
-          >
-            <PinterestIcon />
-          </a>
+          <SocialFollowLinks />
         </div>
         <p className="mt-2 text-xs">
           WhatsApp / mobile:{' '}

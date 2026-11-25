@@ -25,19 +25,22 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals(); });
 
 describe('image prompt copying', () => {
-  it('provides separately copyable website and Pinterest prompts using the current styling direction', async () => {
+  it('provides a styled website prompt and an aspect-only Pinterest prompt', async () => {
     open();
     enterInstruction('Use a wooden basket.');
     const website = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Website prompt (1:1)' });
     const pinterest = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Pinterest prompt (2:3)' });
     expect(website.value).toContain('square 1:1');
-    expect(pinterest.value).toContain('vertical 2:3');
+    expect(website.value).toContain('Use a wooden basket.');
+    expect(pinterest.value).toContain('2:3 portrait');
     expect(pinterest.value).toContain('1000 x 1500');
-    for (const prompt of [website.value, pinterest.value]) {
-      expect(prompt).toContain('Use a wooden basket.');
-      expect(prompt).toContain('Preserve its exact shape');
-      expect(prompt).toContain('No text, logos, watermarks');
-    }
+    expect(website.value).toContain('Preserve its exact shape');
+    expect(website.value).toContain('No text, logos, watermarks');
+    expect(pinterest.value).toContain('canvas-expansion edit only');
+    expect(pinterest.value).toContain('Outpaint only those newly added areas');
+    expect(pinterest.value).toContain('Keep the entire original photo unchanged');
+    expect(pinterest.value).not.toContain('Use a wooden basket.');
+    expect(pinterest.value).not.toContain('create a realistic product photograph');
     fireEvent.click(screen.getByRole('button', { name: 'Copy website prompt' }));
     await screen.findByText('Prompt copied.');
     expect(writeText).toHaveBeenLastCalledWith(website.value);
@@ -47,8 +50,9 @@ describe('image prompt copying', () => {
     expect(generateProductImage).not.toHaveBeenCalled();
     expect(optimizeProductImagePrompt).not.toHaveBeenCalled();
     enterInstruction('New styling.');
-    expect(pinterest.value).toContain('New styling.');
-    expect(screen.queryByText('Prompt copied.')).toBeNull();
+    expect(website.value).toContain('New styling.');
+    expect(pinterest.value).not.toContain('New styling.');
+    expect(screen.getByText('Prompt copied.')).toBeTruthy();
   });
 
   it('allows manual copying if a separate prompt cannot be copied', async () => {

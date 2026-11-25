@@ -94,7 +94,7 @@ export default function PinterestVariantImage({ variantId, variantName }: { vari
       <button type="button" disabled={busy} onClick={() => { setOpen(false); setFile(null); setError(''); setMessage(''); }}
         className="text-xs font-semibold underline disabled:opacity-50">Close</button>
     </div>
-    <p className="mt-1 text-xs">Upload a reviewed 2:3 portrait of this exact variant, at least 1000 x 1500 pixels. It is stored as optimized WebP in R2; the website image stays unchanged.</p>
+    <p className="mt-1 text-xs">Upload a reviewed 2:3 portrait of this exact variant, at least 1000 x 1500 pixels. The prompt keeps your original photo and extends only its background. It is stored as optimized WebP in R2; the website image stays unchanged.</p>
     <div className="mt-2">
       <button type="button" disabled={busy} onClick={generatePrompt}
         className="rounded-full border border-[#E60023]/50 px-3 py-1.5 text-xs font-semibold text-[#B0001B] underline underline-offset-2 disabled:opacity-50">

@@ -29,6 +29,13 @@ it('retains bottom navigation on the cart with the Cart destination selected', (
   expect(screen.getByRole('link', { name: 'Home' }).hasAttribute('aria-current')).toBe(false);
   expect(screen.getByRole('link', { name: 'Collections' }).hasAttribute('aria-current')).toBe(false);
 });
+it('clearly marks the More destination while its menu is open', () => {
+  render(<MobileNavigation cartItemCount={0} onOpenMore={vi.fn()} moreOpen moreControls="menu" />);
+  const more = screen.getByRole('button', { name: 'Close navigation' });
+  expect(more.getAttribute('aria-expanded')).toBe('true');
+  expect(more.className).toContain('bg-cocoa');
+  expect(more.className).toContain('text-cream');
+});
 it('hides for a focused on-screen keyboard, including browsers resizing the layout viewport', () => {
   vi.stubGlobal('innerHeight', 800);
   render(<><input aria-label="Search" /><MobileNavigation cartItemCount={0} onOpenMore={vi.fn()} moreOpen={false} moreControls="menu" /></>);

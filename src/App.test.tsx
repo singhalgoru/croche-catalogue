@@ -41,11 +41,15 @@ vi.mock('./services/analytics', () => ({
   trackWhatsAppEnquiry: vi.fn(), trackWhatsAppCart: vi.fn(), trackContactClick: vi.fn(),
 }));
 vi.mock('./components/ProductGrid', () => ({
-  default: ({ onSelect, products }: { onSelect: (product: Product) => void; products: Product[] }) =>
-    <div>
+  default: ({ onSelect, products, mobileLimit }: {
+    onSelect: (product: Product) => void; products: Product[]; mobileLimit?: number;
+  }) => {
+    const mobileProducts = mobileLimit === undefined ? products : products.slice(0, mobileLimit);
+    return <div>
       <button onClick={() => onSelect(product)}>Open test product</button>
-      <output aria-label="Filtered products">{products.map((item) => item.name).join(', ')}</output>
-    </div>,
+      <output aria-label="Filtered products">{mobileProducts.map((item) => item.name).join(', ')}</output>
+    </div>;
+  },
 }));
 
 beforeEach(() => {
@@ -230,6 +234,21 @@ describe('Hybrid product navigation', () => {
     expect(grid.textContent).toBe('Test Coaster');
     expect(grid.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     expect(screen.getAllByRole('navigation', { name: 'Explore collections' })).toHaveLength(1);
+  });
+  it('starts with eight homepage products on mobile and can reveal the full catalogue', () => {
+    catalogueProducts = Array.from({ length: 12 }, (_, index) => ({
+      ...product,
+      id: `home-product-${index + 1}`,
+      name: `Home product ${index + 1}`,
+    }));
+    render(<App />);
+    expect(screen.getByLabelText('Filtered products').textContent?.split(', ')).toHaveLength(8);
+    expect(screen.getByText('Showing 8 of 12 products')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'View all 12 products' }));
+    expect(screen.getByLabelText('Filtered products').textContent?.split(', ')).toHaveLength(12);
+    expect(screen.getByText('Showing all 12 products')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer products' }));
+    expect(screen.getByLabelText('Filtered products').textContent?.split(', ')).toHaveLength(8);
   });
   it('composes price and category filters without including unpriced products in a selected range', () => {
     catalogueProducts = [

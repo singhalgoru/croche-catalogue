@@ -55,7 +55,8 @@ export default function MobileNavigation({ cartItemCount, accountName, onOpenCar
         aria-label={accountName ? `My account, signed in as ${accountName}` : 'Sign in or create account'} className={itemClass}>
         {accountName ? <span aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full bg-mustard text-xs uppercase">{accountName.trim().charAt(0)}</span> : icon('M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21c0-9 16-9 16 0')}Account
       </button>
-      <button type="button" aria-label={moreOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={moreOpen} aria-controls={moreControls} onClick={onOpenMore} className={itemClass}>
+      <button type="button" aria-label={moreOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={moreOpen} aria-controls={moreControls} onClick={onOpenMore}
+        className={`${itemClass} ${moreOpen ? 'bg-cocoa text-cream' : 'hover:bg-mustard/20'}`}>
         {icon(moreOpen ? 'm6 6 12 12M6 18 18 6' : 'M4 6h16M4 12h16M4 18h16')}More
       </button>
     </div>

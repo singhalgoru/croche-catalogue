@@ -31,6 +31,17 @@ describe('Header', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     expect(screen.getByRole('link', { name: 'Customer Love' }).getAttribute('href')).toBe('/customer-love/');
   });
+  it('makes social profiles available in the desktop header and mobile menu', () => {
+    render(<Header showInstallPrompt={false} />);
+    expect(screen.getByRole('link', { name: 'Follow Luvia on Instagram' }).getAttribute('href'))
+      .toBe('https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl');
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const socialGroups = screen.getAllByRole('group', { name: 'Follow Luvia on social media' });
+    expect(socialGroups).toHaveLength(2);
+    expect(socialGroups[1].textContent).toContain('Instagram');
+    expect(screen.getByRole('link', { name: 'Pinterest' }).getAttribute('href'))
+      .toBe('https://in.pinterest.com/luviacreations/');
+  });
   it('opens My orders from the main menu for signed-in customers', () => {
     const orders = vi.fn();
     const account = vi.fn();
@@ -154,6 +165,7 @@ describe('Header', () => {
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByRole('link', { name: 'Charms & Keychains' }).getAttribute('href'))
       .toBe('/collections/charms-keychains/');
+    fireEvent.click(screen.getByText('More links & policies'));
     expect(screen.getByRole('link', { name: 'Return and refund policy' }).getAttribute('href'))
       .toBe('/return-policy/');
     expect(screen.getByRole('link', { name: 'Collaborate with us' }).getAttribute('href'))

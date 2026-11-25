@@ -3,6 +3,7 @@ import InstallAppButton from './InstallAppButton';
 import CartMenuButton from './CartMenuButton';
 import { collectionPath } from '../utils/collectionLink.js';
 import MobileNavigation from './MobileNavigation';
+import SocialFollowLinks from './SocialFollowLinks';
 import { getGeneralWhatsAppLink } from '../utils/whatsapp';
 import storeContent from '../content/storeContent.json';
 
@@ -165,6 +166,10 @@ export default function Header({
         </div>
       )}
       <div className="relative z-[80] mx-auto h-0 w-full max-w-6xl">
+        <div className="absolute right-[14rem] top-3 hidden items-center gap-2 lg:flex">
+          <span className="text-xs font-semibold text-cocoa/70">Follow</span>
+          <SocialFollowLinks variant="header" />
+        </div>
         {accountName && <p title={`Hello, ${accountName}`}
           className={`absolute top-3 hidden h-12 max-w-40 items-center text-sm font-semibold text-cocoa lg:flex ${onOpenCart ? 'right-48' : 'right-36'}`}>
           <span className="truncate">Hello, {accountName}</span>
@@ -205,9 +210,18 @@ export default function Header({
               onBlur={(event) => {
                 if (!event.currentTarget.parentElement?.contains(event.relatedTarget) && !mobileNavRef.current?.contains(event.relatedTarget)) setIsMenuOpen(false);
               }}
-              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-h-[65vh] overflow-y-auto rounded-xl border border-mustard/30 bg-white p-3 text-cocoa shadow-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-6 sm:top-16 sm:max-h-[70vh] sm:w-72"
+              className="fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-h-[72vh] overflow-y-auto rounded-2xl border border-mustard/40 bg-white p-3 text-cocoa shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-6 sm:top-16 sm:max-h-[70vh] sm:w-80"
             >
-              <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)} className="block rounded-lg px-3 py-3 font-semibold hover:bg-cream focus-visible:outline-cocoa">Home</a>
+              <div className="mb-3 rounded-xl border border-mustard/30 bg-cream p-3">
+                <p className="font-heading text-base font-bold text-cocoa">Explore Luvia<sup aria-hidden="true">™</sup></p>
+                <p className="text-xs text-cocoa/65">Shop handmade. Follow along.</p>
+              </div>
+              <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)}
+                className="mb-3 flex min-h-11 items-center rounded-xl bg-cocoa px-3 font-semibold text-cream hover:bg-cocoa-dark focus-visible:outline-2 focus-visible:outline-cocoa">Home</a>
+              <div className="mb-3 rounded-xl border border-mustard/30 p-3 sm:hidden">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cocoa/70">Follow Luvia</p>
+                <SocialFollowLinks variant="menu" />
+              </div>
               {onOpenAccount && (accountName ? <div className="px-1 py-2">
                 <p className="truncate px-2 text-sm text-cocoa/70">Signed in as <span className="font-semibold text-cocoa">{accountName}</span></p>
                 <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
@@ -226,28 +240,40 @@ export default function Header({
               </div>)}
               {signOutError && <p role="alert" className="px-3 py-2 text-sm text-red-700">{signOutError}</p>}
               {signOutMessage && <p role="status" className="px-3 py-2 text-sm text-green-800">{signOutMessage}</p>}
-              {categories.length > 0 && <p className="px-3 pt-3 text-xs font-bold uppercase text-cocoa/70">Collections</p>}
+              {categories.length > 0 && <p className="border-t border-mustard/20 px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-cocoa/70">Shop by collection</p>}
+              <div className="grid grid-cols-2 gap-1">
               {categories.map((category) => (
                 <a key={category} href={collectionPath(category)}
-                  className={`block rounded-lg px-3 py-3 focus-visible:outline-cocoa ${seasonalCategories.includes(category) ? 'bg-mustard text-cocoa font-semibold hover:bg-mustard/80' : 'hover:bg-cream'}`}>
+                  className={`flex min-h-11 items-center rounded-lg px-2.5 py-2 text-sm focus-visible:outline-cocoa ${seasonalCategories.includes(category) ? 'bg-mustard text-cocoa font-semibold hover:bg-mustard/80' : 'bg-cream/60 hover:bg-cream'}`}>
                   {category}
                 </a>
               ))}
-              <a href={`${import.meta.env.BASE_URL}return-policy/`}
-                className="mt-2 block rounded-lg border-t border-mustard/30 px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">
-                Return and refund policy
-              </a>
-              <a href={`${import.meta.env.BASE_URL}collections/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Explore collection pages</a>
-              <a href={`${import.meta.env.BASE_URL}crochet-gift-guide/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Crochet gift guide</a>
-              <a href={`${import.meta.env.BASE_URL}customer-love/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Customer Love</a>
-              <a href={`${import.meta.env.BASE_URL}about/`} className="block rounded-lg px-3 py-3 hover:bg-cream">About &amp; contact</a>
-              <a href={`${import.meta.env.BASE_URL}faq/`} className="block rounded-lg px-3 py-3 hover:bg-cream">Ordering FAQ</a>
-              <a href={getGeneralWhatsAppLink()} className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Contact on WhatsApp</a>
-              <a href="/bulk-orders/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Bulk orders &amp; gifting</a>
-              <a href="/international-quote/" className="block rounded-lg px-3 py-3 hover:bg-cream">International quotes</a>
-              <a href="/privacy-policy/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Privacy policy</a>
-              <a href="/terms-and-conditions/" className="block rounded-lg px-3 py-3 hover:bg-cream sm:hidden">Terms &amp; conditions</a>
-              {showCollaborationLink && <a href="#collaborate" className="block rounded-lg px-3 py-3 hover:bg-cream focus-visible:outline-cocoa">Collaborate with us</a>}
+              </div>
+              <p className="border-t border-mustard/20 px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-cocoa/70">Explore</p>
+              <div className="grid grid-cols-2 gap-1">
+                <a href={`${import.meta.env.BASE_URL}collections/`} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Explore collection pages</a>
+                <a href={`${import.meta.env.BASE_URL}crochet-gift-guide/`} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Crochet gift guide</a>
+                <a href={`${import.meta.env.BASE_URL}customer-love/`} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Customer Love</a>
+                <a href={`${import.meta.env.BASE_URL}about/`} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">About &amp; contact</a>
+              </div>
+              <details className="mt-2 border-t border-mustard/20 pt-1">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-2 text-sm font-semibold text-cocoa hover:text-cocoa-dark focus-visible:outline-2 focus-visible:outline-cocoa">
+                  More links &amp; policies
+                  <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </summary>
+                <div className="grid grid-cols-2 gap-1 pb-1">
+                <a href={`${import.meta.env.BASE_URL}faq/`} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Ordering FAQ</a>
+                <a href="/bulk-orders/" className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Bulk orders &amp; gifting</a>
+                <a href="/international-quote/" className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">International quotes</a>
+                <a href={getGeneralWhatsAppLink()} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Contact on WhatsApp</a>
+                <a href={`${import.meta.env.BASE_URL}return-policy/`} className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Return and refund policy</a>
+                <a href="/privacy-policy/" className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Privacy policy</a>
+                <a href="/terms-and-conditions/" className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream">Terms &amp; conditions</a>
+                {showCollaborationLink && <a href="#collaborate" className="flex min-h-11 items-center rounded-lg bg-cream/60 px-2.5 py-2 text-sm hover:bg-cream focus-visible:outline-cocoa">Collaborate with us</a>}
+                </div>
+              </details>
             </nav>
           )}
         </div>
