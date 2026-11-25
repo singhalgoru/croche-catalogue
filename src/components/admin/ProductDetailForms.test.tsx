@@ -97,6 +97,19 @@ beforeEach(() => {
 afterEach(() => { cleanup(); restoreDialog(); vi.clearAllMocks(); });
 
 describe('Product detail admin integration', () => {
+  it('offers bulk Pinterest tools in Manage products for the shown variants', async () => {
+    vi.mocked(fetchManagedProducts).mockResolvedValue([{ ...product, variants: [{
+      id: 'pink', name: 'Pink', color: '', price: null, inStock: true, availableQuantity: 1,
+      image: '/pink.webp', imagePath: '', gallery: [],
+    }] }]);
+    render(<ProductManager categories={['Home']} refreshKey={0} onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Manage products/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bulk Pinterest photos and prompts' }));
+    expect(await screen.findByLabelText('Coaster - Pink')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download selected photos and prompts' })).toBeTruthy();
+    expect(screen.getByLabelText('Choose Pinterest photos')).toHaveProperty('multiple', true);
+  });
+
   it('counts and filters products with a saved margin of at least 20%', async () => {
     vi.mocked(fetchManagedProducts).mockResolvedValue([
       { ...product, profitMarginPercent: 19.99 },

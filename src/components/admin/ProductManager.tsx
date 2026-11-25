@@ -19,6 +19,7 @@ import ProductVideoManager from './ProductVideoManager';
 import ProductPatternManager from './ProductPatternManager';
 import ProductReferenceVideo from './ProductReferenceVideo';
 import BulkDescriptionEditor from './BulkDescriptionEditor';
+import BulkPinterestImages from './BulkPinterestImages';
 import RichTextEditor from './RichTextEditor';
 import { richTextToPlainText } from '../../utils/richText';
 import PriceDiscoveryPanel from './PriceDiscoveryPanel';
@@ -487,7 +488,7 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
         Products marked Featured, including hidden products. Use Edit to change their featured status.
       </p>}
       <BulkDescriptionEditor products={filteredProducts} categories={categories}
-        disabled={busyId !== null || editingId !== null || isLoading}
+        disabled={busyId !== null || editingId !== null || isLoading || isAnalyzing}
         disabledReason={editingId !== null
           ? 'Save or cancel the open product edit first, then generate bulk descriptions and SEO summaries.'
           : isLoading ? 'Products are loading. Bulk actions will be available when loading finishes.'
@@ -497,6 +498,9 @@ export default function ProductManager({ categories, refreshKey, salesRefreshKey
           setProducts(await fetchManagedProducts());
           await onChanged();
         }} />
+      <BulkPinterestImages products={products} shownProducts={filteredProducts}
+        disabled={busyId !== null || editingId !== null || isLoading || isAnalyzing}
+        onBusyChange={setIsAnalyzing} />
       <section className="my-4 rounded-xl border border-mustard/50 bg-cream/40 p-4">
         <button
           type="button"
