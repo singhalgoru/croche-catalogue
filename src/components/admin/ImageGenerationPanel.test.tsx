@@ -36,10 +36,9 @@ describe('image prompt copying', () => {
     expect(pinterest.value).toContain('1000 x 1500');
     expect(website.value).toContain('Preserve its exact shape');
     expect(website.value).toContain('No text, logos, watermarks');
-    expect(pinterest.value).toContain('canvas-expansion edit only');
-    expect(pinterest.value).toContain('Outpaint only those newly added areas');
-    expect(pinterest.value).toContain('Keep the entire original photo unchanged');
-    expect(pinterest.value).toContain('move that same watermark to the bottom-right corner of the final portrait');
+    expect(pinterest.value).toContain('Keep the original photo, product, any person and pose');
+    expect(pinterest.value).toContain('one seamless photograph—no horizontal edge, strip, panel or blank area');
+    expect(pinterest.value).toContain('move it onto the bottom-right of the photograph, not into a separate section');
     expect(pinterest.value).not.toContain('Use a wooden basket.');
     expect(pinterest.value).not.toContain('create a realistic product photograph');
     fireEvent.click(screen.getByRole('button', { name: 'Copy website prompt' }));
