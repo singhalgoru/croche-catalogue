@@ -14,6 +14,7 @@ beforeEach(() => {
   vi.mocked(getPinterestImage).mockResolvedValue(null);
   vi.mocked(savePinterestImage).mockResolvedValue(saved);
   vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:portrait'), revokeObjectURL: vi.fn() });
+  vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals(); });
 
@@ -40,4 +41,23 @@ it('prevents saving if the current portrait cannot be loaded', async () => {
   expect((await screen.findByRole('alert')).textContent).toContain('Load failed');
   fireEvent.change(screen.getByLabelText('Choose Pinterest photo for Pink'), { target: { files: [new File(['x'], 'photo.jpg', { type: 'image/jpeg' })] } });
   expect(screen.getByRole('button', { name: 'Save Pinterest photo' })).toHaveProperty('disabled', true);
+});
+
+it('shows Pinterest branding and generates a variant-specific copyable portrait prompt', async () => {
+  render(<PinterestVariantImage variantId="v1" variantName="Pink Grey Mix" />);
+  const trigger = screen.getByRole('button', { name: 'Pinterest photo' });
+  expect(trigger.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+  expect(trigger.className).toContain('decoration-[#E60023]');
+  fireEvent.click(trigger);
+  await waitFor(() => expect(getPinterestImage).toHaveBeenCalledWith('v1'));
+  expect(screen.getByRole('heading', { name: 'Pinterest photo' }).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Generate Pinterest prompt' }));
+  const prompt = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Pinterest image prompt for Pink Grey Mix' });
+  expect(prompt.value).toContain('Product variant: Pink Grey Mix.');
+  expect(prompt.value).toContain('attached original product photo');
+  expect(prompt.value).toContain('vertical 2:3 portrait');
+  expect(prompt.value).toContain('1000 x 1500 pixels');
+  fireEvent.click(screen.getByRole('button', { name: 'Copy Pinterest prompt' }));
+  expect(await screen.findByRole('status')).toBeTruthy();
+  expect(navigator.clipboard.writeText).toHaveBeenCalledWith(prompt.value);
 });

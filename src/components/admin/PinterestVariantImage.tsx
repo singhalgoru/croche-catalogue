@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getPinterestImage, removePinterestImage, savePinterestImage, type PinterestImage } from '../../services/pinterestImages';
+import { PinterestIcon } from '../SocialIcons';
+import { buildProductImagePrompt } from '../../utils/productImagePrompt';
 
 export default function PinterestVariantImage({ variantId, variantName }: { variantId: string; variantName: string }) {
   const [open, setOpen] = useState(false);
@@ -10,6 +12,9 @@ export default function PinterestVariantImage({ variantId, variantName }: { vari
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [promptCopyError, setPromptCopyError] = useState('');
 
   useEffect(() => {
     if (!file) return;
@@ -57,16 +62,56 @@ export default function PinterestVariantImage({ variantId, variantName }: { vari
     } finally { setBusy(false); }
   };
 
+  const generatePrompt = () => {
+    setPrompt(buildProductImagePrompt('', 'pinterest', variantName));
+    setPromptCopied(false);
+    setPromptCopyError('');
+  };
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setPromptCopied(true);
+      setPromptCopyError('');
+    } catch {
+      setPromptCopied(false);
+      setPromptCopyError('Unable to copy automatically. Select and copy the prompt above.');
+    }
+  };
+
   if (!open) return <button type="button" onClick={() => void load()}
-    className="text-sm font-semibold text-cocoa underline">Pinterest photo</button>;
+    className="inline-flex items-center gap-1.5 text-sm font-semibold text-cocoa underline decoration-[#E60023] decoration-2 underline-offset-4 hover:text-[#B0001B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E60023]">
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#E60023] text-white"><PinterestIcon className="h-4 w-4" /></span>
+    Pinterest photo
+  </button>;
 
   return <section className="mt-3 rounded-xl border border-mustard/30 bg-cream/40 p-3" aria-label={`Pinterest photo for ${variantName}`}>
     <div className="flex items-center justify-between gap-2">
-      <h5 className="text-sm font-semibold">Pinterest photo</h5>
+      <h5 className="inline-flex items-center gap-2 text-sm font-semibold underline decoration-[#E60023] decoration-2 underline-offset-4">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#E60023] text-white"><PinterestIcon /></span>
+        Pinterest photo
+      </h5>
       <button type="button" disabled={busy} onClick={() => { setOpen(false); setFile(null); setError(''); setMessage(''); }}
         className="text-xs font-semibold underline disabled:opacity-50">Close</button>
     </div>
     <p className="mt-1 text-xs">Upload a reviewed 2:3 portrait of this exact variant, at least 1000 x 1500 pixels. It is stored as optimized WebP in R2; the website image stays unchanged.</p>
+    <div className="mt-2">
+      <button type="button" disabled={busy} onClick={generatePrompt}
+        className="rounded-full border border-[#E60023]/50 px-3 py-1.5 text-xs font-semibold text-[#B0001B] underline underline-offset-2 disabled:opacity-50">
+        Generate Pinterest prompt
+      </button>
+      {prompt && <>
+        <label className="mt-2 block text-xs font-semibold">Pinterest image prompt for {variantName}
+          <textarea readOnly value={prompt} rows={5} className="mt-1 w-full resize-y rounded-xl border border-mustard/60 bg-white px-3 py-2 text-sm font-normal" />
+        </label>
+        <button type="button" disabled={busy} onClick={() => void copyPrompt()}
+          className="mt-2 rounded-full border border-cocoa/30 px-3 py-1.5 text-xs font-semibold underline underline-offset-2 disabled:opacity-50">
+          Copy Pinterest prompt
+        </button>
+        {promptCopied && <p role="status" className="mt-1 text-xs text-green-700">Pinterest prompt copied. Attach the variant photo when using it.</p>}
+        {promptCopyError && <p role="alert" className="mt-1 text-xs text-red-700">{promptCopyError}</p>}
+      </>}
+    </div>
     {image && <img src={image.image_url} alt={`Saved Pinterest photo for ${variantName}`} className="mt-2 h-32 w-auto rounded-lg" />}
     {file && preview && <img src={preview} alt={`Selected Pinterest photo for ${variantName}`} className="mt-2 h-32 w-auto rounded-lg" />}
     <label className="mt-2 block text-xs font-semibold">Choose Pinterest photo for {variantName}

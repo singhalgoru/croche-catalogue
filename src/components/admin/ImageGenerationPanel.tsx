@@ -5,6 +5,7 @@ import {
   type ImageGenerationProvider,
   type ProductImageMode,
 } from '../../services/productImageGeneration';
+import { buildProductImagePrompt } from '../../utils/productImagePrompt';
 
 interface Props {
   sourceFile: File;
@@ -41,16 +42,6 @@ const STYLE_SUGGESTIONS = [
 
 const MAX_STYLE_INSTRUCTION_LENGTH = 300;
 
-const externalPrompt = (style: string, format: 'website' | 'pinterest') => [
-  'Using the attached reference photo, create a realistic product photograph of the same handmade crochet item.',
-  'Preserve its exact shape, colours, stitches, pattern, proportions and visible details. Do not redesign, duplicate, obscure or add parts.',
-  style ? `Styling direction: ${style}` : 'Use soft natural light and a warm, uncluttered setting.',
-  format === 'website'
-    ? 'Create a square 1:1 image, at least 1024 x 1024 pixels.'
-    : 'Create a vertical 2:3 image, at least 1000 x 1500 pixels, with the photo filling the entire frame.',
-  'Keep the complete product clearly visible with breathing room. No text, logos, watermarks, borders, padding or blank bands.',
-].join(' ');
-
 export default function ImageGenerationPanel({
   sourceFile,
   sourceUrl,
@@ -72,8 +63,8 @@ export default function ImageGenerationPanel({
     .join(' ');
   const isStyleInstructionTooLong = styleInstruction.length > MAX_STYLE_INSTRUCTION_LENGTH;
   const hasStyleInstruction = styleInstruction.trim().length > 0;
-  const websitePrompt = externalPrompt(styleInstruction, 'website');
-  const pinterestPrompt = externalPrompt(styleInstruction, 'pinterest');
+  const websitePrompt = buildProductImagePrompt(styleInstruction, 'website');
+  const pinterestPrompt = buildProductImagePrompt(styleInstruction, 'pinterest');
 
   useEffect(
     () => () => {
