@@ -140,7 +140,7 @@ describe('Footer', () => {
     expect(screen.getByText(/Available payment methods are shown at checkout/)).toBeTruthy();
     const payments = screen.getByRole('region', { name: 'Payment methods' });
     const footer = screen.getByRole('contentinfo');
-    expect(footer.lastElementChild?.lastElementChild?.textContent).toContain(`© ${new Date().getFullYear()} Luvia Creations.`);
+    expect(footer.lastElementChild?.lastElementChild?.textContent).toContain(`© ${new Date().getFullYear()} Luvia™ Creations.`);
     expect(payments.nextElementSibling).toBe(footer.lastElementChild?.lastElementChild);
   });
 

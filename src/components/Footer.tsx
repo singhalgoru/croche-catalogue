@@ -223,7 +223,7 @@ export default function Footer({ showCollaboration = true, showBulkOrders = show
           </div>
           <p className="mt-2 text-xs text-cream/75">Secure payments via Razorpay. Available payment methods are shown at checkout.</p>
         </section>
-        <p className="text-center text-xs text-cream/70">&copy; {new Date().getFullYear()} Luvia Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
+        <p className="text-center text-xs text-cream/70">&copy; {new Date().getFullYear()} Luvia<sup aria-hidden="true">™</sup> Creations.<span className="hidden sm:inline"> Check product availability in the catalogue.</span></p>
       </div>
     </footer>
     </>
