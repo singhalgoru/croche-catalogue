@@ -4,6 +4,7 @@ import { getPinterestImage, savePinterestImage } from '../../services/pinterestI
 import { buildProductImagePrompt } from '../../utils/productImagePrompt';
 import { getProductImageUrl } from '../../utils/productImageUrl';
 import { makePinterestDownload } from './pinterestPhotoDownload';
+import ImageFilePicker, { ImagePickerHandIcon } from './ImageFilePicker';
 
 interface Props {
   products: ManagedProduct[];
@@ -195,10 +196,9 @@ export default function BulkPinterestImages({ products, shownProducts, disabled,
           </div>)}
         </div>}
         <div className="border-t border-mustard/30 pt-3">
-          <label className="block text-sm font-semibold">Choose Pinterest photos
-            <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="mt-2 block w-full text-sm"
-              onChange={event => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
-          </label>
+          <ImageFilePicker label="Choose Pinterest photos" file={null} multiple maxSizeMB={20}
+            icon={<ImagePickerHandIcon />}
+            onChange={event => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
           <p className="mt-1 text-xs">Files keeping the downloaded name or named Product - Variant are matched when unique. Check every assignment.</p>
         </div>
         {queue.map(item => <div key={item.id} className="rounded-lg border border-mustard/40 bg-white p-3">

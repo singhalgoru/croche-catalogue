@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Header from './Header';
 import { signOutCustomer } from '../services/customer';
@@ -38,9 +38,16 @@ describe('Header', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     const socialGroups = screen.getAllByRole('group', { name: 'Follow Luvia on social media' });
     expect(socialGroups).toHaveLength(2);
-    expect(socialGroups[1].textContent).toContain('Instagram');
+    expect(within(screen.getByRole('navigation', { name: 'Main navigation' }))
+      .getByRole('group', { name: 'Follow Luvia on social media' }).textContent).toContain('Instagram');
     expect(screen.getByRole('link', { name: 'Pinterest' }).getAttribute('href'))
       .toBe('https://in.pinterest.com/luviacreations/');
+  });
+  it('can hide social profiles in both header and navigation', () => {
+    render(<Header showSocialLinks={false} showInstallPrompt={false} />);
+    expect(screen.queryByRole('group', { name: 'Follow Luvia on social media' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(screen.queryByRole('group', { name: 'Follow Luvia on social media' })).toBeNull();
   });
   it('opens My orders from the main menu for signed-in customers', () => {
     const orders = vi.fn();

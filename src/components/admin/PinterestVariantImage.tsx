@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPinterestImage, removePinterestImage, savePinterestImage, type PinterestImage } from '../../services/pinterestImages';
 import { PinterestIcon } from '../SocialIcons';
 import { buildProductImagePrompt } from '../../utils/productImagePrompt';
-import ImageFilePicker from './ImageFilePicker';
+import ImageFilePicker, { ImagePickerHandIcon } from './ImageFilePicker';
 
 export default function PinterestVariantImage({ variantId, variantName }: { variantId: string; variantName: string }) {
   const [open, setOpen] = useState(false);
@@ -118,10 +118,7 @@ export default function PinterestVariantImage({ variantId, variantName }: { vari
     <div className="mt-2">
       <ImageFilePicker label={`Choose Pinterest photo for ${variantName}`} file={file} disabled={busy} maxSizeMB={20}
         onChange={event => { setFile(event.target.files?.[0] ?? null); setError(''); setMessage(''); event.target.value = ''; }}
-        icon={<svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor"
-          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M8 11V4a2 2 0 0 1 4 0v5h1a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2v2a5 5 0 0 1-5 5h-3a5 5 0 0 1-4-2L4 14a2 2 0 0 1 3-2l1 1z" />
-        </svg>} />
+        icon={<ImagePickerHandIcon />} />
     </div>
     <div className="mt-2 flex flex-wrap gap-2">
       <button type="button" disabled={busy || !loaded || !file} onClick={() => void save()}

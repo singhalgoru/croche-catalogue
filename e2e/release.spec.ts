@@ -75,6 +75,48 @@ test('trademark mark stays by the logo on full and compact headers', async ({ pa
   }
 });
 
+test('desktop social links do not overlap header content', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop header layout');
+  for (const width of [1024, 1280, 1680]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ['/', '/p/rose-charm/']) {
+      await page.goto(path);
+      const header = page.locator('header').first();
+      const social = header.getByRole('group', { name: 'Follow Luvia on social media' });
+      await expect(social).toBeVisible();
+      const socialBox = await social.boundingBox();
+      expect(socialBox).toBeTruthy();
+      for (const element of [
+        header.getByRole('link', { name: 'Luvia Creations — home' }),
+        header.getByRole('link', { name: 'Search products' }),
+        header.getByRole('button', { name: 'Open navigation' }),
+        header.getByRole('heading', { level: 1 }),
+      ]) {
+        if (!await element.count() || !await element.isVisible()) continue;
+        const box = await element.boundingBox();
+        expect(box).toBeTruthy();
+        expect(socialBox!.x + socialBox!.width <= box!.x || box!.x + box!.width <= socialBox!.x
+          || socialBox!.y + socialBox!.height <= box!.y || box!.y + box!.height <= socialBox!.y).toBe(true);
+      }
+    }
+  }
+});
+
+test('admin hides storefront social links and offers the bulk browse control', async ({ page }) => {
+  await page.goto('./#admin');
+  await page.getByLabel('Email', { exact: true }).fill('admin@luvia.test');
+  await page.getByLabel('Password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Manage catalogue' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Follow Luvia on social media' })).toHaveCount(0);
+  await page.getByRole('button', { name: /Manage products/ }).click();
+  await page.getByRole('button', { name: 'Bulk Pinterest photos and prompts' }).click();
+  const chooser = page.getByLabel('Choose Pinterest photos');
+  await expect(chooser).toHaveAttribute('multiple', '');
+  await expect(chooser.locator('..')).toContainText('Browse images');
+  await expect(chooser.locator('..').locator('svg[aria-hidden="true"]')).toBeVisible();
+});
+
 test('the initial catalogue is styled and usable while the app script is delayed', async ({ browser, isMobile }) => {
   const context = await browser.newContext({
     viewport: isMobile ? { width: 390, height: 844 } : { width: 1280, height: 800 },

@@ -51,10 +51,14 @@ describe('bulk Pinterest photos', () => {
 
   it('matches filenames, saves independently with revisions, and keeps failures for retry', async () => {
     const onBusyChange = open();
+    const chooser = screen.getByLabelText('Choose Pinterest photos');
+    expect(chooser).toHaveProperty('multiple', true);
+    expect(chooser.closest('label')?.textContent).toContain('Browse images');
+    expect(chooser.closest('label')?.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
     vi.mocked(getPinterestImage).mockResolvedValueOnce(previous).mockRejectedValueOnce(new Error('Load failed'));
     const pink = new File(['pink'], 'Headband - Pink - variant-1.jpg', { type: 'image/jpeg' });
     const blue = new File(['blue'], 'unknown.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByLabelText('Choose Pinterest photos'), { target: { files: [pink, blue] } });
+    fireEvent.change(chooser, { target: { files: [pink, blue] } });
     expect(screen.getByLabelText('Product variant for Headband - Pink - variant-1.jpg')).toHaveProperty('value', 'variant-1');
     fireEvent.change(screen.getByLabelText('Product variant for unknown.jpg'), { target: { value: 'variant-2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save 2 assigned Pinterest photos' }));

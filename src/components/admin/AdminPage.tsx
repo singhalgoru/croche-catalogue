@@ -264,7 +264,7 @@ export default function AdminPage({ onProductPublished }: Props) {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header showShippingTicker={false} showInstallPrompt={false} compact />
+      <Header showShippingTicker={false} showInstallPrompt={false} showHeading={false} showSocialLinks={false} compact />
       <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-8">
         <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>

@@ -27,6 +27,7 @@ interface Props {
   onOpenOrders?: () => void;
   accountName?: string | null;
   showCollaborationLink?: boolean;
+  showSocialLinks?: boolean;
   mobileSearchAction?: ReactNode;
 }
 
@@ -48,6 +49,7 @@ export default function Header({
   onOpenOrders,
   accountName,
   showCollaborationLink = true,
+  showSocialLinks = true,
   mobileSearchAction,
 }: Props) {
   const checkoutStep = new URLSearchParams(window.location.search).get('checkout');
@@ -166,10 +168,6 @@ export default function Header({
         </div>
       )}
       <div className="relative z-[80] mx-auto h-0 w-full max-w-6xl">
-        <div className="absolute right-[14rem] top-3 hidden items-center gap-2 lg:flex">
-          <span className="text-xs font-semibold text-cocoa/70">Follow</span>
-          <SocialFollowLinks variant="header" />
-        </div>
         {accountName && <p title={`Hello, ${accountName}`}
           className={`absolute top-3 hidden h-12 max-w-40 items-center text-sm font-semibold text-cocoa lg:flex ${onOpenCart ? 'right-48' : 'right-36'}`}>
           <span className="truncate">Hello, {accountName}</span>
@@ -218,10 +216,10 @@ export default function Header({
               </div>
               <a href={import.meta.env.BASE_URL} onClick={event => navigateCatalogue(event)}
                 className="mb-3 flex min-h-11 items-center rounded-xl bg-cocoa px-3 font-semibold text-cream hover:bg-cocoa-dark focus-visible:outline-2 focus-visible:outline-cocoa">Home</a>
-              <div className="mb-3 rounded-xl border border-mustard/30 p-3 sm:hidden">
+              {showSocialLinks && <div className="mb-3 rounded-xl border border-mustard/30 p-3 sm:hidden">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cocoa/70">Follow Luvia</p>
                 <SocialFollowLinks variant="menu" />
-              </div>
+              </div>}
               {onOpenAccount && (accountName ? <div className="px-1 py-2">
                 <p className="truncate px-2 text-sm text-cocoa/70">Signed in as <span className="font-semibold text-cocoa">{accountName}</span></p>
                 <button type="button" onClick={() => { setIsMenuOpen(false); onOpenAccount('signin'); }}
@@ -331,7 +329,7 @@ export default function Header({
           </a>
         </div>
         {showHeading && <h1
-          className={`font-heading font-extrabold text-cocoa ${
+          className={`min-w-0 font-heading font-extrabold text-cocoa ${
             compact ? 'text-lg sm:text-xl' : 'text-lg leading-snug sm:text-3xl'
           }`}
         >
@@ -360,6 +358,10 @@ export default function Header({
         </nav>}
         {showInstallPrompt && <InstallAppButton />}
       </div>
+      {showSocialLinks && <div className="mx-auto hidden max-w-6xl items-center justify-end gap-2 px-6 pb-3 lg:flex">
+        <span className="text-xs font-semibold text-cocoa/70">Follow</span>
+        <SocialFollowLinks variant="header" />
+      </div>}
     </header>
     {window.location.pathname.replace(/\/?$/, '/') !== '/search/' && !new URLSearchParams(window.location.search).has('checkout') &&
       <div className="mobile-search sticky top-0 z-50 flex items-center gap-2 border-b border-mustard/30 bg-cream px-4 py-2 sm:hidden">

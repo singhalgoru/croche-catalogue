@@ -10,6 +10,14 @@ interface Props {
   showRequiredMark?: boolean;
   maxSizeMB?: number;
   icon?: ReactNode;
+  multiple?: boolean;
+}
+
+export function ImagePickerHandIcon() {
+  return <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M8 11V4a2 2 0 0 1 4 0v5h1a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2v2a5 5 0 0 1-5 5h-3a5 5 0 0 1-4-2L4 14a2 2 0 0 1 3-2l1 1z" />
+  </svg>;
 }
 
 export default function ImageFilePicker({
@@ -21,6 +29,7 @@ export default function ImageFilePicker({
   showRequiredMark = required,
   maxSizeMB = 6,
   icon,
+  multiple = false,
 }: Props) {
   return (
     <div className="min-w-0">
@@ -35,6 +44,7 @@ export default function ImageFilePicker({
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          multiple={multiple}
           onChange={onChange}
           required={required}
           disabled={disabled}
@@ -57,7 +67,7 @@ export default function ImageFilePicker({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold text-cocoa">
-            {file?.name ?? 'Browse image'}
+            {file?.name ?? (multiple ? 'Browse images' : 'Browse image')}
           </span>
           <span className="mt-0.5 block text-xs font-normal text-cocoa/55">
             {file ? 'Tap to choose a different image' : `JPG, PNG or WebP · Max ${maxSizeMB} MB`}
