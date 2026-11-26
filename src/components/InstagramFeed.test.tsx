@@ -51,7 +51,7 @@ it('shows recent video previews linked to Instagram and the connected account', 
   expect(carouselTrack.className).not.toContain('snap-x');
   expect(screen.getByRole('button', { name: 'Next Instagram posts' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Pause Instagram post rotation' })).toBeTruthy();
-  expect(videoLink.parentElement?.className).toContain('w-[47%]');
+  expect(videoLink.parentElement?.className).toContain('w-[82%]');
   expect(screen.getByText('View post').parentElement?.className).toContain('group-hover:opacity-100');
   await waitFor(() => expect(screen.queryByText('Loading recent Instagram posts…')).toBeNull());
 });

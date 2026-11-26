@@ -1,9 +1,10 @@
 import { Children, cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 
-export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction, titleIcon, onView }: {
+export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction, headerLayout = 'inline', titleIcon, onView }: {
   title: string; label: string; children: ReactNode; itemCount: number;
   navigation?: boolean; viewAll?: string; description?: ReactNode; pinned?: ReactNode;
   className?: string; headerAction?: ReactNode; titleIcon?: ReactNode; onView?: () => void;
+  headerLayout?: 'inline' | 'stacked-mobile';
 }) {
   const id = useId();
   const section = useRef<HTMLElement>(null);
@@ -100,14 +101,17 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     onTouchStart={() => setTouched(true)} onTouchEnd={() => setTouched(false)} onTouchCancel={() => setTouched(false)}
     onFocusCapture={() => setFocused(true)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
-    <div className="flex items-center justify-between gap-3">
-      <h2 id={`${id}-heading`} className="font-heading text-xl font-bold text-cocoa">
-        {titleIcon
-          ? <span className="inline-flex items-center gap-2">{titleIcon}{title}</span>
-          : title}
-      </h2>
-      <div className="flex items-center gap-3">
-        {viewAll && <a href={viewAll} className="text-sm font-semibold text-cocoa underline underline-offset-4">View all</a>}
+    <div className={`flex justify-between gap-3 ${headerLayout === 'stacked-mobile' ? 'flex-col items-stretch sm:flex-row sm:items-center' : 'items-center'}`}>
+      <div className="min-w-0">
+        <h2 id={`${id}-heading`} className="font-heading text-xl font-bold text-cocoa">
+          {titleIcon
+            ? <span className="inline-flex items-center gap-2">{titleIcon}{title}</span>
+            : title}
+        </h2>
+        {headerLayout === 'stacked-mobile' && description && <div className="mt-1 text-sm text-cocoa/75">{description}</div>}
+      </div>
+      <div className={`flex items-center gap-3 ${headerLayout === 'stacked-mobile' ? 'justify-between sm:justify-start' : ''}`}>
+        {viewAll && <a href={viewAll} className={`text-sm font-semibold text-cocoa underline underline-offset-4 ${headerLayout === 'stacked-mobile' ? 'inline-flex min-h-11 shrink-0 items-center sm:min-h-0' : ''}`}>View all</a>}
         {headerAction}
         <button type="button" aria-label={paused || reducedMotion ? `Resume ${label} rotation` : `Pause ${label} rotation`}
           disabled={reducedMotion} aria-pressed={paused || reducedMotion} onClick={() => setPaused(current => !current)}
@@ -116,7 +120,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
         </button>
       </div>
     </div>
-    {description && <div className="text-sm text-cocoa/75">{description}</div>}
+    {headerLayout === 'inline' && description && <div className="text-sm text-cocoa/75">{description}</div>}
     <div className="relative min-w-0">
       <Track ref={element => { track.current = element; }} id={`${id}-track`} aria-label={title} role={navigation ? undefined : 'group'}
         onScroll={measure} className="no-scrollbar flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

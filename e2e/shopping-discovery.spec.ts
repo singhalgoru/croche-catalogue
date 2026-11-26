@@ -1,6 +1,65 @@
 import { expect, test } from '@playwright/test';
 import { installMockSupabase } from './mockSupabase';
 
+test('Instagram mobile cards have room for separate header actions and unobstructed photos', async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.products[0].product_variants[0].in_stock = true;
+  state.products[0].product_variants[0].available_quantity = 2;
+  const timestamp = new Date().toISOString();
+  await page.route('**/functions/v1/instagram-feed', route => route.fulfill({ json: {
+    username: 'luvia.craftedwithlove', fetchedAt: timestamp, stale: false,
+    posts: Array.from({ length: 6 }, (_, index) => ({
+      id: String(index + 1), permalink: `https://www.instagram.com/p/mobile${index}/`,
+      previewUrl: 'https://scontent.cdninstagram.com/mobile.jpg',
+      caption: 'A handmade crochet favourite, made with love for your everyday adventures.',
+      mediaType: 'CAROUSEL_ALBUM', timestamp, likesCount: 8, productId: state.products[0].id,
+    })),
+  } }));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const section = page.getByRole('region', { name: 'From Instagram', exact: true });
+  const track = section.getByRole('group', { name: 'From Instagram' });
+  await expect(track.getByRole('link', { name: /View photo carousel/ }).first()).toBeAttached();
+  for (const width of [320, 393, 430, 1280]) {
+    await page.setViewportSize({ width, height: 852 });
+    await page.evaluate(() => document.fonts.ready);
+    await section.scrollIntoViewIfNeeded();
+    await track.evaluate(element => element.scrollTo({ left: 0, behavior: 'instant' }));
+    const geometry = await section.evaluate(element => {
+      const bounds = (node: Element) => node.getBoundingClientRect();
+      const track = element.querySelector('[role="group"]')!;
+      const card = track.firstElementChild!;
+      const photo = bounds(card.querySelector('a')!);
+      const share = bounds(card.querySelector('button')!);
+      const heading = bounds(element.querySelector('h2')!);
+      const viewAll = bounds(element.querySelector('a[href="/from-instagram/"]')!);
+      const follow = bounds(element.querySelector('a[href^="https://www.instagram.com/"]')!);
+      const shop = bounds(card.querySelector('a[href*="/p/"]')!);
+      return { trackWidth: track.clientWidth, cardWidth: bounds(card).width,
+        photoTop: photo.top, photoBottom: photo.bottom, shareTop: share.top,
+        shareWidth: share.width, shareHeight: share.height, shopHeight: shop.height,
+        headingBottom: heading.bottom, actionsTop: Math.min(viewAll.top, follow.top),
+        viewAllRight: viewAll.right, followLeft: follow.left,
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+    });
+    expect(geometry.overflow, `page overflow at ${width}px`).toBe(false);
+    expect(geometry.shareWidth).toBeGreaterThanOrEqual(44);
+    expect(geometry.shareHeight).toBeGreaterThanOrEqual(44);
+    if (width < 640) {
+      expect(geometry.cardWidth / geometry.trackWidth).toBeGreaterThan(0.8);
+      expect(geometry.cardWidth / geometry.trackWidth).toBeLessThan(0.85);
+      expect(geometry.shareTop).toBeGreaterThanOrEqual(geometry.photoBottom);
+      expect(geometry.actionsTop).toBeGreaterThan(geometry.headingBottom);
+      expect(geometry.viewAllRight).toBeLessThan(geometry.followLeft);
+      expect(geometry.shopHeight).toBeGreaterThanOrEqual(44);
+    } else {
+      expect(geometry.cardWidth / geometry.trackWidth).toBeLessThan(0.26);
+      expect(geometry.shareTop).toBeGreaterThanOrEqual(geometry.photoTop);
+      expect(geometry.shareTop).toBeLessThan(geometry.photoBottom);
+    }
+  }
+});
+
 test('making-video badges stay above the watermark and do not request media', async ({ page }) => {
   const state = await installMockSupabase(page);
   state.products[0].product_making_videos = {

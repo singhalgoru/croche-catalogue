@@ -150,7 +150,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
             setSharingPostId(null);
           }
         };
-        return <div key={post.id} className={`relative min-w-0 ${presentation === 'carousel' ? 'w-[47%] shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]' : ''}`}>
+        return <div key={post.id} className={`relative min-w-0 ${presentation === 'carousel' ? 'w-[82%] shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]' : ''}`}>
           <a href={post.permalink} target="_blank" rel="noopener noreferrer"
             aria-label={`View ${mediaDescription} from @${feed?.username ?? 'luviacreations'} on Instagram${summary ? `: ${summary}` : ''}${engagement ? `, ${engagement}` : ''}`}
             onClick={() => trackEvent('instagram_post_click', {
@@ -189,24 +189,26 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
               </span>}
             </span>}
           </a>
-          <button type="button" aria-label="Share this Instagram post" title="Share this Instagram post"
-            disabled={sharingPostId === post.id} onClick={() => void sharePost()}
-            className="group absolute left-2 top-2 z-20 flex h-11 w-11 items-center justify-center disabled:opacity-50">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-cocoa/95 text-white shadow-lg backdrop-blur-md transition-colors group-hover:bg-cocoa-dark sm:h-11 sm:w-11">
-              <ShareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            </span>
-          </button>
           {caption && <div className="mt-2 line-clamp-2 text-sm leading-snug text-cocoa"><p className="font-semibold">{caption}</p></div>}
-          <time dateTime={post.timestamp} className="mt-1 block text-[11px] text-cocoa/70">
-            {new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-          </time>
+          <div className="flex items-center justify-between gap-2">
+            <time dateTime={post.timestamp} className="mt-1 block text-[11px] text-cocoa/70">
+              {new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </time>
+            <button type="button" aria-label="Share this Instagram post" title="Share this Instagram post"
+              disabled={sharingPostId === post.id} onClick={() => void sharePost()}
+              className={`group flex h-11 w-11 shrink-0 items-center justify-center disabled:opacity-50 ${presentation === 'carousel' ? 'sm:absolute sm:left-2 sm:top-2 sm:z-20' : 'absolute left-2 top-2 z-20'}`}>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-full border transition-colors sm:h-11 sm:w-11 ${presentation === 'carousel' ? 'border-cocoa/20 text-cocoa group-hover:bg-cream-dark sm:border-white/70 sm:bg-cocoa/95 sm:text-white sm:shadow-lg sm:backdrop-blur-md sm:group-hover:bg-cocoa-dark' : 'border-white/70 bg-cocoa/95 text-white shadow-lg backdrop-blur-md group-hover:bg-cocoa-dark'}`}>
+                <ShareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              </span>
+            </button>
+          </div>
           {product && <a href={toProductPageUrl(product)} onClick={() => trackEvent('instagram_shop_click', {
             instagram_media_id: post.id,
             item_id: product.id,
             item_name: product.name,
             item_category: product.category,
             ...(product.showPrice !== false && product.price !== null ? { currency: 'INR', value: product.price } : {}),
-          })} className="mt-1 inline-flex min-h-8 items-center text-xs font-semibold text-cocoa underline underline-offset-2">
+          })} className={`mt-1 inline-flex items-center text-xs font-semibold text-cocoa underline underline-offset-2 ${presentation === 'carousel' ? 'min-h-11 sm:min-h-8' : 'min-h-8'}`}>
             Shop this{product.showPrice !== false && product.price !== null ? ` ₹${product.price}` : ''} →
           </a>}
           {shareFeedback?.postId === post.id && <p role={shareFeedback.error ? 'alert' : 'status'} className="mt-1 text-[11px] text-cocoa/80">
@@ -220,8 +222,8 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
       instagram_username: feed?.username ?? 'luviacreations',
       location: presentation === 'gallery' ? 'instagram_page' : 'homepage_instagram_feed',
     })}
-    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream hover:bg-cocoa-dark">
-    <InstagramIcon className="h-4 w-4" /> Follow Luvia
+    className="inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream hover:bg-cocoa-dark">
+    <InstagramIcon className="h-4 w-4 shrink-0" /> Follow Luvia
   </a>;
 
   if (presentation === 'gallery') {
@@ -242,18 +244,19 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
 
   return <RotatingCarousel
     title="From Instagram"
-    titleIcon={<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(45deg,#feda75_0%,#fa7e1e_25%,#d62976_50%,#962fbf_75%,#4f5bd5_100%)] text-white shadow-sm" aria-hidden="true">
+    titleIcon={<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(45deg,#feda75_0%,#fa7e1e_25%,#d62976_50%,#962fbf_75%,#4f5bd5_100%)] text-white shadow-sm" aria-hidden="true">
       <InstagramIcon className="h-4 w-4" />
     </span>}
     onView={posts.length ? onHomepageView : undefined}
     label="Instagram post"
     itemCount={posts.length}
     description={<div className="space-y-1">
-      <p className="font-semibold text-sm text-cocoa">@{feed?.username ?? 'luviacreations'}</p>
+      <p className="break-words text-xs text-cocoa/70 sm:text-sm">@{feed?.username ?? 'luviacreations'}</p>
       {status}
     </div>}
-    className="mt-10 rounded-3xl border border-mustard/40 bg-white p-5 sm:mt-14 sm:p-7"
+    className="mt-10 rounded-3xl border border-mustard/40 bg-white p-4 sm:mt-14 sm:p-7"
     headerAction={followLink}
+    headerLayout="stacked-mobile"
     viewAll="/from-instagram/"
   >
     {cards}
