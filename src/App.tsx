@@ -12,6 +12,7 @@ import { productImageProtection } from './utils/imageProtection';
 import RelatedProducts from './components/RelatedProducts';
 import Bestsellers from './components/Bestsellers';
 import CustomerLove from './components/CustomerLove';
+import InstagramFeed from './components/InstagramFeed';
 import ProductCarousel from './components/ProductCarousel';
 import { HomepageCustomisation, HomepageSpotlight } from './components/HomepageDiscover';
 import { getFeaturedProducts, productCollections } from './utils/productCollections.js';
@@ -937,6 +938,7 @@ function App() {
             </button>
           </div>
         )}
+        {window.location.pathname === '/' && isDefaultCatalogueView && <InstagramFeed />}
         <OrderingGuide />
       </main>
       )}

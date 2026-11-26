@@ -4,6 +4,7 @@ import type { Product } from './types/product';
 import App from './App';
 import storeContent from './content/storeContent.json';
 vi.mock('./components/MobileNavigation', () => ({ default: () => null }));
+vi.mock('./components/InstagramFeed', () => ({ default: () => <section aria-label="Instagram feed test stub" /> }));
 vi.mock('./services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('./services/artisans')>(),
   checkArtisanInvitation: vi.fn().mockResolvedValue('available'),
@@ -70,6 +71,12 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('shows the Instagram feed on the homepage while catalogue data is loading', () => {
+    catalogueLoading = true;
+    catalogueSnapshot = false;
+    render(<App />);
+    expect(screen.getByRole('region', { name: 'Instagram feed test stub' })).toBeTruthy();
+  });
   it.each([
     ...Object.values(storeContent.faqAnchors).map(id => ['/faq/', id]),
     ...storeContent.faqGroups.map(group => ['/faq/', group.id]),

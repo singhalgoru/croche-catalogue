@@ -30,7 +30,6 @@ import { matchesProductSearch } from '../utils/productSearch';
 import { addRecentSearch, readRecentSearches, writeRecentSearches } from '../utils/recentSearches';
 import artisanOnboarding from '../content/artisanOnboarding.json';
 import CustomerLove from './CustomerLove';
-import InstagramFeed from './InstagramFeed';
 import type { Testimonial } from '../services/customerLove';
 import { readTestimonialSlug } from '../utils/testimonialLink';
 import { getBoundedMetaTitle } from '../utils/productMetaTitle.js';
@@ -614,7 +613,6 @@ export default function StorePages({
         {categoryLinks}
         <a href="/collections/" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">View all collections</a>
       </section>}
-      {requestedPath === '/' && showCatalogue && <InstagramFeed />}
     </main><Footer showCollaboration={!isArtisans} showBulkOrders={!isArtisans && !isBulkOrders} />
   </div>;
 }

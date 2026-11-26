@@ -8,7 +8,6 @@ import { isStorePage } from '../utils/storePageRoute';
 
 vi.mock('./Header', () => ({ default: ({ categories }: { categories: string[] }) => <header>{categories.join(', ')}</header> }));
 vi.mock('./Footer', () => ({ default: () => <footer /> }));
-vi.mock('./InstagramFeed', () => ({ default: () => <section aria-label="Instagram feed test stub" /> }));
 const products: Product[] = [{ id: 'p1', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
   price: 500, showPrice: true, image: 'https://images.luviacreations.com/products/admin/bunny.webp', inStock: true, color: '#ffffff',
   variants: [{ id: 'v1', name: 'White', color: '#ffffff', price: null, inStock: true, availableQuantity: 10,
@@ -19,15 +18,6 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
-  it('shows the Instagram gallery on the homepage only', () => {
-    window.history.replaceState(null, '', '/');
-    const home = render(<StorePages {...initial} />);
-    expect(screen.getByRole('region', { name: 'Instagram feed test stub' })).toBeTruthy();
-    home.unmount();
-    window.history.replaceState(null, '', '/about/');
-    render(<StorePages {...initial} />);
-    expect(screen.queryByRole('region', { name: 'Instagram feed test stub' })).toBeNull();
-  });
   it('groups every FAQ answer once and keeps all topic links valid', () => {
     window.history.replaceState(null, '', '/faq/');
     render(<StorePages {...initial} />);
