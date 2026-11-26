@@ -1,9 +1,10 @@
-import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 
-export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction }: {
+export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction, scrollSnap = false, showPosition = false }: {
   title: string; label: string; children: ReactNode; itemCount: number;
   navigation?: boolean; viewAll?: string; description?: ReactNode; pinned?: ReactNode;
   className?: string; headerAction?: ReactNode;
+  scrollSnap?: boolean; showPosition?: boolean;
 }) {
   const id = useId();
   const track = useRef<HTMLElement>(null);
@@ -14,6 +15,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
   const [touched, setTouched] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [looping, setLooping] = useState(false);
+  const [position, setPosition] = useState(0);
   const cards = Children.toArray(children);
   const loopWidth = useRef(0);
   const scrollOffset = useRef(0);
@@ -24,12 +26,16 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     preference.addEventListener('change', update);
     return () => preference.removeEventListener('change', update);
   }, []);
-  const measure = () => {
+  const measure = useCallback(() => {
     const element = track.current;
     if (element) {
       const first = element.querySelector<HTMLElement>(':scope > a, :scope > div:not([data-pinned])');
       const gap = parseFloat(getComputedStyle(element).columnGap || '0');
       loopWidth.current = first ? (first.getBoundingClientRect().width + gap) * cards.length : 0;
+      const step = first ? first.getBoundingClientRect().width + gap : 0;
+      if (step > 0 && cards.length > 0) {
+        setPosition(Math.round(element.scrollLeft / step) % cards.length);
+      }
       if (first) element.parentElement?.style.setProperty('--carousel-image-center', `${first.getBoundingClientRect().width / 2}px`);
       const pinnedElement = element.querySelector<HTMLElement>('[data-pinned="true"]');
       if (pinnedElement) {
@@ -42,7 +48,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
       setEdges({ start: element.scrollLeft <= 1,
         end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1 });
     }
-  };
+  }, [cards.length]);
   useEffect(() => {
     const element = track.current;
     if (!element) return;
@@ -51,7 +57,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     observer.observe(element);
     for (const card of element.children) observer.observe(card);
     return () => observer.disconnect();
-  }, [itemCount, looping]);
+  }, [itemCount, looping, measure]);
   useEffect(() => {
     if (paused || hovered || focused || touched || reducedMotion || !looping) return;
     let animation: number;
@@ -100,7 +106,7 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     {description && <div className="text-sm text-cocoa/75">{description}</div>}
     <div className="relative min-w-0">
       <Track ref={element => { track.current = element; }} id={`${id}-track`} aria-label={title} role={navigation ? undefined : 'group'}
-        onScroll={measure} className="no-scrollbar flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        onScroll={measure} className={`no-scrollbar flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${scrollSnap ? 'snap-x snap-mandatory' : ''}`}>
         {pinned && (
           <div data-pinned="true" className="sticky left-0 z-10 flex shrink-0 bg-cream w-[38%] sm:w-[calc((100%-36px)/4)] lg:w-[calc((100%-60px)/6)]">
             {pinned}
@@ -118,5 +124,6 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
         disabled={edges.end} onClick={() => scroll(1)}
         className="absolute right-2 top-[var(--carousel-image-center,50%)] z-20 hidden min-h-11 min-w-11 -translate-y-1/2 rounded-full border border-cocoa/30 bg-cream/95 text-cocoa shadow-sm disabled:opacity-40 sm:block">&#8594;</button>
     </div>
+    {showPosition && itemCount > 0 && <p className="text-right text-xs tabular-nums text-cocoa/70" aria-hidden="true">{position + 1} / {itemCount}</p>}
   </section>;
 }

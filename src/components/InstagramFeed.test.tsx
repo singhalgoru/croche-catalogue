@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { products } from '../data/products';
 import InstagramFeed from './InstagramFeed';
 
 const mocks = vi.hoisted(() => ({ fetchInstagramFeed: vi.fn() }));
@@ -25,14 +26,23 @@ it('shows recent video previews linked to Instagram and the connected account', 
   const videoLink = await screen.findByRole('link', { name: /View video from @luvia on Instagram/ });
   expect(videoLink.getAttribute('href')).toBe(post.permalink);
   expect(videoLink.querySelector('img')?.getAttribute('alt')).toContain('@luvia');
-  expect(screen.getByText('Video')).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Follow Luvia' }).getAttribute('href')).toBe('https://www.instagram.com/luvia/');
+  expect(videoLink.querySelector('svg')).toBeTruthy();
+  expect(videoLink.className).toContain('aspect-[4/5]');
+  expect(videoLink.querySelector('img')?.className).toContain('object-cover');
+  const followLink = screen.getByRole('link', { name: 'Follow Luvia' });
+  expect(followLink.getAttribute('href')).toBe('https://www.instagram.com/luvia/');
+  expect(followLink.className).toContain('bg-cocoa');
+  expect(screen.getByText('@luvia')).toBeTruthy();
+  expect(screen.getByText('1 / 1')).toBeTruthy();
   expect(screen.getByRole('group', { name: 'From Instagram' }).getAttribute('class')).toContain('overflow-x-auto');
   expect(screen.getByRole('button', { name: 'Next Instagram posts' })).toBeTruthy();
+  expect(screen.getByRole('group', { name: 'From Instagram' }).className).toContain('snap-x');
+  expect(videoLink.parentElement?.className).toContain('w-[76%]');
+  expect(screen.getByText('View post').parentElement?.className).toContain('group-hover:opacity-100');
   await waitFor(() => expect(screen.queryByText('Loading recent Instagram posts…')).toBeNull());
 });
 
-it('badges only videos and photo carousels', async () => {
+it('uses unobtrusive icons for video and carousel posts without text badges', async () => {
   mocks.fetchInstagramFeed.mockResolvedValue({
     username: 'luvia',
     posts: [
@@ -44,10 +54,31 @@ it('badges only videos and photo carousels', async () => {
     stale: false,
   });
   render(<InstagramFeed />);
-  await screen.findByRole('link', { name: /View photo from @luvia on Instagram/ });
-  expect(screen.getByText('Video')).toBeTruthy();
-  expect(screen.getByText('Carousel')).toBeTruthy();
-  expect(screen.queryByText('Photo')).toBeNull();
+  const photoLink = await screen.findByRole('link', { name: /View photo from @luvia on Instagram/ });
+  const postLinks = screen.getAllByRole('link', { name: /View .* from @luvia on Instagram/ });
+  expect(postLinks).toHaveLength(3);
+  expect(postLinks.every(link => link.className.includes('aspect-[4/5]'))).toBe(true);
+  expect(postLinks[0].querySelectorAll('svg')).toHaveLength(2);
+  expect(postLinks[1].querySelectorAll('svg')).toHaveLength(2);
+  expect(photoLink.querySelectorAll('svg')).toHaveLength(1);
+  expect(screen.queryByText('Carousel')).toBeNull();
+  expect(screen.queryByText('Video')).toBeNull();
+});
+
+it('cleans captions and links matching in-stock products with catalogue prices', async () => {
+  mocks.fetchInstagramFeed.mockResolvedValue({
+    username: 'luviacreations',
+    posts: [{ ...post, caption: '🧿 Evil Eye Charm (Bag / Key / Car) ✨ #crochet' }],
+    fetchedAt: new Date().toISOString(),
+    stale: false,
+  });
+  render(<InstagramFeed products={products} />);
+  const postLink = await screen.findByRole('link', { name: /View video from @luviacreations/ });
+  expect(screen.getByText('Evil Eye Charm (Bag / Key / Car)')).toBeTruthy();
+  expect(screen.queryByText(/🧿|✨|#crochet/)).toBeNull();
+  const shopLink = screen.getByRole('link', { name: 'Shop this ₹249 →' });
+  expect(shopLink.getAttribute('href')).toContain('/p/evil-eye-charm-bag-key-car/');
+  expect(postLink.querySelector('img')?.className).toContain('brightness-75');
 });
 
 it('labels stale cached posts clearly', async () => {
