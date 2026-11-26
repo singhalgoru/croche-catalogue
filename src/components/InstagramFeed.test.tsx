@@ -4,8 +4,12 @@ import InstagramFeed from './InstagramFeed';
 
 const mocks = vi.hoisted(() => ({ fetchInstagramFeed: vi.fn() }));
 vi.mock('../services/instagramFeed', () => ({ fetchInstagramFeed: mocks.fetchInstagramFeed }));
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
-beforeEach(() => mocks.fetchInstagramFeed.mockReset());
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  mocks.fetchInstagramFeed.mockReset();
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+});
 
 const post = {
   id: '123', permalink: 'https://www.instagram.com/reel/abc/',
@@ -22,6 +26,8 @@ it('shows recent video previews linked to Instagram and the connected account', 
   expect(videoLink.getAttribute('href')).toBe(post.permalink);
   expect(videoLink.querySelector('img')?.getAttribute('alt')).toContain('@luvia');
   expect(screen.getByRole('link', { name: 'Follow Luvia' }).getAttribute('href')).toBe('https://www.instagram.com/luvia/');
+  expect(screen.getByRole('group', { name: 'From Instagram' }).getAttribute('class')).toContain('overflow-x-auto');
+  expect(screen.getByRole('button', { name: 'Next Instagram posts' })).toBeTruthy();
   await waitFor(() => expect(screen.queryByText('Loading recent Instagram posts…')).toBeNull());
 });
 

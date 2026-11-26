@@ -1,8 +1,9 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 
-export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned }: {
+export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction }: {
   title: string; label: string; children: ReactNode; itemCount: number;
-  navigation?: boolean; viewAll?: string; description?: string; pinned?: ReactNode;
+  navigation?: boolean; viewAll?: string; description?: ReactNode; pinned?: ReactNode;
+  className?: string; headerAction?: ReactNode;
 }) {
   const id = useId();
   const track = useRef<HTMLElement>(null);
@@ -79,21 +80,24 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     }
   };
   const Track = navigation ? 'nav' : 'div';
-  return <section aria-labelledby={`${id}-heading`} className="relative min-w-0 space-y-3"
+  return <section aria-labelledby={`${id}-heading`} className={`relative min-w-0 space-y-3 ${className}`}
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onTouchStart={() => setTouched(true)} onTouchEnd={() => setTouched(false)} onTouchCancel={() => setTouched(false)}
     onFocusCapture={() => setFocused(true)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
     <div className="flex items-center justify-between gap-3">
       <h2 id={`${id}-heading`} className="font-heading text-xl font-bold text-cocoa">{title}</h2>
-      {viewAll && <a href={viewAll} className="text-sm font-semibold text-cocoa underline underline-offset-4">View all</a>}
-      <button type="button" aria-label={paused || reducedMotion ? `Resume ${label} rotation` : `Pause ${label} rotation`}
-        disabled={reducedMotion} aria-pressed={paused || reducedMotion} onClick={() => setPaused(current => !current)}
-        className="sr-only rounded-full border border-cocoa/30 bg-cream text-sm text-cocoa focus:not-sr-only focus:absolute focus:right-0 focus:top-12 focus:z-10 focus:min-h-11 focus:min-w-11 disabled:opacity-40">
-        {paused || reducedMotion ? 'Play' : 'Pause'}
-      </button>
+      <div className="flex items-center gap-3">
+        {viewAll && <a href={viewAll} className="text-sm font-semibold text-cocoa underline underline-offset-4">View all</a>}
+        {headerAction}
+        <button type="button" aria-label={paused || reducedMotion ? `Resume ${label} rotation` : `Pause ${label} rotation`}
+          disabled={reducedMotion} aria-pressed={paused || reducedMotion} onClick={() => setPaused(current => !current)}
+          className="sr-only rounded-full border border-cocoa/30 bg-cream text-sm text-cocoa focus:not-sr-only focus:absolute focus:right-0 focus:top-12 focus:z-10 focus:min-h-11 focus:min-w-11 disabled:opacity-40">
+          {paused || reducedMotion ? 'Play' : 'Pause'}
+        </button>
+      </div>
     </div>
-    {description && <p className="text-sm text-cocoa/75">{description}</p>}
+    {description && <div className="text-sm text-cocoa/75">{description}</div>}
     <div className="relative min-w-0">
       <Track ref={element => { track.current = element; }} id={`${id}-track`} aria-label={title} role={navigation ? undefined : 'group'}
         onScroll={measure} className="no-scrollbar flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
