@@ -191,8 +191,10 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
           </a>
           <button type="button" aria-label="Share this Instagram post" title="Share this Instagram post"
             disabled={sharingPostId === post.id} onClick={() => void sharePost()}
-            className="absolute left-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-cocoa/95 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-cocoa-dark disabled:opacity-50">
-            <ShareIcon className="h-5 w-5" />
+            className="group absolute left-2 top-2 z-20 flex h-11 w-11 items-center justify-center disabled:opacity-50">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-cocoa/95 text-white shadow-lg backdrop-blur-md transition-colors group-hover:bg-cocoa-dark sm:h-11 sm:w-11">
+              <ShareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </span>
           </button>
           {caption && <div className="mt-2 line-clamp-2 text-sm leading-snug text-cocoa"><p className="font-semibold">{caption}</p></div>}
           <time dateTime={post.timestamp} className="mt-1 block text-[11px] text-cocoa/70">
