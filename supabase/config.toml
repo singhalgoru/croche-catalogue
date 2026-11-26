@@ -80,6 +80,9 @@ verify_jwt = true
 [functions.marketing-post]
 verify_jwt = true
 
+[functions.instagram-feed]
+verify_jwt = true
+
 [functions.password-change-worker]
 verify_jwt = false
 
