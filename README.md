@@ -8,6 +8,7 @@ an India-based handmade crochet brand.
 - Browse products and collections, search, and share favourites.
 - Shop online within India or enquire about customised and international orders.
 - Manage products, orders, business records and artisan collaborations.
+- Reuse saved material and supplier names when recording purchases.
 - Discover Luvia products on Pinterest.
 - See recent Instagram photos and videos from Luvia on the homepage, with spacious swipeable cards on mobile.
 

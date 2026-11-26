@@ -554,7 +554,7 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await openFinancialSection(page, 'Materials');
   await page.getByRole('button', { name: 'Add purchase' }).click();
   await page.getByLabel('Purchase date').fill('2026-11-01');
-  await page.getByRole('textbox', { name: 'Material *' }).fill('Yarn');
+  await page.getByLabel('Material *', { exact: true }).fill('Yarn');
   await expect(page.getByRole('combobox', { name: 'Category *', exact: true })).toHaveValue('Yarn');
   await page.getByLabel('Supplier').fill('Sample shop');
   await page.getByLabel('Quantity').fill('2');
@@ -568,6 +568,16 @@ test('records a material purchase and shows collapsed financial snapshots', asyn
   await expect(page.getByText('Purchase saved.')).toBeVisible();
   expect(receiptData).toBe(Buffer.from('%PDF-example').toString('base64'));
   await expect(page.getByText(/Purchase value: ₹150.5/)).toBeVisible();
+  await page.getByRole('button', { name: 'Add purchase' }).click();
+  for (const [label, expected] of [['Material *', 'Yarn'], ['Supplier', 'Sample shop']]) {
+    const input = page.getByRole('combobox', { name: label, exact: true });
+    const listId = await input.getAttribute('list');
+    expect(listId).toBeTruthy();
+    await expect(page.locator('datalist').filter({ has: page.locator(`option[value="${expected}"]`) }).locator('option')).toHaveAttribute('value', expected);
+    await input.fill(expected);
+    await expect(input).toHaveValue(expected);
+  }
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await openFinancialSection(page, 'Financial snapshots');
   for (const name of ['Sales snapshot', 'Artisan payment snapshot', 'Material purchase snapshot']) {
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');

@@ -59,6 +59,48 @@ it('does not present an empty summary after a load failure and can retry', async
   expect(await screen.findByText(/Purchase value:/)).toBeTruthy();
 });
 
+it('suggests distinct material and supplier names from purchases across all months', async () => {
+  fetchPurchases.mockResolvedValue([
+    { ...rows[0], material: ' Yarn ', supplier: ' Shop ' },
+    { ...rows[1], supplier: 'SHOP' },
+    { ...rows[2], supplier: 'October Supplier' },
+    { ...rows[2], id: 'blank', material: ' ', supplier: ' ' },
+  ]);
+  render(<MaterialsPanel />);
+  await screen.findByText(/Purchase value:/);
+  fireEvent.click(screen.getByRole('button', { name: 'Add purchase' }));
+  const suggestions: [string, string[]][] = [
+    ['Material *', ['Hook', 'Yarn']],
+    ['Supplier', ['October Supplier', 'Shop']],
+  ];
+  for (const [label, expected] of suggestions) {
+    const listId = screen.getByLabelText(label).getAttribute('list');
+    expect(listId).toBeTruthy();
+    const options = document.getElementById(listId!)!.querySelectorAll('option');
+    expect([...options].map(option => option.value)).toEqual(expected);
+  }
+});
+
+it('accepts new names when editing and updates suggestions after the purchase is saved', async () => {
+  const updated = { ...rows[0], material: 'Cotton cord', supplier: 'New supplier' };
+  fetchPurchases.mockResolvedValueOnce(rows).mockResolvedValueOnce([updated, ...rows.slice(1)]);
+  render(<MaterialsPanel />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit purchase Yarn' }));
+  fireEvent.change(screen.getByLabelText('Material *'), { target: { value: updated.material } });
+  fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: updated.supplier } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save purchase' }));
+  await waitFor(() => expect(savePurchase).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'one', material: updated.material, supplier: updated.supplier, category: 'Yarn', total: 120 }), null, false));
+  await screen.findByRole('status');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Add purchase' })).toHaveProperty('disabled', false));
+  fireEvent.click(screen.getByRole('button', { name: 'Add purchase' }));
+  for (const [label, value] of [['Material *', updated.material], ['Supplier', updated.supplier]]) {
+    const listId = screen.getByLabelText(label).getAttribute('list');
+    const options = document.getElementById(listId!)!.querySelectorAll('option');
+    expect([...options].map(option => option.value)).toContain(value);
+  }
+});
+
 it('requires a category for a new non-yarn purchase and accepts an explicit choice', async () => {
   render(<MaterialsPanel />);
   fireEvent.click(await screen.findByRole('button', { name: 'Add purchase' }));

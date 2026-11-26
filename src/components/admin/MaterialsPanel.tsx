@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { deleteMaterialPurchase, downloadMaterialReceipt, fetchMaterialPurchases, inferMaterialCategory, materialCategories, purchaseBreakdown, saveMaterialPurchase, summarizeMaterialPurchases,
   type MaterialPurchase, type MaterialPurchaseInput } from '../../services/materialPurchases';
 import { formatINRExact } from '../../utils/currency';
@@ -13,8 +13,18 @@ const field = 'mt-1 w-full min-w-0 rounded-lg border border-mustard/50 bg-white 
 const button = 'min-h-11 rounded-full border border-cocoa/30 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const newDraft = (): Draft => ({ id: crypto.randomUUID(), purchased_on: localDate(), material: '', supplier: '',
   category: '', quantity: '', unit: '', total: '', payment_status: 'Unpaid', notes: '', receipt_name: null });
+const purchaseSuggestions = (purchases: MaterialPurchase[], field: 'material' | 'supplier') => {
+  const names = new Map<string, string>();
+  for (const purchase of purchases) {
+    const name = purchase[field].trim();
+    const key = name.toLocaleLowerCase();
+    if (name && !names.has(key)) names.set(key, name);
+  }
+  return [...names.values()].sort((a, b) => a.localeCompare(b));
+};
 
 export default function MaterialsPanel() {
+  const suggestionId = useId();
   const [purchases, setPurchases] = useState<MaterialPurchase[]>([]);
   const [month, setMonth] = useState(localDate().slice(0, 7));
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -100,6 +110,8 @@ export default function MaterialsPanel() {
     } finally { setBusy(false); }
   };
   const { monthly, paid, unpaid, materials } = summarizeMaterialPurchases(purchases, month);
+  const materialSuggestions = purchaseSuggestions(purchases, 'material');
+  const supplierSuggestions = purchaseSuggestions(purchases, 'supplier');
   return <section aria-label="Material purchases" className="rounded-2xl bg-white p-4 shadow-sm">
     <h2 className="font-heading text-2xl font-bold text-cocoa">Material purchases</h2>
     <p className="mt-2 text-sm text-cocoa/75">Record purchases, not stock or material consumption. These amounts do not affect Sales profit.
@@ -137,12 +149,18 @@ export default function MaterialsPanel() {
       Receipts are not included in CSV and existing attachments are kept.</p>
     {draft && <form onSubmit={event => void save(event)} className="mt-4 grid gap-3 rounded-xl bg-cream/50 p-4 sm:grid-cols-2">
       <h3 className="font-bold sm:col-span-2">{purchases.some(item => item.id === draft.id) ? 'Edit purchase' : 'New purchase'}</h3>
+      <p id={`${suggestionId}-help`} className="text-xs text-cocoa/70 sm:col-span-2">
+        Start typing a material or supplier to choose from previous purchases, or enter a new name.
+      </p>
       <label className="text-sm font-semibold">Purchase date *
         <input className={field} type="date" required disabled={busy} value={draft.purchased_on}
           onChange={event => update({ purchased_on: event.target.value })} /></label>
       <label className="text-sm font-semibold">Material *
         <input className={field} required maxLength={150} disabled={busy} value={draft.material}
-          onChange={event => update({ material: event.target.value, ...(!draft.category && inferMaterialCategory(event.target.value) === 'Yarn' ? { category: 'Yarn' } : {}) })} /></label>
+          list={`${suggestionId}-materials`} aria-describedby={`${suggestionId}-help`}
+          onChange={event => update({ material: event.target.value, ...(!draft.category && inferMaterialCategory(event.target.value) === 'Yarn' ? { category: 'Yarn' } : {}) })} />
+        <datalist id={`${suggestionId}-materials`}>{materialSuggestions.map(name => <option key={name} value={name} />)}</datalist>
+      </label>
       <label className="text-sm font-semibold">Category *
         <select className={field} value={draft.category} disabled={busy} required onChange={event => {
           const category = materialCategories.find(value => value === event.target.value);
@@ -151,7 +169,10 @@ export default function MaterialsPanel() {
           category !== 'Uncategorized' || purchases.some(item => item.id === draft.id)).map(category => <option key={category}>{category}</option>)}</select></label>
       <label className="text-sm font-semibold">Supplier
         <input className={field} maxLength={150} disabled={busy} value={draft.supplier}
-          onChange={event => update({ supplier: event.target.value })} /></label>
+          list={`${suggestionId}-suppliers`} aria-describedby={`${suggestionId}-help`}
+          onChange={event => update({ supplier: event.target.value })} />
+        <datalist id={`${suggestionId}-suppliers`}>{supplierSuggestions.map(name => <option key={name} value={name} />)}</datalist>
+      </label>
       <label className="text-sm font-semibold">Quantity *
         <input className={field} type="number" required min="0.001" max="999999999.999" step="0.001" disabled={busy}
           value={draft.quantity} onChange={event => update({ quantity: event.target.value })} /></label>

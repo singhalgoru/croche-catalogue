@@ -289,19 +289,23 @@ export default function ArtisanManager() {
         <p className="text-sm">{total} application{total === 1 ? '' : 's'} found</p>
         <ul className="grid gap-3 md:grid-cols-2">{rows.map(application => <li key={application.id} className="min-w-0 rounded-xl border border-mustard/40 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3 className="break-words font-semibold">{application.details.fullName}</h3>
-            <span aria-label={`Current status: ${application.status}`}
-              className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-[#604239]">{application.status}</span>
+            <h3 className="min-w-0 flex-1 basis-48 break-words font-semibold">{application.details.fullName}</h3>
+            <div className="flex max-w-full flex-wrap items-center gap-2">
+              <span aria-label={`Current status: ${application.status}`}
+                className="inline-flex min-h-11 items-center rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-[#604239]">{application.status}</span>
+              <button type="button" title="View payment details"
+                className="inline-flex min-h-11 max-w-full flex-wrap items-center gap-x-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm text-emerald-900 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+                onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}
+                aria-label={`Total paid for ${application.details.fullName}: ${currency.format(application.total_paid)}. View payment details`}>
+                <span className="whitespace-nowrap text-xs font-semibold">Total paid:</span>
+                <span className="break-all font-bold tabular-nums">{currency.format(application.total_paid)}</span>
+              </button>
+            </div>
           </div>
           <p className="text-sm">{application.details.city}, {application.details.state}</p>
           <p className="break-words text-sm">Preferred language / contact time: {application.details.language || 'Not provided'}</p>
           <p className="mt-1 line-clamp-2 break-words text-sm">{application.details.skills}</p>
           <p className="text-sm">Skill rating: {application.skill_rating ? `${application.skill_rating}/5` : 'Not rated'}</p>
-          <button type="button" className="block min-h-11 text-sm underline"
-            onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}
-            aria-label={`Total paid for ${application.details.fullName}: ${currency.format(application.total_paid)}. View payment details`}>
-            Total paid: {currency.format(application.total_paid)}
-          </button>
           {application.capabilities && <p className="mt-1 line-clamp-2 break-words text-sm">Can create: {application.capabilities}</p>}
           <button onClick={() => { setMessage(''); setSelected(application); }} className="mt-2 min-h-11 underline">Review {application.details.fullName}</button>
           <button type="button" onClick={() => setPaymentArtisan({ id: application.id, name: application.details.fullName })}

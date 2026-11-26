@@ -128,7 +128,9 @@ it('distinguishes legacy applications from recorded dispatch acknowledgement', a
 afterEach(() => { cleanup(); restoreDialog(); });
 it('opens payments for the selected artisan from the directory', async () => {
   render(<ArtisanManager />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Total paid for Sample Maker: ₹1,250.50. View payment details' }));
+  const paidButton = await screen.findByRole('button', { name: 'Total paid for Sample Maker: ₹1,250.50. View payment details' });
+  expect(paidButton.parentElement).toBe(screen.getByLabelText('Current status: New').parentElement);
+  fireEvent.click(paidButton);
   expect(await screen.findByRole('dialog', { name: 'Payments for Sample Maker' })).toBeTruthy();
   expect(await screen.findByText('No payments recorded.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close Payments for Sample Maker' }));

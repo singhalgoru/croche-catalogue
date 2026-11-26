@@ -71,7 +71,29 @@ test('admin previews an assignment and completes accepted work', async ({ page }
   const overview = page.getByRole('region', { name: 'Artisan overview' });
   await expect(overview.getByText('30', { exact: true })).toBeVisible();
   await expect(overview.getByText('7', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Total paid for Sample Maker: ₹1,250.50. View payment details' }).click();
+  const paidButton = page.getByRole('button', { name: 'Total paid for Sample Maker: ₹1,250.50. View payment details' });
+  const viewport = page.viewportSize()!;
+  for (const width of viewport.width < 640 ? [320, 393] : [1280]) {
+    await page.setViewportSize({ width, height: viewport.height });
+    await page.evaluate(() => document.fonts.ready);
+    const geometry = await paidButton.evaluate(button => {
+      const status = button.parentElement!.querySelector('[aria-label^="Current status:"]')!;
+      const card = button.closest('li')!.getBoundingClientRect();
+      const paid = button.getBoundingClientRect();
+      const statusBounds = status.getBoundingClientRect();
+      return { cardLeft: card.left, cardRight: card.right, paidLeft: paid.left, paidRight: paid.right,
+        paidHeight: paid.height, statusHeight: statusBounds.height,
+        precedesDescription: button.parentElement!.parentElement!.nextElementSibling!.getBoundingClientRect().top >= paid.bottom,
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+    });
+    expect(geometry.paidLeft).toBeGreaterThanOrEqual(geometry.cardLeft);
+    expect(geometry.paidRight).toBeLessThanOrEqual(geometry.cardRight);
+    expect(geometry.paidHeight).toBeGreaterThanOrEqual(44);
+    expect(geometry.statusHeight).toBeGreaterThanOrEqual(44);
+    expect(geometry.precedesDescription).toBe(true);
+    expect(geometry.overflow).toBe(false);
+  }
+  await paidButton.click();
   await expect(page.getByRole('dialog', { name: 'Payments for Sample Maker' })).toBeVisible();
   await page.getByRole('button', { name: 'Close Payments for Sample Maker' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
