@@ -33,11 +33,12 @@ it('shows recent video previews linked to Instagram and the connected account', 
   expect(followLink.getAttribute('href')).toBe('https://www.instagram.com/luvia/');
   expect(followLink.className).toContain('bg-cocoa');
   expect(screen.getByText('@luvia')).toBeTruthy();
-  expect(screen.getByText('1 / 1')).toBeTruthy();
-  expect(screen.getByRole('group', { name: 'From Instagram' }).getAttribute('class')).toContain('overflow-x-auto');
+  const carouselTrack = screen.getByRole('group', { name: 'From Instagram' });
+  expect(carouselTrack.className).toContain('overflow-x-auto');
+  expect(carouselTrack.className).not.toContain('snap-x');
   expect(screen.getByRole('button', { name: 'Next Instagram posts' })).toBeTruthy();
-  expect(screen.getByRole('group', { name: 'From Instagram' }).className).toContain('snap-x');
-  expect(videoLink.parentElement?.className).toContain('w-[76%]');
+  expect(screen.getByRole('button', { name: 'Pause Instagram post rotation' })).toBeTruthy();
+  expect(videoLink.parentElement?.className).toContain('w-[47%]');
   expect(screen.getByText('View post').parentElement?.className).toContain('group-hover:opacity-100');
   await waitFor(() => expect(screen.queryByText('Loading recent Instagram posts…')).toBeNull());
 });

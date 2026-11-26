@@ -65,8 +65,6 @@ export default function InstagramFeed({ products = [] }: { products?: Product[] 
       className="inline-flex min-h-11 items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-sm font-semibold text-cream hover:bg-cocoa-dark">
       <InstagramIcon className="h-4 w-4" /> Follow Luvia
     </a>}
-    scrollSnap
-    showPosition
   >
     {feed?.posts.map(post => {
         const mediaDescription = post.mediaType === 'VIDEO' ? 'video' : post.mediaType === 'CAROUSEL_ALBUM' ? 'photo carousel' : 'photo';
@@ -79,7 +77,7 @@ export default function InstagramFeed({ products = [] }: { products?: Product[] 
         const alt = summary
           ? `Instagram ${mediaDescription} from @${feed.username}: ${summary}${caption.length > summary.length ? '…' : ''}`
           : `Instagram ${mediaDescription} from @${feed.username}`;
-        return <div key={post.id} className="w-[76%] min-w-0 shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]">
+        return <div key={post.id} className="w-[47%] min-w-0 shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]">
           <a href={post.permalink} target="_blank" rel="noopener noreferrer"
             aria-label={`View ${mediaDescription} from @${feed.username} on Instagram${summary ? `: ${summary}` : ''}`}
             className={`group relative block aspect-[4/5] overflow-hidden rounded-xl ${post.mediaType === 'CAROUSEL_ALBUM' ? 'bg-cocoa' : 'bg-cream-dark'} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa`}>
