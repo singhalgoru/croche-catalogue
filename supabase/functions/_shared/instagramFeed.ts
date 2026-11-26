@@ -7,6 +7,11 @@ export interface InstagramFeedPost {
   caption: string;
   mediaType: InstagramFeedMediaType;
   timestamp: string;
+  likesCount?: number;
+  viewsCount?: number;
+  viewsChecked?: boolean;
+  productId?: string | null;
+  productMatchStatus?: 'matched' | 'unmatched';
 }
 
 export interface InstagramFeed {
@@ -17,7 +22,8 @@ export interface InstagramFeed {
 }
 
 export const instagramFeedWindowMs = 30 * 24 * 60 * 60 * 1000;
-export const instagramFeedPostLimit = 6;
+export const instagramFeedPostLimit = 25;
+export const instagramHomepagePostLimit = 6;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -49,8 +55,19 @@ function parseFeedPost(value: unknown): InstagramFeedPost {
     || !isInstagramPermalink(value.permalink) || !isInstagramMediaUrl(value.previewUrl)
     || typeof value.caption !== 'string' || value.caption.length > 2200
     || (value.mediaType !== 'IMAGE' && value.mediaType !== 'VIDEO' && value.mediaType !== 'CAROUSEL_ALBUM')
-    || typeof value.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp))) {
+    || typeof value.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp))
+    || (value.likesCount !== undefined && (!Number.isSafeInteger(value.likesCount) || (value.likesCount as number) < 0))
+    || (value.viewsCount !== undefined && (!Number.isSafeInteger(value.viewsCount) || (value.viewsCount as number) < 0))
+    || (value.viewsChecked !== undefined && typeof value.viewsChecked !== 'boolean')
+    || (value.productId !== undefined && value.productId !== null
+      && (typeof value.productId !== 'string' || value.productId.length < 1 || value.productId.length > 80))
+    || (value.productMatchStatus !== undefined
+      && value.productMatchStatus !== 'matched' && value.productMatchStatus !== 'unmatched')) {
     throw new Error('Instagram returned an invalid feed post.');
+  }
+  if ((value.productMatchStatus === 'matched' && typeof value.productId !== 'string')
+    || (value.productMatchStatus === 'unmatched' && value.productId != null)) {
+    throw new Error('Instagram returned an invalid product match.');
   }
   return {
     id: value.id,
@@ -59,6 +76,11 @@ function parseFeedPost(value: unknown): InstagramFeedPost {
     caption: value.caption,
     mediaType: value.mediaType,
     timestamp: new Date(value.timestamp).toISOString(),
+    ...(value.likesCount !== undefined ? { likesCount: value.likesCount as number } : {}),
+    ...(value.viewsCount !== undefined ? { viewsCount: value.viewsCount as number } : {}),
+    ...(value.viewsChecked !== undefined ? { viewsChecked: value.viewsChecked } : {}),
+    ...(value.productId !== undefined ? { productId: value.productId as string | null } : {}),
+    ...(value.productMatchStatus !== undefined ? { productMatchStatus: value.productMatchStatus } : {}),
   };
 }
 
@@ -111,6 +133,9 @@ export function normalizeInstagramMedia(values: unknown, now = Date.now()): Inst
       caption: typeof value.caption === 'string' ? value.caption.slice(0, 2200) : '',
       mediaType,
       timestamp: new Date(timestamp).toISOString(),
+      ...(typeof value.like_count === 'number' && Number.isSafeInteger(value.like_count) && value.like_count >= 0
+        ? { likesCount: value.like_count }
+        : {}),
     });
   }
   return posts.sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp))

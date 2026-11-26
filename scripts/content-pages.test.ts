@@ -477,7 +477,7 @@ describe('collection and information pages', () => {
     expect(documentFor('/privacy-policy/').body.textContent).toContain('latest eight submitted search keywords');
   });
   it('creates populated collections, information pages and dedicated policies', () => {
-    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/how-to-style-crochet-gajra/', '/handmade-gifts-by-budget/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/return-policy/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/']);
+    expect([...pages.keys()]).toEqual(['/collections/toys/', '/collections/hair-accessories/', '/bestsellers/', '/featured/', '/collections/', '/crochet-gift-guide/', '/how-to-style-crochet-gajra/', '/handmade-gifts-by-budget/', '/search/', '/about/', '/faq/', '/terms-and-conditions/', '/privacy-policy/', '/account-deletion/', '/return-policy/', '/bulk-orders/', '/international-quote/', '/artisans/', '/customer-love/', '/from-instagram/']);
     expect(collectionPath('../Toys / gifts')).toBe('/collections/toys-gifts/');
     expect(collectionPath('玩具')).toBe('/collections/%E7%8E%A9%E5%85%B7/');
     expect(() => buildContentPages([toy, { ...toy, category: 'toys' }], '919205907350')).toThrow('Duplicate collection path');
@@ -640,6 +640,18 @@ describe('collection and information pages', () => {
     const entry = fallback.split('<url>').find(node => node.includes('<loc>https://luviacreations.com/collections/toys/</loc>'))!;
     expect(entry).toContain('bunny');
     expect(entry).toContain('<image:image>');
+  });
+
+  it('generates the dedicated Instagram page and includes it in the public sitemap', () => {
+    const pages = buildContentPages([], '919205907350');
+    const html = pages.get('/from-instagram/');
+    expect(html).toContain('<title>From Instagram | Luvia Creations</title>');
+    expect(html).toContain('https://www.instagram.com/luvia.craftedwithlove/');
+    expect(renderContentSitemap([], '2026-10-18', pages)).toContain('https://luviacreations.com/from-instagram/');
+    expect(readFileSync(resolve('public', 'sitemap.xml'), 'utf8')).toContain('https://luviacreations.com/from-instagram/');
+    expect(renderLlms(readFileSync(resolve('public', 'llms.txt'), 'utf8'), [], undefined, [], discoveryPageLinks(pages)))
+      .toContain('- [From Instagram](https://luviacreations.com/from-instagram/)');
+    expect(html).not.toContain('name="robots" content="noindex');
   });
 
   it('creates new admin categories including empty ones and removes deleted category pages on rebuild', () => {

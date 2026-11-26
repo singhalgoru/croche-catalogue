@@ -1,12 +1,14 @@
 import { Children, cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 
-export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction }: {
+export default function RotatingCarousel({ title, label, children, itemCount, navigation = false, viewAll, description, pinned, className = '', headerAction, titleIcon, onView }: {
   title: string; label: string; children: ReactNode; itemCount: number;
   navigation?: boolean; viewAll?: string; description?: ReactNode; pinned?: ReactNode;
-  className?: string; headerAction?: ReactNode;
+  className?: string; headerAction?: ReactNode; titleIcon?: ReactNode; onView?: () => void;
 }) {
   const id = useId();
+  const section = useRef<HTMLElement>(null);
   const track = useRef<HTMLElement>(null);
+  const viewTracked = useRef(false);
   const [edges, setEdges] = useState({ start: true, end: true });
   const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -53,6 +55,19 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     return () => observer.disconnect();
   }, [itemCount, looping, measure]);
   useEffect(() => {
+    const element = section.current;
+    if (!element || !onView || viewTracked.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        viewTracked.current = true;
+        onView();
+        observer.disconnect();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [onView]);
+  useEffect(() => {
     if (paused || hovered || focused || touched || reducedMotion || !looping) return;
     let animation: number;
     let previous: number | undefined;
@@ -80,13 +95,17 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
     }
   };
   const Track = navigation ? 'nav' : 'div';
-  return <section aria-labelledby={`${id}-heading`} className={`relative min-w-0 space-y-3 ${className}`}
+  return <section ref={section} aria-labelledby={`${id}-heading`} className={`relative min-w-0 space-y-3 ${className}`}
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onTouchStart={() => setTouched(true)} onTouchEnd={() => setTouched(false)} onTouchCancel={() => setTouched(false)}
     onFocusCapture={() => setFocused(true)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
     <div className="flex items-center justify-between gap-3">
-      <h2 id={`${id}-heading`} className="font-heading text-xl font-bold text-cocoa">{title}</h2>
+      <h2 id={`${id}-heading`} className="font-heading text-xl font-bold text-cocoa">
+        {titleIcon
+          ? <span className="inline-flex items-center gap-2">{titleIcon}{title}</span>
+          : title}
+      </h2>
       <div className="flex items-center gap-3">
         {viewAll && <a href={viewAll} className="text-sm font-semibold text-cocoa underline underline-offset-4">View all</a>}
         {headerAction}

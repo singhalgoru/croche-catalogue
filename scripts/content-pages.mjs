@@ -17,7 +17,7 @@ export { collectionPath };
 const ORIGIN = 'https://luviacreations.com';
 const descriptions = storeContent.collectionDescriptions;
 
-const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/crochet-gift-guide/">Crochet gift guide</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
+const navigation = () => '<a href="/">Shop all</a><a href="/search/">Search products</a><a href="/collections/">Collections</a><a href="/bestsellers/">Bestsellers</a><a href="/featured/">Featured products</a><a href="/crochet-gift-guide/">Crochet gift guide</a><a href="/customer-love/">Customer Love</a><a href="/from-instagram/">From Instagram</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a><a href="/bulk-orders/">Bulk orders &amp; corporate gifting</a>'
   + `<a href="${internationalQuote.path}">International quotes</a>`
   + policies.map(policy => `<a href="${policy.path}">${escapeHtml(policy.title)}</a>`).join('');
 export const renderSiteHeader = () => `<a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/"><img src="/images/luvia-logo-160.webp" width="48" height="48" alt="">Luvia Creations</a><nav aria-label="Main navigation">${navigation()}</nav></header>`;
@@ -371,6 +371,13 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         ].map((item, index) => ({ '@type': 'ListItem', position: index + 1, ...item })) } },
       image ?? undefined));
   }
+  const instagramPath = '/from-instagram/';
+  const instagramTitle = 'From Instagram';
+  const instagramDescription = 'Browse recent crochet posts from Luvia Creations on Instagram, with post links and available product matches.';
+  pages.set(instagramPath, page(instagramPath, instagramTitle, instagramDescription,
+    `<p class="intro">Explore Luvia Creations’ recent crochet posts, discover matching handmade products and follow along on Instagram.</p>
+      <p><a class="button" href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>`,
+    baseSchema('CollectionPage', instagramPath, instagramTitle, instagramDescription)));
   return pages;
 };
 

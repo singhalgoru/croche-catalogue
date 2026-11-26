@@ -37,6 +37,7 @@ import { getProductImageUrl } from '../utils/productImageUrl';
 import { getCategoryImage } from '../utils/categoryImage.js';
 import BudgetGiftGuide from './BudgetGiftGuide';
 import { InstagramIcon, MailIcon, WhatsAppIcon } from './SocialIcons';
+import InstagramFeed from './InstagramFeed';
 
 const ArtisanApplicationForm = lazy(() => import('./ArtisanApplicationForm'));
 const ArtisanPaymentForm = lazy(() => import('./ArtisanPaymentForm'));
@@ -89,6 +90,8 @@ export default function StorePages({
   const isBulkOrders = requestedPath === bulkOrders.path;
   const isInternationalQuote = requestedPath === internationalQuote.path;
   const isAbout = requestedPath === '/about/';
+  const isInstagramPage = requestedPath === '/from-instagram/';
+  const instagramPageDescription = 'Browse recent crochet posts from Luvia Creations on Instagram, with post links and available product matches.';
   const isGiftGuide = requestedPath === storeContent.giftGuide.path;
   const article = contentArticles.find(item => item.path.replace(/\/?$/, '/') === requestedPath);
   const articleHeroHref = article?.sections?.[0]?.links[0]?.href;
@@ -150,7 +153,7 @@ export default function StorePages({
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
   const title = productCollection?.title ?? policy?.title ?? (isStory ? story ? `Customer story from ${story.display_name}` : story === null ? 'Customer story unavailable' : 'Customer story'
-    : isCustomerLove ? 'Customer Love' : isGiftGuide ? storeContent.giftGuide.title : article?.title ?? (isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
+    : isCustomerLove ? 'Customer Love' : isGiftGuide ? storeContent.giftGuide.title : isInstagramPage ? 'From Instagram' : article?.title ?? (isInternationalQuote ? internationalQuote.title : isArtisans ? artisanOnboarding.title : isSearch ? 'Search products' : isBulkOrders ? bulkOrders.title : isAbout ? storeContent.brandStory.title
     : pathname.startsWith('/faq') ? 'Ordering, delivery & care FAQ'
       : isCollection ? category ? `Handmade ${category}` : 'Collection unavailable'
         : 'Explore our handmade collections'));
@@ -200,8 +203,8 @@ export default function StorePages({
       robots.content = 'noindex,follow';
       if (!robots.isConnected) document.head.append(robots);
     }
-    if (productCollection || policy || isBulkOrders || isInternationalQuote || isAbout || isArtisans || isCustomerLove || isGiftGuide || article) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (article?.description ?? (isGiftGuide ? storeContent.giftGuide.description : isCustomerLove ? 'Customer stories and handmade moments, shared with permission by Luvia Creations customers.' : isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description));
+    if (productCollection || policy || isBulkOrders || isInternationalQuote || isAbout || isArtisans || isCustomerLove || isGiftGuide || isInstagramPage || article) {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (article?.description ?? (isGiftGuide ? storeContent.giftGuide.description : isInstagramPage ? instagramPageDescription : isCustomerLove ? 'Customer stories and handmade moments, shared with permission by Luvia Creations customers.' : isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description));
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
     }
     if (isCollection) {
@@ -239,7 +242,7 @@ export default function StorePages({
       });
     }
     if (incomingCollection && category) window.history.replaceState(null, '', collectionPath(category));
-  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isGiftGuide, isCustomerLove, isStory, story, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts, article]);
+  }, [visibleCategories, category, collectionProducts, collectionShareImageUrl, description, hasCatalogueSnapshot, incomingCollection, isAbout, isGiftGuide, isInstagramPage, instagramPageDescription, isCustomerLove, isStory, story, isSearch, isArtisans, isBulkOrders, isInternationalQuote, isCollection, isLoading, policy, requestedPath, title, productCollection, curatedProducts, article]);
 
   const categoryLinks = (
     <nav aria-label="Explore collections">
@@ -270,7 +273,11 @@ export default function StorePages({
       <nav aria-label="Breadcrumb" className={`${isSearch ? 'hidden sm:flex' : 'flex'} flex-wrap gap-3 text-sm`}><a href="/" className="underline">Home</a>
         {isCollection && <a href="/collections/" className="underline">Collections</a>}
         {isStory && <a href="/customer-love/" className="underline">Customer Love</a>}<span aria-current="page">{title}</span></nav>
-      <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>{title}{isAbout && <sup aria-hidden="true">™</sup>}</h1>
+      <h1 className={`font-heading text-3xl font-bold ${isSearch ? 'sr-only sm:not-sr-only' : ''}`}>
+        {isInstagramPage && <span className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[linear-gradient(45deg,#feda75_0%,#fa7e1e_25%,#d62976_50%,#962fbf_75%,#4f5bd5_100%)] align-middle text-white" aria-hidden="true">
+          <InstagramIcon className="h-5 w-5" />
+        </span>}{title}{isAbout && <sup aria-hidden="true">™</sup>}
+      </h1>
       {isStory && <CustomerLove products={products} storySlug={storySlug} onStoryResolved={setStory} />}
       {isCustomerLove && <><div className="space-y-1">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-cocoa/70">Little moments, beautifully handmade</p>
@@ -311,7 +318,7 @@ export default function StorePages({
       </article>}
       {loadError && !isArtisans && <CatalogueNotice message={loadError} onRetry={onRetry} />}
       {isLoading && !isArtisans && <p role="status">Checking the latest collections and availability…</p>}
-      {policy ? null : isGiftGuide ? <article className="space-y-8">
+      {policy ? null : isInstagramPage ? <InstagramFeed products={products} presentation="gallery" /> : isGiftGuide ? <article className="space-y-8">
         <section aria-label="Thoughtful gifts, without the guesswork" className="rounded-3xl border border-mustard/40 bg-mustard/10 p-5 sm:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-cocoa/65">A little thought. A lot of love.</p>
           <h2 className="mt-3 font-heading text-2xl font-bold sm:text-3xl">Thoughtful gifts, without the guesswork</h2>

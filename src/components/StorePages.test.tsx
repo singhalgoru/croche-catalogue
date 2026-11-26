@@ -8,6 +8,7 @@ import { isStorePage } from '../utils/storePageRoute';
 
 vi.mock('./Header', () => ({ default: ({ categories }: { categories: string[] }) => <header>{categories.join(', ')}</header> }));
 vi.mock('./Footer', () => ({ default: () => <footer /> }));
+vi.mock('./InstagramFeed', () => ({ default: () => <section aria-label="Instagram post gallery" /> }));
 const products: Product[] = [{ id: 'p1', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
   price: 500, showPrice: true, image: 'https://images.luviacreations.com/products/admin/bunny.webp', inStock: true, color: '#ffffff',
   variants: [{ id: 'v1', name: 'White', color: '#ffffff', price: null, inStock: true, availableQuantity: 10,
@@ -18,6 +19,14 @@ const initial = { products, categorySettings: [{ name: 'Toys', priority: 10 }], 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); window.history.replaceState(null, '', '/'); document.querySelector('meta[name="robots"]')?.remove(); });
 
 describe('live store pages', () => {
+  it.each(['/from-instagram/', '/from-instagram'])('renders the Instagram gallery at %s', pathname => {
+    window.history.replaceState(null, '', pathname);
+    expect(isStorePage()).toBe(true);
+    render(<StorePages {...initial} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'From Instagram' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Instagram post gallery' })).toBeTruthy();
+    expect(document.title).toBe('From Instagram | Luvia Creations');
+  });
   it('groups every FAQ answer once and keeps all topic links valid', () => {
     window.history.replaceState(null, '', '/faq/');
     render(<StorePages {...initial} />);

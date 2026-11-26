@@ -43,9 +43,44 @@ async function graphGet(
 function requirePermissions(value: unknown) {
   const grants = ['instagram_basic', 'pages_show_list', 'pages_read_engagement'];
   const data = isRecord(value) && Array.isArray(value.data) ? value.data : [];
+  const granted = (permission: string) => data.some(item =>
+    isRecord(item) && item.permission === permission && item.status === 'granted');
   const missing = grants.filter(permission => !data.some(item =>
     isRecord(item) && item.permission === permission && item.status === 'granted'));
   if (missing.length) throw new Error(`Reconnect Meta with ${missing.join(', ')} granted for the Instagram feed.`);
+  return granted('instagram_manage_insights');
+}
+
+function viewsCount(value: unknown): number | undefined {
+  if (!isRecord(value) || !Array.isArray(value.data)) return undefined;
+  const metric = value.data.find(item => isRecord(item) && item.name === 'views');
+  if (!isRecord(metric)) return undefined;
+  const total = isRecord(metric.total_value) ? metric.total_value.value : undefined;
+  if (typeof total === 'number' && Number.isSafeInteger(total) && total >= 0) return total;
+  if (!Array.isArray(metric.values)) return undefined;
+  const row = metric.values.find(item =>
+    isRecord(item) && typeof item.value === 'number' && Number.isSafeInteger(item.value) && item.value >= 0);
+  return isRecord(row) && typeof row.value === 'number' ? row.value : undefined;
+}
+
+async function addViews(
+  config: MetaConfig, posts: InstagramFeedPost[], hasInsightsPermission: boolean, fetcher: Fetcher,
+): Promise<InstagramFeedPost[]> {
+  if (!hasInsightsPermission) {
+    console.warn('Instagram insights permission is missing; post view counts are omitted.');
+    return posts.map(post => ({ ...post, viewsChecked: true }));
+  }
+  return Promise.all(posts.map(async post => {
+    if (post.mediaType === 'CAROUSEL_ALBUM') return { ...post, viewsChecked: true };
+    try {
+      const insights = await graphGet(config, `${post.id}/insights`, { metric: 'views' }, fetcher);
+      const count = viewsCount(insights);
+      return { ...post, viewsChecked: true, ...(count !== undefined ? { viewsCount: count } : {}) };
+    } catch {
+      console.warn('Instagram view count is unavailable for media.', { mediaId: post.id });
+      return { ...post, viewsChecked: true };
+    }
+  }));
 }
 
 export async function fetchInstagramFeed(
@@ -54,7 +89,7 @@ export async function fetchInstagramFeed(
   if (!/^\d{1,30}$/.test(pageId)) throw new Error('The Meta publishing Page is not configured.');
 
   const permissions = await graphGet(config, 'me/permissions', {}, fetcher);
-  requirePermissions(permissions);
+  const hasInsightsPermission = requirePermissions(permissions);
 
   const page = await graphGet(config, pageId, { fields: 'id,name,access_token' }, fetcher);
   if (page.id !== pageId) throw new Error('Meta did not return the configured Facebook Page.');
@@ -72,8 +107,9 @@ export async function fetchInstagramFeed(
   }
 
   const media = await graphGet(pageConfig, `${account.id}/media`, {
-    fields: 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url,children{media_type,media_url,thumbnail_url}',
+    fields: 'id,caption,media_type,media_url,permalink,timestamp,thumbnail_url,like_count,children{media_type,media_url,thumbnail_url}',
     limit: '25',
   }, fetcher);
-  return { username: account.username, posts: normalizeInstagramMedia(media.data, now) };
+  const posts = normalizeInstagramMedia(media.data, now);
+  return { username: account.username, posts: await addViews(config, posts, hasInsightsPermission, fetcher) };
 }

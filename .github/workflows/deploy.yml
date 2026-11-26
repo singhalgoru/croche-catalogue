@@ -211,6 +211,15 @@ jobs:
           fi
           feed_file="$(mktemp)"
           trap 'rm -f "$feed_file"' EXIT
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/merchant-feed.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq '<rss version="2.0"' "$feed_file"
+          grep -Fq '<g:id>' "$feed_file"
+          grep -Fq '<g:image_link>' "$feed_file"
+          if grep -Fq '/from-instagram/' "$feed_file"; then
+            echo "::error::The public Instagram gallery must not be listed as a product-feed item"
+            exit 1
+          fi
+          echo "Live Merchant feed is accessible and contains product items only."
           curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/meta-catalog-feed.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
           grep -Fq '<rss version="2.0"' "$feed_file"
           grep -Fq '<g:id>' "$feed_file"
@@ -228,3 +237,12 @@ jobs:
           curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/pinterest-pins-feed.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
           grep -Fq '<rss version="2.0"' "$feed_file"
           echo "Live Pinterest Pin RSS feed is accessible."
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/sitemap.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq 'https://luviacreations.com/from-instagram/' "$feed_file"
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/llms.txt?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq '[From Instagram](https://luviacreations.com/from-instagram/)' "$feed_file"
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/robots.txt?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq 'Allow: /' "$feed_file"
+          curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/from-instagram/?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
+          grep -Fq '<title>From Instagram | Luvia Creations</title>' "$feed_file"
+          echo "Live Instagram gallery, sitemap, llms.txt and robots.txt are accessible."
