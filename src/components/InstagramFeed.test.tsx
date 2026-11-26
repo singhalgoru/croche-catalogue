@@ -73,12 +73,15 @@ it('cleans captions and uses curated Instagram IDs for product links and catalog
     fetchedAt: new Date().toISOString(),
     stale: false,
   });
-  render(<InstagramFeed products={products} />);
+  const productsWithRenamedSlug = products.map(product => product.id === 'p32'
+    ? { ...product, id: '63448c7a-00cc-4b13-9f81-29d04190d028', publicSlug: 'evil-eye-charm-renamed' }
+    : product);
+  render(<InstagramFeed products={productsWithRenamedSlug} />);
   const postLink = await screen.findByRole('link', { name: /View video from @luviacreations/ });
   expect(screen.getByText('Evil Eye Charm (Bag / Key / Car)')).toBeTruthy();
   expect(screen.queryByText(/🧿|✨|#crochet/)).toBeNull();
   const shopLink = screen.getByRole('link', { name: 'Shop this ₹249 →' });
-  expect(shopLink.getAttribute('href')).toContain('/p/evil-eye-charm-bag-key-car/');
+  expect(shopLink.getAttribute('href')).toContain('/p/evil-eye-charm-renamed/');
   expect(postLink.querySelector('img')?.className).toContain('brightness-75');
 });
 

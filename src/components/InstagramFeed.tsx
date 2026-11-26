@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchInstagramFeed } from '../services/instagramFeed';
 import type { InstagramFeed as InstagramFeedData } from '../../supabase/functions/_shared/instagramFeed';
-import { instagramProductSlugs } from '../data/instagramProductSlugs';
+import { instagramProductIds } from '../data/instagramProductIds';
 import type { Product } from '../types/product';
-import { toProductPageUrl, toProductSlug } from '../utils/productLink';
+import { toProductPageUrl } from '../utils/productLink';
 import { InstagramIcon } from './SocialIcons';
 import RotatingCarousel from './RotatingCarousel';
 
@@ -63,9 +63,9 @@ export default function InstagramFeed({ products = [] }: { products?: Product[] 
         const mediaDescription = post.mediaType === 'VIDEO' ? 'video' : post.mediaType === 'CAROUSEL_ALBUM' ? 'photo carousel' : 'photo';
         const caption = cleanCaption(post.caption);
         const summary = caption.slice(0, 180);
-        const productSlug = instagramProductSlugs[post.id];
-        const product = productSlug
-          ? products.find(item => (item.publicSlug ?? toProductSlug(item)) === productSlug && item.inStock)
+        const productId = instagramProductIds[post.id];
+        const product = productId
+          ? products.find(item => item.id === productId && item.inStock)
           : undefined;
         const alt = summary
           ? `Instagram ${mediaDescription} from @${feed.username}: ${summary}${caption.length > summary.length ? '…' : ''}`
