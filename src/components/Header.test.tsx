@@ -38,9 +38,12 @@ describe('Header', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     const socialGroups = screen.getAllByRole('group', { name: 'Follow Luvia on social media' });
     expect(socialGroups).toHaveLength(2);
-    expect(within(screen.getByRole('navigation', { name: 'Main navigation' }))
-      .getByRole('group', { name: 'Follow Luvia on social media' }).textContent).toContain('Instagram');
-    expect(screen.getByRole('link', { name: 'Pinterest' }).getAttribute('href'))
+    const menuSocialGroup = within(screen.getByRole('navigation', { name: 'Main navigation' }))
+      .getByRole('group', { name: 'Follow Luvia on social media' });
+    expect(menuSocialGroup.textContent).toBe('');
+    expect(within(menuSocialGroup).getByRole('link', { name: 'Instagram' }).getAttribute('href'))
+      .toBe('https://www.instagram.com/luvia.craftedwithlove?stkn=c3ZvM2pxMWw0Mnhl');
+    expect(within(menuSocialGroup).getByRole('link', { name: 'Pinterest' }).getAttribute('href'))
       .toBe('https://in.pinterest.com/luviacreations/');
   });
   it('can hide social profiles in both header and navigation', () => {

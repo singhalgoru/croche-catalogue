@@ -33,13 +33,13 @@ const links = [
 const layoutClass: Record<Variant, string> = {
   footer: 'flex flex-wrap gap-3 md:gap-2',
   header: 'flex items-center gap-1.5',
-  menu: 'grid grid-cols-3 gap-2',
+  menu: 'grid grid-cols-3 justify-items-center gap-2',
 };
 
 const linkClass: Record<Variant, string> = {
   footer: 'inline-flex min-h-11 w-11 items-center justify-center rounded-full p-2 text-white transition-opacity hover:opacity-90',
   header: 'inline-flex min-h-10 w-10 items-center justify-center rounded-full text-white transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa',
-  menu: 'flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-mustard/40 bg-white px-2 py-2 text-xs font-semibold text-cocoa transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-cocoa',
+  menu: 'inline-flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa',
 };
 
 export default function SocialFollowLinks({ variant = 'footer' }: { variant?: Variant }) {
@@ -57,10 +57,9 @@ export default function SocialFollowLinks({ variant = 'footer' }: { variant?: Va
           title={name}
           className={`${linkClass[variant]} ${variant === 'menu' ? '' : color}`}
         >
-          <span className={variant === 'menu' ? `flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white ${color}` : undefined}>
+          <span className={variant === 'menu' ? `flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white ${color}` : undefined}>
             <Icon className="h-5 w-5" />
           </span>
-          {variant === 'menu' && <span>{name}</span>}
         </a>
       ))}
     </div>
