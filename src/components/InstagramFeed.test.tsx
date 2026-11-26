@@ -85,6 +85,27 @@ it('cleans captions and uses curated Instagram IDs for product links and catalog
   expect(postLink.querySelector('img')?.className).toContain('brightness-75');
 });
 
+it('links bunny posts to their matching in-stock catalogue products', async () => {
+  mocks.fetchInstagramFeed.mockResolvedValue({
+    username: 'luviacreations',
+    posts: [
+      { ...post, id: '18071831963616204', caption: 'Our crochet bunnies are ready for their forever home' },
+      { ...post, id: '18444362995183919', caption: 'Meet our Cute Bunny!' },
+    ],
+    fetchedAt: new Date().toISOString(),
+    stale: false,
+  });
+  const bunnyProducts = [
+    { ...products[0], id: '8ce989f9-95a8-4d23-945d-a49bed84c0b2', name: 'Bunny Toy', publicSlug: 'bunny-toy', price: 2100 },
+    { ...products[0], id: '88d58adb-3573-4c6c-ba3c-791a151c0726', name: 'Cute Bunny', publicSlug: 'cute-bunny', price: 1100 },
+  ];
+  render(<InstagramFeed products={bunnyProducts} />);
+  const shopLinks = await screen.findAllByRole('link', { name: /Shop this/ });
+  expect(shopLinks.map(link => link.textContent)).toEqual(['Shop this ₹2100 →', 'Shop this ₹1100 →']);
+  expect(shopLinks[0].getAttribute('href')).toContain('/p/bunny-toy/');
+  expect(shopLinks[1].getAttribute('href')).toContain('/p/cute-bunny/');
+});
+
 it('does not infer a product link from a caption without a curated post ID', async () => {
   mocks.fetchInstagramFeed.mockResolvedValue({
     username: 'luviacreations',
