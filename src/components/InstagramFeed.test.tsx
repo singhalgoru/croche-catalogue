@@ -66,10 +66,10 @@ it('uses unobtrusive icons for video and carousel posts without text badges', as
   expect(screen.queryByText('Video')).toBeNull();
 });
 
-it('cleans captions and links matching in-stock products with catalogue prices', async () => {
+it('cleans captions and uses curated Instagram IDs for product links and catalogue prices', async () => {
   mocks.fetchInstagramFeed.mockResolvedValue({
     username: 'luviacreations',
-    posts: [{ ...post, caption: '🧿 Evil Eye Charm (Bag / Key / Car) ✨ #crochet' }],
+    posts: [{ ...post, id: '17953955715341054', caption: '🧿 Evil Eye Charm (Bag / Key / Car) ✨ #crochet' }],
     fetchedAt: new Date().toISOString(),
     stale: false,
   });
@@ -80,6 +80,18 @@ it('cleans captions and links matching in-stock products with catalogue prices',
   const shopLink = screen.getByRole('link', { name: 'Shop this ₹249 →' });
   expect(shopLink.getAttribute('href')).toContain('/p/evil-eye-charm-bag-key-car/');
   expect(postLink.querySelector('img')?.className).toContain('brightness-75');
+});
+
+it('does not infer a product link from a caption without a curated post ID', async () => {
+  mocks.fetchInstagramFeed.mockResolvedValue({
+    username: 'luviacreations',
+    posts: [{ ...post, caption: 'Evil Eye Charm (Bag / Key / Car)' }],
+    fetchedAt: new Date().toISOString(),
+    stale: false,
+  });
+  render(<InstagramFeed products={products} />);
+  await screen.findByRole('link', { name: /View video from @luviacreations/ });
+  expect(screen.queryByRole('link', { name: /Shop this/ })).toBeNull();
 });
 
 it('labels stale cached posts clearly', async () => {
