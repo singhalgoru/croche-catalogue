@@ -846,6 +846,7 @@ function App() {
         {effectiveActiveCategory === 'All' && !query.trim() && <ProductCarousel products={getFeaturedProducts(products)}
           onSelect={selectProduct} title={productCollections[1].title} label="featured product"
           viewAll={productCollections[1].path} description={productCollections[1].description} />}
+        {window.location.pathname === '/' && isDefaultCatalogueView && <InstagramFeed />}
         {effectiveActiveCategory === 'All' && !query.trim() && <HomepageCustomisation />}
           <div
             ref={catalogueToolsRef}
@@ -938,7 +939,6 @@ function App() {
           </div>
         )}
         {effectiveActiveCategory === 'All' && !query.trim() && <CustomerLove products={products} onContentReady={customerLoveContentReady} />}
-        {window.location.pathname === '/' && isDefaultCatalogueView && <InstagramFeed />}
         <OrderingGuide />
       </main>
       )}
