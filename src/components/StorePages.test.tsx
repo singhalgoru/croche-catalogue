@@ -57,6 +57,7 @@ describe('live store pages', () => {
     ['materials-sizing-care', 'What materials and sizes are used?'],
     ['dispatch-delivery', 'When will my order be dispatched?'],
     ['packaging', 'How does Luvia package handmade crochet gifts?'],
+    ['track-order', 'How can I track my order?'],
   ])('opens the FAQ section addressed by #%s', (anchor, question) => {
     window.history.replaceState(null, '', `/faq/#${anchor}`);
     render(<StorePages {...initial} />);
@@ -66,6 +67,15 @@ describe('live store pages', () => {
     if (anchor === 'materials-sizing-care') {
       expect(screen.getByText('How should I care for my crochet product?').closest('details')!.open).toBe(true);
     }
+  });
+  it('explains tracking for signed-in and guest buyers with useful links', () => {
+    window.history.replaceState(null, '', '/faq/#track-order');
+    render(<StorePages {...initial} />);
+    const details = screen.getByText('How can I track my order?').closest('details')!;
+    expect(details.textContent).toContain('If you placed your online order while signed in');
+    expect(details.textContent).toContain('If you ordered as a guest');
+    expect(within(details).getByRole('link', { name: 'My orders' }).getAttribute('href')).toBe('/?account=orders');
+    expect(within(details).getByRole('link', { name: 'Contact us' }).getAttribute('href')).toBe('/about/');
   });
   it.each(['/crochet-gift-guide/', '/crochet-gift-guide'])('renders the gift guide at %s even when catalogue loading fails', pathname => {
     window.history.replaceState(null, '', pathname);

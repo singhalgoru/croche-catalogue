@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchInstagramFeed } from '../services/instagramFeed';
+import { fetchInstagramFeed, readInstagramSnapshot } from '../services/instagramFeed';
 import { instagramHomepagePostLimit, type InstagramFeed as InstagramFeedData } from '../../supabase/functions/_shared/instagramFeed';
 import { instagramProductIds } from '../../supabase/functions/_shared/instagramProductIds';
 import { trackEvent } from '../services/analytics';
@@ -25,7 +25,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
   products?: Product[];
   presentation?: 'carousel' | 'gallery';
 }) {
-  const [feed, setFeed] = useState<InstagramFeedData | null>(null);
+  const [feed, setFeed] = useState<InstagramFeedData | null>(() => presentation === 'gallery' ? readInstagramSnapshot() : null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [sharingPostId, setSharingPostId] = useState<string | null>(null);
@@ -36,7 +36,17 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
   useEffect(() => {
     let active = true;
     void fetchInstagramFeed().then(value => {
-      if (active) setFeed(value);
+      if (active) setFeed(current => {
+        if (value.stale && current?.posts.length) return current;
+        if (!current?.stale) return value;
+        return {
+          ...value,
+          posts: value.posts.map(post => {
+            const saved = current.posts.find(item => item.id === post.id && item.permalink === post.permalink);
+            return saved ? { ...post, previewUrl: saved.previewUrl } : post;
+          }),
+        };
+      });
     }).catch(() => {
       if (active) setError(true);
     }).finally(() => {
@@ -79,7 +89,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
   }, [presentation, posts.length, trackFeedView]);
 
   const status = feed?.stale
-    ? <p role="status">Showing saved posts while Instagram is temporarily unavailable.</p>
+    ? <p role="status">{loading ? 'Showing saved posts while loading the latest from Instagram.' : 'Showing saved posts while Instagram is temporarily unavailable.'}</p>
     : loading
       ? <p role="status">Loading recent Instagram posts…</p>
       : error
@@ -162,7 +172,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
               ...(post.viewsCount !== undefined ? { view_count: post.viewsCount } : {}),
             })}
             className={`group relative block aspect-[4/5] overflow-hidden rounded-xl ${post.mediaType === 'CAROUSEL_ALBUM' ? 'bg-cocoa' : 'bg-cream-dark'} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa`}>
-            <img src={post.previewUrl} alt={alt} loading="lazy" decoding="async"
+            <img src={post.previewUrl} alt={alt} width="480" height="600" loading="lazy" decoding="async"
               className="h-full w-full object-cover transition duration-300 group-hover:scale-105 group-hover:brightness-75 group-focus-visible:brightness-75" />
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-cocoa/45 text-center text-sm font-semibold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
               <span className="flex items-center gap-2"><InstagramIcon className="h-5 w-5" /> View post</span>

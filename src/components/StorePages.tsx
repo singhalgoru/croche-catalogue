@@ -560,6 +560,10 @@ export default function StorePages({
                 className="scroll-mt-24 rounded-2xl border border-cocoa/10 bg-white px-5">
                 <summary className="cursor-pointer py-4 font-semibold marker:text-cocoa/50">{entry[0]}</summary>
                 <p className="pb-5 text-sm leading-relaxed text-cocoa/85">{entry[1]}</p>
+                {id === 'track-order' && <p className="flex flex-wrap gap-4 pb-5 text-sm font-semibold">
+                  <a href="/?account=orders" className="inline-flex min-h-11 items-center underline">My orders</a>
+                  <a href="/about/" className="inline-flex min-h-11 items-center underline">Contact us</a>
+                </p>}
               </details>;
              })}
             {group.id === 'faq-care' && <details id="returns-refunds" className="scroll-mt-24 rounded-2xl border border-cocoa/10 bg-white px-5">

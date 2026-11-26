@@ -22,6 +22,25 @@ const pages = buildContentPages([toy, hair], '919205907350');
 const documentFor = (pathname: string) => new JSDOM(pages.get(pathname)).window.document;
 
 describe('collection and information pages', () => {
+  it('renders crawlable Instagram posts with escaped captions and matching in-stock product links', () => {
+    const snapshot = {
+      username: 'luvia', fetchedAt: new Date().toISOString(), stale: false,
+      posts: [{ id: '123', permalink: 'https://www.instagram.com/p/abc/', previewUrl: '/instagram-snapshot/123.webp',
+        caption: 'Crochet <flower>', timestamp: new Date().toISOString(), mediaType: 'IMAGE', productId: toy.id }],
+    };
+    const generated = buildContentPages([toy], '919205907350', [], [], [], snapshot);
+    const doc = new JSDOM(generated.get('/from-instagram/')).window.document;
+    const image = doc.querySelector('main img[src="/instagram-snapshot/123.webp"]');
+    expect(image?.getAttribute('alt')).toContain('Crochet <flower>');
+    expect(image?.getAttribute('width')).toBe('480');
+    expect(image?.getAttribute('height')).toBe('600');
+    expect(image?.closest('a')?.getAttribute('href')).toBe('https://www.instagram.com/p/abc/');
+    expect(doc.querySelector('main a[href="/p/bunny/"]')?.textContent).toContain('Bunny');
+    expect(doc.querySelector('main flower')).toBeNull();
+    expect(JSON.parse(doc.getElementById('instagram-snapshot')!.textContent!).posts[0].caption).toBe('Crochet <flower>');
+    const outOfStock = buildContentPages([{ ...toy, inStock: false }], '919205907350', [], [], [], snapshot);
+    expect(new JSDOM(outOfStock.get('/from-instagram/')).window.document.querySelector('main a[href="/p/bunny/"]')).toBeNull();
+  });
   it('publishes the gift guide without catalogue data, with matching metadata, useful links and automatic discovery', () => {
     const guide = storeContent.giftGuide;
     const generated = buildContentPages([], '919205907350');
@@ -556,6 +575,10 @@ describe('collection and information pages', () => {
     expect(faq.body.textContent).toContain('does not confirm an order');
     expect(faq.body.textContent).toContain('before you pay');
     expect(faq.querySelector('a[href="/return-policy/"]')).toBeTruthy();
+    const tracking = faq.getElementById('track-order')!;
+    expect(tracking.textContent).toContain('If you ordered as a guest');
+    expect(tracking.querySelector('a[href="/?account=orders"]')).toBeTruthy();
+    expect(tracking.querySelector('a[href="/about/"]')).toBeTruthy();
     for (const group of storeContent.faqGroups) {
       expect(faq.querySelector(`nav[aria-label="FAQ topics"] a[href="#${group.id}"] .faq-icon[aria-hidden="true"] path`)?.getAttribute('d')).toBe(group.iconPath);
       expect(faq.getElementById(group.id)?.querySelector('h2')?.textContent).toBe(group.title);

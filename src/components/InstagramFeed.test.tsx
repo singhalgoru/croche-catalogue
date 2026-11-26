@@ -3,12 +3,14 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { products } from '../data/products';
 import InstagramFeed from './InstagramFeed';
 
-const mocks = vi.hoisted(() => ({ fetchInstagramFeed: vi.fn(), trackEvent: vi.fn() }));
-vi.mock('../services/instagramFeed', () => ({ fetchInstagramFeed: mocks.fetchInstagramFeed }));
+const mocks = vi.hoisted(() => ({ fetchInstagramFeed: vi.fn(), readInstagramSnapshot: vi.fn(), trackEvent: vi.fn() }));
+vi.mock('../services/instagramFeed', () => ({ fetchInstagramFeed: mocks.fetchInstagramFeed, readInstagramSnapshot: mocks.readInstagramSnapshot }));
 vi.mock('../services/analytics', () => ({ trackEvent: mocks.trackEvent }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 beforeEach(() => {
   mocks.fetchInstagramFeed.mockReset();
+  mocks.readInstagramSnapshot.mockReset();
+  mocks.readInstagramSnapshot.mockReturnValue(null);
   mocks.trackEvent.mockReset();
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   vi.stubGlobal('IntersectionObserver', class {
@@ -27,6 +29,31 @@ const post = {
   previewUrl: 'https://scontent.cdninstagram.com/post.jpg', caption: 'Making a tiny crochet flower',
   mediaType: 'VIDEO' as const, timestamp: new Date().toISOString(),
 };
+
+it('keeps the saved gallery when the live feed fails and replaces it on a successful empty response', async () => {
+  const saved = { username: 'luvia', posts: [{ ...post, previewUrl: '/instagram-snapshot/123.webp' }], fetchedAt: new Date().toISOString(), stale: true };
+  mocks.readInstagramSnapshot.mockReturnValue(saved);
+  mocks.fetchInstagramFeed.mockRejectedValueOnce(new Error('offline'));
+  const { unmount } = render(<InstagramFeed presentation="gallery" />);
+  expect(screen.getByRole('img').getAttribute('src')).toBe('/instagram-snapshot/123.webp');
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Showing saved posts'));
+  unmount();
+  mocks.fetchInstagramFeed.mockResolvedValueOnce({ ...saved, posts: [], stale: false });
+  render(<InstagramFeed presentation="gallery" />);
+  await screen.findByText(/No posts from the last 30 days/);
+  expect(screen.queryByRole('img')).toBeNull();
+});
+
+it('uses saved thumbnails for matching live posts without resurrecting removed posts', async () => {
+  const saved = { username: 'luvia', posts: [{ ...post, previewUrl: '/instagram-snapshot/123.webp' }], fetchedAt: new Date().toISOString(), stale: true };
+  mocks.readInstagramSnapshot.mockReturnValue(saved);
+  mocks.fetchInstagramFeed.mockResolvedValue({ ...saved, posts: [post, { ...post, id: '456' }], stale: false });
+  render(<InstagramFeed presentation="gallery" />);
+  await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+  const images = screen.getAllByRole('img');
+  expect(images[0].getAttribute('src')).toBe('/instagram-snapshot/123.webp');
+  expect(images[1].getAttribute('src')).toBe(post.previewUrl);
+});
 
 it('shows recent video previews linked to Instagram and the connected account', async () => {
   mocks.fetchInstagramFeed.mockResolvedValue({

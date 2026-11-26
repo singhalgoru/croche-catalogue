@@ -1102,7 +1102,9 @@ const main = async () => {
 
   const today = new Date().toISOString().slice(0, 10);
   const { buildContentPages, renderContentSitemap } = await import('./content-pages.mjs');
-  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials);
+  const { buildInstagramSnapshot } = await import('./instagram-snapshot.mjs');
+  const instagramSnapshot = await buildInstagramSnapshot(supabaseUrl, anonKey, DIST);
+  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials, instagramSnapshot);
   for (const [pathname, html] of contentPages) {
     const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
     await mkdir(dir, { recursive: true });

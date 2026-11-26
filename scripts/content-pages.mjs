@@ -45,6 +45,7 @@ a{color:inherit;text-underline-offset:4px}a:hover{text-decoration-thickness:2px}
 header,main,footer{max-width:1120px;margin:auto;padding:24px}header{border-bottom:3px solid #edc357}.brand{display:flex;align-items:center;gap:12px;font-weight:700;text-decoration:none}.brand img{border-radius:50%}.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:8px;background:white;padding:8px}
 nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:760px}h1{font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.2}h2{line-height:1.3}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:20px;list-style:none;padding:0}
+.instagram-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.instagram-grid .card{min-width:0;padding:12px;overflow-wrap:anywhere}@media(min-width:640px){.instagram-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}@media(min-width:1024px){.instagram-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .card,details{background:white;border:1px solid #edc357;border-radius:16px;padding:18px}.card h2{font-size:1.15rem}.card p{margin:8px 0}
 .product-card{display:flex;flex-direction:column;overflow:hidden;padding:0;background:rgb(246 196 83 / .25);box-shadow:0 1px 2px rgb(0 0 0 / .05);transition:transform .2s,box-shadow .2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgb(0 0 0 / .1)}
 .product-photo{display:block;position:relative;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.product-photo img{position:relative;width:100%;height:100%;object-fit:contain}.product-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}.product-copy{padding:16px}.product-copy h2{margin:0;font-weight:600}.product-copy a{text-decoration:none}.product-copy a:hover{text-decoration:underline}.product-price{font-weight:700}
@@ -114,7 +115,7 @@ const budgetGiftGuide = (article, products) => {
       <a href="/bulk-orders/">Explore bulk gifting &rarr;</a></div></aside>`;
 };
 
-export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = []) => {
+export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = [], instagramSnapshot = null) => {
   const pages = new Map();
   const orderedCategories = [...categories].sort((a, b) => Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority);
   const groups = new Map(orderedCategories.filter(category => category.visible !== false).map(category => [
@@ -283,7 +284,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <div class="faq-answers">${group.questionIds.map(id => {
       const entry = questions.find(([question]) => storeContent.faqAnchors[question] === id);
       if (!entry) throw new Error(`Unknown FAQ question: ${id}`);
-      return `<details id="${id}"><summary>${escapeHtml(entry[0])}</summary><p>${escapeHtml(entry[1])}</p></details>`;
+      return `<details id="${id}"><summary>${escapeHtml(entry[0])}</summary><p>${escapeHtml(entry[1])}</p>${id === 'track-order' ? '<p><a href="/?account=orders">My orders</a> · <a href="/about/">Contact us</a></p>' : ''}</details>`;
     }).join('')}
     ${group.id === 'faq-care' ? '<details id="returns-refunds"><summary>What is the return and refund policy?</summary><p>Read our <a href="/return-policy/">return and refund policy</a> before ordering. Contact us if you need clarification about your order.</p></details>' : ''}</div></section>`).join('');
   pages.set('/faq/', page('/faq/', faqTitle, faqDescription, `<section class="budget-intro">
@@ -374,10 +375,20 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   const instagramPath = '/from-instagram/';
   const instagramTitle = 'From Instagram';
   const instagramDescription = 'Browse recent crochet posts from Luvia Creations on Instagram, with post links and available product matches.';
+  const instagramCards = (instagramSnapshot?.posts ?? []).map(post => {
+    const caption = post.caption.replace(/\s+/g, ' ').trim().slice(0, 180);
+    const product = products.find(item => item.id === post.productId && item.inStock);
+    return `<li class="card"><a href="${escapeHtml(post.permalink)}"><img src="${escapeHtml(post.previewUrl)}" alt="${escapeHtml(caption ? `Instagram post from @${instagramSnapshot.username}: ${caption}` : `Instagram post from @${instagramSnapshot.username}`)}" width="480" height="600" loading="lazy" decoding="async" style="display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:12px"></a>
+      ${caption ? `<p>${escapeHtml(caption)}</p>` : ''}<a href="${escapeHtml(post.permalink)}">View on Instagram</a>
+      ${product ? `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>` : ''}</li>`;
+  }).join('');
   pages.set(instagramPath, page(instagramPath, instagramTitle, instagramDescription,
     `<p class="intro">Explore Luvia Creations’ recent crochet posts, discover matching handmade products and follow along on Instagram.</p>
+      ${instagramSnapshot?.stale ? '<p>Showing saved posts while Instagram is temporarily unavailable.</p>' : ''}
+      ${instagramCards ? `<ul class="grid instagram-grid">${instagramCards}</ul>` : '<p>Recent posts are available on Instagram.</p>'}
       <p><a class="button" href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>`,
-    baseSchema('CollectionPage', instagramPath, instagramTitle, instagramDescription)));
+    baseSchema('CollectionPage', instagramPath, instagramTitle, instagramDescription))
+    .replace('</head>', `${instagramSnapshot ? `<script id="instagram-snapshot" type="application/json">${JSON.stringify(instagramSnapshot).replace(/</g, '\\u003c')}</script>` : ''}</head>`));
   return pages;
 };
 
