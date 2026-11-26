@@ -102,12 +102,12 @@ it('glides continuously at 26px per second, loops seamlessly and pauses safely',
   act(() => vi.advanceTimersByTime(1000));
   expect(nav.scrollLeft).toBeGreaterThan(15);
   expect(nav.scrollLeft).toBeLessThan(35);
-  fireEvent.mouseEnter(section);
+  fireEvent.pointerEnter(section, { pointerType: 'mouse' });
   const stopped = nav.scrollLeft;
   act(() => vi.advanceTimersByTime(5000));
   expect(nav.scrollLeft).toBe(stopped);
   fireEvent.focus(nav.querySelector('a')!);
-  fireEvent.mouseLeave(section);
+  fireEvent.pointerLeave(section, { pointerType: 'mouse' });
   act(() => vi.advanceTimersByTime(5000));
   expect(nav.scrollLeft).toBe(stopped);
   fireEvent.blur(nav.querySelector('a')!, { relatedTarget: null });

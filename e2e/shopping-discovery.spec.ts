@@ -60,6 +60,74 @@ test('Instagram mobile cards have room for separate header actions and unobstruc
   }
 });
 
+test('Instagram sharing and shopping survive repeated posts and cancelled shares resume rotation', async ({ page }) => {
+  await page.addInitScript(() => {
+    const calls: string[] = [];
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => {
+      calls.push(data.url ?? '');
+      if (Reflect.get(window, 'instagramShareCancellation')) throw new DOMException('Share cancelled', 'AbortError');
+    } });
+    Object.defineProperty(window, 'instagramShareCalls', { value: calls });
+  });
+  const state = await installMockSupabase(page);
+  state.products[0].product_variants[0].in_stock = true;
+  state.products[0].product_variants[0].available_quantity = 2;
+  const timestamp = new Date().toISOString();
+  await page.route('**/functions/v1/instagram-feed', route => route.fulfill({ json: {
+    username: 'luvia', fetchedAt: timestamp, stale: false,
+    posts: Array.from({ length: 6 }, (_, index) => ({
+      id: String(index + 1), permalink: `https://www.instagram.com/p/repeat${index}/`,
+      previewUrl: 'https://scontent.cdninstagram.com/repeated.jpg',
+      caption: `Handmade favourite ${index}`, mediaType: 'IMAGE', timestamp, productId: state.products[0].id,
+    })),
+  } }));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const track = page.getByRole('group', { name: 'From Instagram', exact: true });
+  const original = track.locator(':scope > div').first();
+  const repeated = track.locator(':scope > div').nth(6);
+  const activateShare = async () => {
+    const button = original.getByRole('button', { name: 'Share this Instagram post' });
+    if (test.info().project.use.hasTouch) await button.tap();
+    else await button.click();
+  };
+  await expect(repeated).toHaveAttribute('inert', '');
+  await activateShare();
+  await expect(original.getByRole('status')).toHaveText('Instagram post shared.');
+  await activateShare();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'instagramShareCalls').length)).toBe(2);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => Reflect.set(window, 'instagramShareCancellation', true));
+  await activateShare();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'instagramShareCalls').length)).toBe(3);
+  await expect(original.getByRole('button', { name: 'Share this Instagram post' })).not.toBeFocused();
+  if (!test.info().project.use.hasTouch) await page.mouse.move(0, 0);
+  const position = await track.evaluate(element => element.scrollLeft);
+  await expect.poll(() => track.evaluate(element => element.scrollLeft)).toBeGreaterThan(position + 5);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => Reflect.set(window, 'instagramShareCancellation', false));
+  await repeated.evaluate(element => element.scrollIntoView({ inline: 'start', block: 'nearest', behavior: 'instant' }));
+  await expect(repeated).not.toHaveAttribute('inert');
+  await expect(original).toHaveAttribute('inert', '');
+  await expect(track.getByRole('button', { name: 'Share this Instagram post' })).toHaveCount(6);
+  const share = repeated.getByRole('button', { name: 'Share this Instagram post' });
+  await share.click();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'instagramShareCalls').length)).toBe(4);
+  await share.focus();
+  await share.press('Enter');
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'instagramShareCalls').length)).toBe(5);
+  await expect(share).toBeFocused();
+  await track.evaluate(element => element.scrollTo({ left: 0, behavior: 'instant' }));
+  await expect(original).not.toHaveAttribute('inert');
+  await expect(repeated).toHaveAttribute('inert', '');
+  await original.getByRole('button', { name: 'Share this Instagram post' }).click();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'instagramShareCalls').length)).toBe(6);
+  await repeated.evaluate(element => element.scrollIntoView({ inline: 'start', block: 'nearest', behavior: 'instant' }));
+  await repeated.getByRole('link', { name: /Shop this/ }).click();
+  await expect(page).toHaveURL(/\/p\//);
+  await expect(page.getByRole('heading', { name: state.products[0].name, exact: true })).toBeVisible();
+});
+
 test('making-video badges stay above the watermark and do not request media', async ({ page }) => {
   const state = await installMockSupabase(page);
   state.products[0].product_making_videos = {

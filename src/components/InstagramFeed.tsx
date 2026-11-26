@@ -103,7 +103,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
         const alt = summary
           ? `Instagram ${mediaDescription} from @${feed?.username ?? 'luviacreations'}: ${summary}${caption.length > summary.length ? '…' : ''}`
           : `Instagram ${mediaDescription} from @${feed?.username ?? 'luviacreations'}`;
-        const sharePost = async () => {
+        const sharePost = async (button: HTMLButtonElement, releaseFocus: boolean) => {
           setShareFeedback(null);
           setSharingPostId(post.id);
           let method: 'native' | 'copy_link' | undefined;
@@ -148,6 +148,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
             });
           } finally {
             setSharingPostId(null);
+            if (releaseFocus && document.activeElement === button) button.blur();
           }
         };
         return <div key={post.id} className={`relative min-w-0 ${presentation === 'carousel' ? 'w-[82%] shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]' : ''}`}>
@@ -195,7 +196,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
               {new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             </time>
             <button type="button" aria-label="Share this Instagram post" title="Share this Instagram post"
-              disabled={sharingPostId === post.id} onClick={() => void sharePost()}
+              disabled={sharingPostId === post.id} onClick={event => void sharePost(event.currentTarget, event.detail > 0)}
               className={`group flex h-11 w-11 shrink-0 items-center justify-center disabled:opacity-50 ${presentation === 'carousel' ? 'sm:absolute sm:left-2 sm:top-2 sm:z-20' : 'absolute left-2 top-2 z-20'}`}>
               <span className={`flex h-9 w-9 items-center justify-center rounded-full border transition-colors sm:h-11 sm:w-11 ${presentation === 'carousel' ? 'border-cocoa/20 text-cocoa group-hover:bg-cream-dark sm:border-white/70 sm:bg-cocoa/95 sm:text-white sm:shadow-lg sm:backdrop-blur-md sm:group-hover:bg-cocoa-dark' : 'border-white/70 bg-cocoa/95 text-white shadow-lg backdrop-blur-md group-hover:bg-cocoa-dark'}`}>
                 <ShareIcon className="h-4 w-4 sm:h-5 sm:w-5" />

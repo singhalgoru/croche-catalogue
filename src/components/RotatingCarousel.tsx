@@ -38,7 +38,28 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
       if (pinnedElement) {
         element.parentElement?.style.setProperty('--carousel-pinned-width', `${pinnedElement.getBoundingClientRect().width}px`);
       }
-      setLooping(cards.length > 1);
+      setLooping(cards.length > 1 && loopWidth.current - gap > element.clientWidth - (pinnedElement?.getBoundingClientRect().width ?? 0));
+      const bounds = element.getBoundingClientRect();
+      const visibleLeft = bounds.left + (pinnedElement?.getBoundingClientRect().width ?? 0);
+      const items = [...element.children].filter((child): child is HTMLElement =>
+        child instanceof HTMLElement && !child.hasAttribute('data-pinned'));
+      for (let index = 0; index < cards.length; index++) {
+        const original = items[index];
+        if (!original) continue;
+        const copy = items[index + cards.length];
+        const copyBounds = copy?.getBoundingClientRect();
+        const copyVisible = Boolean(copyBounds && copyBounds.left < bounds.right - 1 && copyBounds.right > visibleLeft + 1);
+        if (original.inert !== copyVisible) {
+          original.inert = copyVisible;
+          if (copyVisible) original.setAttribute('aria-hidden', 'true');
+          else original.removeAttribute('aria-hidden');
+        }
+        if (copy && copy.inert === copyVisible) {
+          copy.inert = !copyVisible;
+          copy.setAttribute('aria-hidden', String(!copyVisible));
+          copy.tabIndex = copyVisible ? original.tabIndex : -1;
+        }
+      }
       if (Math.abs(element.scrollLeft - scrollOffset.current) > 2) {
         scrollOffset.current = element.scrollLeft;
       }
@@ -97,7 +118,8 @@ export default function RotatingCarousel({ title, label, children, itemCount, na
   };
   const Track = navigation ? 'nav' : 'div';
   return <section ref={section} aria-labelledby={`${id}-heading`} className={`relative min-w-0 space-y-3 ${className}`}
-    onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+    onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true); }}
+    onPointerLeave={event => { if (event.pointerType === 'mouse') setHovered(false); }}
     onTouchStart={() => setTouched(true)} onTouchEnd={() => setTouched(false)} onTouchCancel={() => setTouched(false)}
     onFocusCapture={() => setFocused(true)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
