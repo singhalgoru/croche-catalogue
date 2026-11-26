@@ -57,6 +57,12 @@ it('treats a failed booking request as uncertain and requires reconciliation', a
   expect(request).toHaveBeenCalledTimes(1);
 });
 
+it('reports the HTTP status without exposing the provider response and keeps the outcome uncertain', async () => {
+  const request = vi.fn<typeof fetch>().mockResolvedValue(new Response('provider detail', { status: 401 }));
+  const client = createDtdcSandboxClient('test-key', 'test-token', request);
+  await expect(client.book(consignment)).rejects.toThrow('DTDC returned HTTP 401. Booking outcome is unknown.');
+});
+
 it('rejects labels exceeding the size limit', async () => {
   const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(new Uint8Array(5 * 1024 * 1024 + 1)));
   const client = createDtdcSandboxClient('test-key', 'test-token', request);

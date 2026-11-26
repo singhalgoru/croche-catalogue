@@ -1,12 +1,14 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { DtdcBookingError } from '../order-shipping/dtdcSandbox.ts';
 
 const mocks = vi.hoisted(() => ({ getUser: vi.fn(), permission: vi.fn(), book: vi.fn(), track: vi.fn(), label: vi.fn() }));
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({
   createClient: (_url: string, _key: string, options?: { global?: unknown }) => options?.global
     ? { auth: { getUser: mocks.getUser }, rpc: mocks.permission } : { from: () => new Query() },
 }));
-vi.mock('../order-shipping/dtdcSandbox.ts', () => ({
+vi.mock('../order-shipping/dtdcSandbox.ts', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../order-shipping/dtdcSandbox.ts')>(),
   createDtdcSandboxClient: () => ({ book: mocks.book, track: mocks.track, label: mocks.label }),
 }));
 
@@ -103,6 +105,15 @@ it('blocks another booking after an uncertain result until explicitly reconciled
   bookings[0].created_at = new Date(Date.now() - 6 * 60 * 1000).toISOString();
   expect((await handle(request({ action: 'clear', id: bookings[0].id, confirmed: true }))).status).toBe(200);
   expect(bookings[0].state).toBe('cleared');
+});
+
+it('shows safe booking diagnostics while keeping the result in review', async () => {
+  mocks.book.mockRejectedValueOnce(new DtdcBookingError('DTDC returned HTTP 401. Check DTDC before retrying.'));
+  const response = await handle(request({ action: 'book', confirmed: true }));
+  expect(response.status).toBe(502);
+  expect((await response.json()).error).toContain('HTTP 401');
+  expect(bookings[0].state).toBe('review');
+  expect((await handle(request({ action: 'book', confirmed: true }))).status).toBe(409);
 });
 
 it('keeps the booking unresolved if saving a confirmed AWB fails', async () => {

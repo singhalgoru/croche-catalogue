@@ -2,6 +2,14 @@ const BOOKING_URL = 'https://alphademodashboardapi.shipsy.io/api/customer/integr
 const LABEL_URL = 'https://lut-details-2-demo.demoprojectxsandbox4.shipsy.io/api/customer/integration/consignment/shippinglabel/stream';
 const TRACKING_URL = 'https://dtdcstagingapi.dtdc.com/dtdc-tracking-api/dtdc-api/rest/JSONCnTrk/getTrackDetails';
 
+class DtdcHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`DTDC sandbox request failed (HTTP ${status}).`);
+  }
+}
+
+export class DtdcBookingError extends Error {}
+
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('DTDC returned an invalid response.');
   return value as Record<string, unknown>;
@@ -73,7 +81,7 @@ export function createDtdcSandboxClient(apiKey: string, trackingToken: string, r
 
   async function send(url: string, init: RequestInit): Promise<Response> {
     const response = await request(url, { ...init, signal: AbortSignal.timeout(15000) });
-    if (!response.ok) throw new Error(`DTDC sandbox request failed (HTTP ${response.status}).`);
+    if (!response.ok) throw new DtdcHttpError(response.status);
     return response;
   }
 
@@ -84,13 +92,21 @@ export function createDtdcSandboxClient(apiKey: string, trackingToken: string, r
   return {
     async book(consignment: DtdcSandboxConsignment): Promise<string> {
       if (!consignment.customer_reference_number.trim()) throw new Error('A customer reference is required.');
+      let response: Response;
       try {
-        const response = await send(BOOKING_URL, { method: 'POST',
+        response = await send(BOOKING_URL, { method: 'POST',
           headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
           body: JSON.stringify({ consignments: [consignment] }) });
+      } catch (failure) {
+        const detail = failure instanceof DtdcHttpError ? `DTDC returned HTTP ${failure.status}.`
+          : failure instanceof Error && failure.name === 'TimeoutError' ? 'The DTDC request timed out.'
+            : 'The DTDC request could not be completed.';
+        throw new DtdcBookingError(`${detail} Booking outcome is unknown. Check DTDC before retrying.`);
+      }
+      try {
         return dtdcBookingResult(await json(response), consignment.customer_reference_number);
       } catch {
-        throw new Error('DTDC sandbox booking could not be confirmed. Check DTDC before retrying to avoid duplicate shipments.');
+        throw new DtdcBookingError('DTDC did not confirm the booking in its response. Check DTDC before retrying.');
       }
     },
     async track(awb: string): Promise<string> {

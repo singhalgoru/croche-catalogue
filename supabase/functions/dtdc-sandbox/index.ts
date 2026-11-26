@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createDtdcSandboxClient, type DtdcSandboxConsignment } from '../order-shipping/dtdcSandbox.ts';
+import { createDtdcSandboxClient, DtdcBookingError, type DtdcSandboxConsignment } from '../order-shipping/dtdcSandbox.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -80,10 +80,11 @@ Deno.serve(async request => {
       let awb: string;
       try {
         awb = await api.book(shipment);
-      } catch {
+      } catch (failure) {
         const { error } = await bookings().update({ state: 'review', updated_at: new Date().toISOString() })
           .eq('id', id).eq('state', 'pending');
         if (error) return json({ error: 'Booking outcome is unknown and could not be updated. Refresh and check DTDC before retrying.' }, 502);
+        if (failure instanceof DtdcBookingError) return json({ error: failure.message }, 502);
         return json({ error: 'Booking outcome is unknown. Refresh and check DTDC before retrying.' }, 502);
       }
       const { data, error } = await bookings().update({ state: 'booked', awb, updated_at: new Date().toISOString() })
