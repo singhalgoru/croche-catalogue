@@ -5,6 +5,7 @@ import App from './App';
 import storeContent from './content/storeContent.json';
 vi.mock('./components/MobileNavigation', () => ({ default: () => null }));
 vi.mock('./components/InstagramFeed', () => ({ default: () => <section aria-label="Instagram feed test stub" /> }));
+vi.mock('./components/CustomerLove', () => ({ default: () => <section aria-label="Customer Love test stub" /> }));
 vi.mock('./services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('./services/artisans')>(),
   checkArtisanInvitation: vi.fn().mockResolvedValue('available'),
@@ -90,14 +91,20 @@ describe('Hybrid product navigation', () => {
     expect(target).not.toBeNull();
     if (target instanceof HTMLDetailsElement) expect(target.open).toBe(true);
   });
-  it('places the latest product above featured products and the customisation section', () => {
+  it('places featured products before the catalogue, then Customer Love and Instagram', () => {
     catalogueProducts = [{ ...product, featured: true, publishedAt: '2020-01-01T00:00:00Z' }];
     render(<App />);
     const spotlight = screen.getByRole('region', { name: 'Latest from Luvia' });
     const featured = screen.getByRole('region', { name: 'Featured products' });
     const customisation = screen.getByRole('region', { name: 'Make it your own' });
+    const catalogueHeading = screen.getByRole('heading', { name: 'Shop the Collection' });
+    const customerLove = screen.getByRole('region', { name: 'Customer Love test stub' });
+    const instagram = screen.getByRole('region', { name: 'Instagram feed test stub' });
     expect(spotlight.compareDocumentPosition(featured) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(featured.compareDocumentPosition(customisation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(customisation.compareDocumentPosition(catalogueHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(catalogueHeading.compareDocumentPosition(customerLove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(customerLove.compareDocumentPosition(instagram) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   it.each(['collaborate', 'bulk-orders', 'products'])('anchors #%s after delayed catalogue loading while retaining PWA parameters', async id => {
     catalogueLoading = true;

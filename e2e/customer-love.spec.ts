@@ -111,7 +111,9 @@ test('homepage testimonial cards stay compact with photos, long quotes and multi
     expect(item.nameVisible).toBe(true);
     expect(item.linksFit).toBe(true);
   }
-  await page.getByRole('link', { name: 'Read full testimonial from Synthetic photo customer', exact: true }).click();
+  const storyLink = page.getByRole('link', { name: 'Read full testimonial from Synthetic photo customer', exact: true });
+  await storyLink.focus();
+  await page.keyboard.press('Enter');
   const fullImage = page.getByAltText('Synthetic tall customer photo', { exact: true });
   await expect(fullImage).toBeVisible();
   const fullSize = await fullImage.evaluate(image => {

@@ -847,7 +847,6 @@ function App() {
           onSelect={selectProduct} title={productCollections[1].title} label="featured product"
           viewAll={productCollections[1].path} description={productCollections[1].description} />}
         {effectiveActiveCategory === 'All' && !query.trim() && <HomepageCustomisation />}
-        {effectiveActiveCategory === 'All' && !query.trim() && <CustomerLove products={products} onContentReady={customerLoveContentReady} />}
           <div
             ref={catalogueToolsRef}
             className="space-y-3 sm:sticky sm:top-0 sm:z-30 sm:-mx-4 sm:border-b sm:border-mustard/30 sm:bg-cream/95 sm:px-4 sm:py-3 sm:backdrop-blur-md"
@@ -938,6 +937,7 @@ function App() {
             </button>
           </div>
         )}
+        {effectiveActiveCategory === 'All' && !query.trim() && <CustomerLove products={products} onContentReady={customerLoveContentReady} />}
         {window.location.pathname === '/' && isDefaultCatalogueView && <InstagramFeed />}
         <OrderingGuide />
       </main>

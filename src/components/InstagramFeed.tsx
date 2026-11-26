@@ -47,19 +47,20 @@ export default function InstagramFeed() {
     </a>}
   >
     {feed?.posts.map(post => {
-        const label = post.mediaType === 'VIDEO' ? 'Video' : post.mediaType === 'CAROUSEL_ALBUM' ? 'Photo carousel' : 'Photo';
+        const mediaDescription = post.mediaType === 'VIDEO' ? 'video' : post.mediaType === 'CAROUSEL_ALBUM' ? 'photo carousel' : 'photo';
+        const badgeLabel = post.mediaType === 'VIDEO' ? 'Video' : post.mediaType === 'CAROUSEL_ALBUM' ? 'Carousel' : null;
         const caption = post.caption.trim().replace(/\s+/g, ' ');
         const summary = caption.slice(0, 180);
         const alt = summary
-          ? `Instagram ${label.toLowerCase()} from @${feed.username}: ${summary}${caption.length > summary.length ? '…' : ''}`
-          : `Instagram ${label.toLowerCase()} from @${feed.username}`;
+          ? `Instagram ${mediaDescription} from @${feed.username}: ${summary}${caption.length > summary.length ? '…' : ''}`
+          : `Instagram ${mediaDescription} from @${feed.username}`;
         return <div key={post.id} className="w-[47%] min-w-0 shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]">
           <a href={post.permalink} target="_blank" rel="noopener noreferrer"
-            aria-label={`View ${label.toLowerCase()} from @${feed.username} on Instagram${summary ? `: ${summary}` : ''}`}
+            aria-label={`View ${mediaDescription} from @${feed.username} on Instagram${summary ? `: ${summary}` : ''}`}
             className="group relative block aspect-square overflow-hidden rounded-xl bg-cream-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa">
             <img src={post.previewUrl} alt={alt} loading="lazy" decoding="async"
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-            <span className="absolute bottom-2 left-2 rounded-full bg-cocoa/85 px-2.5 py-1 text-xs font-semibold text-cream">{label}</span>
+            {badgeLabel && <span className="absolute bottom-2 left-2 rounded-full bg-cocoa/85 px-2.5 py-1 text-xs font-semibold text-cream">{badgeLabel}</span>}
           </a>
           {post.caption && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-cocoa/75">{post.caption}</p>}
         </div>;
