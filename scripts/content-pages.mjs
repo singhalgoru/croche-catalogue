@@ -14,6 +14,7 @@ import { testimonialPath } from '../src/utils/testimonialLink.js';
 import { getBoundedMetaTitle } from '../src/utils/productMetaTitle.js';
 import { getBoundedMetaDescription } from '../src/utils/metaDescription.js';
 import { instagramPageTitle, instagramPageDescription, instagramPageIntro, instagramCaptionSummary } from '../src/utils/instagramContent.js';
+import { richTextToPlainText } from '../src/utils/richText.ts';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -118,7 +119,10 @@ const budgetGiftGuide = (article, products) => {
       <a href="/bulk-orders/">Explore bulk gifting &rarr;</a></div></aside>`;
 };
 
-export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = [], instagramSnapshot = null) => {
+export const buildContentPages = (products, whatsappNumber, categories = [], bestsellerIds = [], testimonials = [], instagramSnapshot = null, socialImages = new Map()) => {
+  const productShareImage = product => product?.image
+    ? socialImages.get(product.id)?.url ?? new URL(getProductImageUrl(product.image, 1080), ORIGIN).href : undefined;
+  const generalShareProduct = getFeaturedProducts(products).find(product => product.image) ?? products.find(product => product.image);
   const pages = new Map();
   const orderedCategories = [...categories].sort((a, b) => Number(Boolean(b.isSeasonal)) - Number(Boolean(a.isSeasonal)) || a.priority - b.priority);
   const groups = new Map(orderedCategories.filter(category => category.visible !== false).map(category => [
@@ -170,7 +174,9 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         '@type': 'ListItem', position: index + 1, name: product.name, url: `${ORIGIN}/p/${toProductSlug(product)}/`,
       })),
     } };
+    const guidance = storeContent.collectionGuidance[category];
     const collectionHtml = page(pathname, title, getBoundedMetaDescription(description), `<p class="intro">${escapeHtml(description)}</p>
+      ${guidance ? `<p class="intro">${escapeHtml(guidance)}</p>` : ''}
       ${look}
       <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability. Shipping is shown at checkout.</p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
@@ -201,14 +207,14 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         mainEntity: { '@type': 'ItemList', numberOfItems: items.length, itemListElement: items.map((product, index) => ({
           '@type': 'ListItem', position: index + 1, name: product.name, url: `${ORIGIN}/p/${toProductSlug(product)}/`,
         })) },
-      }, socialProduct ? new URL(getProductImageUrl(socialProduct.image, 1080), ORIGIN).href : undefined));
+      }, productShareImage(socialProduct)));
   }
   const title = 'Explore our handmade collections';
   const description = 'Browse Luvia Creations collections of handmade crochet accessories, toys, gifts and decor. Explore product details and request orders across India.';
   pages.set('/collections/', page('/collections/', title, description,
-    `<p class="intro">Discover handmade crochet gifts, accessories, toys and decor by collection. Open a product to see its photos, options and current availability.</p><a class="button" href="/#products">Shop all products</a>
+    `<p class="intro">Discover handmade crochet gifts, accessories, toys and decor by collection. Open a product to see its photos, options and current availability.</p><p class="intro">${escapeHtml(storeContent.collectionsIntro)}</p><a class="button" href="/#products">Shop all products</a>
     <nav aria-label="Explore collections"><ul class="grid collection-grid">${collectionLinks.join('')}</ul></nav>`,
-    baseSchema('CollectionPage', '/collections/', title, description)));
+    baseSchema('CollectionPage', '/collections/', title, description), productShareImage(generalShareProduct)));
   const story = storeContent.brandStory;
   const guide = storeContent.giftGuide;
   pages.set(guide.path, page(guide.path, guide.title, guide.description,
@@ -226,10 +232,14 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
         { '@type': 'ListItem', position: 2, name: guide.title, item: `${ORIGIN}${guide.path}` },
       ] },
-    }));
+    }, productShareImage(generalShareProduct)));
   for (const article of contentArticles) {
     const heroHref = article.sections?.[0]?.links[0]?.href;
     const heroProduct = heroHref ? products.find(product => `/p/${toProductSlug(product)}/` === heroHref) : undefined;
+    const shareProduct = article.budgetBands
+      ? products.find(product => product.image && priceRange(product)?.low > 0
+        && priceRange(product).low <= article.budgetBands.at(-1).maximumPrice)
+      : heroProduct;
     const body = `<article class="${article.budgetBands ? 'budget-guide' : 'styling-guide'}">
       ${article.budgetBands ? budgetGiftGuide(article, products) : `<section class="styling-hero${heroProduct?.image ? ' has-photo' : ''}" aria-label="Handmade florals, styled your way">
         <div class="styling-intro"><p class="budget-eyebrow">The finishing touch</p><h2>Handmade florals, styled your way</h2><p>${escapeHtml(article.intro)}</p>
@@ -251,7 +261,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
           { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
           { '@type': 'ListItem', position: 2, name: article.title, item: `${ORIGIN}${article.path}` },
         ] },
-      }));
+      }, productShareImage(shareProduct)));
   }
   pages.set('/search/', page('/search/', 'Search products', 'Search Luvia Creations handmade crochet products by name, category, description or colour.',
     `<form role="search" action="/search/" method="get"><label for="product-search">Search products</label><input id="product-search" name="q" type="search" enterkeyhint="search" aria-describedby="search-help" placeholder="Try keychain, gajra or bunny"></form><p id="search-help">Results update as you type. Press Enter to save a shareable search URL.</p><p>Enable JavaScript for search results, or <a href="/collections/">browse our collections</a>.</p>${collectionsNavigation}`,
@@ -279,7 +289,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p><a href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
     <p class="contact-help">Questions about ordering? <a href="/faq/#faq-ordering">Read our FAQ</a>.</p></div></section></section>
     ${collectionsNavigation}`,
-    baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription)));
+    baseSchema('AboutPage', '/about/', aboutTitle, aboutDescription), new URL(story.portrait.src, ORIGIN).href));
   const faqTitle = 'Ordering, delivery & care FAQ';
   const faqDescription = 'Answers to Luvia Creations ordering questions: India checkout, international enquiries, custom colours, shipping, product care and returns.';
   const questions = storeContent.questions;
@@ -366,7 +376,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       `<nav aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/customer-love/">Customer Love</a> › <span aria-current="page">${escapeHtml(entry.display_name)}</span></nav>
       <figure class="card" style="max-width:640px">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" style="width:100%;height:auto;border-radius:12px">` : ''}
         <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption></figure>
-      ${taggedProducts.length ? `<h2>Products in this story</h2><ul>${taggedProducts.map(product => `<li><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></li>`).join('')}</ul>` : ''}
+      ${taggedProducts.length ? `<h2>Products in this story</h2><ul>${taggedProducts.map(product => `<li><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a>${product.description?.trim() ? `<p>${escapeHtml(richTextToPlainText(product.description))}</p>` : ''}</li>`).join('')}</ul>` : ''}
       <p><a href="/customer-love/">See all customer stories</a></p>`,
       { ...baseSchema('WebPage', pathname, title, description),
         isPartOf: { '@type': 'CollectionPage', name: 'Customer Love', url: `${ORIGIN}/customer-love/` },

@@ -939,7 +939,7 @@ export const writeSocialImage = async (product, dir, pathname) => {
       .resize(SOCIAL_IMAGE_SIZE, SOCIAL_IMAGE_SIZE, { fit: 'inside', withoutEnlargement: true })
       .flatten({ background: '#ffffff' });
     const { data, info } = await output.jpeg({ quality: 80, mozjpeg: true }).toBuffer({ resolveWithObject: true });
-    const filename = pathname.startsWith('/collections/') || pathname === '/featured/' || pathname === '/bestsellers/'
+    const filename = !pathname.startsWith('/p/')
       ? `og-${createHash('sha256').update(data).digest('hex').slice(0, 12)}.jpg` : 'og.jpg';
     await writeFile(path.join(dir, filename), data);
     return { url: `${ORIGIN}${pathname}${filename}`, width: info.width, height: info.height };
@@ -1064,10 +1064,10 @@ const main = async () => {
   }));
   template = prioritizeAppStyles(template, stylesheets);
   template = injectCatalogueBootstrap(template, rows, categories, homepage, bestsellers);
-  const indexHtml = injectImagePreloads(injectShell(template, products, whatsappNumber, categories),
+  let indexHtml = injectImagePreloads(injectShell(template, products, whatsappNumber, categories),
     firstBestsellerImageUrls(rows, bestsellers));
-  await writeFile(indexPath, indexHtml);
 
+  const socialImages = new Map();
   for (const product of products) {
     const showCategoryLink = !categories.some(category => category.name === product.category && category.visible === false);
     const slug = toProductSlug(product);
@@ -1079,6 +1079,7 @@ const main = async () => {
       await writeFile(path.join(watchDir, 'index.html'), attachProductApp(renderVideoPage(product), template));
     }
     const socialImage = await writeSocialImage(product, dir, `/p/${slug}/`);
+    if (socialImage) socialImages.set(product.id, socialImage);
     await writeFile(
       path.join(dir, 'index.html'),
       attachProductApp(renderProductPage(product, whatsappNumber, socialImage, false, showCategoryLink), template),
@@ -1104,17 +1105,36 @@ const main = async () => {
     }
   }
 
+  const homeProduct = getFeaturedProducts(products).find(product => socialImages.has(product.id))
+    ?? products.find(product => socialImages.has(product.id));
+  if (homeProduct) {
+    const image = socialImages.get(homeProduct.id);
+    indexHtml = indexHtml.replace(
+      /(<meta\s+(?:property="og:image"|name="twitter:image")\s+content=")[^"]*(")/g,
+      (_, before, after) => `${before}${escapeHtml(image.url)}${after}`,
+    ).replace(/(<meta property="og:image:alt" content=")[^"]*(")/,
+      (_, before, after) => `${before}${escapeHtml(homeProduct.name)}${after}`);
+  }
+  await writeFile(indexPath, indexHtml);
+
   const today = new Date().toISOString().slice(0, 10);
   const { buildContentPages, renderContentSitemap } = await import('./content-pages.mjs');
   const { buildInstagramSnapshot } = await import('./instagram-snapshot.mjs');
   const instagramSnapshot = await buildInstagramSnapshot(supabaseUrl, anonKey, DIST);
-  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials, instagramSnapshot);
+  const contentPages = buildContentPages([...products].sort(compareInitialProducts), whatsappNumber, categories, bestsellers, testimonials, instagramSnapshot, socialImages);
   for (const [pathname, html] of contentPages) {
     const dir = path.join(DIST, ...pathname.split('/').filter(Boolean).map(decodeURIComponent));
     await mkdir(dir, { recursive: true });
     let content = html;
     const category = categories.find(item => collectionPath(item.name) === pathname && item.visible !== false);
-    if (category || pathname === '/featured/' || pathname === '/bestsellers/') {
+    if (pathname === '/about/') {
+      const socialImage = await writeSocialImage({ name: storeContent.brandStory.title,
+        image: `${ORIGIN}${storeContent.brandStory.portrait.src}` }, dir, pathname);
+      if (socialImage) content = content.replace(
+        /(<meta (?:property="og:image"|name="twitter:image") content=")[^"]*(")/g,
+        (_, before, after) => `${before}${escapeHtml(socialImage.url)}${after}`,
+      );
+    } else if (category || pathname === '/featured/' || pathname === '/bestsellers/') {
       const items = category
         ? products.filter(product => category.isSeasonal ? category.productIds?.includes(product.id) : product.category === category.name)
         : pathname === '/bestsellers/' ? getBestsellerProducts(products, bestsellers) : getFeaturedProducts(products);

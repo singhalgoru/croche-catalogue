@@ -752,6 +752,10 @@ function App() {
                 <h2 className="font-heading text-xl font-bold text-cocoa">About {product.name}</h2>
                 <p className="text-cocoa">{richTextToPlainText(product.description)}</p>
               </section>}
+              {([['Materials', product.materials], ['Dimensions', product.dimensions], ['Care', product.careInstructions]] as const)
+                .map(([label, value]) => value?.trim() ? <p key={label} className="text-cocoa">
+                  <strong>{label}:</strong> {richTextToPlainText(value)}
+                </p> : null)}
               <a href={toProductPageUrl(product)} className="inline-block py-2 font-semibold text-cocoa underline">
                 View {product.name} — photos, options and ordering
               </a>

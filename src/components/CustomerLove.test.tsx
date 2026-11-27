@@ -12,6 +12,13 @@ const entries = [
 ];
 beforeEach(() => vi.clearAllMocks());
 afterEach(cleanup);
+it('shows tagged product context on a full customer story', () => {
+  const product = { id: 'one', name: 'Rose Gajra', description: '**Crochet** flowers.' } as Product;
+  render(<CustomerLove products={[product]} entries={entries} storySlug={testimonialPath(entries[0]).split('/').filter(Boolean).pop()} />);
+  expect(screen.getByRole('heading', { name: 'Products in this story' })).toBeTruthy();
+  expect(screen.getByText('Crochet flowers.')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Rose Gajra' }).getAttribute('href')).toContain('/p/');
+});
 it('shortens long carousel quotes with ellipses and links to the complete story', () => {
   const quote = 'a'.repeat(239) + '\uD83D\uDC69\u200D\uD83C\uDFA8' + ' ending of the full story';
   const story = { ...entries[0], quote };

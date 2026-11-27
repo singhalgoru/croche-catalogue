@@ -102,6 +102,7 @@ describe('collection and information pages', () => {
       ...toy, publicSlug: 'og-mogra-gajra', name: 'OG Mogra Gajra',
     }], '919205907350').get(gajra.path)).window.document;
     expect(styled.querySelector('img[alt="OG Mogra Gajra styling inspiration"]')?.getAttribute('src')).toContain('bunny');
+    expect(styled.querySelector('meta[property="og:image"]')?.getAttribute('content')).toContain('bunny.webp');
     for (const section of gajra.sections!) {
       for (const link of section.links) {
         expect(styled.querySelector(`article a[href="${link.href}"]`)).toBeTruthy();
@@ -114,6 +115,7 @@ describe('collection and information pages', () => {
 
     const budget = contentArticles.find(article => article.path === '/handmade-gifts-by-budget/')!;
     const budgetDoc = new JSDOM(generated.get(budget.path)).window.document;
+    expect(budgetDoc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toContain('bunny.webp');
     expect(budgetDoc.querySelector('h1')?.textContent).toBe(budget.title);
     expect([...budgetDoc.querySelectorAll('a[href="/p/bunny/"]')].some(link => link.textContent?.trim() === 'Bunny')).toBe(true);
     expect([...budgetDoc.querySelectorAll('section')].find(section => section.querySelector('h2')?.textContent === 'Gift ideas under ₹1,000')
@@ -189,6 +191,7 @@ describe('collection and information pages', () => {
       [{ ...story, has_image: false, image_url: null }]).get(storyPath)).window.document;
     expect(withoutPhoto.querySelector('meta[property="og:image"]')?.getAttribute('content')).toContain('bunny.webp');
     expect(storyDoc.querySelector('main a[href="/p/bunny/"]')).toBeTruthy();
+    expect(storyDoc.querySelector('main')?.textContent).toContain('Crochet bunny.');
     expect(storyDoc.querySelector('header')).toBeTruthy();
     expect(storyDoc.querySelector('footer')).toBeTruthy();
     expect(generated.get(storyPath)).not.toContain('aggregateRating');
@@ -343,6 +346,26 @@ describe('collection and information pages', () => {
     expect(badge?.getAttribute('href')).toBe('/p/bunny/?watch=making-video#making-video');
     expect(badge?.parentElement?.closest('a')).toBeNull();
     expect(documentFor('/collections/hair-accessories/').querySelector('[title="Watch making video"]')).toBeNull();
+  });
+  it('uses product photos for collections and the gift guide, and preserves logo fallbacks', () => {
+      const generated = buildContentPages([toy], '919205907350', [], [], [], null,
+        new Map([[toy.id, { url: 'https://luviacreations.com/p/bunny/og.jpg' }]]));
+      for (const pathname of ['/collections/', '/crochet-gift-guide/', '/handmade-gifts-by-budget/']) {
+        const doc = new JSDOM(generated.get(pathname)).window.document;
+        expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://luviacreations.com/p/bunny/og.jpg');
+        expect(doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe('https://luviacreations.com/p/bunny/og.jpg');
+      }
+      expect(documentFor('/about/').querySelector('meta[property="og:image"]')?.getAttribute('content'))
+        .toBe('https://luviacreations.com/tanushree-mithal.webp');
+      const empty = buildContentPages([], '919205907350');
+      expect(new JSDOM(empty.get('/collections/')).window.document.querySelector('meta[property="og:image"]')?.getAttribute('content'))
+        .toBe('https://luviacreations.com/images/luvia-logo.jpg');
+  });
+  it('adds relevant collection guidance without replacing the authored overview', () => {
+      const item = { ...toy, category: 'Bags' };
+      const doc = new JSDOM(buildContentPages([item], '919205907350', [{ name: 'Bags', overview: 'Original collection overview.' }]).get('/collections/bags/')).window.document;
+      expect(doc.querySelector('main')?.textContent).toContain('Original collection overview.');
+      expect(doc.querySelector('main')?.textContent).toContain(storeContent.collectionGuidance.Bags);
   });
   it('publishes curated pages with ranked product links, shared chrome, metadata, schema and sitemap entries', () => {
     const available = toProduct({

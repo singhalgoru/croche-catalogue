@@ -59,6 +59,13 @@ it('renders a self-canonical watch page with a prominent native player and match
   expect(detail.querySelector('a[href="/watch/rose/"]')).not.toBeNull();
 });
 
+it('shows known product details without inventing missing details', () => {
+  const doc = new JSDOM(renderVideoPage({ ...product, materials: '**Cotton** yarn', dimensions: '10 cm' })).window.document;
+  expect(doc.querySelector('main')?.textContent).toContain('Materials: Cotton yarn');
+  expect(doc.querySelector('main')?.textContent).toContain('Dimensions: 10 cm');
+  expect(doc.querySelector('main')?.textContent).not.toContain('Care:');
+});
+
 it.each([product, { ...product, makingVideo: { ...product.makingVideo, title: '' } }])(
   'preserves matching escaped social previews before and after app attachment',
   item => {

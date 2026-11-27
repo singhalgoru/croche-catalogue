@@ -174,7 +174,7 @@ describe('Hybrid product navigation', () => {
     expect(teaser.parentElement?.firstElementChild).toBe(teaser);
   });
   it('renders watch pages with compact branding and the interactive footer, not the catalogue', () => {
-    catalogueProducts = [{ ...product, makingVideo: {
+    catalogueProducts = [{ ...product, materials: '**Cotton** yarn', makingVideo: {
       title: 'Handcrafting a coaster', videoUrl: 'https://videos.luviacreations.com/making-videos/test/video.mp4',
       posterUrl: 'https://videos.luviacreations.com/making-videos/test/poster.webp',
       durationSeconds: 20, width: 848, height: 478,
@@ -194,6 +194,7 @@ describe('Hybrid product navigation', () => {
     expect(screen.queryByLabelText('Filtered products')).toBeNull();
     expect(screen.getByRole('link', { name: /View Test Coaster/ }).getAttribute('href')).toContain('/p/test-coaster/');
     expect(screen.getByRole('heading', { name: 'About Test Coaster', level: 2 })).toBeTruthy();
+    expect(screen.getByText(/Materials:/).parentElement?.textContent).toContain('Cotton yarn');
     expect(document.querySelector('main video')?.getAttribute('preload')).toBe('none');
     expect(window.location.pathname).toBe('/watch/test-coaster/');
   });

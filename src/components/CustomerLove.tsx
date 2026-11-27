@@ -164,8 +164,15 @@ export default function CustomerLove({ products, productId, page = false, storyS
       onClick={() => setRetry(value => value + 1)}>Retry customer stories</button></>}
   </section>;
   if (storySlug !== undefined) return <div className="space-y-10"><div className="max-w-2xl space-y-4">
-    {story ? <TestimonialCard entry={story} products={products.filter(product => story.product_ids.includes(product.id))}
+    {story ? <><TestimonialCard entry={story} products={products.filter(product => story.product_ids.includes(product.id))}
       imageUrl={imageUrl?.(story)} fullQuote />
+      {products.some(product => story.product_ids.includes(product.id) && product.description.trim()) && <section className="space-y-3">
+        <h2 className="font-heading text-xl font-bold">Products in this story</h2>
+        {products.filter(product => story.product_ids.includes(product.id) && product.description.trim()).map(product => <div key={product.id}>
+          <a className="font-semibold underline" href={toProductPageUrl(product)}>{product.name}</a>
+          <p>{richTextToPlainText(product.description)}</p>
+        </div>)}
+      </section>}</>
       : <p role="status">This customer story is no longer available.</p>}
     <a href="/customer-love/" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">See all customer stories</a>
   </div><ShareStory /></div>;

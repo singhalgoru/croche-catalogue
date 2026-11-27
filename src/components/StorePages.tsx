@@ -150,6 +150,7 @@ export default function StorePages({
     [collectionProducts, activePriceRange],
   );
   const descriptions: Record<string, string> = storeContent.collectionDescriptions;
+  const collectionGuidance: Record<string, string> = storeContent.collectionGuidance;
   const faqAnchors: Record<string, string> = storeContent.faqAnchors;
   const description = limitCategoryOverview(selectedCategory?.overview || (category ? Object.hasOwn(descriptions, category) ? descriptions[category]
     : `Explore ${category} from Luvia Creations. View handmade designs, product details and available variants.` : ''));
@@ -595,6 +596,7 @@ export default function StorePages({
       </section> : isCollection ? <>
         {showCatalogue && !category ? <p role="alert">This collection is no longer available. Explore the current collections below.</p> : <>
           <p className="max-w-3xl">{description}</p>
+          {category && collectionGuidance[category] && <p className="max-w-3xl">{collectionGuidance[category]}</p>}
           {category && <CategoryShareButton key={category} category={category} imageUrl={collectionShareImageUrl} />}
           {showCatalogue && selectedCategory && collectionProducts.length > 0 &&
             <CategoryLook key={`${category}:${selectedCategory.coverImage}`} category={selectedCategory} products={collectionProducts} />}
@@ -625,6 +627,7 @@ export default function StorePages({
         <h2 className="font-heading text-xl font-bold">Explore collections</h2>
         <CollectionGrid categories={visibleCategories} products={products} />
       </section> : <><p>Discover handmade crochet gifts, accessories, toys and decor by collection. Open a product to see its photos, options and current availability.</p>
+        <p className="max-w-3xl">{storeContent.collectionsIntro}</p>
         <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}

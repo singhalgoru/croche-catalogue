@@ -14,6 +14,12 @@
     "Anklets": "Browse handmade anklets from Luvia Creations. View each design for sizing, materials and available variants.",
     "Brooches": "Explore handmade crochet brooches for adding a decorative touch to your outfit. View product photos, dimensions and available designs."
   },
+  "collectionGuidance": {
+    "Bags": "Compare the size, closure and handle of each bag before choosing. Check the product details for materials and care, and ask about any dimensions or features you need confirmed.",
+    "Brooches": "Consider where you plan to wear a brooch and check its size and attachment on the product page. Ask about any fastening details or care instructions that are not listed.",
+    "Wearables": "Choose a piece for the way you plan to wear it. Check the product page for dimensions, materials and available variants, and ask about fit or care before ordering."
+  },
+  "collectionsIntro": "Browse by the kind of piece you have in mind, from everyday accessories to gifts and decor. Each product page has its own photos and available options; ask us if you need help confirming a detail before ordering.",
   "giftGuide": {
     "path": "/crochet-gift-guide/",
     "title": "How to choose a handmade crochet gift",
