@@ -65,6 +65,13 @@ describe('ProductCard share image preparation', () => {
     expect(screen.getByRole('button', { name: 'View Crochet Rose' })).toBeTruthy();
   });
 
+  it('provides dimensions for the main product image', () => {
+    renderCard();
+    const image = screen.getByRole('img', { name: 'Crochet Rose' });
+    expect(image.getAttribute('width')).toBe('480');
+    expect(image.getAttribute('height')).toBe('480');
+  });
+
   it('shows unavailable stock beside the share action as well as on the photo', () => {
     render(<ProductCard product={{
       ...product, inStock: false,

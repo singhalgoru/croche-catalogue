@@ -31,15 +31,33 @@ describe('collection and information pages', () => {
     const generated = buildContentPages([toy], '919205907350', [], [], [], snapshot);
     const doc = new JSDOM(generated.get('/from-instagram/')).window.document;
     const image = doc.querySelector('main img[src="/instagram-snapshot/123.webp"]');
-    expect(image?.getAttribute('alt')).toContain('Crochet <flower>');
+    expect(image?.getAttribute('alt')).toBe('Handmade crochet Bunny');
     expect(image?.getAttribute('width')).toBe('480');
     expect(image?.getAttribute('height')).toBe('600');
-    expect(image?.closest('a')?.getAttribute('href')).toBe('https://www.instagram.com/p/abc/');
-    expect(doc.querySelector('main a[href="/p/bunny/"]')?.textContent).toContain('Bunny');
+    expect(image?.getAttribute('loading')).toBe('eager');
+    expect(image?.closest('a')?.getAttribute('href')).toBe('/p/bunny/');
+    expect(doc.querySelector('main a[href="https://www.instagram.com/p/abc/"]')).toBeTruthy();
+    expect(doc.querySelector('main a[href^="https://wa.me/"]')).toBeTruthy();
+    expect(doc.querySelector('main time')?.getAttribute('datetime')).toBe(snapshot.posts[0].timestamp);
+    expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://luviacreations.com/instagram-snapshot/123.jpg');
+    const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(schema.breadcrumb['@type']).toBe('BreadcrumbList');
+    expect([...doc.querySelectorAll('main a[href="/p/bunny/"]')].some(link => link.textContent?.includes('Bunny'))).toBe(true);
     expect(doc.querySelector('main flower')).toBeNull();
     expect(JSON.parse(doc.getElementById('instagram-snapshot')!.textContent!).posts[0].caption).toBe('Crochet <flower>');
     const outOfStock = buildContentPages([{ ...toy, inStock: false }], '919205907350', [], [], [], snapshot);
     expect(new JSDOM(outOfStock.get('/from-instagram/')).window.document.querySelector('main a[href="/p/bunny/"]')).toBeNull();
+  });
+  it('includes the full escaped caption in static HTML while keeping a short expandable preview', () => {
+    const caption = `🧶 ${'Handmade crochet flowers for thoughtful gifts. '.repeat(3)}<special> #crochet`;
+    const snapshot = { username: 'luvia', fetchedAt: new Date().toISOString(), stale: false,
+      posts: [{ id: '123', permalink: 'https://www.instagram.com/p/abc/', previewUrl: '/instagram-snapshot/123.webp',
+        caption, timestamp: new Date().toISOString(), mediaType: 'IMAGE' }] };
+    const doc = new JSDOM(buildContentPages([], '919205907350', [], [], [], snapshot).get('/from-instagram/')).window.document;
+    const details = doc.querySelector('main details');
+    expect(details?.querySelector('summary')?.textContent).toContain('Read more');
+    expect(details?.querySelector('p')?.textContent).toBe(caption);
+    expect(details?.querySelector('special')).toBeNull();
   });
   it('publishes the gift guide without catalogue data, with matching metadata, useful links and automatic discovery', () => {
     const guide = storeContent.giftGuide;
@@ -668,12 +686,12 @@ describe('collection and information pages', () => {
   it('generates the dedicated Instagram page and includes it in the public sitemap', () => {
     const pages = buildContentPages([], '919205907350');
     const html = pages.get('/from-instagram/');
-    expect(html).toContain('<title>From Instagram | Luvia Creations</title>');
+    expect(html).toContain('<title>Crochet Gifts &amp; Accessories from Instagram | Luvia Creations</title>');
     expect(html).toContain('https://www.instagram.com/luvia.craftedwithlove/');
     expect(renderContentSitemap([], '2026-10-18', pages)).toContain('https://luviacreations.com/from-instagram/');
     expect(readFileSync(resolve('public', 'sitemap.xml'), 'utf8')).toContain('https://luviacreations.com/from-instagram/');
     expect(renderLlms(readFileSync(resolve('public', 'llms.txt'), 'utf8'), [], undefined, [], discoveryPageLinks(pages)))
-      .toContain('- [From Instagram](https://luviacreations.com/from-instagram/)');
+      .toContain('- [Crochet Gifts & Accessories from Instagram](https://luviacreations.com/from-instagram/)');
     expect(html).not.toContain('name="robots" content="noindex');
   });
 

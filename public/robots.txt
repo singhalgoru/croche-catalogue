@@ -8,12 +8,11 @@ User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
 
-# Named explicitly so the AI crawlers are not left to a default. These read
-# plain HTML and do not run JavaScript, which is why the catalogue is rendered
-# into the initial response at build time (scripts/prerender.mjs).
+# Search and user-requested retrieval remain enabled. The training-specific
+# agents below use standard opt-out directives in addition to Content Signals.
 User-agent: GPTBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
-Allow: /
+Disallow: /
 
 User-agent: OAI-SearchBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
@@ -24,6 +23,10 @@ Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
 
 User-agent: ClaudeBot
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Disallow: /
+
+User-agent: Claude-SearchBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
 
@@ -41,11 +44,11 @@ Allow: /
 
 User-agent: Google-Extended
 Content-Signal: search=yes, ai-input=yes, ai-train=no
-Allow: /
+Disallow: /
 
 User-agent: Applebot-Extended
 Content-Signal: search=yes, ai-input=yes, ai-train=no
-Allow: /
+Disallow: /
 
 User-agent: Bingbot
 Content-Signal: search=yes, ai-input=yes, ai-train=no

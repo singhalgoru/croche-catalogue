@@ -7,13 +7,8 @@ import type { Product } from '../types/product';
 import { toProductPageUrl } from '../utils/productLink';
 import { InstagramIcon, ShareIcon } from './SocialIcons';
 import RotatingCarousel from './RotatingCarousel';
-
-const cleanCaption = (value: string) => value
-  .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}\p{Emoji_Modifier}\uFE0F\u20E3\u200D]/gu, '')
-  .replace(/(^|\s)#[\p{L}\p{N}_]+/gu, ' ')
-  .replace(/^[’']s\b\s*/u, '')
-  .replace(/\s+/g, ' ')
-  .trim();
+import { cleanInstagramCaption, instagramCaptionSummary } from '../utils/instagramContent.js';
+import { getProductWhatsAppLink } from '../utils/whatsapp';
 
 const compactCount = (value: number) => new Intl.NumberFormat('en-IN', {
   notation: 'compact', maximumFractionDigits: 1,
@@ -98,10 +93,10 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
           ? <p>No posts from the last 30 days yet. Follow along on Instagram for new handmade pieces.</p>
           : null;
 
-  const cards = posts.map(post => {
+  const cards = posts.map((post, index) => {
         const mediaDescription = post.mediaType === 'VIDEO' ? 'video' : post.mediaType === 'CAROUSEL_ALBUM' ? 'photo carousel' : 'photo';
-        const caption = cleanCaption(post.caption);
-        const summary = caption.slice(0, 180);
+        const caption = cleanInstagramCaption(post.caption);
+        const summary = instagramCaptionSummary(post.caption, presentation === 'gallery' ? 90 : 180);
         const productId = post.productId ?? instagramProductIds[post.id];
         const product = productId
           ? products.find(item => item.id === productId && item.inStock)
@@ -110,8 +105,8 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
           post.likesCount !== undefined ? `${fullCount(post.likesCount)} likes` : '',
           post.viewsCount !== undefined ? `${fullCount(post.viewsCount)} views` : '',
         ].filter(Boolean).join(', ');
-        const alt = summary
-          ? `Instagram ${mediaDescription} from @${feed?.username ?? 'luviacreations'}: ${summary}${caption.length > summary.length ? '…' : ''}`
+        const alt = presentation === 'gallery' && product ? `Handmade crochet ${product.name}` : summary
+          ? `Instagram ${mediaDescription} from @${feed?.username ?? 'luviacreations'}: ${summary}`
           : `Instagram ${mediaDescription} from @${feed?.username ?? 'luviacreations'}`;
         const sharePost = async (button: HTMLButtonElement, releaseFocus: boolean) => {
           setShareFeedback(null);
@@ -162,9 +157,12 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
           }
         };
         return <div key={post.id} className={`relative min-w-0 ${presentation === 'carousel' ? 'w-[82%] shrink-0 snap-start sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-36px)/4)]' : ''}`}>
-          <a href={post.permalink} target="_blank" rel="noopener noreferrer"
-            aria-label={`View ${mediaDescription} from @${feed?.username ?? 'luviacreations'} on Instagram${summary ? `: ${summary}` : ''}${engagement ? `, ${engagement}` : ''}`}
-            onClick={() => trackEvent('instagram_post_click', {
+          <a href={presentation === 'gallery' && product ? toProductPageUrl(product) : post.permalink}
+            target={presentation === 'gallery' && product ? undefined : '_blank'} rel={presentation === 'gallery' && product ? undefined : 'noopener noreferrer'}
+            aria-label={presentation === 'gallery' && product ? `Shop ${product.name}` : `View ${mediaDescription} from @${feed?.username ?? 'luviacreations'} on Instagram${summary ? `: ${summary}` : ''}${engagement ? `, ${engagement}` : ''}`}
+            onClick={() => presentation === 'gallery' && product ? trackEvent('instagram_shop_click', {
+              instagram_media_id: post.id, item_id: product.id, item_name: product.name, item_category: product.category,
+            }) : trackEvent('instagram_post_click', {
               instagram_media_id: post.id,
               media_type: post.mediaType,
               has_shop_link: Boolean(product),
@@ -172,10 +170,10 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
               ...(post.viewsCount !== undefined ? { view_count: post.viewsCount } : {}),
             })}
             className={`group relative block aspect-[4/5] overflow-hidden rounded-xl ${post.mediaType === 'CAROUSEL_ALBUM' ? 'bg-cocoa' : 'bg-cream-dark'} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cocoa`}>
-            <img src={post.previewUrl} alt={alt} width="480" height="600" loading="lazy" decoding="async"
+            <img src={post.previewUrl} alt={alt} width="480" height="600" loading={presentation === 'gallery' && index === 0 ? 'eager' : 'lazy'} fetchPriority={presentation === 'gallery' && index === 0 ? 'high' : undefined} decoding="async"
               className="h-full w-full object-cover transition duration-300 group-hover:scale-105 group-hover:brightness-75 group-focus-visible:brightness-75" />
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-cocoa/45 text-center text-sm font-semibold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-              <span className="flex items-center gap-2"><InstagramIcon className="h-5 w-5" /> View post</span>
+              <span className="flex items-center gap-2"><InstagramIcon className="h-5 w-5" /> {presentation === 'gallery' && product ? 'Shop product' : 'View post'}</span>
             </span>
             {post.mediaType !== 'IMAGE' && <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-cocoa/85 text-cream shadow" aria-hidden="true">
               {post.mediaType === 'VIDEO'
@@ -200,10 +198,16 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
               </span>}
             </span>}
           </a>
-          {caption && <div className="mt-2 line-clamp-2 text-sm leading-snug text-cocoa"><p className="font-semibold">{caption}</p></div>}
+          {presentation === 'gallery' && !caption && post.caption.trim() && <p className="mt-2 text-sm leading-snug text-cocoa">{post.caption.trim()}</p>}
+          {caption && (presentation === 'gallery' && summary !== post.caption.trim()
+            ? <details className="mt-2 text-sm leading-snug text-cocoa">
+                <summary className="min-h-11 cursor-pointer font-semibold">{summary} <span className="underline">Read more</span></summary>
+                <p className="mt-2 whitespace-pre-line">{post.caption.trim()}</p>
+              </details>
+            : <div className={`mt-2 text-sm leading-snug text-cocoa ${presentation === 'carousel' ? 'line-clamp-2' : ''}`}><p className="font-semibold">{caption}</p></div>)}
           <div className="flex items-center justify-between gap-2">
             <time dateTime={post.timestamp} className="mt-1 block text-[11px] text-cocoa/70">
-              {new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              {new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(presentation === 'gallery' ? { year: 'numeric', timeZone: 'UTC' } : {}) })}
             </time>
             <button type="button" aria-label="Share this Instagram post" title="Share this Instagram post"
               disabled={sharingPostId === post.id} onClick={event => void sharePost(event.currentTarget, event.detail > 0)}
@@ -213,15 +217,20 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
               </span>
             </button>
           </div>
+          {presentation === 'gallery' && product && <a href={post.permalink} target="_blank" rel="noopener noreferrer"
+            onClick={() => trackEvent('instagram_post_click', { instagram_media_id: post.id, media_type: post.mediaType, has_shop_link: true })}
+            className="inline-flex min-h-11 items-center text-xs underline">View on Instagram</a>}
           {product && <a href={toProductPageUrl(product)} onClick={() => trackEvent('instagram_shop_click', {
             instagram_media_id: post.id,
             item_id: product.id,
             item_name: product.name,
             item_category: product.category,
             ...(product.showPrice !== false && product.price !== null ? { currency: 'INR', value: product.price } : {}),
-          })} className={`mt-1 inline-flex items-center text-xs font-semibold text-cocoa underline underline-offset-2 ${presentation === 'carousel' ? 'min-h-11 sm:min-h-8' : 'min-h-8'}`}>
-            Shop this{product.showPrice !== false && product.price !== null ? ` ₹${product.price}` : ''} →
+          })} className={`mt-1 inline-flex items-center text-xs font-semibold text-cocoa underline underline-offset-2 ${presentation === 'carousel' ? 'min-h-11 sm:min-h-8' : 'min-h-11'}`}>
+            {presentation === 'gallery' ? `Shop ${product.name} · In stock` : `Shop this${product.showPrice !== false && product.price !== null ? ` ₹${product.price}` : ''} →`}
           </a>}
+          {presentation === 'gallery' && product && <a href={getProductWhatsAppLink(product)} target="_blank" rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center text-xs underline">Ask on WhatsApp</a>}
           {shareFeedback?.postId === post.id && <p role={shareFeedback.error ? 'alert' : 'status'} className="mt-1 text-[11px] text-cocoa/80">
             {shareFeedback.message}
           </p>}
@@ -250,6 +259,7 @@ export default function InstagramFeed({ products = [], presentation = 'carousel'
       {cards.length > 0 && <div role="group" aria-label="Recent Instagram posts" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
         {cards}
       </div>}
+      {followLink}
     </section>;
   }
 

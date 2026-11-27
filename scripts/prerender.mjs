@@ -740,7 +740,7 @@ const sitemapImages = (product) => [
   .map(image => getProductImageUrl(image, 960))
   .filter((image, index, images) => /^https:\/\//.test(image) && images.indexOf(image) === index);
 
-const renderSitemap = (products, today, additionalPaths = []) => {
+const renderSitemap = (products, _today, additionalPaths = []) => {
   const entry = (loc, lastmod, images = []) =>
     `  <url>\n    <loc>${escapeHtml(loc)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}${images
       .map(image => `\n    <image:image>\n      <image:loc>${escapeHtml(image)}</image:loc>\n    </image:image>`).join('')}\n  </url>`;
@@ -755,7 +755,7 @@ const renderSitemap = (products, today, additionalPaths = []) => {
   };
 
   const urls = [
-    entry(`${ORIGIN}/`, today),
+    entry(`${ORIGIN}/`, null),
     ...products.map((product) =>
       entry(
         productUrl(product),

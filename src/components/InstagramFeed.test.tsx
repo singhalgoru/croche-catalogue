@@ -55,6 +55,35 @@ it('uses saved thumbnails for matching live posts without resurrecting removed p
   expect(images[1].getAttribute('src')).toBe(post.previewUrl);
 });
 
+it('shows matched products with a product thumbnail, Instagram and WhatsApp links in the gallery', async () => {
+  const product = { ...products[0], id: 'match', name: 'Bunny Toy', publicSlug: 'bunny-toy', inStock: true };
+  mocks.fetchInstagramFeed.mockResolvedValue({
+    username: 'luvia', posts: [{ ...post, productId: 'match', caption: '🧶 Handmade bunny #crochet' }],
+    fetchedAt: new Date().toISOString(), stale: false,
+  });
+  render(<InstagramFeed products={[product]} presentation="gallery" />);
+  const image = await screen.findByAltText('Handmade crochet Bunny Toy');
+  expect(image.getAttribute('loading')).toBe('eager');
+  expect(image.closest('a')?.getAttribute('href')).toContain('/p/bunny-toy/');
+  expect(screen.getByText('Read more').closest('summary')?.textContent).toContain('Handmade bunny');
+  expect(screen.getByRole('link', { name: 'View on Instagram' }).getAttribute('href')).toBe(post.permalink);
+  expect(screen.getByRole('link', { name: 'Ask on WhatsApp' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\//);
+});
+
+it('offers the complete original caption from an expandable gallery preview', async () => {
+  const caption = `🧶 ${'Handmade crochet flowers for thoughtful gifts. '.repeat(3)}#crochet`;
+  mocks.fetchInstagramFeed.mockResolvedValue({
+    username: 'luvia', posts: [{ ...post, caption }], fetchedAt: new Date().toISOString(), stale: false,
+  });
+  render(<InstagramFeed presentation="gallery" />);
+  const summary = await screen.findByText(/Read more/);
+  const details = summary.closest('details')!;
+  expect(details.querySelector('p')?.textContent).toBe(caption);
+  expect(details.hasAttribute('open')).toBe(false);
+  fireEvent.click(summary);
+  expect(details.hasAttribute('open')).toBe(true);
+});
+
 it('shows recent video previews linked to Instagram and the connected account', async () => {
   mocks.fetchInstagramFeed.mockResolvedValue({
     username: 'luvia', posts: [post], fetchedAt: new Date().toISOString(), stale: false,
@@ -257,7 +286,7 @@ it('shows all recent posts in the gallery and tracks its visibility', async () =
   const gallery = await screen.findByRole('group', { name: 'Recent Instagram posts' });
   expect(gallery.querySelectorAll('a[href*="instagram.com/reel/"]')).toHaveLength(8);
   expect(gallery.className).toContain('grid-cols-2');
-  expect(screen.getByRole('link', { name: 'Follow Luvia' })).toBeTruthy();
+  expect(screen.getAllByRole('link', { name: 'Follow Luvia' })).toHaveLength(2);
   await waitFor(() => expect(mocks.trackEvent).toHaveBeenCalledWith('instagram_feed_view', {
     post_count: 8, instagram_username: 'luvia', stale: false, location: 'instagram_page',
   }));

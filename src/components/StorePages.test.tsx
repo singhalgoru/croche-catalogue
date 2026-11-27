@@ -23,9 +23,9 @@ describe('live store pages', () => {
     window.history.replaceState(null, '', pathname);
     expect(isStorePage()).toBe(true);
     render(<StorePages {...initial} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'From Instagram' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Crochet Gifts & Accessories from Instagram' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Instagram post gallery' })).toBeTruthy();
-    expect(document.title).toBe('From Instagram | Luvia Creations');
+    expect(document.title).toBe('Crochet Gifts & Accessories from Instagram | Luvia Creations');
   });
   it('groups every FAQ answer once and keeps all topic links valid', () => {
     window.history.replaceState(null, '', '/faq/');

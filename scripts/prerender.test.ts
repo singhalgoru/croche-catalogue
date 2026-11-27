@@ -844,6 +844,10 @@ describe('renderSitemap', () => {
     }
   });
 
+  it('does not claim the homepage changed on every build', () => {
+    expect(renderSitemap([product], '2026-10-05').split('<url>')[1]).not.toContain('<lastmod>');
+  });
+
   it('omits unused priority and changefreq fields', () => {
     expect(xml).not.toMatch(/priority|changefreq/);
   });

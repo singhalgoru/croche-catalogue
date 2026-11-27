@@ -11,10 +11,10 @@ on:
         default: '0'
   # Rebuild prerendered product pages and sitemap from published Supabase data.
   # Catalogue changes also trigger a rebuild from Supabase (see the
-  # request_site_rebuild migration); this daily run is a safety net.
+  # request_site_rebuild migration); the six-hourly run also refreshes Instagram.
   # Offset from the hour to avoid GitHub Actions' busiest scheduling window.
   schedule:
-    - cron: '23 1 * * *'
+    - cron: '23 1,7,13,19 * * *'
 
 permissions:
   contents: read
@@ -240,9 +240,9 @@ jobs:
           curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/sitemap.xml?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
           grep -Fq 'https://luviacreations.com/from-instagram/' "$feed_file"
           curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/llms.txt?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
-          grep -Fq '[From Instagram](https://luviacreations.com/from-instagram/)' "$feed_file"
+          grep -Fq '[Crochet Gifts & Accessories from Instagram](https://luviacreations.com/from-instagram/)' "$feed_file"
           curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/robots.txt?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
           grep -Fq 'Allow: /' "$feed_file"
           curl -fsS --connect-timeout 10 --max-time 30 "${PAGE_URL%/}/from-instagram/?deploy-check=${GITHUB_RUN_ID}" -o "$feed_file"
-          grep -Fq '<title>From Instagram | Luvia Creations</title>' "$feed_file"
+          grep -Fq '<title>Crochet Gifts &amp; Accessories from Instagram | Luvia Creations</title>' "$feed_file"
           echo "Live Instagram gallery, sitemap, llms.txt and robots.txt are accessible."

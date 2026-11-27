@@ -12,6 +12,11 @@ describe('getProductMetaTitle', () => {
       .toBe('OG Mogra Gajra | Handmade Crochet Hair Accessories | Luvia');
   });
 
+  it('keeps the complete product name when it fits with the compact suffix', () => {
+    expect(getProductMetaTitle({ name: 'Evil Eye Charm (Bag / Key / Car)', category: 'Charms & Keychains' }))
+      .toBe('Evil Eye Charm (Bag / Key / Car) | Crochet | Luvia');
+  });
+
   it('keeps long titles within the search-result title limit and retains the brand', () => {
     const title = getProductMetaTitle({
       name: 'A very long handmade crochet accessory product name for a festive occasion',

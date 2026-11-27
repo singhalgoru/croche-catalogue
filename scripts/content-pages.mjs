@@ -12,6 +12,7 @@ import { getBestsellerProducts, getFeaturedProducts, productCollections } from '
 import { publicContentPages } from './public-discovery.mjs';
 import { testimonialPath } from '../src/utils/testimonialLink.js';
 import { getBoundedMetaTitle } from '../src/utils/productMetaTitle.js';
+import { instagramPageTitle, instagramPageDescription, instagramPageIntro, instagramCaptionSummary } from '../src/utils/instagramContent.js';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -46,6 +47,7 @@ header,main,footer{max-width:1120px;margin:auto;padding:24px}header{border-botto
 nav{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:16px}.intro{max-width:760px}h1{font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.2}h2{line-height:1.3}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:20px;list-style:none;padding:0}
 .instagram-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.instagram-grid .card{min-width:0;padding:12px;overflow-wrap:anywhere}@media(min-width:640px){.instagram-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}@media(min-width:1024px){.instagram-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.instagram-grid details{margin:8px 0;padding:0;border:0;border-radius:0}.instagram-grid summary{min-height:44px}.instagram-grid details p{white-space:pre-line}.instagram-grid .card>a:not(:first-child),.instagram-grid .card p>a{display:inline-flex;align-items:center;min-height:44px}
 .card,details{background:white;border:1px solid #edc357;border-radius:16px;padding:18px}.card h2{font-size:1.15rem}.card p{margin:8px 0}
 .product-card{display:flex;flex-direction:column;overflow:hidden;padding:0;background:rgb(246 196 83 / .25);box-shadow:0 1px 2px rgb(0 0 0 / .05);transition:transform .2s,box-shadow .2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgb(0 0 0 / .1)}
 .product-photo{display:block;position:relative;aspect-ratio:1;overflow:hidden;background:#fdf1d6}.product-photo img{position:relative;width:100%;height:100%;object-fit:contain}.product-photo .photo-backdrop{position:absolute;inset:0;object-fit:cover;transform:scale(1.1);opacity:.7;filter:blur(24px)}.product-copy{padding:16px}.product-copy h2{margin:0;font-weight:600}.product-copy a{text-decoration:none}.product-copy a:hover{text-decoration:underline}.product-price{font-weight:700}
@@ -373,21 +375,34 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       image ?? undefined));
   }
   const instagramPath = '/from-instagram/';
-  const instagramTitle = 'From Instagram';
-  const instagramDescription = 'Browse recent crochet posts from Luvia Creations on Instagram, with post links and available product matches.';
-  const instagramCards = (instagramSnapshot?.posts ?? []).map(post => {
-    const caption = post.caption.replace(/\s+/g, ' ').trim().slice(0, 180);
+  const instagramTitle = instagramPageTitle;
+  const instagramDescription = instagramPageDescription;
+  const instagramCards = (instagramSnapshot?.posts ?? []).map((post, index) => {
+    const caption = instagramCaptionSummary(post.caption, 90);
+    const fullCaption = post.caption.trim();
     const product = products.find(item => item.id === post.productId && item.inStock);
-    return `<li class="card"><a href="${escapeHtml(post.permalink)}"><img src="${escapeHtml(post.previewUrl)}" alt="${escapeHtml(caption ? `Instagram post from @${instagramSnapshot.username}: ${caption}` : `Instagram post from @${instagramSnapshot.username}`)}" width="480" height="600" loading="lazy" decoding="async" style="display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:12px"></a>
-      ${caption ? `<p>${escapeHtml(caption)}</p>` : ''}<a href="${escapeHtml(post.permalink)}">View on Instagram</a>
-      ${product ? `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>` : ''}</li>`;
+    const productPath = product ? `/p/${toProductSlug(product)}/` : null;
+    const range = product ? priceRange(product) : null;
+    const price = range ? `${range.low !== range.high ? 'From ' : ''}₹${range.low.toLocaleString('en-IN')}` : 'In stock';
+    const alt = product ? `Handmade crochet ${product.name}` : caption || `Instagram ${post.mediaType === 'VIDEO' ? 'video' : 'post'} from @${instagramSnapshot.username}`;
+    const whatsapp = product ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi Luvia, I'm interested in ${product.name}.\n\n${ORIGIN}${productPath}`)}` : '';
+    return `<li class="card"><a href="${escapeHtml(productPath ?? post.permalink)}"><img src="${escapeHtml(post.previewUrl)}" alt="${escapeHtml(alt)}" width="480" height="600" loading="${index === 0 ? 'eager' : 'lazy'}" ${index === 0 ? 'fetchpriority="high" ' : ''}decoding="async" style="display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:12px"></a>
+      ${post.mediaType === 'VIDEO' ? '<span aria-label="Video">▶ Video</span>' : ''}
+      ${caption && caption !== fullCaption ? `<details><summary>${escapeHtml(caption)} <span>Read more</span></summary><p>${escapeHtml(fullCaption)}</p></details>` : fullCaption ? `<p>${escapeHtml(fullCaption)}</p>` : ''}<p><time datetime="${escapeHtml(post.timestamp)}">${escapeHtml(new Date(post.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }))}</time></p><a href="${escapeHtml(post.permalink)}">View on Instagram</a>
+      ${product ? `<p>${escapeHtml(price)} · <a href="${productPath}">Shop ${escapeHtml(product.name)}</a></p><a href="${escapeHtml(whatsapp)}" rel="nofollow">Ask on WhatsApp</a>` : ''}</li>`;
   }).join('');
   pages.set(instagramPath, page(instagramPath, instagramTitle, instagramDescription,
-    `<p class="intro">Explore Luvia Creations’ recent crochet posts, discover matching handmade products and follow along on Instagram.</p>
+    `<p class="intro">${escapeHtml(instagramPageIntro)}</p>
+      <p><a class="button" href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>
       ${instagramSnapshot?.stale ? '<p>Showing saved posts while Instagram is temporarily unavailable.</p>' : ''}
       ${instagramCards ? `<ul class="grid instagram-grid">${instagramCards}</ul>` : '<p>Recent posts are available on Instagram.</p>'}
       <p><a class="button" href="https://www.instagram.com/luvia.craftedwithlove/">Follow Luvia on Instagram</a></p>`,
-    baseSchema('CollectionPage', instagramPath, instagramTitle, instagramDescription))
+    { ...baseSchema('CollectionPage', instagramPath, instagramTitle, instagramDescription),
+      breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+        { '@type': 'ListItem', position: 2, name: instagramTitle, item: `${ORIGIN}${instagramPath}` },
+      ] } },
+    instagramSnapshot?.posts[0] ? `${ORIGIN}/instagram-snapshot/${instagramSnapshot.posts[0].id}.jpg` : undefined)
     .replace('</head>', `${instagramSnapshot ? `<script id="instagram-snapshot" type="application/json">${JSON.stringify(instagramSnapshot).replace(/</g, '\\u003c')}</script>` : ''}</head>`));
   return pages;
 };

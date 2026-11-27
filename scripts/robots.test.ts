@@ -8,6 +8,13 @@ it('declares Content Signals in every robots.txt user-agent group', () => {
   expect(groups.length).toBeGreaterThan(1);
   for (const group of groups) {
     expect(group).toMatch(/^Content-Signal: search=yes, ai-input=yes, ai-train=no$/m);
+  }
+  for (const agent of ['GPTBot', 'ClaudeBot', 'Google-Extended', 'Applebot-Extended']) {
+    const group = groups.find(value => value.startsWith(`User-agent: ${agent}\n`));
+    expect(group).toMatch(/^Disallow: \/$/m);
+  }
+  for (const agent of ['*', 'OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'Claude-User', 'Bingbot']) {
+    const group = groups.find(value => value.startsWith(`User-agent: ${agent}\n`));
     expect(group).toMatch(/^Allow: \/$/m);
   }
   expect(robots).toContain('Sitemap: https://luviacreations.com/sitemap.xml');

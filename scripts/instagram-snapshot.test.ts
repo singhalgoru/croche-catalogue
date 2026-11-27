@@ -28,6 +28,7 @@ it('writes validated, resized WebP posts and removes posts from a successful emp
   expect(result.posts[0].previewUrl).toBe('/instagram-snapshot/123.webp');
   const metadata = await sharp(await readFile(path.join(dir, 'instagram-snapshot', '123.webp'))).metadata();
   expect([metadata.format, metadata.width, metadata.height]).toEqual(['webp', 480, 600]);
+  expect((await sharp(await readFile(path.join(dir, 'instagram-snapshot', '123.jpg'))).metadata()).format).toBe('jpeg');
   fetchMock.mockImplementation(async () => Response.json({ ...feed, posts: [] }));
   const empty = await buildInstagramSnapshot('https://example.supabase.co', 'key', dir, now);
   expect(empty.posts).toEqual([]);

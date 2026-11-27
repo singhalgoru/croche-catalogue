@@ -18,6 +18,9 @@ export const getProductMetaTitle = (product) => {
   if (fullTitle.length <= MAX_TITLE_LENGTH) return fullTitle;
 
   const compactSuffix = ' | Crochet | Luvia';
+  if (`${name}${compactSuffix}`.length <= MAX_TITLE_LENGTH) return `${name}${compactSuffix}`;
   const nameLength = MAX_TITLE_LENGTH - compactSuffix.length - 1;
-  return `${name.slice(0, nameLength).trimEnd()}…${compactSuffix}`;
+  const prefix = name.slice(0, nameLength + 1);
+  const boundary = prefix.lastIndexOf(' ');
+  return `${(boundary > 0 ? prefix.slice(0, boundary) : name.slice(0, nameLength)).trimEnd()}…${compactSuffix}`;
 };

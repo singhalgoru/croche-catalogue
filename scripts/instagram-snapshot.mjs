@@ -104,6 +104,9 @@ export async function buildInstagramSnapshot(supabaseUrl, anonKey, dist, now = D
       const output = await sharp(image, { limitInputPixels: 40_000_000 })
         .rotate().resize(480, 600, { fit: 'cover' }).webp({ quality: 78 }).toBuffer();
       await writeFile(path.join(target, `${post.id}.webp`), output);
+      if (posts.length === 0) {
+        await writeFile(path.join(target, `${post.id}.jpg`), await sharp(output).jpeg({ quality: 85 }).toBuffer());
+      }
       posts.push({ ...post, previewUrl: `${directory}${post.id}.webp` });
     } catch (error) {
       console.warn(`[instagram] Skipping post ${post.id}: ${error.message}`);

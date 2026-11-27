@@ -214,6 +214,8 @@ export default function ProductCard({
             src={getProductImageUrl(activeImageUrl, 480)}
             srcSet={getProductCardSrcSet(activeImageUrl)}
             sizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+            width={480}
+            height={480}
             loading={isFirstProduct ? 'eager' : 'lazy'}
             fetchPriority={isFirstProduct ? 'high' : 'auto'}
             decoding="async"
