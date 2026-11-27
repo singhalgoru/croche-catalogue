@@ -223,6 +223,19 @@ describe('collection and information pages', () => {
       .not.toContain('customer-reviews/');
     expect(() => renderLlms(template.replace(/<!--customer-love-->[\s\S]*?<!--\/customer-love-->/, ''), [])).toThrow(/customer-love/);
   });
+  it('includes only known tagged-product details in story HTML', () => {
+    const story = {
+      id: 'story-1', display_name: 'Asha', quote: 'Lovely gift', product_ids: [toy.id],
+      has_image: false, image_url: null, image_alt: '', featured: true, sort_order: 0,
+    };
+    const item = { ...toy, materials: '**Cotton** yarn', careInstructions: 'Hand wash <gently>' };
+    const html = buildContentPages([item], '919205907350', [], [], [story]).get('/customer-love/asha-1/')!;
+    const doc = new JSDOM(html).window.document;
+    expect(doc.querySelector('main')?.textContent).toContain('Materials: Cotton yarn');
+    expect(doc.querySelector('main')?.textContent).toContain('Care instructions: Hand wash <gently>');
+    expect(doc.querySelector('main')?.textContent).not.toContain('Dimensions:');
+    expect(html).toContain('&lt;gently&gt;');
+  });
   it('prerenders the international quote page with contact/destination guidance, product links and automatic discovery', () => {
     const doc = documentFor('/international-quote/');
     expect(doc.querySelector('h1')?.textContent).toBe('Request an international quote');

@@ -60,9 +60,10 @@ it('renders a self-canonical watch page with a prominent native player and match
 });
 
 it('shows known product details without inventing missing details', () => {
-  const doc = new JSDOM(renderVideoPage({ ...product, materials: '**Cotton** yarn', dimensions: '10 cm' })).window.document;
+  const doc = new JSDOM(renderVideoPage({ ...product, materials: '**Cotton** yarn', dimensions: '10 cm', includedItems: 'One rose' })).window.document;
   expect(doc.querySelector('main')?.textContent).toContain('Materials: Cotton yarn');
   expect(doc.querySelector('main')?.textContent).toContain('Dimensions: 10 cm');
+  expect(doc.querySelector('main')?.textContent).toContain("What's included: One rose");
   expect(doc.querySelector('main')?.textContent).not.toContain('Care:');
 });
 

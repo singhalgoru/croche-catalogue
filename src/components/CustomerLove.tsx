@@ -8,6 +8,7 @@ import { findTestimonialBySlug, testimonialPath } from '../utils/testimonialLink
 import { getCustomerStoryWhatsAppLink } from '../utils/whatsapp';
 import RichTextContent from './RichTextContent';
 import { richTextToPlainText } from '../utils/richText';
+import { PRODUCT_DETAIL_FIELDS } from '../utils/productDetails';
 
 /** Splits an approved display name like "Shalini, Meerut" into a name and a subtle location label. */
 export const splitDisplayName = (displayName: string) => {
@@ -166,11 +167,14 @@ export default function CustomerLove({ products, productId, page = false, storyS
   if (storySlug !== undefined) return <div className="space-y-10"><div className="max-w-2xl space-y-4">
     {story ? <><TestimonialCard entry={story} products={products.filter(product => story.product_ids.includes(product.id))}
       imageUrl={imageUrl?.(story)} fullQuote />
-      {products.some(product => story.product_ids.includes(product.id) && product.description.trim()) && <section className="space-y-3">
+      {products.some(product => story.product_ids.includes(product.id)) && <section className="space-y-3">
         <h2 className="font-heading text-xl font-bold">Products in this story</h2>
-        {products.filter(product => story.product_ids.includes(product.id) && product.description.trim()).map(product => <div key={product.id}>
+        {products.filter(product => story.product_ids.includes(product.id)).map(product => <div key={product.id}>
           <a className="font-semibold underline" href={toProductPageUrl(product)}>{product.name}</a>
-          <p>{richTextToPlainText(product.description)}</p>
+          {product.description?.trim() && <p>{richTextToPlainText(product.description)}</p>}
+          {PRODUCT_DETAIL_FIELDS.map(({ key, label }) => product[key]?.trim() && <p key={key}>
+            <strong>{label}:</strong> {richTextToPlainText(product[key])}
+          </p>)}
         </div>)}
       </section>}</>
       : <p role="status">This customer story is no longer available.</p>}

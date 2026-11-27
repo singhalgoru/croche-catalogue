@@ -15,6 +15,7 @@ import { getBoundedMetaTitle } from '../src/utils/productMetaTitle.js';
 import { getBoundedMetaDescription } from '../src/utils/metaDescription.js';
 import { instagramPageTitle, instagramPageDescription, instagramPageIntro, instagramCaptionSummary } from '../src/utils/instagramContent.js';
 import { richTextToPlainText } from '../src/utils/richText.ts';
+import { PRODUCT_DETAIL_FIELDS } from '../src/utils/productDetails.ts';
 export { collectionPath };
 
 const ORIGIN = 'https://luviacreations.com';
@@ -377,7 +378,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       `<nav aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/customer-love/">Customer Love</a> › <span aria-current="page">${escapeHtml(entry.display_name)}</span></nav>
       <figure class="card" style="max-width:640px">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" style="width:100%;height:auto;border-radius:12px">` : ''}
         <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption></figure>
-      ${taggedProducts.length ? `<h2>Products in this story</h2><ul>${taggedProducts.map(product => `<li><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a>${product.description?.trim() ? `<p>${escapeHtml(richTextToPlainText(product.description))}</p>` : ''}</li>`).join('')}</ul>` : ''}
+      ${taggedProducts.length ? `<h2>Products in this story</h2><ul>${taggedProducts.map(product => `<li><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a>${product.description?.trim() ? `<p>${escapeHtml(richTextToPlainText(product.description))}</p>` : ''}${PRODUCT_DETAIL_FIELDS.map(({ key, label }) => product[key]?.trim() ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(richTextToPlainText(product[key]))}</p>` : '').join('')}</li>`).join('')}</ul>` : ''}
       <p><a href="/customer-love/">See all customer stories</a></p>`,
       { ...baseSchema('WebPage', pathname, title, description),
         isPartOf: { '@type': 'CollectionPage', name: 'Customer Love', url: `${ORIGIN}/customer-love/` },

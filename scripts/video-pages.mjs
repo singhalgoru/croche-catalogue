@@ -47,7 +47,7 @@ export const renderVideoPage = product => `<!doctype html>
 <main id="main"><h1>${escapeHtml(videoTitle(product))}</h1>${videoPlayer(product)}
 <p>${escapeHtml(videoDescription(product))}</p>
 ${product.description?.trim() ? `<section><h2>About ${escapeHtml(product.name)}</h2><p>${escapeHtml(richTextToPlainText(product.description))}</p></section>` : ''}
-${[['Materials', product.materials], ['Dimensions', product.dimensions], ['Care', product.careInstructions]]
+${[['Materials', product.materials], ['Dimensions', product.dimensions], ["What's included", product.includedItems], ['Care', product.careInstructions]]
     .filter(([, value]) => value?.trim())
     .map(([label, value]) => `<p><strong>${label}:</strong> ${escapeHtml(richTextToPlainText(value))}</p>`).join('')}
 <p><a href="/p/${toProductSlug(product)}/">View ${escapeHtml(product.name)} — photos, options and ordering</a></p>
