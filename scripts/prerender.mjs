@@ -286,6 +286,29 @@ const productJsonLd = (product, showCategoryLink = true) => {
     '@context': 'https://schema.org',
     '@graph': [
       data,
+      {
+        '@type': 'MerchantReturnPolicy',
+        '@id': `${ORIGIN}/#return-policy`,
+        description: 'In India, returns are accepted only for confirmed defective, damaged or incorrect items. Contact Luvia within 2 days of delivery and return the item within 7 days.',
+        applicableCountry: 'IN',
+        merchantReturnLink: `${ORIGIN}/return-policy/`,
+      },
+      {
+        '@type': 'ShippingService',
+        '@id': `${ORIGIN}/#india-shipping`,
+        name: 'India online checkout shipping',
+        description: 'Free shipping when the items subtotal after coupon discounts is at least ₹500. Below ₹500, shipping depends on the current courier estimate or the checkout fallback.',
+        handlingTime: {
+          '@type': 'ServicePeriod',
+          duration: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 5, unitCode: 'DAY' },
+        },
+        shippingConditions: {
+          '@type': 'ShippingConditions',
+          shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
+          orderValue: { '@type': 'MonetaryAmount', currency: 'INR', minValue: 500 },
+          shippingRate: { '@type': 'MonetaryAmount', currency: 'INR', value: 0 },
+        },
+      },
       ...(product.makingVideo ? [videoSchema(product)] : []),
       {
         '@type': 'BreadcrumbList',

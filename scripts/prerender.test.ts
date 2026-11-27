@@ -493,8 +493,9 @@ describe('injectShell', () => {
       expect.objectContaining({ email: 'hello@luviacreations.com', telephone: '+91 12345 67890' }),
       expect.objectContaining({ email: 'orders@luviacreations.com' }),
     ]));
-    expect(store.hasMerchantReturnPolicy).toEqual({
+    expect(store.hasMerchantReturnPolicy).toMatchObject({
       '@type': 'MerchantReturnPolicy', '@id': 'https://luviacreations.com/#return-policy',
+      applicableCountry: 'IN',
       merchantReturnLink: 'https://luviacreations.com/return-policy/',
     });
     expect(store.hasShippingService).toMatchObject({
@@ -727,6 +728,8 @@ describe('renderProductPage', () => {
       const html = renderProductPage(candidate, '91');
       const data = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
       const offer = data['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product').offers;
+      const homepage = JSON.parse(readFileSync(path.resolve('index.html'), 'utf8').match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+      const store = homepage['@graph'].find((item: { '@type': string }) => item['@type'] === 'OnlineStore');
       expect(offer['@type']).toBe(candidate.variants.length ? 'AggregateOffer' : 'Offer');
       expect(offer.itemCondition).toBe('https://schema.org/NewCondition');
       expect(offer.hasMerchantReturnPolicy).toEqual({ '@id': 'https://luviacreations.com/#return-policy' });
@@ -734,6 +737,8 @@ describe('renderProductPage', () => {
         '@type': 'OfferShippingDetails',
         hasShippingService: { '@id': 'https://luviacreations.com/#india-shipping' },
       });
+      expect(data['@graph'].find((item: { '@id': string }) => item['@id'] === offer.hasMerchantReturnPolicy['@id'])).toEqual(store.hasMerchantReturnPolicy);
+      expect(data['@graph'].find((item: { '@id': string }) => item['@id'] === offer.shippingDetails.hasShippingService['@id'])).toEqual(store.hasShippingService);
     }
   });
 

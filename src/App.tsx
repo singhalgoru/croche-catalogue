@@ -149,6 +149,7 @@ function App() {
   useEffect(() => {
     const updateRoute = () => setIsAdminPage(window.location.hash === '#admin');
     window.addEventListener('hashchange', updateRoute);
+    updateRoute();
     return () => window.removeEventListener('hashchange', updateRoute);
   }, []);
 
@@ -247,7 +248,7 @@ function App() {
   }, [isLoading, products]);
 
   useEffect(() => {
-    if (isAdminPage || isCartOpen || pendingProductReference.current || pageReference) return;
+    if (isAdminPage || window.location.hash === '#admin' || isCartOpen || pendingProductReference.current || pageReference) return;
     // The lazy auth client must consume email-link credentials before route cleanup.
     const authParams = new URLSearchParams(window.location.hash.slice(1));
     if (authParams.has('access_token') || authParams.has('error_description')) return;

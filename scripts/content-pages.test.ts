@@ -326,7 +326,7 @@ describe('collection and information pages', () => {
     expect(content('meta[property="og:title"]')).toBe(doc.title);
     expect(content('meta[property="og:description"]')).toBe(content('meta[name="description"]'));
     expect(content('meta[property="og:url"]')).toBe(doc.querySelector('link[rel="canonical"]')?.getAttribute('href'));
-    expect(content('meta[property="og:image"]')).toBe('https://luviacreations.com/images/luvia-logo.jpg');
+    expect(content('meta[property="og:image"]')).toContain('bunny.webp');
     expect(content('meta[name="twitter:card"]')).toBe('summary_large_image');
     for (const field of ['title', 'description', 'image']) {
       expect(doc.querySelectorAll(`meta[name="twitter:${field}"]`)).toHaveLength(1);
@@ -350,7 +350,9 @@ describe('collection and information pages', () => {
   it('uses product photos for collections and the gift guide, and preserves logo fallbacks', () => {
       const generated = buildContentPages([toy], '919205907350', [], [], [], null,
         new Map([[toy.id, { url: 'https://luviacreations.com/p/bunny/og.jpg' }]]));
-      for (const pathname of ['/collections/', '/crochet-gift-guide/', '/handmade-gifts-by-budget/']) {
+      for (const pathname of ['/collections/', '/crochet-gift-guide/', '/handmade-gifts-by-budget/', '/faq/',
+        '/return-policy/', '/privacy-policy/', '/terms-and-conditions/', '/account-deletion/',
+        '/bulk-orders/', '/international-quote/', '/customer-love/']) {
         const doc = new JSDOM(generated.get(pathname)).window.document;
         expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://luviacreations.com/p/bunny/og.jpg');
         expect(doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe('https://luviacreations.com/p/bunny/og.jpg');

@@ -308,7 +308,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       `<a href="#${group.id}"><span class="faq-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${escapeHtml(group.iconPath)}"/></svg></span><strong>${escapeHtml(group.title)}</strong><span>${escapeHtml(group.description)}</span><span aria-hidden="true">&rarr;</span></a>`).join('')}</nav></section>${faqBody}
     <aside class="faq-help"><div><h2>Still have a little question?</h2><p>For a personal request or a detail about your order, get in touch before ordering. We will help you confirm what is possible.</p></div>
     <nav aria-label="More ordering help"><a href="/about/#contact-luvia">Contact Luvia</a><a href="${internationalQuote.path}">Request an international quote</a></nav></aside>`,
-    baseSchema('WebPage', '/faq/', faqTitle, faqDescription)));
+    baseSchema('WebPage', '/faq/', faqTitle, faqDescription), productShareImage(generalShareProduct)));
   for (const policy of policies) {
     const body = `<article><div class="budget-intro"><p class="budget-eyebrow">Clear details, considered care</p>
       <p class="intro">${escapeHtml(policy.description)}</p><p class="policy-updated">${escapeHtml(policy.dateLabel ?? 'Last updated')}: ${escapeHtml(policy.updated)}</p></div>
@@ -320,7 +320,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
       + policies.filter(item => item.path !== policy.path).map(item => `<a href="${item.path}">${escapeHtml(item.title)}</a>`).join('')
       + '<a href="/return-policy/">Return and refund policy</a><a href="/about/">About &amp; contact</a></nav></article>';
     pages.set(policy.path, page(policy.path, policy.title, policy.description, body,
-      baseSchema('WebPage', policy.path, policy.title, policy.description)));
+      baseSchema('WebPage', policy.path, policy.title, policy.description), productShareImage(generalShareProduct)));
   }
   pages.set(bulkOrders.path, page(bulkOrders.path, bulkOrders.title, getBoundedMetaDescription(bulkOrders.description), `
     <section class="intro"><h2>Handmade gifts for teams, clients &amp; celebrations</h2>
@@ -330,7 +330,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <a class="button" href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(bulkOrders.message)}">Enquire on WhatsApp</a></p>
     <p>${escapeHtml(bulkOrders.email)}</p><p class="note">${escapeHtml(bulkOrders.note)}</p>
     <p class="note">With JavaScript enabled, use our enquiry form to prepare a personalised email draft. Review and send it from your email app; preparing a draft does not send it automatically.</p></section>${collectionsNavigation}`,
-    baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description)));
+    baseSchema('WebPage', bulkOrders.path, bulkOrders.title, bulkOrders.description), productShareImage(generalShareProduct)));
   pages.set(internationalQuote.path, page(internationalQuote.path, internationalQuote.title, internationalQuote.description,
     `<section class="budget-intro"><p class="budget-eyebrow">International orders · Request a quote</p>
     <p class="intro">${escapeHtml(internationalQuote.description)}</p><p>${escapeHtml(internationalQuote.notice)}</p>
@@ -345,7 +345,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     <p><a class="button" href="mailto:${internationalQuote.email}?subject=${encodeURIComponent(internationalQuote.subject)}">Email Luvia</a>
     <a class="button" href="https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent('Hello Luvia, I would like an international order quote. I will share product names and quantities, my name, email, country, city, state and postal code.')}">Contact Luvia on WhatsApp</a></p>
     <h2>3. Shipping, customs and quote terms</h2><p>${escapeHtml(storeContent.international.details)}</p><p>${escapeHtml(storeContent.international.customs)}</p><p>${escapeHtml(storeContent.international.returns)}</p></section>${collectionsNavigation}`,
-    baseSchema('WebPage', internationalQuote.path, internationalQuote.title, internationalQuote.description)));
+    baseSchema('WebPage', internationalQuote.path, internationalQuote.title, internationalQuote.description), productShareImage(generalShareProduct)));
   pages.set(artisanOnboarding.path, page(artisanOnboarding.path, artisanOnboarding.title, artisanOnboarding.description,
     `<section class="intro"><p>${escapeHtml(artisanOnboarding.description)}</p><p>${escapeHtml(artisanOnboarding.notice)}</p>
     <h2>${escapeHtml(artisanOnboarding.dispatchTermsTitle)}</h2>${artisanOnboarding.dispatchTerms.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}
@@ -363,7 +363,8 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption><a href="${testimonialPath(entry)}">${escapeHtml(entry.display_name)}</a></figcaption>
         ${taggedProducts.map(product => `<p><a href="/p/${toProductSlug(product)}/">Shop ${escapeHtml(product.name)}</a></p>`).join('')}</figure>`;
     }).join('')}</div>` : '<p>Customer stories will appear here once shared with permission.</p>'),
-    baseSchema('CollectionPage', '/customer-love/', 'Customer Love', 'Selected customer stories shared with permission.')));
+    baseSchema('CollectionPage', '/customer-love/', 'Customer Love', 'Selected customer stories shared with permission.'),
+    productShareImage(generalShareProduct) ?? testimonials.find(entry => entry.has_image && entry.image_url)?.image_url));
   for (const entry of testimonials) {
     const pathname = testimonialPath(entry);
     const title = `Customer story from ${entry.display_name}`;

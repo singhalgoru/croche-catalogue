@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from './types/product';
 import App from './App';
@@ -6,6 +7,7 @@ import storeContent from './content/storeContent.json';
 vi.mock('./components/MobileNavigation', () => ({ default: () => null }));
 vi.mock('./components/InstagramFeed', () => ({ default: () => <section aria-label="Instagram feed test stub" /> }));
 vi.mock('./components/CustomerLove', () => ({ default: () => <section aria-label="Customer Love test stub" /> }));
+vi.mock('./components/admin/AdminPage', () => ({ default: () => <div>Admin route test stub</div> }));
 vi.mock('./services/artisans', async importOriginal => ({
   ...await importOriginal<typeof import('./services/artisans')>(),
   checkArtisanInvitation: vi.fn().mockResolvedValue('available'),
@@ -72,6 +74,18 @@ afterEach(() => {
 });
 
 describe('Hybrid product navigation', () => {
+  it('opens the admin route when the fragment changes before route effects run', async () => {
+    function NavigateBeforeEffects() {
+      useLayoutEffect(() => {
+        window.history.pushState(null, '', '/#admin');
+      }, []);
+      return null;
+    }
+    render(<><App /><NavigateBeforeEffects /></>);
+    await screen.findByText('Admin route test stub');
+    expect(window.location.hash).toBe('#admin');
+  });
+
   it('shows the Instagram feed on the homepage while catalogue data is loading', () => {
     catalogueLoading = true;
     catalogueSnapshot = false;
