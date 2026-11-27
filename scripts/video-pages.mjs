@@ -1,5 +1,6 @@
 import { escapeHtml, toProductSlug } from './prerender.mjs';
 import { renderSiteHeader, renderSiteFooter } from './content-pages.mjs';
+import { richTextToPlainText } from '../src/utils/richText.ts';
 
 const ORIGIN = 'https://luviacreations.com';
 export const videoPath = product => `/watch/${toProductSlug(product)}/`;
@@ -45,6 +46,7 @@ export const renderVideoPage = product => `<!doctype html>
 </head><body>${renderSiteHeader()}
 <main id="main"><h1>${escapeHtml(videoTitle(product))}</h1>${videoPlayer(product)}
 <p>${escapeHtml(videoDescription(product))}</p>
+${product.description?.trim() ? `<section><h2>About ${escapeHtml(product.name)}</h2><p>${escapeHtml(richTextToPlainText(product.description))}</p></section>` : ''}
 <p><a href="/p/${toProductSlug(product)}/">View ${escapeHtml(product.name)} — photos, options and ordering</a></p>
 </main>${renderSiteFooter()}</body></html>`;
 

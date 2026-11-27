@@ -1,6 +1,6 @@
 export const productCollections = [
-  { path: '/bestsellers/', title: 'Bestsellers', description: 'Popular over the last 90 days', empty: 'No bestsellers are available right now.' },
-  { path: '/featured/', title: 'Featured products', description: 'Handpicked handmade favourites from Luvia Creations', empty: 'No featured products are available right now.' },
+  { path: '/bestsellers/', title: 'Bestsellers', description: 'Popular over the last 90 days', metaDescription: 'Explore popular handmade crochet gifts and accessories from Luvia Creations, ranked over the last 90 days. Check current colours and availability.', empty: 'No bestsellers are available right now.' },
+  { path: '/featured/', title: 'Featured products', description: 'Handpicked handmade favourites from Luvia Creations', metaDescription: 'Discover featured handmade crochet gifts, accessories, toys and decor from Luvia Creations. Explore product details and current availability.', empty: 'No featured products are available right now.' },
 ];
 
 const isPurchasable = product => product.variants.some(variant => variant.inStock && variant.availableQuantity > 0);

@@ -182,6 +182,12 @@ describe('collection and information pages', () => {
     expect(storyDoc.querySelector('h1')?.textContent).toBe('Customer story from Asha [Delhi]');
     expect(storyDoc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${storyPath}`);
     expect(storyDoc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(story.image_url);
+    const description = storyDoc.querySelector('meta[name="description"]')?.getAttribute('content') ?? '';
+    expect(description.length).toBeLessThanOrEqual(155);
+    expect(description).toContain('Shared with permission');
+    const withoutPhoto = new JSDOM(buildContentPages([toy], '919205907350', [], [],
+      [{ ...story, has_image: false, image_url: null }]).get(storyPath)).window.document;
+    expect(withoutPhoto.querySelector('meta[property="og:image"]')?.getAttribute('content')).toContain('bunny.webp');
     expect(storyDoc.querySelector('main a[href="/p/bunny/"]')).toBeTruthy();
     expect(storyDoc.querySelector('header')).toBeTruthy();
     expect(storyDoc.querySelector('footer')).toBeTruthy();
@@ -341,7 +347,8 @@ describe('collection and information pages', () => {
   it('publishes curated pages with ranked product links, shared chrome, metadata, schema and sitemap entries', () => {
     const available = toProduct({
       id: 'p1', public_slug: 'bunny', name: 'Bunny', category: 'Toys', description: 'Crochet bunny.',
-      featured: true, price: 500, product_variants: [{ id: 'v1', in_stock: true, available_quantity: 2 }],
+      featured: true, price: 500, image_url: 'https://images.luviacreations.com/products/admin/bunny.webp',
+      product_variants: [{ id: 'v1', in_stock: true, available_quantity: 2 }],
     });
     const second = { ...available, id: 'second', publicSlug: 'second', name: 'Second', sortOrder: 2 };
     const sold = { ...available, id: 'sold', publicSlug: 'sold', variants: [{ inStock: true, availableQuantity: 0 }] };
@@ -355,7 +362,10 @@ describe('collection and information pages', () => {
       expect(doc.querySelector('header .brand')?.textContent).toBe('Luvia Creations');
       expect(doc.querySelector(`footer a[href="${pathname}"]`)).not.toBeNull();
       expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`https://luviacreations.com${pathname}`);
-      expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')).toBeTruthy();
+      const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') ?? '';
+      expect(description.length).toBeGreaterThan(80);
+      expect(description.length).toBeLessThanOrEqual(155);
+      expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toContain('bunny.webp');
       expect([...doc.querySelectorAll('main h2 a')].map(link => link.getAttribute('href'))).toEqual(slugs.map(slug => `/p/${slug}/`));
       const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
       expect(schema['@type']).toBe('CollectionPage');
@@ -364,6 +374,19 @@ describe('collection and information pages', () => {
         .toEqual(slugs.map(slug => `https://luviacreations.com/p/${slug}/`));
       expect(schema.breadcrumb.itemListElement.map((item: { name: string }) => item.name)).toEqual(['Home', title]);
       expect(renderContentSitemap([available], '2026-10-24', result)).toContain(`https://luviacreations.com${pathname}`);
+    }
+  });
+  it('bounds descriptions while retaining full collection and bulk-order copy', () => {
+    const overview = 'Handmade crochet accessories with thoughtful details. '.repeat(9);
+    const result = buildContentPages([toy], '919205907350', [{ name: 'Toys', visible: true, overview }]);
+    for (const pathname of ['/collections/toys/', '/bulk-orders/']) {
+      const doc = new JSDOM(result.get(pathname)).window.document;
+      const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') ?? '';
+      expect(description.length).toBeLessThanOrEqual(155);
+      expect(description.endsWith('…')).toBe(true);
+      expect(doc.querySelector('meta[property="og:description"]')?.getAttribute('content')).toBe(description);
+      expect(doc.querySelector('meta[name="twitter:description"]')?.getAttribute('content')).toBe(description);
+      expect(doc.querySelector('main')?.textContent?.length).toBeGreaterThan(description.length);
     }
   });
   it('keeps curated pages discoverable and honest when no products qualify', () => {
@@ -465,7 +488,9 @@ describe('collection and information pages', () => {
   it('caps stored long overviews at 90 words in static pages too', () => {
     const result = buildContentPages([toy], '919205907350', [{ name: 'Toys', priority: 10, overview: Array(200).fill('crochet').join(' ') }]);
     const doc = new JSDOM(result.get('/collections/toys/')).window.document;
-    expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')?.split(/\s+/)).toHaveLength(90);
+    const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(schema.description.split(/\s+/)).toHaveLength(90);
+    expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')?.length).toBeLessThanOrEqual(155);
   });
   it('shows seasonal products in both collections and omits hidden seasonal pages and links', () => {
     const categories = [{ name: 'Navaratri', priority: 999, isSeasonal: true, visible: true, productIds: ['p1', 'p2'], overview: 'Reviewed overview & handmade gifts.' }];

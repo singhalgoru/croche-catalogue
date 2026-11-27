@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { richTextToPlainText } from './utils/richText';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { requestPageReload } from './utils/pageReload';
 import Header from './components/Header';
@@ -747,6 +748,10 @@ function App() {
               <ProductMakingVideo key={product.makingVideo.videoUrl} product={product} />
               <p className="text-cocoa">Watch {product.name} being made by Luvia Creations.
                 A behind-the-scenes look at our handmade crochet work.</p>
+              {product.description?.trim() && <section>
+                <h2 className="font-heading text-xl font-bold text-cocoa">About {product.name}</h2>
+                <p className="text-cocoa">{richTextToPlainText(product.description)}</p>
+              </section>}
               <a href={toProductPageUrl(product)} className="inline-block py-2 font-semibold text-cocoa underline">
                 View {product.name} — photos, options and ordering
               </a>

@@ -337,6 +337,25 @@ describe('live store pages', () => {
     expect(screen.getByRole('contentinfo')).toBeTruthy();
     expect(document.title).toBe('Featured products | Luvia Creations');
   });
+  it('matches bounded collection metadata after hydration without shortening the visible overview', () => {
+    window.history.replaceState(null, '', '/collections/toys/');
+    const overview = 'Handmade crochet accessories with thoughtful details. '.repeat(9);
+    const metas = ['description', 'og:description', 'twitter:description'].map(name => {
+      const meta = document.createElement('meta');
+      meta.setAttribute(name.startsWith('og:') ? 'property' : 'name', name);
+      document.head.append(meta);
+      return meta;
+    });
+    try {
+      render(<StorePages {...initial} categorySettings={[{ name: 'Toys', priority: 10, overview }]} />);
+      expect(metas[0].content.length).toBeLessThanOrEqual(155);
+      expect(metas[0].content.endsWith('…')).toBe(true);
+      expect(metas.every(meta => meta.content === metas[0].content)).toBe(true);
+      expect(screen.getByText(overview.trim())).toBeTruthy();
+    } finally {
+      metas.forEach(meta => meta.remove());
+    }
+  });
   it('renders a single bootstrap bestseller on its dedicated page without inventing more products', () => {
     window.history.replaceState(null, '', '/bestsellers/');
     render(<StorePages {...initial} initialBestsellerIds={['p1', 'missing']} />);

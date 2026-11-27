@@ -25,7 +25,7 @@ import bulkOrders from '../src/content/bulkOrders.json' with { type: 'json' };
 import { getProductMetaTitle } from '../src/utils/productMetaTitle.js';
 import { collectionPath } from '../src/utils/collectionLink.js';
 import { getCategoryImage } from '../src/utils/categoryImage.js';
-import { getLatestProduct } from '../src/utils/productCollections.js';
+import { getBestsellerProducts, getFeaturedProducts, getLatestProduct } from '../src/utils/productCollections.js';
 import { testimonialPath } from '../src/utils/testimonialLink.js';
 import { fetchVideoUploadDate, renderVideoPage, videoPath, videoPlayer, videoSchema, videoSitemapEntry } from './video-pages.mjs';
 
@@ -681,7 +681,7 @@ const renderProductPage = (product, whatsappNumber = FALLBACK_WHATSAPP_NUMBER, s
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <header class="bar">
-      <a href="/"><img src="/images/favicon-96.png" width="36" height="36" alt="" />Luvia Creations</a>
+      <a href="/"><img src="/images/favicon-96.png" width="36" height="36" alt="" aria-hidden="true" />Luvia Creations</a>
       <nav aria-label="Main navigation"><a href="/">Shop all</a><a href="/collections/">Collections</a><a href="/customer-love/">Customer Love</a><a href="/about/">About &amp; contact</a><a href="/faq/">Ordering FAQ</a></nav>
     </header>
     <main id="main" class="wrap">
@@ -939,7 +939,8 @@ export const writeSocialImage = async (product, dir, pathname) => {
       .resize(SOCIAL_IMAGE_SIZE, SOCIAL_IMAGE_SIZE, { fit: 'inside', withoutEnlargement: true })
       .flatten({ background: '#ffffff' });
     const { data, info } = await output.jpeg({ quality: 80, mozjpeg: true }).toBuffer({ resolveWithObject: true });
-    const filename = pathname.startsWith('/collections/') ? `og-${createHash('sha256').update(data).digest('hex').slice(0, 12)}.jpg` : 'og.jpg';
+    const filename = pathname.startsWith('/collections/') || pathname === '/featured/' || pathname === '/bestsellers/'
+      ? `og-${createHash('sha256').update(data).digest('hex').slice(0, 12)}.jpg` : 'og.jpg';
     await writeFile(path.join(dir, filename), data);
     return { url: `${ORIGIN}${pathname}${filename}`, width: info.width, height: info.height };
   } catch (error) {
@@ -1113,11 +1114,13 @@ const main = async () => {
     await mkdir(dir, { recursive: true });
     let content = html;
     const category = categories.find(item => collectionPath(item.name) === pathname && item.visible !== false);
-    if (category) {
-      const items = products.filter(product => category.isSeasonal ? category.productIds?.includes(product.id) : product.category === category.name);
-      const image = getCategoryImage(items, category);
+    if (category || pathname === '/featured/' || pathname === '/bestsellers/') {
+      const items = category
+        ? products.filter(product => category.isSeasonal ? category.productIds?.includes(product.id) : product.category === category.name)
+        : pathname === '/bestsellers/' ? getBestsellerProducts(products, bestsellers) : getFeaturedProducts(products);
+      const image = category ? getCategoryImage(items, category) : items.find(product => product.image)?.image;
       const socialImage = items.length && image ? await writeSocialImage(
-        { name: category.name, image }, dir, pathname,
+        { name: category?.name ?? pathname, image }, dir, pathname,
       ) : null;
       if (socialImage) content = content.replace(
         /(<meta (?:property="og:image"|name="twitter:image") content=")[^"]*(")/g,

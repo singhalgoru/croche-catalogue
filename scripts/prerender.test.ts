@@ -492,6 +492,9 @@ describe('injectShell', () => {
       expect.objectContaining({ email: 'hello@luviacreations.com', telephone: '+91 12345 67890' }),
       expect.objectContaining({ email: 'orders@luviacreations.com' }),
     ]));
+    expect(store.hasMerchantReturnPolicy).toEqual({
+      '@type': 'MerchantReturnPolicy', merchantReturnLink: 'https://luviacreations.com/return-policy/',
+    });
   });
 
   it('bootstraps the premium homepage title for hydrated metadata', async () => {

@@ -12,6 +12,7 @@ import { getBestsellerProducts, getFeaturedProducts, productCollections } from '
 import { publicContentPages } from './public-discovery.mjs';
 import { testimonialPath } from '../src/utils/testimonialLink.js';
 import { getBoundedMetaTitle } from '../src/utils/productMetaTitle.js';
+import { getBoundedMetaDescription } from '../src/utils/metaDescription.js';
 import { instagramPageTitle, instagramPageDescription, instagramPageIntro, instagramCaptionSummary } from '../src/utils/instagramContent.js';
 export { collectionPath };
 
@@ -169,7 +170,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         '@type': 'ListItem', position: index + 1, name: product.name, url: `${ORIGIN}/p/${toProductSlug(product)}/`,
       })),
     } };
-    const collectionHtml = page(pathname, title, description, `<p class="intro">${escapeHtml(description)}</p>
+    const collectionHtml = page(pathname, title, getBoundedMetaDescription(description), `<p class="intro">${escapeHtml(description)}</p>
       ${look}
       <p class="note">Prices shown are a catalogue snapshot and may vary by variant. Open a product for current price and availability. Shipping is shown at checkout.</p>
       ${items.length ? `<ul class="grid">${cards}</ul>` : '<p>No published products in this collection yet.</p>'}
@@ -186,9 +187,10 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     }
   }
   for (const collection of productCollections) {
-    const { path: pathname, title, description, empty } = collection;
+    const { path: pathname, title, description, metaDescription, empty } = collection;
     const items = pathname === '/bestsellers/' ? getBestsellerProducts(products, bestsellerIds) : getFeaturedProducts(products);
-    pages.set(pathname, page(pathname, title, description,
+    const socialProduct = items.find(product => product.image);
+    pages.set(pathname, page(pathname, title, metaDescription,
       `<p class="intro">${escapeHtml(description)}</p>${items.length ? `<ul class="grid">${productCards(items)}</ul>` : `<p>${escapeHtml(empty)}</p>`}
       <p class="note">Prices and availability are a catalogue snapshot. Open a product for current details.</p>${collectionsNavigation}`,
       { ...baseSchema('CollectionPage', pathname, title, description),
@@ -199,12 +201,12 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
         mainEntity: { '@type': 'ItemList', numberOfItems: items.length, itemListElement: items.map((product, index) => ({
           '@type': 'ListItem', position: index + 1, name: product.name, url: `${ORIGIN}/p/${toProductSlug(product)}/`,
         })) },
-      }));
+      }, socialProduct ? new URL(getProductImageUrl(socialProduct.image, 1080), ORIGIN).href : undefined));
   }
   const title = 'Explore our handmade collections';
   const description = 'Browse Luvia Creations collections of handmade crochet accessories, toys, gifts and decor. Explore product details and request orders across India.';
   pages.set('/collections/', page('/collections/', title, description,
-    `<p class="intro">Find your favourites by collection, then open a product for photos and details.</p><a class="button" href="/#products">Shop all products</a>
+    `<p class="intro">Discover handmade crochet gifts, accessories, toys and decor by collection. Open a product to see its photos, options and current availability.</p><a class="button" href="/#products">Shop all products</a>
     <nav aria-label="Explore collections"><ul class="grid collection-grid">${collectionLinks.join('')}</ul></nav>`,
     baseSchema('CollectionPage', '/collections/', title, description)));
   const story = storeContent.brandStory;
@@ -310,7 +312,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     pages.set(policy.path, page(policy.path, policy.title, policy.description, body,
       baseSchema('WebPage', policy.path, policy.title, policy.description)));
   }
-  pages.set(bulkOrders.path, page(bulkOrders.path, bulkOrders.title, bulkOrders.description, `
+  pages.set(bulkOrders.path, page(bulkOrders.path, bulkOrders.title, getBoundedMetaDescription(bulkOrders.description), `
     <section class="intro"><h2>Handmade gifts for teams, clients &amp; celebrations</h2>
     <p>${escapeHtml(bulkOrders.description)}</p>
     <p>Share your quantity, budget, occasion and required delivery date to help us plan your enquiry.</p>
@@ -355,11 +357,12 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
   for (const entry of testimonials) {
     const pathname = testimonialPath(entry);
     const title = `Customer story from ${entry.display_name}`;
-    const excerpt = Array.from(entry.quote.replace(/\s+/g, ' ').trim());
-    const description = `${excerpt.length > 150 ? `${excerpt.slice(0, 150).join('').trimEnd()}...` : excerpt.join('')} Shared with permission by a Luvia Creations customer.`;
+    const excerpt = getBoundedMetaDescription(entry.quote, 95);
+    const description = `${excerpt} Shared with permission by a Luvia Creations customer.`;
     const taggedProducts = products.filter(item => entry.product_ids.includes(item.id));
     const image = entry.has_image && entry.image_url ? entry.image_url : null;
-    pages.set(pathname, page(pathname, title, description,
+    const taggedImage = taggedProducts.find(product => product.image)?.image;
+    pages.set(pathname, page(pathname, title, getBoundedMetaDescription(description),
       `<nav aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/customer-love/">Customer Love</a> › <span aria-current="page">${escapeHtml(entry.display_name)}</span></nav>
       <figure class="card" style="max-width:640px">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(entry.image_alt)}" width="480" height="480" style="width:100%;height:auto;border-radius:12px">` : ''}
         <blockquote style="white-space:pre-line">${escapeHtml(entry.quote)}</blockquote><figcaption>${escapeHtml(entry.display_name)}</figcaption></figure>
@@ -372,7 +375,7 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
           { name: 'Customer Love', item: `${ORIGIN}/customer-love/` },
           { name: entry.display_name, item: `${ORIGIN}${pathname}` },
         ].map((item, index) => ({ '@type': 'ListItem', position: index + 1, ...item })) } },
-      image ?? undefined));
+      image ?? (taggedImage ? new URL(getProductImageUrl(taggedImage, 1080), ORIGIN).href : undefined)));
   }
   const instagramPath = '/from-instagram/';
   const instagramTitle = instagramPageTitle;

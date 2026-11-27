@@ -33,6 +33,7 @@ import CustomerLove from './CustomerLove';
 import type { Testimonial } from '../services/customerLove';
 import { readTestimonialSlug } from '../utils/testimonialLink';
 import { getBoundedMetaTitle } from '../utils/productMetaTitle.js';
+import { getBoundedMetaDescription } from '../utils/metaDescription.js';
 import { getProductImageUrl } from '../utils/productImageUrl';
 import { getCategoryImage } from '../utils/categoryImage.js';
 import BudgetGiftGuide from './BudgetGiftGuide';
@@ -204,8 +205,17 @@ export default function StorePages({
       if (!robots.isConnected) document.head.append(robots);
     }
     if (productCollection || policy || isBulkOrders || isInternationalQuote || isAbout || isArtisans || isCustomerLove || isGiftGuide || isInstagramPage || article) {
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = productCollection?.description ?? policy?.description ?? (article?.description ?? (isGiftGuide ? storeContent.giftGuide.description : isInstagramPage ? instagramPageDescription : isCustomerLove ? 'Customer stories and handmade moments, shared with permission by Luvia Creations customers.' : isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description));
+      const metaDescription = productCollection?.metaDescription ?? policy?.description ?? (article?.description ?? (isGiftGuide ? storeContent.giftGuide.description : isInstagramPage ? instagramPageDescription : isCustomerLove ? 'Customer stories and handmade moments, shared with permission by Luvia Creations customers.' : isInternationalQuote ? internationalQuote.description : isArtisans ? artisanOnboarding.description : isAbout ? storeContent.brandStory.description : bulkOrders.description));
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = isBulkOrders ? getBoundedMetaDescription(metaDescription) : metaDescription;
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
+    }
+    if (productCollection) {
+      const image = curatedProducts.find(product => product.image)?.image;
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:image"], meta[name="twitter:image"]')) {
+        if (!meta.content.startsWith(`${window.location.origin}${requestedPath}og-`)) {
+          meta.content = image ? new URL(getProductImageUrl(image, 1080), window.location.origin).href : `${window.location.origin}/images/luvia-logo.jpg`;
+        }
+      }
     }
     if (isCollection) {
       const summary = description || 'This collection is no longer available. Explore the current Luvia collections.';
@@ -214,7 +224,7 @@ export default function StorePages({
           meta.content = collectionShareImageUrl || `${window.location.origin}/images/luvia-logo.jpg`;
         }
       }
-      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = summary;
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]')) meta.content = getBoundedMetaDescription(summary);
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]')) meta.content = document.title;
       const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement('meta');
       robots.name = 'robots';
@@ -614,7 +624,7 @@ export default function StorePages({
       </> : isCustomerLove || isStory ? showCatalogue && visibleCategories.length > 0 && <section className="space-y-3">
         <h2 className="font-heading text-xl font-bold">Explore collections</h2>
         <CollectionGrid categories={visibleCategories} products={products} />
-      </section> : <><p>Find your favourites by collection, then open a product for photos and details.</p>
+      </section> : <><p>Discover handmade crochet gifts, accessories, toys and decor by collection. Open a product to see its photos, options and current availability.</p>
         <a href="/#products" className="inline-block rounded-full bg-cocoa px-5 py-3 font-semibold text-cream">Shop all products</a>
         {showCatalogue && <CollectionGrid categories={visibleCategories} products={products} />}
         {showCatalogue && visibleCategories.length === 0 && <p>No collections are available yet.</p>}</>}

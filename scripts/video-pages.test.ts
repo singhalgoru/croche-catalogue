@@ -49,6 +49,7 @@ it('renders a self-canonical watch page with a prominent native player and match
   expect(video.hasAttribute('autoplay')).toBe(false);
   expect(doc.querySelector('script[type="module"]')).toBeNull();
   expect(doc.querySelector('a[href="/p/rose/"]')).not.toBeNull();
+  expect(doc.querySelector('main section p')?.textContent).toBe('Handmade rose.');
   const schema = JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!);
   expect(schema.mainEntity).toEqual(videoSchema(product));
   expect(schema.mainEntity.uploadDate).toBe('2026-10-22T17:26:25.000Z');

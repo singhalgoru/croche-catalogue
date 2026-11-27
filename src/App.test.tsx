@@ -193,6 +193,7 @@ describe('Hybrid product navigation', () => {
     expect(within(footer).getByRole('link', { name: 'Contact on Instagram' })).toBeTruthy();
     expect(screen.queryByLabelText('Filtered products')).toBeNull();
     expect(screen.getByRole('link', { name: /View Test Coaster/ }).getAttribute('href')).toContain('/p/test-coaster/');
+    expect(screen.getByRole('heading', { name: 'About Test Coaster', level: 2 })).toBeTruthy();
     expect(document.querySelector('main video')?.getAttribute('preload')).toBe('none');
     expect(window.location.pathname).toBe('/watch/test-coaster/');
   });
