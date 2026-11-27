@@ -226,16 +226,7 @@ const productJsonLd = (product, showCategoryLink = true) => {
   const url = productUrl(product);
   const shippingDetails = {
     '@type': 'OfferShippingDetails',
-    shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
-    deliveryTime: {
-      '@type': 'ShippingDeliveryTime',
-      handlingTime: {
-        '@type': 'QuantitativeValue',
-        minValue: 0,
-        maxValue: 5,
-        unitCode: 'DAY',
-      },
-    },
+    hasShippingService: { '@id': `${ORIGIN}/#india-shipping` },
   };
   const data = {
     '@context': 'https://schema.org',
@@ -270,8 +261,10 @@ const productJsonLd = (product, showCategoryLink = true) => {
             price: String(range.low),
             priceCurrency: 'INR',
             availability: availability(product),
+            itemCondition: 'https://schema.org/NewCondition',
             url,
             seller: { '@id': `${ORIGIN}/#store` },
+            hasMerchantReturnPolicy: { '@id': `${ORIGIN}/#return-policy` },
             shippingDetails,
           }
         : {
@@ -281,8 +274,10 @@ const productJsonLd = (product, showCategoryLink = true) => {
             offerCount: String(product.variants.length),
             priceCurrency: 'INR',
             availability: availability(product),
+            itemCondition: 'https://schema.org/NewCondition',
             url,
             seller: { '@id': `${ORIGIN}/#store` },
+            hasMerchantReturnPolicy: { '@id': `${ORIGIN}/#return-policy` },
             shippingDetails,
           };
   }

@@ -7,6 +7,23 @@
 User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
+
+# CCBot remains allowed apart from the same parameter URLs as other crawlers.
+User-agent: CCBot
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 # Search and user-requested retrieval remain enabled. The training-specific
 # agents below use standard opt-out directives in addition to Content Signals.
@@ -17,10 +34,22 @@ Disallow: /
 User-agent: OAI-SearchBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 User-agent: ChatGPT-User
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 User-agent: ClaudeBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
@@ -29,18 +58,42 @@ Disallow: /
 User-agent: Claude-SearchBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 User-agent: Claude-User
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 User-agent: PerplexityBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 User-agent: Perplexity-User
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 User-agent: Google-Extended
 Content-Signal: search=yes, ai-input=yes, ai-train=no
@@ -53,5 +106,11 @@ Disallow: /
 User-agent: Bingbot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
+Disallow: /*?checkout=
+Disallow: /*?*&checkout=
+Disallow: /*?account=
+Disallow: /*?*&account=
+Disallow: /*?watch=
+Disallow: /*?*&watch=
 
 Sitemap: https://luviacreations.com/sitemap.xml

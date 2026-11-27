@@ -73,7 +73,24 @@
             },
             "hasMerchantReturnPolicy": {
               "@type": "MerchantReturnPolicy",
+              "@id": "https://luviacreations.com/#return-policy",
               "merchantReturnLink": "https://luviacreations.com/return-policy/"
+            },
+            "hasShippingService": {
+              "@type": "ShippingService",
+              "@id": "https://luviacreations.com/#india-shipping",
+              "name": "India online checkout shipping",
+              "description": "Free shipping when the items subtotal after coupon discounts is at least ₹500. Below ₹500, shipping depends on the current courier estimate or the checkout fallback.",
+              "handlingTime": {
+                "@type": "ServicePeriod",
+                "duration": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 5, "unitCode": "DAY" }
+              },
+              "shippingConditions": {
+                "@type": "ShippingConditions",
+                "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "IN" },
+                "orderValue": { "@type": "MonetaryAmount", "currency": "INR", "minValue": 500 },
+                "shippingRate": { "@type": "MonetaryAmount", "currency": "INR", "value": 0 }
+              }
             },
             "address": {
               "@type": "PostalAddress",

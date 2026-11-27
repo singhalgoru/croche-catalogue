@@ -13,9 +13,13 @@ it('declares Content Signals in every robots.txt user-agent group', () => {
     const group = groups.find(value => value.startsWith(`User-agent: ${agent}\n`));
     expect(group).toMatch(/^Disallow: \/$/m);
   }
-  for (const agent of ['*', 'OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'Claude-User', 'Bingbot']) {
+  for (const agent of ['*', 'CCBot', 'OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot', 'Perplexity-User', 'Bingbot']) {
     const group = groups.find(value => value.startsWith(`User-agent: ${agent}\n`));
     expect(group).toMatch(/^Allow: \/$/m);
+    for (const parameter of ['checkout', 'account', 'watch']) {
+      expect(group).toContain(`Disallow: /*?${parameter}=`);
+      expect(group).toContain(`Disallow: /*?*&${parameter}=`);
+    }
   }
   expect(robots).toContain('Sitemap: https://luviacreations.com/sitemap.xml');
 });

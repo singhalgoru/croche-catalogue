@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { FREE_SHIPPING_THRESHOLD } from '../src/utils/cartMessage';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -493,7 +494,17 @@ describe('injectShell', () => {
       expect.objectContaining({ email: 'orders@luviacreations.com' }),
     ]));
     expect(store.hasMerchantReturnPolicy).toEqual({
-      '@type': 'MerchantReturnPolicy', merchantReturnLink: 'https://luviacreations.com/return-policy/',
+      '@type': 'MerchantReturnPolicy', '@id': 'https://luviacreations.com/#return-policy',
+      merchantReturnLink: 'https://luviacreations.com/return-policy/',
+    });
+    expect(store.hasShippingService).toMatchObject({
+      '@id': 'https://luviacreations.com/#india-shipping',
+      handlingTime: { duration: { minValue: 0, maxValue: 5, unitCode: 'DAY' } },
+      shippingConditions: {
+        shippingDestination: { addressCountry: 'IN' },
+        orderValue: { minValue: FREE_SHIPPING_THRESHOLD, currency: 'INR' },
+        shippingRate: { value: 0, currency: 'INR' },
+      },
     });
   });
 
@@ -703,11 +714,27 @@ describe('renderProductPage', () => {
     expect(html).toContain('Toy suitability');
     expect(html).toContain('Do not assume a handmade crochet toy is suitable for babies or young children.');
     expect(productSchema.material).toBe(toy.materials);
-    expect(productSchema.offers.shippingDetails.deliveryTime.handlingTime.maxValue).toBe(5);
-    expect(productSchema.offers.hasMerchantReturnPolicy).toBeUndefined();
+    expect(productSchema.offers.hasMerchantReturnPolicy).toEqual({ '@id': 'https://luviacreations.com/#return-policy' });
+    expect(productSchema.offers.shippingDetails.hasShippingService).toEqual({ '@id': 'https://luviacreations.com/#india-shipping' });
+    expect(productSchema.offers.itemCondition).toBe('https://schema.org/NewCondition');
     const unspecifiedMaterials = renderProductPage({ ...product, materials: undefined }, '91');
     const unspecifiedSchema = JSON.parse(unspecifiedMaterials.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
     expect(unspecifiedSchema['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product').material).toBeUndefined();
+  });
+
+  it('references the same store policies for single-price and range offers', () => {
+    for (const candidate of [{ ...product, variants: [] }, product]) {
+      const html = renderProductPage(candidate, '91');
+      const data = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+      const offer = data['@graph'].find((item: { '@type': string }) => item['@type'] === 'Product').offers;
+      expect(offer['@type']).toBe(candidate.variants.length ? 'AggregateOffer' : 'Offer');
+      expect(offer.itemCondition).toBe('https://schema.org/NewCondition');
+      expect(offer.hasMerchantReturnPolicy).toEqual({ '@id': 'https://luviacreations.com/#return-policy' });
+      expect(offer.shippingDetails).toEqual({
+        '@type': 'OfferShippingDetails',
+        hasShippingService: { '@id': 'https://luviacreations.com/#india-shipping' },
+      });
+    }
   });
 
   it('keeps sold-out wording consistent with structured availability', () => {
