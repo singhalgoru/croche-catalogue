@@ -468,6 +468,7 @@ export default function StorePages({
         </>}
       </> : productCollection ? <>
         <p className="max-w-3xl">{productCollection.description}</p>
+        <p className="max-w-3xl">{productCollection.intro}</p>
         {requestedPath === '/bestsellers/' && bestsellers.error && <CatalogueNotice message={bestsellers.error} onRetry={bestsellers.retry} />}
         {requestedPath === '/bestsellers/' && bestsellers.isLoading && <p role="status">Checking the latest bestsellers…</p>}
         {showCatalogue && curatedProducts.length === 0 && !loadError &&

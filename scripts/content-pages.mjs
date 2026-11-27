@@ -193,11 +193,11 @@ export const buildContentPages = (products, whatsappNumber, categories = [], bes
     }
   }
   for (const collection of productCollections) {
-    const { path: pathname, title, description, metaDescription, empty } = collection;
+    const { path: pathname, title, description, intro, metaDescription, empty } = collection;
     const items = pathname === '/bestsellers/' ? getBestsellerProducts(products, bestsellerIds) : getFeaturedProducts(products);
     const socialProduct = items.find(product => product.image);
     pages.set(pathname, page(pathname, title, metaDescription,
-      `<p class="intro">${escapeHtml(description)}</p>${items.length ? `<ul class="grid">${productCards(items)}</ul>` : `<p>${escapeHtml(empty)}</p>`}
+      `<p class="intro">${escapeHtml(description)}</p><p class="intro">${escapeHtml(intro)}</p>${items.length ? `<ul class="grid">${productCards(items)}</ul>` : `<p>${escapeHtml(empty)}</p>`}
       <p class="note">Prices and availability are a catalogue snapshot. Open a product for current details.</p>${collectionsNavigation}`,
       { ...baseSchema('CollectionPage', pathname, title, description),
         breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
