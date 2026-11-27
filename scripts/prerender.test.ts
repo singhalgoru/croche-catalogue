@@ -32,6 +32,7 @@ import {
 import { getProductImageUrl } from '../src/utils/productImageUrl';
 import { toProductReference } from '../src/utils/productLink';
 import { getProductMetaDescription } from '../src/utils/productMetaDescription';
+import storeContent from '../src/content/storeContent.json';
 
 const row = {
   id: 'AAAA1111-2222-3333-4444-555566667777',
@@ -482,6 +483,17 @@ describe('injectShell', () => {
     expect(head).toContain('<link rel="alternate" type="application/rss+xml" title="Product feed" href="/merchant-feed.xml" />');
   });
 
+  it('publishes the known location and customer contact points in homepage schema', () => {
+    const result = injectShell(readFileSync(path.resolve('index.html'), 'utf8'), [product], '911234567890');
+    const schema = JSON.parse(result.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+    const store = schema['@graph'].find((item: { '@type': string }) => item['@type'] === 'OnlineStore');
+    expect(store.address).toMatchObject({ addressLocality: 'Gurugram', addressRegion: 'Haryana', addressCountry: 'IN' });
+    expect(store.contactPoint).toEqual(expect.arrayContaining([
+      expect.objectContaining({ email: 'hello@luviacreations.com', telephone: '+91 12345 67890' }),
+      expect.objectContaining({ email: 'orders@luviacreations.com' }),
+    ]));
+  });
+
   it('bootstraps the premium homepage title for hydrated metadata', async () => {
     const source = readFileSync(path.resolve('index.html'), 'utf8');
     const result = injectCatalogueBootstrap(source, [], [], {
@@ -495,6 +507,20 @@ describe('injectShell', () => {
 
 describe('renderLlms', () => {
   const template = readFileSync(path.resolve('public', 'llms.txt'), 'utf8');
+
+  it('uses the current India shipping and dispatch terms in both fallback and generated guidance', () => {
+    expect(template).toContain(storeContent.shipping);
+    expect(template).toContain(storeContent.dispatch);
+    const outdated = template.replace(/<!--india-ordering-->[\s\S]*?<!--\/india-ordering-->/, '<!--india-ordering-->old terms<!--/india-ordering-->');
+    const text = renderLlms(outdated, [product]);
+    expect(text).toContain(storeContent.shipping);
+    expect(text).toContain(storeContent.dispatch);
+    expect(text).not.toContain('old terms');
+    expect(text).toContain('https://luviacreations.com/faq/#product-imagery');
+    expect(text).toContain('https://luviacreations.com/merchant-feed.xml');
+    expect(() => renderLlms(template.replace(/<!--india-ordering-->[\s\S]*?<!--\/india-ordering-->/, ''), []))
+      .toThrow('india-ordering');
+  });
 
   it('updates making-video discovery as videos are published or removed', () => {
     const withVideo = { ...product, makingVideo: { title: 'Making this product' } };
@@ -564,7 +590,7 @@ describe('renderLlms', () => {
   it('does not expose hidden prices or retain removed products and categories', () => {
     const text = renderLlms(template, [{ ...product, price: null, inStock: false }]);
     expect(text).toContain('Price on request. Out of stock.');
-    expect(text).not.toContain('₹');
+    expect(text.split('\n').find(line => line.startsWith('- [Ivory Rose Gajra]'))).not.toContain('₹');
     expect(renderLlms(template, [])).not.toContain('Ivory Rose Gajra');
     expect(renderLlms(template, [])).not.toContain('## Hair Accessories');
   });

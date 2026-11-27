@@ -362,6 +362,8 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
   customerLove = { testimonials: [], lastmod: null }) => {
   const marker = /<!--catalogue-->[\s\S]*?<!--\/catalogue-->/;
   if (!marker.test(template)) throw new Error('llms.txt is missing the <!--catalogue--> markers');
+  const orderingMarker = /<!--india-ordering-->[\s\S]*?<!--\/india-ordering-->/;
+  if (!orderingMarker.test(template)) throw new Error('llms.txt is missing the <!--india-ordering--> markers');
   // Seasonal collections hold products by membership, not by product.category.
   const seasonal = categorySettings
     .filter(category => category.isSeasonal && category.visible !== false)
@@ -412,6 +414,7 @@ const renderLlms = (template, products, whatsappNumber = FALLBACK_WHATSAPP_NUMBE
     }),
   ].join('\n') : `Customer stories shared with permission will appear on [Customer Love](${ORIGIN}/customer-love/).`;
   return template
+    .replace(orderingMarker, () => `${storeContent.shipping}\n\n${storeContent.dispatch}`)
     .replace(pagesMarker, () => links)
     .replace(storiesMarker, () => storyListing)
     .replace(marker, () => listing)

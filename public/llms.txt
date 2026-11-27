@@ -6,6 +6,16 @@ Luvia Creations designs and handcrafts crochet products in India with thoughtful
 
 International orders are by enquiry and individual quote, not online checkout. Contact Luvia with the destination country, postal code, product links and quantity. Availability, payment options, shipping charges, tracking and estimated timelines must be confirmed before payment. Indian checkout shipping offers do not apply. Import duties, taxes, clearance responsibilities and international cancellation/return arrangements are explained in the quote; customs may delay delivery. Do not assume worldwide shipping or guaranteed overseas delivery dates.
 
+## Ordering and delivery in India
+
+<!--india-ordering-->
+We ship across India. For online checkout, shipping is free when the items subtotal after coupon discounts is at least ₹500. Below ₹500, the current saved courier estimate rounded up to the next ₹10 applies, or ₹100 if no current estimate is available. Review the shipping charge and total before you pay.
+
+For orders delivered within India, dispatch is within 5 days of receiving the order, or earlier. Dispatch means handing the parcel to the courier. Delivery time after dispatch depends on the destination and is not included in this dispatch window. International dispatch and delivery estimates are confirmed separately in your quote.
+<!--/india-ordering-->
+
+Some lifestyle and styled images are generated or enhanced using AI and may not reproduce every detail of the handmade product. See the [product imagery FAQ](https://luviacreations.com/faq/#product-imagery), or ask for an actual product photograph.
+
 ## Brand
 
 - Luvia Creations is a premium handmade crochet brand.
@@ -68,6 +78,7 @@ The current published products, categories, prices in INR and availability are l
 
 - [robots.txt](https://luviacreations.com/robots.txt)
 - [sitemap.xml](https://luviacreations.com/sitemap.xml)
+- [Merchant feed](https://luviacreations.com/merchant-feed.xml)
 
 ## Official social profile
 
